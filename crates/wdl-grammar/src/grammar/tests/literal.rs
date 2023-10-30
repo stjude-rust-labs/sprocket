@@ -11,7 +11,14 @@ fn it_fails_to_parse_an_empty_literal() {
         parser: WdlParser,
         input: "",
         rule: Rule::literal,
-        positives: vec![Rule::literal],
+        positives: vec![
+            Rule::none,
+            Rule::boolean,
+            Rule::integer,
+            Rule::float,
+            Rule::string,
+            Rule::identifier,
+        ],
         negatives: vec![],
         pos: 0
     }
@@ -23,7 +30,7 @@ fn it_successfully_parses_false() {
         parser: WdlParser,
         input: "false",
         rule: Rule::literal,
-        tokens: [literal(0, 5, [boolean(0, 5)])]
+        tokens: [boolean(0, 5)]
     }
 }
 
@@ -33,7 +40,7 @@ fn it_successfully_parses_true() {
         parser: WdlParser,
         input: "true",
         rule: Rule::literal,
-        tokens: [literal(0, 4, [boolean(0, 4)])]
+        tokens: [boolean(0, 4)]
     }
 }
 
@@ -44,10 +51,8 @@ fn it_successfully_parses_integer_decimal() {
         input: "1000",
         rule: Rule::literal,
         tokens: [
-            literal(0, 4, [
-                integer(0, 4, [
-                    integer_decimal(0, 4)
-                ])
+            integer(0, 4, [
+                integer_decimal(0, 4)
             ])
         ]
     }
@@ -59,11 +64,11 @@ fn it_successfully_parses_integer_hex() {
         parser: WdlParser,
         input: "0xFF",
         rule: Rule::literal,
-        tokens: [literal(0, 4, [
+        tokens: [
             integer(0, 4, [
                 integer_hex(0, 4)
-            ])]
-        )]
+            ])
+        ]
     }
 }
 
@@ -73,11 +78,11 @@ fn it_successfully_parses_integer_octal() {
         parser: WdlParser,
         input: "077",
         rule: Rule::literal,
-        tokens: [literal(0, 3, [
+        tokens: [
             integer(0, 3, [
                 integer_octal(0, 3)
             ])
-        ])]
+        ]
     }
 }
 
@@ -87,11 +92,11 @@ fn it_successfully_parses_float_with_decimal() {
         parser: WdlParser,
         input: "1000.0e10",
         rule: Rule::literal,
-        tokens: [literal(0, 9, [
+        tokens: [
             float(0, 9, [
                 float_with_decimal(0, 9)
             ])
-        ])]
+        ]
     }
 }
 
@@ -101,11 +106,11 @@ fn it_successfully_parses_float_without_decimal() {
         parser: WdlParser,
         input: "1000.e10",
         rule: Rule::literal,
-        tokens: [literal(0, 8, [
+        tokens: [
             float(0, 8, [
                 float_without_decimal(0, 8)
             ])
-        ])]
+        ]
     }
 }
 
@@ -115,11 +120,11 @@ fn it_successfully_parses_float_simple() {
         parser: WdlParser,
         input: "10e+10",
         rule: Rule::literal,
-        tokens: [literal(0, 6, [
+        tokens: [
             float(0, 6, [
                 float_simple(0, 6)
             ])
-        ])]
+        ]
     }
 }
 
@@ -129,7 +134,7 @@ fn it_successfully_parses_an_empty_double_quoted_string() {
         parser: WdlParser,
         input: "\"\"",
         rule: Rule::literal,
-        tokens: [literal(0, 2, [string(0, 2, [double_quoted_string(0, 2)])])]
+        tokens: [string(0, 2, [double_quoted_string(0, 2)])]
     }
 }
 
@@ -139,7 +144,7 @@ fn it_successfully_parses_an_empty_single_quoted_string() {
         parser: WdlParser,
         input: "''",
         rule: Rule::literal,
-        tokens: [literal(0, 2, [string(0, 2, [single_quoted_string(0, 2)])])]
+        tokens: [string(0, 2, [single_quoted_string(0, 2)])]
     }
 }
 
@@ -149,7 +154,7 @@ fn it_successfully_parses_a_double_quoted_string_with_a_unicode_character() {
         parser: WdlParser,
         input: "\"😀\"",
         rule: Rule::literal,
-        tokens: [literal(0, 6, [string(0, 6, [double_quoted_string(0, 6)])])]
+        tokens: [string(0, 6, [double_quoted_string(0, 6)])]
     }
 }
 
@@ -159,7 +164,7 @@ fn it_successfully_parses_a_single_quoted_string_with_a_unicode_character() {
         parser: WdlParser,
         input: "'😀'",
         rule: Rule::literal,
-        tokens: [literal(0, 6, [string(0, 6, [single_quoted_string(0, 6)])])]
+        tokens: [string(0, 6, [single_quoted_string(0, 6)])]
     }
 }
 
@@ -169,7 +174,7 @@ fn it_successfully_parses_a_double_quoted_string() {
         parser: WdlParser,
         input: "\"Hello, world!\"",
         rule: Rule::literal,
-        tokens: [literal(0, 15, [string(0, 15, [double_quoted_string(0, 15)])])]
+        tokens: [string(0, 15, [double_quoted_string(0, 15)])]
     }
 }
 
@@ -179,7 +184,7 @@ fn it_successfully_parses_a_single_quoted_string() {
         parser: WdlParser,
         input: "'Hello, world!'",
         rule: Rule::literal,
-        tokens: [literal(0, 15, [string(0, 15, [single_quoted_string(0, 15)])])]
+        tokens: [string(0, 15, [single_quoted_string(0, 15)])]
     }
 }
 
@@ -189,7 +194,7 @@ fn it_successfully_parses_none() {
         parser: WdlParser,
         input: "None",
         rule: Rule::literal,
-        tokens: [literal(0, 4, [none(0, 4)])]
+        tokens: [none(0, 4)]
     }
 }
 
@@ -199,13 +204,13 @@ fn it_successfully_parses_an_identifier() {
         parser: WdlParser,
         input: "hello_world",
         rule: Rule::literal,
-        tokens: [literal(0, 11, [identifier(0, 11)])]
+        tokens: [identifier(0, 11)]
     }
 
     parses_to! {
         parser: WdlParser,
         input: "HelloWorld",
         rule: Rule::literal,
-        tokens: [literal(0, 10, [identifier(0, 10)])]
+        tokens: [identifier(0, 10)]
     }
 }

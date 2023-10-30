@@ -87,20 +87,17 @@ fn inner() -> Result<()> {
 
 fn print_create_test_recursive(pair: Pair<'_, wdl::Rule>, indent: usize) {
     let span = pair.as_span();
-    let lines = pair
+    let comment = pair
         .as_str()
         .lines()
-        .filter(|s| s.is_empty())
-        .collect::<Vec<_>>();
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
 
-    if lines.len() == 1 {
-        println!(
-            "{}// `{}`",
-            " ".repeat(indent),
-            lines.into_iter().next().unwrap()
-        )
+    if !comment.is_empty() {
+        println!("{}// `{}`", " ".repeat(indent), comment);
     }
-
     print!(
         "{}{:?}({}, {}",
         " ".repeat(indent),
@@ -152,6 +149,10 @@ fn map_rule(rule: &str) -> Option<wdl::Rule> {
         "command_heredoc_interpolated_contents" => {
             Some(wdl::Rule::command_heredoc_interpolated_contents)
         }
+        "workflow_scatter" => Some(wdl::Rule::workflow_scatter),
+        "workflow_call" => Some(wdl::Rule::workflow_call),
+        "workflow_conditional" => Some(wdl::Rule::workflow_conditional),
+        "postfix" => Some(wdl::Rule::postfix),
         _ => todo!("must implement mapping for rule: {rule}"),
     }
 }

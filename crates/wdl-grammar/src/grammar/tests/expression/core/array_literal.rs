@@ -35,50 +35,42 @@ fn it_successfully_parses_an_array_literal() {
         parser: WdlParser,
         input: "[if a then b else c,\"Hello, world!\"] ",
         rule: Rule::array_literal,
-        tokens: [
-            array_literal(0, 36, [
-                expression(1, 19, [
-                    core(1, 19, [
-                        r#if(1, 19, [
-                            WHITESPACE(3, 4, [INDENT(3, 4, [SPACE(3, 4)])]),
-                            expression(4, 5, [
-                                core(4, 5, [
-                                    literal(4, 5, [
-                                        identifier(4, 5)
-                                    ])
-                                ])
-                            ]),
-                            WHITESPACE(5, 6, [INDENT(5, 6, [SPACE(5, 6)])]),
-                            WHITESPACE(10, 11, [INDENT(10, 11, [SPACE(10, 11)])]),
-                            expression(11, 12, [
-                                core(11, 12, [
-                                    literal(11, 12, [
-                                        identifier(11, 12)
-                                    ])
-                                ])
-                            ]),
-                            WHITESPACE(12, 13, [INDENT(12, 13, [SPACE(12, 13)])]),
-                            WHITESPACE(17, 18, [INDENT(17, 18, [SPACE(17, 18)])]),
-                            expression(18, 19, [
-                                core(18, 19, [
-                                    literal(18, 19, [
-                                        identifier(18, 19)
-                                    ])
-                                ])
-                            ])
-                        ])
-                    ])
+        tokens: [array_literal(0, 36, [
+            expression(1, 19, [
+            r#if(1, 19, [
+                WHITESPACE(3, 4, [
+                  SPACE(3, 4),
                 ]),
-                expression(20, 35, [
-                    core(20, 35, [
-                        literal(20, 35, [
-                            string(20, 35, [
-                                double_quoted_string(20, 35)
-                            ])
-                        ])
-                    ])
-                ])
-            ])
+                expression(4, 5, [
+                  identifier(4, 5),
+                ]),
+                WHITESPACE(5, 6, [
+                  SPACE(5, 6),
+                ]),
+                WHITESPACE(10, 11, [
+                  SPACE(10, 11),
+                ]),
+                expression(11, 12, [
+                  identifier(11, 12),
+                ]),
+                WHITESPACE(12, 13, [
+                  SPACE(12, 13),
+                ]),
+                WHITESPACE(17, 18, [
+                  SPACE(17, 18),
+                ]),
+                expression(18, 19, [
+                  identifier(18, 19),
+                ]),
+              ]),
+            ]),
+            COMMA(19, 20),
+            expression(20, 35, [
+              string(20, 35, [
+                double_quoted_string(20, 35),
+              ]),
+            ]),
+          ])
         ]
     }
 }
@@ -89,51 +81,45 @@ fn it_successfully_parses_an_array_literal_without_the_trailing_space() {
         parser: WdlParser,
         input: "[if a then b else c, \"Hello, world!\"] ",
         rule: Rule::array_literal,
-        tokens: [
-            array_literal(0, 37, [
-                expression(1, 19, [
-                    core(1, 19, [
-                        r#if(1, 19, [
-                            WHITESPACE(3, 4, [INDENT(3, 4, [SPACE(3, 4)])]),
-                            expression(4, 5, [
-                                core(4, 5, [
-                                    literal(4, 5, [
-                                        identifier(4, 5)
-                                    ])
-                                ])
-                            ]),
-                            WHITESPACE(5, 6, [INDENT(5, 6, [SPACE(5, 6)])]),
-                            WHITESPACE(10, 11, [INDENT(10, 11, [SPACE(10, 11)])]),
-                            expression(11, 12, [
-                                core(11, 12, [
-                                    literal(11, 12, [
-                                        identifier(11, 12)
-                                    ])
-                                ])
-                            ]),
-                            WHITESPACE(12, 13, [INDENT(12, 13, [SPACE(12, 13)])]),
-                            WHITESPACE(17, 18, [INDENT(17, 18, [SPACE(17, 18)])]),
-                            expression(18, 19, [
-                                core(18, 19, [
-                                    literal(18, 19, [
-                                        identifier(18, 19)
-                                    ])
-                                ])
-                            ])
-                        ])
-                    ])
+        tokens: [array_literal(0, 37, [
+            expression(1, 19, [
+              r#if(1, 19, [
+                WHITESPACE(3, 4, [
+                  SPACE(3, 4),
                 ]),
-                WHITESPACE(20, 21, [INDENT(20, 21, [SPACE(20, 21)])]),
-                expression(21, 36, [
-                    core(21, 36, [
-                        literal(21, 36, [
-                            string(21, 36, [
-                                double_quoted_string(21, 36)
-                            ])
-                        ])
-                    ])
-                ])
-            ])
+                expression(4, 5, [
+                  identifier(4, 5),
+                ]),
+                WHITESPACE(5, 6, [
+                  SPACE(5, 6),
+                ]),
+                WHITESPACE(10, 11, [
+                  SPACE(10, 11),
+                ]),
+                expression(11, 12, [
+                  identifier(11, 12),
+                ]),
+                WHITESPACE(12, 13, [
+                  SPACE(12, 13),
+                ]),
+                WHITESPACE(17, 18, [
+                  SPACE(17, 18),
+                ]),
+                expression(18, 19, [
+                  identifier(18, 19),
+                ]),
+              ]),
+            ]),
+            COMMA(19, 20),
+            WHITESPACE(20, 21, [
+              SPACE(20, 21),
+            ]),
+            expression(21, 36, [
+              string(21, 36, [
+                double_quoted_string(21, 36),
+              ]),
+            ]),
+          ])
         ]
     }
 }
@@ -144,51 +130,45 @@ fn it_successfully_parses_an_array_literal_with_spaces_inside() {
         parser: WdlParser,
         input: "[if a then b else c, \"Hello, world!\"]",
         rule: Rule::array_literal,
-        tokens: [
-            array_literal(0, 37, [
-                expression(1, 19, [
-                    core(1, 19, [
-                        r#if(1, 19, [
-                            WHITESPACE(3, 4, [INDENT(3, 4, [SPACE(3, 4)])]),
-                            expression(4, 5, [
-                                core(4, 5, [
-                                    literal(4, 5, [
-                                        identifier(4, 5)
-                                    ])
-                                ])
-                            ]),
-                            WHITESPACE(5, 6, [INDENT(5, 6, [SPACE(5, 6)])]),
-                            WHITESPACE(10, 11, [INDENT(10, 11, [SPACE(10, 11)])]),
-                            expression(11, 12, [
-                                core(11, 12, [
-                                    literal(11, 12, [
-                                        identifier(11, 12)
-                                    ])
-                                ])
-                            ]),
-                            WHITESPACE(12, 13, [INDENT(12, 13, [SPACE(12, 13)])]),
-                            WHITESPACE(17, 18, [INDENT(17, 18, [SPACE(17, 18)])]),
-                            expression(18, 19, [
-                                core(18, 19, [
-                                    literal(18, 19, [
-                                        identifier(18, 19)
-                                    ])
-                                ])
-                            ])
-                        ])
-                    ])
+        tokens: [array_literal(0, 37, [
+            expression(1, 19, [
+              r#if(1, 19, [
+                WHITESPACE(3, 4, [
+                  SPACE(3, 4),
                 ]),
-                WHITESPACE(20, 21, [INDENT(20, 21, [SPACE(20, 21)])]),
-                expression(21, 36, [
-                    core(21, 36, [
-                        literal(21, 36, [
-                            string(21, 36, [
-                                double_quoted_string(21, 36)
-                            ])
-                        ])
-                    ])
-                ])
-            ])
+                expression(4, 5, [
+                  identifier(4, 5),
+                ]),
+                WHITESPACE(5, 6, [
+                  SPACE(5, 6),
+                ]),
+                WHITESPACE(10, 11, [
+                  SPACE(10, 11),
+                ]),
+                expression(11, 12, [
+                  identifier(11, 12),
+                ]),
+                WHITESPACE(12, 13, [
+                  SPACE(12, 13),
+                ]),
+                WHITESPACE(17, 18, [
+                  SPACE(17, 18),
+                ]),
+                expression(18, 19, [
+                  identifier(18, 19),
+                ]),
+              ]),
+            ]),
+            COMMA(19, 20),
+            WHITESPACE(20, 21, [
+              SPACE(20, 21),
+            ]),
+            expression(21, 36, [
+              string(21, 36, [
+                double_quoted_string(21, 36),
+              ]),
+            ]),
+          ])
         ]
     }
 }

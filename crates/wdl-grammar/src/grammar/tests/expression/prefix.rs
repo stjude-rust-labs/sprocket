@@ -13,7 +13,7 @@ fn it_successfully_parses_negation() {
         parser: WdlParser,
         input: "!",
         rule: Rule::prefix,
-        tokens: [prefix(0, 1, [negation(0, 1)])]
+        tokens: [negation(0, 1)]
     }
 }
 
@@ -23,7 +23,7 @@ fn it_successfully_parses_positive_unary() {
         parser: WdlParser,
         input: "+",
         rule: Rule::prefix,
-        tokens: [prefix(0, 1, [unary_signed(0, 1)])]
+        tokens: [unary_signed(0, 1)]
     }
 }
 
@@ -33,6 +33,6 @@ fn it_successfully_parses_negative_unary() {
         parser: WdlParser,
         input: "-",
         rule: Rule::prefix,
-        tokens: [prefix(0, 1, [unary_signed(0, 1)])]
+        tokens: [unary_signed(0, 1)]
     }
 }

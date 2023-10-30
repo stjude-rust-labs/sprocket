@@ -37,35 +37,21 @@ fn it_successfully_parses_an_index() {
         rule: Rule::index,
         tokens: [index(0, 23, [
             expression(1, 22, [
-                core(1, 22, [
-                    r#if(1, 22, [
-                        WHITESPACE(3, 4, [INDENT(3, 4, [SPACE(3, 4)])]),
-                        expression(4, 8, [
-                            core(4, 8, [
-                                literal(4, 8, [
-                                    boolean(4, 8)
-                                ])
-                            ])
-                        ]),
-                        WHITESPACE(8, 9, [INDENT(8, 9, [SPACE(8, 9)])]),
-                        WHITESPACE(13, 14, [INDENT(13, 14, [SPACE(13, 14)])]),
-                        expression(14, 15, [
-                            core(14, 15, [
-                                literal(14, 15, [
-                                    identifier(14, 15)
-                                ])
-                            ])
-                        ]),
-                        WHITESPACE(15, 16, [INDENT(15, 16, [SPACE(15, 16)])]),
-                        WHITESPACE(20, 21, [INDENT(20, 21, [SPACE(20, 21)])]),
-                        expression(21, 22, [
-                            core(21, 22, [
-                                literal(21, 22, [
-                                    identifier(21, 22)
-                                ])
-                            ])
-                        ]),
-                    ])
+                r#if(1, 22, [
+                    WHITESPACE(3, 4, [SPACE(3, 4)]),
+                    expression(4, 8, [
+                        boolean(4, 8)
+                    ]),
+                    WHITESPACE(8, 9, [SPACE(8, 9)]),
+                    WHITESPACE(13, 14, [SPACE(13, 14)]),
+                    expression(14, 15, [
+                        identifier(14, 15)
+                    ]),
+                    WHITESPACE(15, 16, [SPACE(15, 16)]),
+                    WHITESPACE(20, 21, [SPACE(20, 21)]),
+                    expression(21, 22, [
+                        identifier(21, 22)
+                    ]),
                 ])
             ])
         ])]
@@ -80,35 +66,21 @@ fn it_successfully_parses_an_index_without_including_the_trailing_space() {
         rule: Rule::index,
         tokens: [index(0, 23, [
             expression(1, 22, [
-                core(1, 22, [
-                    r#if(1, 22, [
-                        WHITESPACE(3, 4, [INDENT(3, 4, [SPACE(3, 4)])]),
-                        expression(4, 8, [
-                            core(4, 8, [
-                                literal(4, 8, [
-                                    boolean(4, 8)
-                                ])
-                            ])
-                        ]),
-                        WHITESPACE(8, 9, [INDENT(8, 9, [SPACE(8, 9)])]),
-                        WHITESPACE(13, 14, [INDENT(13, 14, [SPACE(13, 14)])]),
-                        expression(14, 15, [
-                            core(14, 15, [
-                                literal(14, 15, [
-                                    identifier(14, 15)
-                                ])
-                            ])
-                        ]),
-                        WHITESPACE(15, 16, [INDENT(15, 16, [SPACE(15, 16)])]),
-                        WHITESPACE(20, 21, [INDENT(20, 21, [SPACE(20, 21)])]),
-                        expression(21, 22, [
-                            core(21, 22, [
-                                literal(21, 22, [
-                                    identifier(21, 22)
-                                ])
-                            ])
-                        ]),
-                    ])
+                r#if(1, 22, [
+                    WHITESPACE(3, 4, [SPACE(3, 4)]),
+                    expression(4, 8, [
+                        boolean(4, 8)
+                    ]),
+                    WHITESPACE(8, 9, [SPACE(8, 9)]),
+                    WHITESPACE(13, 14, [SPACE(13, 14)]),
+                    expression(14, 15, [
+                        identifier(14, 15)
+                    ]),
+                    WHITESPACE(15, 16, [SPACE(15, 16)]),
+                    WHITESPACE(20, 21, [SPACE(20, 21)]),
+                    expression(21, 22, [
+                        identifier(21, 22)
+                    ]),
                 ])
             ])
         ])]

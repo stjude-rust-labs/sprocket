@@ -9,12 +9,12 @@
 // examine the parse tree when writing our linter.
 SPACE = { " " }
 TAB = { "\t" }
-INDENT = { SPACE | TAB }
+INDENT = _{ SPACE | TAB }
 
 NEWLINE = { "\n" }
 CARRIAGE_RETURN_NEWLINE = { "\r\n" }
 CARRIAGE_RETURN = { "\r" }
-LINE_ENDING = { NEWLINE | CARRIAGE_RETURN_NEWLINE | CARRIAGE_RETURN }
+LINE_ENDING = _{ NEWLINE | CARRIAGE_RETURN_NEWLINE | CARRIAGE_RETURN }
 
 WHITESPACE = ${ LINE_ENDING | INDENT }
 
@@ -47,7 +47,7 @@ boolean = { "true" | "false" }
 integer_decimal = @{ "0" ~ !ASCII_ALPHANUMERIC | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
 integer_hex     = @{ "0" ~ ("x" | "X") ~ ASCII_HEX_DIGIT+ }
 integer_octal   = @{ "0" ~ ASCII_OCT_DIGIT+ }
-integer         = ${ (integer_decimal | integer_hex | integer_octal) }
+integer         = ${ integer_decimal | integer_hex | integer_octal }
 
 // Float.
 float_e               = @{ ("e" | "E") ~ ("-" | "+")? ~ ASCII_DIGIT+ }
@@ -101,7 +101,7 @@ string = { (double_quoted_string | single_quoted_string) }
 identifier = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
 
 // Literal.
-literal = { boolean | number | string | none | identifier }
+literal = _{ boolean | number | string | none | identifier }
 
 //=============//
 // Expressions //
@@ -122,24 +122,20 @@ gte       = { ">=" }
 lt        = { "<" } 
 gt        = { ">" } 
 
-infix = { or | and | add | sub | mul | div | remainder | eq | neq | lte | gte | lt | gt }
+infix = _{ or | and | add | sub | mul | div | remainder | eq | neq | lte | gte | lt | gt }
 
 // Prefix.
 negation     = { "!" }
 unary_signed = { "+" | "-" }
 
-prefix = { negation | unary_signed }
+prefix = _{ negation | unary_signed }
 
 // Postfix.
-//
-// NOTE: `member` is not marked as non-atomic (`!`) because there cannot
-// be a space between the period (`.`) and the field to access (`identifer` in
-// this case).
-member =  { "." ~ identifier }
+member =  ${ "." ~ identifier }
 index  = !{ "[" ~ expression ~ "]" }
 apply =  !{ "(" ~ expression ~ (COMMA ~ expression)* ~ COMMA? ~ ")" }
 
-postfix = { member | index | apply }
+postfix = _{ member | index | apply }
 
 // Core elements.
 //
@@ -157,14 +153,17 @@ identifier_based_kv_pair = { identifier_based_kv_key ~ ":" ~ kv_value }
 expression_based_kv_pair = { expression_based_kv_key ~ ":" ~ kv_value }
 
 group          = !{ "(" ~ expression ~ ")" }
-if             = ${ "if" ~ WHITESPACE+ ~ expression ~ WHITESPACE+ ~ "then" ~ WHITESPACE+ ~ expression ~ WHITESPACE+ ~ "else" ~ WHITESPACE+ ~ expression }
+if = ${ "if" ~ (WHITESPACE | COMMENT)+ ~ expression ~ (WHITESPACE | COMMENT)+
+    ~ "then" ~ (WHITESPACE | COMMENT)+ ~ expression ~ (WHITESPACE | COMMENT)+
+    ~ "else" ~ (WHITESPACE | COMMENT)+ ~ expression
+}
 object_literal = !{ "object" ~ "{" ~ (identifier_based_kv_pair ~ (COMMA? ~ identifier_based_kv_pair)* ~ COMMA?)* ~ "}" }
 struct_literal = !{ identifier ~ "{" ~ (identifier_based_kv_pair ~ (COMMA? ~ identifier_based_kv_pair)* ~ COMMA?)* ~ "}" }
 map_literal    = !{ "{" ~ (expression_based_kv_pair ~ (COMMA? ~ expression_based_kv_pair)* ~ COMMA?)* ~ "}" }
-array_literal  = !{ "[" ~ (expression ~ ("," ~ expression)* ~ COMMA?) ~ "]" }
-pair_literal   = !{ "(" ~ expression ~ "," ~ expression ~ ")" }
+array_literal  = !{ "[" ~ (expression ~ (COMMA ~ expression)* ~ COMMA?) ~ "]" }
+pair_literal   = !{ "(" ~ expression ~ COMMA ~ expression ~ ")" }
 
-core = { 
+core = _{ 
     group |
     if |
     object_literal |
@@ -188,15 +187,19 @@ core = {
 //
 // As such, you will see that none of the permutations of the rule below end in
 // an optional token. That is by design to avoid the problem above.
-
 expression = ${ 
-    prefix? ~ WHITESPACE* ~ core ~ WHITESPACE* ~ postfix? ~ 
+    prefix? ~ (WHITESPACE | COMMENT)* ~ core ~ (WHITESPACE | COMMENT)* ~ postfix? ~ 
     (
-        WHITESPACE* ~ infix ~ WHITESPACE* ~ prefix? ~ WHITESPACE* ~ core ~ WHITESPACE* ~ postfix |
-        WHITESPACE* ~ infix ~ WHITESPACE* ~ prefix? ~ WHITESPACE* ~ core
+        (WHITESPACE | COMMENT)* ~ infix ~
+            (WHITESPACE | COMMENT)* ~ prefix?
+            ~ (WHITESPACE | COMMENT)* ~ core
+            ~ (WHITESPACE | COMMENT)* ~ postfix
+        | (WHITESPACE | COMMENT)* ~ infix
+            ~ (WHITESPACE | COMMENT)* ~ prefix?
+            ~ (WHITESPACE | COMMENT)* ~ core
     )+ |
-    prefix? ~ WHITESPACE* ~ core ~ WHITESPACE* ~ postfix |
-    prefix? ~ WHITESPACE* ~ core 
+    prefix? ~ (WHITESPACE | COMMENT)* ~ core ~ (WHITESPACE | COMMENT)* ~ postfix |
+    prefix? ~ (WHITESPACE | COMMENT)* ~ core 
 }
 
 // Types.
@@ -204,21 +207,29 @@ expression = ${
 // NOTE: techically the spec calls the optional `+` the "non-empty" operator.
 // Since we have already defined this as the "one or more" operator and they
 // mean effectively the same thing, I've just kept this nomeclature.
-array_type = { "Array" ~ "[" ~ wdl_type ~ "]" ~ ONE_OR_MORE? }
-map_type   = { "Map" ~ "[" ~ wdl_type ~ "," ~ wdl_type ~ "]" }
-pair_type  = { "Pair" ~ "[" ~ wdl_type ~ "," ~ wdl_type ~ "]" }
+array_type = { "Array" ~
+    ("[" ~ wdl_type ~ "]" ~ ONE_OR_MORE)
+    | ("[" ~ wdl_type ~ "]")
+}
+map_type   = { "Map" ~ "[" ~ wdl_type ~ COMMA ~ wdl_type ~ "]" }
+pair_type  = { "Pair" ~ "[" ~ wdl_type ~ COMMA ~ wdl_type ~ "]" }
+string_type = { "String" }
+file_type = { "File" }
+bool_type = { "Boolean " }
+int_type = { "Int" }
+float_type = { "Float" }
+object_type = { "Object" }
 
 type_base = _{
     map_type
   | array_type
   | pair_type
-  | "String"
-  | "File"
-  | "Boolean"
-  | "Int"
-  | "Float"
-  | "Object"
-  | identifier
+  | string_type
+  | file_type
+  | bool_type
+  | int_type
+  | float_type
+  | object_type
 }
 
 wdl_type = _{
@@ -242,12 +253,14 @@ declaration = _{
 struct = {"struct" ~ identifier ~ "{" ~ (unbound_declaration)* ~ "}" }
 
 // Imports.
-import_as    = @{ "as" ~ WHITESPACE+ ~ identifier }
+import_as    = @{ "as" ~ (WHITESPACE | COMMENT)+ ~ identifier }
 import_alias = @{
-    "alias" ~ WHITESPACE+ ~ identifier ~ WHITESPACE+ ~ "as" ~ WHITESPACE+ ~ identifier
+    "alias" ~ (WHITESPACE | COMMENT)+ ~ identifier ~ (WHITESPACE | COMMENT)+
+    ~ "as" ~ (WHITESPACE | COMMENT)+ ~ identifier
 }
 import       = ${
-    "import" ~ WHITESPACE+ ~ string ~ (WHITESPACE+ ~ import_as)? ~ (WHITESPACE+ ~ import_alias)*
+    "import" ~ (WHITESPACE | COMMENT)+ ~ string ~ ((WHITESPACE | COMMENT)+ ~ import_as)?
+    ~ ((WHITESPACE | COMMENT)+ ~ import_alias)*
 }
 
 //================================//
@@ -292,8 +305,8 @@ common_metadata_value = _{
     string | number | boolean | "null" | common_metadata_object | common_metadata_array
 }
 
-common_metadata_object = _{ "{}" | "{" ~ common_metadata_kv ~ ("," ~ common_metadata_kv)* ~ "}" }
-common_metadata_array = _{ "[]" | "[" ~ common_metadata_value ~ ("," ~ common_metadata_value)* ~ "]" }
+common_metadata_object = _{ "{}" | "{" ~ common_metadata_kv ~ (COMMA ~ common_metadata_kv)* ~ "}" }
+common_metadata_array = _{ "[]" | "[" ~ common_metadata_value ~ (COMMA ~ common_metadata_value)* ~ "]" }
 
 common_metadata = _{ "meta" ~ "{" ~ common_metadata_kv* ~ "}" }
 common_parameter_metadata = _{ "parameter_meta" ~ "{" ~ common_metadata_kv* ~ "}" }
@@ -475,6 +488,64 @@ workflow_output = { common_output }
 // Workflow private declarations.
 workflow_private_declarations = { common_private_declarations }
 
+// Workflow call
+qualified_identifier = ${ identifier ~ ("." ~ identifier)+ }
+workflow_call_input = {
+    (identifier ~ "=" ~ expression)
+    | (identifier ~ "=" ~ identifier)
+    | identifier
+}
+// DIVERGE: spec is ambiguous about whether whitespace is
+// allowed between the opening and closing brackets (`{}`)
+// when the call body is empty. We have opted to allow whitespace.
+workflow_call_body = !{ "{"
+    ~ ("input:" ~ workflow_call_input ~ (COMMA ~ workflow_call_input)*)?
+    ~ COMMA? ~ "}"
+}
+workflow_call_as = ${ "as" ~ (WHITESPACE | COMMENT)+ ~ identifier }
+workflow_call_after = ${ "after" ~ (WHITESPACE | COMMENT)+ ~ identifier }
+workflow_call = ${
+    ("call"
+        ~ (WHITESPACE | COMMENT)+ ~ (qualified_identifier | identifier)
+        ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_as)?
+        ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_after)*
+        ~ ((WHITESPACE | COMMENT)* ~ workflow_call_body)
+    )
+    | ("call"
+        ~ (WHITESPACE | COMMENT)+ ~ (qualified_identifier | identifier)
+        ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_as)?
+        ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_after)+
+    )
+    | ("call"
+        ~ (WHITESPACE | COMMENT)+ ~ (qualified_identifier | identifier)
+        ~ (WHITESPACE | COMMENT)+ ~ workflow_call_as
+    )
+    | ("call"
+        ~ (WHITESPACE | COMMENT)+ ~ (qualified_identifier | identifier)
+    )
+}
+
+// Workflow scatter
+workflow_scatter_iteration_statement = { "(" ~ identifier ~ "in" ~ expression ~ ")" }
+workflow_scatter = {
+    "scatter"
+    ~ workflow_scatter_iteration_statement
+    ~ "{"
+    ~ workflow_execution_statement*
+    ~ "}"
+}
+
+// Workflow conditional
+workflow_conditional = { "if" ~ "(" ~ expression ~ ")" ~ "{" ~ workflow_execution_statement* ~ "}" }
+
+// Workflow execution statements
+workflow_execution_statement = { (
+    workflow_conditional
+    | workflow_scatter
+    | workflow_call
+    | workflow_private_declarations
+) }
+
 // Workflow metadata and parameter metadata.
 workflow_metadata_kv = { identifier ~ ":" ~ workflow_metadata_value }
 
@@ -500,7 +571,7 @@ workflow_metadata_value = {
 // delimiters optional when parsing and enforce style rules via a linter built
 // on top of this parser.
 workflow_metadata_object = { "{}" | "{" ~ workflow_metadata_kv ~ (COMMA? ~ workflow_metadata_kv)* ~ "}" }
-workflow_metadata_array = { "[]" | "[" ~ workflow_metadata_value ~ ("," ~ workflow_metadata_value)* ~ "]" }
+workflow_metadata_array = { "[]" | "[" ~ workflow_metadata_value ~ (COMMA ~ workflow_metadata_value)* ~ "]" }
 
 // DIVERGE: given the above logic concerning optional commas to delimit members
 // of `workflow_metadata_object`s, we determined it would be strange to not also
@@ -518,7 +589,7 @@ workflow_parameter_metadata = { "parameter_meta" ~ "{" ~ workflow_metadata_kv? ~
 workflow_element = _{
     workflow_input |
     workflow_output |
-    workflow_private_declarations |
+    workflow_execution_statement |
     workflow_parameter_metadata |
     workflow_metadata
 }
@@ -542,5 +613,5 @@ version         =  { "version" ~ version_release }
 
 // Document.
 document = {
-    SOI ~ (version) ~ (document_element)* ~ (workflow ~ document_element*)?
+    SOI ~ (version) ~ (document_element)* ~ (workflow ~ document_element*)? ~ EOI
 }

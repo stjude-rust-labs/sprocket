@@ -44,11 +44,7 @@ fn it_successfully_parses_a_struct_literal() {
                     ]),
                     kv_value(13, 17, [
                         expression(13, 17, [
-                            core(13, 17, [
-                                literal(13, 17, [
-                                    boolean(13, 17)
-                                ])
-                            ])
+                            boolean(13, 17)
                         ]),
                     ])
                 ])
@@ -72,11 +68,7 @@ fn it_successfully_parses_a_struct_literal_with_a_comma() {
                     ]),
                     kv_value(13, 17, [
                         expression(13, 17, [
-                            core(13, 17, [
-                                literal(13, 17, [
-                                    boolean(13, 17)
-                                ])
-                            ])
+                            boolean(13, 17)
                         ]),
                     ])
                 ]),
@@ -101,11 +93,7 @@ fn it_successfully_parses_a_struct_literal_without_the_trailing_space() {
                     ]),
                     kv_value(13, 17, [
                         expression(13, 17, [
-                            core(13, 17, [
-                                literal(13, 17, [
-                                    boolean(13, 17)
-                                ])
-                            ])
+                            boolean(13, 17)
                         ]),
                     ])
                 ])
@@ -123,25 +111,21 @@ fn it_successfully_parses_a_struct_literal_with_spaces_inside() {
         tokens: [
             struct_literal(0, 23, [
                 identifier(0, 6),
-                WHITESPACE(6, 7, [INDENT(6, 7, [SPACE(6, 7)])]),
-                WHITESPACE(8, 9, [INDENT(8, 9, [SPACE(8, 9)])]),
+                WHITESPACE(6, 7, [SPACE(6, 7)]),
+                WHITESPACE(8, 9, [SPACE(8, 9)]),
                 identifier_based_kv_pair(9, 21, [
                     identifier_based_kv_key(9, 14, [
                         identifier(9, 14),
                     ]),
-                    WHITESPACE(14, 15, [INDENT(14, 15, [SPACE(14, 15)])]),
-                    WHITESPACE(16, 17, [INDENT(16, 17, [SPACE(16, 17)])]),
+                    WHITESPACE(14, 15, [SPACE(14, 15)]),
+                    WHITESPACE(16, 17, [SPACE(16, 17)]),
                     kv_value(17, 21, [
                         expression(17, 21, [
-                            core(17, 21, [
-                                literal(17, 21, [
-                                    boolean(17, 21)
-                                ])
-                            ])
+                            boolean(17, 21)
                         ]),
                     ]),
                 ]),
-                WHITESPACE(21, 22, [INDENT(21, 22, [SPACE(21, 22)])]),
+                WHITESPACE(21, 22, [SPACE(21, 22)]),
             ])
         ]
     }
@@ -156,26 +140,22 @@ fn it_successfully_parses_a_struct_literal_with_spaces_inside_and_a_comma() {
         tokens: [
             struct_literal(0, 24, [
                 identifier(0, 6),
-                WHITESPACE(6, 7, [INDENT(6, 7, [SPACE(6, 7)])]),
-                WHITESPACE(8, 9, [INDENT(8, 9, [SPACE(8, 9)])]),
+                WHITESPACE(6, 7, [SPACE(6, 7)]),
+                WHITESPACE(8, 9, [SPACE(8, 9)]),
                 identifier_based_kv_pair(9, 21, [
                     identifier_based_kv_key(9, 14, [
                         identifier(9, 14),
                     ]),
-                    WHITESPACE(14, 15, [INDENT(14, 15, [SPACE(14, 15)])]),
-                    WHITESPACE(16, 17, [INDENT(16, 17, [SPACE(16, 17)])]),
+                    WHITESPACE(14, 15, [SPACE(14, 15)]),
+                    WHITESPACE(16, 17, [SPACE(16, 17)]),
                     kv_value(17, 21, [
                         expression(17, 21, [
-                            core(17, 21, [
-                                literal(17, 21, [
-                                    boolean(17, 21)
-                                ])
-                            ])
+                            boolean(17, 21)
                         ]),
                     ]),
                 ]),
                 COMMA(21, 22),
-                WHITESPACE(22, 23, [INDENT(22, 23, [SPACE(22, 23)])]),
+                WHITESPACE(22, 23, [SPACE(22, 23)]),
             ])
         ]
     }

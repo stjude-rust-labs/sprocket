@@ -35,7 +35,27 @@ fn it_fails_to_parse_a_pair_literal_with_one_member() {
         parser: WdlParser,
         input: "(a)",
         rule: Rule::pair_literal,
-        positives: vec![Rule::WHITESPACE, Rule::COMMENT, Rule::infix, Rule::postfix],
+        positives: vec![
+            Rule::WHITESPACE,
+            Rule::COMMENT,
+            Rule::COMMA,
+            Rule::or,
+            Rule::and,
+            Rule::add,
+            Rule::sub,
+            Rule::mul,
+            Rule::div,
+            Rule::remainder,
+            Rule::eq,
+            Rule::neq,
+            Rule::lte,
+            Rule::gte,
+            Rule::lt,
+            Rule::gt,
+            Rule::member,
+            Rule::index,
+            Rule::apply,
+        ],
         negatives: vec![],
         pos: 2
     }
@@ -47,7 +67,26 @@ fn it_fails_to_parse_a_pair_literal_with_three_members() {
         parser: WdlParser,
         input: "(a, b, c)",
         rule: Rule::pair_literal,
-        positives: vec![Rule::WHITESPACE, Rule::COMMENT, Rule::infix, Rule::postfix],
+        positives: vec![
+            Rule::WHITESPACE,
+            Rule::COMMENT,
+            Rule::or,
+            Rule::and,
+            Rule::add,
+            Rule::sub,
+            Rule::mul,
+            Rule::div,
+            Rule::remainder,
+            Rule::eq,
+            Rule::neq,
+            Rule::lte,
+            Rule::gte,
+            Rule::lt,
+            Rule::gt,
+            Rule::member,
+            Rule::index,
+            Rule::apply,
+        ],
         negatives: vec![],
         pos: 5
     }
@@ -62,18 +101,11 @@ fn it_successfully_parses_a_pair_literal() {
         tokens: [
             pair_literal(0, 5, [
                 expression(1, 2, [
-                    core(1, 2, [
-                        literal(1, 2, [
-                            identifier(1, 2)
-                        ])
-                    ])
+                    identifier(1, 2)
                 ]),
+                COMMA(2, 3),
                 expression(3, 4, [
-                    core(3, 4, [
-                        literal(3, 4, [
-                            identifier(3, 4)
-                        ])
-                    ])
+                    identifier(3, 4)
                 ]),
             ])
         ]
@@ -89,18 +121,11 @@ fn it_successfully_parses_a_pair_literal_without_the_trailing_space() {
         tokens: [
             pair_literal(0, 5, [
                 expression(1, 2, [
-                    core(1, 2, [
-                        literal(1, 2, [
-                            identifier(1, 2)
-                        ])
-                    ])
+                    identifier(1, 2)
                 ]),
+                COMMA(2, 3),
                 expression(3, 4, [
-                    core(3, 4, [
-                        literal(3, 4, [
-                            identifier(3, 4)
-                        ])
-                    ])
+                    identifier(3, 4)
                 ]),
             ])
         ]
@@ -116,19 +141,12 @@ fn it_successfully_parses_a_pair_literal_with_spaces_inside() {
         tokens: [
             pair_literal(0, 6, [
                 expression(1, 2, [
-                    core(1, 2, [
-                        literal(1, 2, [
-                            identifier(1, 2)
-                        ])
-                    ])
+                    identifier(1, 2)
                 ]),
-                WHITESPACE(3, 4, [INDENT(3, 4, [SPACE(3, 4)])]),
+                COMMA(2, 3),
+                WHITESPACE(3, 4, [SPACE(3, 4)]),
                 expression(4, 5, [
-                    core(4, 5, [
-                        literal(4, 5, [
-                            identifier(4, 5)
-                        ])
-                    ])
+                    identifier(4, 5)
                 ]),
             ])
         ]

@@ -25,7 +25,7 @@ fn it_successfully_parses_add() {
         parser: WdlParser,
         input: "+",
         rule: Rule::infix,
-        tokens: [infix(0, 1, [add(0, 1)])]
+        tokens: [add(0, 1)]
     }
 }
 
@@ -35,7 +35,7 @@ fn it_successfully_parses_and() {
         parser: WdlParser,
         input: "&&",
         rule: Rule::infix,
-        tokens: [infix(0, 2, [and(0, 2)])]
+        tokens: [and(0, 2)]
     }
 }
 
@@ -45,7 +45,7 @@ fn it_successfully_parses_div() {
         parser: WdlParser,
         input: "/",
         rule: Rule::infix,
-        tokens: [infix(0, 1, [div(0, 1)])]
+        tokens: [div(0, 1)]
     }
 }
 
@@ -55,7 +55,7 @@ fn it_successfully_parses_eq() {
         parser: WdlParser,
         input: "==",
         rule: Rule::infix,
-        tokens: [infix(0, 2, [eq(0, 2)])]
+        tokens: [eq(0, 2)]
     }
 }
 
@@ -65,7 +65,7 @@ fn it_successfully_parses_gt() {
         parser: WdlParser,
         input: ">",
         rule: Rule::infix,
-        tokens: [infix(0, 1, [gt(0, 1)])]
+        tokens: [gt(0, 1)]
     }
 }
 
@@ -75,7 +75,7 @@ fn it_successfully_parses_gte() {
         parser: WdlParser,
         input: ">=",
         rule: Rule::infix,
-        tokens: [infix(0, 2, [gte(0, 2)])]
+        tokens: [gte(0, 2)]
     }
 }
 
@@ -85,7 +85,7 @@ fn it_successfully_parses_lt() {
         parser: WdlParser,
         input: "<",
         rule: Rule::infix,
-        tokens: [infix(0, 1, [lt(0, 1)])]
+        tokens: [lt(0, 1)]
     }
 }
 
@@ -95,7 +95,7 @@ fn it_successfully_parses_lte() {
         parser: WdlParser,
         input: "<=",
         rule: Rule::infix,
-        tokens: [infix(0, 2, [lte(0, 2)])]
+        tokens: [lte(0, 2)]
     }
 }
 
@@ -105,7 +105,7 @@ fn it_successfully_parses_mul() {
         parser: WdlParser,
         input: "*",
         rule: Rule::infix,
-        tokens: [infix(0, 1, [mul(0, 1)])]
+        tokens: [mul(0, 1)]
     }
 }
 
@@ -115,7 +115,7 @@ fn it_successfully_parses_neq() {
         parser: WdlParser,
         input: "!=",
         rule: Rule::infix,
-        tokens: [infix(0, 2, [neq(0, 2)])]
+        tokens: [neq(0, 2)]
     }
 }
 
@@ -125,7 +125,7 @@ fn it_successfully_parses_or() {
         parser: WdlParser,
         input: "||",
         rule: Rule::infix,
-        tokens: [infix(0, 2, [or(0, 2)])]
+        tokens: [or(0, 2)]
     }
 }
 
@@ -135,7 +135,7 @@ fn it_successfully_parses_remainder() {
         parser: WdlParser,
         input: "%",
         rule: Rule::infix,
-        tokens: [infix(0, 1, [remainder(0, 1)])]
+        tokens: [remainder(0, 1)]
     }
 }
 
@@ -145,6 +145,6 @@ fn it_successfully_parses_sub() {
         parser: WdlParser,
         input: "-",
         rule: Rule::infix,
-        tokens: [infix(0, 1, [sub(0, 1)])]
+        tokens: [sub(0, 1)]
     }
 }

@@ -132,6 +132,7 @@ fn map_rule(rule: &str) -> Option<wdl::Rule> {
     match rule {
         "document" => Some(wdl::Rule::document),
         "task" => Some(wdl::Rule::task),
+        "core" => Some(wdl::Rule::core),
         "expression" => Some(wdl::Rule::expression),
         "object_literal" => Some(wdl::Rule::object_literal),
         "task_metadata_object" => Some(wdl::Rule::task_metadata_object),

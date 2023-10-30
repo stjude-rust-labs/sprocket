@@ -35,7 +35,7 @@ fn it_fails_to_parse_a_member_from_an_expression() {
         parser: WdlParser,
         input: ".(if a then b else c)",
         rule: Rule::member,
-        positives: vec![Rule::WHITESPACE, Rule::COMMENT, Rule::identifier],
+        positives: vec![Rule::identifier],
         negatives: vec![],
         pos: 1
     }

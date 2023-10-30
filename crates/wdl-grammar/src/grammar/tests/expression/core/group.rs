@@ -52,11 +52,7 @@ fn it_successfully_parses_a_group() {
         tokens: [
             group(0, 7, [
                 expression(1, 6, [
-                    core(1, 6, [
-                        literal(1, 6, [
-                            identifier(1, 6)
-                        ])
-                    ])
+                    identifier(1, 6)
                 ]),
             ])
         ]
@@ -71,15 +67,11 @@ fn it_successfully_parses_a_group_with_spaces() {
         rule: Rule::group,
         tokens: [
             group(0, 9, [
-                WHITESPACE(1, 2, [INDENT(1, 2, [SPACE(1, 2)])]),
+                WHITESPACE(1, 2, [SPACE(1, 2)]),
                 expression(2, 7, [
-                    core(2, 7, [
-                        literal(2, 7, [
-                            identifier(2, 7)
-                        ])
-                    ])
+                    identifier(2, 7)
                 ]),
-                WHITESPACE(7, 8, [INDENT(7, 8, [SPACE(7, 8)])]),
+                WHITESPACE(7, 8, [SPACE(7, 8)]),
             ])
         ]
     }
@@ -94,11 +86,7 @@ fn it_successfully_parses_a_group_without_including_the_trailing_space() {
         tokens: [
             group(0, 7, [
                 expression(1, 6, [
-                    core(1, 6, [
-                        literal(1, 6, [
-                            identifier(1, 6)
-                        ])
-                    ])
+                    identifier(1, 6)
                 ]),
             ])
         ]
