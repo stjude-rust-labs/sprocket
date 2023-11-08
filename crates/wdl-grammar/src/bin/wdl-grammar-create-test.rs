@@ -36,7 +36,7 @@ pub enum Error {
     RuleMismatch(PathBuf),
 
     /// An error from Pest.
-    PestError(Box<pest::error::Error<wdl::Rule>>),
+    PestError(Box<pest::error::Error<wdl::v1::Rule>>),
 }
 
 impl std::fmt::Display for Error {
@@ -75,8 +75,8 @@ fn inner() -> Result<()> {
         .init();
 
     let (contents, rule) = parse_from_path(&args.rule, &args.path)?;
-    let parse_tree: pest::iterators::Pairs<'_, wdl::Rule> =
-        wdl::Parser::parse(rule, &contents).map_err(|err| Error::PestError(Box::new(err)))?;
+    let parse_tree: pest::iterators::Pairs<'_, wdl::v1::Rule> =
+        wdl::v1::Parser::parse(rule, &contents).map_err(|err| Error::PestError(Box::new(err)))?;
 
     for pair in parse_tree {
         print_create_test_recursive(pair, 0);
@@ -85,7 +85,7 @@ fn inner() -> Result<()> {
     Ok(())
 }
 
-fn print_create_test_recursive(pair: Pair<'_, wdl::Rule>, indent: usize) {
+fn print_create_test_recursive(pair: Pair<'_, wdl::v1::Rule>, indent: usize) {
     let span = pair.as_span();
     let comment = pair
         .as_str()
@@ -122,7 +122,10 @@ fn print_create_test_recursive(pair: Pair<'_, wdl::Rule>, indent: usize) {
     print!(")");
 }
 
-fn parse_from_path(rule: impl AsRef<str>, path: impl AsRef<Path>) -> Result<(String, wdl::Rule)> {
+fn parse_from_path(
+    rule: impl AsRef<str>,
+    path: impl AsRef<Path>,
+) -> Result<(String, wdl::v1::Rule)> {
     let rule = rule.as_ref();
     let path = path.as_ref();
 
@@ -135,24 +138,24 @@ fn parse_from_path(rule: impl AsRef<str>, path: impl AsRef<Path>) -> Result<(Str
     Ok((contents, rule))
 }
 
-fn map_rule(rule: &str) -> Option<wdl::Rule> {
+fn map_rule(rule: &str) -> Option<wdl::v1::Rule> {
     match rule {
-        "document" => Some(wdl::Rule::document),
-        "if" => Some(wdl::Rule::r#if),
-        "task" => Some(wdl::Rule::task),
-        "core" => Some(wdl::Rule::core),
-        "expression" => Some(wdl::Rule::expression),
-        "object_literal" => Some(wdl::Rule::object_literal),
-        "task_metadata_object" => Some(wdl::Rule::task_metadata_object),
-        "task_parameter_metadata" => Some(wdl::Rule::task_parameter_metadata),
-        "workflow_metadata_kv" => Some(wdl::Rule::workflow_metadata_kv),
+        "document" => Some(wdl::v1::Rule::document),
+        "if" => Some(wdl::v1::Rule::r#if),
+        "task" => Some(wdl::v1::Rule::task),
+        "core" => Some(wdl::v1::Rule::core),
+        "expression" => Some(wdl::v1::Rule::expression),
+        "object_literal" => Some(wdl::v1::Rule::object_literal),
+        "task_metadata_object" => Some(wdl::v1::Rule::task_metadata_object),
+        "task_parameter_metadata" => Some(wdl::v1::Rule::task_parameter_metadata),
+        "workflow_metadata_kv" => Some(wdl::v1::Rule::workflow_metadata_kv),
         "command_heredoc_interpolated_contents" => {
-            Some(wdl::Rule::command_heredoc_interpolated_contents)
+            Some(wdl::v1::Rule::command_heredoc_interpolated_contents)
         }
-        "workflow_scatter" => Some(wdl::Rule::workflow_scatter),
-        "workflow_call" => Some(wdl::Rule::workflow_call),
-        "workflow_conditional" => Some(wdl::Rule::workflow_conditional),
-        "postfix" => Some(wdl::Rule::postfix),
+        "workflow_scatter" => Some(wdl::v1::Rule::workflow_scatter),
+        "workflow_call" => Some(wdl::v1::Rule::workflow_call),
+        "workflow_conditional" => Some(wdl::v1::Rule::workflow_conditional),
+        "postfix" => Some(wdl::v1::Rule::postfix),
         _ => todo!("must implement mapping for rule: {rule}"),
     }
 }

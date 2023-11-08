@@ -35,7 +35,7 @@ pub enum Error {
     RuleMismatch(PathBuf),
 
     /// An error from Pest.
-    PestError(Box<pest::error::Error<wdl::Rule>>),
+    PestError(Box<pest::error::Error<wdl::v1::Rule>>),
 }
 
 impl std::fmt::Display for Error {
@@ -93,14 +93,14 @@ fn inner() -> Result<()> {
     match args.command {
         Command::Parse(args) => {
             let (contents, rule) = parse_from_path(&args.rule, &args.path)?;
-            let mut parse_tree = wdl::Parser::parse(rule, &contents)
+            let mut parse_tree = wdl::v1::Parser::parse(rule, &contents)
                 .map_err(|err| Error::PestError(Box::new(err)))?;
 
             // For documents, we don't care about the parent element: it is much
             // more informative to see the children of the document split by
             // spaces. This is a stylistic choice.
             match rule {
-                wdl::Rule::document => {
+                wdl::v1::Rule::document => {
                     for element in parse_tree.next().unwrap().into_inner() {
                         dbg!(element);
                     }
@@ -115,7 +115,10 @@ fn inner() -> Result<()> {
     Ok(())
 }
 
-fn parse_from_path(rule: impl AsRef<str>, path: impl AsRef<Path>) -> Result<(String, wdl::Rule)> {
+fn parse_from_path(
+    rule: impl AsRef<str>,
+    path: impl AsRef<Path>,
+) -> Result<(String, wdl::v1::Rule)> {
     let rule = rule.as_ref();
     let path = path.as_ref();
 
@@ -128,18 +131,18 @@ fn parse_from_path(rule: impl AsRef<str>, path: impl AsRef<Path>) -> Result<(Str
     Ok((contents, rule))
 }
 
-fn map_rule(rule: &str) -> Option<wdl::Rule> {
+fn map_rule(rule: &str) -> Option<wdl::v1::Rule> {
     match rule {
-        "document" => Some(wdl::Rule::document),
-        "task" => Some(wdl::Rule::task),
-        "core" => Some(wdl::Rule::core),
-        "expression" => Some(wdl::Rule::expression),
-        "object_literal" => Some(wdl::Rule::object_literal),
-        "task_metadata_object" => Some(wdl::Rule::task_metadata_object),
-        "task_parameter_metadata" => Some(wdl::Rule::task_parameter_metadata),
-        "workflow_metadata_kv" => Some(wdl::Rule::workflow_metadata_kv),
+        "document" => Some(wdl::v1::Rule::document),
+        "task" => Some(wdl::v1::Rule::task),
+        "core" => Some(wdl::v1::Rule::core),
+        "expression" => Some(wdl::v1::Rule::expression),
+        "object_literal" => Some(wdl::v1::Rule::object_literal),
+        "task_metadata_object" => Some(wdl::v1::Rule::task_metadata_object),
+        "task_parameter_metadata" => Some(wdl::v1::Rule::task_parameter_metadata),
+        "workflow_metadata_kv" => Some(wdl::v1::Rule::workflow_metadata_kv),
         "command_heredoc_interpolated_contents" => {
-            Some(wdl::Rule::command_heredoc_interpolated_contents)
+            Some(wdl::v1::Rule::command_heredoc_interpolated_contents)
         }
         _ => todo!("must implement mapping for rule: {rule}"),
     }

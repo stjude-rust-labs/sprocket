@@ -6,10 +6,4 @@
 #![warn(missing_debug_implementations)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
-mod grammar;
-
-use pest_derive::Parser;
-
-#[derive(Debug, Parser)]
-#[grammar = "grammar/wdl.pest"]
-pub struct Parser;
+pub mod v1;
