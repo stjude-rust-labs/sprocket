@@ -10,3 +10,4 @@ env_logger.workspace = true
 log.workspace = true
 pest = "2.7.5"
 pest_derive = "2.7.5"
+serde.workspace = true

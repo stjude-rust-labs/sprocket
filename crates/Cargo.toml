@@ -1,5 +1,5 @@
 [workspace]
-members = [ "wdl-grammar" ]
+members = ["wdl-grammar"]
 resolver = "2"
 
 [workspace.package]
@@ -9,3 +9,4 @@ edition = "2021"
 [workspace.dependencies]
 env_logger = "0.10.0"
 log = "0.4.20"
+serde = { version = "1", features = ["derive"] }

@@ -6,4 +6,15 @@
 #![warn(missing_debug_implementations)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
+use clap::ValueEnum;
+use serde::Serialize;
+
 pub mod v1;
+
+#[derive(Clone, Debug, Default, Serialize, ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum Version {
+    /// Version 1.x of the WDL specification.
+    #[default]
+    V1,
+}

@@ -11,7 +11,6 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 
 use std::fs;
-use std::path::Path;
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -22,6 +21,8 @@ use pest::Parser as _;
 
 use wdl_grammar as wdl;
 
+use wdl::Version;
+
 /// An error related to the `wdl` command-line tool.
 #[derive(Debug)]
 pub enum Error {
@@ -31,8 +32,8 @@ pub enum Error {
     /// Attempted to access a file, but it was missing.
     FileDoesNotExist(PathBuf),
 
-    /// Not able to match the provided rule name to a defined rule.
-    RuleMismatch(PathBuf),
+    /// Unknown rule name.
+    UnknownRule(String),
 
     /// An error from Pest.
     PestError(Box<pest::error::Error<wdl::v1::Rule>>),
@@ -43,8 +44,8 @@ impl std::fmt::Display for Error {
         match self {
             Error::IoError(err) => write!(f, "i/o error: {err}"),
             Error::FileDoesNotExist(path) => write!(f, "file does not exist: {}", path.display()),
-            Error::RuleMismatch(path) => {
-                write!(f, "cannot match rule from file: {}", path.display())
+            Error::UnknownRule(rule) => {
+                write!(f, "unknown rule: {rule}")
             }
             Error::PestError(err) => write!(f, "pest error:\n{err}"),
         }
@@ -60,6 +61,10 @@ type Result<T> = std::result::Result<T, Error>;
 pub struct ParseArgs {
     /// The path to the document.
     path: PathBuf,
+
+    /// The WDL specification version to use.
+    #[arg(short = 's', long, default_value_t, value_enum)]
+    specification_version: Version,
 
     /// The rule to evaluate.
     #[arg(short = 'r', long, default_value = "document")]
@@ -92,60 +97,33 @@ fn inner() -> Result<()> {
 
     match args.command {
         Command::Parse(args) => {
-            let (contents, rule) = parse_from_path(&args.rule, &args.path)?;
-            let mut parse_tree = wdl::v1::Parser::parse(rule, &contents)
-                .map_err(|err| Error::PestError(Box::new(err)))?;
+            let rule = match args.specification_version {
+                Version::V1 => wdl::v1::get_rule(&args.rule)
+                    .map(Ok)
+                    .unwrap_or_else(|| Err(Error::UnknownRule(args.rule.clone())))?,
+            };
+
+            let contents = fs::read_to_string(args.path).map_err(Error::IoError)?;
+
+            let mut parse_tree = match args.specification_version {
+                Version::V1 => wdl::v1::Parser::parse(rule, &contents)
+                    .map_err(|err| Error::PestError(Box::new(err)))?,
+            };
 
             // For documents, we don't care about the parent element: it is much
             // more informative to see the children of the document split by
             // spaces. This is a stylistic choice.
-            match rule {
-                wdl::v1::Rule::document => {
-                    for element in parse_tree.next().unwrap().into_inner() {
-                        dbg!(element);
-                    }
+            if args.rule == "document" {
+                for element in parse_tree.next().unwrap().into_inner() {
+                    dbg!(element);
                 }
-                _ => {
-                    dbg!(parse_tree);
-                }
+            } else {
+                dbg!(parse_tree);
             };
         }
     }
 
     Ok(())
-}
-
-fn parse_from_path(
-    rule: impl AsRef<str>,
-    path: impl AsRef<Path>,
-) -> Result<(String, wdl::v1::Rule)> {
-    let rule = rule.as_ref();
-    let path = path.as_ref();
-
-    let rule = map_rule(rule)
-        .map(Ok)
-        .unwrap_or_else(|| Err(Error::RuleMismatch(path.to_path_buf())))?;
-
-    let contents = fs::read_to_string(path).map_err(Error::IoError)?;
-
-    Ok((contents, rule))
-}
-
-fn map_rule(rule: &str) -> Option<wdl::v1::Rule> {
-    match rule {
-        "document" => Some(wdl::v1::Rule::document),
-        "task" => Some(wdl::v1::Rule::task),
-        "core" => Some(wdl::v1::Rule::core),
-        "expression" => Some(wdl::v1::Rule::expression),
-        "object_literal" => Some(wdl::v1::Rule::object_literal),
-        "task_metadata_object" => Some(wdl::v1::Rule::task_metadata_object),
-        "task_parameter_metadata" => Some(wdl::v1::Rule::task_parameter_metadata),
-        "workflow_metadata_kv" => Some(wdl::v1::Rule::workflow_metadata_kv),
-        "command_heredoc_interpolated_contents" => {
-            Some(wdl::v1::Rule::command_heredoc_interpolated_contents)
-        }
-        _ => todo!("must implement mapping for rule: {rule}"),
-    }
 }
 
 fn main() {
