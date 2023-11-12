@@ -35,23 +35,40 @@ fn it_successfully_parses_conditional_without_space() {
         parser: WdlParser,
         input: "if(true){Int a=10}",
         rule: Rule::workflow_conditional,
-        tokens: [workflow_conditional(0, 18, [
+        tokens: [
+          // `if(true){Int a=10}`
+          workflow_conditional(0, 18, [
+            // `true`
             expression(3, 7, [
-                boolean(3, 7)
+              // `true`
+              boolean(3, 7),
             ]),
+            // `Int a=10`
             workflow_execution_statement(9, 17, [
-                workflow_private_declarations(9, 17, [
-                    bound_declaration(9, 17, [
-                        int_type(9, 12),
-                        WHITESPACE(12, 13, [SPACE(12, 13)]),
-                        identifier(13, 14),
-                        expression(15, 17, [
-                            integer(15, 17, [
-                                integer_decimal(15, 17)
-                            ])
-                        ])
-                    ])
+              // `Int a=10`
+              workflow_private_declarations(9, 17, [
+                // `Int a=10`
+                bound_declaration(9, 17, [
+                  // `Int`
+                  wdl_type(9, 12, [
+                    // `Int`
+                    int_type(9, 12),
+                  ]),
+                  WHITESPACE(12, 13, [
+                    SPACE(12, 13),
+                  ]),
+                  // `a`
+                  identifier(13, 14),
+                  // `10`
+                  expression(15, 17, [
+                    // `10`
+                    integer(15, 17, [
+                      // `10`
+                      integer_decimal(15, 17),
+                    ]),
+                  ]),
                 ]),
+              ]),
             ]),
         ])]
     }
@@ -77,25 +94,43 @@ fn it_successfully_excludes_trailing_whitespace() {
         parser: WdlParser,
         input: "if(true){Int a=10}   ",
         rule: Rule::workflow_conditional,
-        tokens: [workflow_conditional(0, 18, [
+        tokens: [
+          // `if(true){Int a=10}`
+          workflow_conditional(0, 18, [
+            // `true`
             expression(3, 7, [
-                boolean(3, 7)
+              // `true`
+              boolean(3, 7),
             ]),
+            // `Int a=10`
             workflow_execution_statement(9, 17, [
-                workflow_private_declarations(9, 17, [
-                    bound_declaration(9, 17, [
-                        int_type(9, 12),
-                        WHITESPACE(12, 13, [SPACE(12, 13)]),
-                        identifier(13, 14),
-                        expression(15, 17, [
-                            integer(15, 17, [
-                                integer_decimal(15, 17)
-                            ])
-                        ])
-                    ])
+              // `Int a=10`
+              workflow_private_declarations(9, 17, [
+                // `Int a=10`
+                bound_declaration(9, 17, [
+                  // `Int`
+                  wdl_type(9, 12, [
+                    // `Int`
+                    int_type(9, 12),
+                  ]),
+                  WHITESPACE(12, 13, [
+                    SPACE(12, 13),
+                  ]),
+                  // `a`
+                  identifier(13, 14),
+                  // `10`
+                  expression(15, 17, [
+                    // `10`
+                    integer(15, 17, [
+                      // `10`
+                      integer_decimal(15, 17),
+                    ]),
+                  ]),
                 ]),
+              ]),
             ]),
-        ])]
+          ])
+        ]
     }
 }
 
@@ -105,29 +140,58 @@ fn it_successfully_parses_conditional_with_space() {
         parser: WdlParser,
         input: "if ( true ) { Int a=10 }",
         rule: Rule::workflow_conditional,
-        tokens: [workflow_conditional(0, 24, [
-            WHITESPACE(2, 3, [SPACE(2, 3)]),
-            WHITESPACE(4, 5, [SPACE(4, 5)]),
-            expression(5, 9, [
-                boolean(5, 9)
+        tokens: [
+          // `if ( true ) { Int a=10 }`
+          workflow_conditional(0, 24, [
+            WHITESPACE(2, 3, [
+              SPACE(2, 3),
             ]),
-            WHITESPACE(9, 10, [SPACE(9, 10)]),
-            WHITESPACE(11, 12, [SPACE(11, 12)]),
-            WHITESPACE(13, 14, [SPACE(13, 14)]),
+            WHITESPACE(4, 5, [
+              SPACE(4, 5),
+            ]),
+            // `true`
+            expression(5, 9, [
+              // `true`
+              boolean(5, 9),
+            ]),
+            WHITESPACE(9, 10, [
+              SPACE(9, 10),
+            ]),
+            WHITESPACE(11, 12, [
+              SPACE(11, 12),
+            ]),
+            WHITESPACE(13, 14, [
+              SPACE(13, 14),
+            ]),
+            // `Int a=10`
             workflow_execution_statement(14, 23, [
-                workflow_private_declarations(14, 23, [
-                    bound_declaration(14, 22, [
-                        int_type(14, 17),
-                        WHITESPACE(17, 18, [SPACE(17, 18)]),
-                        identifier(18, 19),
-                        expression(20, 22, [
-                            integer(20, 22, [
-                                integer_decimal(20, 22)
-                            ])
-                        ])
+              // `Int a=10`
+              workflow_private_declarations(14, 23, [
+                // `Int a=10`
+                bound_declaration(14, 22, [
+                  // `Int`
+                  wdl_type(14, 17, [
+                    // `Int`
+                    int_type(14, 17),
+                  ]),
+                  WHITESPACE(17, 18, [
+                    SPACE(17, 18),
+                  ]),
+                  // `a`
+                  identifier(18, 19),
+                  // `10`
+                  expression(20, 22, [
+                    // `10`
+                    integer(20, 22, [
+                      // `10`
+                      integer_decimal(20, 22),
                     ]),
-                    WHITESPACE(22, 23, [SPACE(22, 23)]),
+                  ]),
                 ]),
+                WHITESPACE(22, 23, [
+                  SPACE(22, 23),
+                ]),
+              ]),
             ]),
         ])]
     }
@@ -138,18 +202,20 @@ fn it_successfully_parses_conditional_with_multiple_statements() {
     parses_to! {
         parser: WdlParser,
         input: "if(true){
-            Int a=10
-            call my_task{input:foo=a}
-            call no_inputs{}
-        }",
+    Int a=10
+    call my_task{input:foo=a}
+    call no_inputs{}
+}",
         rule: Rule::workflow_conditional,
-        tokens: [workflow_conditional(0, 107, [
+        tokens: [
+          // `if(true){ Int a=10 call my_task{input:foo=a} call no_inputs{} }`
+          workflow_conditional(0, 75, [
+            // `true`
             expression(3, 7, [
+              // `true`
               boolean(3, 7),
             ]),
-            // ``
             WHITESPACE(9, 10, [
-              // ``
               NEWLINE(9, 10),
             ]),
             WHITESPACE(10, 11, [
@@ -164,181 +230,102 @@ fn it_successfully_parses_conditional_with_multiple_statements() {
             WHITESPACE(13, 14, [
               SPACE(13, 14),
             ]),
-            WHITESPACE(14, 15, [
-              SPACE(14, 15),
-            ]),
-            WHITESPACE(15, 16, [
-              SPACE(15, 16),
-            ]),
-            WHITESPACE(16, 17, [
-              SPACE(16, 17),
-            ]),
-            WHITESPACE(17, 18, [
-              SPACE(17, 18),
-            ]),
-            WHITESPACE(18, 19, [
-              SPACE(18, 19),
-            ]),
-            WHITESPACE(19, 20, [
-              SPACE(19, 20),
-            ]),
-            WHITESPACE(20, 21, [
-              SPACE(20, 21),
-            ]),
-            WHITESPACE(21, 22, [
-              SPACE(21, 22),
-            ]),
-            workflow_execution_statement(22, 43, [
-              workflow_private_declarations(22, 43, [
-                bound_declaration(22, 30, [
-                  int_type(22, 25),
-                  WHITESPACE(25, 26, [
-                    SPACE(25, 26),
+            // `Int a=10`
+            workflow_execution_statement(14, 27, [
+              // `Int a=10`
+              workflow_private_declarations(14, 27, [
+                // `Int a=10`
+                bound_declaration(14, 22, [
+                  // `Int`
+                  wdl_type(14, 17, [
+                    // `Int`
+                    int_type(14, 17),
                   ]),
-                  identifier(26, 27),
-                  expression(28, 30, [
-                    integer(28, 30, [
-                      integer_decimal(28, 30),
+                  WHITESPACE(17, 18, [
+                    SPACE(17, 18),
+                  ]),
+                  // `a`
+                  identifier(18, 19),
+                  // `10`
+                  expression(20, 22, [
+                    // `10`
+                    integer(20, 22, [
+                      // `10`
+                      integer_decimal(20, 22),
                     ]),
                   ]),
                 ]),
-                // ``
-                WHITESPACE(30, 31, [
-                  // ``
-                  NEWLINE(30, 31),
+                WHITESPACE(22, 23, [
+                  NEWLINE(22, 23),
                 ]),
+                WHITESPACE(23, 24, [
+                  SPACE(23, 24),
+                ]),
+                WHITESPACE(24, 25, [
+                  SPACE(24, 25),
+                ]),
+                WHITESPACE(25, 26, [
+                  SPACE(25, 26),
+                ]),
+                WHITESPACE(26, 27, [
+                  SPACE(26, 27),
+                ]),
+              ]),
+            ]),
+            // `call my_task{input:foo=a}`
+            workflow_execution_statement(27, 52, [
+              // `call my_task{input:foo=a}`
+              workflow_call(27, 52, [
                 WHITESPACE(31, 32, [
                   SPACE(31, 32),
                 ]),
-                WHITESPACE(32, 33, [
-                  SPACE(32, 33),
-                ]),
-                WHITESPACE(33, 34, [
-                  SPACE(33, 34),
-                ]),
-                WHITESPACE(34, 35, [
-                  SPACE(34, 35),
-                ]),
-                WHITESPACE(35, 36, [
-                  SPACE(35, 36),
-                ]),
-                WHITESPACE(36, 37, [
-                  SPACE(36, 37),
-                ]),
-                WHITESPACE(37, 38, [
-                  SPACE(37, 38),
-                ]),
-                WHITESPACE(38, 39, [
-                  SPACE(38, 39),
-                ]),
-                WHITESPACE(39, 40, [
-                  SPACE(39, 40),
-                ]),
-                WHITESPACE(40, 41, [
-                  SPACE(40, 41),
-                ]),
-                WHITESPACE(41, 42, [
-                  SPACE(41, 42),
-                ]),
-                WHITESPACE(42, 43, [
-                  SPACE(42, 43),
-                ]),
-              ]),
-            ]),
-            workflow_execution_statement(43, 68, [
-              workflow_call(43, 68, [
-                WHITESPACE(47, 48, [
-                  SPACE(47, 48),
-                ]),
-                identifier(48, 55),
-                workflow_call_body(55, 68, [
-                  workflow_call_input(62, 67, [
-                    identifier(62, 65),
-                    expression(66, 67, [
-                      identifier(66, 67),
+                // `my_task`
+                identifier(32, 39),
+                // `{input:foo=a}`
+                workflow_call_body(39, 52, [
+                  // `foo=a`
+                  workflow_call_input(46, 51, [
+                    // `foo`
+                    identifier(46, 49),
+                    // `a`
+                    expression(50, 51, [
+                      // `a`
+                      identifier(50, 51),
                     ]),
                   ]),
                 ]),
               ]),
             ]),
-            // ``
-            WHITESPACE(68, 69, [
-              // ``
-              NEWLINE(68, 69),
+            WHITESPACE(52, 53, [
+              NEWLINE(52, 53),
             ]),
-            WHITESPACE(69, 70, [
-              SPACE(69, 70),
+            WHITESPACE(53, 54, [
+              SPACE(53, 54),
             ]),
-            WHITESPACE(70, 71, [
-              SPACE(70, 71),
+            WHITESPACE(54, 55, [
+              SPACE(54, 55),
             ]),
-            WHITESPACE(71, 72, [
-              SPACE(71, 72),
+            WHITESPACE(55, 56, [
+              SPACE(55, 56),
             ]),
-            WHITESPACE(72, 73, [
-              SPACE(72, 73),
+            WHITESPACE(56, 57, [
+              SPACE(56, 57),
             ]),
-            WHITESPACE(73, 74, [
-              SPACE(73, 74),
-            ]),
-            WHITESPACE(74, 75, [
-              SPACE(74, 75),
-            ]),
-            WHITESPACE(75, 76, [
-              SPACE(75, 76),
-            ]),
-            WHITESPACE(76, 77, [
-              SPACE(76, 77),
-            ]),
-            WHITESPACE(77, 78, [
-              SPACE(77, 78),
-            ]),
-            WHITESPACE(78, 79, [
-              SPACE(78, 79),
-            ]),
-            WHITESPACE(79, 80, [
-              SPACE(79, 80),
-            ]),
-            WHITESPACE(80, 81, [
-              SPACE(80, 81),
-            ]),
-            workflow_execution_statement(81, 97, [
-              workflow_call(81, 97, [
-                WHITESPACE(85, 86, [
-                  SPACE(85, 86),
+            // `call no_inputs{}`
+            workflow_execution_statement(57, 73, [
+              // `call no_inputs{}`
+              workflow_call(57, 73, [
+                WHITESPACE(61, 62, [
+                  SPACE(61, 62),
                 ]),
-                identifier(86, 95),
-                workflow_call_body(95, 97),
+                // `no_inputs`
+                identifier(62, 71),
+                // `{}`
+                workflow_call_body(71, 73),
               ]),
             ]),
-            // ``
-            WHITESPACE(97, 98, [
-              // ``
-              NEWLINE(97, 98),
-            ]),
-            WHITESPACE(98, 99, [
-              SPACE(98, 99),
-            ]),
-            WHITESPACE(99, 100, [
-              SPACE(99, 100),
-            ]),
-            WHITESPACE(100, 101, [
-              SPACE(100, 101),
-            ]),
-            WHITESPACE(101, 102, [
-              SPACE(101, 102),
-            ]),
-            WHITESPACE(102, 103, [
-              SPACE(102, 103),
-            ]),
-            WHITESPACE(103, 104, [
-              SPACE(103, 104),
-            ]),
-            WHITESPACE(104, 105, [
-              SPACE(104, 105),
-            ]),
-            WHITESPACE(105, 106, [
-              SPACE(105, 106),
+            WHITESPACE(73, 74, [
+              NEWLINE(73, 74),
             ]),
           ])
         ]

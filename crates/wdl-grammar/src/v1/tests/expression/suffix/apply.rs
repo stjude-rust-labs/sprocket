@@ -18,18 +18,6 @@ fn it_fails_to_parse_an_empty_apply() {
 }
 
 #[test]
-fn it_fails_to_parse_an_apply_with_no_elements() {
-    fails_with! {
-        parser: WdlParser,
-        input: "()",
-        rule: Rule::apply,
-        positives: vec![Rule::WHITESPACE, Rule::COMMENT, Rule::expression],
-        negatives: vec![],
-        pos: 1
-    }
-}
-
-#[test]
 fn it_fails_to_parse_an_apply_with_just_a_comma() {
     fails_with! {
         parser: WdlParser,
@@ -50,6 +38,16 @@ fn it_fails_to_parse_a_value_that_is_not_apply() {
         positives: vec![Rule::apply],
         negatives: vec![],
         pos: 0
+    }
+}
+
+#[test]
+fn it_successfully_parses_an_apply_with_no_elements() {
+    parses_to! {
+        parser: WdlParser,
+        input: "()",
+        rule: Rule::apply,
+        tokens: [apply(0, 2)]
     }
 }
 

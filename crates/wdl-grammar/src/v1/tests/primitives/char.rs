@@ -17,10 +17,11 @@ fn it_fails_to_parse_an_empty_char_special() {
         input: "",
         rule: Rule::char_special,
         positives: vec![
+            Rule::char_escaped_invalid,
             Rule::char_escaped,
             Rule::char_octal,
             Rule::char_hex,
-            Rule::char_unicode
+            Rule::char_unicode,
         ],
         negatives: vec![],
         pos: 0

@@ -1,0 +1,47 @@
+version = "v1"
+
+[[repositories]]
+organization = "PacificBiosciences"
+name = "HiFi-human-WGS-WDL"
+
+[[repositories]]
+organization = "biowdl"
+name = "tasks"
+
+[[repositories]]
+organization = "stjudecloud"
+name = "workflows"
+
+[[repositories]]
+organization = "chanzuckerberg"
+name = "czid-workflows"
+
+[[ignored_errors]]
+document = "biowdl/tasks:bedtools.wdl"
+error = """
+  --> 29:67
+   |
+29 |         String memory = \"~{512 + ceil(size([inputBed, faidx], \"MiB\"))}MiB\"
+   |                                                                   ^---
+   |
+   = expected WHITESPACE or OPTION"""
+
+[[ignored_errors]]
+document = "biowdl/tasks:bowtie.wdl"
+error = """
+  --> 40:58
+   |
+40 |         String memory = \"~{5 + ceil(size(indexFiles, \"GiB\"))}GiB\"
+   |                                                          ^---
+   |
+   = expected WHITESPACE or OPTION"""
+
+[[ignored_errors]]
+document = "stjudecloud/workflows:template/task-templates.wdl"
+error = """
+  --> 17:25
+   |
+17 |         Int memory_gb = <>
+   |                         ^---
+   |
+   = expected WHITESPACE, COMMENT, or expression"""

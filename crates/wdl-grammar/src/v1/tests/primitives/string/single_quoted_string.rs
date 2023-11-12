@@ -36,10 +36,10 @@ fn it_fails_to_parse_a_single_double_quote() {
         input: "\'",
         rule: Rule::single_quoted_string,
         positives: vec![
-            Rule::single_quoted_string
+            Rule::char_escaped
         ],
         negatives: vec![],
-        pos: 0
+        pos: 1
     }
 }
 
@@ -50,10 +50,10 @@ fn it_fails_to_parse_a_string_with_a_newline() {
         input: "'Hello,\nworld!'",
         rule: Rule::single_quoted_string,
         positives: vec![
-            Rule::single_quoted_string
+            Rule::char_escaped
         ],
         negatives: vec![],
-        pos: 0
+        pos: 7
     }
 }
 

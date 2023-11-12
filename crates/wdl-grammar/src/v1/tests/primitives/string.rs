@@ -38,9 +38,9 @@ fn it_fails_to_parse_a_single_double_quote() {
         parser: WdlParser,
         input: "\"",
         rule: Rule::string,
-        positives: vec![Rule::string],
+        positives: vec![Rule::char_escaped],
         negatives: vec![],
-        pos: 0
+        pos: 1
     }
 }
 
@@ -50,9 +50,9 @@ fn it_fails_to_parse_a_single_single_quote() {
         parser: WdlParser,
         input: "\'",
         rule: Rule::string,
-        positives: vec![Rule::string],
+        positives: vec![Rule::char_escaped],
         negatives: vec![],
-        pos: 0
+        pos: 1
     }
 }
 

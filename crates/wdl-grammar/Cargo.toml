@@ -5,9 +5,41 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-clap = { version = "4.4.6", features = ["derive"] }
-env_logger.workspace = true
-log.workspace = true
-pest = "2.7.5"
-pest_derive = "2.7.5"
-serde.workspace = true
+async-recursion = { version = "1.0.5", optional = true }
+chrono = { version = "0.4.31", optional = true }
+clap = { workspace = true, optional = true }
+colored = { version = "2.0.4", optional = true }
+dirs = { version = "5.0.1", optional = true }
+env_logger = { workspace = true, optional = true }
+indexmap = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+octocrab = { version = "0.32.0", optional = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+reqwest = { version = "0.11.22", optional = true }
+serde = { workspace = true }
+serde_with = { workspace = true, optional = true }
+tokio = { version = "1.33.0", features = ["full"], optional = true}
+toml = { workspace = true, optional = true }
+
+[features]
+binaries = [
+    "async-recursion",
+    "chrono",
+    "clap",
+    "colored",
+    "dirs",
+    "env_logger",
+    "indexmap",
+    "log",
+    "octocrab",
+    "reqwest",
+    "serde_with",
+    "tokio",
+    "toml"
+]
+
+[[bin]]
+name = "wdl-grammar"
+path = "src/main.rs"
+required-features = ["binaries"]
