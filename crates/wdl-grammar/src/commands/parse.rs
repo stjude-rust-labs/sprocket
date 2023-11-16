@@ -1,7 +1,7 @@
 //! `wdl-grammar parse`
 
 use clap::Parser;
-use pest::Parser as _;
+use log::warn;
 
 use wdl_grammar as grammar;
 
@@ -16,8 +16,8 @@ pub enum Error {
     /// A common error.
     Common(super::Error),
 
-    /// A parsing error from Pest.
-    Parse(Box<dyn std::error::Error>),
+    /// An error parsing the grammar.
+    GrammarV1(grammar::Error<grammar::v1::Rule>),
 
     /// Unknown rule name.
     UnknownRule {
@@ -36,10 +36,10 @@ impl std::fmt::Display for Error {
                 write!(f, "cannot print children with empty parse tree")
             }
             Error::Common(err) => write!(f, "{err}"),
+            Error::GrammarV1(err) => write!(f, "grammar parse error: {err}"),
             Error::UnknownRule { name, grammar } => {
                 write!(f, "unknown rule '{name}' for grammar {grammar}")
             }
-            Error::Parse(err) => write!(f, "parse error: {err}"),
         }
     }
 }
@@ -88,10 +88,14 @@ pub fn parse(args: Args) -> Result<()> {
         .unwrap_or_else(|| get_contents_stdin().map_err(Error::Common))?;
 
     let mut parse_tree = match args.specification_version {
-        grammar::Version::V1 => {
-            grammar::v1::Parser::parse(rule, &input).map_err(|err| Error::Parse(Box::new(err)))?
-        }
+        grammar::Version::V1 => grammar::v1::parse(rule, &input).map_err(Error::GrammarV1)?,
     };
+
+    if let Some(warnings) = parse_tree.warnings() {
+        for warning in warnings {
+            warn!("{}", warning);
+        }
+    }
 
     if args.children_only {
         let children = match parse_tree.next() {

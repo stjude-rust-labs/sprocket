@@ -58,6 +58,7 @@ type Result<T> = std::result::Result<T, Error>;
 /// configuration itself. Notably, the path to the configuration file should
 /// _not_ be part of the serialized configuration value. Thus, I split the
 /// concept of the path and the actual configuration into two different structs.
+#[derive(Default)]
 pub struct Config {
     /// The path to the configuration file.
     path: PathBuf,

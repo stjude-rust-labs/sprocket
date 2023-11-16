@@ -27,7 +27,7 @@ pub type Repositories = HashSet<repository::Identifier>;
 ///
 /// This object stores the actual configuration values for this subcommand.
 #[serde_as]
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Inner {
     /// The WDL version.
     pub(super) version: grammar::Version,

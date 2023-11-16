@@ -1,8 +1,8 @@
 //! `wdl-grammar create-test`
 
 use clap::Parser;
+use log::warn;
 use pest::iterators::Pair;
-use pest::Parser as _;
 use pest::RuleType;
 
 use wdl_grammar as grammar;
@@ -18,8 +18,8 @@ pub enum Error {
     /// Multiple root nodes parsed.
     MultipleRootNodes,
 
-    /// A parsing error from Pest.
-    Parse(Box<dyn std::error::Error>),
+    /// An error parsing the grammar.
+    GrammarV1(grammar::Error<grammar::v1::Rule>),
 
     /// Unknown rule name.
     UnknownRule {
@@ -35,11 +35,11 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::Common(err) => write!(f, "{err}"),
+            Error::GrammarV1(err) => write!(f, "grammar parse error: {err}"),
             Error::MultipleRootNodes => write!(f, "multiple root nodes found"),
             Error::UnknownRule { name, grammar } => {
                 write!(f, "unknown rule '{name}' for grammar {grammar}")
             }
-            Error::Parse(err) => write!(f, "parse error: {err}"),
         }
     }
 }
@@ -84,10 +84,14 @@ pub fn create_test(args: Args) -> Result<()> {
         .unwrap_or_else(|| get_contents_stdin().map_err(Error::Common))?;
 
     let mut parse_tree = match args.specification_version {
-        grammar::Version::V1 => {
-            grammar::v1::Parser::parse(rule, &input).map_err(|err| Error::Parse(Box::new(err)))?
-        }
+        grammar::Version::V1 => grammar::v1::parse(rule, &input).map_err(Error::GrammarV1)?,
     };
+
+    if let Some(warnings) = parse_tree.warnings() {
+        for warning in warnings {
+            warn!("{}", warning);
+        }
+    }
 
     let root = match parse_tree.len() {
         // SAFETY: this should not be possible, as parsing just successfully

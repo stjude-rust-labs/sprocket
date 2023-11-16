@@ -19,7 +19,8 @@ pest_derive = { workspace = true }
 reqwest = { version = "0.11.22", optional = true }
 serde = { workspace = true }
 serde_with = { workspace = true, optional = true }
-tokio = { version = "1.33.0", features = ["full"], optional = true}
+to_snake_case = "0.1.1"
+tokio = { version = "1.33.0", features = ["full"], optional = true }
 toml = { workspace = true, optional = true }
 
 [features]
@@ -36,7 +37,7 @@ binaries = [
     "reqwest",
     "serde_with",
     "tokio",
-    "toml"
+    "toml",
 ]
 
 [[bin]]

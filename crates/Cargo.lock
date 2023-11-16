@@ -1788,6 +1788,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
+name = "to_snake_case"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "890233d8f267716f1ec0f272330498ed42f186b458ad8c9868fa6cb40fea87ad"
+
+[[package]]
 name = "tokio"
 version = "1.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2151,6 +2157,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_with",
+ "to_snake_case",
  "tokio",
  "toml",
 ]

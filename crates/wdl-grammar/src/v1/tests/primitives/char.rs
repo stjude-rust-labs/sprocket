@@ -16,13 +16,7 @@ fn it_fails_to_parse_an_empty_char_special() {
         parser: WdlParser,
         input: "",
         rule: Rule::char_special,
-        positives: vec![
-            Rule::char_escaped_invalid,
-            Rule::char_escaped,
-            Rule::char_octal,
-            Rule::char_hex,
-            Rule::char_unicode,
-        ],
+        positives: vec![Rule::char_special],
         negatives: vec![],
         pos: 0
     }
@@ -34,7 +28,13 @@ fn it_successfully_parses_char_escaped() {
         parser: WdlParser,
         input: "\\\\",
         rule: Rule::char_special,
-        tokens: [char_escaped(0, 2)]
+        tokens: [
+            // `\\`
+            char_special(0, 2, [
+                // `\\`
+                char_escaped(0, 2),
+            ])
+        ]
     }
 }
 
@@ -44,7 +44,13 @@ fn it_successfully_parses_char_hex() {
         parser: WdlParser,
         input: "\\xFF",
         rule: Rule::char_special,
-        tokens: [char_hex(0, 4)]
+        tokens: [
+            // `\xFF`
+            char_special(0, 4, [
+                // `\xFF`
+                char_hex(0, 4),
+            ])
+        ]
     }
 }
 
@@ -54,7 +60,13 @@ fn it_successfully_parses_char_octal() {
         parser: WdlParser,
         input: "\\123",
         rule: Rule::char_special,
-        tokens: [char_octal(0, 4)]
+        tokens: [
+            // `\123`
+            char_special(0, 4, [
+                // `\123`
+                char_octal(0, 4),
+            ])
+        ]
     }
 }
 
@@ -64,27 +76,63 @@ fn it_successfully_parses_char_unicode() {
         parser: WdlParser,
         input: "\\uFFFF",
         rule: Rule::char_special,
-        tokens: [char_unicode(0, 6)]
+        tokens: [
+            // `\uFFFF`
+            char_special(0, 6, [
+                // `\uFFFF`
+                char_unicode(0, 6, [
+                    // `\uFFFF`
+                    char_unicode_four(0, 6),
+                ]),
+            ])
+        ]
     }
 
     parses_to! {
         parser: WdlParser,
-        input: "\\uFFFF",
+        input: "\\UFFFF",
         rule: Rule::char_special,
-        tokens: [char_unicode(0, 6)]
+        tokens: [
+            // `\UFFFF`
+            char_special(0, 6, [
+                // `\UFFFF`
+                char_unicode(0, 6, [
+                    // `\UFFFF`
+                    char_unicode_four(0, 6),
+                ]),
+            ])
+        ]
     }
 
     parses_to! {
         parser: WdlParser,
         input: "\\uFFFFFFFF",
         rule: Rule::char_special,
-        tokens: [char_unicode(0, 10)]
+        tokens: [
+            // `\uFFFFFFFF`
+            char_special(0, 10, [
+                // `\uFFFFFFFF`
+                char_unicode(0, 10, [
+                    // `\uFFFFFFFF`
+                    char_unicode_eight(0, 10),
+                ]),
+            ])
+        ]
     }
 
     parses_to! {
         parser: WdlParser,
-        input: "\\uFFFFFFFF",
+        input: "\\UFFFFFFFF",
         rule: Rule::char_special,
-        tokens: [char_unicode(0, 10)]
+        tokens: [
+            // `\UFFFFFFFF`
+            char_special(0, 10, [
+                // `\UFFFFFFFF`
+                char_unicode(0, 10, [
+                    // `\UFFFFFFFF`
+                    char_unicode_eight(0, 10),
+                ]),
+            ])
+        ]
     }
 }

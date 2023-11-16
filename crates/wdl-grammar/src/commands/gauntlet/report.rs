@@ -2,9 +2,12 @@
 
 use std::collections::HashMap;
 
+use colored::Colorize as _;
 use indexmap::IndexMap;
 
-use colored::Colorize as _;
+use wdl_grammar as grammar;
+
+use grammar::core::lint;
 
 use crate::commands::gauntlet::repository;
 use crate::gauntlet::document;
@@ -198,6 +201,21 @@ impl<T: std::io::Write> Report<T> {
         Ok(())
     }
 
+    /// Report a warning for a registered result.
+    pub fn report_warning(&mut self, warning: &lint::Warning) -> std::io::Result<()> {
+        if self.section != Section::Summary {
+            panic!(
+                "cannot report a warning when the report phase is {:?}",
+                self.section
+            );
+        }
+
+        writeln!(self.inner, "  ↳ {}", warning)?;
+        self.printed = true;
+
+        Ok(())
+    }
+
     /// Reports all unexpected errors for a repository report.
     pub fn report_unexpected_errors_for_repository(
         &mut self,
@@ -294,12 +312,12 @@ impl<T: std::io::Write> Report<T> {
         {
             0 => {}
             1 => with.push(String::from("1 mismatch error")),
-            v => with.push(format!("{} mismatched errors", v)),
+            v => with.push(format!("{} mismatch errors", v)),
         };
 
         match results.get(&Status::Warning).copied() {
-            Some(1) => with.push(String::from("1 error with warnings")),
-            Some(v) => with.push(format!("{} errors with warnings", v)),
+            Some(1) => with.push(String::from("1 test containing warnings")),
+            Some(v) => with.push(format!("{} tests containing warnings", v)),
             None => {}
         }
 

@@ -38,7 +38,7 @@ fn it_fails_to_parse_a_single_double_quote() {
         parser: WdlParser,
         input: "\"",
         rule: Rule::string,
-        positives: vec![Rule::char_escaped],
+        positives: vec![Rule::char_special, Rule::string_expression_placeholder_start],
         negatives: vec![],
         pos: 1
     }
@@ -50,7 +50,7 @@ fn it_fails_to_parse_a_single_single_quote() {
         parser: WdlParser,
         input: "\'",
         rule: Rule::string,
-        positives: vec![Rule::char_escaped],
+        positives: vec![Rule::char_special, Rule::string_expression_placeholder_start],
         negatives: vec![],
         pos: 1
     }
@@ -62,7 +62,13 @@ fn it_successfully_parses_an_empty_double_quoted_string() {
         parser: WdlParser,
         input: "\"\"",
         rule: Rule::string,
-        tokens: [string(0, 2, [double_quoted_string(0, 2)])]
+        tokens: [
+            // `""`
+            string(0, 2, [
+                // `"`
+                double_quote(0, 1),
+            ])
+        ]
     }
 }
 
@@ -72,7 +78,13 @@ fn it_successfully_parses_an_empty_single_quoted_string() {
         parser: WdlParser,
         input: "''",
         rule: Rule::string,
-        tokens: [string(0, 2, [single_quoted_string(0, 2)])]
+        tokens: [
+            // `''`
+            string(0, 2, [
+                // `'`
+                single_quote(0, 1),
+            ])
+        ]
     }
 }
 
@@ -82,7 +94,15 @@ fn it_successfully_parses_a_double_quoted_string_with_a_unicode_character() {
         parser: WdlParser,
         input: "\"😀\"",
         rule: Rule::string,
-        tokens: [string(0, 6, [double_quoted_string(0, 6)])]
+        tokens: [
+            // `"😀"`
+            string(0, 6, [
+                // `"`
+                double_quote(0, 1),
+                // `😀`
+                string_literal_contents(1, 5),
+            ])
+        ]
     }
 }
 
@@ -92,7 +112,15 @@ fn it_successfully_parses_a_single_quoted_string_with_a_unicode_character() {
         parser: WdlParser,
         input: "'😀'",
         rule: Rule::string,
-        tokens: [string(0, 6, [single_quoted_string(0, 6)])]
+        tokens: [
+            // `'😀'`
+            string(0, 6, [
+                // `'`
+                single_quote(0, 1),
+                // `😀`
+                string_literal_contents(1, 5),
+            ])
+        ]
     }
 }
 
@@ -102,7 +130,15 @@ fn it_successfully_parses_a_double_quoted_string() {
         parser: WdlParser,
         input: "\"Hello, world!\"",
         rule: Rule::string,
-        tokens: [string(0, 15, [double_quoted_string(0, 15)])]
+        tokens: [
+            // `"Hello, world!"`
+            string(0, 15, [
+                // `"`
+                double_quote(0, 1),
+                // `Hello, world!`
+                string_literal_contents(1, 14),
+            ])
+        ]
     }
 }
 
@@ -112,6 +148,14 @@ fn it_successfully_parses_a_single_quoted_string() {
         parser: WdlParser,
         input: "'Hello, world!'",
         rule: Rule::string,
-        tokens: [string(0, 15, [single_quoted_string(0, 15)])]
+        tokens: [
+            // `'Hello, world!'`
+            string(0, 15, [
+                // `'`
+                single_quote(0, 1),
+                // `Hello, world!`
+                string_literal_contents(1, 14),
+            ])
+        ]
     }
 }

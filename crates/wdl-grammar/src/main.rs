@@ -106,3 +106,14 @@ async fn main() {
         Err(err) => eprintln!("error: {}", err),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn verify_arguments() {
+        use clap::CommandFactory;
+        Args::command().debug_assert()
+    }
+}

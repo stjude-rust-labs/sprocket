@@ -8,7 +8,6 @@ use clap::Parser;
 use colored::Colorize as _;
 use log::debug;
 use log::trace;
-use pest::Parser as _;
 
 pub mod config;
 pub mod document;
@@ -81,12 +80,16 @@ pub struct Args {
     #[arg(short, long)]
     config_file: Option<PathBuf>,
 
+    /// Don't load any configuration from the cache.
+    #[arg(short, long, global = true)]
+    no_cache: bool,
+
     /// Only errors are printed to the stderr stream.
     #[arg(short, long, global = true)]
     quiet: bool,
 
     /// Overwrites the configuration file.
-    #[arg(short, long, global = true)]
+    #[arg(long, global = true)]
     save_config: bool,
 
     /// Silences printing detailed error information.
@@ -96,6 +99,10 @@ pub struct Args {
     /// Skips the retreiving of remote objects.
     #[arg(long, global = true)]
     skip_remote: bool,
+
+    /// Displays warnings as part of the report output.
+    #[arg(long, global = true)]
+    show_warnings: bool,
 
     /// The Workflow Description Language (WDL) specification version to use.
     #[arg(value_name = "VERSION", short = 's', long, default_value_t, value_enum)]
@@ -108,9 +115,16 @@ pub struct Args {
 
 /// Main function for this subcommand.
 pub async fn gauntlet(args: Args) -> Result<()> {
-    let path = args.config_file.unwrap_or(Config::default_path());
-    let mut config =
-        Config::load_or_new(path, args.specification_version).map_err(Error::Config)?;
+    let mut config = match args.no_cache {
+        true => {
+            debug!("Skipping loading from cache.");
+            Config::default()
+        }
+        false => {
+            let path = args.config_file.unwrap_or(Config::default_path());
+            Config::load_or_new(path, args.specification_version).map_err(Error::Config)?
+        }
+    };
 
     if let Some(repositories) = args.repositories {
         config.repositories_mut().extend(
@@ -157,13 +171,33 @@ pub async fn gauntlet(args: Args) -> Result<()> {
 
             match config.version() {
                 grammar::Version::V1 => {
-                    match grammar::v1::Parser::parse(grammar::v1::Rule::document, &content) {
-                        Ok(_) => {
-                            trace!("{}: successfully parsed.", document_identifier);
-                            report
-                                .register(document_identifier, Status::Success)
-                                .map_err(Error::InputOutput)?;
-                        }
+                    match grammar::v1::parse(grammar::v1::Rule::document, &content) {
+                        Ok(tree) => match tree.warnings() {
+                            Some(warnings) => {
+                                trace!(
+                                    "{}: successfully parsed with {} warnings.",
+                                    document_identifier,
+                                    warnings.len()
+                                );
+                                report
+                                    .register(document_identifier, Status::Warning)
+                                    .map_err(Error::InputOutput)?;
+
+                                if args.show_warnings {
+                                    for warning in warnings {
+                                        report
+                                            .report_warning(warning)
+                                            .map_err(Error::InputOutput)?;
+                                    }
+                                }
+                            }
+                            None => {
+                                trace!("{}: succesfully parsed.", document_identifier,);
+                                report
+                                    .register(document_identifier, Status::Success)
+                                    .map_err(Error::InputOutput)?;
+                            }
+                        },
                         Err(err) => {
                             let actual_error = err.to_string();
 
@@ -273,7 +307,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
         println!(
             "\n{}\n",
             "Undetected expected errors: you should remove these from your \
-            Config.toml or run this command with the `-s` option!"
+            Config.toml or run this command with the `--save-config` option!"
                 .red()
                 .bold()
         );

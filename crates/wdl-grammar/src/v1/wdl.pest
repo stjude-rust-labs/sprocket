@@ -28,9 +28,9 @@ COMMENT = { "#" ~ (!LINE_ENDING ~ ANY)* }
 // Atoms //
 // =======//
 
-OPTION       = { "?" }
-ONE_OR_MORE  = { "+" }
-COMMA        = { "," }
+OPTION      = { "?" }
+ONE_OR_MORE = { "+" }
+COMMA       = { "," }
 
 // ==========//
 // Literals //
@@ -74,37 +74,47 @@ number = _{ float | integer }
 // parsing of these invalid string characters so that we can return lint errors
 // for them (rather than fail parsing, which returns a relatively unhelpful
 // error message at the time of writing).
-//
+// 
 // If you wish to remove this leniency, you can remove the
 // `char_escaped_invalid` rule and its inclusion in the `char_escaped` rule.
-char_escaped_invalid    = @{ "\\" ~ ANY }
-char_escaped            = ${ "\\" ~ ("\\" | "\"" | "\'" | "n" | "r" | "b" | "t" | "f" | "a" | "v" | "?") }
-char_octal              = @{ "\\" ~ ASCII_OCT_DIGIT{1, 3} ~ !ASCII_OCT_DIGIT }
-char_hex                = @{ "\\x" ~ ASCII_HEX_DIGIT+ }
-char_unicode_four       = @{ "\\" ~ ("u" | "U") ~ ASCII_HEX_DIGIT{4} ~ !ASCII_HEX_DIGIT }
-char_unicode_eight      = @{ "\\" ~ ("u" | "U") ~ ASCII_HEX_DIGIT{8} ~ !ASCII_HEX_DIGIT }
-char_unicode            = @{ char_unicode_four | char_unicode_eight }
-char_special            = _{ char_escaped | char_hex | char_unicode | char_octal | char_escaped_invalid }
-char_other_double_quote = @{ !("\\" | "\"" | "\n") ~ ANY }
-char_other_single_quote = @{ !("\\" | "\'" | "\n") ~ ANY }
+char_escaped_invalid = @{ "\\" ~ ANY }
+char_escaped         = ${ "\\" ~ ("\\" | "\"" | "\'" | "n" | "r" | "b" | "t" | "f" | "a" | "v" | "?") }
+char_octal           = @{ "\\" ~ ASCII_OCT_DIGIT{1, 3} ~ !ASCII_OCT_DIGIT }
+char_hex             = @{ "\\x" ~ ASCII_HEX_DIGIT+ }
+char_unicode_four    = @{ "\\" ~ ("u" | "U") ~ ASCII_HEX_DIGIT{4} ~ !ASCII_HEX_DIGIT }
+char_unicode_eight   = @{ "\\" ~ ("u" | "U") ~ ASCII_HEX_DIGIT{8} ~ !ASCII_HEX_DIGIT }
+char_unicode         = ${ char_unicode_four | char_unicode_eight }
+char_special         = ${ char_escaped | char_hex | char_unicode | char_octal | char_escaped_invalid }
+char_other           = @{ !("\\" | "\n") ~ ANY }
 
 // String.
-double_quoted_string = @{
-    "\"" ~ (char_special | char_other_double_quote)* ~ "\""
-}
-single_quoted_string = @{
-    "\'" ~ (char_special | char_other_single_quote)* ~ "\'"
+
+double_quote                        = { "\"" }
+single_quote                        = { "\'" }
+string_expression_placeholder_start = { "~{" | "${" }
+string_expression_placeholder_end   = { "}" }
+
+string_literal_contents = @{
+    // NOTE: the `PEEK` here looks at what quoting is being used (double or
+    // single) and denies any use of the character in literal contents. The
+    // presence of `PEEK` implies that this rule must be embedded within a rule
+    // that `PUSH`es these tokens on the stack.
+    (!string_expression_placeholder_start ~ !PEEK ~ (char_special | char_other))+
 }
 
-// For strings, whether the string is double-quoted or single-quote is not
-// important context when parsing. HOWEVER, we would like to return whether the
-// strings are single or double quoted for linting purposes. Thus, the type of
-// quoting is retained.
-// 
+string_expression_placeholder_expression = { string_placeholder | expression }
+
+string_placeholder = ${
+    string_expression_placeholder_start ~ placeholder_options* ~ string_expression_placeholder_expression ~ string_expression_placeholder_end
+}
+
 // NOTE: all rules included in `string` must be marked as atomic (`@`) or
-// compound-atomic (`$`). This is not checked by the compiler, so you must
+// compound-atomic (`$`). This is because we don't want rules eating up
+// whitespace within a string. This is not checked by the compiler, so you must
 // ensure it remains true.
-string = { (double_quoted_string | single_quoted_string) }
+string = ${
+    PUSH(double_quote | single_quote) ~ (string_placeholder | string_literal_contents)* ~ POP
+}
 
 // Identifier.
 identifier = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
@@ -196,10 +206,7 @@ core = _{
 // As such, you will see that none of the permutations of the rule below end in
 // an optional token. That is by design to avoid the problem above.
 expression = ${
-    prefix* ~ (WHITESPACE | COMMENT)* ~ core ~ (WHITESPACE | COMMENT)* ~ postfix* ~ (
-        (WHITESPACE | COMMENT)* ~ infix ~ (WHITESPACE | COMMENT)* ~ prefix* ~ (WHITESPACE | COMMENT)* ~ core ~ (WHITESPACE | COMMENT)* ~ postfix+ |
-        (WHITESPACE | COMMENT)* ~ infix ~ (WHITESPACE | COMMENT)* ~ prefix* ~ (WHITESPACE | COMMENT)* ~ core
-    )+
+    prefix* ~ (WHITESPACE | COMMENT)* ~ core ~ (WHITESPACE | COMMENT)* ~ postfix* ~ ((WHITESPACE | COMMENT)* ~ infix ~ (WHITESPACE | COMMENT)* ~ prefix* ~ (WHITESPACE | COMMENT)* ~ core ~ (WHITESPACE | COMMENT)* ~ postfix+ | (WHITESPACE | COMMENT)* ~ infix ~ (WHITESPACE | COMMENT)* ~ prefix* ~ (WHITESPACE | COMMENT)* ~ core)+
   | prefix* ~ (WHITESPACE | COMMENT)* ~ core ~ (WHITESPACE | COMMENT)* ~ postfix+
   | prefix* ~ (WHITESPACE | COMMENT)* ~ core
 }
@@ -209,19 +216,14 @@ expression = ${
 // NOTE: techically the spec calls the optional `+` the "non-empty" operator.
 // Since we have already defined this as the "one or more" operator and they
 // mean effectively the same thing, I've just kept this nomeclature.
-array_type  = ${
-    "Array" ~
-    (WHITESPACE | COMMENT)* ~
-    (
-        ("[" ~ (WHITESPACE | COMMENT)* ~ wdl_type_inner ~ (WHITESPACE | COMMENT)* ~ "]" ~ ONE_OR_MORE) |
-        ("[" ~ (WHITESPACE | COMMENT)* ~ wdl_type_inner ~ (WHITESPACE | COMMENT)* ~ "]")
-    )
+array_type = ${
+    "Array" ~ (WHITESPACE | COMMENT)* ~ (("[" ~ (WHITESPACE | COMMENT)* ~ wdl_type_inner ~ (WHITESPACE | COMMENT)* ~ "]" ~ ONE_OR_MORE) | ("[" ~ (WHITESPACE | COMMENT)* ~ wdl_type_inner ~ (WHITESPACE | COMMENT)* ~ "]"))
 }
 // NOTE: The `map_type` and `pair_type` rules **must** be marked as non-atomic, as the
 // `unbound_declaration` and `bound_declaration` rules that use them are marked
 // as compound-atomic.
-map_type    =  !{ "Map" ~ "[" ~ wdl_type_inner ~ COMMA ~ wdl_type_inner ~ "]" }
-pair_type   =  !{ "Pair" ~ "[" ~ wdl_type_inner ~ COMMA ~ wdl_type_inner ~ "]" }
+map_type    = !{ "Map" ~ "[" ~ wdl_type_inner ~ COMMA ~ wdl_type_inner ~ "]" }
+pair_type   = !{ "Pair" ~ "[" ~ wdl_type_inner ~ COMMA ~ wdl_type_inner ~ "]" }
 string_type =  { "String" }
 file_type   =  { "File" }
 bool_type   =  { "Boolean" }
@@ -260,7 +262,7 @@ wdl_type_inner = ${
 // **must** be a whitespace between the `wdl_type` and the `identifier` for
 // `bound_declaration`s and `unbound_declaration`s. Else, you get weird things
 // happening in these rules.
-//
+// 
 // For example, when considering `IntermediateFiles`, `Int` matching the integer
 // `wdl_type` and `ermediateFiles` matching the `identifier`.
 wdl_type = ${
@@ -379,74 +381,73 @@ task_input = { common_input }
 // Task output.
 task_output = { common_output }
 
-// Task expression placeholders.
-//
+// Expression placeholder options.
+// 
+// Expression placeholder options can be used anywhere where expression
+// placeholders are evaluated, including (but not limited to):
+// 
+// * Strings
+// 
 // DIVERGE: the specification states that any expression placeholder conforms to
 // the pattern `option="value"`. However, it is clear from the examples in the
 // spec that single quoted strings are also allowed. Thus, we allow for either
 // single or double quoted strings here—we will leave the selection of which to
 // use up to a linting question.
-//
+// 
 // LENIENT: the specification is pretty clear that no spaces are allowed between
 // the option and the equals sign or the equals sign and the value. However,
 // many tools choose to allow spaces here. As such, we will allow spaces in
 // between these elements, but we will throw a lint warning for these cases.
-expression_placeholder_sep = { "sep" ~ "=" ~ string }
-expression_placeholder_boolean = { boolean ~ "=" ~ string }
-expression_placeholder_default = { "default" ~ "=" ~ string }
+placeholder_option_sep     = { "sep" ~ "=" ~ string }
+placeholder_option_boolean = { boolean ~ "=" ~ string }
+placeholder_option_default = { "default" ~ "=" ~ string }
 
-expression_placeholder = {
-    expression_placeholder_sep |
-    expression_placeholder_boolean |
-    expression_placeholder_default
+placeholder_option  = {
+    placeholder_option_sep
+  | placeholder_option_boolean
+  | placeholder_option_default
 }
-expression_placeholders = { expression_placeholder+ }
+placeholder_options = { placeholder_option+ }
 
 // Task commands, curly.
 command_curly_begin = { "command" ~ "{" }
 command_curly_end   = { "}" }
 
-command_curly_interpolation_start = _{ "~{" | "${" }
-command_curly_interpolation_end   = _{ "}" }
+command_curly_expression_placeholder_start = _{ "~{" | "${" }
+command_curly_expression_placeholder_end   = _{ "}" }
 
 command_curly_literal_contents = _{
-    (!command_curly_begin ~ !command_curly_end ~ !command_curly_interpolation_start ~ ANY)+
+    (!command_curly_begin ~ !command_curly_end ~ !command_curly_expression_placeholder_start ~ ANY)+
 }
 
-command_curly_interpolated_expression = { command_curly_interpolated_contents | expression }
+command_curly_expression_placeholder_expression = { command_curly_placeholder | expression }
 
-command_curly_interpolated_contents = {
-    command_curly_interpolation_start ~
-    expression_placeholders* ~
-    command_curly_interpolated_expression ~
-    command_curly_interpolation_end
+command_curly_placeholder = {
+    command_curly_expression_placeholder_start ~ placeholder_options* ~ command_curly_expression_placeholder_expression ~ command_curly_expression_placeholder_end
 }
 
 command_curly = {
-    command_curly_begin ~ (command_curly_interpolated_contents | command_curly_literal_contents)* ~ command_curly_end
+    command_curly_begin ~ (command_curly_placeholder | command_curly_literal_contents)* ~ command_curly_end
 }
 
 // Task commands, heredoc.
-command_heredoc_begin               =  { "command" ~ "<<<" }
-command_heredoc_end                 =  { ">>>" }
-command_heredoc_interpolation_start = _{ "~{" }
-command_heredoc_interpolation_end   = _{ "}" }
+command_heredoc_begin                        =  { "command" ~ "<<<" }
+command_heredoc_end                          =  { ">>>" }
+command_heredoc_expression_placeholder_start = _{ "~{" }
+command_heredoc_expression_placeholder_end   = _{ "}" }
 
 command_heredoc_literal_contents = _{
-    (!command_heredoc_begin ~ !command_heredoc_end ~ !command_heredoc_interpolation_start ~ ANY)+
+    (!command_heredoc_begin ~ !command_heredoc_end ~ !command_heredoc_expression_placeholder_start ~ ANY)+
 }
 
-command_heredoc_interpolated_expression = { command_heredoc_interpolated_contents | expression }
+command_heredoc_expression_placeholder_expression = { command_heredoc_placeholder | expression }
 
-command_heredoc_interpolated_contents = {
-    command_heredoc_interpolation_start ~
-    expression_placeholders* ~
-    command_heredoc_interpolated_expression ~
-    command_heredoc_interpolation_end
+command_heredoc_placeholder = {
+    command_heredoc_expression_placeholder_start ~ placeholder_options* ~ command_heredoc_expression_placeholder_expression ~ command_heredoc_expression_placeholder_end
 }
 
 command_heredoc = {
-    command_heredoc_begin ~ (command_heredoc_interpolated_contents | command_heredoc_literal_contents)* ~ command_heredoc_end
+    command_heredoc_begin ~ (command_heredoc_placeholder | command_heredoc_literal_contents)* ~ command_heredoc_end
 }
 
 task_command = { (command_heredoc | command_curly) }
