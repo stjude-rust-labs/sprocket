@@ -70,7 +70,7 @@ From the root directory:
     ```
   * [ ] Create git tag: `git tag wdl-v0.1.0`.
   * [ ] Push release: `git push && git push --tags`.
-  * [ ] Publish the new crate: `cargo publish --all-features`.
+  * [ ] Publish the new crate: `cargo publish --all-features -p wdl`.
   * [ ] Go to the Releases page in Github, create a Release for this tag, and
     copy the body from the commit message that describes the package version
     updates. 
