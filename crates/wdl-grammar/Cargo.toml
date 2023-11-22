@@ -1,8 +1,13 @@
 [package]
 name = "wdl-grammar"
 version = "0.1.0"
+authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
 edition.workspace = true
 license.workspace = true
+description = "Grammar lexing and parsing for Workflow Description Language (WDL) documents"
+homepage = "https://github.com/stjude-rust-labs/wdl"
+repository = "https://github.com/stjude-rust-labs/wdl"
+documentation = "https://docs.rs/wdl-grammar"
 
 [dependencies]
 async-recursion = { version = "1.0.5", optional = true }
