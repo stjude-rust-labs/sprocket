@@ -64,9 +64,11 @@ From the root directory:
     ```
     release: bumps `wdl` version to v0.1.0
 
-    ## Component Crate Updates
+    Component Crate Updates
+    -----------------------
 
-    * `wdl-grammar`: bumped from v0.1.0 to v0.2.0
+    * `wdl-grammar`: introduced at v0.1.0 ([release](https://github.com/stjude-rust-labs/wdl/releases/tag/wdl-grammar-v0.1.0))
+    * `wdl-fictitous`: bumped from v0.1.0 to v0.2.0 ([release](https://github.com/stjude-rust-labs/wdl/releases/tag/wdl-fictitous-v0.2.0))
     ```
   * [ ] Create git tag: `git tag wdl-v0.1.0`.
   * [ ] Push release: `git push && git push --tags`.
@@ -74,3 +76,12 @@ From the root directory:
   * [ ] Go to the Releases page in Github, create a Release for this tag, and
     copy the body from the commit message that describes the package version
     updates. 
+    * Ensure that you change the heading style from
+      ```
+      Component Crate Updates
+      -----------------------
+      ```
+      to
+      ```
+      ## Component Crate Updates
+      ```
