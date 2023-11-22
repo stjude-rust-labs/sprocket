@@ -16,3 +16,6 @@ wdl-grammar = { path = "../wdl-grammar", version = "0.1.0", optional = true }
 [features]
 default = []
 grammar = ["dep:wdl-grammar"]
+
+[package.metadata.docs.rs]
+all-features = true
