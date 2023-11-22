@@ -1,0 +1,18 @@
+[package]
+name = "wdl"
+version.workspace = true
+authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
+license.workspace = true
+edition.workspace = true
+description = "Workflow Description Language (WDL) document parsing and linting"
+homepage = "https://github.com/stjude-rust-labs/wdl"
+repository = "https://github.com/stjude-rust-labs/wdl"
+documentation = "https://docs.rs/wdl"
+readme = "../README.md"
+
+[dependencies]
+wdl-grammar = { path = "../wdl-grammar", version = "0.1.0", optional = true }
+
+[features]
+default = []
+grammar = ["dep:wdl-grammar"]

@@ -2140,6 +2140,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d046c5d029ba91a1ed14da14dca44b68bf2f124cfbaf741c54151fdb3e0750b"
 
 [[package]]
+name = "wdl"
+version = "0.1.0"
+dependencies = [
+ "wdl-grammar",
+]
+
+[[package]]
 name = "wdl-grammar"
 version = "0.1.0"
 dependencies = [

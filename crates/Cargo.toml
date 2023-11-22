@@ -1,10 +1,11 @@
 [workspace]
-members = ["wdl-grammar"]
+members = ["wdl", "wdl-grammar"]
 resolver = "2"
 
 [workspace.package]
 license = "MIT OR Apache-2.0"
 edition = "2021"
+version = "0.1.0"
 
 [workspace.dependencies]
 clap = { version = "4.4.7", features = ["derive"] }
