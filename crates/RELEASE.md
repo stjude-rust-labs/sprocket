@@ -42,17 +42,18 @@ For every component crate that has changes:
 
 ## Convenience Crate
 
-For the convenience crate (`wdl`):
-
-  * [ ] Update the version of all component crates in `Cargo.toml`.
-
 From the root directory:
 
+  * [ ] Update the version of the top-level crate and all component crates in
+    the root `Cargo.toml`.
+    * **Note:** changes to the version number will be automatically reflected in
+    `wdl/Cargo.toml`, as the version there is specified as `version.workspace =
+    true`.
   * [ ] Run tests: `cargo test --all-features`.
   * [ ] Run linting: `cargo clippy --all-features`.
   * [ ] Run fmt: `cargo fmt --check`.
   * [ ] Run doc: `cargo doc`.
-  * [ ] Stage changes: `git add wdl/Cargo.lock wdl/Cargo.toml`.
+  * [ ] Stage changes: `git add Cargo.lock Cargo.toml`.
   * [ ] Create git commit:
     ```
     git commit
