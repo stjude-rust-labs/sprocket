@@ -27,7 +27,7 @@ impl Whitespace {
             .code(self.code())
             .level(lint::Level::Low)
             .group(lint::Group::Style)
-            .message(format!("line {} is empty but contains spaces", line_no))
+            .subject(format!("line {} is empty but contains spaces", line_no))
             .try_build()
             .unwrap()
     }
@@ -42,7 +42,7 @@ impl Whitespace {
             .code(self.code())
             .level(lint::Level::Low)
             .group(lint::Group::Style)
-            .message(format!("trailing space at the end of line {}", line_no))
+            .subject(format!("trailing space at the end of line {}", line_no))
             .try_build()
             .unwrap()
     }
@@ -57,7 +57,7 @@ impl Whitespace {
             .code(self.code())
             .level(lint::Level::Low)
             .group(lint::Group::Style)
-            .message(format!("trailing tab at the end of line {}", line_no))
+            .subject(format!("trailing tab at the end of line {}", line_no))
             .try_build()
             .unwrap()
     }

@@ -20,8 +20,8 @@ pub struct Warning {
     /// The lint group.
     group: Group,
 
-    /// The message.
-    message: String,
+    /// The subject.
+    subject: String,
 }
 
 impl Warning {
@@ -43,7 +43,7 @@ impl Warning {
     ///     .code(code)
     ///     .level(Level::High)
     ///     .group(Group::Style)
-    ///     .message("Hello, world!")
+    ///     .subject("Hello, world!")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.code().grammar(), &Version::V1);
@@ -73,7 +73,7 @@ impl Warning {
     ///     .code(code)
     ///     .level(Level::High)
     ///     .group(Group::Style)
-    ///     .message("Hello, world!")
+    ///     .subject("Hello, world!")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.level(), &Level::High);
@@ -102,7 +102,7 @@ impl Warning {
     ///     .code(code)
     ///     .level(Level::High)
     ///     .group(Group::Style)
-    ///     .message("Hello, world!")
+    ///     .subject("Hello, world!")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.group(), &Group::Style);
@@ -113,7 +113,7 @@ impl Warning {
         &self.group
     }
 
-    /// Gets the message for this [`Warning`].
+    /// Gets the subject for this [`Warning`].
     ///
     /// # Examples
     ///
@@ -131,15 +131,15 @@ impl Warning {
     ///     .code(code)
     ///     .level(Level::High)
     ///     .group(Group::Style)
-    ///     .message("Hello, world!")
+    ///     .subject("Hello, world!")
     ///     .try_build()?;
     ///
-    /// assert_eq!(warning.message(), "Hello, world!");
+    /// assert_eq!(warning.subject(), "Hello, world!");
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn message(&self) -> &str {
-        self.message.as_ref()
+    pub fn subject(&self) -> &str {
+        self.subject.as_ref()
     }
 }
 
@@ -148,7 +148,7 @@ impl std::fmt::Display for Warning {
         write!(
             f,
             "[{}::{}/{:?}] {}",
-            self.code, self.group, self.level, self.message
+            self.code, self.group, self.level, self.subject
         )
     }
 }
@@ -164,7 +164,7 @@ mod tests {
             .code(code)
             .level(Level::Medium)
             .group(Group::Style)
-            .message("Hello, world!")
+            .subject("Hello, world!")
             .try_build()?;
 
         assert_eq!(warning.to_string(), "[v1::001::Style/Medium] Hello, world!");

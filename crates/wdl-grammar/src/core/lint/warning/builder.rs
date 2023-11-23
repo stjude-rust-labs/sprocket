@@ -17,8 +17,8 @@ pub enum MissingError {
     /// A lint group was not provided.
     Group,
 
-    /// A message was not provided.
-    Message,
+    /// A subject was not provided.
+    Subject,
 }
 
 impl std::fmt::Display for MissingError {
@@ -27,7 +27,7 @@ impl std::fmt::Display for MissingError {
             MissingError::Code => write!(f, "missing code"),
             MissingError::Level => write!(f, "missing level"),
             MissingError::Group => write!(f, "missing group"),
-            MissingError::Message => write!(f, "missing message"),
+            MissingError::Subject => write!(f, "missing subject"),
         }
     }
 }
@@ -49,8 +49,8 @@ pub struct Builder {
     /// The lint group.
     group: Option<Group>,
 
-    /// The message.
-    message: Option<String>,
+    /// The subject.
+    subject: Option<String>,
 }
 
 impl Builder {
@@ -72,7 +72,7 @@ impl Builder {
     ///     .code(code)
     ///     .level(Level::High)
     ///     .group(Group::Style)
-    ///     .message("Hello, world!")
+    ///     .subject("Hello, world!")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.code().grammar(), &Version::V1);
@@ -103,7 +103,7 @@ impl Builder {
     ///     .code(code)
     ///     .level(Level::High)
     ///     .group(Group::Style)
-    ///     .message("Hello, world!")
+    ///     .subject("Hello, world!")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.level(), &Level::High);
@@ -132,7 +132,7 @@ impl Builder {
     ///     .code(code)
     ///     .level(Level::High)
     ///     .group(Group::Style)
-    ///     .message("Hello, world!")
+    ///     .subject("Hello, world!")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.group(), &Group::Style);
@@ -143,7 +143,7 @@ impl Builder {
         self
     }
 
-    /// Sets the message for this [`Builder`].
+    /// Sets the subject for this [`Builder`].
     ///
     /// # Examples
     ///
@@ -161,15 +161,15 @@ impl Builder {
     ///     .code(code)
     ///     .level(Level::High)
     ///     .group(Group::Style)
-    ///     .message("Hello, world!")
+    ///     .subject("Hello, world!")
     ///     .try_build()?;
     ///
-    /// assert_eq!(warning.message(), "Hello, world!");
+    /// assert_eq!(warning.subject(), "Hello, world!");
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
-    pub fn message(mut self, message: impl Into<String>) -> Self {
-        let message = message.into();
-        self.message = Some(message);
+    pub fn subject(mut self, subject: impl Into<String>) -> Self {
+        let subject = subject.into();
+        self.subject = Some(subject);
         self
     }
 
@@ -191,14 +191,14 @@ impl Builder {
     ///     .code(code)
     ///     .level(Level::High)
     ///     .group(Group::Style)
-    ///     .message("Hello, world!")
+    ///     .subject("Hello, world!")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.code().grammar(), &Version::V1);
     /// assert_eq!(warning.code().index().get(), 1);
     /// assert_eq!(warning.level(), &Level::High);
     /// assert_eq!(warning.group(), &Group::Style);
-    /// assert_eq!(warning.message(), "Hello, world!");
+    /// assert_eq!(warning.subject(), "Hello, world!");
     /// assert_eq!(warning.to_string(), "[v1::001::Style/High] Hello, world!");
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -206,13 +206,13 @@ impl Builder {
         let code = self.code.map(Ok).unwrap_or(Err(MissingError::Code))?;
         let level = self.level.map(Ok).unwrap_or(Err(MissingError::Level))?;
         let group = self.group.map(Ok).unwrap_or(Err(MissingError::Group))?;
-        let message = self.message.map(Ok).unwrap_or(Err(MissingError::Message))?;
+        let subject = self.subject.map(Ok).unwrap_or(Err(MissingError::Subject))?;
 
         Ok(Warning {
             code,
             level,
             group,
-            message,
+            subject,
         })
     }
 }
