@@ -8,11 +8,11 @@ use crate::core::Tree;
 use crate::Error;
 use crate::Result;
 
-pub(crate) mod lint;
+pub mod lint;
 mod parse;
 #[cfg(test)]
 mod tests;
-pub(crate) mod validation;
+pub mod validation;
 
 pub(crate) use parse::Parser;
 pub use parse::Rule;
