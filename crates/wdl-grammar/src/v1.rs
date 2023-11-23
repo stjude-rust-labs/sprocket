@@ -1,4 +1,13 @@
-//! WDL 1.x
+//! WDL 1.x.
+//!
+//! ## Linting Rules
+//!
+//! The following linting rules are supported for WDL 1.x:
+//!
+//! | Name                | Code      | Group    | Module                        |
+//! |:--------------------|:---------:|:--------:|:-----------------------------:|
+//! | `whitespace`        | `v1::001` | Style    | [Link](lint::Whitespace)      |
+//! | `no_curly_commands` | `v1::002` | Pedantic | [Link](lint::NoCurlyCommands) |
 
 use pest::Parser as _;
 
