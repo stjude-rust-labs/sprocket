@@ -1,4 +1,4 @@
-//! Various lints for invalid whitespace.
+//! Various lints for undesired whitespace.
 
 use std::num::NonZeroUsize;
 
@@ -12,7 +12,7 @@ use crate::core::Location;
 use crate::v1;
 use crate::Version;
 
-/// Various lints for invalid whitespace.
+/// Various lints for undesired whitespace.
 #[derive(Debug)]
 pub struct Whitespace;
 

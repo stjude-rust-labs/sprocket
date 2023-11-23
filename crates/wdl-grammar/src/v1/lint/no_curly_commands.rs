@@ -13,7 +13,7 @@ use crate::v1;
 use crate::Version;
 
 /// Replace curly command blocks with heredoc command blocks.
-/// 
+///
 /// Curly command blocks are no longer considered idiomatic WDL
 /// ([link](https://github.com/openwdl/wdl/blob/main/versions/1.1/SPEC.md#command-section)).
 /// Idiomatic WDL code uses heredoc command blocks instead.
