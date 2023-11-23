@@ -8,6 +8,7 @@ use crate::core::lint;
 use crate::core::lint::Group;
 use crate::core::lint::Rule;
 use crate::core::Code;
+use crate::core::Location;
 use crate::v1;
 use crate::Version;
 
@@ -27,13 +28,19 @@ impl Whitespace {
             .code(self.code())
             .level(lint::Level::Low)
             .group(lint::Group::Style)
-            .subject(format!("line {} is empty but contains spaces", line_no))
+            .location(Location::Line(line_no))
+            .subject("line contains only whitespace")
+            .body(
+                "Blank lines should be completely empty with no characters 
+                between newlines.",
+            )
+            .fix("Remove the whitespace(s).")
             .try_build()
             .unwrap()
     }
 
     /// Creates an error corresponding to a line with a trailing space.
-    fn trailing_space(&self, line_no: NonZeroUsize) -> lint::Warning
+    fn trailing_space(&self, line_no: NonZeroUsize, col_no: NonZeroUsize) -> lint::Warning
     where
         Self: Rule<v1::Rule>,
     {
@@ -42,13 +49,21 @@ impl Whitespace {
             .code(self.code())
             .level(lint::Level::Low)
             .group(lint::Group::Style)
-            .subject(format!("trailing space at the end of line {}", line_no))
+            .location(Location::LineCol { line_no, col_no })
+            .subject("trailing space")
+            .body(
+                "This line contains one or more a trailing space(s).
+                
+                Blank lines should be completely empty with no characters
+                between newlines.",
+            )
+            .fix("Remove the trailing space(s).")
             .try_build()
             .unwrap()
     }
 
     /// Creates an error corresponding to a line with a trailing tab.
-    fn trailing_tab(&self, line_no: NonZeroUsize) -> lint::Warning
+    fn trailing_tab(&self, line_no: NonZeroUsize, col_no: NonZeroUsize) -> lint::Warning
     where
         Self: Rule<v1::Rule>,
     {
@@ -57,7 +72,15 @@ impl Whitespace {
             .code(self.code())
             .level(lint::Level::Low)
             .group(lint::Group::Style)
-            .subject(format!("trailing tab at the end of line {}", line_no))
+            .location(Location::LineCol { line_no, col_no })
+            .subject("trailing tab")
+            .body(
+                "This line contains one or more a trailing tab(s).
+                
+                Blank lines should be completely empty with no characters
+                between newlines.",
+            )
+            .fix("Remove the trailing tab(s).")
             .try_build()
             .unwrap()
     }
@@ -77,19 +100,28 @@ impl Rule<v1::Rule> for Whitespace {
         let mut results = Vec::new();
 
         for (i, line) in tree.as_str().lines().enumerate() {
+            if line.is_empty() {
+                continue;
+            }
+
             // SAFETY: this will always unwrap because we add one to the current
             // enumeration index. Technically it will not unwrap for usize::MAX
             // - 1, but we don't expect that any WDL document will have that
             //   many lines.
             let line_no = NonZeroUsize::try_from(i + 1).unwrap();
+
+            // SAFETY: we just ensured above that the line is not empty. As
+            // such, this will always unwrap.
+            let col_no = NonZeroUsize::try_from(line.len()).unwrap();
+
             let trimmed_line = line.trim();
 
             if trimmed_line.is_empty() && line != trimmed_line {
                 results.push(self.empty_line(line_no));
             } else if line.ends_with(' ') {
-                results.push(self.trailing_space(line_no));
+                results.push(self.trailing_space(line_no, col_no));
             } else if line.ends_with('\t') {
-                results.push(self.trailing_tab(line_no));
+                results.push(self.trailing_tab(line_no, col_no));
             }
         }
 
@@ -118,7 +150,7 @@ mod tests {
         assert_eq!(warning.len(), 1);
         assert_eq!(
             warning.first().unwrap().to_string(),
-            "[v1::001::Style/Low] line 2 is empty but contains spaces"
+            "[v1::001::Style/Low] line contains only whitespace at 2:*"
         );
 
         Ok(())
@@ -132,7 +164,7 @@ mod tests {
         assert_eq!(warning.len(), 1);
         assert_eq!(
             warning.first().unwrap().to_string(),
-            "[v1::001::Style/Low] trailing space at the end of line 1"
+            "[v1::001::Style/Low] trailing space at 1:12"
         );
 
         Ok(())
@@ -146,7 +178,7 @@ mod tests {
         assert_eq!(warning.len(), 1);
         assert_eq!(
             warning.first().unwrap().to_string(),
-            "[v1::001::Style/Low] trailing tab at the end of line 1"
+            "[v1::001::Style/Low] trailing tab at 1:12"
         );
 
         Ok(())
@@ -154,19 +186,25 @@ mod tests {
 
     #[test]
     fn it_unwraps_a_trailing_space_error() {
-        let warning = Whitespace.trailing_space(NonZeroUsize::try_from(1).unwrap());
+        let warning = Whitespace.trailing_space(
+            NonZeroUsize::try_from(1).unwrap(),
+            NonZeroUsize::try_from(1).unwrap(),
+        );
         assert_eq!(
             warning.to_string(),
-            "[v1::001::Style/Low] trailing space at the end of line 1"
+            "[v1::001::Style/Low] trailing space at 1:1"
         )
     }
 
     #[test]
     fn it_unwraps_a_trailing_tab_error() {
-        let warning = Whitespace.trailing_tab(NonZeroUsize::try_from(1).unwrap());
+        let warning = Whitespace.trailing_tab(
+            NonZeroUsize::try_from(1).unwrap(),
+            NonZeroUsize::try_from(1).unwrap(),
+        );
         assert_eq!(
             warning.to_string(),
-            "[v1::001::Style/Low] trailing tab at the end of line 1"
+            "[v1::001::Style/Low] trailing tab at 1:1"
         )
     }
 
@@ -175,7 +213,7 @@ mod tests {
         let warning = Whitespace.empty_line(NonZeroUsize::try_from(1).unwrap());
         assert_eq!(
             warning.to_string(),
-            "[v1::001::Style/Low] line 1 is empty but contains spaces"
+            "[v1::001::Style/Low] line contains only whitespace at 1:*"
         )
     }
 }

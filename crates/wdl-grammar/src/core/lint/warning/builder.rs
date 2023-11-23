@@ -4,6 +4,7 @@ use crate::core::lint::Group;
 use crate::core::lint::Level;
 use crate::core::lint::Warning;
 use crate::core::Code;
+use crate::core::Location;
 
 /// An error related to building a lint warning.
 #[derive(Debug)]
@@ -17,8 +18,14 @@ pub enum MissingError {
     /// A lint group was not provided.
     Group,
 
+    /// A location was not provided.
+    Location,
+
     /// A subject was not provided.
     Subject,
+
+    /// A body was not provided.
+    Body,
 }
 
 impl std::fmt::Display for MissingError {
@@ -27,7 +34,9 @@ impl std::fmt::Display for MissingError {
             MissingError::Code => write!(f, "missing code"),
             MissingError::Level => write!(f, "missing level"),
             MissingError::Group => write!(f, "missing group"),
+            MissingError::Location => write!(f, "missing location"),
             MissingError::Subject => write!(f, "missing subject"),
+            MissingError::Body => write!(f, "missing body"),
         }
     }
 }
@@ -49,8 +58,17 @@ pub struct Builder {
     /// The lint group.
     group: Option<Group>,
 
+    /// The location.
+    location: Option<Location>,
+
     /// The subject.
     subject: Option<String>,
+
+    /// The body.
+    body: Option<String>,
+
+    /// The (optional) text to describe how to fix the issue.
+    fix: Option<String>,
 }
 
 impl Builder {
@@ -65,6 +83,7 @@ impl Builder {
     /// use grammar::core::lint::Group;
     /// use grammar::core::lint::Level;
     /// use grammar::core::Code;
+    /// use grammar::core::Location;
     /// use grammar::Version;
     ///
     /// let code = Code::try_new(Version::V1, 1)?;
@@ -73,6 +92,9 @@ impl Builder {
     ///     .level(Level::High)
     ///     .group(Group::Style)
     ///     .subject("Hello, world!")
+    ///     .location(Location::File)
+    ///     .body("A body.")
+    ///     .fix("How to fix the issue.")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.code().grammar(), &Version::V1);
@@ -92,10 +114,12 @@ impl Builder {
     /// ```
     /// use wdl_grammar as grammar;
     ///
+    ///
     /// use grammar::core::lint::warning::Builder;
     /// use grammar::core::lint::Group;
     /// use grammar::core::lint::Level;
     /// use grammar::core::Code;
+    /// use grammar::core::Location;
     /// use grammar::Version;
     ///
     /// let code = Code::try_new(Version::V1, 1)?;
@@ -104,6 +128,9 @@ impl Builder {
     ///     .level(Level::High)
     ///     .group(Group::Style)
     ///     .subject("Hello, world!")
+    ///     .location(Location::File)
+    ///     .body("A body.")
+    ///     .fix("How to fix the issue.")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.level(), &Level::High);
@@ -121,10 +148,12 @@ impl Builder {
     /// ```
     /// use wdl_grammar as grammar;
     ///
+    ///
     /// use grammar::core::lint::warning::Builder;
     /// use grammar::core::lint::Group;
     /// use grammar::core::lint::Level;
     /// use grammar::core::Code;
+    /// use grammar::core::Location;
     /// use grammar::Version;
     ///
     /// let code = Code::try_new(Version::V1, 1)?;
@@ -132,7 +161,10 @@ impl Builder {
     ///     .code(code)
     ///     .level(Level::High)
     ///     .group(Group::Style)
+    ///     .location(Location::File)
     ///     .subject("Hello, world!")
+    ///     .body("A body.")
+    ///     .fix("How to fix the issue.")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.group(), &Group::Style);
@@ -143,6 +175,43 @@ impl Builder {
         self
     }
 
+    /// Sets the location for this [`Builder`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wdl_grammar as grammar;
+    ///
+    ///
+    /// use grammar::core::lint::warning::Builder;
+    /// use grammar::core::lint::Group;
+    /// use grammar::core::lint::Level;
+    /// use grammar::core::Code;
+    /// use grammar::core::Location;
+    /// use grammar::Version;
+    ///
+    /// let code = Code::try_new(Version::V1, 1)?;
+    /// let warning = Builder::default()
+    ///     .code(code)
+    ///     .level(Level::High)
+    ///     .group(Group::Style)
+    ///     .location(Location::File)
+    ///     .subject("Hello, world!")
+    ///     .body("A body.")
+    ///     .fix("How to fix the issue.")
+    ///     .try_build()?;
+    ///
+    /// assert_eq!(
+    ///     warning.location(),
+    ///     &Location::File
+    /// );
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    pub fn location(mut self, location: Location) -> Self {
+        self.location = Some(location);
+        self
+    }
+
     /// Sets the subject for this [`Builder`].
     ///
     /// # Examples
@@ -150,10 +219,12 @@ impl Builder {
     /// ```
     /// use wdl_grammar as grammar;
     ///
+    ///
     /// use grammar::core::lint::warning::Builder;
     /// use grammar::core::lint::Group;
     /// use grammar::core::lint::Level;
     /// use grammar::core::Code;
+    /// use grammar::core::Location;
     /// use grammar::Version;
     ///
     /// let code = Code::try_new(Version::V1, 1)?;
@@ -162,6 +233,9 @@ impl Builder {
     ///     .level(Level::High)
     ///     .group(Group::Style)
     ///     .subject("Hello, world!")
+    ///     .location(Location::File)
+    ///     .body("A body.")
+    ///     .fix("How to fix the issue.")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.subject(), "Hello, world!");
@@ -173,7 +247,42 @@ impl Builder {
         self
     }
 
-    /// Consumes `self` to attempt to build a [`Warning`].
+    /// Sets the body for this [`Builder`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wdl_grammar as grammar;
+    ///
+    ///
+    /// use grammar::core::lint::warning::Builder;
+    /// use grammar::core::lint::Group;
+    /// use grammar::core::lint::Level;
+    /// use grammar::core::Code;
+    /// use grammar::core::Location;
+    /// use grammar::Version;
+    ///
+    /// let code = Code::try_new(Version::V1, 1)?;
+    /// let warning = Builder::default()
+    ///     .code(code)
+    ///     .level(Level::High)
+    ///     .group(Group::Style)
+    ///     .subject("Hello, world!")
+    ///     .location(Location::File)
+    ///     .body("A body.")
+    ///     .fix("How to fix the issue.")
+    ///     .try_build()?;
+    ///
+    /// assert_eq!(warning.body(), "A body.");
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    pub fn body(mut self, body: impl Into<String>) -> Self {
+        let body = body.into();
+        self.body = Some(body);
+        self
+    }
+
+    /// Sets the fix text for this [`Builder`].
     ///
     /// # Examples
     ///
@@ -184,6 +293,7 @@ impl Builder {
     /// use grammar::core::lint::Group;
     /// use grammar::core::lint::Level;
     /// use grammar::core::Code;
+    /// use grammar::core::Location;
     /// use grammar::Version;
     ///
     /// let code = Code::try_new(Version::V1, 1)?;
@@ -192,6 +302,44 @@ impl Builder {
     ///     .level(Level::High)
     ///     .group(Group::Style)
     ///     .subject("Hello, world!")
+    ///     .location(Location::File)
+    ///     .body("A body.")
+    ///     .fix("How to fix the issue.")
+    ///     .try_build()?;
+    ///
+    /// assert_eq!(warning.fix(), Some("How to fix the issue."));
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    pub fn fix(mut self, fix: impl Into<String>) -> Self {
+        let fix = fix.into();
+        self.fix = Some(fix);
+        self
+    }
+
+    /// Consumes `self` to attempt to build a [`Warning`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wdl_grammar as grammar;
+    ///
+    ///
+    /// use grammar::core::lint::warning::Builder;
+    /// use grammar::core::lint::Group;
+    /// use grammar::core::lint::Level;
+    /// use grammar::core::Code;
+    /// use grammar::core::Location;
+    /// use grammar::Version;
+    ///
+    /// let code = Code::try_new(Version::V1, 1)?;
+    /// let warning = Builder::default()
+    ///     .code(code)
+    ///     .level(Level::High)
+    ///     .group(Group::Style)
+    ///     .subject("Hello, world!")
+    ///     .location(Location::File)
+    ///     .body("A body.")
+    ///     .fix("How to fix the issue.")
     ///     .try_build()?;
     ///
     /// assert_eq!(warning.code().grammar(), &Version::V1);
@@ -199,6 +347,8 @@ impl Builder {
     /// assert_eq!(warning.level(), &Level::High);
     /// assert_eq!(warning.group(), &Group::Style);
     /// assert_eq!(warning.subject(), "Hello, world!");
+    /// assert_eq!(warning.body(), "A body.");
+    /// assert_eq!(warning.fix(), Some("How to fix the issue."));
     /// assert_eq!(warning.to_string(), "[v1::001::Style/High] Hello, world!");
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -206,13 +356,21 @@ impl Builder {
         let code = self.code.map(Ok).unwrap_or(Err(MissingError::Code))?;
         let level = self.level.map(Ok).unwrap_or(Err(MissingError::Level))?;
         let group = self.group.map(Ok).unwrap_or(Err(MissingError::Group))?;
+        let location = self
+            .location
+            .map(Ok)
+            .unwrap_or(Err(MissingError::Location))?;
         let subject = self.subject.map(Ok).unwrap_or(Err(MissingError::Subject))?;
+        let body = self.body.map(Ok).unwrap_or(Err(MissingError::Body))?;
 
         Ok(Warning {
             code,
             level,
             group,
+            location,
             subject,
+            body,
+            fix: self.fix,
         })
     }
 }

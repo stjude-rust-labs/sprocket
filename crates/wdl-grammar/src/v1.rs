@@ -37,7 +37,7 @@ pub use parse::Rule;
 /// let warning = warnings.first().unwrap();
 /// assert_eq!(
 ///     warning.to_string(),
-///     String::from("[v1::001::Style/Low] line 2 is empty but contains spaces")
+///     String::from("[v1::001::Style/Low] line contains only whitespace at 2:*")
 /// );
 ///
 /// let pair = tree.into_inner().next().unwrap();

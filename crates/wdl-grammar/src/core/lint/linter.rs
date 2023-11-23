@@ -51,11 +51,11 @@ mod tests {
         assert_eq!(results.len(), 2);
         assert_eq!(
             results.pop().unwrap().to_string(),
-            String::from("[v1::001::Style/Low] line 2 is empty but contains spaces")
+            String::from("[v1::001::Style/Low] line contains only whitespace at 2:*")
         );
         assert_eq!(
             results.pop().unwrap().to_string(),
-            String::from("[v1::001::Style/Low] trailing space at the end of line 1")
+            String::from("[v1::001::Style/Low] trailing space at 1:12")
         );
 
         Ok(())

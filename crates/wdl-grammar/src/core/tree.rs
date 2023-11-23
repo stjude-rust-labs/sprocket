@@ -73,7 +73,7 @@ mod tests {
         let tree = Tree::new(tree, lints);
         assert_eq!(
             tree.warnings().unwrap().first().unwrap().to_string(),
-            String::from("[v1::001::Style/Low] line 2 is empty but contains spaces")
+            String::from("[v1::001::Style/Low] line contains only whitespace at 2:*")
         );
         assert_eq!(tree.into_inner().len(), 1);
 
