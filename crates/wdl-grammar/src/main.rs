@@ -1,9 +1,9 @@
-//! A command-line tool for parsing and testing Workflow Description Language
-//! (WDL) grammar.
+//! A command-line tool for parsing Workflow Description Language (WDL)
+//! documents.
 //!
 //! **Note:** this tool is intended to be used as a utility to test and develop
-//! the [`wdl_grammar`](https://crates.io/wdl_grammar) crate. It is not intended
-//! to be used by a general audience for linting or parsing WDL documents.
+//! the [`wdl-grammar`](https://crates.io/crates/wdl-grammar) crate. It is not
+//! intended to be used by a general audience.
 
 #![feature(let_chains)]
 #![warn(missing_docs)]
