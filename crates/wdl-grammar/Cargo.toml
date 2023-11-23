@@ -30,19 +30,19 @@ toml = { workspace = true, optional = true }
 
 [features]
 binaries = [
-    "async-recursion",
-    "chrono",
-    "clap",
-    "colored",
-    "dirs",
-    "env_logger",
-    "indexmap",
-    "log",
-    "octocrab",
-    "reqwest",
-    "serde_with",
-    "tokio",
-    "toml",
+    "dep:async-recursion",
+    "dep:chrono",
+    "dep:clap",
+    "dep:colored",
+    "dep:dirs",
+    "dep:env_logger",
+    "dep:indexmap",
+    "dep:log",
+    "dep:octocrab",
+    "dep:reqwest",
+    "dep:serde_with",
+    "dep:tokio",
+    "dep:toml",
 ]
 
 [[bin]]
