@@ -4,7 +4,6 @@ use clap::Parser;
 use log::warn;
 use pest::iterators::Pair;
 use pest::RuleType;
-
 use wdl_grammar as grammar;
 
 use crate::commands::get_contents_stdin;
@@ -15,11 +14,11 @@ pub enum Error {
     /// A common error.
     Common(super::Error),
 
-    /// Multiple root nodes parsed.
-    MultipleRootNodes,
+    /// An error parsing the WDL 1.x grammar.
+    GrammarV1(grammar::v1::Error),
 
-    /// An error parsing the grammar.
-    GrammarV1(grammar::Error<grammar::v1::Rule>),
+    /// The parse result was missing the parse tree.
+    MissingTree,
 
     /// Unknown rule name.
     UnknownRule {
@@ -27,7 +26,7 @@ pub enum Error {
         name: String,
 
         /// The grammar being used.
-        grammar: grammar::Version,
+        grammar: wdl_core::Version,
     },
 }
 
@@ -36,7 +35,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::Common(err) => write!(f, "{err}"),
             Error::GrammarV1(err) => write!(f, "grammar parse error: {err}"),
-            Error::MultipleRootNodes => write!(f, "multiple root nodes found"),
+            Error::MissingTree => write!(f, "missing parse tree"),
             Error::UnknownRule { name, grammar } => {
                 write!(f, "unknown rule '{name}' for grammar {grammar}")
             }
@@ -58,7 +57,7 @@ pub struct Args {
 
     /// The Workflow Description Language (WDL) specification version to use.
     #[arg(value_name = "VERSION", short = 's', long, default_value_t, value_enum)]
-    specification_version: grammar::Version,
+    specification_version: wdl_core::Version,
 
     /// The parser rule to evaluate.
     #[arg(value_name = "RULE", short = 'r', long, default_value = "document")]
@@ -68,14 +67,16 @@ pub struct Args {
 /// Main function for this subcommand.
 pub fn create_test(args: Args) -> Result<()> {
     let rule = match args.specification_version {
-        grammar::Version::V1 => grammar::v1::get_rule(&args.rule)
-            .map(Ok)
-            .unwrap_or_else(|| {
-                Err(Error::UnknownRule {
-                    name: args.rule.clone(),
-                    grammar: args.specification_version.clone(),
-                })
-            })?,
+        wdl_core::Version::V1 => {
+            grammar::v1::get_rule(&args.rule)
+                .map(Ok)
+                .unwrap_or_else(|| {
+                    Err(Error::UnknownRule {
+                        name: args.rule.clone(),
+                        grammar: args.specification_version.clone(),
+                    })
+                })?
+        }
     };
 
     let input = args
@@ -83,28 +84,23 @@ pub fn create_test(args: Args) -> Result<()> {
         .map(Ok)
         .unwrap_or_else(|| get_contents_stdin().map_err(Error::Common))?;
 
-    let mut parse_tree = match args.specification_version {
-        grammar::Version::V1 => grammar::v1::parse(rule, &input).map_err(Error::GrammarV1)?,
+    let parse_tree = match args.specification_version {
+        wdl_core::Version::V1 => grammar::v1::parse_rule(rule, &input).map_err(Error::GrammarV1)?,
     };
 
-    if let Some(warnings) = parse_tree.warnings() {
-        for warning in warnings {
-            warn!("{}", warning);
+    if let Some(concerns) = parse_tree.concerns() {
+        for concern in concerns.inner().iter() {
+            warn!("{}", concern);
         }
     }
 
-    let root = match parse_tree.len() {
-        // SAFETY: this should not be possible, as parsing just successfully
-        // completed. As such, we should always have at least one parsed
-        // element.
-        0 => unreachable!(),
-        1 => parse_tree.next().unwrap(),
-        _ => return Err(Error::MultipleRootNodes),
-    };
-
-    write_test(root, 0);
-
-    Ok(())
+    match parse_tree.into_tree() {
+        Some(pt) => {
+            write_test(pt, 0);
+            Ok(())
+        }
+        None => Err(Error::MissingTree),
+    }
 }
 
 /// Writes a test by recursively traversing the [`Pair`].

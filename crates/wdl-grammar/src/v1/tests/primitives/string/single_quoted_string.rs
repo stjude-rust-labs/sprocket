@@ -52,6 +52,7 @@ fn it_parses_an_empty_single_quoted_string() {
             string(0, 2, [
                 // `'`
                 single_quote(0, 1),
+                string_inner(1, 1),
             ])
         ]
     }
@@ -72,6 +73,7 @@ fn it_successfully_parses_the_first_two_double_quotes() {
             string(0, 2, [
                 // `'`
                 single_quote(0, 1),
+                string_inner(1, 1),
             ])
         ]
     }
@@ -89,7 +91,10 @@ fn it_parses_a_single_quoted_string() {
                 // `'`
                 single_quote(0, 1),
                 // `Hello, world!`
-                string_literal_contents(1, 14),
+                string_inner(1, 14, [
+                    // `Hello, world!`
+                    string_literal_contents(1, 14),
+                ]),
             ])
         ]
     }

@@ -3,7 +3,6 @@
 use log::debug;
 
 pub mod create_test;
-pub mod gauntlet;
 pub mod parse;
 
 /// An error common to any subcommand.

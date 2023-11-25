@@ -67,6 +67,7 @@ fn it_successfully_parses_an_empty_double_quoted_string() {
             string(0, 2, [
                 // `"`
                 double_quote(0, 1),
+                string_inner(1, 1),
             ])
         ]
     }
@@ -83,6 +84,7 @@ fn it_successfully_parses_an_empty_single_quoted_string() {
             string(0, 2, [
                 // `'`
                 single_quote(0, 1),
+                string_inner(1, 1),
             ])
         ]
     }
@@ -100,7 +102,10 @@ fn it_successfully_parses_a_double_quoted_string_with_a_unicode_character() {
                 // `"`
                 double_quote(0, 1),
                 // `😀`
-                string_literal_contents(1, 5),
+                string_inner(1, 5, [
+                    // `😀`
+                    string_literal_contents(1, 5),
+                ]),
             ])
         ]
     }
@@ -118,7 +123,10 @@ fn it_successfully_parses_a_single_quoted_string_with_a_unicode_character() {
                 // `'`
                 single_quote(0, 1),
                 // `😀`
-                string_literal_contents(1, 5),
+                string_inner(1, 5, [
+                    // `😀`
+                    string_literal_contents(1, 5),
+                ]),
             ])
         ]
     }
@@ -136,7 +144,10 @@ fn it_successfully_parses_a_double_quoted_string() {
                 // `"`
                 double_quote(0, 1),
                 // `Hello, world!`
-                string_literal_contents(1, 14),
+                string_inner(1, 14, [
+                    // `Hello, world!`
+                    string_literal_contents(1, 14),
+                ]),
             ])
         ]
     }
@@ -154,7 +165,10 @@ fn it_successfully_parses_a_single_quoted_string() {
                 // `'`
                 single_quote(0, 1),
                 // `Hello, world!`
-                string_literal_contents(1, 14),
+                string_inner(1, 14, [
+                    // `Hello, world!`
+                    string_literal_contents(1, 14),
+                ]),
             ])
         ]
     }

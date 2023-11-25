@@ -1,6 +1,6 @@
-// ============//
+// ========== //
 // Whitespace //
-// ============//
+// ========== //
 
 // Pest provides relatively good support for whitespace out of the box. However,
 // we decided that we are our parse tree to include details on the specific
@@ -18,26 +18,29 @@ LINE_ENDING             = _{ NEWLINE | CARRIAGE_RETURN_NEWLINE | CARRIAGE_RETURN
 
 WHITESPACE = ${ LINE_ENDING | INDENT }
 
-// ==========//
+// ======== //
 // Comments //
-// ==========//
+// ======== //
 
 COMMENT = { "#" ~ (!LINE_ENDING ~ ANY)* }
 
-// =======//
+// ===== //
 // Atoms //
-// =======//
+// ===== //
 
 OPTION      = { "?" }
 ONE_OR_MORE = { "+" }
 COMMA       = { "," }
 
-// ==========//
+// ======== //
 // Literals //
-// ==========//
+// ======== //
 
 // None.
 none = { "None" }
+
+// Null.
+null = { "null" }
 
 // Boolean.
 boolean = { "true" | "false" }
@@ -57,7 +60,7 @@ float                 = ${ float_with_decimal | float_without_decimal | float_si
 
 // Number.
 // 
-// NOTE: all rules included in `number` must be marked as atomic (`@`) or
+// Note: all rules included in `number` must be marked as atomic (`@`) or
 // compound-atomic (`$`). This is not checked by the compiler, so you must
 // ensure it remains true.
 number = _{ float | integer }
@@ -88,14 +91,13 @@ char_special         = ${ char_escaped | char_hex | char_unicode | char_octal | 
 char_other           = @{ !("\\" | "\n") ~ ANY }
 
 // String.
-
 double_quote                        = { "\"" }
 single_quote                        = { "\'" }
 string_expression_placeholder_start = { "~{" | "${" }
 string_expression_placeholder_end   = { "}" }
 
 string_literal_contents = @{
-    // NOTE: the `PEEK` here looks at what quoting is being used (double or
+    // Note: the `PEEK` here looks at what quoting is being used (double or
     // single) and denies any use of the character in literal contents. The
     // presence of `PEEK` implies that this rule must be embedded within a rule
     // that `PUSH`es these tokens on the stack.
@@ -108,23 +110,25 @@ string_placeholder = ${
     string_expression_placeholder_start ~ placeholder_options* ~ string_expression_placeholder_expression ~ string_expression_placeholder_end
 }
 
-// NOTE: all rules included in `string` must be marked as atomic (`@`) or
+// Note: all rules included in `string` must be marked as atomic (`@`) or
 // compound-atomic (`$`). This is because we don't want rules eating up
 // whitespace within a string. This is not checked by the compiler, so you must
 // ensure it remains true.
-string = ${
-    PUSH(double_quote | single_quote) ~ (string_placeholder | string_literal_contents)* ~ POP
+string_inner = ${ (string_placeholder | string_literal_contents)* }
+string       = ${
+    PUSH(double_quote | single_quote) ~ string_inner ~ POP
 }
 
-// Identifier.
-identifier = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+// Identifiers.
+singular_identifier  = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+qualified_identifier = ${ singular_identifier ~ ("." ~ singular_identifier)+ }
 
 // Literal.
-literal = _{ boolean | number | string | none | identifier }
+literal = _{ boolean | number | string | none | singular_identifier }
 
-// =============//
+// =========== //
 // Expressions //
-// =============//
+// =========== //
 
 // Prefix.
 or        = { "||" }
@@ -144,17 +148,18 @@ gt        = { ">" }
 infix = _{ or | and | add | sub | mul | div | remainder | eq | neq | lte | gte | lt | gt }
 
 // Prefix.
-negation     = { "!" }
-unary_signed = { "+" | "-" }
+negation              = { "!" }
+unary_signed_positive = { "+" }
+unary_signed_negative = { "-" }
 
-prefix = _{ negation | unary_signed }
+prefix = _{ negation | unary_signed_positive | unary_signed_negative }
 
 // Postfix.
-member = ${ "." ~ identifier }
+member = ${ "." ~ singular_identifier }
 index  = !{ "[" ~ expression ~ "]" }
-apply  = !{ "(" ~ (expression ~ (COMMA ~ expression)* ~ COMMA?)* ~ ")" }
+call   = !{ "(" ~ (expression ~ (COMMA ~ expression)* ~ COMMA?)* ~ ")" }
 
-postfix = _{ member | index | apply }
+postfix = _{ member | index | call }
 
 // Core elements.
 // 
@@ -165,23 +170,24 @@ postfix = _{ member | index | apply }
 // make comma delimiters optional when parsing and enforce style rules via a
 // linter built on top of this parser.
 
-identifier_based_kv_key  = { identifier }
+identifier_based_kv_key  = { singular_identifier }
 expression_based_kv_key  = { expression }
 kv_value                 = { expression }
 identifier_based_kv_pair = { identifier_based_kv_key ~ ":" ~ kv_value }
 expression_based_kv_pair = { expression_based_kv_key ~ ":" ~ kv_value }
 
-group          = !{ "(" ~ expression ~ ")" }
-if             = ${
+group               = !{ "(" ~ expression ~ ")" }
+if                  = ${
     "if" ~ (WHITESPACE | COMMENT)+ ~ expression ~ (WHITESPACE | COMMENT)+ ~ "then" ~ (WHITESPACE | COMMENT)+ ~ expression ~ (WHITESPACE | COMMENT)+ ~ "else" ~ (WHITESPACE | COMMENT)+ ~ expression
 }
-object_literal = !{ "object" ~ "{" ~ (identifier_based_kv_pair ~ (COMMA? ~ identifier_based_kv_pair)* ~ COMMA?)* ~ "}" }
-struct_literal = !{ identifier ~ "{" ~ (identifier_based_kv_pair ~ (COMMA? ~ identifier_based_kv_pair)* ~ COMMA?)* ~ "}" }
-map_literal    = !{ "{" ~ (expression_based_kv_pair ~ (COMMA? ~ expression_based_kv_pair)* ~ COMMA?)* ~ "}" }
-array_literal  = !{ "[" ~ (expression ~ (COMMA ~ expression)* ~ COMMA?)* ~ "]" }
-pair_literal   = !{ "(" ~ expression ~ COMMA ~ expression ~ ")" }
+object_literal      = !{ "object" ~ "{" ~ (identifier_based_kv_pair ~ (COMMA? ~ identifier_based_kv_pair)* ~ COMMA?)* ~ "}" }
+struct_literal_name =  { singular_identifier }
+struct_literal      = !{ struct_literal_name ~ "{" ~ (identifier_based_kv_pair ~ (COMMA? ~ identifier_based_kv_pair)* ~ COMMA?)* ~ "}" }
+map_literal         = !{ "{" ~ (expression_based_kv_pair ~ (COMMA? ~ expression_based_kv_pair)* ~ COMMA?)* ~ "}" }
+array_literal       = !{ "[" ~ (expression ~ (COMMA ~ expression)* ~ COMMA?)* ~ "]" }
+pair_literal        = !{ "(" ~ expression ~ COMMA ~ expression ~ ")" }
 
-core = _{
+atom = _{
     group
   | if
   | object_literal
@@ -190,12 +196,11 @@ core = _{
   | array_literal
   | pair_literal
   | literal
-  | identifier
 }
 
 // Expression.
 // 
-// NOTE: this rule is defined as compound-atomic (`$`) for the following reason:
+// Note: this rule is defined as compound-atomic (`$`) for the following reason:
 // 
 // Whitespace is a problem when your rule ends with an optional element. Many of
 // these expressions do, which means, when the element is not there, the
@@ -206,20 +211,20 @@ core = _{
 // As such, you will see that none of the permutations of the rule below end in
 // an optional token. That is by design to avoid the problem above.
 expression = ${
-    prefix* ~ (WHITESPACE | COMMENT)* ~ core ~ (WHITESPACE | COMMENT)* ~ postfix* ~ ((WHITESPACE | COMMENT)* ~ infix ~ (WHITESPACE | COMMENT)* ~ prefix* ~ (WHITESPACE | COMMENT)* ~ core ~ (WHITESPACE | COMMENT)* ~ postfix+ | (WHITESPACE | COMMENT)* ~ infix ~ (WHITESPACE | COMMENT)* ~ prefix* ~ (WHITESPACE | COMMENT)* ~ core)+
-  | prefix* ~ (WHITESPACE | COMMENT)* ~ core ~ (WHITESPACE | COMMENT)* ~ postfix+
-  | prefix* ~ (WHITESPACE | COMMENT)* ~ core
+    prefix* ~ (WHITESPACE | COMMENT)* ~ atom ~ (WHITESPACE | COMMENT)* ~ postfix* ~ ((WHITESPACE | COMMENT)* ~ infix ~ (WHITESPACE | COMMENT)* ~ prefix* ~ (WHITESPACE | COMMENT)* ~ atom ~ (WHITESPACE | COMMENT)* ~ postfix+ | (WHITESPACE | COMMENT)* ~ infix ~ (WHITESPACE | COMMENT)* ~ prefix* ~ (WHITESPACE | COMMENT)* ~ atom)+
+  | prefix* ~ (WHITESPACE | COMMENT)* ~ atom ~ (WHITESPACE | COMMENT)* ~ postfix+
+  | prefix* ~ (WHITESPACE | COMMENT)* ~ atom
 }
 
 // Types.
 // 
-// NOTE: techically the spec calls the optional `+` the "non-empty" operator.
+// Note: techically the spec calls the optional `+` the "non-empty" operator.
 // Since we have already defined this as the "one or more" operator and they
 // mean effectively the same thing, I've just kept this nomeclature.
 array_type = ${
     "Array" ~ (WHITESPACE | COMMENT)* ~ (("[" ~ (WHITESPACE | COMMENT)* ~ wdl_type_inner ~ (WHITESPACE | COMMENT)* ~ "]" ~ ONE_OR_MORE) | ("[" ~ (WHITESPACE | COMMENT)* ~ wdl_type_inner ~ (WHITESPACE | COMMENT)* ~ "]"))
 }
-// NOTE: The `map_type` and `pair_type` rules **must** be marked as non-atomic, as the
+// Note: The `map_type` and `pair_type` rules **must** be marked as non-atomic, as the
 // `unbound_declaration` and `bound_declaration` rules that use them are marked
 // as compound-atomic.
 map_type    = !{ "Map" ~ "[" ~ wdl_type_inner ~ COMMA ~ wdl_type_inner ~ "]" }
@@ -231,7 +236,7 @@ int_type    =  { "Int" }
 float_type  =  { "Float" }
 object_type =  { "Object" }
 
-// NOTE: this rule was created separately from the below `wdl_type` rule to
+// Note: this rule was created separately from the below `wdl_type` rule to
 // address the situation outlined in the comment there. In short, when a WDL
 // type is embedded in things like a map or an array, you don't want to require
 // that there is a space following the identifier.
@@ -245,7 +250,7 @@ wdl_type_inner = ${
   | (int_type ~ OPTION)
   | (float_type ~ OPTION)
   | (object_type ~ OPTION)
-  | (identifier ~ OPTION)
+  | (singular_identifier ~ OPTION)
   | map_type
   | array_type
   | pair_type
@@ -255,17 +260,18 @@ wdl_type_inner = ${
   | int_type
   | float_type
   | object_type
-  | identifier
+  | singular_identifier
 }
 
-// NOTE: this rule requires a positive predicate whitespace because there
+// Note: this rule requires a positive predicate whitespace because there
 // **must** be a whitespace between the `wdl_type` and the `identifier` for
 // `bound_declaration`s and `unbound_declaration`s. Else, you get weird things
 // happening in these rules.
 // 
 // For example, when considering `IntermediateFiles`, `Int` matching the integer
 // `wdl_type` and `ermediateFiles` matching the `identifier`.
-wdl_type = ${
+struct_type =  { singular_identifier }
+wdl_type    = ${
     (map_type ~ OPTION ~ &WHITESPACE)
   | (array_type ~ OPTION ~ &WHITESPACE)
   | (pair_type ~ OPTION ~ &WHITESPACE)
@@ -275,7 +281,7 @@ wdl_type = ${
   | (int_type ~ OPTION ~ &WHITESPACE)
   | (float_type ~ OPTION ~ &WHITESPACE)
   | (object_type ~ OPTION ~ &WHITESPACE)
-  | (identifier ~ OPTION ~ &WHITESPACE)
+  | (struct_type ~ OPTION ~ &WHITESPACE)
   | (map_type ~ &WHITESPACE)
   | (array_type ~ &WHITESPACE)
   | (pair_type ~ &WHITESPACE)
@@ -285,101 +291,90 @@ wdl_type = ${
   | (int_type ~ &WHITESPACE)
   | (float_type ~ &WHITESPACE)
   | (object_type ~ &WHITESPACE)
-  | (identifier ~ &WHITESPACE)
+  | (struct_type ~ &WHITESPACE)
 }
 
-unbound_declaration = { wdl_type ~ identifier }
+unbound_declaration_name = { singular_identifier }
+unbound_declaration      = { wdl_type ~ unbound_declaration_name }
 
-bound_declaration = { wdl_type ~ identifier ~ "=" ~ expression }
+bound_declaration_name = { singular_identifier }
+bound_declaration      = { wdl_type ~ bound_declaration_name ~ "=" ~ expression }
 
 declaration = _{
     bound_declaration
   | unbound_declaration
 }
 
-struct = { "struct" ~ identifier ~ "{" ~ (unbound_declaration)* ~ "}" }
+struct_name = { singular_identifier }
+struct      = { "struct" ~ struct_name ~ "{" ~ (unbound_declaration)* ~ "}" }
 
 // Imports.
-import_as    = @{ "as" ~ (WHITESPACE | COMMENT)+ ~ identifier }
-import_alias = @{
-    "alias" ~ (WHITESPACE | COMMENT)+ ~ identifier ~ (WHITESPACE | COMMENT)+ ~ "as" ~ (WHITESPACE | COMMENT)+ ~ identifier
+import_uri        =  { string }
+import_as         = ${ "as" ~ (WHITESPACE | COMMENT)+ ~ singular_identifier }
+import_alias_from =  { singular_identifier }
+import_alias_to   =  { singular_identifier }
+import_alias      = ${
+    "alias" ~ (WHITESPACE | COMMENT)+ ~ import_alias_from ~ (WHITESPACE | COMMENT)+ ~ "as" ~ (WHITESPACE | COMMENT)+ ~ import_alias_to
 }
-import       = ${
-    "import" ~ (WHITESPACE | COMMENT)+ ~ string ~ ((WHITESPACE | COMMENT)+ ~ import_as)? ~ ((WHITESPACE | COMMENT)+ ~ import_alias)*
+import            = ${
+    "import" ~ (WHITESPACE | COMMENT)+ ~ import_uri ~ ((WHITESPACE | COMMENT)+ ~ import_as)? ~ ((WHITESPACE | COMMENT)+ ~ import_alias)*
 }
 
-// ================================//
+// ============================== //
 // Common Workflow/Tasks Elements //
-// ================================//
+// ============================== //
 
-// NOTE: the specification states the following in the workflow section:
+// Note: the specification states the following in the workflow section:
 // 
 // Tasks and workflows have several elements in common. These sections have
 // nearly the same usage in workflows as they do in tasks, so we just link to
 // their earlier descriptions.
 // 
-// - Input section.
+// - Inputs.
 // - Private declarations.
-// - Output section.
+// - Outputs.
+// - Metadata.
+// - Parameter metadata.
 // 
-// As such, I will use a common set of silent rules to define any single rule
-// that can be aliased. Note that the cascading rules for metadata sections and
-// parameter metadata sections cannot be aliased in this way, as the
-// context-specific rules are nested. As such, those sections are duplicated in
-// the "Task" and "Workflow" sections below respectively.
+// As such, we have used a common set of elements within the two (listed below).
 
 // Common input declaration.
-common_input = _{ "input" ~ "{" ~ (declaration)* ~ "}" }
+input = { "input" ~ "{" ~ (declaration)* ~ "}" }
 
 // Common output declaration.
-common_output = _{ "output" ~ "{" ~ (bound_declaration)* ~ "}" }
+output = { "output" ~ "{" ~ (bound_declaration)* ~ "}" }
 
 // Common private declarations.
-common_private_declarations = _{ (bound_declaration)+ }
+private_declarations = { (bound_declaration)+ }
 
-// Common metadata elements.
-// 
-// DIVERGE: the specification says that this is equal sign (`=`) delimited, but
-// the examples show it actually being colon (`:`) delimited. As such, I've used
-// colon here.
-common_metadata_kv = _{ identifier ~ ":" ~ common_metadata_value }
+// Common metadata parameters.
+metadata_key = { singular_identifier }
+metadata_kv  = { metadata_key ~ ":" ~ metadata_value }
 
-common_metadata_value = _{
+metadata_value = {
     string
   | number
   | boolean
-  | "null"
-  | common_metadata_object
-  | common_metadata_array
+  | null
+  | metadata_object
+  | metadata_array
 }
 
-common_metadata_object = _{ "{}" | "{" ~ common_metadata_kv ~ (COMMA ~ common_metadata_kv)* ~ "}" }
-common_metadata_array  = _{ "[]" | "[" ~ common_metadata_value ~ (COMMA ~ common_metadata_value)* ~ "]" }
+metadata_object = { ("{" ~ "}") | "{" ~ metadata_kv ~ (COMMA ~ metadata_kv)* ~ COMMA? ~ "}" }
+metadata_array  = { ("[" ~ "]") | "[" ~ metadata_value ~ (COMMA ~ metadata_value)* ~ COMMA? ~ "]" }
 
-// =======//
+metadata           = { "meta" ~ "{" ~ (metadata_kv ~ !COMMA)* ~ "}" }
+parameter_metadata = { "parameter_meta" ~ "{" ~ (metadata_kv ~ !COMMA)* ~ "}" }
+
+// ===== //
 // Tasks //
-// =======//
+// ===== //
 
 // Task runtimes.
-// 
-// DIVERGE: given the below logic concerning optional commas to delimit members
-// of `task_metadata_object`s, we determined it would be strange to not also
-// allow commas to delimit members of the runtime objects. As
-// such, though the specification states that not delimiting is not allowed, we
-// allow these keys to be optionally delimited by a comma.
-// 
-// NOTE: the `task_runtime_mapping_inner` and `task_runtime_mapping` are
-// structured in this way to avoid consuming whitespace at the end of the line
-// by adding an optional comma rule.
-task_runtime_mapping_inner = _{ identifier ~ ":" ~ expression }
-task_runtime_mapping       =  { task_runtime_mapping_inner ~ COMMA | task_runtime_mapping_inner }
-task_runtime               =  { "runtime" ~ "{" ~ (task_runtime_mapping)* ~ "}" }
-
-// Task input.
-task_input = { common_input }
-
-// Task output.
-task_output = { common_output }
+task_runtime_mapping_value = { expression }
+task_runtime_mapping_key   = { singular_identifier }
+task_runtime_mapping       = { task_runtime_mapping_key ~ ":" ~ task_runtime_mapping_value }
+task_runtime               = { "runtime" ~ "{" ~ (task_runtime_mapping)* ~ "}" }
 
 // Expression placeholder options.
 // 
@@ -410,8 +405,8 @@ placeholder_option  = {
 placeholder_options = { placeholder_option+ }
 
 // Task commands, curly.
-command_curly_begin = { "command" ~ "{" }
-command_curly_end   = { "}" }
+command_curly_begin = !{ "command" ~ "{" }
+command_curly_end   =  { "}" }
 
 command_curly_expression_placeholder_start = _{ "~{" | "${" }
 command_curly_expression_placeholder_end   = _{ "}" }
@@ -422,16 +417,20 @@ command_curly_literal_contents = _{
 
 command_curly_expression_placeholder_expression = { command_curly_placeholder | expression }
 
-command_curly_placeholder = {
+command_curly_placeholder = !{
     command_curly_expression_placeholder_start ~ placeholder_options* ~ command_curly_expression_placeholder_expression ~ command_curly_expression_placeholder_end
 }
 
-command_curly = {
-    command_curly_begin ~ (command_curly_placeholder | command_curly_literal_contents)* ~ command_curly_end
+command_curly_contents = {
+    (command_curly_placeholder | command_curly_literal_contents)*
+}
+
+command_curly = ${
+    command_curly_begin ~ command_curly_contents ~ command_curly_end
 }
 
 // Task commands, heredoc.
-command_heredoc_begin                        =  { "command" ~ "<<<" }
+command_heredoc_begin                        = !{ "command" ~ "<<<" }
 command_heredoc_end                          =  { ">>>" }
 command_heredoc_expression_placeholder_start = _{ "~{" }
 command_heredoc_expression_placeholder_end   = _{ "}" }
@@ -442,180 +441,91 @@ command_heredoc_literal_contents = _{
 
 command_heredoc_expression_placeholder_expression = { command_heredoc_placeholder | expression }
 
-command_heredoc_placeholder = {
+command_heredoc_placeholder = !{
     command_heredoc_expression_placeholder_start ~ placeholder_options* ~ command_heredoc_expression_placeholder_expression ~ command_heredoc_expression_placeholder_end
 }
 
-command_heredoc = {
-    command_heredoc_begin ~ (command_heredoc_placeholder | command_heredoc_literal_contents)* ~ command_heredoc_end
+command_heredoc_contents = {
+    (command_heredoc_placeholder | command_heredoc_literal_contents)*
+}
+
+command_heredoc = ${
+    command_heredoc_begin ~ command_heredoc_contents ~ command_heredoc_end
 }
 
 task_command = { (command_heredoc | command_curly) }
 
-// Task private declarations.
-task_private_declarations = { common_private_declarations }
-
-// Task metadata and parameter metadata.
-task_metadata_kv = { identifier ~ ":" ~ task_metadata_value }
-
-task_metadata_value = {
-    string
-  | number
-  | boolean
-  | "null"
-  | task_metadata_object
-  | task_metadata_array
-}
-
-// DIVERGE: the specification indicates that the members of both objects and
-// arrays should have the same delimiter. From the spec, they specify `,` as the
-// delimiter (with no quotes)—this leads to ambiguity as to whether a literal
-// comma is needed to delimit these items.
-// 
-// In the case of an array, it seems obvious that a comma is needed to delimit
-// items. It is not as obvious whether commas should be required for objects.
-// Notably, both of these constructs exist elsewhere in the specification (e.g.,
-// object literals and array literals), and a comma delimiter is _required_ in
-// those cases.
-// 
-// For the object rule below, the comma is designated as optional (`?`) when
-// delimiting items. This is following a long discussion within our team
-// regarding the inconsistent treatment of required comma delimiters for
-// structs, maps, and objects. In short, we have decided to make comma
-// delimiters optional when parsing and enforce style rules via a linter built
-// on top of this parser.
-task_metadata_object = { "{}" | "{" ~ task_metadata_kv ~ (COMMA? ~ task_metadata_kv)* ~ "}" }
-task_metadata_array  = { "[]" | "[" ~ task_metadata_value ~ (COMMA? ~ task_metadata_value)* ~ "]" }
-
-// DIVERGE: given the above logic concerning optional commas to delimit members
-// of `task_metadata_object`s, we determined it would be strange to not also
-// allow commas to delimit members of the the top-level objects themselves. As
-// such, though the specification states that not delimiting is not allowed, we
-// allow these keys to be optionally delimited by a comma.
-// 
-// Below are the old rules used in case we ever need them.
-// 
-// task_metadata = { "meta" ~ "{" ~ task_metadata_kv* ~ "}" }
-// task_parameter_metadata = { "parameter_meta" ~ "{" ~ task_metadata_kv* ~ "}"
-task_metadata           = { "meta" ~ "{" ~ task_metadata_kv? ~ (COMMA? ~ task_metadata_kv)* ~ "}" }
-task_parameter_metadata = { "parameter_meta" ~ "{" ~ task_metadata_kv? ~ (COMMA? ~ task_metadata_kv)* ~ "}" }
-
 // Task elements.
+// 
+// Note: all task elements except for `private_declarations` can be declared
+// only once. This is not trivial to express as part of the grammar—especially
+// since these elements can come in any order. As such, ensuring this remains
+// true is left to postprocessing.
 task_element = {
-    task_input
-  | task_output
+    input
+  | output
   | task_command
   | task_runtime
-  | task_private_declarations
-  | task_parameter_metadata
-  | task_metadata
+  | private_declarations
+  | parameter_metadata
+  | metadata
 }
 
-task = { "task" ~ identifier ~ "{" ~ task_element+ ~ "}" }
+task = { "task" ~ singular_identifier ~ "{" ~ task_element+ ~ "}" }
 
-// ===========//
+// ========= //
 // Workflows //
-// ===========//
-
-// Workflow input.
-workflow_input = { common_input }
-
-// Workflow output.
-workflow_output = { common_output }
-
-// Workflow private declarations.
-workflow_private_declarations = { common_private_declarations }
+// ========= //
 
 // Workflow call
-qualified_identifier = ${ identifier ~ ("." ~ identifier)+ }
-workflow_call_input  =  {
-    (identifier ~ "=" ~ expression)
-  | (identifier ~ "=" ~ identifier)
-  | identifier
-}
-// DIVERGE: spec is ambiguous about whether whitespace is
+workflow_call_input = { (singular_identifier ~ "=" ~ expression) | singular_identifier }
+// DIVERGE: the spec is ambiguous about whether whitespace is
 // allowed between the opening and closing brackets (`{}`)
 // when the call body is empty. We have opted to allow whitespace.
 workflow_call_body  = !{
     "{" ~ ("input:" ~ workflow_call_input ~ (COMMA ~ workflow_call_input)*)? ~ COMMA? ~ "}"
 }
-workflow_call_as    = ${ "as" ~ (WHITESPACE | COMMENT)+ ~ identifier }
-workflow_call_after = ${ "after" ~ (WHITESPACE | COMMENT)+ ~ identifier }
+workflow_call_as    = ${ "as" ~ (WHITESPACE | COMMENT)+ ~ singular_identifier }
+workflow_call_after = ${ "after" ~ (WHITESPACE | COMMENT)+ ~ singular_identifier }
+workflow_call_name  =  { qualified_identifier | singular_identifier }
 workflow_call       = ${
-    ("call" ~ (WHITESPACE | COMMENT)+ ~ (qualified_identifier | identifier) ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_as)? ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_after)* ~ ((WHITESPACE | COMMENT)* ~ workflow_call_body))
-  | ("call" ~ (WHITESPACE | COMMENT)+ ~ (qualified_identifier | identifier) ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_as)? ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_after)+)
-  | ("call" ~ (WHITESPACE | COMMENT)+ ~ (qualified_identifier | identifier) ~ (WHITESPACE | COMMENT)+ ~ workflow_call_as)
-  | ("call" ~ (WHITESPACE | COMMENT)+ ~ (qualified_identifier | identifier))
+    ("call" ~ (WHITESPACE | COMMENT)+ ~ workflow_call_name ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_as)? ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_after)* ~ ((WHITESPACE | COMMENT)* ~ workflow_call_body))
+  | ("call" ~ (WHITESPACE | COMMENT)+ ~ workflow_call_name ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_as)? ~ ((WHITESPACE | COMMENT)+ ~ workflow_call_after)+)
+  | ("call" ~ (WHITESPACE | COMMENT)+ ~ workflow_call_name ~ (WHITESPACE | COMMENT)+ ~ workflow_call_as)
+  | ("call" ~ (WHITESPACE | COMMENT)+ ~ workflow_call_name)
 }
 
 // Workflow scatter
-workflow_scatter_iteration_statement = { "(" ~ identifier ~ "in" ~ expression ~ ")" }
-workflow_scatter                     = {
+workflow_scatter_iteration_statement_variable = { singular_identifier }
+workflow_scatter_iteration_statement_iterable = { expression }
+workflow_scatter_iteration_statement          = { "(" ~ workflow_scatter_iteration_statement_variable ~ "in" ~ workflow_scatter_iteration_statement_iterable ~ ")" }
+workflow_scatter                              = {
     "scatter" ~ workflow_scatter_iteration_statement ~ "{" ~ workflow_execution_statement* ~ "}"
 }
 
 // Workflow conditional
-workflow_conditional = { "if" ~ "(" ~ expression ~ ")" ~ "{" ~ workflow_execution_statement* ~ "}" }
+workflow_conditional_condition = { expression }
+workflow_conditional           = { "if" ~ "(" ~ workflow_conditional_condition ~ ")" ~ "{" ~ workflow_execution_statement* ~ "}" }
 
 // Workflow execution statements
 workflow_execution_statement = {
-    (workflow_conditional | workflow_scatter | workflow_call | workflow_private_declarations)
+    (workflow_conditional | workflow_scatter | workflow_call | private_declarations)
 }
 
-// Workflow metadata and parameter metadata.
-workflow_metadata_kv = { identifier ~ ":" ~ workflow_metadata_value }
-
-workflow_metadata_value = {
-    string
-  | number
-  | boolean
-  | "null"
-  | workflow_metadata_object
-  | workflow_metadata_array
-}
-
-// DIVERGE: the specification indicates that the members of both objects and
-// arrays should have the same delimiter. From the spec, they specify `,` as the
-// delimiter (with no quotes)—this leads to ambiguity as to whether a literal
-// comma is needed to delimit these items.
-// 
-// In the case of an array, it seems obvious that a comma is needed to delimit
-// items. It is not as obvious whether commas should be required for objects.
-// Notably, both of these constructs exist elsewhere in the specification (e.g.,
-// object literals and array literals), and a comma delimiter is _required_ in
-// those cases.
-// 
-// For the object rule below, the comma is designated as optional (`?`) when
-// delimiting items. This is following a long discussion within our team
-// regarding the inconsistent treatment of required comma delimiters for
-// structs, maps, and objects. In short, we have decided to make comma
-// delimiters optional when parsing and enforce style rules via a linter built
-// on top of this parser.
-workflow_metadata_object = { "{}" | "{" ~ workflow_metadata_kv ~ (COMMA? ~ workflow_metadata_kv)* ~ "}" }
-workflow_metadata_array  = { "[]" | "[" ~ workflow_metadata_value ~ (COMMA ~ workflow_metadata_value)* ~ "]" }
-
-// DIVERGE: given the above logic concerning optional commas to delimit members
-// of `workflow_metadata_object`s, we determined it would be strange to not also
-// allow commas to delimit members of the the top-level objects themselves. As
-// such, though the specification states that not delimiting is not allowed, we
-// allow these keys to be optionally delimited by a comma.
-// 
-// Below are the old rules used in case we ever need them.
-// 
-// workflow_metadata = { "meta" ~ "{" ~ workflow_metadata_kv* ~ "}" }
-// workflow_parameter_metadata = { "parameter_meta" ~ "{" ~ workflow_metadata_kv* ~ "}"
-workflow_metadata           = { "meta" ~ "{" ~ workflow_metadata_kv? ~ (COMMA? ~ workflow_metadata_kv)* ~ "}" }
-workflow_parameter_metadata = { "parameter_meta" ~ "{" ~ workflow_metadata_kv? ~ (COMMA? ~ workflow_metadata_kv)* ~ "}" }
-
+// Note: all workflow elements except for `workflow_execution_statement` can be
+// declared only once. This is not trivial to express as part of the
+// grammar—especially since these elements can come in any order. As such,
+// ensuring this remains true is left to postprocessing.
 workflow_element = _{
-    workflow_input
-  | workflow_output
+    input
+  | output
   | workflow_execution_statement
-  | workflow_parameter_metadata
-  | workflow_metadata
+  | parameter_metadata
+  | metadata
 }
 
-workflow = { "workflow" ~ identifier ~ "{" ~ workflow_element* ~ "}" }
+workflow_name = { singular_identifier }
+workflow      = { "workflow" ~ workflow_name ~ "{" ~ workflow_element* ~ "}" }
 
 // Document elements.
 // 

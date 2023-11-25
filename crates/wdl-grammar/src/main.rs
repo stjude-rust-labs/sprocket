@@ -20,7 +20,6 @@ use log::LevelFilter;
 mod commands;
 
 use crate::commands::create_test;
-use crate::commands::gauntlet;
 use crate::commands::parse;
 
 /// Subcommands for the `wdl-grammar` command-line tool.
@@ -28,9 +27,6 @@ use crate::commands::parse;
 pub enum Command {
     /// Creates a test for a given input and grammar rule.
     CreateTest(create_test::Args),
-
-    /// Performs a gauntlet of parsing tests.
-    Gauntlet(gauntlet::Args),
 
     /// Parses an input according to the specified grammar rule.
     Parse(parse::Args),
@@ -92,7 +88,6 @@ async fn inner() -> Result<(), Box<dyn std::error::Error>> {
 
     match args.command {
         Command::CreateTest(args) => create_test::create_test(args)?,
-        Command::Gauntlet(args) => gauntlet::gauntlet(args).await?,
         Command::Parse(args) => parse::parse(args)?,
     };
 

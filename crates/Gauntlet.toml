@@ -1,101 +1,21 @@
 version = "v1"
 
 [[repositories]]
-organization = "stjudecloud"
-name = "workflows"
-
-[[repositories]]
 organization = "PacificBiosciences"
 name = "HiFi-human-WGS-WDL"
+
+[[repositories]]
+organization = "biowdl"
+name = "tasks"
+
+[[repositories]]
+organization = "broadinstitute"
+name = "warp"
 
 [[repositories]]
 organization = "chanzuckerberg"
 name = "czid-workflows"
 
 [[repositories]]
-organization = "biowdl"
-name = "tasks"
-
-[[ignored_errors]]
-document = "biowdl/tasks:bcftools.wdl"
-error = '''validation error: [v1::001] invalid escape character '\_' in string at line 114:75'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:bedtools.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 27:48'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:bowtie.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 63:32'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:centrifuge.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 122:57'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:common.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 275:45'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:fastqc.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 59:42'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:gatk.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 127:57'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:hisat2.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 60:34'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:multiqc.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 133:45'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:picard.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 643:51'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:sambamba.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 91:44'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:samtools.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 80:42'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:umi-tools.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 95:49'''
-
-[[ignored_errors]]
-document = "biowdl/tasks:umi.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 39:60'''
-
-[[ignored_errors]]
-document = "stjudecloud/workflows:template/task-templates.wdl"
-error = """
-parse error:
-
-  --> 17:25
-   |
-17 |         Int memory_gb = <>
-   |                         ^---
-   |
-   = expected WHITESPACE, COMMENT, or expression"""
-
-[[ignored_errors]]
-document = "stjudecloud/workflows:tools/bwa.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 34:17'''
-
-[[ignored_errors]]
-document = "stjudecloud/workflows:tools/fq.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 123:17'''
-
-[[ignored_errors]]
-document = "stjudecloud/workflows:tools/kraken2.wdl"
-error = '''validation error: [v1::001] invalid escape character '\.' in string at line 335:17'''
-
-[[ignored_errors]]
-document = "stjudecloud/workflows:workflows/rnaseq/rnaseq-standard-fastq.wdl"
-error = '''validation error: [v1::001] invalid escape character '\*' in string at line 55:241'''
+organization = "stjudecloud"
+name = "workflows"

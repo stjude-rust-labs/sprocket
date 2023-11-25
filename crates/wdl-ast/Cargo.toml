@@ -1,0 +1,33 @@
+[package]
+name = "wdl-ast"
+version = "0.1.0"
+authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
+edition.workspace = true
+license.workspace = true
+description = "Abstract syntax tree for Workflow Description Language (WDL) documents"
+homepage = "https://github.com/stjude-rust-labs/wdl"
+repository = "https://github.com/stjude-rust-labs/wdl"
+documentation = "https://docs.rs/wdl-ast"
+
+[dependencies]
+clap = { workspace = true, optional = true }
+env_logger = { workspace = true, optional = true }
+indexmap.workspace = true
+lazy_static.workspace = true
+log = { workspace = true, optional = true }
+nonempty.workspace = true
+ordered-float.workspace = true
+pest.workspace = true
+regex.workspace = true
+tokio = { workspace = true, optional = true }
+wdl-core = { path = "../wdl-core" }
+wdl-grammar = { path = "../wdl-grammar" }
+wdl-macros = { path = "../wdl-macros" }
+
+[features]
+binaries = ["dep:clap", "dep:env_logger", "dep:log", "dep:tokio"]
+
+[[bin]]
+name = "wdl-ast"
+path = "src/main.rs"
+required-features = ["binaries"]

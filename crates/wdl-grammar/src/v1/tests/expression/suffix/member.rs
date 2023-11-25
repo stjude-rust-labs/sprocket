@@ -35,7 +35,7 @@ fn it_fails_to_parse_a_member_from_an_expression() {
         parser: WdlParser,
         input: ".(if a then b else c)",
         rule: Rule::member,
-        positives: vec![Rule::identifier],
+        positives: vec![Rule::singular_identifier],
         negatives: vec![],
         pos: 1
     }
@@ -48,7 +48,7 @@ fn it_successfully_parses_a_member() {
         input: ".field",
         rule: Rule::member,
         tokens: [member(0, 6, [
-            identifier(1, 6)
+            singular_identifier(1, 6)
         ])]
     }
 }
@@ -60,7 +60,7 @@ fn it_successfully_parses_a_member_without_including_the_trailing_space() {
         input: ".field ",
         rule: Rule::member,
         tokens: [member(0, 6, [
-            identifier(1, 6)
+            singular_identifier(1, 6)
         ])]
     }
 }

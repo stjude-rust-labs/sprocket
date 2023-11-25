@@ -1,16 +1,18 @@
 //! Replace curly command blocks with heredoc command blocks.
 
-use std::num::NonZeroUsize;
+use std::collections::VecDeque;
 
-use pest::iterators::Pairs;
+use nonempty::NonEmpty;
+use pest::iterators::Pair;
+use wdl_core::concern::code;
+use wdl_core::concern::lint;
+use wdl_core::concern::lint::Group;
+use wdl_core::concern::lint::Rule;
+use wdl_core::concern::Code;
+use wdl_core::fs::Location;
+use wdl_core::Version;
 
-use crate::core::lint;
-use crate::core::lint::Group;
-use crate::core::lint::Rule;
-use crate::core::Code;
-use crate::core::Location;
 use crate::v1;
-use crate::Version;
 
 /// Replace curly command blocks with heredoc command blocks.
 ///
@@ -20,18 +22,18 @@ use crate::Version;
 #[derive(Debug)]
 pub struct NoCurlyCommands;
 
-impl NoCurlyCommands {
+impl<'a> NoCurlyCommands {
     /// Creates an error corresponding to a line with a trailing tab.
-    fn no_curly_commands(&self, line_no: NonZeroUsize, col_no: NonZeroUsize) -> lint::Warning
+    fn no_curly_commands(&self, location: Location) -> lint::Warning
     where
-        Self: Rule<v1::Rule>,
+        Self: Rule<&'a Pair<'a, v1::Rule>>,
     {
         // SAFETY: this error is written so that it will always unwrap.
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Medium)
-            .group(lint::Group::Pedantic)
-            .location(Location::LineCol { line_no, col_no })
+            .group(self.group())
+            .push_location(location)
             .subject("curly command found")
             .body(
                 "Command blocks using curly braces (`{}`) are considered less
@@ -43,55 +45,65 @@ impl NoCurlyCommands {
     }
 }
 
-impl Rule<v1::Rule> for NoCurlyCommands {
+impl<'a> Rule<&'a Pair<'a, v1::Rule>> for NoCurlyCommands {
     fn code(&self) -> Code {
         // SAFETY: this manually crafted to unwrap successfully every time.
-        Code::try_new(Version::V1, 2).unwrap()
+        Code::try_new(code::Kind::Warning, Version::V1, 2).unwrap()
     }
 
     fn group(&self) -> lint::Group {
         Group::Style
     }
 
-    fn check(&self, tree: Pairs<'_, v1::Rule>) -> lint::Result {
-        let mut results = Vec::new();
+    fn check(&self, tree: &'a Pair<'_, v1::Rule>) -> lint::Result {
+        let mut warnings = VecDeque::new();
 
-        for node in tree.flatten() {
+        for node in tree.clone().into_inner().flatten() {
             if node.as_rule() == v1::Rule::command_curly {
-                let (line, col) = node.line_col();
-                results.push(self.no_curly_commands(
-                    NonZeroUsize::try_from(line)?,
-                    NonZeroUsize::try_from(col)?,
-                ));
+                let location = Location::try_from(node.as_span()).map_err(lint::Error::Location)?;
+                warnings.push_back(self.no_curly_commands(location));
             }
         }
 
-        match results.is_empty() {
-            true => Ok(None),
-            false => Ok(Some(results)),
+        match warnings.pop_front() {
+            Some(front) => {
+                let mut results = NonEmpty::new(front);
+                results.extend(warnings);
+                Ok(Some(results))
+            }
+            None => Ok(None),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use pest::Parser as _;
+    use std::num::NonZeroUsize;
 
-    use crate::core::lint::Rule as _;
+    use pest::Parser as _;
+    use wdl_core::concern::lint::Rule as _;
+    use wdl_core::fs::location::Position;
+
+    use super::*;
     use crate::v1::parse::Parser;
     use crate::v1::Rule;
 
-    use super::*;
-
     #[test]
     fn it_catches_a_curly_command() -> Result<(), Box<dyn std::error::Error>> {
-        let tree = Parser::parse(Rule::command_curly, "command {}")?;
-        let warning = NoCurlyCommands.check(tree)?.unwrap();
+        let tree = Parser::parse(
+            Rule::task,
+            "task hello {
+    command {}
+}",
+        )?
+        .next()
+        .unwrap();
+        let warnings = NoCurlyCommands.check(&tree)?.unwrap();
 
-        assert_eq!(warning.len(), 1);
+        assert_eq!(warnings.len(), 1);
         assert_eq!(
-            warning.first().unwrap().to_string(),
-            "[v1::002::Pedantic/Medium] curly command found at 1:1"
+            warnings.first().to_string(),
+            "[v1::W002::Style/Medium] curly command found (2:5-2:15)"
         );
 
         Ok(())
@@ -99,21 +111,26 @@ mod tests {
 
     #[test]
     fn it_does_not_catch_a_heredoc_command() -> Result<(), Box<dyn std::error::Error>> {
-        let tree = Parser::parse(Rule::command_heredoc, "command <<<>>>")?;
-        assert!(NoCurlyCommands.check(tree)?.is_none());
+        let tree = Parser::parse(Rule::command_heredoc, "command <<<>>>")?
+            .next()
+            .unwrap();
+        assert!(NoCurlyCommands.check(&tree)?.is_none());
 
         Ok(())
     }
 
     #[test]
     fn it_unwraps_a_no_curly_commands_error() {
-        let warning = NoCurlyCommands.no_curly_commands(
+        let location = Location::Position(Position::new(
             NonZeroUsize::try_from(1).unwrap(),
             NonZeroUsize::try_from(1).unwrap(),
-        );
+            0,
+        ));
+
+        let warnings = NoCurlyCommands.no_curly_commands(location);
         assert_eq!(
-            warning.to_string(),
-            "[v1::002::Pedantic/Medium] curly command found at 1:1"
+            warnings.to_string(),
+            "[v1::W002::Style/Medium] curly command found (1:1)"
         )
     }
 }

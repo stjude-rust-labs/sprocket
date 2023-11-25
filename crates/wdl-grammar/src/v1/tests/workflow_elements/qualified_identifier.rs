@@ -11,7 +11,7 @@ fn it_fails_to_parse_an_empty_string() {
         parser: WdlParser,
         input: "",
         rule: Rule::qualified_identifier,
-        positives: vec![Rule::identifier],
+        positives: vec![Rule::singular_identifier],
         negatives: vec![],
         pos: 0
     }
@@ -35,7 +35,7 @@ fn it_fails_to_parse_an_identifier_followed_by_a_period() {
         parser: WdlParser,
         input: "foo.",
         rule: Rule::qualified_identifier,
-        positives: vec![Rule::identifier],
+        positives: vec![Rule::singular_identifier],
         negatives: vec![],
         pos: 4
     }
@@ -47,7 +47,7 @@ fn it_fails_to_parse_an_identifier_proceeded_by_a_period() {
         parser: WdlParser,
         input: ".foo",
         rule: Rule::qualified_identifier,
-        positives: vec![Rule::identifier],
+        positives: vec![Rule::singular_identifier],
         negatives: vec![],
         pos: 0
     }
@@ -60,8 +60,8 @@ fn it_successfully_parses_a_qualified_identifier() {
         input: "foo.bar",
         rule: Rule::qualified_identifier,
         tokens: [qualified_identifier(0, 7, [
-            identifier(0, 3),
-            identifier(4, 7)
+            singular_identifier(0, 3),
+            singular_identifier(4, 7)
         ])]
     }
 }
@@ -73,8 +73,8 @@ fn it_successfully_excludes_trailing_whitespace() {
         input: "foo.bar   ",
         rule: Rule::qualified_identifier,
         tokens: [qualified_identifier(0, 7, [
-            identifier(0, 3),
-            identifier(4, 7)
+            singular_identifier(0, 3),
+            singular_identifier(4, 7)
         ])]
     }
 }
@@ -86,12 +86,12 @@ fn it_successfully_parses_a_long_qualified_identifier() {
         input: "foo.bar.baz.qux.corge.grault",
         rule: Rule::qualified_identifier,
         tokens: [qualified_identifier(0, 28, [
-            identifier(0, 3),
-            identifier(4, 7),
-            identifier(8, 11),
-            identifier(12, 15),
-            identifier(16, 21),
-            identifier(22, 28),
+            singular_identifier(0, 3),
+            singular_identifier(4, 7),
+            singular_identifier(8, 11),
+            singular_identifier(12, 15),
+            singular_identifier(16, 21),
+            singular_identifier(22, 28),
         ])]
     }
 }

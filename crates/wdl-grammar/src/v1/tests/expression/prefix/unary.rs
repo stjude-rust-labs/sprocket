@@ -35,7 +35,7 @@ fn it_successfully_parses_positive_unary_signed() {
         parser: WdlParser,
         input: "+",
         rule: Rule::unary_signed,
-        tokens: [unary_signed(0, 1)]
+        tokens: [unary_signed_positive(0, 1)]
     }
 }
 
@@ -45,6 +45,6 @@ fn it_successfully_parses_negative_unary_signed() {
         parser: WdlParser,
         input: "-",
         rule: Rule::unary_signed,
-        tokens: [unary_signed(0, 1)]
+        tokens: [unary_signed_negative(0, 1)]
     }
 }

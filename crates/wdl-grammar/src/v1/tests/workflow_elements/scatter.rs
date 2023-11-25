@@ -35,29 +35,58 @@ fn it_successfully_parses_scatter_without_spaces() {
         parser: WdlParser,
         input: "scatter(i in range(10)){call my_task}",
         rule: Rule::workflow_scatter,
-        tokens: [workflow_scatter(0, 37, [
+        tokens: [
+          // `scatter(i in range(10)){call my_task}`
+          workflow_scatter(0, 37, [
+            // `(i in range(10))`
             workflow_scatter_iteration_statement(7, 23, [
-                identifier(8, 9),
-                WHITESPACE(9, 10, [SPACE(9, 10)]),
-                WHITESPACE(12, 13, [SPACE(12, 13)]),
+              // `i`
+              workflow_scatter_iteration_statement_variable(8, 9, [
+                // `i`
+                singular_identifier(8, 9),
+              ]),
+              WHITESPACE(9, 10, [
+                SPACE(9, 10),
+              ]),
+              WHITESPACE(12, 13, [
+                SPACE(12, 13),
+              ]),
+              // `range(10)`
+              workflow_scatter_iteration_statement_iterable(13, 22, [
+                // `range(10)`
                 expression(13, 22, [
-                    identifier(13, 18),
-                    apply(18, 22, [
-                        expression(19, 21, [
-                            integer(19, 21, [
-                                integer_decimal(19, 21)
-                            ])
-                        ])
-                    ])
+                  // `range`
+                  singular_identifier(13, 18),
+                  // `(10)`
+                  call(18, 22, [
+                    // `10`
+                    expression(19, 21, [
+                      // `10`
+                      integer(19, 21, [
+                        // `10`
+                        integer_decimal(19, 21),
+                      ]),
+                    ]),
+                  ]),
                 ]),
+              ]),
             ]),
+            // `call my_task`
             workflow_execution_statement(24, 36, [
-                workflow_call(24, 36, [
-                    WHITESPACE(28, 29, [SPACE(28, 29)]),
-                    identifier(29, 36)
-                ])
-            ])
-        ])]
+              // `call my_task`
+              workflow_call(24, 36, [
+                WHITESPACE(28, 29, [
+                  SPACE(28, 29),
+                ]),
+                // `my_task`
+                workflow_call_name(29, 36, [
+                  // `my_task`
+                  singular_identifier(29, 36),
+                ]),
+              ]),
+            ]),
+          ])
+        ]
     }
 }
 
@@ -67,29 +96,58 @@ fn it_successfully_excludes_trailing_whitespace() {
         parser: WdlParser,
         input: "scatter(i in range(10)){call my_task}    ",
         rule: Rule::workflow_scatter,
-        tokens: [workflow_scatter(0, 37, [
+        tokens: [
+          // `scatter(i in range(10)){call my_task}`
+          workflow_scatter(0, 37, [
+            // `(i in range(10))`
             workflow_scatter_iteration_statement(7, 23, [
-                identifier(8, 9),
-                WHITESPACE(9, 10, [SPACE(9, 10)]),
-                WHITESPACE(12, 13, [SPACE(12, 13)]),
+              // `i`
+              workflow_scatter_iteration_statement_variable(8, 9, [
+                // `i`
+                singular_identifier(8, 9),
+              ]),
+              WHITESPACE(9, 10, [
+                SPACE(9, 10),
+              ]),
+              WHITESPACE(12, 13, [
+                SPACE(12, 13),
+              ]),
+              // `range(10)`
+              workflow_scatter_iteration_statement_iterable(13, 22, [
+                // `range(10)`
                 expression(13, 22, [
-                    identifier(13, 18),
-                    apply(18, 22, [
-                        expression(19, 21, [
-                            integer(19, 21, [
-                                integer_decimal(19, 21)
-                            ])
-                        ])
-                    ])
+                  // `range`
+                  singular_identifier(13, 18),
+                  // `(10)`
+                  call(18, 22, [
+                    // `10`
+                    expression(19, 21, [
+                      // `10`
+                      integer(19, 21, [
+                        // `10`
+                        integer_decimal(19, 21),
+                      ]),
+                    ]),
+                  ]),
                 ]),
+              ]),
             ]),
+            // `call my_task`
             workflow_execution_statement(24, 36, [
-                workflow_call(24, 36, [
-                    WHITESPACE(28, 29, [SPACE(28, 29)]),
-                    identifier(29, 36)
-                ])
-            ])
-        ])]
+              // `call my_task`
+              workflow_call(24, 36, [
+                WHITESPACE(28, 29, [
+                  SPACE(28, 29),
+                ]),
+                // `my_task`
+                workflow_call_name(29, 36, [
+                  // `my_task`
+                  singular_identifier(29, 36),
+                ]),
+              ]),
+            ]),
+          ])
+        ]
     }
 }
 
@@ -99,23 +157,44 @@ fn it_successfully_parses_scatter_with_empty_body() {
         parser: WdlParser,
         input: "scatter(i in range(10)){}",
         rule: Rule::workflow_scatter,
-        tokens: [workflow_scatter(0, 25, [
+        tokens: [
+          // `scatter(i in range(10)){}`
+          workflow_scatter(0, 25, [
+            // `(i in range(10))`
             workflow_scatter_iteration_statement(7, 23, [
-                identifier(8, 9),
-                WHITESPACE(9, 10, [SPACE(9, 10)]),
-                WHITESPACE(12, 13, [SPACE(12, 13)]),
+              // `i`
+              workflow_scatter_iteration_statement_variable(8, 9, [
+                // `i`
+                singular_identifier(8, 9),
+              ]),
+              WHITESPACE(9, 10, [
+                SPACE(9, 10),
+              ]),
+              WHITESPACE(12, 13, [
+                SPACE(12, 13),
+              ]),
+              // `range(10)`
+              workflow_scatter_iteration_statement_iterable(13, 22, [
+                // `range(10)`
                 expression(13, 22, [
-                    identifier(13, 18),
-                    apply(18, 22, [
-                        expression(19, 21, [
-                            integer(19, 21, [
-                                integer_decimal(19, 21)
-                            ])
-                        ])
-                    ])
+                  // `range`
+                  singular_identifier(13, 18),
+                  // `(10)`
+                  call(18, 22, [
+                    // `10`
+                    expression(19, 21, [
+                      // `10`
+                      integer(19, 21, [
+                        // `10`
+                        integer_decimal(19, 21),
+                      ]),
+                    ]),
+                  ]),
                 ]),
+              ]),
             ]),
-        ])]
+          ])
+        ]
     }
 }
 
@@ -125,37 +204,82 @@ fn it_successfully_parses_scatter_with_spaces() {
         parser: WdlParser,
         input: "scatter ( i in range( 10 ) ) { call my_task }",
         rule: Rule::workflow_scatter,
-        tokens: [workflow_scatter(0, 45, [
-            WHITESPACE(7, 8, [SPACE(7, 8)]),
+        tokens: [
+          // `scatter ( i in range( 10 ) ) { call my_task }`
+          workflow_scatter(0, 45, [
+            WHITESPACE(7, 8, [
+              SPACE(7, 8),
+            ]),
+            // `( i in range( 10 ) )`
             workflow_scatter_iteration_statement(8, 28, [
-                WHITESPACE(9, 10, [SPACE(9, 10)]),
-                identifier(10, 11),
-                WHITESPACE(11, 12, [SPACE(11, 12)]),
-                WHITESPACE(14, 15, [SPACE(14, 15)]),
+              WHITESPACE(9, 10, [
+                SPACE(9, 10),
+              ]),
+              // `i`
+              workflow_scatter_iteration_statement_variable(10, 11, [
+                // `i`
+                singular_identifier(10, 11),
+              ]),
+              WHITESPACE(11, 12, [
+                SPACE(11, 12),
+              ]),
+              WHITESPACE(14, 15, [
+                SPACE(14, 15),
+              ]),
+              // `range( 10 )`
+              workflow_scatter_iteration_statement_iterable(15, 26, [
+                // `range( 10 )`
                 expression(15, 26, [
-                    identifier(15, 20),
-                    apply(20, 26, [
-                        WHITESPACE(21, 22, [SPACE(21, 22)]),
-                        expression(22, 24, [
-                            integer(22, 24, [
-                                integer_decimal(22, 24)
-                            ])
-                        ]),
-                        WHITESPACE(24, 25, [SPACE(24, 25)]),
-                    ])
+                  // `range`
+                  singular_identifier(15, 20),
+                  // `( 10 )`
+                  call(20, 26, [
+                    WHITESPACE(21, 22, [
+                      SPACE(21, 22),
+                    ]),
+                    // `10`
+                    expression(22, 24, [
+                      // `10`
+                      integer(22, 24, [
+                        // `10`
+                        integer_decimal(22, 24),
+                      ]),
+                    ]),
+                    WHITESPACE(24, 25, [
+                      SPACE(24, 25),
+                    ]),
+                  ]),
                 ]),
-                WHITESPACE(26, 27, [SPACE(26, 27)]),
+              ]),
+              WHITESPACE(26, 27, [
+                SPACE(26, 27),
+              ]),
             ]),
-            WHITESPACE(28, 29, [SPACE(28, 29)]),
-            WHITESPACE(30, 31, [SPACE(30, 31)]),
+            WHITESPACE(28, 29, [
+              SPACE(28, 29),
+            ]),
+            WHITESPACE(30, 31, [
+              SPACE(30, 31),
+            ]),
+            // `call my_task`
             workflow_execution_statement(31, 43, [
-                workflow_call(31, 43, [
-                    WHITESPACE(35, 36, [SPACE(35, 36)]),
-                    identifier(36, 43)
-                ])
+              // `call my_task`
+              workflow_call(31, 43, [
+                WHITESPACE(35, 36, [
+                  SPACE(35, 36),
+                ]),
+                // `my_task`
+                workflow_call_name(36, 43, [
+                  // `my_task`
+                  singular_identifier(36, 43),
+                ]),
+              ]),
             ]),
-            WHITESPACE(43, 44, [SPACE(43, 44)]),
-        ])]
+            WHITESPACE(43, 44, [
+              SPACE(43, 44),
+            ]),
+          ])
+        ]
     }
 }
 
@@ -164,226 +288,162 @@ fn it_successfully_parses_scatter_with_multiple_calls() {
     parses_to! {
         parser: WdlParser,
         input: "scatter (i in range(10)){
-            call my_task
-            call other_task {}
-            call another_task {input:foo=bar}
-        }",
+    call my_task
+    call other_task {}
+    call another_task {input:foo=bar}
+}",
         rule: Rule::workflow_scatter,
-        tokens: [workflow_scatter(0, 137, [
-          WHITESPACE(7, 8, [
-            SPACE(7, 8),
-          ]),
-          workflow_scatter_iteration_statement(8, 24, [
-            identifier(9, 10),
-            WHITESPACE(10, 11, [
-              SPACE(10, 11),
+        tokens: [
+          // `scatter (i in range(10)){ call my_task call other_task {} call another_task {input:foo=bar} }`
+          workflow_scatter(0, 105, [
+            WHITESPACE(7, 8, [
+              SPACE(7, 8),
             ]),
-            WHITESPACE(13, 14, [
-              SPACE(13, 14),
-            ]),
-            expression(14, 23, [
-              identifier(14, 19),
-              apply(19, 23, [
-                expression(20, 22, [
-                  integer(20, 22, [
-                    integer_decimal(20, 22),
+            // `(i in range(10))`
+            workflow_scatter_iteration_statement(8, 24, [
+              // `i`
+              workflow_scatter_iteration_statement_variable(9, 10, [
+                // `i`
+                singular_identifier(9, 10),
+              ]),
+              WHITESPACE(10, 11, [
+                SPACE(10, 11),
+              ]),
+              WHITESPACE(13, 14, [
+                SPACE(13, 14),
+              ]),
+              // `range(10)`
+              workflow_scatter_iteration_statement_iterable(14, 23, [
+                // `range(10)`
+                expression(14, 23, [
+                  // `range`
+                  singular_identifier(14, 19),
+                  // `(10)`
+                  call(19, 23, [
+                    // `10`
+                    expression(20, 22, [
+                      // `10`
+                      integer(20, 22, [
+                        // `10`
+                        integer_decimal(20, 22),
+                      ]),
+                    ]),
                   ]),
                 ]),
               ]),
             ]),
-          ]),
-          // ``
-          WHITESPACE(25, 26, [
-            // ``
-            NEWLINE(25, 26),
-          ]),
-          WHITESPACE(26, 27, [
-            SPACE(26, 27),
-          ]),
-          WHITESPACE(27, 28, [
-            SPACE(27, 28),
-          ]),
-          WHITESPACE(28, 29, [
-            SPACE(28, 29),
-          ]),
-          WHITESPACE(29, 30, [
-            SPACE(29, 30),
-          ]),
-          WHITESPACE(30, 31, [
-            SPACE(30, 31),
-          ]),
-          WHITESPACE(31, 32, [
-            SPACE(31, 32),
-          ]),
-          WHITESPACE(32, 33, [
-            SPACE(32, 33),
-          ]),
-          WHITESPACE(33, 34, [
-            SPACE(33, 34),
-          ]),
-          WHITESPACE(34, 35, [
-            SPACE(34, 35),
-          ]),
-          WHITESPACE(35, 36, [
-            SPACE(35, 36),
-          ]),
-          WHITESPACE(36, 37, [
-            SPACE(36, 37),
-          ]),
-          WHITESPACE(37, 38, [
-            SPACE(37, 38),
-          ]),
-          workflow_execution_statement(38, 50, [
-            workflow_call(38, 50, [
-              WHITESPACE(42, 43, [
-                SPACE(42, 43),
-              ]),
-              identifier(43, 50),
+            WHITESPACE(25, 26, [
+              NEWLINE(25, 26),
             ]),
-          ]),
-          // ``
-          WHITESPACE(50, 51, [
-            // ``
-            NEWLINE(50, 51),
-          ]),
-          WHITESPACE(51, 52, [
-            SPACE(51, 52),
-          ]),
-          WHITESPACE(52, 53, [
-            SPACE(52, 53),
-          ]),
-          WHITESPACE(53, 54, [
-            SPACE(53, 54),
-          ]),
-          WHITESPACE(54, 55, [
-            SPACE(54, 55),
-          ]),
-          WHITESPACE(55, 56, [
-            SPACE(55, 56),
-          ]),
-          WHITESPACE(56, 57, [
-            SPACE(56, 57),
-          ]),
-          WHITESPACE(57, 58, [
-            SPACE(57, 58),
-          ]),
-          WHITESPACE(58, 59, [
-            SPACE(58, 59),
-          ]),
-          WHITESPACE(59, 60, [
-            SPACE(59, 60),
-          ]),
-          WHITESPACE(60, 61, [
-            SPACE(60, 61),
-          ]),
-          WHITESPACE(61, 62, [
-            SPACE(61, 62),
-          ]),
-          WHITESPACE(62, 63, [
-            SPACE(62, 63),
-          ]),
-          workflow_execution_statement(63, 81, [
-            workflow_call(63, 81, [
-              WHITESPACE(67, 68, [
-                SPACE(67, 68),
-              ]),
-              identifier(68, 78),
-              WHITESPACE(78, 79, [
-                SPACE(78, 79),
-              ]),
-              workflow_call_body(79, 81),
+            WHITESPACE(26, 27, [
+              SPACE(26, 27),
             ]),
-          ]),
-          // ``
-          WHITESPACE(81, 82, [
-            // ``
-            NEWLINE(81, 82),
-          ]),
-          WHITESPACE(82, 83, [
-            SPACE(82, 83),
-          ]),
-          WHITESPACE(83, 84, [
-            SPACE(83, 84),
-          ]),
-          WHITESPACE(84, 85, [
-            SPACE(84, 85),
-          ]),
-          WHITESPACE(85, 86, [
-            SPACE(85, 86),
-          ]),
-          WHITESPACE(86, 87, [
-            SPACE(86, 87),
-          ]),
-          WHITESPACE(87, 88, [
-            SPACE(87, 88),
-          ]),
-          WHITESPACE(88, 89, [
-            SPACE(88, 89),
-          ]),
-          WHITESPACE(89, 90, [
-            SPACE(89, 90),
-          ]),
-          WHITESPACE(90, 91, [
-            SPACE(90, 91),
-          ]),
-          WHITESPACE(91, 92, [
-            SPACE(91, 92),
-          ]),
-          WHITESPACE(92, 93, [
-            SPACE(92, 93),
-          ]),
-          WHITESPACE(93, 94, [
-            SPACE(93, 94),
-          ]),
-          workflow_execution_statement(94, 127, [
-            workflow_call(94, 127, [
-              WHITESPACE(98, 99, [
-                SPACE(98, 99),
+            WHITESPACE(27, 28, [
+              SPACE(27, 28),
+            ]),
+            WHITESPACE(28, 29, [
+              SPACE(28, 29),
+            ]),
+            WHITESPACE(29, 30, [
+              SPACE(29, 30),
+            ]),
+            // `call my_task`
+            workflow_execution_statement(30, 42, [
+              // `call my_task`
+              workflow_call(30, 42, [
+                WHITESPACE(34, 35, [
+                  SPACE(34, 35),
+                ]),
+                // `my_task`
+                workflow_call_name(35, 42, [
+                  // `my_task`
+                  singular_identifier(35, 42),
+                ]),
               ]),
-              identifier(99, 111),
-              WHITESPACE(111, 112, [
-                SPACE(111, 112),
+            ]),
+            WHITESPACE(42, 43, [
+              NEWLINE(42, 43),
+            ]),
+            WHITESPACE(43, 44, [
+              SPACE(43, 44),
+            ]),
+            WHITESPACE(44, 45, [
+              SPACE(44, 45),
+            ]),
+            WHITESPACE(45, 46, [
+              SPACE(45, 46),
+            ]),
+            WHITESPACE(46, 47, [
+              SPACE(46, 47),
+            ]),
+            // `call other_task {}`
+            workflow_execution_statement(47, 65, [
+              // `call other_task {}`
+              workflow_call(47, 65, [
+                WHITESPACE(51, 52, [
+                  SPACE(51, 52),
+                ]),
+                // `other_task`
+                workflow_call_name(52, 62, [
+                  // `other_task`
+                  singular_identifier(52, 62),
+                ]),
+                WHITESPACE(62, 63, [
+                  SPACE(62, 63),
+                ]),
+                // `{}`
+                workflow_call_body(63, 65),
               ]),
-              workflow_call_body(112, 127, [
-                workflow_call_input(119, 126, [
-                  identifier(119, 122),
-                  expression(123, 126, [
-                    identifier(123, 126),
+            ]),
+            WHITESPACE(65, 66, [
+              NEWLINE(65, 66),
+            ]),
+            WHITESPACE(66, 67, [
+              SPACE(66, 67),
+            ]),
+            WHITESPACE(67, 68, [
+              SPACE(67, 68),
+            ]),
+            WHITESPACE(68, 69, [
+              SPACE(68, 69),
+            ]),
+            WHITESPACE(69, 70, [
+              SPACE(69, 70),
+            ]),
+            // `call another_task {input:foo=bar}`
+            workflow_execution_statement(70, 103, [
+              // `call another_task {input:foo=bar}`
+              workflow_call(70, 103, [
+                WHITESPACE(74, 75, [
+                  SPACE(74, 75),
+                ]),
+                // `another_task`
+                workflow_call_name(75, 87, [
+                  // `another_task`
+                  singular_identifier(75, 87),
+                ]),
+                WHITESPACE(87, 88, [
+                  SPACE(87, 88),
+                ]),
+                // `{input:foo=bar}`
+                workflow_call_body(88, 103, [
+                  // `foo=bar`
+                  workflow_call_input(95, 102, [
+                    // `foo`
+                    singular_identifier(95, 98),
+                    // `bar`
+                    expression(99, 102, [
+                      // `bar`
+                      singular_identifier(99, 102),
+                    ]),
                   ]),
                 ]),
               ]),
             ]),
-          ]),
-          // ``
-          WHITESPACE(127, 128, [
-            // ``
-            NEWLINE(127, 128),
-          ]),
-          WHITESPACE(128, 129, [
-            SPACE(128, 129),
-          ]),
-          WHITESPACE(129, 130, [
-            SPACE(129, 130),
-          ]),
-          WHITESPACE(130, 131, [
-            SPACE(130, 131),
-          ]),
-          WHITESPACE(131, 132, [
-            SPACE(131, 132),
-          ]),
-          WHITESPACE(132, 133, [
-            SPACE(132, 133),
-          ]),
-          WHITESPACE(133, 134, [
-            SPACE(133, 134),
-          ]),
-          WHITESPACE(134, 135, [
-            SPACE(134, 135),
-          ]),
-          WHITESPACE(135, 136, [
-            SPACE(135, 136),
-          ]),
-        ])
-        ]
+            WHITESPACE(103, 104, [
+              NEWLINE(103, 104),
+            ]),
+          ])
+                ]
     }
 }

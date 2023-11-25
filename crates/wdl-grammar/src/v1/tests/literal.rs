@@ -17,7 +17,7 @@ fn it_fails_to_parse_an_empty_literal() {
             Rule::integer,
             Rule::float,
             Rule::string,
-            Rule::identifier,
+            Rule::singular_identifier,
         ],
         negatives: vec![],
         pos: 0
@@ -135,11 +135,12 @@ fn it_successfully_parses_an_empty_double_quoted_string() {
         input: "\"\"",
         rule: Rule::literal,
         tokens: [
-            // `""`
-            string(0, 2, [
-                // `"`
-                double_quote(0, 1),
-            ])
+          // `""`
+          string(0, 2, [
+            // `"`
+            double_quote(0, 1),
+            string_inner(1, 1),
+          ])
         ]
     }
 }
@@ -151,11 +152,12 @@ fn it_successfully_parses_an_empty_single_quoted_string() {
         input: "''",
         rule: Rule::literal,
         tokens: [
-            // `''`
-            string(0, 2, [
-                // `'`
-                single_quote(0, 1),
-            ])
+          // `''`
+          string(0, 2, [
+            // `'`
+            single_quote(0, 1),
+            string_inner(1, 1),
+          ])
         ]
     }
 }
@@ -167,13 +169,16 @@ fn it_successfully_parses_a_double_quoted_string_with_a_unicode_character() {
         input: "\"😀\"",
         rule: Rule::literal,
         tokens: [
-            // `"😀"`
-            string(0, 6, [
-                // `"`
-                double_quote(0, 1),
-                // `😀`
-                string_literal_contents(1, 5),
-            ])
+          // `"😀"`
+          string(0, 6, [
+            // `"`
+            double_quote(0, 1),
+            // `😀`
+            string_inner(1, 5, [
+              // `😀`
+              string_literal_contents(1, 5),
+            ]),
+          ])
         ]
     }
 }
@@ -185,13 +190,16 @@ fn it_successfully_parses_a_single_quoted_string_with_a_unicode_character() {
         input: "'😀'",
         rule: Rule::literal,
         tokens: [
-            // `'😀'`
-            string(0, 6, [
-                // `'`
-                single_quote(0, 1),
-                // `😀`
-                string_literal_contents(1, 5),
-            ])
+          // `'😀'`
+          string(0, 6, [
+            // `'`
+            single_quote(0, 1),
+            // `😀`
+            string_inner(1, 5, [
+              // `😀`
+              string_literal_contents(1, 5),
+            ]),
+          ])
         ]
     }
 }
@@ -203,13 +211,16 @@ fn it_successfully_parses_a_double_quoted_string() {
         input: "\"Hello, world!\"",
         rule: Rule::literal,
         tokens: [
-            // `"Hello, world!"`
-            string(0, 15, [
-                // `"`
-                double_quote(0, 1),
-                // `Hello, world!`
-                string_literal_contents(1, 14),
-            ])
+          // `"Hello, world!"`
+          string(0, 15, [
+            // `"`
+            double_quote(0, 1),
+            // `Hello, world!`
+            string_inner(1, 14, [
+              // `Hello, world!`
+              string_literal_contents(1, 14),
+            ]),
+          ])
         ]
     }
 }
@@ -221,13 +232,16 @@ fn it_successfully_parses_a_single_quoted_string() {
         input: "'Hello, world!'",
         rule: Rule::literal,
         tokens: [
-            // `'Hello, world!'`
-            string(0, 15, [
-                // `'`
-                single_quote(0, 1),
-                // `Hello, world!`
-                string_literal_contents(1, 14),
-            ])
+          // `'Hello, world!'`
+          string(0, 15, [
+            // `'`
+            single_quote(0, 1),
+            // `Hello, world!`
+            string_inner(1, 14, [
+              // `Hello, world!`
+              string_literal_contents(1, 14),
+            ]),
+          ])
         ]
     }
 }
@@ -248,13 +262,13 @@ fn it_successfully_parses_an_identifier() {
         parser: WdlParser,
         input: "hello_world",
         rule: Rule::literal,
-        tokens: [identifier(0, 11)]
+        tokens: [singular_identifier(0, 11)]
     }
 
     parses_to! {
         parser: WdlParser,
         input: "HelloWorld",
         rule: Rule::literal,
-        tokens: [identifier(0, 10)]
+        tokens: [singular_identifier(0, 10)]
     }
 }

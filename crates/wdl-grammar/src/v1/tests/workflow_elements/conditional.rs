@@ -39,14 +39,17 @@ fn it_successfully_parses_conditional_without_space() {
           // `if(true){Int a=10}`
           workflow_conditional(0, 18, [
             // `true`
-            expression(3, 7, [
+            workflow_conditional_condition(3, 7, [
               // `true`
-              boolean(3, 7),
+              expression(3, 7, [
+                // `true`
+                boolean(3, 7),
+              ]),
             ]),
             // `Int a=10`
             workflow_execution_statement(9, 17, [
               // `Int a=10`
-              workflow_private_declarations(9, 17, [
+              private_declarations(9, 17, [
                 // `Int a=10`
                 bound_declaration(9, 17, [
                   // `Int`
@@ -58,7 +61,10 @@ fn it_successfully_parses_conditional_without_space() {
                     SPACE(12, 13),
                   ]),
                   // `a`
-                  identifier(13, 14),
+                  bound_declaration_name(13, 14, [
+                    // `a`
+                    singular_identifier(13, 14),
+                  ]),
                   // `10`
                   expression(15, 17, [
                     // `10`
@@ -70,7 +76,8 @@ fn it_successfully_parses_conditional_without_space() {
                 ]),
               ]),
             ]),
-        ])]
+          ])
+        ]
     }
 }
 
@@ -80,11 +87,19 @@ fn it_successfully_parses_conditional_with_empty_body() {
         parser: WdlParser,
         input: "if(true){}",
         rule: Rule::workflow_conditional,
-        tokens: [workflow_conditional(0, 10, [
-            expression(3, 7, [
-                boolean(3, 7)
+        tokens: [
+          // `if(true){}`
+          workflow_conditional(0, 10, [
+            // `true`
+            workflow_conditional_condition(3, 7, [
+              // `true`
+              expression(3, 7, [
+                // `true`
+                boolean(3, 7),
+              ]),
             ]),
-        ])]
+          ])
+        ]
     }
 }
 
@@ -98,14 +113,17 @@ fn it_successfully_excludes_trailing_whitespace() {
           // `if(true){Int a=10}`
           workflow_conditional(0, 18, [
             // `true`
-            expression(3, 7, [
+            workflow_conditional_condition(3, 7, [
               // `true`
-              boolean(3, 7),
+              expression(3, 7, [
+                // `true`
+                boolean(3, 7),
+              ]),
             ]),
             // `Int a=10`
             workflow_execution_statement(9, 17, [
               // `Int a=10`
-              workflow_private_declarations(9, 17, [
+              private_declarations(9, 17, [
                 // `Int a=10`
                 bound_declaration(9, 17, [
                   // `Int`
@@ -117,7 +135,10 @@ fn it_successfully_excludes_trailing_whitespace() {
                     SPACE(12, 13),
                   ]),
                   // `a`
-                  identifier(13, 14),
+                  bound_declaration_name(13, 14, [
+                    // `a`
+                    singular_identifier(13, 14),
+                  ]),
                   // `10`
                   expression(15, 17, [
                     // `10`
@@ -150,9 +171,12 @@ fn it_successfully_parses_conditional_with_space() {
               SPACE(4, 5),
             ]),
             // `true`
-            expression(5, 9, [
+            workflow_conditional_condition(5, 9, [
               // `true`
-              boolean(5, 9),
+              expression(5, 9, [
+                // `true`
+                boolean(5, 9),
+              ]),
             ]),
             WHITESPACE(9, 10, [
               SPACE(9, 10),
@@ -166,7 +190,7 @@ fn it_successfully_parses_conditional_with_space() {
             // `Int a=10`
             workflow_execution_statement(14, 23, [
               // `Int a=10`
-              workflow_private_declarations(14, 23, [
+              private_declarations(14, 23, [
                 // `Int a=10`
                 bound_declaration(14, 22, [
                   // `Int`
@@ -178,7 +202,10 @@ fn it_successfully_parses_conditional_with_space() {
                     SPACE(17, 18),
                   ]),
                   // `a`
-                  identifier(18, 19),
+                  bound_declaration_name(18, 19, [
+                    // `a`
+                    singular_identifier(18, 19),
+                  ]),
                   // `10`
                   expression(20, 22, [
                     // `10`
@@ -193,7 +220,8 @@ fn it_successfully_parses_conditional_with_space() {
                 ]),
               ]),
             ]),
-        ])]
+          ])
+        ]
     }
 }
 
@@ -211,9 +239,12 @@ fn it_successfully_parses_conditional_with_multiple_statements() {
           // `if(true){ Int a=10 call my_task{input:foo=a} call no_inputs{} }`
           workflow_conditional(0, 75, [
             // `true`
-            expression(3, 7, [
+            workflow_conditional_condition(3, 7, [
               // `true`
-              boolean(3, 7),
+              expression(3, 7, [
+                // `true`
+                boolean(3, 7),
+              ]),
             ]),
             WHITESPACE(9, 10, [
               NEWLINE(9, 10),
@@ -233,7 +264,7 @@ fn it_successfully_parses_conditional_with_multiple_statements() {
             // `Int a=10`
             workflow_execution_statement(14, 27, [
               // `Int a=10`
-              workflow_private_declarations(14, 27, [
+              private_declarations(14, 27, [
                 // `Int a=10`
                 bound_declaration(14, 22, [
                   // `Int`
@@ -245,7 +276,10 @@ fn it_successfully_parses_conditional_with_multiple_statements() {
                     SPACE(17, 18),
                   ]),
                   // `a`
-                  identifier(18, 19),
+                  bound_declaration_name(18, 19, [
+                    // `a`
+                    singular_identifier(18, 19),
+                  ]),
                   // `10`
                   expression(20, 22, [
                     // `10`
@@ -280,17 +314,20 @@ fn it_successfully_parses_conditional_with_multiple_statements() {
                   SPACE(31, 32),
                 ]),
                 // `my_task`
-                identifier(32, 39),
+                workflow_call_name(32, 39, [
+                  // `my_task`
+                  singular_identifier(32, 39),
+                ]),
                 // `{input:foo=a}`
                 workflow_call_body(39, 52, [
                   // `foo=a`
                   workflow_call_input(46, 51, [
                     // `foo`
-                    identifier(46, 49),
+                    singular_identifier(46, 49),
                     // `a`
                     expression(50, 51, [
                       // `a`
-                      identifier(50, 51),
+                      singular_identifier(50, 51),
                     ]),
                   ]),
                 ]),
@@ -319,7 +356,10 @@ fn it_successfully_parses_conditional_with_multiple_statements() {
                   SPACE(61, 62),
                 ]),
                 // `no_inputs`
-                identifier(62, 71),
+                workflow_call_name(62, 71, [
+                  // `no_inputs`
+                  singular_identifier(62, 71),
+                ]),
                 // `{}`
                 workflow_call_body(71, 73),
               ]),

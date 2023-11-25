@@ -4,7 +4,7 @@ use pest::parses_to;
 use crate::v1::Parser as WdlParser;
 use crate::v1::Rule;
 
-mod core;
+mod atom;
 mod infix;
 mod prefix;
 mod suffix;
@@ -181,7 +181,7 @@ else
                       // `a`
                       identifier_based_kv_key(69, 70, [
                         // `a`
-                        identifier(69, 70),
+                        singular_identifier(69, 70),
                       ]),
                       WHITESPACE(71, 72, [
                         SPACE(71, 72),
@@ -199,7 +199,7 @@ else
                   // `.a`
                   member(77, 79, [
                     // `a`
-                    identifier(78, 79),
+                    singular_identifier(78, 79),
                   ]),
                   WHITESPACE(79, 80, [
                     SPACE(79, 80),
@@ -351,11 +351,14 @@ else
             // `-struct {b: 10}.b`
             expression(140, 157, [
               // `-`
-              unary_signed(140, 141),
+              unary_signed_negative(140, 141),
               // `struct {b: 10}`
               struct_literal(141, 155, [
                 // `struct`
-                identifier(141, 147),
+                struct_literal_name(141, 147, [
+                    // `struct`
+                    singular_identifier(141, 147),
+                ]),
                 WHITESPACE(147, 148, [
                   SPACE(147, 148),
                 ]),
@@ -364,7 +367,7 @@ else
                   // `b`
                   identifier_based_kv_key(149, 150, [
                     // `b`
-                    identifier(149, 150),
+                    singular_identifier(149, 150),
                   ]),
                   WHITESPACE(151, 152, [
                     SPACE(151, 152),
@@ -385,7 +388,7 @@ else
               // `.b`
               member(155, 157, [
                 // `b`
-                identifier(156, 157),
+                singular_identifier(156, 157),
               ]),
             ]),
           ]),
@@ -569,7 +572,7 @@ else
             // `-3e+10`
             expression(229, 235, [
               // `-`
-              unary_signed(229, 230),
+              unary_signed_negative(229, 230),
               // `3e+10`
               float(230, 235, [
                 // `3e+10`
@@ -578,11 +581,11 @@ else
             ]),
           ]),
           // `(zulu)`
-          apply(236, 242, [
+          call(236, 242, [
             // `zulu`
             expression(237, 241, [
               // `zulu`
-              identifier(237, 241),
+              singular_identifier(237, 241),
             ]),
           ]),
         ]),
