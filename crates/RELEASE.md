@@ -67,7 +67,7 @@ From the root directory:
   * [ ] Run linting: `cargo clippy --all-features`.
   * [ ] Run fmt: `cargo fmt --check`.
   * [ ] Run doc: `cargo doc`.
-  * [ ] Stage changes: `git add Cargo.lock Cargo.toml`.
+  * [ ] Stage changes: `git add Cargo.toml`.
   * [ ] Create git commit:
     ```
     git commit
