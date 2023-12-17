@@ -1,6 +1,6 @@
 [package]
 name = "wdl-grammar"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
 edition.workspace = true
 license.workspace = true
@@ -22,8 +22,8 @@ serde = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 toml = { workspace = true, optional = true }
-wdl-core = { path = "../wdl-core" }
-wdl-macros = { path = "../wdl-macros" }
+wdl-core = { path = "../wdl-core", version = "0.1.0" }
+wdl-macros = { path = "../wdl-macros", version = "0.1.0" }
 
 [features]
 binaries = [
