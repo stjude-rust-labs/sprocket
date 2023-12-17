@@ -54,8 +54,8 @@ pub enum MultipleError {
     /// [`Builder`].
     Output,
 
-    /// Attempted to set multiple values for the parameter metadata field within
-    /// the [`Builder`].
+    /// Attempted to set multiple values for the parameter metadata field
+    /// within the [`Builder`].
     ParameterMetadata,
 
     /// Attempted to set multiple values for the runtime field within the
@@ -552,8 +552,8 @@ impl Builder {
             .collect::<Vec<_>>();
 
         let private_declarations = if !private_declarations.is_empty() {
-            // SAFETY: The check above ensures that the declarations aren't empty,
-            // so unwrapping is safe here.
+            // SAFETY: The check above ensures that the declarations aren't
+            // empty, so unwrapping is safe here.
             let mut private_declarations = private_declarations.into_iter();
 
             let mut result = NonEmpty::new(private_declarations.next().unwrap());

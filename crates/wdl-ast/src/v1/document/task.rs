@@ -58,8 +58,12 @@ impl std::fmt::Display for Error {
             Error::Input(err) => write!(f, "input error: {err}"),
             Error::Metadata(err) => write!(f, "metadata error: {err}"),
             Error::Output(err) => write!(f, "output error: {err}"),
-            Error::ParameterMetadata(err) => write!(f, "parameter metadata error: {err}"),
-            Error::PrivateDeclarations(err) => write!(f, "private declarations error: {err}"),
+            Error::ParameterMetadata(err) => {
+                write!(f, "parameter metadata error: {err}")
+            }
+            Error::PrivateDeclarations(err) => {
+                write!(f, "private declarations error: {err}")
+            }
             Error::Runtime(err) => write!(f, "runtime error: {err}"),
         }
     }

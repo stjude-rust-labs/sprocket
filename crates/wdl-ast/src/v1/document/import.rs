@@ -189,8 +189,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_parses_a_complicated_import_correctly(
-    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    fn it_parses_a_complicated_import_correctly()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
         let import = wdl_grammar::v1::parse_rule(
             wdl_grammar::v1::Rule::import,
             r#"import "hello.wdl" as hello alias foo as bar alias baz as quux"#,

@@ -30,10 +30,7 @@ impl<'a> DuplicateRuntimeKeys {
             .code(self.code())
             .subject(format!("duplicate runtime keys: '{}'", key))
             .body("Duplicate runtime keys were detected.")
-            .fix(
-                "Runtime keys cannot be duplicated. Resolve and remove the \
-                duplicated keys.",
-            );
+            .fix("Runtime keys cannot be duplicated. Resolve and remove the duplicated keys.");
 
         for location in locations {
             builder = builder.push_location(location);

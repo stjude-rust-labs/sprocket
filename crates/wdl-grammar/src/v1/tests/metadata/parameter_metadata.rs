@@ -714,8 +714,8 @@ fn it_successfully_parses_a_parameter_metadata_with_commas_within_a_metadata_arr
 }
 
 #[test]
-fn it_successfully_parse_a_parameter_metadata_with_commas_within_a_metadata_object_with_a_trailing_comma(
-) {
+fn it_successfully_parse_a_parameter_metadata_with_commas_within_a_metadata_object_with_a_trailing_comma()
+ {
     parses_to! {
         parser: WdlParser,
         input: r#"parameter_meta {
@@ -893,8 +893,8 @@ fn it_successfully_parse_a_parameter_metadata_with_commas_within_a_metadata_obje
 }
 
 #[test]
-fn it_successfully_parses_a_parameter_metadata_with_commas_within_a_metadata_array_with_a_trailing_comma(
-) {
+fn it_successfully_parses_a_parameter_metadata_with_commas_within_a_metadata_array_with_a_trailing_comma()
+ {
     parses_to! {
         parser: WdlParser,
         input: r#"parameter_meta {

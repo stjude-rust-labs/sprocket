@@ -54,11 +54,19 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::InputOutput(err) => write!(f, "i/o error: {err}"),
-            Error::MissingParent(path) => write!(f, "missing parent: {}", path.display()),
+            Error::MissingParent(path) => {
+                write!(f, "missing parent: {}", path.display())
+            }
             Error::Parse(err) => write!(f, "parse error: {err}"),
-            Error::SaveOnUnbackedRegistry => write!(f, "cannot save an in-memory registry to file"),
-            Error::TomlDeserialization(err) => write!(f, "toml deserialization error: {err}"),
-            Error::TomlSerialization(err) => write!(f, "toml serialization error: {err}"),
+            Error::SaveOnUnbackedRegistry => {
+                write!(f, "cannot save an in-memory registry to file")
+            }
+            Error::TomlDeserialization(err) => {
+                write!(f, "toml deserialization error: {err}")
+            }
+            Error::TomlSerialization(err) => {
+                write!(f, "toml serialization error: {err}")
+            }
         }
     }
 }

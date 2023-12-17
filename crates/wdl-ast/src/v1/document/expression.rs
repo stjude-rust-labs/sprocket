@@ -26,11 +26,11 @@ mod r#struct;
 mod unary_signed;
 
 pub use array::Array;
+pub use r#if::If;
 pub use literal::Literal;
 pub use map::Map;
 pub use object::Object;
 pub use pair::Pair;
-pub use r#if::If;
 pub use r#struct::Struct;
 pub use unary_signed::UnarySigned;
 
@@ -232,7 +232,9 @@ fn parse<'a, P: Iterator<Item = pest::iterators::Pair<'a, grammar::v1::Rule>>>(
             Rule::boolean => match node.as_str() {
                 "true" => Ok(Expression::Literal(Literal::Boolean(true))),
                 "false" => Ok(Expression::Literal(Literal::Boolean(false))),
-                value => unreachable!("unknown boolean literal value: {}", value),
+                value => {
+                    unreachable!("unknown boolean literal value: {}", value)
+                }
             },
             Rule::integer => Ok(Expression::Literal(Literal::Integer(
                 node.as_str().parse::<i64>().map_err(Error::ParseInt)?,
@@ -313,7 +315,8 @@ impl TryFrom<pest::iterators::Pair<'_, grammar::v1::Rule>> for Expression {
     }
 }
 
-/// Ensures that an expression is a number. This includes floats and integers that are wrapped in
+/// Ensures that an expression is a number. This includes floats and integers
+/// that are wrapped in
 pub fn ensure_number(expr: &Expression) -> Option<&Expression> {
     match expr {
         Expression::Literal(Literal::Float(_)) => Some(expr),

@@ -175,7 +175,9 @@ impl TryFrom<Pair<'_, Rule>> for Struct {
                 Rule::COMMA => {}
                 Rule::COMMENT => {}
                 Rule::WHITESPACE => {}
-                rule => unreachable!("struct literal should not contain {:?}", rule),
+                rule => {
+                    unreachable!("struct literal should not contain {:?}", rule)
+                }
             }
         }
 

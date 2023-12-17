@@ -27,8 +27,12 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::BoundDeclaration(err) => write!(f, "bound declaration error: {err}"),
-            Error::UnboundDeclaration(err) => write!(f, "unbound declaration error: {err}"),
+            Error::BoundDeclaration(err) => {
+                write!(f, "bound declaration error: {err}")
+            }
+            Error::UnboundDeclaration(err) => {
+                write!(f, "unbound declaration error: {err}")
+            }
         }
     }
 }
@@ -367,7 +371,9 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Declaration {
                     unbound::Declaration::try_from(node).map_err(Error::UnboundDeclaration)?;
                 Ok(Declaration::Unbound(declaration))
             }
-            rule => panic!("declaration cannot be parsed from node type {:?}", rule),
+            rule => {
+                panic!("declaration cannot be parsed from node type {:?}", rule)
+            }
         }
     }
 }

@@ -33,7 +33,9 @@ impl std::fmt::Display for Error {
         match self {
             Error::Builder(err) => write!(f, "builder error: {err}"),
             Error::Identifier(err) => write!(f, "identifier error: {err}"),
-            Error::UnboundDeclaration(err) => write!(f, "unbound declaration error: {err}"),
+            Error::UnboundDeclaration(err) => {
+                write!(f, "unbound declaration error: {err}")
+            }
         }
     }
 }

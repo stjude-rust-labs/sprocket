@@ -28,8 +28,12 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::Qualified(err) => write!(f, "qualified identifier error: {err}"),
-            Error::Singular(err) => write!(f, "singular identifier error: {err}"),
+            Error::Qualified(err) => {
+                write!(f, "qualified identifier error: {err}")
+            }
+            Error::Singular(err) => {
+                write!(f, "singular identifier error: {err}")
+            }
         }
     }
 }
@@ -199,7 +203,9 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Identifier {
                 let identifier = qualified::Identifier::try_from(node).map_err(Error::Qualified)?;
                 Ok(Identifier::Qualified(identifier))
             }
-            node => panic!("identifier cannot be parsed from node type {:?}", node),
+            node => {
+                panic!("identifier cannot be parsed from node type {:?}", node)
+            }
         }
     }
 }

@@ -141,7 +141,9 @@ impl TryFrom<Pair<'_, Rule>> for Object {
                 Rule::COMMA => {}
                 Rule::COMMENT => {}
                 Rule::WHITESPACE => {}
-                rule => unreachable!("object literal should not contain {:?}", rule),
+                rule => {
+                    unreachable!("object literal should not contain {:?}", rule)
+                }
             }
         }
 

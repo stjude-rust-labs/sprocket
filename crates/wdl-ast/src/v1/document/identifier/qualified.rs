@@ -21,7 +21,8 @@ pub enum Error {
     /// A singular identifier error.
     ///
     /// Generally speaking, this error will be returned if there is any issue
-    /// parsing the singular identifiers that comprise the qualified identifier.
+    /// parsing the singular identifiers that comprise the qualified
+    /// identifier.
     Singular(singular::Error),
 }
 
@@ -32,7 +33,9 @@ impl std::fmt::Display for Error {
             Error::InvalidFormat(value, reason) => {
                 write!(f, "invalid format for \"{value}\": {reason}")
             }
-            Error::Singular(err) => write!(f, "singular identifier error: {err}"),
+            Error::Singular(err) => {
+                write!(f, "singular identifier error: {err}")
+            }
         }
     }
 }
@@ -183,7 +186,10 @@ mod tests {
         let err = Identifier::try_from("hello_world").unwrap_err();
         assert_eq!(
             err.to_string(),
-            String::from("invalid format for \"hello_world\": cannot create qualified identifier with no scope")
+            String::from(
+                "invalid format for \"hello_world\": cannot create qualified identifier with no \
+                 scope"
+            )
         );
 
         Ok(())

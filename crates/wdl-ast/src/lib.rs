@@ -15,8 +15,8 @@ pub mod v1;
 pub enum Error {
     /// An error occurred while linting a parse tree.
     ///
-    /// **Note:** this is not a lint _warning_! A lint error is an unrecoverable
-    /// error that occurs during the process of linting.
+    /// **Note:** this is not a lint _warning_! A lint error is an
+    /// unrecoverable error that occurs during the process of linting.
     Lint(Box<dyn std::error::Error>),
 
     /// An error occurred while parsing a WDL v1.x abstract syntax tree.

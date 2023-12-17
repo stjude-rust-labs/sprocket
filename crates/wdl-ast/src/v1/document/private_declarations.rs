@@ -34,7 +34,8 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-/// The inner list of [bound declarations](`Declaration`) for [`PrivateDeclarations`].
+/// The inner list of [bound declarations](`Declaration`) for
+/// [`PrivateDeclarations`].
 type Declarations = NonEmpty<Declaration>;
 
 /// A set of private declarations.

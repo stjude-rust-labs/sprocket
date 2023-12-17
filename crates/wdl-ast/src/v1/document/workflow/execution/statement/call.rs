@@ -201,7 +201,9 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Call {
                 }
                 Rule::WHITESPACE => {}
                 Rule::COMMENT => {}
-                rule => unreachable!("workflow call should not contain {:?}", rule),
+                rule => {
+                    unreachable!("workflow call should not contain {:?}", rule)
+                }
             }
         }
 

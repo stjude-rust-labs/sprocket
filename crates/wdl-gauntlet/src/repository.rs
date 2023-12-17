@@ -61,7 +61,9 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::Cache(err) => write!(f, "cache error: {err}"),
-            Error::MissingHeader(header) => write!(f, "missing header: {header}"),
+            Error::MissingHeader(header) => {
+                write!(f, "missing header: {header}")
+            }
             Error::Octocrab(err) => write!(f, "octocrab error: {err}"),
             Error::Reqwest(err) => write!(f, "reqwest error: {err}"),
         }

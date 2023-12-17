@@ -35,10 +35,16 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::InputOutput(err) => write!(f, "i/o error: {err}"),
-            Error::MissingFile(path) => write!(f, "missing file: {}", path.display()),
-            Error::MissingParent(path) => write!(f, "missing parent: {}", path.display()),
+            Error::MissingFile(path) => {
+                write!(f, "missing file: {}", path.display())
+            }
+            Error::MissingParent(path) => {
+                write!(f, "missing parent: {}", path.display())
+            }
             Error::Registry(err) => write!(f, "registry error: {err}"),
-            Error::RootIsFile(root) => write!(f, "root is file: {}", root.display()),
+            Error::RootIsFile(root) => {
+                write!(f, "root is file: {}", root.display())
+            }
         }
     }
 }

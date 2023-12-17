@@ -100,8 +100,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_parses_contents_with_spaces_correctly(
-    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    fn it_parses_contents_with_spaces_correctly()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
         let contents = "echo 'hello,'
     echo 'there'
     echo 'world'"
@@ -138,8 +138,8 @@ mod tests {
     }
 
     #[test]
-    fn it_parses_contents_with_tabs_correctly(
-    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    fn it_parses_contents_with_tabs_correctly()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
         let contents = "
 \t\techo 'hello,'
 \t\techo 'there'
@@ -154,8 +154,8 @@ mod tests {
     }
 
     #[test]
-    fn it_keeps_preceeding_whitespace_on_the_same_line_as_the_command(
-    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    fn it_keeps_preceeding_whitespace_on_the_same_line_as_the_command()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
         let contents = "    \nhello".parse::<Contents>()?;
         assert_eq!(contents.as_str(), "    \nhello");
 

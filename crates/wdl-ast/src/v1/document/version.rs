@@ -15,7 +15,9 @@ pub enum ParseError {
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::UnknownVersion(version) => write!(f, "unknown version: {version}"),
+            ParseError::UnknownVersion(version) => {
+                write!(f, "unknown version: {version}")
+            }
         }
     }
 }
@@ -89,8 +91,8 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Version {
         }
 
         unreachable!(
-            "`version` node must be required by the grammar to always contain \
-            a `version_release` node"
+            "`version` node must be required by the grammar to always contain a `version_release` \
+             node"
         )
     }
 }

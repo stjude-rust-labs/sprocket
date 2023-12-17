@@ -79,7 +79,9 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Value {
             Rule::boolean => match node.as_str() {
                 "true" => Ok(Value::Boolean(true)),
                 "false" => Ok(Value::Boolean(false)),
-                value => unreachable!("unknown boolean literal value: {}", value),
+                value => {
+                    unreachable!("unknown boolean literal value: {}", value)
+                }
             },
             Rule::null => Ok(Value::Null),
             Rule::metadata_object => {

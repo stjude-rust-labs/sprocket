@@ -12,7 +12,9 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::Contradiction(reason) => write!(f, "contradiction encountered: {reason}"),
+            Error::Contradiction(reason) => {
+                write!(f, "contradiction encountered: {reason}")
+            }
         }
     }
 }
@@ -67,8 +69,8 @@ impl<E> Result<E> {
     /// assert_eq!(
     ///     err.to_string(),
     ///     String::from(
-    ///         "contradiction encountered: cannot create a parse Result with \
-    ///         no concerns and no parse tree"
+    ///         "contradiction encountered: cannot create a parse Result with no concerns and no \
+    ///          parse tree"
     ///     )
     /// );
     /// ```
@@ -78,8 +80,7 @@ impl<E> Result<E> {
     ) -> std::result::Result<Self, Error> {
         if concerns.is_none() && tree.is_none() {
             return Err(Error::Contradiction(String::from(
-                "cannot create a parse Result with no concerns and no parse \
-                tree",
+                "cannot create a parse Result with no concerns and no parse tree",
             )));
         }
 

@@ -42,10 +42,16 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::DeserializeToml(err) => write!(f, "deserialize toml error: {err}"),
+            Error::DeserializeToml(err) => {
+                write!(f, "deserialize toml error: {err}")
+            }
             Error::InputOutput(err) => write!(f, "i/e error: {err}"),
-            Error::SaveOnAnonymousConfig => write!(f, "attempted to save an anonymous config"),
-            Error::SerializeToml(err) => write!(f, "serialize toml error: {err}"),
+            Error::SaveOnAnonymousConfig => {
+                write!(f, "attempted to save an anonymous config")
+            }
+            Error::SerializeToml(err) => {
+                write!(f, "serialize toml error: {err}")
+            }
         }
     }
 }

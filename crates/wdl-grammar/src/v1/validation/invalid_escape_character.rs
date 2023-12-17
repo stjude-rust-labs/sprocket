@@ -30,9 +30,8 @@ impl<'a> InvalidEscapeCharacter {
             .body("An invalid character was detected.")
             .push_location(location)
             .fix(
-                "Remove the invalid character. If the character contains \
-                escaped characters (e.g., `\\n`), you may need to double \
-                escape the backslashes (e.g., `\\\\n`).",
+                "Remove the invalid character. If the character contains escaped characters \
+                 (e.g., `\\n`), you may need to double escape the backslashes (e.g., `\\\\n`).",
             )
             .try_build()
             .unwrap()

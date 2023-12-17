@@ -41,7 +41,9 @@ impl std::fmt::Display for Error {
             Error::Builder(err) => write!(f, "builder error: {err}"),
             Error::Expression(err) => write!(f, "expression error: {err}"),
             Error::Identifier(err) => write!(f, "identifier error: {err}"),
-            Error::Statement(err) => write!(f, "workflow execution statement error: {err}"),
+            Error::Statement(err) => {
+                write!(f, "workflow execution statement error: {err}")
+            }
         }
     }
 }

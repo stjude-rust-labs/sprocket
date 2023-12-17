@@ -23,7 +23,9 @@ pub enum ParseError {
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::InvalidFormat(value) => write!(f, "invalid format: {value}"),
+            ParseError::InvalidFormat(value) => {
+                write!(f, "invalid format: {value}")
+            }
             ParseError::RepositoryIdentifier(err) => {
                 write!(f, "repository identifier error: {err}")
             }

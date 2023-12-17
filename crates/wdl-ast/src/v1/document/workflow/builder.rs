@@ -44,8 +44,8 @@ pub enum MultipleError {
     /// [`Builder`].
     Output,
 
-    /// Attempted to set multiple values for the parameter metadata field within
-    /// the [`Builder`].
+    /// Attempted to set multiple values for the parameter metadata field
+    /// within the [`Builder`].
     ParameterMetadata,
 }
 

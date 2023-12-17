@@ -53,8 +53,8 @@ struct Args {
     #[arg(short, long, global = true)]
     quiet: bool,
 
-    /// All available information, including trace information, is logged in the
-    /// console.
+    /// All available information, including trace information, is logged in
+    /// the console.
     #[arg(short, long, global = true)]
     trace: bool,
 

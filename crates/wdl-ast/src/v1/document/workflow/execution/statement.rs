@@ -51,7 +51,9 @@ impl std::fmt::Display for Error {
                 f,
                 "multiple children found for workflow execution statement"
             ),
-            Error::PrivateDeclarations(err) => write!(f, "private declarations error: {err}"),
+            Error::PrivateDeclarations(err) => {
+                write!(f, "private declarations error: {err}")
+            }
             Error::Scatter(err) => write!(f, "scatter error: {err}"),
         }
     }

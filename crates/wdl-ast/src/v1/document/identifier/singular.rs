@@ -40,9 +40,9 @@ type Result<T> = std::result::Result<T, Error>;
 
 /// A singular identifier.
 ///
-/// An [`Identifier`] must match the pattern `^[a-zA-Z][a-zA-Z0-9_]*$`. If an ones
-/// attempts to create an [`Identifier`] that does not match this pattern, an
-/// [`Error::InvalidFormat`] is returned.
+/// An [`Identifier`] must match the pattern `^[a-zA-Z][a-zA-Z0-9_]*$`. If an
+/// ones attempts to create an [`Identifier`] that does not match this pattern,
+/// an [`Error::InvalidFormat`] is returned.
 #[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Identifier(String);
 

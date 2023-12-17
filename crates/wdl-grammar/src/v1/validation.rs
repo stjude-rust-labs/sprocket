@@ -11,8 +11,8 @@ pub use invalid_escape_character::InvalidEscapeCharacter;
 pub use invalid_version::InvalidVersion;
 
 /// Gets all WDL v1.x parse tree validation rules.
-pub fn rules<'a>(
-) -> Vec<Box<dyn wdl_core::concern::validation::Rule<&'a Pair<'a, crate::v1::Rule>>>> {
+pub fn rules<'a>()
+-> Vec<Box<dyn wdl_core::concern::validation::Rule<&'a Pair<'a, crate::v1::Rule>>>> {
     vec![
         // v1::E001
         Box::new(InvalidEscapeCharacter),

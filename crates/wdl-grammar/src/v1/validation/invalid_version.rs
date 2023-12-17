@@ -30,9 +30,8 @@ impl<'a> InvalidVersion {
             .body("An invalid version was detected.")
             .push_location(location)
             .fix(
-                "This version is not supported by the v1 parser. Either \
-                change the version to WDL 1.x or specify the correct \
-                WDL specification version when parsing.",
+                "This version is not supported by the v1 parser. Either change the version to WDL \
+                 1.x or specify the correct WDL specification version when parsing.",
             )
             .try_build()
             .unwrap()

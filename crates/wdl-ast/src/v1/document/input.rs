@@ -116,7 +116,9 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Input {
                 }
                 Rule::COMMENT => {}
                 Rule::WHITESPACE => {}
-                rule => unreachable!("workflow input should not contain {:?}", rule),
+                rule => {
+                    unreachable!("workflow input should not contain {:?}", rule)
+                }
             }
         }
 

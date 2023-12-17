@@ -108,7 +108,9 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Map {
                 Rule::WHITESPACE => {}
                 Rule::COMMA => {}
                 Rule::COMMENT => {}
-                rule => unreachable!("map literals should not contain {:?}", rule),
+                rule => {
+                    unreachable!("map literals should not contain {:?}", rule)
+                }
             }
         }
 

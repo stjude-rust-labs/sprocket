@@ -76,7 +76,9 @@ impl<'a> Iterator for LinesWithOffsets<'a> {
             // [`usize::MAX`] lines is passed through this iterator. Memory will
             // be exhausted before that happens, so we can effectively ignore
             // this error. We panic here for completeness.
-            None => panic!("LinesWithOffsets does not support {} lines", usize::MAX),
+            None => {
+                panic!("LinesWithOffsets does not support {} lines", usize::MAX)
+            }
         };
 
         Some(item)

@@ -334,7 +334,9 @@ impl TryFrom<Pair<'_, Rule>> for Runtime {
                 }
                 Rule::WHITESPACE => {}
                 Rule::COMMENT => {}
-                rule => unreachable!("task runtime should not contain {:?}", rule),
+                rule => {
+                    unreachable!("task runtime should not contain {:?}", rule)
+                }
             }
         }
 

@@ -63,14 +63,13 @@ impl<'a> MatchingParameterMeta {
                 context, parameter
             ))
             .body(format!(
-                "Each input parameter within a {} should have an associated \
-                `parameter_meta` entry with a detailed description of the \
-                input.",
+                "Each input parameter within a {} should have an associated `parameter_meta` \
+                 entry with a detailed description of the input.",
                 context
             ))
             .fix(
-                "Add a key to a `parameter_meta` block matching the parameter's exact \
-                name with a detailed description of the input.",
+                "Add a key to a `parameter_meta` block matching the parameter's exact name with a \
+                 detailed description of the input.",
             )
             .try_build()
             .unwrap()
@@ -96,10 +95,7 @@ impl<'a> MatchingParameterMeta {
                 "extraneous parameter meta within {}: {}",
                 context, parameter
             ))
-            .body(
-                "A parameter meta entry with no corresponding input \
-                parameter was detected",
-            )
+            .body("A parameter meta entry with no corresponding input parameter was detected")
             .fix("Remove the parameter meta entry")
             .try_build()
             .unwrap()

@@ -28,7 +28,7 @@ pub macro valid_node($input:literal, $type_:ident, $target:ident) {{
 /// * `$name` - the name of the target entity included in the error message.
 /// * `$target` - the name of the target entity to attempt to construct from the
 ///   `$type_` as a Rust identifier.
-pub macro create_invalid_node_test($input:literal, $type_:ident, $name:ident, $target:ident, $test_name: ident) {
+pub macro create_invalid_node_test($input:literal, $type_:ident, $name:ident, $target:ident, $test_name:ident) {
     #[test]
     fn $test_name() {
         let expected_panic_message = format!(

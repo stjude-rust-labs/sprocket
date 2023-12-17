@@ -70,7 +70,8 @@ pub macro unwrap_one($node:expr, $within:ident) {{
 ///
 /// # Arguments
 ///
-/// * `$node` - the [`Pair`](pest::iterators::Pair) (or "node") to search within.
+/// * `$node` - the [`Pair`](pest::iterators::Pair) (or "node") to search
+///   within.
 /// * `$type_` - the rule type to search for. Note that only the rule name is
 ///   provided: `wdl_grammar::v1::Rule::` is prepended to the expression.
 /// * `$within` - the name of the rule we're searching within (needed for

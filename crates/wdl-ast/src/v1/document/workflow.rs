@@ -45,12 +45,16 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::Builder(err) => write!(f, "builder error: {err}"),
-            Error::ExecutionStatement(err) => write!(f, "execution statement error: {err}"),
+            Error::ExecutionStatement(err) => {
+                write!(f, "execution statement error: {err}")
+            }
             Error::Identifier(err) => write!(f, "identifier error: {err}"),
             Error::Input(err) => write!(f, "input error: {err}"),
             Error::Metadata(err) => write!(f, "metadata error: {err}"),
             Error::Output(err) => write!(f, "output error: {err}"),
-            Error::ParameterMetadata(err) => write!(f, "parameter metadata error: {err}"),
+            Error::ParameterMetadata(err) => {
+                write!(f, "parameter metadata error: {err}")
+            }
         }
     }
 }

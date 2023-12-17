@@ -34,8 +34,8 @@ impl<'a> MixedIndentationCharacters {
             .group(self.group())
             .subject("mixed indentation characters")
             .body(
-                "Mixed indentation characters were found within a command. \
-                This causes leading whitespace stripping to be skipped.",
+                "Mixed indentation characters were found within a command. This causes leading \
+                 whitespace stripping to be skipped.",
             )
             .push_location(location)
             .fix("Use the same whitespace character within the command.")
@@ -115,8 +115,8 @@ mod tests {
     }
 
     #[test]
-    fn it_ignores_a_command_correctly_indented_with_spaces(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn it_ignores_a_command_correctly_indented_with_spaces()
+    -> Result<(), Box<dyn std::error::Error>> {
         let tree = Parser::parse(
             Rule::command_heredoc,
             "command <<<

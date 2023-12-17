@@ -34,7 +34,9 @@ impl std::fmt::Display for Error {
         match self {
             Error::Builder(err) => write!(f, "builder error: {err}"),
             Error::Expression(err) => write!(f, "expression error: {err}"),
-            Error::Statement(err) => write!(f, "workflow execution statement error: {err}"),
+            Error::Statement(err) => {
+                write!(f, "workflow execution statement error: {err}")
+            }
         }
     }
 }
@@ -148,7 +150,9 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Conditional {
                 }
                 Rule::WHITESPACE => {}
                 Rule::COMMENT => {}
-                rule => unreachable!("workflow call should not contain {:?}", rule),
+                rule => {
+                    unreachable!("workflow call should not contain {:?}", rule)
+                }
             }
         }
 

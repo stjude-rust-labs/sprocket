@@ -37,7 +37,9 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::Cache(err) => write!(f, "cache error: {err}"),
-            Error::MissingRepositoryIdentifier => write!(f, "missing repository identifier"),
+            Error::MissingRepositoryIdentifier => {
+                write!(f, "missing repository identifier")
+            }
             Error::Octocrab(err) => write!(f, "octocrab error: {err}"),
         }
     }

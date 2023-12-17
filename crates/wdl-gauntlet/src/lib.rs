@@ -72,8 +72,12 @@ impl std::fmt::Display for Error {
             Error::Io(err) => write!(f, "i/o error: {err}"),
             Error::GrammarV1(err) => write!(f, "grammar error: {err}"),
             Error::Repository(err) => write!(f, "repository error: {err}"),
-            Error::RepositoryBuilder(err) => write!(f, "repository builder error: {err}"),
-            Error::RepositoryIdentifier(err) => write!(f, "repository identifier error: {err}"),
+            Error::RepositoryBuilder(err) => {
+                write!(f, "repository builder error: {err}")
+            }
+            Error::RepositoryIdentifier(err) => {
+                write!(f, "repository identifier error: {err}")
+            }
         }
     }
 }
@@ -141,8 +145,8 @@ pub struct Args {
     #[arg(value_name = "VERSION", short = 's', long, default_value_t, value_enum)]
     pub specification_version: wdl_core::Version,
 
-    /// All available information, including trace information, is logged in the
-    /// console.
+    /// All available information, including trace information, is logged in
+    /// the console.
     #[arg(short, long)]
     pub trace: bool,
 
@@ -360,9 +364,8 @@ pub async fn gauntlet(args: Args) -> Result<()> {
     } else if !missing_but_expected.is_empty() {
         println!(
             "\n{}\n",
-            "undetected but expected concerns remain: you should remove these \
-            from your configuration file or run the command with the \
-            `--save-config` option!"
+            "undetected but expected concerns remain: you should remove these from your \
+             configuration file or run the command with the `--save-config` option!"
                 .red()
                 .bold()
         );
