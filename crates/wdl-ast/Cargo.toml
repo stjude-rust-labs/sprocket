@@ -20,9 +20,9 @@ ordered-float.workspace = true
 pest.workspace = true
 regex.workspace = true
 tokio = { workspace = true, optional = true }
-wdl-core = { path = "../wdl-core" }
-wdl-grammar = { path = "../wdl-grammar" }
-wdl-macros = { path = "../wdl-macros" }
+wdl-core = { path = "../wdl-core", version = "0.1.0" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.2.0" }
+wdl-macros = { path = "../wdl-macros", version = "0.1.0" }
 
 [features]
 binaries = ["dep:clap", "dep:env_logger", "dep:log", "dep:tokio"]
