@@ -1,10 +1,13 @@
 [package]
 name = "wdl-macros"
-license.workspace = true
+version = "0.1.0"
+authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
 edition.workspace = true
-version.workspace = true
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license.workspace = true
+description = "Macros used within the `wdl` crate ecosystem."
+homepage = "https://github.com/stjude-rust-labs/wdl"
+repository = "https://github.com/stjude-rust-labs/wdl"
+documentation = "https://docs.rs/wdl-macros"
 
 [dependencies]
 pest.workspace = true
