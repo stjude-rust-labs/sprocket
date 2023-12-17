@@ -26,7 +26,7 @@ For every component crate that has changes:
   * [ ] Run linting: `cargo clippy --all-features`.
   * [ ] Run fmt: `cargo fmt --check`.
   * [ ] Run doc: `cargo doc`.
-  * [ ] Stage changes: `git add Cargo.lock Cargo.toml CHANGELOG.md`.
+  * [ ] Stage changes: `git add Cargo.toml CHANGELOG.md`.
   * [ ] Create git commit:
     ```
     git commit -m "release: bumps `wdl-grammar` version to v0.1.0"
