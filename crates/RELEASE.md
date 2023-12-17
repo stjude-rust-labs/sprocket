@@ -36,6 +36,7 @@ For every component crate that has changes:
       git log wdl-grammar-v0.1.0..HEAD --oneline -- wdl-grammar
       ```
   * [ ] Run tests: `cargo test --all-features`.
+  * [ ] Run tests for examples: `cargo test --examples --all-features`.
   * [ ] Run linting: `cargo clippy --all-features`.
   * [ ] Run fmt: `cargo fmt --check`.
   * [ ] Run doc: `cargo doc`.
@@ -57,12 +58,12 @@ For every component crate that has changes:
 
 From the root directory:
 
-  * [ ] Update the version of the top-level crate and all component crates in
-    the root `Cargo.toml`.
+  * [ ] Update the version of the top-level crate in the root `Cargo.toml`.
     * **Note:** changes to the version number will be automatically reflected in
     `wdl/Cargo.toml`, as the version there is specified as `version.workspace =
     true`.
   * [ ] Run tests: `cargo test --all-features`.
+  * [ ] Run tests for examples: `cargo test --examples --all-features`.
   * [ ] Run linting: `cargo clippy --all-features`.
   * [ ] Run fmt: `cargo fmt --check`.
   * [ ] Run doc: `cargo doc`.
