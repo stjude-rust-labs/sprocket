@@ -4,25 +4,25 @@
 
 ### Added
 
-* Adds lint to suggest replacing curly command blocks ([4ee030f]).
-* Adds the `Pedantic` lint group ([bc17014]).
+* Adds lint to suggest replacing curly command blocks (4ee030f).
+* Adds the `Pedantic` lint group (bc17014).
 
 ### Revisions
 
 * Multiple revisions to the inner data model to support the introduction of the
-  `wdl-ast` crate ([e2436ce]).
-* Clarifies that whitespace is undesired and not invalid ([457c383]).
-* Increases visibility of `lint` and `validation` modules ([59543c3]).
-* Adds a location, a body, and a fix suggestion to warnings ([335afaf]).
-* Applies `s/message/subject/g` for lint rules ([6dce4a2]).
+  `wdl-ast` crate (e2436ce).
+* Clarifies that whitespace is undesired and not invalid (457c383).
+* Increases visibility of `lint` and `validation` modules (59543c3).
+* Adds a location, a body, and a fix suggestion to warnings (335afaf).
+* Applies `s/message/subject/g` for lint rules (6dce4a2).
 
 ### Chores
 
-* Normalizes crate description ([f19ce7e]).
-* Updates formatting to `version = "Two"` ([f63c188]).
-* Moves `tokio` to the workspace dependencies ([66da811]).
-* Specifies the `dep:` prefix for the binary feature dependencies ([e0b2cb5]).
-* Improves the binary crate documentation ([a995a89]).
+* Normalizes crate description (f19ce7e).
+* Updates formatting to `version = "Two"` (f63c188).
+* Moves `tokio` to the workspace dependencies (66da811).
+* Specifies the `dep:` prefix for the binary feature dependencies (e0b2cb5).
+* Improves the binary crate documentation (a995a89).
 
 ## 0.1.0 — 11-22-2023
 
