@@ -11,9 +11,9 @@ documentation = "https://docs.rs/wdl"
 readme = "../README.md"
 
 [dependencies]
-wdl-ast = { path = "../wdl-ast", optional = true }
-wdl-core = { path = "../wdl-core", optional = true }
-wdl-grammar = { path = "../wdl-grammar", optional = true }
+wdl-ast = { path = "../wdl-ast", version = "0.1.0", optional = true }
+wdl-core = { path = "../wdl-core", version = "0.1.0", optional = true }
+wdl-grammar = { path = "../wdl-grammar", version = "0.2.0", optional = true }
 
 [features]
 default = []
@@ -23,7 +23,7 @@ grammar = ["dep:wdl-grammar"]
 
 [[example]]
 name = "wdl_view"
-required-features = ["ast", "core", "grammar"]
+required-features = ["ast", "grammar"]
 
 [package.metadata.docs.rs]
 all-features = true
