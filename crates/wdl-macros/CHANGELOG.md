@@ -4,4 +4,4 @@
 
 ### Added
 
-* Adds initial version.
+* Adds the initial version of the crate.
