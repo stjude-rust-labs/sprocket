@@ -30,6 +30,11 @@ For every component crate that has changes:
       don't have changes to release. If they do, you may be releasing the crates
       out of order!
   * [ ] Update `CHANGELOG.md` with version and publication date.
+    * To get the changes to the crate since the last release, you can use a
+      command like the following:
+      ```bash
+      git log wdl-grammar-v0.1.0..HEAD --oneline -- wdl-grammar
+      ```
   * [ ] Run tests: `cargo test --all-features`.
   * [ ] Run linting: `cargo clippy --all-features`.
   * [ ] Run fmt: `cargo fmt --check`.
