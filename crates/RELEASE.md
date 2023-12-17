@@ -18,9 +18,17 @@ within a single commit.
 **Note:** in this example, we will be using the `wdl-grammar` crate. Please
 substitute the name of the crate that you are working on.
 
+**Note:** crates should be released sequentially based on the dependency tree.
+For example, `wdl-core` should be released before `wdl-grammar`, as
+`wdl-grammar` depends on `wdl-core`.
+
 For every component crate that has changes:
 
   * [ ] Update version in `Cargo.toml`.
+  * [ ] Update versions of any `wdl-*` crate dependencies in `Cargo.toml`.
+    * If any of the crates do _not_ have updated versions, be sure they also
+      don't have changes to release. If they do, you may be releasing the crates
+      out of order!
   * [ ] Update `CHANGELOG.md` with version and publication date.
   * [ ] Run tests: `cargo test --all-features`.
   * [ ] Run linting: `cargo clippy --all-features`.
