@@ -1,7 +1,7 @@
 [package]
 name = "wdl-gauntlet"
 version = "0.1.0"
-description = "Parse tree and abstract syntax tree testing for the `wdl` family of crates"
+description = "Testing of parse trees and ASTs within the `wdl` family of crates"
 license.workspace = true
 edition.workspace = true
 
@@ -24,6 +24,6 @@ serde_with.workspace = true
 tokio.workspace = true
 toml.workspace = true
 urlencoding = "2.1.3"
-wdl-ast = { path = "../wdl-ast" }
-wdl-core = { path = "../wdl-core" }
-wdl-grammar = { path = "../wdl-grammar" }
+wdl-ast = { path = "../wdl-ast", version = "0.1.0" }
+wdl-core = { path = "../wdl-core", version = "0.1.0" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.2.0" }
