@@ -37,7 +37,7 @@ impl<'a> Reporter<'a> {
     }
 
     /// Reports a concern to the terminal.
-    pub(crate) fn report_concern(&mut self, concern: Concern, handle: usize) {
+    pub(crate) fn report_concern(&mut self, concern: &Concern, handle: usize) {
         let diagnostic = match concern {
             Concern::LintWarning(warning) => {
                 let mut diagnostic = Diagnostic::warning()

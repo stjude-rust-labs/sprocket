@@ -53,10 +53,14 @@ pub struct Args {
 
 pub fn lint(args: Args) -> anyhow::Result<()> {
     let (config, writer) = get_display_config(&args);
-    Ok(
-        sprocket::file::Repository::try_new(args.paths, args.extensions)?
-            .report_concerns(config, writer)?,
-    )
+
+    if sprocket::file::Repository::try_new(args.paths, args.extensions)?
+        .report_concerns(config, writer)?
+    {
+        std::process::exit(1);
+    }
+
+    Ok(())
 }
 
 fn get_display_config(args: &Args) -> (Config, StandardStream) {

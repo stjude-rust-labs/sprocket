@@ -6,6 +6,7 @@ use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::StandardStream;
 use codespan_reporting::term::Config;
 use indexmap::IndexMap;
+use wdl::core::Concern;
 
 use crate::report::Reporter;
 
@@ -247,20 +248,28 @@ impl Repository {
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn report_concerns(&self, config: Config, writer: StandardStream) -> Result<()> {
+    pub fn report_concerns(&self, config: Config, writer: StandardStream) -> Result<bool> {
         let mut reporter = Reporter::new(config, writer, &self.sources);
+        let mut reported_error = false;
 
         for (file_name, handle) in self.handles.iter() {
             let document = self.parse(file_name)?;
 
             if let Some(concerns) = document.into_concerns() {
                 for concern in concerns.into_inner() {
-                    reporter.report_concern(concern, *handle);
+                    reporter.report_concern(&concern, *handle);
+
+                    match concern {
+                        Concern::ParseError(_) | Concern::ValidationFailure(_) => {
+                            reported_error = true
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
 
-        Ok(())
+        Ok(reported_error)
     }
 }
 
