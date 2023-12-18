@@ -58,7 +58,7 @@ pub struct Args {
     rule: String,
 
     /// Skips the parent element and prints each child.
-    #[arg(short, long, global = true)]
+    #[arg(short, long)]
     children_only: bool,
 }
 
@@ -93,15 +93,15 @@ pub fn parse(args: Args) -> Result<()> {
     }
 
     if let Some(pt) = parse_tree.into_tree() {
-        if args.children_only {
-            // Note: this `dbg!()` statement is intended to be permanent.
-            for child in pt.into_inner() {
-                dbg!(child);
-            }
+        let nodes = if args.children_only {
+            pt.into_inner().collect::<Vec<_>>()
         } else {
-            // Note: this `dbg!()` statement is intended to be permanent.
-            dbg!(pt);
+            vec![pt]
         };
+
+        for node in nodes {
+            println!("{:#?}", node);
+        }
     }
 
     Ok(())

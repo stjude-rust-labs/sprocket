@@ -37,13 +37,13 @@ COMMA       = { "," }
 // ======== //
 
 // None.
-none = { "None" }
+none = ${ "None" ~ !ASCII_ALPHANUMERIC }
 
 // Null.
-null = { "null" }
+null = ${ "null" ~ !ASCII_ALPHANUMERIC }
 
 // Boolean.
-boolean = { "true" | "false" }
+boolean = ${ "true" ~ !ASCII_ALPHANUMERIC | "false" ~ !ASCII_ALPHANUMERIC }
 
 // Integers.
 integer_decimal = @{ "0" ~ !ASCII_ALPHANUMERIC | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
@@ -60,26 +60,20 @@ float                 = ${ float_with_decimal | float_without_decimal | float_si
 
 // Number.
 // 
-// Note: all rules included in `number` must be marked as atomic (`@`) or
+// NOTE: all rules included in `number` must be marked as atomic (`@`) or
 // compound-atomic (`$`). This is not checked by the compiler, so you must
 // ensure it remains true.
 number = _{ float | integer }
 
 // Character.
 // 
-// DIVERGE: the specification states lists a tab (`\t`) within the table of
-// characters that it states *must* be escaped when included in a string. This
-// seems non-sensical to me, and I see no other implementations that enforce
-// this check. Thus, I am not including a tab in that list.
-
 // LENIENT: the `char_escaped_invalid` rule (and its inclusion in the
 // `char_escaped` rule) are not to spec. However, we would like to support
 // parsing of these invalid string characters so that we can return lint errors
-// for them (rather than fail parsing, which returns a relatively unhelpful
-// error message at the time of writing).
-// 
-// If you wish to remove this leniency, you can remove the
-// `char_escaped_invalid` rule and its inclusion in the `char_escaped` rule.
+// for them (rather than fail parsing, which returns a relatively inflexible
+// error message). As such, if you write your own grammar and don't plan to
+// handle this post parsing, you can remove the `char_escaped_invalid` rule from
+// the `char_escaped` rule.
 char_escaped_invalid = @{ "\\" ~ ANY }
 char_escaped         = ${ "\\" ~ ("\\" | "\"" | "\'" | "n" | "r" | "b" | "t" | "f" | "a" | "v" | "?") }
 char_octal           = @{ "\\" ~ ASCII_OCT_DIGIT{1, 3} ~ !ASCII_OCT_DIGIT }
@@ -97,7 +91,7 @@ string_expression_placeholder_start = { "~{" | "${" }
 string_expression_placeholder_end   = { "}" }
 
 string_literal_contents = @{
-    // Note: the `PEEK` here looks at what quoting is being used (double or
+    // NOTE: the `PEEK` here looks at what quoting is being used (double or
     // single) and denies any use of the character in literal contents. The
     // presence of `PEEK` implies that this rule must be embedded within a rule
     // that `PUSH`es these tokens on the stack.
@@ -110,7 +104,7 @@ string_placeholder = ${
     string_expression_placeholder_start ~ placeholder_options* ~ string_expression_placeholder_expression ~ string_expression_placeholder_end
 }
 
-// Note: all rules included in `string` must be marked as atomic (`@`) or
+// NOTE: all rules included in `string` must be marked as atomic (`@`) or
 // compound-atomic (`$`). This is because we don't want rules eating up
 // whitespace within a string. This is not checked by the compiler, so you must
 // ensure it remains true.
@@ -162,29 +156,33 @@ call   = !{ "(" ~ (expression ~ (COMMA ~ expression)* ~ COMMA?)* ~ ")" }
 postfix = _{ member | index | call }
 
 // Core elements.
-// 
-// DIVERGE: for the struct, object, and map rules below, the comma is
-// designated as optional (`?`) when parsing. This is following a long
-// discussion within our team regarding the inconsistent treatment of required
-// comma delimiters for structs, maps, and objects. In short, we have decided to
-// make comma delimiters optional when parsing and enforce style rules via a
-// linter built on top of this parser.
-
 identifier_based_kv_key  = { singular_identifier }
 expression_based_kv_key  = { expression }
 kv_value                 = { expression }
 identifier_based_kv_pair = { identifier_based_kv_key ~ ":" ~ kv_value }
 expression_based_kv_pair = { expression_based_kv_key ~ ":" ~ kv_value }
 
-group               = !{ "(" ~ expression ~ ")" }
-if                  = ${
+group = !{ "(" ~ expression ~ ")" }
+if    = ${
     "if" ~ (WHITESPACE | COMMENT)+ ~ expression ~ (WHITESPACE | COMMENT)+ ~ "then" ~ (WHITESPACE | COMMENT)+ ~ expression ~ (WHITESPACE | COMMENT)+ ~ "else" ~ (WHITESPACE | COMMENT)+ ~ expression
 }
+
+// DIVERGE: for the object literal, struct literal, map literal, and array
+// literal rules below, a comma is required for any elements within those data
+// structures that are not the last element.
+// 
+// Where commas are and are not required is a common source of confusion for
+// users of WDL. Instead of enforcing that commas delimit these elements within
+// the grammar (which returns a relatively inflexible error message), we have
+// designated commas as optional here.
+// 
+// Validation rules exist to ensure that commas are present within these
+// elements so that a nicer error message can be returned.
 object_literal      = !{ "object" ~ "{" ~ (identifier_based_kv_pair ~ (COMMA? ~ identifier_based_kv_pair)* ~ COMMA?)* ~ "}" }
 struct_literal_name =  { singular_identifier }
 struct_literal      = !{ struct_literal_name ~ "{" ~ (identifier_based_kv_pair ~ (COMMA? ~ identifier_based_kv_pair)* ~ COMMA?)* ~ "}" }
 map_literal         = !{ "{" ~ (expression_based_kv_pair ~ (COMMA? ~ expression_based_kv_pair)* ~ COMMA?)* ~ "}" }
-array_literal       = !{ "[" ~ (expression ~ (COMMA ~ expression)* ~ COMMA?)* ~ "]" }
+array_literal       = !{ "[" ~ (expression ~ (COMMA? ~ expression)* ~ COMMA?)* ~ "]" }
 pair_literal        = !{ "(" ~ expression ~ COMMA ~ expression ~ ")" }
 
 atom = _{
@@ -200,7 +198,7 @@ atom = _{
 
 // Expression.
 // 
-// Note: this rule is defined as compound-atomic (`$`) for the following reason:
+// NOTE: this rule is defined as compound-atomic (`$`) for the following reason:
 // 
 // Whitespace is a problem when your rule ends with an optional element. Many of
 // these expressions do, which means, when the element is not there, the
@@ -218,25 +216,25 @@ expression = ${
 
 // Types.
 // 
-// Note: techically the spec calls the optional `+` the "non-empty" operator.
+// NOTE: techically the spec calls the optional `+` the "non-empty" operator.
 // Since we have already defined this as the "one or more" operator and they
 // mean effectively the same thing, I've just kept this nomeclature.
 array_type = ${
     "Array" ~ (WHITESPACE | COMMENT)* ~ (("[" ~ (WHITESPACE | COMMENT)* ~ wdl_type_inner ~ (WHITESPACE | COMMENT)* ~ "]" ~ ONE_OR_MORE) | ("[" ~ (WHITESPACE | COMMENT)* ~ wdl_type_inner ~ (WHITESPACE | COMMENT)* ~ "]"))
 }
-// Note: The `map_type` and `pair_type` rules **must** be marked as non-atomic, as the
+// NOTE: The `map_type` and `pair_type` rules **must** be marked as non-atomic, as the
 // `unbound_declaration` and `bound_declaration` rules that use them are marked
 // as compound-atomic.
 map_type    = !{ "Map" ~ "[" ~ wdl_type_inner ~ COMMA ~ wdl_type_inner ~ "]" }
 pair_type   = !{ "Pair" ~ "[" ~ wdl_type_inner ~ COMMA ~ wdl_type_inner ~ "]" }
-string_type =  { "String" }
-file_type   =  { "File" }
-bool_type   =  { "Boolean" }
-int_type    =  { "Int" }
-float_type  =  { "Float" }
-object_type =  { "Object" }
+string_type =  { "String" ~ !ASCII_ALPHANUMERIC }
+file_type   =  { "File" ~ !ASCII_ALPHANUMERIC }
+bool_type   =  { "Boolean" ~ !ASCII_ALPHANUMERIC }
+int_type    =  { "Int" ~ !ASCII_ALPHANUMERIC }
+float_type  =  { "Float" ~ !ASCII_ALPHANUMERIC }
+object_type =  { "Object" ~ !ASCII_ALPHANUMERIC }
 
-// Note: this rule was created separately from the below `wdl_type` rule to
+// NOTE: this rule was created separately from the below `wdl_type` rule to
 // address the situation outlined in the comment there. In short, when a WDL
 // type is embedded in things like a map or an array, you don't want to require
 // that there is a space following the identifier.
@@ -263,7 +261,7 @@ wdl_type_inner = ${
   | singular_identifier
 }
 
-// Note: this rule requires a positive predicate whitespace because there
+// NOTE: this rule requires a positive predicate whitespace because there
 // **must** be a whitespace between the `wdl_type` and the `identifier` for
 // `bound_declaration`s and `unbound_declaration`s. Else, you get weird things
 // happening in these rules.
@@ -324,7 +322,7 @@ import            = ${
 // Common Workflow/Tasks Elements //
 // ============================== //
 
-// Note: the specification states the following in the workflow section:
+// NOTE: the specification states the following in the workflow section:
 // 
 // Tasks and workflows have several elements in common. These sections have
 // nearly the same usage in workflows as they do in tasks, so we just link to
@@ -457,7 +455,7 @@ task_command = { (command_heredoc | command_curly) }
 
 // Task elements.
 // 
-// Note: all task elements except for `private_declarations` can be declared
+// NOTE: all task elements except for `private_declarations` can be declared
 // only once. This is not trivial to express as part of the grammar—especially
 // since these elements can come in any order. As such, ensuring this remains
 // true is left to postprocessing.
@@ -512,7 +510,7 @@ workflow_execution_statement = {
     (workflow_conditional | workflow_scatter | workflow_call | private_declarations)
 }
 
-// Note: all workflow elements except for `workflow_execution_statement` can be
+// NOTE: all workflow elements except for `workflow_execution_statement` can be
 // declared only once. This is not trivial to express as part of the
 // grammar—especially since these elements can come in any order. As such,
 // ensuring this remains true is left to postprocessing.

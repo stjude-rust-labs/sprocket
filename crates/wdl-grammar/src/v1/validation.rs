@@ -5,10 +5,12 @@ use pest::iterators::Pair;
 mod duplicate_runtime_keys;
 mod invalid_escape_character;
 mod invalid_version;
+mod missing_literal_commas;
 
 pub use duplicate_runtime_keys::DuplicateRuntimeKeys;
 pub use invalid_escape_character::InvalidEscapeCharacter;
 pub use invalid_version::InvalidVersion;
+pub use missing_literal_commas::MissingLiteralCommas;
 
 /// Gets all WDL v1.x parse tree validation rules.
 pub fn rules<'a>()
@@ -20,5 +22,7 @@ pub fn rules<'a>()
         Box::new(InvalidVersion),
         // v1::E003
         Box::new(DuplicateRuntimeKeys),
+        // v1::E004
+        Box::new(MissingLiteralCommas),
     ]
 }

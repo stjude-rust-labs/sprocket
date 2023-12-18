@@ -35,7 +35,26 @@ fn it_fails_to_parse_an_if_statement_with_no_spaces_between_the_identifier_and_t
         parser: WdlParser,
         input: "if truethen a else b",
         rule: Rule::r#if,
-        positives: vec![Rule::WHITESPACE, Rule::COMMENT],
+        positives: vec![
+            Rule::WHITESPACE,
+            Rule::COMMENT,
+            Rule::or,
+            Rule::and,
+            Rule::add,
+            Rule::sub,
+            Rule::mul,
+            Rule::div,
+            Rule::remainder,
+            Rule::eq,
+            Rule::neq,
+            Rule::lte,
+            Rule::gte,
+            Rule::lt,
+            Rule::gt,
+            Rule::member,
+            Rule::index,
+            Rule::call
+        ],
         negatives: vec![],
         pos: 12
     }
