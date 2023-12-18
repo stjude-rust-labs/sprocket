@@ -3,8 +3,8 @@
 use grammar::v1::Rule;
 use nonempty::NonEmpty;
 use pest::iterators::Pair;
-use wdl_core::fs::location::Located;
-use wdl_core::fs::Location;
+use wdl_core::file::location::Located;
+use wdl_core::file::Location;
 use wdl_grammar as grammar;
 use wdl_macros::check_node;
 
@@ -22,7 +22,7 @@ pub enum Error {
     Declaration(declaration::Error),
 
     /// A location error.
-    Location(wdl_core::fs::location::Error),
+    Location(wdl_core::file::location::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -68,7 +68,7 @@ impl Input {
     /// use ast::v1::document::Declaration;
     /// use ast::v1::document::Expression;
     /// use wdl_ast as ast;
-    /// use wdl_core::fs::location::Located;
+    /// use wdl_core::file::location::Located;
     ///
     /// let bound = bound::Builder::default()
     ///     .name(Identifier::try_from("hello_world")?)?

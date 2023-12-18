@@ -203,7 +203,7 @@ impl Builder {
     /// use ast::v1::document::task::Builder;
     /// use ast::v1::document::Declaration;
     /// use wdl_ast as ast;
-    /// use wdl_core::fs::location::Located;
+    /// use wdl_core::file::location::Located;
     ///
     /// let declaration = unbound::Builder::default()
     ///     .name(Identifier::try_from("hello_world")?)?
@@ -303,7 +303,7 @@ impl Builder {
     /// use ast::v1::document::task::Command;
     /// use ast::v1::document::Metadata;
     /// use wdl_ast as ast;
-    /// use wdl_core::fs::location::Located;
+    /// use wdl_core::file::location::Located;
     ///
     /// let mut map = BTreeMap::new();
     /// map.insert(
@@ -360,7 +360,7 @@ impl Builder {
     /// use ast::v1::document::task::Command;
     /// use ast::v1::document::Metadata;
     /// use wdl_ast as ast;
-    /// use wdl_core::fs::location::Located;
+    /// use wdl_core::file::location::Located;
     ///
     /// let mut map = BTreeMap::new();
     /// map.insert(

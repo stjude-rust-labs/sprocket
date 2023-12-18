@@ -77,7 +77,7 @@ impl ReportableConcern {
     ///
     /// ```
     /// use wdl_core::concern::parse;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Concern;
     /// use wdl_gauntlet::config::reportable_concern::Kind;
     /// use wdl_gauntlet::config::ReportableConcern;

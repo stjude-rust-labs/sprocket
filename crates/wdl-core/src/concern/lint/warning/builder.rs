@@ -6,7 +6,7 @@ use crate::concern::lint::Group;
 use crate::concern::lint::Level;
 use crate::concern::lint::Warning;
 use crate::concern::Code;
-use crate::fs::Location;
+use crate::file::Location;
 
 /// An error that occurs when a required field is missing at build time.
 #[derive(Debug)]
@@ -101,7 +101,7 @@ impl Builder {
     /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -135,7 +135,7 @@ impl Builder {
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -167,7 +167,7 @@ impl Builder {
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -199,7 +199,7 @@ impl Builder {
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -242,7 +242,7 @@ impl Builder {
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -275,7 +275,7 @@ impl Builder {
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -308,7 +308,7 @@ impl Builder {
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -341,7 +341,7 @@ impl Builder {
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;

@@ -8,7 +8,7 @@ use wdl_core::concern::code;
 use wdl_core::concern::validation;
 use wdl_core::concern::validation::Rule;
 use wdl_core::concern::Code;
-use wdl_core::fs::Location;
+use wdl_core::file::Location;
 use wdl_core::Version;
 
 use crate::v1;

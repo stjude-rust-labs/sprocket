@@ -144,7 +144,7 @@ impl Task {
     /// use ast::v1::document::Declaration;
     /// use ast::v1::document::Expression;
     /// use wdl_ast as ast;
-    /// use wdl_core::fs::location::Located;
+    /// use wdl_core::file::location::Located;
     /// use wdl_grammar as grammar;
     ///
     /// let name = Identifier::try_from(String::from("name"))?;
@@ -196,7 +196,7 @@ impl Task {
     /// use ast::v1::document::task::Command;
     /// use ast::v1::document::Metadata;
     /// use wdl_ast as ast;
-    /// use wdl_core::fs::location::Located;
+    /// use wdl_core::file::location::Located;
     ///
     /// let name = Identifier::try_from(String::from("name"))?;
     /// let contents = "echo 'Hello, world!'".parse::<task::command::Contents>()?;
@@ -318,7 +318,7 @@ impl Task {
     /// use ast::v1::document::task::Command;
     /// use ast::v1::document::Metadata;
     /// use wdl_ast as ast;
-    /// use wdl_core::fs::location::Located;
+    /// use wdl_core::file::location::Located;
     ///
     /// let name = Identifier::try_from(String::from("name"))?;
     /// let contents = "echo 'Hello, world!'"

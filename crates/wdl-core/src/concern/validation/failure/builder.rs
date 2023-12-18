@@ -4,7 +4,7 @@ use nonempty::NonEmpty;
 
 use crate::concern::validation;
 use crate::concern::Code;
-use crate::fs::Location;
+use crate::file::Location;
 
 /// An error that occurs when a required field is missing at build time.
 #[derive(Debug)]
@@ -83,8 +83,8 @@ impl Builder {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::validation::failure::Builder;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::location::Position;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Position;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Error, Version::V1, 1)?;
@@ -113,8 +113,8 @@ impl Builder {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::validation::failure::Builder;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::location::Position;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Position;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Error, Version::V1, 1)?;
@@ -151,8 +151,8 @@ impl Builder {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::validation::failure::Builder;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::location::Position;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Position;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Error, Version::V1, 1)?;
@@ -182,8 +182,8 @@ impl Builder {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::validation::failure::Builder;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::location::Position;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Position;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Error, Version::V1, 1)?;
@@ -213,8 +213,8 @@ impl Builder {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::validation::failure::Builder;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::location::Position;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Position;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Error, Version::V1, 1)?;
@@ -245,7 +245,7 @@ impl Builder {
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::Version;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     ///
     /// let code = Code::try_new(Kind::Error, Version::V1, 1)?;
     /// let error = Builder::default()

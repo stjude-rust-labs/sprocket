@@ -9,7 +9,7 @@
 
 pub mod concern;
 pub mod display;
-pub mod fs;
+pub mod file;
 pub mod parse;
 pub mod str;
 mod version;

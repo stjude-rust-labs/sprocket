@@ -48,7 +48,7 @@ impl<E> Result<E> {
     /// ```
     /// use wdl_core::concern::concerns::Builder;
     /// use wdl_core::concern::parse;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::parse::Result;
     /// use wdl_core::Concern;
     ///
@@ -94,7 +94,7 @@ impl<E> Result<E> {
     /// ```
     /// use wdl_core::concern::concerns::Builder;
     /// use wdl_core::concern::parse;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::parse::Result;
     /// use wdl_core::Concern;
     ///
@@ -119,7 +119,7 @@ impl<E> Result<E> {
     /// ```
     /// use wdl_core::concern::concerns::Builder;
     /// use wdl_core::concern::parse;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::parse::Result;
     /// use wdl_core::Concern;
     ///
@@ -184,7 +184,7 @@ impl<E> Result<E> {
     /// ```
     /// use wdl_core::concern::concerns::Builder;
     /// use wdl_core::concern::parse;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::parse::Result;
     /// use wdl_core::Concern;
     ///

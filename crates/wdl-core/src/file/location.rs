@@ -61,7 +61,7 @@ impl std::error::Error for Error {}
 
 /// A 1-based location.
 ///
-/// See the [module documentation](crate::fs::Location) for more information.
+/// See the [module documentation](crate::file::Location) for more information.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum Location {
     /// No location.
@@ -91,8 +91,8 @@ impl Location {
     /// ```
     /// use std::num::NonZeroUsize;
     ///
-    /// use wdl_core::fs::location::Position;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Position;
+    /// use wdl_core::file::Location;
     ///
     /// let location = Location::Unplaced;
     /// assert!(location.byte_range().is_none());
@@ -138,8 +138,8 @@ impl Location {
     /// ```
     /// use std::num::NonZeroUsize;
     ///
-    /// use wdl_core::fs::location::Position;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Position;
+    /// use wdl_core::file::Location;
     ///
     /// assert_eq!(Location::Unplaced.to_string(), None);
     /// assert_eq!(

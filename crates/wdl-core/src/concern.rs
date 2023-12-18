@@ -50,7 +50,7 @@ impl Concern {
     /// use wdl_core::concern::parse;
     /// use wdl_core::concern::validation;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Concern;
     /// use wdl_core::Version;
     ///
@@ -104,7 +104,7 @@ impl Concern {
     /// use wdl_core::concern::parse;
     /// use wdl_core::concern::validation;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Concern;
     /// use wdl_core::Version;
     ///
@@ -158,7 +158,7 @@ impl Concern {
     /// use wdl_core::concern::parse;
     /// use wdl_core::concern::validation;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Concern;
     /// use wdl_core::Version;
     ///
@@ -212,7 +212,7 @@ impl Concern {
     /// use wdl_core::concern::parse;
     /// use wdl_core::concern::validation;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Concern;
     /// use wdl_core::Version;
     ///
@@ -266,7 +266,7 @@ impl Concern {
     /// use wdl_core::concern::parse;
     /// use wdl_core::concern::validation;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Concern;
     /// use wdl_core::Version;
     ///
@@ -320,7 +320,7 @@ impl Concern {
     /// use wdl_core::concern::parse;
     /// use wdl_core::concern::validation;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Concern;
     /// use wdl_core::Version;
     ///

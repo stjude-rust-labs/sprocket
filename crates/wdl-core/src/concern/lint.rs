@@ -6,7 +6,7 @@ use nonempty::NonEmpty;
 use to_snake_case::ToSnakeCase as _;
 
 use crate::concern::Code;
-use crate::fs::location;
+use crate::file::location;
 
 mod group;
 mod level;

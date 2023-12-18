@@ -4,8 +4,8 @@ use std::collections::BTreeMap;
 
 use grammar::v1::Rule;
 use pest::iterators::Pair;
-use wdl_core::fs::location::Located;
-use wdl_core::fs::Location;
+use wdl_core::file::location::Located;
+use wdl_core::file::Location;
 use wdl_grammar as grammar;
 use wdl_macros::extract_one;
 use wdl_macros::unwrap_one;
@@ -24,7 +24,7 @@ pub enum Error {
     Identifier(singular::Error),
 
     /// A location error.
-    Location(wdl_core::fs::location::Error),
+    Location(wdl_core::file::location::Error),
 
     /// A value error.
     Value(value::Error),
@@ -70,7 +70,7 @@ impl Metadata {
     /// use ast::v1::document::metadata::Value;
     /// use ast::v1::document::Metadata;
     /// use wdl_ast as ast;
-    /// use wdl_core::fs::location::Located;
+    /// use wdl_core::file::location::Located;
     ///
     /// let mut map = BTreeMap::new();
     /// map.insert(
@@ -117,7 +117,7 @@ impl Metadata {
     /// use ast::v1::document::metadata::Value;
     /// use ast::v1::document::Metadata;
     /// use wdl_ast as ast;
-    /// use wdl_core::fs::location::Located;
+    /// use wdl_core::file::location::Located;
     ///
     /// let mut map = BTreeMap::new();
     /// map.insert(

@@ -9,8 +9,8 @@ use pest::RuleType;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::fs::location::Position;
-use crate::fs::Location;
+use crate::file::location::Position;
+use crate::file::Location;
 
 lazy_static! {
     /// The tokens to ignore when reporting out parse errors that have positive
@@ -55,7 +55,7 @@ impl Error {
     ///
     /// ```
     /// use wdl_core::concern::parse;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     ///
     /// let error = parse::Error::new("Hello, world!", Location::Unplaced);
     /// ```
@@ -71,7 +71,7 @@ impl Error {
     ///
     /// ```
     /// use wdl_core::concern::parse;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     ///
     /// let error = parse::Error::new("Hello, world!", Location::Unplaced);
     /// assert_eq!(error.message(), "Hello, world!");
@@ -86,7 +86,7 @@ impl Error {
     ///
     /// ```
     /// use wdl_core::concern::parse;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     ///
     /// let error = parse::Error::new("Hello, world!", Location::Unplaced);
     /// assert_eq!(error.into_message(), String::from("Hello, world!"));
@@ -101,7 +101,7 @@ impl Error {
     ///
     /// ```
     /// use wdl_core::concern::parse;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     ///
     /// let error = parse::Error::new("Hello, world!", Location::Unplaced);
     /// assert_eq!(error.byte_range(), None);

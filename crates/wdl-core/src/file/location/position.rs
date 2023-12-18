@@ -50,7 +50,7 @@ impl Position {
     /// ```
     /// use std::num::NonZeroUsize;
     ///
-    /// use wdl_core::fs::location::Position;
+    /// use wdl_core::file::location::Position;
     ///
     /// let position = Position::new(
     ///     NonZeroUsize::try_from(1).unwrap(),
@@ -76,7 +76,7 @@ impl Position {
     /// ```
     /// use std::num::NonZeroUsize;
     ///
-    /// use wdl_core::fs::location::Position;
+    /// use wdl_core::file::location::Position;
     ///
     /// let position = Position::try_new(1, 1, 0).unwrap();
     ///
@@ -101,7 +101,7 @@ impl Position {
     /// ```
     /// use std::num::NonZeroUsize;
     ///
-    /// use wdl_core::fs::location::Position;
+    /// use wdl_core::file::location::Position;
     ///
     /// let position = Position::new(
     ///     NonZeroUsize::try_from(1).unwrap(),
@@ -122,7 +122,7 @@ impl Position {
     /// ```
     /// use std::num::NonZeroUsize;
     ///
-    /// use wdl_core::fs::location::Position;
+    /// use wdl_core::file::location::Position;
     ///
     /// let position = Position::new(
     ///     NonZeroUsize::try_from(1).unwrap(),
@@ -143,7 +143,7 @@ impl Position {
     /// ```
     /// use std::num::NonZeroUsize;
     ///
-    /// use wdl_core::fs::location::Position;
+    /// use wdl_core::file::location::Position;
     ///
     /// let position = Position::new(
     ///     NonZeroUsize::try_from(1).unwrap(),

@@ -17,7 +17,7 @@ impl Builder {
     /// ```
     /// use wdl_core::concern::concerns::Builder;
     /// use wdl_core::concern::parse;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Concern;
     ///
     /// let error = parse::Error::new("Hello, world!", Location::Unplaced);
@@ -46,7 +46,7 @@ impl Builder {
     /// ```
     /// use wdl_core::concern::concerns::Builder;
     /// use wdl_core::concern::parse;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Concern;
     ///
     /// let concerns = Builder::default().build();

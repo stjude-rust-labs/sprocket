@@ -9,7 +9,7 @@ use wdl_core::concern::lint;
 use wdl_core::concern::lint::Group;
 use wdl_core::concern::lint::Rule;
 use wdl_core::concern::Code;
-use wdl_core::fs::Location;
+use wdl_core::file::Location;
 use wdl_core::str::whitespace;
 use wdl_core::str::whitespace::Whitespace;
 use wdl_core::Version;

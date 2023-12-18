@@ -4,7 +4,7 @@ use super::Location;
 
 /// A located entity.
 ///
-/// See the [module documentation](crate::fs::Location) for more information.
+/// See the [module documentation](crate::file::Location) for more information.
 #[derive(Clone)]
 pub struct Located<E> {
     /// The inner entity `E`.
@@ -20,8 +20,8 @@ impl<E> Located<E> {
     /// # Examples
     ///
     /// ```
-    /// use wdl_core::fs::location::Located;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Located;
+    /// use wdl_core::file::Location;
     ///
     /// let located = Located::new(0usize, Location::Unplaced);
     /// assert_eq!(located.into_parts(), (0usize, Location::Unplaced));
@@ -35,8 +35,8 @@ impl<E> Located<E> {
     /// # Examples
     ///
     /// ```
-    /// use wdl_core::fs::location::Located;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Located;
+    /// use wdl_core::file::Location;
     ///
     /// let located = Located::unplaced(0usize);
     /// assert_eq!(located.into_parts(), (0usize, Location::Unplaced));
@@ -53,8 +53,8 @@ impl<E> Located<E> {
     /// # Examples
     ///
     /// ```
-    /// use wdl_core::fs::location::Located;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Located;
+    /// use wdl_core::file::Location;
     ///
     /// let located = Located::new(0usize, Location::Unplaced);
     /// assert_eq!(located.inner(), &0usize);
@@ -67,8 +67,8 @@ impl<E> Located<E> {
     /// # Examples
     ///
     /// ```
-    /// use wdl_core::fs::location::Located;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Located;
+    /// use wdl_core::file::Location;
     ///
     /// let located = Located::new(0usize, Location::Unplaced);
     /// assert_eq!(located.into_inner(), 0usize);
@@ -82,8 +82,8 @@ impl<E> Located<E> {
     /// # Examples
     ///
     /// ```
-    /// use wdl_core::fs::location::Located;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Located;
+    /// use wdl_core::file::Location;
     ///
     /// let located = Located::new(0usize, Location::Unplaced);
     /// assert_eq!(located.location(), &Location::Unplaced);
@@ -97,8 +97,8 @@ impl<E> Located<E> {
     /// # Examples
     ///
     /// ```
-    /// use wdl_core::fs::location::Located;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Located;
+    /// use wdl_core::file::Location;
     ///
     /// let located = Located::new(0usize, Location::Unplaced);
     /// assert_eq!(located.into_location(), Location::Unplaced);
@@ -112,8 +112,8 @@ impl<E> Located<E> {
     /// # Examples
     ///
     /// ```
-    /// use wdl_core::fs::location::Located;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Located;
+    /// use wdl_core::file::Location;
     ///
     /// let located = Located::new(0usize, Location::Unplaced);
     /// assert_eq!(located.into_parts(), (0usize, Location::Unplaced));
@@ -129,8 +129,8 @@ impl<E> Located<E> {
     /// ```
     /// use std::num::NonZeroUsize;
     ///
-    /// use wdl_core::fs::location::Located;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::location::Located;
+    /// use wdl_core::file::Location;
     ///
     /// let before = Located::new(1, Location::Unplaced);
     /// let after = before.map(|i| NonZeroUsize::try_from(i).unwrap());

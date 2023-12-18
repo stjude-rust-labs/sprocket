@@ -4,7 +4,7 @@ use crate::concern::lint::Group;
 use crate::concern::lint::Level;
 use crate::concern::Code;
 use crate::display;
-use crate::fs::Location;
+use crate::file::Location;
 
 mod builder;
 
@@ -51,7 +51,7 @@ impl Warning {
     /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -86,7 +86,7 @@ impl Warning {
     /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -120,7 +120,7 @@ impl Warning {
     /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -154,7 +154,7 @@ impl Warning {
     /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -188,7 +188,7 @@ impl Warning {
     /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -222,7 +222,7 @@ impl Warning {
     /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -256,7 +256,7 @@ impl Warning {
     /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Warning, Version::V1, 1)?;
@@ -291,7 +291,7 @@ impl Warning {
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     /// use wdl_core::display;
     ///

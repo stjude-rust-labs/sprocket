@@ -1,7 +1,7 @@
 //! Builder for an [`Input`].
 
 use nonempty::NonEmpty;
-use wdl_core::fs::location::Located;
+use wdl_core::file::location::Located;
 
 use crate::v1::document::input::Declarations;
 use crate::v1::document::input::Input;
@@ -30,7 +30,7 @@ impl Builder {
     /// use ast::v1::document::Declaration;
     /// use ast::v1::document::Expression;
     /// use wdl_ast as ast;
-    /// use wdl_core::fs::location::Located;
+    /// use wdl_core::file::location::Located;
     ///
     /// let bound = bound::Builder::default()
     ///     .name(Identifier::try_from("hello_world")?)?
@@ -85,7 +85,7 @@ impl Builder {
     /// use ast::v1::document::Declaration;
     /// use ast::v1::document::Expression;
     /// use wdl_ast as ast;
-    /// use wdl_core::fs::location::Located;
+    /// use wdl_core::file::location::Located;
     ///
     /// let bound = bound::Builder::default()
     ///     .name(Identifier::try_from("hello_world")?)?

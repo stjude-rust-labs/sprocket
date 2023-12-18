@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::concern::Code;
 use crate::display;
-use crate::fs::Location;
+use crate::file::Location;
 
 /// A validation failure.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -39,7 +39,7 @@ impl Failure {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::validation::failure::Builder;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Error, Version::V1, 1)?;
@@ -68,7 +68,7 @@ impl Failure {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::validation::failure::Builder;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Error, Version::V1, 1)?;
@@ -96,7 +96,7 @@ impl Failure {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::validation::failure::Builder;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Error, Version::V1, 1)?;
@@ -124,7 +124,7 @@ impl Failure {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::validation::failure::Builder;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Error, Version::V1, 1)?;
@@ -152,7 +152,7 @@ impl Failure {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::validation::failure::Builder;
     /// use wdl_core::concern::Code;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     ///
     /// let code = Code::try_new(Kind::Error, Version::V1, 1)?;
@@ -183,7 +183,7 @@ impl Failure {
     /// use wdl_core::concern::validation::failure::Builder;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
-    /// use wdl_core::fs::Location;
+    /// use wdl_core::file::Location;
     /// use wdl_core::Version;
     /// use wdl_core::display;
     ///
