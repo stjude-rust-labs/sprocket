@@ -1,11 +1,11 @@
 //! Filesystems.
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::StandardStream;
 use codespan_reporting::term::Config;
+use indexmap::IndexMap;
 
 use crate::report::Reporter;
 
@@ -57,7 +57,7 @@ type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub struct Repository {
     /// The mapping of entries in the source code map to file handles.
-    handles: HashMap<String, usize>,
+    handles: IndexMap<String, usize>,
 
     /// The inner source code map.
     sources: SimpleFiles<String, String>,
@@ -294,6 +294,7 @@ pub fn expand_paths(paths: Vec<PathBuf>, extensions: Vec<String>) -> Result<Vec<
             acc.extend(dir_files)
         }
 
+        acc.sort();
         Ok(acc)
     })
 }
