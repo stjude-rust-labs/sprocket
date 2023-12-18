@@ -4,7 +4,7 @@
 use wdl::ast;
 use wdl::grammar;
 
-pub fn main() -> Result<(), Box<dyn std::error::Error>>{
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let src = std::env::args().nth(1).expect("missing src");
     let contents = std::fs::read_to_string(src).expect("could not read file contents");
 

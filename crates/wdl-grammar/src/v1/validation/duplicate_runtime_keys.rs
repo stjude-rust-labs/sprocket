@@ -15,7 +15,7 @@ use wdl_macros::gather;
 
 use crate::v1;
 
-/// Detects an invalid version value.
+/// Detects a duplicative runtime keys.
 #[derive(Debug)]
 pub struct DuplicateRuntimeKeys;
 
