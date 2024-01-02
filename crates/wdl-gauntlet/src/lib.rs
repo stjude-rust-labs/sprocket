@@ -369,13 +369,9 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                 .bold()
         );
 
-        // for concern in missing_but_expected {
-        //     println!(
-        //         "{}\n\n{}\n",
-        //         concern.document.to_string().italic(),
-        //         concern
-        //     );
-        // }
+        for concern in missing_but_expected {
+            println!("{}\n\n", concern);
+        }
 
         process::exit(EXIT_CODE_UNDETECTED_IGNORED_CONCERNS);
     } else if !unexpected.is_empty() {
