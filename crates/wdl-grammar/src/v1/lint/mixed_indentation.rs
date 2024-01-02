@@ -18,9 +18,9 @@ use crate::v1;
 
 /// Detects mixed indentation within command contents.
 #[derive(Debug)]
-pub struct MixedIndentationCharacters;
+pub struct MixedIndentation;
 
-impl<'a> MixedIndentationCharacters {
+impl<'a> MixedIndentation {
     /// Generates a validation error for mixed indentation characters within a
     /// command.
     fn mixed_indentation_characters(&self, location: Location) -> lint::Warning
@@ -44,7 +44,7 @@ impl<'a> MixedIndentationCharacters {
     }
 }
 
-impl Rule<&Pair<'_, v1::Rule>> for MixedIndentationCharacters {
+impl Rule<&Pair<'_, v1::Rule>> for MixedIndentation {
     fn code(&self) -> Code {
         // SAFETY: this manually crafted to unwrap successfully every time.
         Code::try_new(code::Kind::Warning, Version::V1, 4).unwrap()
@@ -104,7 +104,7 @@ mod tests {
         )?
         .next()
         .unwrap();
-        let errors = MixedIndentationCharacters.check(&tree).unwrap().unwrap();
+        let errors = MixedIndentation.check(&tree).unwrap().unwrap();
 
         assert_eq!(
             errors.first().to_string(),
@@ -126,7 +126,7 @@ mod tests {
         )?
         .next()
         .unwrap();
-        assert!(MixedIndentationCharacters.check(&tree)?.is_none());
+        assert!(MixedIndentation.check(&tree)?.is_none());
 
         Ok(())
     }
@@ -143,7 +143,7 @@ mod tests {
         )?
         .next()
         .unwrap();
-        assert!(MixedIndentationCharacters.check(&tree)?.is_none());
+        assert!(MixedIndentation.check(&tree)?.is_none());
 
         Ok(())
     }

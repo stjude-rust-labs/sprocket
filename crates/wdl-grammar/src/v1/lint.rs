@@ -6,7 +6,7 @@ mod mixed_indentation;
 mod no_curly_commands;
 mod whitespace;
 
-pub use mixed_indentation::MixedIndentationCharacters;
+pub use mixed_indentation::MixedIndentation;
 pub use no_curly_commands::NoCurlyCommands;
 pub use whitespace::Whitespace;
 
@@ -18,6 +18,6 @@ pub fn rules<'a>() -> Vec<Box<dyn wdl_core::concern::lint::Rule<&'a Pair<'a, cra
         // v1::W002
         Box::new(NoCurlyCommands),
         // v1::W004
-        Box::new(MixedIndentationCharacters),
+        Box::new(MixedIndentation),
     ]
 }

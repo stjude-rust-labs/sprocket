@@ -1,4 +1,19 @@
-//! WDL 1.x.
+//! WDL 1.x abstract syntax tree.
+//!
+//! ## Validation Rules
+//!
+//! The following abstract syntax tree validation rules are supported for WDL
+//! 1.x:
+//!
+//! _None at present._
+//!
+//! ## Lint Rules
+//!
+//! The following abstract syntax tree linting rules are supported for WDL 1.x:
+//!
+//! | Name                      | Code       | Group        | Documentation                       |
+//! |:--------------------------|:-----------|:-------------|:-----------------------------------:|
+//! | `matching_parameter_meta` | `v1::W003` | Completeness | [Link](lint::MatchingParameterMeta) |
 
 use pest::iterators::Pair;
 use wdl_core::concern::concerns;

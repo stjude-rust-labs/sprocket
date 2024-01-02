@@ -1,13 +1,25 @@
-//! WDL 1.x.
+//! WDL 1.x parse tree.
 //!
-//! ## Linting Rules
+//! ## Validation Rules
 //!
-//! The following linting rules are supported for WDL 1.x:
+//! The following parse tree validation rules are supported for WDL 1.x:
 //!
-//! | Name                | Code      | Group    | Module                        |
-//! |:--------------------|:---------:|:--------:|:-----------------------------:|
-//! | `whitespace`        | `v1::001` | Style    | [Link](lint::Whitespace)      |
-//! | `no_curly_commands` | `v1::002` | Pedantic | [Link](lint::NoCurlyCommands) |
+//! | Name                       | Code       | Documentation                              |
+//! |:---------------------------|:-----------|:------------------------------------------:|
+//! | `invalid_escape_character` | `v1::E001` | [Link](validation::InvalidEscapeCharacter) |
+//! | `invalid_version`          | `v1::E002` | [Link](validation::InvalidVersion)         |
+//! | `duplicate_runtime_keys`   | `v1::E003` | [Link](validation::DuplicateRuntimeKeys)   |
+//! | `missing_literal_commas`   | `v1::E004` | [Link](validation::MissingLiteralCommas)   |
+//!
+//! ## Lint Rules
+//!
+//! The following parse tree linting rules are supported for WDL 1.x:
+//!
+//! | Name                | Code       | Group    | Documentation                  |
+//! |:--------------------|:-----------|:---------|:------------------------------:|
+//! | `whitespace`        | `v1::W001` | Style    | [Link](lint::Whitespace)       |
+//! | `no_curly_commands` | `v1::W002` | Pedantic | [Link](lint::NoCurlyCommands)  |
+//! | `mixed_indentation` | `v1::W004` | Style    | [Link](lint::MixedIndentation) |
 
 use pest::iterators::Pair;
 use pest::Parser as _;
