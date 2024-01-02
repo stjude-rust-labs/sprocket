@@ -1,0 +1,35 @@
+# This action refreshes the cache for `wdl-gauntlet` either (a) on-demand or (b) on an on-going
+# basis via scheduling. It is assumed that the latest version of the `main` branch will not contain
+# any errors. As such, it should be safe to refresh the cache automatically to ensure errors are not
+# frequently thrown when submitting pull requests.
+
+name: Gauntlet (Refresh)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *' # Every night at 2:00 AM.
+
+env:
+  CACHE_DIR: ~/.config/wdl-grammar
+
+jobs:
+  refresh:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/cache@v3
+        with:
+          path: ${{ env.CACHE_DIR }} 
+          key: wdl-grammar
+      - uses: actions/checkout@v3
+      - name: Update Rust
+        run: rustup update nightly && rustup default nightly 
+      - name: Install `wdl-gauntlet`
+        run: cargo install --path wdl-gauntlet
+      - name: Copy configuration
+        run: mkdir -p $CACHE_DIR; cp Gauntlet.toml $CACHE_DIR;
+      - name: Update cache
+        run: wdl-gauntlet --save-config --trace
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: ${{ env.HOME }}
