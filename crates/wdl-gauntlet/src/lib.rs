@@ -15,6 +15,7 @@ use clap::Parser;
 use colored::Colorize as _;
 use indexmap::IndexSet;
 use log::debug;
+use log::info;
 use log::trace;
 use wdl_ast as ast;
 use wdl_grammar as grammar;
@@ -344,20 +345,18 @@ pub async fn gauntlet(args: Args) -> Result<()> {
         .collect::<IndexSet<_>>();
 
     if args.save_config {
-        debug!(
+        info!("adding {} new expected concerns.", unexpected.len());
+        info!(
             "removing {} outdated expected concerns.",
             missing_but_expected.len()
         );
-        debug!("adding {} new expected concerns.", unexpected.len());
 
         let existing = config.inner().concerns().clone();
-        let new: IndexSet<_> = existing
+        let new = existing
             .difference(&missing_but_expected)
-            .chain(unexpected.union(&existing))
-            .collect::<IndexSet<_>>()
-            .into_iter()
+            .chain(unexpected.iter())
             .cloned()
-            .collect();
+            .collect::<IndexSet<_>>();
 
         config.inner_mut().set_concerns(new);
         config.save().map_err(Error::Config)?;
