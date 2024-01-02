@@ -111,6 +111,10 @@ impl Config {
     /// inteded location (should [`Config::save()`] be called).
     pub fn load_or_new(path: PathBuf, version: Version) -> Result<Self> {
         if !path.exists() {
+            debug!(
+                "no configuration exists at {}, creating new configuration.",
+                path.display()
+            );
             return Ok(Self {
                 path: Some(path),
                 inner: Inner::from(version),
