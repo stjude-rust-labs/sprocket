@@ -3583,382 +3583,502 @@ message = "[v1::W003::Completeness/Medium] missing parameter meta within workflo
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: allc_tar (840:8-840:21)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: allc_tar (921:8-921:21)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: allc_uniq_reads_stats (911:9-911:35)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: allc_uniq_reads_stats (991:9-991:35)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: bam (584:9-584:17)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: bam (647:9-647:17)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: bam (632:9-632:17)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: bam (697:9-697:17)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: bam (729:8-729:16)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: bam (798:8-798:16)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: bam_and_index_tar (783:9-783:31)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: bam_and_index_tar (854:9-854:31)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: chrom_size_path (842:8-842:28)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: chrom_size_path (923:8-923:28)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: chromatin_contact_stats (910:9-910:37)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: chromatin_contact_stats (990:9-990:37)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: chromosome_sizes (280:9-280:30)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: chromosome_sizes (322:9-322:30)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: dedup_stats (909:9-909:25)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: compress_level (859:9-859:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (134:5-134:23)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: dedup_stats (989:9-989:25)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (207:9-207:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (168:5-168:23)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (283:9-283:28)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (250:9-250:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (359:9-359:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (326:9-326:28)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (428:9-428:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (415:9-415:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (488:9-488:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (487:9-487:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (586:9-586:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (548:9-548:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (635:9-635:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (651:9-651:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (679:9-679:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (702:9-702:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (731:8-731:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (748:9-748:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (785:9-785:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (802:8-802:26)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (844:8-844:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (861:9-861:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (916:9-916:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (927:8-927:26)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (210:9-210:78)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: disk_size (996:9-996:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (282:9-282:78)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (252:9-252:78)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (358:9-358:78)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (325:9-325:78)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (427:9-427:78)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (414:9-414:78)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (487:9-487:78)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (486:9-486:78)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (585:9-585:78)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (547:9-547:78)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (634:9-634:78)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (650:9-650:78)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (678:9-678:78)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (701:9-701:78)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (730:8-730:77)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (747:9-747:78)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (788:9-788:78)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (801:8-801:77)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (843:8-843:77)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (864:9-864:78)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (915:9-915:78)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (926:8-926:77)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker_image (133:5-133:80)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker (995:9-995:78)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: fastq_input_read1 (128:5-128:34)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: docker_image (167:5-167:80)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: fastq_input_read2 (129:5-129:34)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: fastq_input_read1 (162:5-162:34)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: genome_base (787:9-787:49)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: fastq_input_read2 (163:5-163:34)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: genome_fa (279:9-279:23)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: genome_base (863:9-863:49)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: genome_fa (484:9-484:23)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: genome_fa (321:9-321:23)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: genome_fa (784:9-784:23)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: genome_fa (543:9-543:23)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: hisat3n_bam_tar (356:9-356:29)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: genome_fa (855:9-855:23)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: hisat3n_stats (906:9-906:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: hisat3n_bam_tar (410:9-410:29)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (135:5-135:22)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: hisat3n_stats (986:9-986:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (208:9-208:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (169:5-169:22)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (284:9-284:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (251:9-251:26)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (360:9-360:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (327:9-327:27)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (429:9-429:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (416:9-416:26)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (489:9-489:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (488:9-488:26)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (587:9-587:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (549:9-549:26)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (636:9-636:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (652:9-652:26)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (680:9-680:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (703:9-703:26)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (732:8-732:25)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (749:9-749:26)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (786:9-786:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (803:8-803:25)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (845:8-845:25)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (862:9-862:26)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (917:9-917:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (928:8-928:25)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: name_sorted_bam (677:9-677:29)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: mem_size (997:9-997:26)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: num_upstr_bases (846:8-846:31)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: min_read_length (248:9-248:28)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (131:5-131:20)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: min_read_length (411:9-411:28)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (913:9-913:24)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: min_read_length (483:9-483:28)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r1_hisat3n_stats (907:9-907:30)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: name_sorted_bam (744:9-744:29)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r1_trimmed_tar (276:9-276:28)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: num_downstr_bases (858:9-858:30)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r2_hisat3n_stats (908:9-908:30)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: num_upstr_bases (857:9-857:28)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r2_trimmed_tar (277:9-277:28)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: num_upstr_bases (929:8-929:31)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: random_primer_indexes (130:5-130:31)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (165:5-165:20)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: split_bam (633:9-633:23)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (241:9-241:24)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: split_fq_tar (483:9-483:26)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (323:9-323:24)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: tarred_demultiplexed_fastqs (206:9-206:41)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (412:9-412:24)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: tarred_index_files (278:9-278:32)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (484:9-484:24)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: tarred_index_files (485:9-485:32)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (545:9-545:24)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: tbi_tar (841:8-841:20)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (648:9-648:24)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: trimmed_stats (905:9-905:27)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (699:9-699:24)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: unique_reads_cgn_extraction_tbi (912:9-912:45)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (745:9-745:24)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: unmapped_fastq_tar (426:9-426:32)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (799:8-799:23)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (856:9-856:24)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (924:8-924:23)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: plate_id (993:9-993:24)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r1_adapter (242:9-242:26)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r1_hisat3n_stats (987:9-987:30)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r1_left_cut (244:9-244:24)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r1_right_cut (245:9-245:25)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r1_trimmed_tar (318:9-318:28)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r2_adapter (243:9-243:26)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r2_hisat3n_stats (988:9-988:30)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r2_left_cut (246:9-246:24)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r2_right_cut (247:9-247:25)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r2_trimmed_tar (319:9-319:28)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: random_primer_indexes (164:5-164:31)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: split_bam (698:9-698:23)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: split_fq_tar (542:9-542:26)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: tarred_demultiplexed_fastqs (240:9-240:41)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: tarred_index_files (320:9-320:32)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: tarred_index_files (544:9-544:32)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: tbi_tar (922:8-922:20)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: trimmed_stats (985:9-985:27)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: unique_reads_cgn_extraction_tbi (992:9-992:45)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: unmapped_fastq_tar (482:9-482:32)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
 message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: chromosome_sizes (13:9-13:30)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: compress_level (24:9-24:31)"
 
 [[concerns]]
 kind = "LintWarning"
@@ -3978,7 +4098,52 @@ message = "[v1::W003::Completeness/Medium] missing parameter meta within workflo
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: min_read_length (21:9-21:33)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: num_downstr_bases (23:9-23:34)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: num_upstr_bases (22:9-22:32)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
 message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: plate_id (9:9-9:24)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: r1_adapter (15:9-15:56)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: r1_left_cut (17:9-17:29)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: r1_right_cut (18:9-18:30)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: r2_adapter (16:9-16:56)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: r2_left_cut (19:9-19:29)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:beta-pipelines/skylab/m3c/CondensedSnm3C.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: r2_right_cut (20:9-20:30)"
 
 [[concerns]]
 kind = "LintWarning"
@@ -8698,27 +8863,127 @@ message = "[v1::W003::Completeness/Medium] missing parameter meta within workflo
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
-message = "[v1::W003::Completeness/Medium] extraneous parameter meta within workflow: output_base_name (43:5-43:21)"
+message = "[v1::W001::Style/Low] line contains only whitespace (211:1-211:4)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: cpuPlatform (237:5-237:46)"
+message = "[v1::W001::Style/Low] line contains only whitespace (218:1-218:4)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: nthreads (236:5-236:21)"
+message = "[v1::W001::Style/Low] line contains only whitespace (233:1-233:4)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: adapter_seq_read1 (33:5-33:68)"
+message = "[v1::W001::Style/Low] line contains only whitespace (240:1-240:4)"
 
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: adapter_seq_read3 (34:5-34:67)"
+message = "[v1::W001::Style/Low] line contains only whitespace (243:1-243:4)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] line contains only whitespace (245:1-245:4)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] line contains only whitespace (248:1-248:4)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] line contains only whitespace (252:1-252:4)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] line contains only whitespace (256:1-256:4)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] line contains only whitespace (274:1-274:4)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] line contains only whitespace (281:1-281:4)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] line contains only whitespace (284:1-284:8)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] line contains only whitespace (289:1-289:4)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] trailing space (194:25)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] trailing space (196:19)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] trailing space (208:51)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] trailing space (275:54)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W001::Style/Low] trailing space (288:68)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W003::Completeness/Medium] extraneous parameter meta within workflow: output_base_name (44:5-44:21)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: cpuPlatform (317:5-317:46)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: cpu_platform (173:5-173:43)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: nthreads (316:5-316:21)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: suffix (165:5-165:48)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: adapter_seq_read1 (34:5-34:68)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: adapter_seq_read3 (35:5-35:67)"
 
 [[concerns]]
 kind = "LintWarning"
@@ -8738,7 +9003,12 @@ message = "[v1::W003::Completeness/Medium] missing parameter meta within workflo
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: whitelist (30:5-30:19)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: num_output_files (29:5-29:29)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/multiome/atac.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: whitelist (31:5-31:19)"
 
 [[concerns]]
 kind = "LintWarning"
@@ -8789,6 +9059,161 @@ message = "[v1::W003::Completeness/Medium] missing parameter meta within workflo
 kind = "LintWarning"
 document = "broadinstitute/warp:pipelines/skylab/optimus/Optimus.wdl"
 message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: read_struct (41:5-41:59)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W001::Style/Low] line contains only whitespace (110:1-110:3)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W001::Style/Low] line contains only whitespace (126:1-126:4)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W001::Style/Low] line contains only whitespace (128:1-128:8)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W001::Style/Low] trailing space (109:6)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W001::Style/Low] trailing space (17:41)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W001::Style/Low] trailing space (94:13)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: adapter_seq_read1 (39:9-39:72)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: adapter_seq_read3 (40:9-40:71)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: annotations_gtf (19:9-19:29)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: atac_r1_fastq (32:9-32:34)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: atac_r2_fastq (33:9-33:34)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: atac_r3_fastq (34:9-34:34)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: atac_whitelist (42:9-42:113)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: chrom_sizes (37:9-37:25)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: count_exons (27:9-27:36)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: counting_mode (14:9-14:40)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: emptydrops_lower (23:9-23:35)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: force_no_check (24:9-24:39)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: gex_i1_fastq (17:9-17:34)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: gex_r1_fastq (15:9-15:33)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: gex_r2_fastq (16:9-16:33)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: gex_whitelist (28:9-28:111)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: ignore_r1_read_length (25:9-25:46)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: input_id (11:9-11:24)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: mt_genes (21:9-21:23)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: preindex (45:9-45:32)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: ref_genome_fasta (20:9-20:30)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: star_strand_mode (26:9-26:44)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: tar_bwa_reference (36:9-36:31)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: tar_star_reference (18:9-18:32)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:pipelines/skylab/paired_tag/PairedTag.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within workflow: tenx_chemistry_version (22:9-22:39)"
 
 [[concerns]]
 kind = "LintWarning"
@@ -17303,7 +17728,7 @@ message = "[v1::W003::Completeness/Medium] missing parameter meta within task: c
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:tasks/skylab/H5adUtils.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: cpuPlatform (198:5-198:46)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: cpuPlatform (197:5-197:46)"
 
 [[concerns]]
 kind = "LintWarning"
@@ -17408,7 +17833,7 @@ message = "[v1::W003::Completeness/Medium] missing parameter meta within task: m
 [[concerns]]
 kind = "LintWarning"
 document = "broadinstitute/warp:tasks/skylab/H5adUtils.wdl"
-message = "[v1::W003::Completeness/Medium] missing parameter meta within task: nthreads (197:5-197:21)"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: nthreads (196:5-196:21)"
 
 [[concerns]]
 kind = "LintWarning"
@@ -18054,6 +18479,11 @@ message = "[v1::W003::Completeness/Medium] missing parameter meta within task: w
 kind = "LintWarning"
 document = "broadinstitute/warp:tasks/skylab/ModifyGtf.wdl"
 message = "[v1::W002::Style/Medium] curly command found (30:3-44:4)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "broadinstitute/warp:tasks/skylab/PairedTagUtils.wdl"
+message = "[v1::W003::Completeness/Medium] missing parameter meta within task: input_id (8:9-8:24)"
 
 [[concerns]]
 kind = "LintWarning"
