@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Update Rust
-        run: rustup update nightly && rustup default nightly 
+        run: rustup update nightly && rustup default nightly
       - name: Install rustfmt
         run: rustup component add rustfmt
       - run: cargo fmt -- --check
@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Update Rust
-        run: rustup update nightly && rustup default nightly 
+        run: rustup update nightly && rustup default nightly
       - name: Install clippy
         run: rustup component add clippy
       - run: cargo clippy --all-features -- --deny warnings
@@ -32,13 +32,21 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Update Rust
-        run: rustup update nightly && rustup default nightly 
+        run: rustup update nightly && rustup default nightly
       - run: cargo test --all-features
+
+  test-examples:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Update Rust
+        run: rustup update nightly && rustup default nightly
+      - run: cargo test --all-features --examples
 
   docs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - name: Update Rust
-        run: rustup update nightly && rustup default nightly 
+        run: rustup update nightly && rustup default nightly
       - run: cargo doc
