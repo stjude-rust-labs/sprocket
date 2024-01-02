@@ -43,6 +43,10 @@ syncing compatible component crates versions. Component crates can be enabled
 using features and are generally re-exported crates without the `wdl-` (or
 `wdl_`) prefix.
 
+This repository contains crates that can be used to work with WDL within your
+own Rust projects—if you're looking for a command-line tool built on top of
+these crates instead, you should check out [`sprocket`].
+
 ### Convenience Crate
 
 Most users should prefer selecting a version of the convenience crate and
@@ -130,3 +134,4 @@ Copyright © 2023-Present [St. Jude Children's Research Hospital](https://github
 
 [license-apache]: https://github.com/stjude-rust-labs/wdl/blob/main/LICENSE-APACHE
 [license-mit]: https://github.com/stjude-rust-labs/wdl/blob/main/LICENSE-MIT
+[`sprocket`]: https://github.com/stjude-rust-labs/sprocket
