@@ -168,6 +168,6 @@ impl ReportableConcern {
 
 impl std::fmt::Display for ReportableConcern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
+        write!(f, "|{}| {}", self.document, self.message)
     }
 }
