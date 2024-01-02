@@ -379,7 +379,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
         // }
 
         process::exit(EXIT_CODE_UNDETECTED_IGNORED_CONCERNS);
-    } else if !missing_but_expected.is_empty() {
+    } else if !unexpected.is_empty() {
         process::exit(EXIT_CODE_FAILED);
     }
 
