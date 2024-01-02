@@ -4,8 +4,8 @@ use async_recursion::async_recursion;
 use chrono::Utc;
 use indexmap::IndexMap;
 use log::debug;
-use log::error;
 use log::info;
+use log::warn;
 use octocrab::etag::EntityTag;
 use octocrab::models::repos::ContentItems;
 use octocrab::Octocrab;
@@ -304,13 +304,10 @@ async fn wait_for_timeout() -> Result<()> {
         let sleep_for = std::cmp::min(duration, RATE_LIMIT_SLEEP_TIME) as u64;
 
         if first_loop {
-            error!(
-                "rate limit: rate limit activated, sleeping for {} seconds in {} second intervals.",
-                duration, RATE_LIMIT_SLEEP_TIME
-            );
+            warn!("rate limit: activated.");
         }
 
-        error!(
+        warn!(
             "rate limit: sleeping for {} seconds ({} seconds remaining).",
             sleep_for, duration
         );
