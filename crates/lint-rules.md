@@ -2,11 +2,11 @@
 
 The below rules will all be added as lints to `wdl-grammar` and `wdl-ast` (if they aren't already). Most rules will be assigned a "group" that they belong to. The intention of having these groups is twofold. One, it will allow an easy method for disabling multiple related rules at the same time. Two, it will make the documentation easier to organize and search. We're still refining what these final groups will be, so not every rule in this document will be assigned one yet. Some rules may never be assigned as a group if they are truly stand-alone. The current groups are: `spacing`, `naming`, `sorting`, `completeness`, `container`, and `deprecated`.
 
-This document only concerns what we are calling "lint warnings". Lint warnings are distinct from what we call "validation errors". A validation error results when the specification (v1.x at time of writing) is not followed. These errors render your WDL document invalid. On the other hand, lint warnings are just our (the writer's of `wdl-grammar` and `wdl-ast`) opinion on what "good" WDL should look like. They are matters of style, readability, consistency, or for encouraging proper documentation. Your document may be littered with lint warnings, but if there aren't any validation errors, then your document is valid WDL.
+This document only concerns what we are calling "lint warnings". Lint warnings are distinct from what we call "validation errors". A validation error results when the specification (v1.x at time of writing) is not followed. These errors render your WDL document invalid. On the other hand, lint warnings are just our (the writers of `wdl-grammar` and `wdl-ast`) opinion on what "good" WDL should look like. They are matters of style, readability, consistency, or for encouraging proper documentation. Your document may be littered with lint warnings, but if there aren't any validation errors, then your document is valid WDL.
 
 We are aiming to automate as much as we can to make adherence to these lint rules as easy as possible. The "auto-formatter" will be packaged as part of our [`sprocket` tool](https://github.com/stjude-rust-labs/sprocket). Auto-formatting has not yet been implemented as this project is still early in development, but while reading this document, please assume that anything easily automated (and perhaps complex to do manually) will eventually be handled by the formatter built into `sprocket`.
 
-Some of these lint warnings we will admit are arbitrary. There are times where several different methods for styling a document could be considered equally appealing. The important part is picking one such style and adhering to it consistenly across a document or codebase. In such cases, this document will only present one option. In the future, that singular option may just be the default, with several more-or-less equivalent styles presented as alternative options available through configuration. If you feel we are picking the wrong defaults, please let us know what you think would be better!
+Some of these lint warnings are arbitrary. There are times where several different methods for styling a document could be considered equally appealing. The important part is picking one such style and adhering to it consistenly across a document or codebase. In such cases, this document will only present one option. In the future, that singular option may just be the default, with several more-or-less equivalent styles presented as alternative options available through configuration. If you feel we are picking the wrong defaults, please let us know what you think would be better!
 
 At the time of writing (January 2024), we consider all rules herein to be up for debate. Please open an issue on this repository if you would like to suggest changes to this document.
 
@@ -344,7 +344,7 @@ At most one empty line in a row. There should never be 2 or more blank lines in 
 
 ### `no_newline_eof`
 
-End the file with a newline.
+The file must end with a newline.
 
 **Group**: `spacing`
 
@@ -539,7 +539,7 @@ For tasks, the following sections must be present and in this order: `meta`, `pa
 
 The meta section should have a `description` of the task or workflow.
 
-The contents of the `description` will not be checked by the linter. However, we do have unenforced recommendations for what we believe makes a good description. It should be in active voice, beginning the first sentence with a verb. Each task/workflow is doing something. The first sentence should be a succinct description of what that "something" is. Feel free to use more than one sentence to describe your tasks and workflows. If you would rather keep your `description` entry succinct, you may write a more detailed entry under the `help` key. Additional and arbitrary `meta` entries are permitted (such as `external_help`, `author`, and `email` keys).
+The contents of the `description` will not be checked by the linter. However, we do have unenforced recommendations for what we believe makes a good description. It should be in active voice, beginning the first sentence with a verb. Each task/workflow is doing something. The first sentence should be a succinct description of what that "something" is. Feel free to use more than one sentence to describe your tasks and workflows. If you would rather keep your `description` entry succinct, you may write a more detailed entry under the `help` key. Additional and arbitrary `meta` entries are permitted (including `external_help`, `author`, and `email` keys).
 
 **Group**: `completeness`
 
@@ -812,7 +812,7 @@ Bad:
 
 ### `inpersistent_container`  && `persistent_container_not_tagged`
 
-All tasks should run in a persistent container. This ensures reproducibility across time and environments. `wdl-grammar` and `wdl-ast` will look for an `sha sum` tag in your `container` declarations and warn if one is missing. An `sha` digest will always point to the exact same image, whereas tags are mutable. This mutability makes even versioned tags problematic when we want to ensure reproducibility.
+All tasks should run in a persistent container. This ensures reproducibility across time and environments. `wdl-grammar` and `wdl-ast` will look for a `sha sum` tag in your `container` declarations and warn if one is missing. A `sha` digest will always point to the exact same image, whereas tags are mutable. This mutability makes even versioned tags problematic when we want to ensure reproducibility.
 
 While the confidence in persistence gained by using `sha` digests for pulling container images is valuable, it comes at a cost. Which is a lack of human readability. So we enforce preceeding `container` entries with a comment which gives a human readable name to the image being pulled. It is imperative that the `sha` digest and the human readable tag are kept in sync. It's extra overhead compared to just using a tag directly, but we consider it well worth it.
 
