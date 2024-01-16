@@ -247,7 +247,7 @@ Boolean complicated_logic
                 a
                 && b
                 || c
-                (
+                && (
                     !d
                     || !e
                 )
@@ -622,6 +622,7 @@ For ordering of the same compound type (`Array[*]`, `struct`, `Map[*, *]`, `Pair
 Does this sort order seem complex and hard to follow? Have no fear! You can rely on `sprocket`'s auto-formatting capabilities to handle this for you! (At the time of writing, auto-formatting has not yet been implemented. But it's on the docket for `sprocket`.)
 
 `nonmatching_parameter_meta` **group**: `completeness`
+
 `inputs_not_sorted` **group**: `sorting`
 
 ### Example
