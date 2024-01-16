@@ -209,14 +209,17 @@ The following tokens should **not** be **followed** by whitespace (including new
 Opening brackets (either `(` or `[`) should **not** be **followed** by a **space** but **may** be **followed** by a **newline**.
 Closing brackets (either `)` or `]`) should **not** be **preceeded** by whitespace **unless** that whitespace is **indentation**.
 
-Sometimes a long expression will exceed the maximum line width. In these cases, one or more linebreaks should be introduced. Line continuations should be indented one more level than the beginning of the expression. If bracketed content (things between `()` or `[]`) must be split onto multiple lines, a newline should follow the opening bracket, the contents should be indented an additional level, then the closing bracket should be de-indented to match the indentation of the opening bracket.
+Sometimes a long expression will exceed the maximum line width. In these cases, one or more linebreaks must be introduced. Line continuations should be indented one more level than the beginning of the expression. There should _never_ be more than one level of indentation change per-line.
 
-If you are line splitting an expression on an infix operator, the operator should be on the continued line.
+If bracketed content (things between `()` or `[]`) must be split onto multiple lines, a newline should follow the opening bracket, the contents should be indented an additional level, then the closing bracket should be de-indented to match the indentation of the opening bracket.
+
+If you are line splitting an expression on an infix operator, the operator and at least the beginning of the RHS operand should be on the continued line. (i.e. an operator should _not_ be on a line by itself.)
 
 If you are using the `if...then...else` construct as part of your expression and it needs to be line split, the entire construct should be wrapped in parantheses (`()`). The opening paranthesis should be immediately followed by a newline. `if`, `then`, and `else` should all start a line one more level of indentation than the wrapping paratheses. The closing paranthesis should be on the same level of indentation as the opening paranthesis.
+
 If you are using the `if...then...else` construct on one line, it does not need to be wrapped in parantheses. However, if any of the 3 clauses are more complex than a single identifier, they should be wrapped in parantheses.
 
-Sometimes a developer will choose to line split an expression despite it being able to all fit on one line that is <=90 characters wide. That is perfectly acceptable, though you may notice in the below examples the single line form can be more readable.
+Sometimes a developer will choose to line split an expression despite it being able to all fit on one line that is <=90 characters wide. That is perfectly acceptable, though you may notice in the below examples the single line form can be more readable. There is "wiggle" room allowed by the above rules. This is intentional, and allows developers to choose a more compact or a more spaced out expression.
 
 **Group**: `spacing`
 
@@ -228,33 +231,30 @@ Complex example that fits on one line:
 Int complex_value = w - x + (y * (z / (foo % bar)))
 ```
 
-Same example with line splitting:
+Same example with as much line splitting as permissible:
 
 ```wdl
-Int complex_value = w
+Int complex_value
+    = w
     - x
     + (
         y
         * (
             z
             / (
-                foo % bar
+                foo
+                % bar
             )
         )
     )
 ```
 
-Another complex example:
+Another complex example written as compactly as permissible:
 
 ```wdl
 Boolean complicated_logic = (
     if !(
-        a
-        && b
-        || c
-        && (
-            !d || !e
-        )
+        a && b || c && (!d || !e)
         == (
             if foobar
             then gak
@@ -264,6 +264,36 @@ Boolean complicated_logic = (
     then "wow"
     else "WOWOWOW"
 )
+```
+
+The same expression with as many newlines inserted as permissible:
+
+```wdl
+Boolean complicated_logic
+    = (
+        if
+            !(
+                a
+                && b
+                || c
+                (
+                    !d
+                    || !e
+                )
+                == (
+                    if
+                        foobar
+                    then
+                        gak
+                    else
+                        caz
+                )
+            )
+        then
+            "wow"
+        else
+            "WOWOWOW"
+    )
 ```
 
 ### `input_spacing`
