@@ -38,11 +38,15 @@ version 1.0
 ...
 ```
 
-### `import_placement`
+### `import_placement` && `import_sort`
 
 All import statements should follow the WDL version declaration (with one empty line between the version and the first import statement).
 
-**Group**: `spacing`
+Import statements should be sorted by the lexicographical ordering (GNU `sort` with `LC_COLLATE=C`) of each line. No extra white space is allowed between symbols or lines.
+
+`import_placement` **group**: `spacing`
+
+`import_sort` **group**: `sorting`
 
 #### Example
 
@@ -53,41 +57,8 @@ version 1.1
 
 import "../../tools/fastqc.wdl" as fastqc_tasks
 import "../../tools/fq.wdl"
-import "../../tools/kraken2.wdl"
-import "../../tools/md5sum.wdl"
-import "../../tools/mosdepth.wdl"
-import "../../tools/multiqc.wdl" as multiqc_tasks
-import "../../tools/ngsderive.wdl"
-import "../../tools/picard.wdl"
-import "../../tools/qualimap.wdl"
-import "../../tools/samtools.wdl"
-import "../../tools/util.wdl"
 import "./markdups-post.wdl" as markdups_post_wf
-```
-
-### `import_sort`
-
-Import statements should be sorted by the lexicographical ordering (GNU `sort` with `LC_COLLATE=C`) of each line. No extra white space is allowed between symbols or lines.
-
-**Group**: `sorting`
-
-#### Example
-
-Good:
-
-```wdl
-import "../../tools/fastqc.wdl" as fastqc_tasks
-import "../../tools/fq.wdl"
-import "../../tools/kraken2.wdl"
-import "../../tools/md5sum.wdl"
-import "../../tools/mosdepth.wdl"
-import "../../tools/multiqc.wdl" as multiqc_tasks
-import "../../tools/ngsderive.wdl"
-import "../../tools/picard.wdl"
-import "../../tools/qualimap.wdl"
-import "../../tools/samtools.wdl"
-import "../../tools/util.wdl"
-import "./markdups-post.wdl" as markdups_post_wf
+import "https://raw.githubusercontent.com/stjude/seaseq/3.0/workflows/tasks/seaseq_util.wdl" as seaseq_util
 ```
 
 ### `blanks_between_elements` && `no_blanks_between_elements`
@@ -164,7 +135,7 @@ task greet {
     runtime {
         memory: "4 GB"
         disks: "10 GB"
-        container: 'docker://ghcr.io/stjudecloud/util:1.3.0'
+        container: "docker://ghcr.io/stjudecloud/util:1.3.0"  # TODO make compliant with `container` rules
         maxRetries: 1
     }
 }
@@ -177,7 +148,7 @@ Files should not mix `\n` and `\r\n` line breaks. Pick one and use it consistent
 
 ### `line_width`
 
-WDL lines should be less than 90 characters wide whenever possible. Exceptions would be long strings that WDL doesn't allow to be broken up. This restriction applies to embedded code in the `command` block as well.
+WDL lines should be less than or equal to 90 characters wide whenever possible. Exceptions would be long strings that WDL doesn't allow to be broken up within the meta and parameter meta sections. This line width restriction applies to embedded code in the `command` block as well.
 
 ### `expression_spacing`
 
@@ -509,6 +480,8 @@ Bad:
 
 All lists and objects in the `meta` and `parameter_meta` sections should have one element per line (i.e. newline separate elements). A key/value pair are considered one element **if** the value is atomic (i.e. not a list or an object). Otherwise have the key and opening bracket on the same line; subsequently indent one level; put one value per line; and have the closing bracket on its own line at the same indentation level of the key.
 
+Lines with string values in the meta and parameter meta section are allowed to surpass the 90 character line width rule.
+
 #### Example
 
 Good:
@@ -563,6 +536,7 @@ For workflows, the following sections must be present and in this order: `meta`,
 For tasks, the following sections must be present and in this order: `meta`, `parameter_meta`, `input`, (private declarations), `command`, `output`, `runtime`
 
 `section_missing` **group**: `completeness`
+
 `section_order` **group**: `sorting`
 
 ### `description_missing`
@@ -572,6 +546,16 @@ The meta section should have a `description` of the task or workflow.
 The contents of the `description` will not be checked by the linter. However, we do have unenforced recommendations for what we believe makes a good description. It should be in active voice, beginning the first sentence with a verb. Each task/workflow is doing something. The first sentence should be a succinct description of what that "something" is. Feel free to use more than one sentence to describe your tasks and workflows. If you would rather keep your `description` entry succinct, you may write a more detailed entry under the `help` key. Additional and arbitrary `meta` entries are permitted (including `external_help`, `author`, and `email` keys).
 
 **Group**: `completeness`
+
+#### Example
+
+Good:
+
+```wdl
+    meta {
+        description: "Exemplifies the proper grammar for a description string."
+    }
+```
 
 ### `nonmatching_outputs`
 
