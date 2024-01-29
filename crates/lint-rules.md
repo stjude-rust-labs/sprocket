@@ -4,7 +4,7 @@ The below rules will all be added as lints to `wdl-grammar` and `wdl-ast` (if th
 
 This document only concerns what we are calling "lint warnings". Lint warnings are distinct from what we call "validation errors". A validation error results when the specification (v1.x at time of writing) is not followed. These errors render your WDL document invalid. On the other hand, lint warnings are just our (the writers of `wdl-grammar` and `wdl-ast`) opinion on what "good" WDL should look like. They are matters of style, readability, consistency, or for encouraging proper documentation. Your document may be littered with lint warnings, but if there aren't any validation errors, then your document is valid WDL.
 
-We are aiming to automate as much as we can to make adherence to these lint rules as easy as possible. The "auto-formatter" will be packaged as part of our [`sprocket` tool](https://github.com/stjude-rust-labs/sprocket). Auto-formatting has not yet been implemented as this project is still early in development, but while reading this document, please assume that anything easily automated (and perhaps complex to do manually) will eventually be handled by the formatter built into `sprocket`.
+We are aiming to automate as much as we can to make adherence to these lint rules as easy as possible. An "auto-formatter" will be packaged as part of our [`sprocket` tool](https://github.com/stjude-rust-labs/sprocket). Auto-formatting has not yet been implemented as this project is still early in development, but while reading this document, please assume that anything easily automated (and perhaps complex to do manually) will eventually be handled by the formatter built into `sprocket`.
 
 Some of these lint warnings are arbitrary. There are times where several different methods for styling a document could be considered equally appealing. The important part is picking one such style and adhering to it consistenly across a document or codebase. In such cases, this document will only present one option. In the future, that singular option may just be the default, with several more-or-less equivalent styles presented as alternative options available through configuration. If you feel we are picking the wrong defaults, please let us know what you think would be better!
 
@@ -61,7 +61,7 @@ import "./markdups-post.wdl" as markdups_post_wf
 import "https://raw.githubusercontent.com/stjude/seaseq/3.0/workflows/tasks/seaseq_util.wdl" as seaseq_util
 ```
 
-### `blanks_between_elements` && `no_blanks_between_elements`
+### `blanks_between_elements`
 
 There should be a blank line between each WDL element at the root indentation level (such as the import block and any task/workflow definitions) and between sections of a WDL task or workflow. Never have a blank line when indentation levels are changing (such as between the opening of a workflow definition and the meta section). There should also never be blanks _within_ a meta, parameter meta, input, output, or runtime section. See example for a complete WDL document with proper spacing between elements. Note the blank lines between meta, parameter meta, input, the first call or first private declaration, output, and runtime for the example task. The blank line between the workflow definition and the task definition is also important.
 
@@ -144,7 +144,7 @@ task greet {
 
 ### `inconsistent_newlines`
 
-Files should not mix `\n` and `\r\n` line breaks. Pick one and use it consistently in your project. Prefer unix line-endings (`\n`) when possible.
+Files should not mix `\n` and `\r\n` line breaks. Pick one and use it consistently in your project.
 
 ### `line_width`
 
@@ -343,7 +343,7 @@ At most one empty line in a row. There should never be 2 or more blank lines in 
 
 **Group**: `spacing`
 
-### `no_newline_eof`
+### `newline_eof`
 
 The file must end with a newline.
 
@@ -792,7 +792,7 @@ Any output name matching these regular expressions will be flagged: `/^[oO]ut[A-
 
 #### Example
 
-All the below input names would be flagged:
+All the below output names would be flagged:
 
 ```wdl
     input {
@@ -1143,7 +1143,7 @@ Nothing references a declaration. Much like unused imports, these can be confusi
 
 ### `select_nonoptional_array`
 
-It  is unnecessary to use `select_first()` or `select_all()` on an array which is non-optional. This usage is confusing.
+It is unnecessary to use `select_first()` or `select_all()` on an array which is non-optional. This usage is confusing.
 
 #### Example
 
