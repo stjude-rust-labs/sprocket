@@ -827,7 +827,7 @@ Bad:
 
 ### `inpersistent_container`  && `persistent_container_not_tagged`
 
-All tasks should run in a persistent container. This ensures reproducibility across time and environments. `wdl-grammar` and `wdl-ast` will look for a `sha sum` tag in your `container` declarations and warn if one is missing. A `sha` digest will always point to the exact same image, whereas tags are mutable. This mutability makes even versioned tags problematic when we want to ensure reproducibility.
+All tasks should run in a persistent container. This ensures reproducibility across time and environments. `wdl-grammar` and `wdl-ast` will look for a `:SHASUM` tag in your `container` declarations and warn if one is missing. A `sha` digest will always point to the exact same image, whereas tags are mutable. This mutability makes even versioned tags problematic when we want to ensure reproducibility.
 
 While the confidence in persistence gained by using `sha` digests for pulling container images is valuable, it comes at a cost. Which is a lack of human readability. So we enforce preceeding `container` entries with a comment which gives a human readable name to the image being pulled. It is imperative that the `sha` digest and the human readable tag are kept in sync. It's extra overhead compared to just using a tag directly, but we consider it well worth it.
 
