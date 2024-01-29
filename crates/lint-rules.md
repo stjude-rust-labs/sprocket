@@ -186,9 +186,9 @@ If bracketed content (things between `()` or `[]`) must be split onto multiple l
 
 If you are line splitting an expression on an infix operator, the operator and at least the beginning of the RHS operand should be on the continued line. (i.e. an operator should _not_ be on a line by itself.)
 
-If you are using the `if...then...else` construct as part of your expression and it needs to be line split, the entire construct should be wrapped in parantheses (`()`). The opening paranthesis should be immediately followed by a newline. `if`, `then`, and `else` should all start a line one more level of indentation than the wrapping paratheses. The closing paranthesis should be on the same level of indentation as the opening paranthesis.
+If you are using the `if...then...else` construct as part of your expression and it needs to be line split, the entire construct should be wrapped in parentheses (`()`). The opening parenthesis should be immediately followed by a newline. `if`, `then`, and `else` should all start a line one more level of indentation than the wrapping paratheses. The closing parenthesis should be on the same level of indentation as the opening parenthesis.
 
-If you are using the `if...then...else` construct on one line, it does not need to be wrapped in parantheses. However, if any of the 3 clauses are more complex than a single identifier, they should be wrapped in parantheses.
+If you are using the `if...then...else` construct on one line, it does not need to be wrapped in parentheses. However, if any of the 3 clauses are more complex than a single identifier, they should be wrapped in parentheses.
 
 Sometimes a developer will choose to line split an expression despite it being able to all fit on one line that is <=90 characters wide. That is perfectly acceptable, though you may notice in the below examples the single line form can be more readable. There is "wiggle" room allowed by the above rules. This is intentional, and allows developers to choose a more compact or a more spaced out expression.
 
@@ -319,13 +319,13 @@ call markdups_post_wf.markdups_post { input:
 
 ### `snake_case`
 
-Variables, tasks, and workflows should be in lowercase "snake_case".
+Variables, tasks, and workflows should be in lowercase ["snake_case"](https://en.wikipedia.org/wiki/Snake_case).
 
 **Group**: `naming`
 
 ### `pascal_case`
 
-Declared structs should be in "PascalCase".
+Declared structs should be in ["PascalCase"](https://www.theserverside.com/definition/Pascal-case).
 
 **Group**: `naming`
 
@@ -333,7 +333,7 @@ Declared structs should be in "PascalCase".
 
 Indentation should be 4 spaces and never tab literals.
 
-### `trailing_whitespace`
+### `unwanted_whitespace`
 
 No whitespace on empty lines. No whitespace at the end of lines.
 
@@ -413,8 +413,8 @@ Bad:
     }
 
     runtime {
-        memory: "4 GB"
-        disks: "~{disk_size_gb} GB"
+        memory: '4 GB'
+        disks: '~{disk_size_gb} GB'
         container: 'docker://ghcr.io/stjudecloud/util:1.3.0'
         maxRetries: 1
     }
@@ -825,11 +825,11 @@ Bad:
     }
 ```
 
-### `inpersistent_container`  && `persistent_container_not_tagged`
+### `mutable_container`  && `immutable_container_not_tagged`
 
-All tasks should run in a persistent container. This ensures reproducibility across time and environments. `wdl-grammar` and `wdl-ast` will look for a `:SHASUM` tag in your `container` declarations and warn if one is missing. A `sha` digest will always point to the exact same image, whereas tags are mutable. This mutability makes even versioned tags problematic when we want to ensure reproducibility.
+All tasks should run in an immutable container. This ensures reproducibility across time and environments. `wdl-grammar` and `wdl-ast` will look for a `sha sum` tag in your `container` declarations and warn if one is missing. A `sha` digest will always point to the exact same image, whereas tags are mutable. This mutability makes even versioned tags problematic when we want to ensure reproducibility.
 
-While the confidence in persistence gained by using `sha` digests for pulling container images is valuable, it comes at a cost. Which is a lack of human readability. So we enforce preceeding `container` entries with a comment which gives a human readable name to the image being pulled. It is imperative that the `sha` digest and the human readable tag are kept in sync. It's extra overhead compared to just using a tag directly, but we consider it well worth it.
+While the confidence in persistence gained by using `sha` digests for pulling container images is valuable, it comes at a cost: lack of human readability. So we enforce preceeding `container` entries with a comment which gives a human readable name to the image being pulled. It is imperative that the `sha` digest and the human readable tag are kept in sync. It's extra overhead compared to just using a tag directly, but we consider it well worth it.
 
 **Group**: `container`
 
