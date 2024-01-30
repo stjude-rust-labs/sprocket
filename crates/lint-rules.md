@@ -135,7 +135,7 @@ task greet {
     runtime {
         memory: "4 GB"
         disks: "10 GB"
-        container: "docker://ghcr.io/stjudecloud/util:1.3.0"  # TODO make compliant with `container` rules
+        container: "docker://ghcr.io/stjudecloud/util@sha256:c0583fe91d3e71fcfba58e2a57beb3420c7e907efd601f672fb5968086cd9acb"  # tag: 1.3.0
         maxRetries: 1
     }
 }
@@ -148,7 +148,7 @@ Files should not mix `\n` and `\r\n` line breaks. Pick one and use it consistent
 
 ### `line_width`
 
-WDL lines should be less than or equal to 90 characters wide whenever possible. Exceptions would be long strings that WDL doesn't allow to be broken up within the meta and parameter meta sections. This line width restriction applies to embedded code in the `command` block as well.
+WDL lines should be less than or equal to 90 characters wide whenever possible. This line width restriction applies to embedded code in the `command` block. Exceptions would be long strings that WDL doesn't allow to be broken up within the meta and parameter meta sections. Another exception is `container` lines inside the `runtime` block of a task. (See the rules `mutable_container`  && `immutable_container_not_tagged` for more information about permitted `container` lines.)
 
 ### `expression_spacing`
 
@@ -400,7 +400,7 @@ Good:
     runtime {
         memory: "4 GB"
         disks: "~{disk_size_gb} GB"
-        container: "docker://ghcr.io/stjudecloud/util:1.3.0"
+        container: "docker://ghcr.io/stjudecloud/util@sha256:c0583fe91d3e71fcfba58e2a57beb3420c7e907efd601f672fb5968086cd9acb"  # tag: 1.3.0
         maxRetries: 1
     }
 ```
@@ -415,7 +415,7 @@ Bad:
     runtime {
         memory: '4 GB'
         disks: '~{disk_size_gb} GB'
-        container: 'docker://ghcr.io/stjudecloud/util:1.3.0'
+        container: "docker://ghcr.io/stjudecloud/util@sha256:c0583fe91d3e71fcfba58e2a57beb3420c7e907efd601f672fb5968086cd9acb"  # tag: 1.3.0
         maxRetries: 1
     }
 ```
@@ -827,7 +827,9 @@ Bad:
 
 All tasks should run in an immutable container. This ensures reproducibility across time and environments. `wdl-grammar` and `wdl-ast` will look for a `:SHASUM` tag in your `container` declarations and warn if one is missing. A `sha` digest will always point to the exact same image, whereas tags are mutable. This mutability makes even versioned tags problematic when we want to ensure reproducibility.
 
-While the confidence in persistence gained by using `sha` digests for pulling container images is valuable, it comes at a cost: lack of human readability. So we enforce preceeding `container` entries with a comment which gives a human readable name to the image being pulled. It is imperative that the `sha` digest and the human readable tag are kept in sync. It's extra overhead compared to just using a tag directly, but we consider it well worth it.
+While the confidence in persistence gained by using `sha` digests for pulling container images is valuable, it comes at a cost: lack of human readability. So we enforce following `container` strings with a comment which gives a human readable name to the image being pulled. It is imperative that the `sha` digest and the human readable tag are kept in sync. It's extra overhead compared to just using a tag directly, but we consider it well worth it.
+
+Note that `container` lines are permitted to exceed the 90 character width limit.
 
 **Group**: `container`
 
@@ -850,8 +852,7 @@ Good:
     runtime {
         memory: "4 GB"
         disks: "10 GB"
-        # tag: 2.0.4
-        container: "docker://quay.io/biocontainers/htseq@sha256:04309f74909f7e48bc797ee5faa4e4388d7f581890c092a455d15bbcf5f6c537"
+        container: "docker://quay.io/biocontainers/htseq@sha256:04309f74909f7e48bc797ee5faa4e4388d7f581890c092a455d15bbcf5f6c537"  # tag: 2.0.4
         maxRetries: 1
     }
 ```
