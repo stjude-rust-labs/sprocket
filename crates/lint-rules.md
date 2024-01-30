@@ -186,9 +186,9 @@ If bracketed content (things between `()` or `[]`) must be split onto multiple l
 
 If you are line splitting an expression on an infix operator, the operator and at least the beginning of the RHS operand should be on the continued line. (i.e. an operator should _not_ be on a line by itself.)
 
-If you are using the `if...then...else` construct as part of your expression and it needs to be line split, the entire construct should be wrapped in parentheses (`()`). The opening parenthesis should be immediately followed by a newline. `if`, `then`, and `else` should all start a line one more level of indentation than the wrapping paratheses. The closing parenthesis should be on the same level of indentation as the opening parenthesis.
+If you are using the `if...then...else...` construct as part of your expression and it needs to be line split, the entire construct should be wrapped in parentheses (`()`). The opening parenthesis should be immediately followed by a newline. `if`, `then`, and `else` should all start a line one more level of indentation than the wrapping paratheses. The closing parenthesis should be on the same level of indentation as the opening parenthesis.
 
-If you are using the `if...then...else` construct on one line, it does not need to be wrapped in parentheses. However, if any of the 3 clauses are more complex than a single identifier, they should be wrapped in parentheses.
+If you are using the `if...then...else...` construct on one line, it does not need to be wrapped in parentheses. However, if any of the 3 clauses are more complex than a single identifier, they should be wrapped in parentheses.
 
 Sometimes a developer will choose to line split an expression despite it being able to all fit on one line that is <=90 characters wide. That is perfectly acceptable, though you may notice in the below examples the single line form can be more readable. There is "wiggle" room allowed by the above rules. This is intentional, and allows developers to choose a more compact or a more spaced out expression.
 
@@ -277,7 +277,7 @@ The assignment operator (`=`) should always be surrounded by whitespace.
 
 The `input:` token should always be on the same line and separated by one space from the opening curly bracket (`{`), likeso: `call foo_task { input:`. Never newline-separate the opening bracket (`{`) from the `input:` token.
 
-If there is a singular input and it can fit on that same line while being equal to or under the 90 character width limit, all tokens should be separated by a single space, likeso: `call foo_task { input: bam = sorted_bam }`. Note that there is no trailing comman here. This could optionally be split into 3 lines, likeso:
+If there is a singular input and it can fit on that same line while being equal to or under the 90 character width limit, all tokens should be separated by a single space, likeso: `call foo_task { input: bam = sorted_bam }`. Note that there is no trailing comma here. This could optionally be split into 3 lines, likeso:
 
 ```wdl
 call foo_task { input:
@@ -351,7 +351,7 @@ The file must end with a newline.
 
 ### `comment_whitespace`
 
-Comments on the same line as code should have 2 spaces before the `#` and one space before the comment. Comments on their own line should match the indentation level around them and have one space between the `#` and the comment. Keep in mind that even comments must be kept below the 90 character width limit.
+Comments on the same line as code should have 2 spaces before the `#` and one space before the comment text. Comments on their own line should match the indentation level around them and have one space between the `#` and the comment text. Keep in mind that even comments must be kept below the 90 character width limit.
 
 **Group**: `spacing`
 
@@ -529,9 +529,7 @@ Bad:
 
 ### `section_missing` && `section_order`
 
-For workflows, the following sections must be present and in this order: `meta`, `parameter_meta`, `input`, (body), `output`
-
-"(body)" represents all calls and declarations.
+For workflows, the following sections must be present and in this order: `meta`, `parameter_meta`, `input`, (body), `output`. "(body)" represents **all** calls and declarations.
 
 For tasks, the following sections must be present and in this order: `meta`, `parameter_meta`, `input`, (private declarations), `command`, `output`, `runtime`
 
@@ -557,7 +555,7 @@ Good:
     }
 ```
 
-### `nonmatching_outputs`
+### `nonmatching_output`
 
 The `meta` section should have an `output` key and keys with descriptions for each output of the task/workflow. These must match exactly. i.e. for each named output of a task or workflow, there should be an entry under `meta.output` with that same name. Additionally, these entries should be in the same order (that order is up to the developer to decide). No extraneous output entries are allowed. There should not be any blank lines inside the entire `meta` section.
 
@@ -590,7 +588,7 @@ task alignment {
 }
 ```
 
-### `nonmatching_parameter_meta` && `inputs_not_sorted`
+### `nonmatching_parameter_meta` && `input_not_sorted`
 
 All inputs must have a corresponding parameter meta entry. No extraneous parameter meta entries are allowed. Inputs and parameter meta must be in the same order. No blank lines are allowed within either the input or parameter_meta blocks.
 
