@@ -415,7 +415,7 @@ Bad:
     runtime {
         memory: '4 GB'
         disks: '~{disk_size_gb} GB'
-        container: "docker://ghcr.io/stjudecloud/util@sha256:c0583fe91d3e71fcfba58e2a57beb3420c7e907efd601f672fb5968086cd9acb"  # tag: 1.3.0
+        container: 'docker://ghcr.io/stjudecloud/util@sha256:c0583fe91d3e71fcfba58e2a57beb3420c7e907efd601f672fb5968086cd9acb'  # tag: 1.3.0
         maxRetries: 1
     }
 ```
@@ -948,7 +948,7 @@ task greet {
     runtime {
         memory: "4 GB"
         disks: "10 GB"
-        container: "docker://ghcr.io/stjudecloud/util:1.3.0"
+        container: "docker://ghcr.io/stjudecloud/util@sha256:c0583fe91d3e71fcfba58e2a57beb3420c7e907efd601f672fb5968086cd9acb"  # tag: 1.3.0
         maxRetries: 1
     }
 }
@@ -1022,7 +1022,7 @@ task greet {
     runtime {
         memory: "4 GB"
         disks: "10 GB"
-        container: "docker://ghcr.io/stjudecloud/util:1.3.0"
+        container: "docker://ghcr.io/stjudecloud/util@sha256:c0583fe91d3e71fcfba58e2a57beb3420c7e907efd601f672fb5968086cd9acb"  # tag: 1.3.0
         maxRetries: 1
     }
 }
@@ -1056,7 +1056,7 @@ task greet_anonymous {
     runtime {
         memory: "4 GB"
         disks: "10 GB"
-        container: "docker://ghcr.io/stjudecloud/util:1.3.0"
+        container: "docker://ghcr.io/stjudecloud/util@sha256:c0583fe91d3e71fcfba58e2a57beb3420c7e907efd601f672fb5968086cd9acb"  # tag: 1.3.0
         maxRetries: 1
     }
 }
