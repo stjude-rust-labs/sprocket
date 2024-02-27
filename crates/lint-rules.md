@@ -381,6 +381,14 @@ Bad:
     Int z = x + y# NO spaces between code and comment is hard to read.
 ```
 
+### `header_comment`
+
+Full line comments which start with a double-pound-sign (`##`) are given special treatment. They are called header-comments, and **should only be used at the very beginning of a file**. These special comments are meant as a place for documentation that doesn't belong in any of the language-supported meta sections. This is often whole file documentation or documentation for structs contained in the file.
+
+`sprocket doc` is under active development at the time of writing. This tool will auto-document any WDL file in Markdown. Header-comments found by `sprocket doc` will be re-written in the output `.md` files (without the `##` prefix). Arbitrary and multi-line Markdown constructions will be preserved and rendered.
+
+These header-comments should not be used anywhere other than the header.
+
 ### `double_quotes`
 
 All quotes should be double quotes.
