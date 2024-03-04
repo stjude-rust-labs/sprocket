@@ -14,6 +14,9 @@ git_testament!(TESTAMENT);
 enum Commands {
     /// Lints Workflow Description Language files.
     Lint(commands::lint::Args),
+
+    /// Documents Workflow Description Language files.
+    Doc(commands::doc::Args),
 }
 
 #[derive(Parser)]
@@ -51,6 +54,7 @@ pub fn inner() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Lint(args) => commands::lint::lint(args),
+        Commands::Doc(args) => commands::doc::doc(args),
     }
 }
 

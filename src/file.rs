@@ -1,12 +1,16 @@
 //! Filesystems.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::StandardStream;
 use codespan_reporting::term::Config;
 use indexmap::IndexMap;
+use pest::iterators::Pair;
+use tracing::debug;
 use wdl::core::Concern;
+use wdl::grammar::v1::Rule;
 
 use crate::report::Reporter;
 
@@ -56,24 +60,32 @@ type Result<T> = std::result::Result<T, Error>;
 
 /// A repository of files and associated source code.
 #[derive(Debug)]
-pub struct Repository {
+pub struct Repository<'a> {
     /// The mapping of entries in the source code map to file handles.
     handles: IndexMap<String, usize>,
 
     /// The inner source code map.
     sources: SimpleFiles<String, String>,
+
+    /// The mapping of parse trees to their associated file names.
+    parse_trees: IndexMap<String, Arc<Pair<'a, Rule>>>,
+
+    /// The mapping of abstract syntax trees to their associated file names.
+    asts: IndexMap<String, wdl::ast::v1::Result>,
 }
 
-impl Default for Repository {
+impl Default for Repository<'_> {
     fn default() -> Self {
         Self {
             sources: SimpleFiles::new(),
             handles: Default::default(),
+            parse_trees: Default::default(),
+            asts: Default::default(),
         }
     }
 }
 
-impl Repository {
+impl Repository<'_> {
     /// Creates a new [`Repository`].
     ///
     /// # Examples
@@ -143,13 +155,17 @@ impl Repository {
         }
 
         let content = std::fs::read_to_string(&path).map_err(Error::Io)?;
-        self.insert(path, content);
+
+        self.insert(path.clone(), content);
+        let path = path.clone().to_string_lossy().to_string();
+
+        self.parse(path)?;
 
         Ok(())
     }
 
-    /// Attempts to parse an existing entry into a WDL v1.x abstract syntax
-    /// tree.
+    /// Attempts to parse an existing entry into both a WDL v1.x abstract syntax
+    /// tree and a parse tree and inserts them into the [`Repository`].
     ///
     /// # Examples
     ///
@@ -158,13 +174,13 @@ impl Repository {
     ///
     /// let mut repository = Repository::default();
     /// repository.load("test.wdl")?;
-    /// let ast = repository.parse("test.wdl")?;
+    /// repository.parse("test.wdl")?;
     ///
     /// assert!(matches!(ast.tree(), Some(_)));
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn parse(&self, entry: impl AsRef<str>) -> Result<wdl::ast::v1::Result> {
+    pub fn parse(&mut self, entry: impl AsRef<str>) -> Result<()> {
         let entry = entry.as_ref();
         let handle = *self
             .handles
@@ -181,7 +197,7 @@ impl Repository {
 
         let mut all_concerns = wdl::core::concern::concerns::Builder::default();
 
-        let (pt, concerns) = wdl::grammar::v1::parse(file.source())
+        let (parse_tree, concerns) = wdl::grammar::v1::parse(file.source())
             .map_err(Error::GrammarV1)?
             .into_parts();
 
@@ -191,20 +207,29 @@ impl Repository {
             }
         }
 
-        let pt = match pt {
-            Some(pt) => pt,
+        match parse_tree {
+            Some(parse_tree) => {
+                self.parse_trees
+                    .insert(entry.to_owned(), Arc::new(parse_tree.clone()));
+            }
             None => {
                 // SAFETY: because `grammar::v1::parse` returns a
                 // `grammar::v1::Result`, we know that either the concerns or the
                 // parse tree must be [`Some`] (else, this would have failed at
                 // `grammar::v1::Result` creation time). That said, we just checked
-                // that `pt` is [`None`]. In this case, it must follow that the
+                // that `parse_tree` is [`None`]. In this case, it must follow that the
                 // concerns are not empty. As such, this will always unwrap.
-                return Ok(wdl::ast::v1::Result::try_new(None, all_concerns.build()).unwrap());
+                self.asts.insert(
+                    entry.to_owned(),
+                    wdl::ast::v1::Result::try_new(None, all_concerns.build()).unwrap(),
+                );
+                return Ok(());
             }
         };
 
-        let (ast, concerns) = wdl::ast::v1::parse(pt).map_err(Error::AstV1)?.into_parts();
+        let (ast, concerns) = wdl::ast::v1::parse(*self.parse_trees.get(entry).unwrap().clone())
+            .map_err(Error::AstV1)?
+            .into_parts();
 
         if let Some(concerns) = concerns {
             for concern in concerns.into_inner() {
@@ -212,10 +237,10 @@ impl Repository {
             }
         }
 
-        match ast {
+        let ast_result = match ast {
             Some(ast) => {
                 // SAFETY: the ast is [`Some`], so this will always unwrap.
-                Ok(wdl::ast::v1::Result::try_new(Some(ast), all_concerns.build()).unwrap())
+                wdl::ast::v1::Result::try_new(Some(ast), all_concerns.build()).unwrap()
             }
             None => {
                 // SAFETY: because `ast::v1::parse` returns a
@@ -224,9 +249,12 @@ impl Repository {
                 // `ast::v1::Result` creation time). That said, we just checked
                 // that `ast` is [`None`]. In this case, it must follow that the
                 // concerns are not empty. As such, this will always unwrap.
-                Ok(wdl::ast::v1::Result::try_new(None, all_concerns.build()).unwrap())
+                wdl::ast::v1::Result::try_new(None, all_concerns.build()).unwrap()
             }
-        }
+        };
+        self.asts.insert(entry.to_owned(), ast_result);
+
+        Ok(())
     }
 
     /// Reports all concerns for all documents in the [`Repository`].
@@ -248,12 +276,15 @@ impl Repository {
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn report_concerns(&self, config: Config, writer: StandardStream) -> Result<bool> {
+    pub fn report_concerns(&mut self, config: Config, writer: StandardStream) -> Result<bool> {
         let mut reporter = Reporter::new(config, writer, &self.sources);
         let mut reported_error = false;
 
+        // debug!("sources: {:#?}", self.sources);
+        // debug!("handles: {:#?}", self.handles);
+
         for (file_name, handle) in self.handles.iter() {
-            let document = self.parse(file_name)?;
+            let document = self.asts.get_mut(file_name).unwrap();
 
             if let Some(concerns) = document.into_concerns() {
                 for concern in concerns.into_inner() {
