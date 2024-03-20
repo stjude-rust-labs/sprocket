@@ -45,11 +45,11 @@ Before you can install `sprocket`, you'll need to install
 [Rust](https://www.rust-lang.org/). We recommend using
 [rustup](https://rustup.rs/) to accomplish this.
 
-Once Rust is installed, you can install the latest version of `sprocket` (as
-released on the `main` branch) by running the following command.
+Once Rust is installed, you can install the latest version of `sprocket` by
+running the following command.
 
 ```bash
-cargo install --locked --git https://github.com/stjude-rust-labs/sprocket.git
+cargo install sprocket
 ```
 
 ## 🖥️ Development
