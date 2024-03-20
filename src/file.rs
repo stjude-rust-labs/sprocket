@@ -7,6 +7,7 @@ use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::StandardStream;
 use codespan_reporting::term::Config;
 use indexmap::IndexMap;
+use markdown_gen::markdown;
 use pest::iterators::Pair;
 use tracing::debug;
 use wdl::core::Concern;
@@ -301,6 +302,31 @@ impl Repository<'_> {
         }
 
         Ok(reported_error)
+    }
+
+    /// Generates documentation for the repository.
+    pub fn generate_docs(&self, output: &PathBuf, force: bool) -> Result<()> {
+        // Ensure output directory exists; if not then create it
+        if !output.exists() {
+            std::fs::create_dir_all(output).map_err(Error::Io)?;
+        }
+
+        for (file_name, _handle) in self.handles.iter() {
+            let document = self.asts.get(file_name).unwrap();
+
+            if let Some(ast) = document.tree() {
+                let outfile_path = output.join(file_name).with_extension("md");
+
+                if outfile_path.exists() && !force {
+                    return Err(Error::InvalidFileName(outfile_path));
+                }
+
+                let file = std::fs::File::create(&outfile_path).map_err(Error::Io)?;
+                let mut md_writer = markdown::Markdown::new(file);
+            }
+        }
+
+        Ok(())
     }
 }
 

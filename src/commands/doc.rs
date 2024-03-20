@@ -36,17 +36,19 @@ pub fn doc(args: Args) -> anyhow::Result<()> {
     // (So far, this is the same as the `lint` subcommand, except we've hardcoded
     // the `display_style` to `Short`.)
     info!("Attempting to create a new repository.");
-    let repo = Repository::try_new(vec![PathBuf::from("./")], vec!["wdl".to_string()])?;
+    let mut repo = Repository::try_new(vec![PathBuf::from("./")], vec!["wdl".to_string()])?;
     info!("Reporting any concerns.");
     if repo.report_concerns(config, writer)? {
         warn!("Can't document a repository with errors!");
-        warn!("Please fix the errors above and try again. (Any warnings can be ignored.)");
+        warn!("Please fix the errors above and try again. (Any lint warnings can be ignored.)");
         warn!("You can use the `lint` subcommand for more detailed reporting.");
         std::process::exit(1);
     }
 
     // From here on out, we can assume that the repo will be error-free.
     // We do not care about lint warnings, so we can ignore all concerns.
+    info!("Generating documentation.");
+    repo.generate_docs(&args.output, args.force)?;
 
     Ok(())
 }
