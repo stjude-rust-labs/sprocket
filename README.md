@@ -35,6 +35,7 @@
 ## 🎨 Features
 
 * **`sprocket lint`.** Lint Workflow Description Language files.
+* **`sprocket doc`.** Document Workflow Description Language repositories or individual files.
 
 ## Guiding Principles
 
