@@ -7,6 +7,10 @@
     <a href="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml" target="_blank">
       <img alt="CI: Status" src="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml/badge.svg" />
     </a>
+    <a href="https://crates.io/crates/sprocket" target="_blank">
+      <img alt="crates.io version" src="https://img.shields.io/crates/v/sprocket">
+    </a>
+    <img alt="crates.io downloads" src="https://img.shields.io/crates/d/sprocket">
     <a href="https://github.com/stjude-rust-labs/sprocket/blob/main/LICENSE-APACHE" target="_blank">
       <img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache 2.0-blue.svg" />
     </a>
