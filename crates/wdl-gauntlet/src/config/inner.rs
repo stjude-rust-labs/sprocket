@@ -115,7 +115,7 @@ impl Inner {
         &mut self,
         items: T,
     ) {
-        self.repositories.extend(items.into_iter());
+        self.repositories.extend(items);
         self.repositories.sort();
     }
 

@@ -341,8 +341,6 @@ pub fn ensure_number(expr: &Expression) -> Option<&Expression> {
 
 #[cfg(test)]
 mod tests {
-    use wdl_macros;
-
     use super::*;
 
     #[test]

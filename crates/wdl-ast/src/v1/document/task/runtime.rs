@@ -348,7 +348,6 @@ impl TryFrom<Pair<'_, Rule>> for Runtime {
 mod tests {
     use super::*;
     use crate::v1::document::expression::Literal;
-    use crate::v1::document::Expression;
 
     #[test]
     fn it_parses_a_runtime_successfully() -> Result<(), Box<dyn std::error::Error>> {

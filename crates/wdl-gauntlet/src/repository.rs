@@ -234,7 +234,7 @@ async fn dive_for_wdl(
 async fn get_remote_repo_content<'a: 'async_recursion>(
     client: &Octocrab,
     identifier: &Identifier,
-    path: Option<&'a str>,
+    path: Option<&str>,
 ) -> Result<ContentItems> {
     debug!(
         "{}: searching for files{}",

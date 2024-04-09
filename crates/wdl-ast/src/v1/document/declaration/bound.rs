@@ -178,8 +178,6 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Declaration {
 
 #[cfg(test)]
 mod tests {
-    use wdl_macros;
-
     use super::*;
     use crate::v1::document::declaration::r#type::Kind;
     use crate::v1::document::expression::Literal;

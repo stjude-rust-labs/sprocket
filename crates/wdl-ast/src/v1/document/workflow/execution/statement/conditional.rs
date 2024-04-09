@@ -167,7 +167,6 @@ mod tests {
 
     use super::*;
     use crate::v1::document::expression::Literal;
-    use crate::v1::document::Expression;
 
     #[test]
     fn it_parses_from_a_supported_node_type() {

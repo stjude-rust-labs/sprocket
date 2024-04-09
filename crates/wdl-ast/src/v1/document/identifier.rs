@@ -212,8 +212,6 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Identifier {
 
 #[cfg(test)]
 mod tests {
-    use wdl_macros;
-
     use super::*;
 
     #[test]

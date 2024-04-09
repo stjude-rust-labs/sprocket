@@ -401,7 +401,42 @@ impl Task {
         self.private_declarations.as_ref()
     }
 
+    /// Gets the [runtime](Runtime) for the [`Task`] by reference (if it
+    /// exists).
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ast::v1::document::expression::Literal;
+    /// use ast::v1::document::identifier::singular::Identifier;
+    /// use ast::v1::document::task;
+    /// use ast::v1::document::task::runtime::Builder;
+    /// use ast::v1::document::task::runtime::Value;
+    /// use ast::v1::document::task::Command;
+    /// use ast::v1::document::Expression;
+    /// use wdl_ast as ast;
+    ///
+    /// let container = Value::try_from(Expression::Literal(Literal::String(String::from(
+    ///     "ubuntu:latest",
+    /// ))))?;
+    /// let runtime = Builder::default()
+    ///     .container(container.clone())?
+    ///     .try_build()?;
+    ///
+    /// let name = Identifier::try_from(String::from("name"))?;
+    /// let command = Command::HereDoc("echo 'Hello, world!'".parse::<task::command::Contents>()?);
+    ///
+    /// let task = task::Builder::default()
+    ///     .name(name)?
+    ///     .command(command)?
+    ///     .runtime(runtime.clone())?
+    ///     .try_build()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(task.runtime(), Some(&runtime));
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn runtime(&self) -> Option<&Runtime> {
         self.runtime.as_ref()
     }
@@ -479,9 +514,7 @@ mod tests {
     use crate::v1::document::declaration::r#type::Kind;
     use crate::v1::document::declaration::Type;
     use crate::v1::document::expression::Literal;
-    use crate::v1::document::identifier::singular::Identifier;
     use crate::v1::document::task;
-    use crate::v1::document::task::Command;
     use crate::v1::document::Expression;
 
     #[test]

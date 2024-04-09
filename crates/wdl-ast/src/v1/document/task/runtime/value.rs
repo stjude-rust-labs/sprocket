@@ -98,7 +98,6 @@ impl TryFrom<Pair<'_, Rule>> for Value {
 #[cfg(test)]
 mod tests {
     use ordered_float::OrderedFloat;
-    use wdl_macros;
 
     use super::*;
     use crate::v1::document::expression::Literal;
