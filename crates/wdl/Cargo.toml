@@ -22,7 +22,11 @@ core = ["dep:wdl-core"]
 grammar = ["dep:wdl-grammar"]
 
 [[example]]
-name = "wdl_view"
+name = "wdl_explore"
+required-features = ["ast", "grammar"]
+
+[[example]]
+name = "wdl_parse"
 required-features = ["ast", "grammar"]
 
 [package.metadata.docs.rs]
