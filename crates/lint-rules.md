@@ -387,7 +387,7 @@ Full line comments which start with a double-pound-sign (`##`) are given special
 
 `sprocket doc` is under active development at the time of writing. This tool will auto-document any WDL file in Markdown. Header-comments found by `sprocket doc` will be re-written in the output `.md` files (without the `##` prefix). Arbitrary and multi-line Markdown constructions will be preserved and rendered.
 
-These header-comments should not be used anywhere other than the header.
+Header comments may only precede the version declaration. They are not allowed anywhere else.
 
 ### `double_quotes`
 
