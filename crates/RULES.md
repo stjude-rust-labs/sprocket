@@ -21,6 +21,7 @@ repository. Note that the information may be out of sync with released packages.
 | `no_curly_commands`       | `v1::W002` | Pedantic     | [`wdl-grammar`][wdl-grammar-lints] |
 | `matching_parameter_meta` | `v1::W003` | Completeness | [`wdl-ast`][wdl-ast-lints]         |
 | `mixed_indentation`       | `v1::W004` | Style        | [`wdl-grammar`][wdl-grammar-lints] |
+| `missing_runtime_block`   | `v1::W005`  | Completeness | [`wdl-grammar`][wdl-grammar-lints] |
 
 [wdl-ast-lints]: https://docs.rs/wdl-ast/latest/wdl_ast/v1/index.html#lint-rules
 [wdl-ast-validation]: https://docs.rs/wdl-ast/latest/wdl_ast/v1/index.html#validation-rules

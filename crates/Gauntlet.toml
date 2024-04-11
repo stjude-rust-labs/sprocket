@@ -1862,6 +1862,21 @@ message = "[v1::W003::Completeness/Medium] missing parameter meta within task: v
 
 [[concerns]]
 kind = "LintWarning"
+document = "biowdl/tasks:ncbi.wdl"
+message = "[v1::W005::Completeness/Medium] missing runtime block within a task (23:1-92:3)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "biowdl/tasks:ncbi.wdl"
+message = "[v1::W005::Completeness/Medium] missing runtime block within a task (95:1-124:2)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "biowdl/tasks:ncbi.wdl"
+message = "[v1::W005::Completeness/Medium] missing runtime block within a task (126:1-152:2)"
+
+[[concerns]]
+kind = "LintWarning"
 document = "biowdl/tasks:pacbio.wdl"
 message = "[v1::W002::Style/Medium] curly command found (32:5-38:6)"
 
@@ -2259,6 +2274,11 @@ message = "[v1::W003::Completeness/Medium] missing parameter meta within task: t
 kind = "LintWarning"
 document = "biowdl/tasks:seqtk.wdl"
 message = "[v1::W003::Completeness/Medium] missing parameter meta within task: zip (29:9-29:27)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "biowdl/tasks:seqtk.wdl"
+message = "[v1::W005::Completeness/Medium] missing runtime block within a task (23:1-51:2)"
 
 [[concerns]]
 kind = "LintWarning"
@@ -2679,6 +2699,11 @@ message = "[v1::W003::Completeness/Medium] missing parameter meta within task: r
 kind = "LintWarning"
 document = "biowdl/tasks:star.wdl"
 message = "[v1::W003::Completeness/Medium] missing parameter meta within task: sample (211:9-211:22)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "biowdl/tasks:star.wdl"
+message = "[v1::W005::Completeness/Medium] missing runtime block within a task (209:1-224:2)"
 
 [[concerns]]
 kind = "LintWarning"
