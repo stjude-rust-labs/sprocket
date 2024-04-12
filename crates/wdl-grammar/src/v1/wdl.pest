@@ -469,7 +469,8 @@ task_element = {
   | metadata
 }
 
-task = { "task" ~ singular_identifier ~ "{" ~ task_element+ ~ "}" }
+task_name = { singular_identifier }
+task = { "task" ~ task_name ~ "{" ~ task_element+ ~ "}" }
 
 // ========= //
 // Workflows //

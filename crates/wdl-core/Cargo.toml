@@ -9,8 +9,8 @@ edition.workspace = true
 
 [dependencies]
 clap.workspace = true
+convert_case.workspace = true
 lazy_static.workspace = true
 nonempty.workspace = true
 pest.workspace = true
 serde.workspace = true
-to_snake_case = "0.1.1"

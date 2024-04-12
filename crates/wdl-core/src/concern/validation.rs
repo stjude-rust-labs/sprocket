@@ -2,8 +2,9 @@
 
 use std::collections::VecDeque;
 
+use convert_case::Case;
+use convert_case::Casing;
 use nonempty::NonEmpty;
-use to_snake_case::ToSnakeCase as _;
 
 use crate::concern::Code;
 use crate::file::location;
@@ -66,7 +67,7 @@ pub trait Rule<E>: std::fmt::Debug + Sync {
     /// This is what will show up in style guides, it is required to be snake
     /// case (even though the rust struct is camel case).
     fn name(&self) -> String {
-        format!("{:?}", self).to_snake_case()
+        format!("{:?}", self).to_case(Case::Snake)
     }
 
     /// Get the code for this validation rule.

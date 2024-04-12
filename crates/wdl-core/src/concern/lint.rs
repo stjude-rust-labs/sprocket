@@ -2,8 +2,9 @@
 
 use std::collections::VecDeque;
 
+use convert_case::Case;
+use convert_case::Casing;
 use nonempty::NonEmpty;
-use to_snake_case::ToSnakeCase as _;
 
 use crate::concern::Code;
 use crate::file::location;
@@ -68,7 +69,7 @@ impl Linter {
 pub trait Rule<E>: std::fmt::Debug + Sync {
     /// The name of the lint rule.
     fn name(&self) -> String {
-        format!("{:?}", self).to_snake_case()
+        format!("{:?}", self).to_case(Case::Snake)
     }
 
     /// Get the code for this lint rule.

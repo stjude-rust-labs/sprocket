@@ -451,10 +451,10 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Task {
 
         for node in node.into_inner() {
             match node.as_rule() {
-                Rule::singular_identifier => {
-                    let identifier = Identifier::try_from(node.as_str().to_owned())
+                Rule::task_name => {
+                    let name = Identifier::try_from(node.as_str().to_owned())
                         .map_err(Error::Identifier)?;
-                    builder = builder.name(identifier).map_err(Error::Builder)?;
+                    builder = builder.name(name).map_err(Error::Builder)?;
                 }
                 Rule::task_element => {
                     let node = unwrap_one!(node, task_element);

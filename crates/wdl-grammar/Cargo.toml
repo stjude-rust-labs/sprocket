@@ -12,6 +12,7 @@ documentation = "https://docs.rs/wdl-grammar"
 [dependencies]
 clap = { workspace = true, optional = true }
 colored = { workspace = true, optional = true }
+convert_case.workspace = true
 env_logger = { workspace = true, optional = true }
 indexmap = { workspace = true, optional = true }
 log = { workspace = true, optional = true }

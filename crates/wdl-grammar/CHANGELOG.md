@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Adds the `missing_runtime_block` rule for tasks (#10, contributed by
   @markjschreiber).
+* Adds the `snake_case` rule that ensures all tasks, workflows, and variables
+  are snakecase (#13, contributed by @simojoe).
 
 ## 0.2.0 - 12-17-2023
 
