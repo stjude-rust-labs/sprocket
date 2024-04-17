@@ -12,6 +12,9 @@ pub enum Group {
     /// Rules associated with the names of WDL elements.
     Naming,
 
+    /// Rules associated with the whitespace in a document.
+    Spacing,
+
     /// Rules associated with the style of a document.
     Style,
 
@@ -26,6 +29,7 @@ impl std::fmt::Display for Group {
         match self {
             Group::Completeness => write!(f, "Completeness"),
             Group::Naming => write!(f, "Naming"),
+            Group::Spacing => write!(f, "Spacing"),
             Group::Style => write!(f, "Style"),
             Group::Pedantic => write!(f, "Pedantic"),
         }

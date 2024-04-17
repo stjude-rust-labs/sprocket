@@ -22,6 +22,7 @@
 //! | `mixed_indentation`     | `v1::W004` | Style        | [Link](lint::MixedIndentation)    |
 //! | `missing_runtime_block` | `v1::W005` | Completeness | [Link](lint::MissingRuntimeBlock) |
 //! | `snake_case`            | `v1::W006` | Naming       | [Link](lint::SnakeCase)           |
+//! | `newline_eof`           | `v1::W007` | Spacing      | [Link](lint::NewlineEOF)          |
 
 use pest::iterators::Pair;
 use pest::Parser as _;
@@ -121,7 +122,8 @@ pub type Result<'a> = wdl_core::parse::Result<Pair<'a, crate::v1::Rule>>;
 ///         cpu: 1
 ///         memory: "2GiB"
 ///     }
-/// }"#,
+/// }
+/// "#,
 /// )
 /// .unwrap();
 ///

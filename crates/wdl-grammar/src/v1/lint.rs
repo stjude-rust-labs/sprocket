@@ -4,12 +4,14 @@ use pest::iterators::Pair;
 
 mod missing_runtime_block;
 mod mixed_indentation;
+mod newline_eof;
 mod no_curly_commands;
 mod snake_case;
 mod whitespace;
 
 pub use missing_runtime_block::MissingRuntimeBlock;
 pub use mixed_indentation::MixedIndentation;
+pub use newline_eof::NewlineEOF;
 pub use no_curly_commands::NoCurlyCommands;
 pub use snake_case::SnakeCase;
 pub use whitespace::Whitespace;
@@ -27,5 +29,7 @@ pub fn rules<'a>() -> Vec<Box<dyn wdl_core::concern::lint::Rule<&'a Pair<'a, cra
         Box::new(MissingRuntimeBlock),
         // v1::W006
         Box::new(SnakeCase),
+        // v1::W007
+        Box::new(NewlineEOF),
     ]
 }
