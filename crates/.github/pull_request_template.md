@@ -43,6 +43,9 @@ Rule specific checks:
       `wdl-grammar/src/v1/lint.rs`.
 - [ ] You have added a test that covers every possible setting for the rule 
       within the file where the rule is implemented.
+- [ ] You have run `wdl-gauntlet --save-config` to ensure that all of the rules
+      added/removed are now reflected in the baseline configuration file
+      (`Gauntlet.toml`).
 
 END SECTION -->
 
