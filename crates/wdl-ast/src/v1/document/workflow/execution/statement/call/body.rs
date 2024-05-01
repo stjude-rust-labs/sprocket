@@ -73,10 +73,7 @@ impl TryFrom<Pair<'_, grammar::v1::Rule>> for Body {
         for node in nodes {
             let inner = node
                 .into_inner()
-                .filter(|node| {
-                    !matches!(node.as_rule(), Rule::WHITESPACE)
-                        && !matches!(node.as_rule(), Rule::COMMENT)
-                })
+                .filter(|node| !matches!(node.as_rule(), Rule::WHITESPACE | Rule::COMMENT))
                 .collect::<Vec<_>>();
 
             if inner.len() != 1 && inner.len() != 2 {

@@ -197,8 +197,10 @@ fn parse<'a, P: Iterator<Item = pest::iterators::Pair<'a, grammar::v1::Rule>>>(
     pairs: P,
 ) -> Result<Expression> {
     let pairs = pairs.filter(|node| {
-        !matches!(node.as_rule(), wdl_grammar::v1::Rule::WHITESPACE)
-            && !matches!(node.as_rule(), wdl_grammar::v1::Rule::WHITESPACE)
+        !matches!(
+            node.as_rule(),
+            wdl_grammar::v1::Rule::WHITESPACE | wdl_grammar::v1::Rule::COMMENT
+        )
     });
 
     PRATT_PARSER
@@ -532,6 +534,22 @@ mod tests {
             Expression::UnarySigned(UnarySigned::Negative(Box::new(Expression::Literal(
                 Literal::Float(OrderedFloat(1.0))
             ))))
+        );
+    }
+
+    #[test]
+    fn it_ignores_comments_and_whitespace() {
+        let expr = wdl_macros::test::valid_node!(
+            "true \n # comment1 \n && \n # comment2 \n false",
+            expression,
+            Expression
+        );
+        assert_eq!(
+            expr,
+            Expression::And(
+                Expression::Literal(Literal::Boolean(true)).into(),
+                Expression::Literal(Literal::Boolean(false)).into()
+            )
         );
     }
 }
