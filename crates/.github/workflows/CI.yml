@@ -56,11 +56,9 @@ jobs:
     env:
       CACHE_DIR: ~/.config/wdl-grammar
     steps:
-      - uses: actions/cache@v3
-        with:
-          path: ${{ env.CACHE_DIR }}
-          key: wdl-grammar
       - uses: actions/checkout@v3
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
-      - run: cargo run --release --bin wdl-gauntlet -- --skip-remote
+      - run: cargo run --release --bin wdl-gauntlet
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
