@@ -23,8 +23,14 @@ serde = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 toml = { workspace = true, optional = true }
+logos = { workspace = true }
+miette = { workspace = true }
+thiserror = { workspace = true }
 wdl-core = { path = "../wdl-core", version = "0.1.0" }
 wdl-macros = { path = "../wdl-macros", version = "0.1.0" }
+
+[dev-dependencies]
+pretty_assertions = "1.4.0"
 
 [features]
 binaries = [
@@ -38,6 +44,7 @@ binaries = [
     "dep:tokio",
     "dep:toml",
 ]
+experimental = []
 
 [[bin]]
 name = "wdl-grammar"
