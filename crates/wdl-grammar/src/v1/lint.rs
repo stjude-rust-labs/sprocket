@@ -6,6 +6,7 @@ mod missing_runtime_block;
 mod mixed_indentation;
 mod newline_eof;
 mod no_curly_commands;
+mod preamble_comment;
 mod snake_case;
 mod whitespace;
 
@@ -13,6 +14,7 @@ pub use missing_runtime_block::MissingRuntimeBlock;
 pub use mixed_indentation::MixedIndentation;
 pub use newline_eof::NewlineEOF;
 pub use no_curly_commands::NoCurlyCommands;
+pub use preamble_comment::PreambleComment;
 pub use snake_case::SnakeCase;
 pub use whitespace::Whitespace;
 
@@ -31,5 +33,7 @@ pub fn rules<'a>() -> Vec<Box<dyn wdl_core::concern::lint::Rule<&'a Pair<'a, cra
         Box::new(SnakeCase),
         // v1::W007
         Box::new(NewlineEOF),
+        // v1::W010
+        Box::new(PreambleComment),
     ]
 }
