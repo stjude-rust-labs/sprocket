@@ -1,7 +1,6 @@
 //! A crate for lexing and parsing the Workflow Description Language
 //! (WDL) using [`pest`](https://pest.rs).
 
-#![feature(let_chains)]
 #![warn(missing_docs)]
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]

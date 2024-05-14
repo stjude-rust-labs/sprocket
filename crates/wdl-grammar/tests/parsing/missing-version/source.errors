@@ -1,0 +1,8 @@
+  × a WDL document must start with a version statement
+   ╭─[tests/parsing/missing-version/source.wdl:3:1]
+ 2 │ 
+ 3 │ task foo {
+   · ┬
+   · ╰── a version statement must come before this
+ 4 │ 
+   ╰────

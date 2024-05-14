@@ -26,11 +26,15 @@ toml = { workspace = true, optional = true }
 logos = { workspace = true }
 miette = { workspace = true }
 thiserror = { workspace = true }
+rowan = { workspace = true }
 wdl-core = { path = "../wdl-core", version = "0.1.0" }
 wdl-macros = { path = "../wdl-macros", version = "0.1.0" }
 
 [dev-dependencies]
-pretty_assertions = "1.4.0"
+pretty_assertions = { workspace = true }
+miette = { workspace = true, features = ["fancy"]}
+rayon = { workspace = true }
+colored = { workspace = true }
 
 [features]
 binaries = [
@@ -50,3 +54,7 @@ experimental = []
 name = "wdl-grammar"
 path = "src/main.rs"
 required-features = ["binaries"]
+
+[[test]]
+name = "parsing"
+harness = false
