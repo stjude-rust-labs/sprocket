@@ -24,6 +24,7 @@
 //! | `snake_case`            | `v1::W006` | Naming       | [Link](lint::SnakeCase)           |
 //! | `newline_eof`           | `v1::W007` | Spacing      | [Link](lint::NewlineEOF)          |
 //! | `preamble_comment`      | `v1::W010` | Style        | [Link](lint::PreambleComment)     |
+//! | `one_empty_line`        | `v1::W011` | Spacing      | [Link](lint::OneEmptyLine)        |
 
 use pest::iterators::Pair;
 use pest::Parser as _;

@@ -18,8 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Adds the `snake_case` rule that ensures all tasks, workflows, and variables
   are snakecase (#13, contributed by @simojoe).
 * Adds the `newline_eof` rule for tasks (#18, contributed by @simojoe).
-* Adds the `preamble_comment` rule for preamble comments formatting (contributed
-  by @simojoe).
+* Adds the `preamble_comment` rule for preamble comments formatting (#32,
+  contributed by @simojoe).
+* Adds the `one_empty_line` rule that ensures no excess of empty lines
+  (#33, contributed by @simojoe).
 
 ## 0.2.0 - 12-17-2023
 

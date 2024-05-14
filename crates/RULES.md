@@ -25,6 +25,7 @@ repository. Note that the information may be out of sync with released packages.
 | `snake_case`              | `v1::W006` | Naming       | [`wdl-grammar`][wdl-grammar-lints] |
 | `newline_eof`             | `v1::W007` | Spacing      | [`wdl-grammar`][wdl-grammar-lints] |
 | `preamble_comment`        | `v1::W010` | Style        | [`wdl-grammar`][wdl-grammar-lints] |
+| `one_empty_line`          | `v1::W011` | Spacing      | [`wdl-grammar`][wdl-grammar-lints] |
 
 [wdl-ast-lints]: https://docs.rs/wdl-ast/latest/wdl_ast/v1/index.html#lint-rules
 [wdl-ast-validation]: https://docs.rs/wdl-ast/latest/wdl_ast/v1/index.html#validation-rules
