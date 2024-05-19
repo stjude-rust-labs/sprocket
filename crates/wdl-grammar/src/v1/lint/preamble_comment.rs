@@ -7,8 +7,8 @@ use nonempty::NonEmpty;
 use pest::iterators::Pair;
 use wdl_core::concern::code;
 use wdl_core::concern::lint;
-use wdl_core::concern::lint::Group;
 use wdl_core::concern::lint::Rule;
+use wdl_core::concern::lint::TagSet;
 use wdl_core::concern::Code;
 use wdl_core::file::Location;
 use wdl_core::Version;
@@ -28,7 +28,7 @@ impl<'a> PreambleComment {
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Low)
-            .group(self.group())
+            .tags(self.tags())
             .subject("preamble comment without a double pound sign")
             .body(
                 "Preamble comments are full line comments before the version declaration and they \
@@ -48,7 +48,7 @@ impl<'a> PreambleComment {
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Low)
-            .group(self.group())
+            .tags(self.tags())
             .subject("double pound signs are reserved for preamble comments")
             .body(
                 "Only full line comments before the version declaration should start with a \
@@ -67,8 +67,8 @@ impl<'a> Rule<&Pair<'a, v1::Rule>> for PreambleComment {
         Code::try_new(code::Kind::Warning, Version::V1, 10).unwrap()
     }
 
-    fn group(&self) -> lint::Group {
-        Group::Style
+    fn tags(&self) -> TagSet {
+        TagSet::new(&[lint::Tag::Style])
     }
 
     fn check(&self, tree: &Pair<'a, v1::Rule>) -> lint::Result {
@@ -135,7 +135,7 @@ version 1.0
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W010::Style/Low] preamble comment without a double pound sign (1:1-1:12)"
+            "[v1::W010::[Style]::Low] preamble comment without a double pound sign (1:1-1:12)"
         );
         Ok(())
     }
@@ -157,7 +157,7 @@ version 1.0
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W010::Style/Low] double pound signs are reserved for preamble comments \
+            "[v1::W010::[Style]::Low] double pound signs are reserved for preamble comments \
              (4:1-4:19)"
         );
         Ok(())

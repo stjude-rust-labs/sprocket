@@ -6,8 +6,8 @@ use nonempty::NonEmpty;
 use pest::iterators::Pair;
 use wdl_core::concern::code;
 use wdl_core::concern::lint;
-use wdl_core::concern::lint::Group;
 use wdl_core::concern::lint::Rule;
+use wdl_core::concern::lint::TagSet;
 use wdl_core::concern::Code;
 use wdl_core::file::Location;
 use wdl_core::Version;
@@ -28,7 +28,7 @@ impl<'a> NewlineEOF {
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Low)
-            .group(self.group())
+            .tags(self.tags())
             .push_location(location)
             .subject("missing newline at the end of the file")
             .body("There should always be a newline at the end of a WDL file.")
@@ -46,7 +46,7 @@ impl<'a> NewlineEOF {
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Low)
-            .group(self.group())
+            .tags(self.tags())
             .push_location(location)
             .subject("multiple empty lines at the end of file")
             .body("There should only be one newline at the end of a WDL file.")
@@ -62,8 +62,8 @@ impl<'a> Rule<&'a Pair<'a, v1::Rule>> for NewlineEOF {
         Code::try_new(code::Kind::Warning, Version::V1, 7).unwrap()
     }
 
-    fn group(&self) -> Group {
-        Group::Spacing
+    fn tags(&self) -> TagSet {
+        TagSet::new(&[lint::Tag::Spacing, lint::Tag::Style])
     }
 
     fn check(&self, tree: &'a Pair<'_, v1::Rule>) -> lint::Result {
@@ -120,7 +120,7 @@ workflow test {}"#,
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W007::Spacing/Low] missing newline at the end of the file (2:17-2:17)"
+            "[v1::W007::[Spacing, Style]::Low] missing newline at the end of the file (2:17-2:17)"
         );
         Ok(())
     }
@@ -141,7 +141,7 @@ workflow test {}
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W007::Spacing/Low] multiple empty lines at the end of file (3:1-4:1)"
+            "[v1::W007::[Spacing, Style]::Low] multiple empty lines at the end of file (3:1-4:1)"
         );
         Ok(())
     }

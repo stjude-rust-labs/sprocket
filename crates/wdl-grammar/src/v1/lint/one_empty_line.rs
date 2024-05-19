@@ -6,8 +6,8 @@ use nonempty::NonEmpty;
 use pest::iterators::Pair;
 use wdl_core::concern::code;
 use wdl_core::concern::lint;
-use wdl_core::concern::lint::Group;
 use wdl_core::concern::lint::Rule;
+use wdl_core::concern::lint::TagSet;
 use wdl_core::concern::Code;
 use wdl_core::file::location::Position;
 use wdl_core::file::Location;
@@ -30,7 +30,7 @@ impl<'a> OneEmptyLine {
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Low)
-            .group(self.group())
+            .tags(self.tags())
             .push_location(location)
             .subject("more than one empty line")
             .body("There should be at most one empty line in a row.")
@@ -46,8 +46,8 @@ impl<'a> Rule<&'a Pair<'a, v1::Rule>> for OneEmptyLine {
         Code::try_new(code::Kind::Warning, Version::V1, 11).unwrap()
     }
 
-    fn group(&self) -> Group {
-        Group::Spacing
+    fn tags(&self) -> TagSet {
+        TagSet::new(&[lint::Tag::Spacing, lint::Tag::Style])
     }
 
     fn check(&self, tree: &'a Pair<'_, v1::Rule>) -> lint::Result {
@@ -129,7 +129,7 @@ workflow a_workflow {}"#,
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W011::Spacing/Low] more than one empty line (3:1-3:1)"
+            "[v1::W011::[Spacing, Style]::Low] more than one empty line (3:1-3:1)"
         );
 
         Ok(())
@@ -157,11 +157,11 @@ workflow a_workflow {
         assert_eq!(warnings.len(), 2);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W011::Spacing/Low] more than one empty line (3:1-4:1)"
+            "[v1::W011::[Spacing, Style]::Low] more than one empty line (3:1-4:1)"
         );
         assert_eq!(
             warnings.last().to_string(),
-            "[v1::W011::Spacing/Low] more than one empty line (7:1-7:1)"
+            "[v1::W011::[Spacing, Style]::Low] more than one empty line (7:1-7:1)"
         );
 
         Ok(())

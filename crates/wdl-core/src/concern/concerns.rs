@@ -78,8 +78,8 @@ impl Concerns {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::concerns::Builder;
     /// use wdl_core::concern::lint;
-    /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
+    /// use wdl_core::concern::lint::TagSet;
     /// use wdl_core::concern::parse;
     /// use wdl_core::concern::validation;
     /// use wdl_core::concern::Code;
@@ -108,7 +108,7 @@ impl Concerns {
     /// let warning = lint::warning::Builder::default()
     ///     .code(Code::try_new(Kind::Warning, Version::V1, 1)?)
     ///     .level(Level::High)
-    ///     .group(Group::Style)
+    ///     .tags(TagSet::new(&[lint::Tag::Style]))
     ///     .push_location(Location::Unplaced)
     ///     .subject("Hello, world!")
     ///     .body("A body.")
@@ -149,8 +149,8 @@ impl Concerns {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::concerns::Builder;
     /// use wdl_core::concern::lint;
-    /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
+    /// use wdl_core::concern::lint::TagSet;
     /// use wdl_core::concern::parse;
     /// use wdl_core::concern::validation;
     /// use wdl_core::concern::Code;
@@ -179,7 +179,7 @@ impl Concerns {
     /// let warning = lint::warning::Builder::default()
     ///     .code(Code::try_new(Kind::Warning, Version::V1, 1)?)
     ///     .level(Level::High)
-    ///     .group(Group::Style)
+    ///     .tags(TagSet::new(&[lint::Tag::Style]))
     ///     .push_location(Location::Unplaced)
     ///     .subject("Hello, world!")
     ///     .body("A body.")
@@ -220,8 +220,8 @@ impl Concerns {
     /// use wdl_core::concern::code::Kind;
     /// use wdl_core::concern::concerns::Builder;
     /// use wdl_core::concern::lint;
-    /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
+    /// use wdl_core::concern::lint::TagSet;
     /// use wdl_core::concern::parse;
     /// use wdl_core::concern::validation;
     /// use wdl_core::concern::Code;
@@ -250,7 +250,7 @@ impl Concerns {
     /// let warning = lint::warning::Builder::default()
     ///     .code(Code::try_new(Kind::Warning, Version::V1, 1)?)
     ///     .level(Level::High)
-    ///     .group(Group::Style)
+    ///     .tags(TagSet::new(&[lint::Tag::Style]))
     ///     .push_location(Location::Unplaced)
     ///     .subject("Hello, world!")
     ///     .body("A body.")

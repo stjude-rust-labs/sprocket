@@ -9,12 +9,13 @@ use nonempty::NonEmpty;
 use crate::concern::Code;
 use crate::file::location;
 
-mod group;
 mod level;
+mod tag_set;
 pub mod warning;
 
-pub use group::Group;
 pub use level::Level;
+pub use tag_set::Tag;
+pub use tag_set::TagSet;
 pub use warning::Warning;
 
 /// An unrecoverable error that occurs during linting.
@@ -75,8 +76,8 @@ pub trait Rule<E>: std::fmt::Debug + Sync {
     /// Get the code for this lint rule.
     fn code(&self) -> Code;
 
-    /// Get the lint group for this lint rule.
-    fn group(&self) -> Group;
+    /// Get the lint tags for this lint rule.
+    fn tags(&self) -> TagSet;
 
     /// Checks the tree according to the implemented lint rule.
     fn check(&self, tree: E) -> Result;

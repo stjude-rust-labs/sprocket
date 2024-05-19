@@ -7,8 +7,8 @@ use std::ops::Sub as _;
 use nonempty::NonEmpty;
 use wdl_core::concern::code;
 use wdl_core::concern::lint;
-use wdl_core::concern::lint::Group;
 use wdl_core::concern::lint::Rule;
+use wdl_core::concern::lint::TagSet;
 use wdl_core::concern::Code;
 use wdl_core::file::location::Located;
 use wdl_core::file::Location;
@@ -56,7 +56,7 @@ impl<'a> MatchingParameterMeta {
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Medium)
-            .group(lint::Group::Completeness)
+            .tags(TagSet::new(&[lint::Tag::Completeness]))
             .push_location(location.clone())
             .subject(format!(
                 "missing parameter meta within {}: {}",
@@ -89,7 +89,7 @@ impl<'a> MatchingParameterMeta {
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Medium)
-            .group(lint::Group::Completeness)
+            .tags(TagSet::new(&[lint::Tag::Completeness]))
             .push_location(location.clone())
             .subject(format!(
                 "extraneous parameter meta within {}: {}",
@@ -108,8 +108,8 @@ impl<'a> Rule<&'a v1::Document> for MatchingParameterMeta {
         Code::try_new(code::Kind::Warning, Version::V1, 3).unwrap()
     }
 
-    fn group(&self) -> lint::Group {
-        Group::Completeness
+    fn tags(&self) -> lint::TagSet {
+        TagSet::new(&[lint::Tag::Completeness])
     }
 
     fn check(&self, tree: &'a v1::Document) -> lint::Result {

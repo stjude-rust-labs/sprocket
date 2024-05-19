@@ -7,8 +7,8 @@ use nonempty::NonEmpty;
 use pest::iterators::Pair;
 use wdl_core::concern::code;
 use wdl_core::concern::lint;
-use wdl_core::concern::lint::Group;
 use wdl_core::concern::lint::Rule;
+use wdl_core::concern::lint::TagSet;
 use wdl_core::concern::Code;
 use wdl_core::file::location::Position;
 use wdl_core::file::Location;
@@ -32,7 +32,7 @@ impl<'a> Whitespace {
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Low)
-            .group(self.group())
+            .tags(self.tags())
             .push_location(location)
             .subject("line contains only whitespace")
             .body(
@@ -53,7 +53,7 @@ impl<'a> Whitespace {
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Low)
-            .group(self.group())
+            .tags(self.tags())
             .push_location(location)
             .subject("trailing space")
             .body(
@@ -76,7 +76,7 @@ impl<'a> Whitespace {
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Low)
-            .group(self.group())
+            .tags(self.tags())
             .push_location(location)
             .subject("trailing tab")
             .body(
@@ -97,8 +97,8 @@ impl<'a> Rule<&Pair<'a, v1::Rule>> for Whitespace {
         Code::try_new(code::Kind::Warning, Version::V1, 1).unwrap()
     }
 
-    fn group(&self) -> lint::Group {
-        Group::Style
+    fn tags(&self) -> lint::TagSet {
+        TagSet::new(&[lint::Tag::Style, lint::Tag::Spacing])
     }
 
     fn check(&self, tree: &Pair<'a, v1::Rule>) -> lint::Result {
@@ -164,7 +164,7 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W001::Style/Low] line contains only whitespace (2:1-2:3)"
+            "[v1::W001::[Spacing, Style]::Low] line contains only whitespace (2:1-2:3)"
         );
 
         Ok(())
@@ -180,7 +180,7 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W001::Style/Low] trailing space (1:12)"
+            "[v1::W001::[Spacing, Style]::Low] trailing space (1:12)"
         );
 
         Ok(())
@@ -196,7 +196,7 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W001::Style/Low] trailing tab (1:12)"
+            "[v1::W001::[Spacing, Style]::Low] trailing tab (1:12)"
         );
 
         Ok(())
@@ -211,7 +211,7 @@ mod tests {
         )));
         assert_eq!(
             warning.to_string(),
-            "[v1::W001::Style/Low] trailing space (1:1)"
+            "[v1::W001::[Spacing, Style]::Low] trailing space (1:1)"
         )
     }
 
@@ -224,7 +224,7 @@ mod tests {
         )));
         assert_eq!(
             warning.to_string(),
-            "[v1::W001::Style/Low] trailing tab (1:1)"
+            "[v1::W001::[Spacing, Style]::Low] trailing tab (1:1)"
         )
     }
 
@@ -244,7 +244,7 @@ mod tests {
         });
         assert_eq!(
             warning.to_string(),
-            "[v1::W001::Style/Low] line contains only whitespace (1:1-1:1)"
+            "[v1::W001::[Spacing, Style]::Low] line contains only whitespace (1:1-1:1)"
         )
     }
 }

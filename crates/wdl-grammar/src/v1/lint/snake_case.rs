@@ -8,8 +8,8 @@ use nonempty::NonEmpty;
 use pest::iterators::Pair;
 use wdl_core::concern::code;
 use wdl_core::concern::lint;
-use wdl_core::concern::lint::Group;
 use wdl_core::concern::lint::Rule;
+use wdl_core::concern::lint::TagSet;
 use wdl_core::concern::Code;
 use wdl_core::file::Location;
 use wdl_core::Version;
@@ -18,7 +18,7 @@ use crate::v1;
 
 /// Detects names that should use snake case.
 ///
-/// Workflows, tasks and variables should be declared using snake case.
+/// Workflows, tasks, and variables should be declared using snake case.
 #[derive(Debug)]
 pub struct SnakeCase;
 
@@ -30,8 +30,8 @@ impl<'a> SnakeCase {
     {
         lint::warning::Builder::default()
             .code(self.code())
-            .level(lint::Level::Low)
-            .group(self.group())
+            .level(lint::Level::Medium)
+            .tags(self.tags())
             .subject("identifier must be snake case")
             .body("Identifier must be formatted using snake case.")
             .push_location(warning.location)
@@ -61,8 +61,8 @@ impl Rule<&Pair<'_, v1::Rule>> for SnakeCase {
         Code::try_new(code::Kind::Warning, Version::V1, 6).unwrap()
     }
 
-    fn group(&self) -> lint::Group {
-        Group::Naming
+    fn tags(&self) -> lint::TagSet {
+        TagSet::new(&[lint::Tag::Naming, lint::Tag::Style, lint::Tag::Clarity])
     }
 
     fn check(&self, tree: &Pair<'_, v1::Rule>) -> lint::Result {
@@ -125,7 +125,7 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W006::Naming/Low] identifier must be snake case (1:6-1:15)"
+            "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (1:6-1:15)"
         );
         Ok(())
     }
@@ -160,7 +160,8 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W006::Naming/Low] identifier must be snake case (1:10-1:23)"
+            "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case \
+             (1:10-1:23)"
         );
         Ok(())
     }
@@ -190,7 +191,7 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W006::Naming/Low] identifier must be snake case (1:5-1:18)"
+            "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (1:5-1:18)"
         );
         Ok(())
     }
@@ -215,7 +216,7 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W006::Naming/Low] identifier must be snake case (1:5-1:18)"
+            "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (1:5-1:18)"
         );
         Ok(())
     }

@@ -2,8 +2,8 @@
 
 use nonempty::NonEmpty;
 
-use crate::concern::lint::Group;
 use crate::concern::lint::Level;
+use crate::concern::lint::TagSet;
 use crate::concern::lint::Warning;
 use crate::concern::Code;
 use crate::file::Location;
@@ -17,8 +17,8 @@ pub enum MissingError {
     /// A lint level was not provided to the [`Builder`].
     Level,
 
-    /// A lint group was not provided to the [`Builder`].
-    Group,
+    /// Lint tags were not provided to the [`Builder`].
+    Tags,
 
     /// A location was not provided to the [`Builder`].
     Location,
@@ -35,7 +35,7 @@ impl std::fmt::Display for MissingError {
         match self {
             MissingError::Code => write!(f, "code"),
             MissingError::Level => write!(f, "level"),
-            MissingError::Group => write!(f, "group"),
+            MissingError::Tags => write!(f, "tags"),
             MissingError::Location => write!(f, "location"),
             MissingError::Subject => write!(f, "subject"),
             MissingError::Body => write!(f, "body"),
@@ -74,8 +74,8 @@ pub struct Builder {
     /// The lint level.
     level: Option<Level>,
 
-    /// The lint group.
-    group: Option<Group>,
+    /// The lint tags.
+    tags: Option<TagSet>,
 
     /// The locations.
     locations: Option<NonEmpty<Location>>,
@@ -97,9 +97,10 @@ impl Builder {
     ///
     /// ```
     /// use wdl_core::concern::code::Kind;
+    /// use wdl_core::concern::lint;
     /// use wdl_core::concern::lint::warning::Builder;
-    /// use wdl_core::concern::lint::Group;
     /// use wdl_core::concern::lint::Level;
+    /// use wdl_core::concern::lint::TagSet;
     /// use wdl_core::concern::Code;
     /// use wdl_core::file::Location;
     /// use wdl_core::Version;
@@ -108,7 +109,7 @@ impl Builder {
     /// let warning = Builder::default()
     ///     .code(code)
     ///     .level(Level::High)
-    ///     .group(Group::Style)
+    ///     .tags(TagSet::new(&[lint::Tag::Style]))
     ///     .subject("Hello, world!")
     ///     .push_location(Location::Unplaced)
     ///     .body("A body.")
@@ -131,7 +132,8 @@ impl Builder {
     ///
     /// ```
     /// use wdl_core::concern::lint::warning::Builder;
-    /// use wdl_core::concern::lint::Group;
+    /// use wdl_core::concern::lint::TagSet;
+    /// use wdl_core::concern::lint;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
@@ -142,7 +144,7 @@ impl Builder {
     /// let warning = Builder::default()
     ///     .code(code)
     ///     .level(Level::High)
-    ///     .group(Group::Style)
+    ///     .tags(TagSet::new(&[lint::Tag::Style]))
     ///     .subject("Hello, world!")
     ///     .push_location(Location::Unplaced)
     ///     .body("A body.")
@@ -157,13 +159,14 @@ impl Builder {
         self
     }
 
-    /// Sets the lint group for this [`Builder`].
+    /// Sets the lint tags for this [`Builder`].
     ///
     /// # Examples
     ///
     /// ```
     /// use wdl_core::concern::lint::warning::Builder;
-    /// use wdl_core::concern::lint::Group;
+    /// use wdl_core::concern::lint::TagSet;
+    /// use wdl_core::concern::lint;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
@@ -174,18 +177,18 @@ impl Builder {
     /// let warning = Builder::default()
     ///     .code(code)
     ///     .level(Level::High)
-    ///     .group(Group::Style)
+    ///     .tags(TagSet::new(&[lint::Tag::Style]))
     ///     .push_location(Location::Unplaced)
     ///     .subject("Hello, world!")
     ///     .body("A body.")
     ///     .fix("How to fix the issue.")
     ///     .try_build()?;
     ///
-    /// assert_eq!(warning.group(), &Group::Style);
+    /// assert_eq!(warning.tags(), &TagSet::new(&[lint::Tag::Style]));
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
-    pub fn group(mut self, group: Group) -> Self {
-        self.group = Some(group);
+    pub fn tags(mut self, tags: TagSet) -> Self {
+        self.tags = Some(tags);
         self
     }
 
@@ -195,7 +198,8 @@ impl Builder {
     ///
     /// ```
     /// use wdl_core::concern::lint::warning::Builder;
-    /// use wdl_core::concern::lint::Group;
+    /// use wdl_core::concern::lint::TagSet;
+    /// use wdl_core::concern::lint;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
@@ -206,7 +210,7 @@ impl Builder {
     /// let warning = Builder::default()
     ///     .code(code)
     ///     .level(Level::High)
-    ///     .group(Group::Style)
+    ///     .tags(TagSet::new(&[lint::Tag::Style]))
     ///     .push_location(Location::Unplaced)
     ///     .subject("Hello, world!")
     ///     .body("A body.")
@@ -238,7 +242,8 @@ impl Builder {
     ///
     /// ```
     /// use wdl_core::concern::lint::warning::Builder;
-    /// use wdl_core::concern::lint::Group;
+    /// use wdl_core::concern::lint::TagSet;
+    /// use wdl_core::concern::lint;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
@@ -249,7 +254,7 @@ impl Builder {
     /// let warning = Builder::default()
     ///     .code(code)
     ///     .level(Level::High)
-    ///     .group(Group::Style)
+    ///     .tags(TagSet::new(&[lint::Tag::Style]))
     ///     .subject("Hello, world!")
     ///     .push_location(Location::Unplaced)
     ///     .body("A body.")
@@ -271,7 +276,8 @@ impl Builder {
     ///
     /// ```
     /// use wdl_core::concern::lint::warning::Builder;
-    /// use wdl_core::concern::lint::Group;
+    /// use wdl_core::concern::lint::TagSet;
+    /// use wdl_core::concern::lint;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
@@ -282,7 +288,7 @@ impl Builder {
     /// let warning = Builder::default()
     ///     .code(code)
     ///     .level(Level::High)
-    ///     .group(Group::Style)
+    ///     .tags(TagSet::new(&[lint::Tag::Style]))
     ///     .subject("Hello, world!")
     ///     .push_location(Location::Unplaced)
     ///     .body("A body.")
@@ -304,7 +310,8 @@ impl Builder {
     ///
     /// ```
     /// use wdl_core::concern::lint::warning::Builder;
-    /// use wdl_core::concern::lint::Group;
+    /// use wdl_core::concern::lint::TagSet;
+    /// use wdl_core::concern::lint;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
@@ -315,7 +322,7 @@ impl Builder {
     /// let warning = Builder::default()
     ///     .code(code)
     ///     .level(Level::High)
-    ///     .group(Group::Style)
+    ///     .tags(TagSet::new(&[lint::Tag::Style]))
     ///     .subject("Hello, world!")
     ///     .push_location(Location::Unplaced)
     ///     .body("A body.")
@@ -337,7 +344,8 @@ impl Builder {
     ///
     /// ```
     /// use wdl_core::concern::lint::warning::Builder;
-    /// use wdl_core::concern::lint::Group;
+    /// use wdl_core::concern::lint::TagSet;
+    /// use wdl_core::concern::lint;
     /// use wdl_core::concern::lint::Level;
     /// use wdl_core::concern::Code;
     /// use wdl_core::concern::code::Kind;
@@ -348,7 +356,7 @@ impl Builder {
     /// let warning = Builder::default()
     ///     .code(code)
     ///     .level(Level::High)
-    ///     .group(Group::Style)
+    ///     .tags(TagSet::new(&[lint::Tag::Style]))
     ///     .subject("Hello, world!")
     ///     .push_location(Location::Unplaced)
     ///     .body("A body.")
@@ -358,11 +366,11 @@ impl Builder {
     /// assert_eq!(warning.code().grammar(), &Version::V1);
     /// assert_eq!(warning.code().index().get(), 1);
     /// assert_eq!(warning.level(), &Level::High);
-    /// assert_eq!(warning.group(), &Group::Style);
+    /// assert_eq!(warning.tags(), &TagSet::new(&[lint::Tag::Style]));
     /// assert_eq!(warning.subject(), "Hello, world!");
     /// assert_eq!(warning.body(), "A body.");
     /// assert_eq!(warning.fix(), Some("How to fix the issue."));
-    /// assert_eq!(warning.to_string(), "[v1::W001::Style/High] Hello, world!");
+    /// assert_eq!(warning.to_string(), "[v1::W001::[Style]::High] Hello, world!");
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     pub fn try_build(self) -> Result<Warning> {
@@ -376,10 +384,10 @@ impl Builder {
             .map(Ok)
             .unwrap_or(Err(Error::Missing(MissingError::Level)))?;
 
-        let group = self
-            .group
+        let tags = self
+            .tags
             .map(Ok)
-            .unwrap_or(Err(Error::Missing(MissingError::Group)))?;
+            .unwrap_or(Err(Error::Missing(MissingError::Tags)))?;
 
         let locations = self
             .locations
@@ -399,7 +407,7 @@ impl Builder {
         Ok(Warning {
             code,
             level,
-            group,
+            tags,
             locations,
             subject,
             body,
