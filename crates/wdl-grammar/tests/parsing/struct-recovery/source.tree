@@ -1,0 +1,47 @@
+RootNode@0..226
+  Comment@0..71 "# This test ensures t ..."
+  Whitespace@71..73 "\n\n"
+  VersionStatementNode@73..84
+    VersionKeyword@73..80 "version"
+    Whitespace@80..81 " "
+    Version@81..84 "1.1"
+  Whitespace@84..86 "\n\n"
+  StructDefinitionNode@86..225
+    StructKeyword@86..92 "struct"
+    NameNode@92..101
+      Whitespace@92..93 " "
+      Ident@93..101 "MyStruct"
+    Whitespace@101..102 " "
+    OpenBrace@102..103 "{"
+    Whitespace@103..108 "\n    "
+    Whitespace@108..109 " "
+    Comment@109..124 "# Unknown token"
+    Whitespace@124..129 "\n    "
+    UnboundDeclNode@129..137
+      PrimitiveTypeNode@129..136
+        StringTypeKeyword@129..135 "String"
+        Whitespace@135..136 " "
+      Ident@136..137 "a"
+    Whitespace@137..142 "\n    "
+    QuestionMark@142..143 "?"
+    Whitespace@143..145 "  "
+    Comment@145..163 "# Unexpected token"
+    Whitespace@163..168 "\n    "
+    UnboundDeclNode@168..175
+      PrimitiveTypeNode@168..174
+        FloatTypeKeyword@168..173 "Float"
+        Whitespace@173..174 " "
+      Ident@174..175 "b"
+    Whitespace@175..180 "\n    "
+    StructKeyword@180..186 "struct"
+    Whitespace@186..189 "   "
+    Comment@189..209 "# Unexpected keyword"
+    Whitespace@209..214 "\n    "
+    UnboundDeclNode@214..223
+      TypeRefNode@214..222
+        Ident@214..221 "Integer"
+        Whitespace@221..222 " "
+      Ident@222..223 "c"
+    Whitespace@223..224 "\n"
+    CloseBrace@224..225 "}"
+  Whitespace@225..226 "\n"

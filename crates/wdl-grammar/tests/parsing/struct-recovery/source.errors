@@ -1,0 +1,24 @@
+  × an unknown token was encountered
+   ╭─[tests/parsing/struct-recovery/source.wdl:6:5]
+ 5 │ struct MyStruct {
+ 6 │     ; # Unknown token
+   ·     ┬
+   ·     ╰── this is not a WDL token
+ 7 │     String a
+   ╰────
+  × expected type, but found `?`
+   ╭─[tests/parsing/struct-recovery/source.wdl:8:5]
+ 7 │     String a
+ 8 │     ?  # Unexpected token
+   ·     ┬
+   ·     ╰── unexpected `?`
+ 9 │     Float b
+   ╰────
+  × expected type, but found `struct` keyword
+    ╭─[tests/parsing/struct-recovery/source.wdl:10:5]
+  9 │     Float b
+ 10 │     struct   # Unexpected keyword
+    ·     ───┬──
+    ·        ╰── unexpected `struct` keyword
+ 11 │     Integer c
+    ╰────

@@ -177,8 +177,32 @@ pub enum SyntaxKind {
     Abandoned,
     /// Represents the WDL document root node.
     RootNode,
+    /// Represents a name node (for a struct, task, or workflow).
+    NameNode,
     /// Represents a version statement node.
     VersionStatementNode,
+    /// Represents an import statement node.
+    ImportStatementNode,
+    /// Represents a struct definition node.
+    StructDefinitionNode,
+    /// Represents a task definition node.
+    TaskDefinitionNode,
+    /// Represents a workflow definition node.
+    WorkflowDefinitionNode,
+    /// Represents an unbound declaration node.
+    UnboundDeclNode,
+    /// Represents a primitive type node.
+    PrimitiveTypeNode,
+    /// Represents a map type node.
+    MapTypeNode,
+    /// Represents an array type node.
+    ArrayTypeNode,
+    /// Represents a pair type node.
+    PairTypeNode,
+    /// Represents an object type node.
+    ObjectTypeNode,
+    /// Represents a type reference node.
+    TypeRefNode,
 
     // WARNING: this must always be the last variant.
     /// The exclusive maximum syntax kind value.

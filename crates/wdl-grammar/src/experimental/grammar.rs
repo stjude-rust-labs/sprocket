@@ -12,6 +12,48 @@ use crate::experimental::lexer::VersionStatementToken;
 
 pub mod v1;
 
+mod macros {
+    /// A macro for expecting the next token be a particular token.
+    ///
+    /// Returns an error if the token is not the specified token.
+    macro_rules! expected {
+        ($parser:ident, $marker:ident, $token:expr) => {
+            if let Err(e) = $parser.expect($token) {
+                return Err(($marker, e));
+            }
+        };
+    }
+
+    /// A macro for expecting the next token be a particular token and
+    /// providing an alternative name for the expected item.
+    ///
+    /// Returns an error if the token is not the specified token.
+    macro_rules! expected_with_name {
+        ($parser:ident, $marker:ident, $token:expr, $expected:literal) => {
+            if let Err(e) = $parser.expect_with_name($token, $expected) {
+                return Err(($marker, e));
+            }
+        };
+    }
+
+    /// A macro for expecting that a given function parses the next node.
+    ///
+    /// Returns an error if the given function returns an error.
+    macro_rules! expected_fn {
+        ($parser:ident, $marker:ident, $func:ident) => {
+            let inner = $parser.start();
+            if let Err((inner, e)) = $func($parser, inner) {
+                inner.abandon($parser);
+                return Err(($marker, e));
+            }
+        };
+    }
+
+    pub(crate) use expected;
+    pub(crate) use expected_fn;
+    pub(crate) use expected_with_name;
+}
+
 /// Parses a WDL document.
 ///
 /// Returns the parser events that result from parsing the document.

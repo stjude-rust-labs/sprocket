@@ -69,26 +69,23 @@ impl fmt::Display for Found {
     }
 }
 
-/// Utility type for displaying "expected" token sets in a parser expectation
-/// error.
-struct Expected {
-    /// The set of expected tokens.
-    set: TokenSet,
-    /// The function used to describe a raw token.
-    describe: fn(u8) -> &'static str,
+/// Utility type for displaying "expected" items in a parser expectation error.
+struct Expected<'a> {
+    /// The set of expected items.
+    items: &'a [&'static str],
 }
 
-impl Expected {
+impl<'a> Expected<'a> {
     /// Constructs a new `Expected`.
-    fn new(set: TokenSet, describe: fn(u8) -> &'static str) -> Self {
-        Self { set, describe }
+    fn new(items: &'a [&'static str]) -> Self {
+        Self { items }
     }
 }
 
-impl fmt::Display for Expected {
+impl fmt::Display for Expected<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let count = self.set.count();
-        for (i, token) in self.set.iter().enumerate() {
+        let count = self.items.len();
+        for (i, item) in self.items.iter().enumerate() {
             if i > 0 {
                 if count == 2 {
                     write!(f, " or ")?;
@@ -99,7 +96,7 @@ impl fmt::Display for Expected {
                 }
             }
 
-            write!(f, "{}", (self.describe)(token))?;
+            write!(f, "{item}")?;
         }
 
         Ok(())
@@ -118,11 +115,25 @@ pub enum Error {
         #[label(primary, "this is not a WDL token")]
         span: SourceSpan,
     },
-    /// An unexpected token was encountered when a single token was expected.
-    #[error("expected {expected}, but found {found}", expected = Expected::new(*.expected, *.describe), found = Found::new(*.found, *.describe))]
+    /// An unexpected token was encountered when a single item was expected.
+    #[error("expected {expected}, but found {found}", found = Found::new(*.found, *.describe))]
     Expected {
-        /// The expected token set.
-        expected: TokenSet,
+        /// The expected item.
+        expected: &'static str,
+        /// The found raw token (`None` for end of input).
+        found: Option<u8>,
+        /// The span of the found token.
+        #[label(primary, "unexpected {found}", found = Found::new(*.found, *.describe))]
+        span: SourceSpan,
+        /// The function used to describe the raw token.
+        describe: fn(u8) -> &'static str,
+    },
+    /// An unexpected token was encountered when one of multiple items was
+    /// expected.
+    #[error("expected {expected}, but found {found}", expected = Expected::new(.expected), found = Found::new(*.found, *.describe))]
+    ExpectedOneOf {
+        /// The expected items.
+        expected: &'static [&'static str],
         /// The found raw token (`None` for end of input).
         found: Option<u8>,
         /// The span of the found token.
@@ -372,14 +383,19 @@ where
 
     /// Requires that the current token is in the given token set.
     ///
+    /// # Panics
+    ///
     /// Panics if the token is not in the token set.
     pub fn require_in(&mut self, tokens: TokenSet) {
         match self.next() {
             Some((t, _)) if tokens.contains(t.into_raw()) => {}
-            _ => panic!(
-                "expected {expected}",
-                expected = Expected::new(tokens, T::describe),
-            ),
+            found => {
+                let found = found.map(|(t, _)| t.into_raw());
+                panic!(
+                    "expected token {found}",
+                    found = Found::new(found, T::describe)
+                );
+            }
         }
     }
 
@@ -393,13 +409,38 @@ where
                 Ok(span)
             }
             Some((t, span)) => Err(Error::Expected {
-                expected: TokenSet::new(&[token.into_raw()]),
+                expected: T::describe(token.into_raw()),
                 found: Some(t.into_raw()),
                 span,
                 describe: T::describe,
             }),
             None => Err(Error::Expected {
-                expected: TokenSet::new(&[token.into_raw()]),
+                expected: T::describe(token.into_raw()),
+                found: None,
+                span: self.span(),
+                describe: T::describe,
+            }),
+        }
+    }
+
+    /// Expects the next token to be the given token, but uses
+    /// the provided name in the error.
+    ///
+    /// Returns an error if the token is not the given token.
+    pub fn expect_with_name(&mut self, token: T, name: &'static str) -> Result<SourceSpan, Error> {
+        match self.peek() {
+            Some((t, span)) if t == token => {
+                self.next();
+                Ok(span)
+            }
+            Some((t, span)) => Err(Error::Expected {
+                expected: name,
+                found: Some(t.into_raw()),
+                span,
+                describe: T::describe,
+            }),
+            None => Err(Error::Expected {
+                expected: name,
                 found: None,
                 span: self.span(),
                 describe: T::describe,
@@ -410,20 +451,24 @@ where
     /// Expects the next token to be in the given token set.
     ///
     /// Returns an error if the token is not the given set.
-    pub fn expect_in(&mut self, tokens: TokenSet) -> Result<(T, SourceSpan), Error> {
+    pub fn expect_in(
+        &mut self,
+        tokens: TokenSet,
+        expected: &'static [&'static str],
+    ) -> Result<(T, SourceSpan), Error> {
         match self.peek() {
             Some((t, span)) if tokens.contains(t.into_raw()) => {
                 self.next();
                 Ok((t, span))
             }
-            Some((t, span)) => Err(Error::Expected {
-                expected: tokens,
+            Some((t, span)) => Err(Error::ExpectedOneOf {
+                expected,
                 found: Some(t.into_raw()),
                 span,
                 describe: T::describe,
             }),
-            None => Err(Error::Expected {
-                expected: tokens,
+            None => Err(Error::ExpectedOneOf {
+                expected,
                 found: None,
                 span: self.span(),
                 describe: T::describe,

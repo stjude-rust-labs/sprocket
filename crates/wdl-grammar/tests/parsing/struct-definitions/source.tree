@@ -1,0 +1,437 @@
+RootNode@0..1072
+  Comment@0..39 "# This is a test of s ..."
+  Whitespace@39..41 "\n\n"
+  VersionStatementNode@41..52
+    VersionKeyword@41..48 "version"
+    Whitespace@48..49 " "
+    Version@49..52 "1.1"
+  Whitespace@52..54 "\n\n"
+  Comment@54..81 "# Test for an empty s ..."
+  Whitespace@81..82 "\n"
+  StructDefinitionNode@82..97
+    StructKeyword@82..88 "struct"
+    NameNode@88..94
+      Whitespace@88..89 " "
+      Ident@89..94 "Empty"
+    Whitespace@94..95 " "
+    OpenBrace@95..96 "{"
+    CloseBrace@96..97 "}"
+  Whitespace@97..99 "\n\n"
+  Comment@99..140 "# Test for a struct w ..."
+  Whitespace@140..141 "\n"
+  StructDefinitionNode@141..373
+    StructKeyword@141..147 "struct"
+    NameNode@147..162
+      Whitespace@147..148 " "
+      Ident@148..162 "PrimitiveTypes"
+    Whitespace@162..163 " "
+    OpenBrace@163..164 "{"
+    Whitespace@164..169 "\n    "
+    Comment@169..179 "# Booleans"
+    Whitespace@179..184 "\n    "
+    UnboundDeclNode@184..193
+      PrimitiveTypeNode@184..192
+        BooleanTypeKeyword@184..191 "Boolean"
+        Whitespace@191..192 " "
+      Ident@192..193 "a"
+    Whitespace@193..198 "\n    "
+    UnboundDeclNode@198..208
+      PrimitiveTypeNode@198..206
+        BooleanTypeKeyword@198..205 "Boolean"
+        QuestionMark@205..206 "?"
+      Whitespace@206..207 " "
+      Ident@207..208 "b"
+    Whitespace@208..214 "\n\n    "
+    Comment@214..220 "# Ints"
+    Whitespace@220..225 "\n    "
+    UnboundDeclNode@225..230
+      PrimitiveTypeNode@225..229
+        IntTypeKeyword@225..228 "Int"
+        Whitespace@228..229 " "
+      Ident@229..230 "c"
+    Whitespace@230..235 "\n    "
+    UnboundDeclNode@235..241
+      PrimitiveTypeNode@235..239
+        IntTypeKeyword@235..238 "Int"
+        QuestionMark@238..239 "?"
+      Whitespace@239..240 " "
+      Ident@240..241 "d"
+    Whitespace@241..251 "\n    \n    "
+    Comment@251..259 "# Floats"
+    Whitespace@259..264 "\n    "
+    UnboundDeclNode@264..271
+      PrimitiveTypeNode@264..270
+        FloatTypeKeyword@264..269 "Float"
+        Whitespace@269..270 " "
+      Ident@270..271 "e"
+    Whitespace@271..276 "\n    "
+    UnboundDeclNode@276..284
+      PrimitiveTypeNode@276..282
+        FloatTypeKeyword@276..281 "Float"
+        QuestionMark@281..282 "?"
+      Whitespace@282..283 " "
+      Ident@283..284 "f"
+    Whitespace@284..294 "\n    \n    "
+    Comment@294..303 "# Strings"
+    Whitespace@303..308 "\n    "
+    UnboundDeclNode@308..316
+      PrimitiveTypeNode@308..315
+        StringTypeKeyword@308..314 "String"
+        Whitespace@314..315 " "
+      Ident@315..316 "g"
+    Whitespace@316..321 "\n    "
+    UnboundDeclNode@321..330
+      PrimitiveTypeNode@321..328
+        StringTypeKeyword@321..327 "String"
+        QuestionMark@327..328 "?"
+      Whitespace@328..329 " "
+      Ident@329..330 "h"
+    Whitespace@330..340 "\n    \n    "
+    Comment@340..347 "# Files"
+    Whitespace@347..352 "\n    "
+    UnboundDeclNode@352..358
+      PrimitiveTypeNode@352..357
+        FileTypeKeyword@352..356 "File"
+        Whitespace@356..357 " "
+      Ident@357..358 "i"
+    Whitespace@358..363 "\n    "
+    UnboundDeclNode@363..370
+      PrimitiveTypeNode@363..368
+        FileTypeKeyword@363..367 "File"
+        QuestionMark@367..368 "?"
+      Whitespace@368..369 " "
+      Ident@369..370 "j"
+    Whitespace@370..372 "\n\n"
+    CloseBrace@372..373 "}"
+  Whitespace@373..375 "\n\n"
+  Comment@375..414 "# Test for a struct w ..."
+  Whitespace@414..415 "\n"
+  StructDefinitionNode@415..1071
+    StructKeyword@415..421 "struct"
+    NameNode@421..434
+      Whitespace@421..422 " "
+      Ident@422..434 "ComplexTypes"
+    Whitespace@434..435 " "
+    OpenBrace@435..436 "{"
+    Whitespace@436..441 "\n    "
+    Comment@441..447 "# Maps"
+    Whitespace@447..452 "\n    "
+    UnboundDeclNode@452..474
+      MapTypeNode@452..473
+        MapTypeKeyword@452..455 "Map"
+        OpenBracket@455..456 "["
+        PrimitiveTypeNode@456..463
+          BooleanTypeKeyword@456..463 "Boolean"
+        Comma@463..464 ","
+        PrimitiveTypeNode@464..471
+          Whitespace@464..465 " "
+          StringTypeKeyword@465..471 "String"
+        CloseBracket@471..472 "]"
+        Whitespace@472..473 " "
+      Ident@473..474 "a"
+    Whitespace@474..479 "\n    "
+    UnboundDeclNode@479..505
+      MapTypeNode@479..504
+        MapTypeKeyword@479..482 "Map"
+        OpenBracket@482..483 "["
+        PrimitiveTypeNode@483..487
+          IntTypeKeyword@483..486 "Int"
+          QuestionMark@486..487 "?"
+        Comma@487..488 ","
+        ArrayTypeNode@488..502
+          Whitespace@488..489 " "
+          ArrayTypeKeyword@489..494 "Array"
+          OpenBracket@494..495 "["
+          PrimitiveTypeNode@495..501
+            StringTypeKeyword@495..501 "String"
+          CloseBracket@501..502 "]"
+        CloseBracket@502..503 "]"
+        Whitespace@503..504 " "
+      Ident@504..505 "b"
+    Whitespace@505..510 "\n    "
+    UnboundDeclNode@510..555
+      MapTypeNode@510..554
+        MapTypeKeyword@510..513 "Map"
+        OpenBracket@513..514 "["
+        PrimitiveTypeNode@514..519
+          FloatTypeKeyword@514..519 "Float"
+        Comma@519..520 ","
+        MapTypeNode@520..552
+          Whitespace@520..521 " "
+          MapTypeKeyword@521..524 "Map"
+          OpenBracket@524..525 "["
+          PrimitiveTypeNode@525..531
+            StringTypeKeyword@525..531 "String"
+          Comma@531..532 ","
+          ArrayTypeNode@532..551
+            Whitespace@532..533 " "
+            ArrayTypeKeyword@533..538 "Array"
+            OpenBracket@538..539 "["
+            ArrayTypeNode@539..550
+              ArrayTypeKeyword@539..544 "Array"
+              OpenBracket@544..545 "["
+              PrimitiveTypeNode@545..549
+                FileTypeKeyword@545..549 "File"
+              CloseBracket@549..550 "]"
+            CloseBracket@550..551 "]"
+          CloseBracket@551..552 "]"
+        CloseBracket@552..553 "]"
+        Whitespace@553..554 " "
+      Ident@554..555 "c"
+    Whitespace@555..560 "\n    "
+    UnboundDeclNode@560..615
+      MapTypeNode@560..614
+        MapTypeKeyword@560..563 "Map"
+        OpenBracket@563..564 "["
+        PrimitiveTypeNode@564..570
+          StringTypeKeyword@564..570 "String"
+        Comma@570..571 ","
+        PairTypeNode@571..612
+          Whitespace@571..572 " "
+          PairTypeKeyword@572..576 "Pair"
+          OpenBracket@576..577 "["
+          ArrayTypeNode@577..590
+            ArrayTypeKeyword@577..582 "Array"
+            OpenBracket@582..583 "["
+            PrimitiveTypeNode@583..589
+              StringTypeKeyword@583..589 "String"
+            CloseBracket@589..590 "]"
+          Comma@590..591 ","
+          MapTypeNode@591..611
+            Whitespace@591..592 " "
+            MapTypeKeyword@592..595 "Map"
+            OpenBracket@595..596 "["
+            PrimitiveTypeNode@596..602
+              StringTypeKeyword@596..602 "String"
+            Comma@602..603 ","
+            PrimitiveTypeNode@603..610
+              Whitespace@603..604 " "
+              StringTypeKeyword@604..610 "String"
+            CloseBracket@610..611 "]"
+          CloseBracket@611..612 "]"
+        CloseBracket@612..613 "]"
+        Whitespace@613..614 " "
+      Ident@614..615 "d"
+    Whitespace@615..620 "\n    "
+    UnboundDeclNode@620..637
+      MapTypeNode@620..636
+        MapTypeKeyword@620..623 "Map"
+        OpenBracket@623..624 "["
+        PrimitiveTypeNode@624..628
+          FileTypeKeyword@624..628 "File"
+        Comma@628..629 ","
+        PrimitiveTypeNode@629..634
+          Whitespace@629..630 " "
+          FileTypeKeyword@630..634 "File"
+        CloseBracket@634..635 "]"
+        Whitespace@635..636 " "
+      Ident@636..637 "e"
+    Whitespace@637..643 "\n\n    "
+    Comment@643..651 "# Arrays"
+    Whitespace@651..656 "\n    "
+    UnboundDeclNode@656..672
+      ArrayTypeNode@656..671
+        ArrayTypeKeyword@656..661 "Array"
+        OpenBracket@661..662 "["
+        PrimitiveTypeNode@662..669
+          BooleanTypeKeyword@662..669 "Boolean"
+        CloseBracket@669..670 "]"
+        Whitespace@670..671 " "
+      Ident@671..672 "f"
+    Whitespace@672..677 "\n    "
+    UnboundDeclNode@677..698
+      ArrayTypeNode@677..697
+        ArrayTypeKeyword@677..682 "Array"
+        OpenBracket@682..683 "["
+        ArrayTypeNode@683..695
+          ArrayTypeKeyword@683..688 "Array"
+          OpenBracket@688..689 "["
+          PrimitiveTypeNode@689..694
+            FloatTypeKeyword@689..694 "Float"
+          CloseBracket@694..695 "]"
+        CloseBracket@695..696 "]"
+        Whitespace@696..697 " "
+      Ident@697..698 "g"
+    Whitespace@698..703 "\n    "
+    UnboundDeclNode@703..731
+      ArrayTypeNode@703..730
+        ArrayTypeKeyword@703..708 "Array"
+        OpenBracket@708..709 "["
+        MapTypeNode@709..728
+          MapTypeKeyword@709..712 "Map"
+          OpenBracket@712..713 "["
+          PrimitiveTypeNode@713..719
+            StringTypeKeyword@713..719 "String"
+          Comma@719..720 ","
+          ObjectTypeNode@720..727
+            Whitespace@720..721 " "
+            ObjectTypeKeyword@721..727 "Object"
+          CloseBracket@727..728 "]"
+        CloseBracket@728..729 "]"
+        Whitespace@729..730 " "
+      Ident@730..731 "h"
+    Whitespace@731..736 "\n    "
+    UnboundDeclNode@736..778
+      ArrayTypeNode@736..777
+        ArrayTypeKeyword@736..741 "Array"
+        OpenBracket@741..742 "["
+        ArrayTypeNode@742..775
+          ArrayTypeKeyword@742..747 "Array"
+          OpenBracket@747..748 "["
+          ArrayTypeNode@748..774
+            ArrayTypeKeyword@748..753 "Array"
+            OpenBracket@753..754 "["
+            ArrayTypeNode@754..773
+              ArrayTypeKeyword@754..759 "Array"
+              OpenBracket@759..760 "["
+              ArrayTypeNode@760..772
+                ArrayTypeKeyword@760..765 "Array"
+                OpenBracket@765..766 "["
+                PrimitiveTypeNode@766..771
+                  FileTypeKeyword@766..770 "File"
+                  QuestionMark@770..771 "?"
+                CloseBracket@771..772 "]"
+              CloseBracket@772..773 "]"
+            CloseBracket@773..774 "]"
+          CloseBracket@774..775 "]"
+        CloseBracket@775..776 "]"
+        Whitespace@776..777 " "
+      Ident@777..778 "i"
+    Whitespace@778..783 "\n    "
+    UnboundDeclNode@783..802
+      ArrayTypeNode@783..801
+        ArrayTypeKeyword@783..788 "Array"
+        OpenBracket@788..789 "["
+        TypeRefNode@789..799
+          Ident@789..799 "CustomType"
+        CloseBracket@799..800 "]"
+        Whitespace@800..801 " "
+      Ident@801..802 "j"
+    Whitespace@802..808 "\n\n    "
+    Comment@808..815 "# Pairs"
+    Whitespace@815..820 "\n    "
+    UnboundDeclNode@820..844
+      PairTypeNode@820..843
+        PairTypeKeyword@820..824 "Pair"
+        OpenBracket@824..825 "["
+        PrimitiveTypeNode@825..832
+          BooleanTypeKeyword@825..832 "Boolean"
+        Comma@832..833 ","
+        PrimitiveTypeNode@833..841
+          Whitespace@833..834 " "
+          BooleanTypeKeyword@834..841 "Boolean"
+        CloseBracket@841..842 "]"
+        Whitespace@842..843 " "
+      Ident@843..844 "k"
+    Whitespace@844..849 "\n    "
+    UnboundDeclNode@849..900
+      PairTypeNode@849..899
+        PairTypeKeyword@849..853 "Pair"
+        OpenBracket@853..854 "["
+        PairTypeNode@854..890
+          PairTypeKeyword@854..858 "Pair"
+          OpenBracket@858..859 "["
+          PairTypeNode@859..880
+            PairTypeKeyword@859..863 "Pair"
+            OpenBracket@863..864 "["
+            PrimitiveTypeNode@864..871
+              StringTypeKeyword@864..870 "String"
+              QuestionMark@870..871 "?"
+            Comma@871..872 ","
+            PrimitiveTypeNode@872..879
+              Whitespace@872..873 " "
+              StringTypeKeyword@873..879 "String"
+            CloseBracket@879..880 "]"
+          Comma@880..881 ","
+          TypeRefNode@881..889
+            Whitespace@881..882 " "
+            Ident@882..889 "Integer"
+          CloseBracket@889..890 "]"
+        Comma@890..891 ","
+        PrimitiveTypeNode@891..897
+          Whitespace@891..892 " "
+          FloatTypeKeyword@892..897 "Float"
+        CloseBracket@897..898 "]"
+        Whitespace@898..899 " "
+      Ident@899..900 "l"
+    Whitespace@900..905 "\n    "
+    UnboundDeclNode@905..953
+      PairTypeNode@905..952
+        PairTypeKeyword@905..909 "Pair"
+        OpenBracket@909..910 "["
+        MapTypeNode@910..944
+          MapTypeKeyword@910..913 "Map"
+          OpenBracket@913..914 "["
+          PrimitiveTypeNode@914..921
+            StringTypeKeyword@914..920 "String"
+            QuestionMark@920..921 "?"
+          Comma@921..922 ","
+          PairTypeNode@922..943
+            Whitespace@922..923 " "
+            PairTypeKeyword@923..927 "Pair"
+            OpenBracket@927..928 "["
+            PrimitiveTypeNode@928..934
+              StringTypeKeyword@928..934 "String"
+            Comma@934..935 ","
+            PrimitiveTypeNode@935..942
+              Whitespace@935..936 " "
+              StringTypeKeyword@936..942 "String"
+            CloseBracket@942..943 "]"
+          CloseBracket@943..944 "]"
+        Comma@944..945 ","
+        PrimitiveTypeNode@945..950
+          Whitespace@945..946 " "
+          IntTypeKeyword@946..949 "Int"
+          QuestionMark@949..950 "?"
+        CloseBracket@950..951 "]"
+        Whitespace@951..952 " "
+      Ident@952..953 "m"
+    Whitespace@953..958 "\n    "
+    UnboundDeclNode@958..995
+      PairTypeNode@958..994
+        PairTypeKeyword@958..962 "Pair"
+        OpenBracket@962..963 "["
+        ArrayTypeNode@963..976
+          ArrayTypeKeyword@963..968 "Array"
+          OpenBracket@968..969 "["
+          PrimitiveTypeNode@969..975
+            StringTypeKeyword@969..975 "String"
+          CloseBracket@975..976 "]"
+        Comma@976..977 ","
+        ArrayTypeNode@977..992
+          Whitespace@977..978 " "
+          ArrayTypeKeyword@978..983 "Array"
+          OpenBracket@983..984 "["
+          PrimitiveTypeNode@984..991
+            StringTypeKeyword@984..990 "String"
+            QuestionMark@990..991 "?"
+          CloseBracket@991..992 "]"
+        CloseBracket@992..993 "]"
+        Whitespace@993..994 " "
+      Ident@994..995 "n"
+    Whitespace@995..1001 "\n\n    "
+    Comment@1001..1009 "# Object"
+    Whitespace@1009..1014 "\n    "
+    UnboundDeclNode@1014..1022
+      ObjectTypeNode@1014..1021
+        ObjectTypeKeyword@1014..1020 "Object"
+        Whitespace@1020..1021 " "
+      Ident@1021..1022 "o"
+    Whitespace@1022..1028 "\n\n    "
+    Comment@1028..1042 "# Custom types"
+    Whitespace@1042..1047 "\n    "
+    UnboundDeclNode@1047..1055
+      TypeRefNode@1047..1054
+        Ident@1047..1053 "MyType"
+        Whitespace@1053..1054 " "
+      Ident@1054..1055 "p"
+    Whitespace@1055..1060 "\n    "
+    UnboundDeclNode@1060..1069
+      TypeRefNode@1060..1067
+        Ident@1060..1066 "MyType"
+        QuestionMark@1066..1067 "?"
+      Whitespace@1067..1068 " "
+      Ident@1068..1069 "q"
+    Whitespace@1069..1070 "\n"
+    CloseBrace@1070..1071 "}"
+  Whitespace@1071..1072 "\n"

@@ -213,10 +213,10 @@ impl<'a> ParserToken<'a> for VersionStatementToken {
 /// Represents a lexer error.
 #[derive(thiserror::Error, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Error {
-    /// An unexpected token was encountered.
+    /// An unknown token was encountered.
     #[default]
-    #[error("an unexpected token was encountered")]
-    UnexpectedToken,
+    #[error("an unknown token was encountered")]
+    UnknownToken,
 }
 
 /// The result type for the lexer.
