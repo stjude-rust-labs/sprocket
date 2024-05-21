@@ -1,0 +1,9 @@
+  × expected `}`, but found end of input
+   ╭─[tests/parsing/mismatched-brace/source.wdl:8:1]
+ 4 │ 
+ 5 │ task test {
+   ·           ┬
+   ·           ╰── this brace is not matched
+ 6 │     meta {
+ 7 │     }
+   ╰────

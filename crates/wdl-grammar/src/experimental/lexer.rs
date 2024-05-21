@@ -254,16 +254,7 @@ where
 
     /// Gets the current span of the lexer.
     pub fn span(&self) -> SourceSpan {
-        let mut span = self.0.span();
-        if span.end == self.source_len() {
-            // miette doesn't support placing a highlight at
-            // the end of the input, so use the last valid
-            // byte in the source
-            span.start -= 1;
-            span.end = span.start + 1;
-        }
-
-        to_source_span(span)
+        to_source_span(self.0.span())
     }
 
     /// Peeks at the next token.

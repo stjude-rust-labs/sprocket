@@ -1,0 +1,52 @@
+RootNode@0..143
+  Comment@0..41 "# This is a test of a ..."
+  Whitespace@41..43 "\n\n"
+  VersionStatementNode@43..54
+    VersionKeyword@43..50 "version"
+    Whitespace@50..51 " "
+    Version@51..54 "1.1"
+  Whitespace@54..56 "\n\n"
+  StructDefinitionNode@56..143
+    StructKeyword@56..62 "struct"
+    NameNode@62..67
+      Whitespace@62..63 " "
+      Ident@63..67 "test"
+    Whitespace@67..68 " "
+    OpenBrace@68..69 "{"
+    Whitespace@69..74 "\n    "
+    UnboundDeclNode@74..95
+      MapTypeNode@74..94
+        MapTypeKeyword@74..77 "Map"
+        OpenBracket@77..78 "["
+        PrimitiveTypeNode@78..84
+          StringTypeKeyword@78..84 "String"
+        Comma@84..85 ","
+        PrimitiveTypeNode@85..92
+          Whitespace@85..86 " "
+          StringTypeKeyword@86..92 "String"
+        CloseBracket@92..93 "]"
+        Whitespace@93..94 " "
+      Ident@94..95 "x"
+    Whitespace@95..100 "\n    "
+    MapTypeKeyword@100..103 "Map"
+    OpenBracket@103..104 "["
+    PrimitiveTypeNode@104..111
+      BooleanTypeKeyword@104..111 "Boolean"
+    Comma@111..112 ","
+    ArrayTypeNode@112..127
+      Whitespace@112..113 " "
+      ArrayTypeKeyword@113..118 "Array"
+      OpenBracket@118..119 "["
+      PrimitiveTypeNode@119..125
+        StringTypeKeyword@119..125 "String"
+      CloseBracket@125..126 "]"
+      Whitespace@126..127 " "
+    Ident@127..128 "y"
+    Whitespace@128..133 "\n    "
+    UnboundDeclNode@133..141
+      PrimitiveTypeNode@133..140
+        StringTypeKeyword@133..139 "String"
+        Whitespace@139..140 " "
+      Ident@140..141 "z"
+    Whitespace@141..142 "\n"
+    CloseBrace@142..143 "}"

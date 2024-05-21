@@ -21,6 +21,8 @@ use crate::experimental::parser::Parser;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u16)]
 pub enum SyntaxKind {
+    /// The token is unknown to WDL.
+    Unknown,
     /// A whitespace token.
     Whitespace,
     /// A comment token.
@@ -165,6 +167,8 @@ pub enum SyntaxKind {
     Greater,
     /// The `.` symbol token.
     Dot,
+    /// A literal string text token.
+    LiteralStringText,
 
     /// Abandoned nodes are nodes that encountered errors.
     ///
@@ -203,6 +207,26 @@ pub enum SyntaxKind {
     ObjectTypeNode,
     /// Represents a type reference node.
     TypeRefNode,
+    /// Represents a metadata section node.
+    MetadataSectionNode,
+    /// Represents a parameter metadata section node.
+    ParameterMetadataSectionNode,
+    /// Represents a metadata object item node.
+    MetadataObjectItemNode,
+    /// Represents a metadata object node.
+    MetadataObjectNode,
+    /// Represents a metadata array node.
+    MetadataArrayNode,
+    /// Represents a literal integer node.  
+    LiteralIntegerNode,
+    /// Represents a literal float node.  
+    LiteralFloatNode,
+    /// Represents a literal boolean node.
+    LiteralBooleanNode,
+    /// Represents a literal null node.
+    LiteralNullNode,
+    /// Represents a literal string node.
+    LiteralStringNode,
 
     // WARNING: this must always be the last variant.
     /// The exclusive maximum syntax kind value.
@@ -257,28 +281,53 @@ impl SyntaxTree {
     /// a valid WDL document.
     pub fn parse(source: &str) -> (Self, Vec<Error>) {
         let parser = Parser::new(Lexer::new(source));
-        let events = grammar::document(source, parser);
-        Self::build(source, events)
+        let (events, errors) = grammar::document(source, parser);
+        Self::build(source, events, errors)
     }
 
     /// Builds the concrete syntax tree from a list of parser events.
-    fn build(source: &str, events: Vec<Event>) -> (Self, Vec<Error>) {
+    fn build(source: &str, mut events: Vec<Event>, errors: Vec<Error>) -> (Self, Vec<Error>) {
         let mut builder = GreenNodeBuilder::default();
-        let mut errors = Vec::new();
+        let mut ancestors = Vec::new();
 
-        for event in events {
-            match event {
-                Event::NodeStarted(SyntaxKind::Abandoned) => {
-                    // The node was abandoned, so all the descendants of the
-                    // node will attach to the current node
+        for i in 0..events.len() {
+            match std::mem::replace(&mut events[i], Event::abandoned()) {
+                Event::NodeStarted {
+                    kind,
+                    forward_parent,
+                } => {
+                    // Walk the forward parent chain, if there is one, and push
+                    // each forward parent to the ancestors list
+                    ancestors.push(kind);
+                    let mut idx = i;
+                    let mut fp: Option<usize> = forward_parent;
+                    while let Some(distance) = fp {
+                        idx += distance;
+                        fp = match std::mem::replace(&mut events[idx], Event::abandoned()) {
+                            Event::NodeStarted {
+                                kind,
+                                forward_parent,
+                            } => {
+                                ancestors.push(kind);
+                                forward_parent
+                            }
+                            _ => unreachable!(),
+                        };
+                    }
+
+                    // As the current node was pushed first and then its ancestors, walk
+                    // the list in reverse to start the "oldest" ancestor first
+                    for kind in ancestors.drain(..).rev() {
+                        if kind != SyntaxKind::Abandoned {
+                            builder.start_node(kind.into());
+                        }
+                    }
                 }
-                Event::NodeStarted(kind) => builder.start_node(kind.into()),
                 Event::NodeFinished => builder.finish_node(),
                 Event::Token { kind, span } => builder.token(
                     kind.into(),
                     &source[span.offset()..span.offset() + span.len()],
                 ),
-                Event::Error(error) => errors.push(error),
             }
         }
 

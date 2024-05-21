@@ -34,6 +34,11 @@ mod macros {
                 return Err(($marker, e));
             }
         };
+        ($parser:ident, $token:expr, $expected:literal) => {
+            if let Err(e) = $parser.expect_with_name($token, $expected) {
+                return Err((e));
+            }
+        };
     }
 
     /// A macro for expecting that a given function parses the next node.
@@ -47,6 +52,13 @@ mod macros {
                 return Err(($marker, e));
             }
         };
+        ($parser:ident, $func:ident) => {
+            let inner = $parser.start();
+            if let Err((inner, e)) = $func($parser, inner) {
+                inner.abandon($parser);
+                return Err(e);
+            }
+        };
     }
 
     pub(crate) use expected;
@@ -54,10 +66,13 @@ mod macros {
     pub(crate) use expected_with_name;
 }
 
+/// A parser type used for parsing the document preamble.
+type PreambleParser<'a> = Parser<'a, PreambleToken>;
+
 /// Parses a WDL document.
 ///
 /// Returns the parser events that result from parsing the document.
-pub fn document(source: &str, mut parser: Parser<'_, PreambleToken>) -> Vec<Event> {
+pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Vec<Error>) {
     let root = parser.start();
     // Look for a starting `version` keyword token
     // If this fails, an error is emitted and we'll fallback to the latest version
@@ -73,10 +88,11 @@ pub fn document(source: &str, mut parser: Parser<'_, PreambleToken>) -> Vec<Even
                     let version: &str = &source[span.offset()..span.offset() + span.len()];
                     match version {
                         "1.0" | "1.1" => {
-                            let mut parser: v1::Parser<'_> = parser.morph();
+                            let mut parser = parser.morph();
                             v1::items(&mut parser);
                             root.complete(&mut parser, SyntaxKind::RootNode);
-                            return parser.into_events();
+                            let output = parser.finish();
+                            return (output.events, output.errors);
                         }
                         _ => (
                             parser,
@@ -108,7 +124,8 @@ pub fn document(source: &str, mut parser: Parser<'_, PreambleToken>) -> Vec<Even
     let mut parser = parser.morph();
     v1::items(&mut parser);
     root.complete(&mut parser, SyntaxKind::RootNode);
-    parser.into_events()
+    let output = parser.finish();
+    (output.events, output.errors)
 }
 
 /// Parses the version statement of a WDL source file.

@@ -1,0 +1,29 @@
+  × an unterminated string was encountered
+   ╭─[tests/parsing/unterminated-metadata-string/source.wdl:7:12]
+ 6 │     meta {
+ 7 │         a: 'unterminated
+   ·            ┬
+   ·            ╰── this quote is not matched
+ 8 │     }
+   ╰────
+  × expected `}`, but found end of input
+   ╭─[tests/parsing/unterminated-metadata-string/source.wdl:10:1]
+ 5 │ task test {
+ 6 │     meta {
+   ·          ┬
+   ·          ╰── this brace is not matched
+ 7 │         a: 'unterminated
+ 8 │     }
+ 9 │ }
+   ╰────
+  × expected `}`, but found end of input
+   ╭─[tests/parsing/unterminated-metadata-string/source.wdl:10:1]
+ 4 │ 
+ 5 │ task test {
+   ·           ┬
+   ·           ╰── this brace is not matched
+ 6 │     meta {
+ 7 │         a: 'unterminated
+ 8 │     }
+ 9 │ }
+   ╰────

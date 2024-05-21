@@ -204,7 +204,7 @@ pub enum Token {
 
     /// A literal integer.
     #[token("0")]
-    #[regex(r"[1-9][0-9]+")]
+    #[regex(r"[1-9][0-9]*")]
     #[regex(r"0[0-7]+")]
     #[regex(r"0[xX][0-9a-fA-F]+")]
     Integer,
@@ -762,6 +762,7 @@ mod test {
         let lexer = Lexer::<Token>::new(
             r#"
 0
+5
 123456789
 01234567
 0000
@@ -777,19 +778,21 @@ mod test {
                 (Ok(Whitespace), 0..1),
                 (Ok(Integer), 1..2),
                 (Ok(Whitespace), 2..3),
-                (Ok(Integer), 3..12),
-                (Ok(Whitespace), 12..13),
-                (Ok(Integer), 13..21),
-                (Ok(Whitespace), 21..22),
-                (Ok(Integer), 22..26),
-                (Ok(Whitespace), 26..27),
-                (Ok(Integer), 27..31),
-                (Ok(Whitespace), 31..32),
-                (Ok(Integer), 32..35),
-                (Ok(Whitespace), 35..36),
-                (Ok(Integer), 36..39),
-                (Ok(Whitespace), 39..40),
-                (Ok(Integer), 40..57),
+                (Ok(Integer), 3..4),
+                (Ok(Whitespace), 4..5),
+                (Ok(Integer), 5..14),
+                (Ok(Whitespace), 14..15),
+                (Ok(Integer), 15..23),
+                (Ok(Whitespace), 23..24),
+                (Ok(Integer), 24..28),
+                (Ok(Whitespace), 28..29),
+                (Ok(Integer), 29..33),
+                (Ok(Whitespace), 33..34),
+                (Ok(Integer), 34..37),
+                (Ok(Whitespace), 37..38),
+                (Ok(Integer), 38..41),
+                (Ok(Whitespace), 41..42),
+                (Ok(Integer), 42..59),
             ],
         );
     }
@@ -1132,8 +1135,8 @@ foo123_BAR"#,
             lexer.next().map(map),
             Some((Ok(Token::CommandKeyword), 0..7)),
         );
-        assert_eq!(lexer.next().map(map), Some((Ok(Token::Whitespace), 7..8)),);
-        assert_eq!(lexer.next().map(map), Some((Ok(Token::OpenBrace), 8..9)),);
+        assert_eq!(lexer.next().map(map), Some((Ok(Token::Whitespace), 7..8)));
+        assert_eq!(lexer.next().map(map), Some((Ok(Token::OpenBrace), 8..9)));
 
         let mut lexer = lexer.morph();
         assert_eq!(

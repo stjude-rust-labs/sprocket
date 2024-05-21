@@ -1,0 +1,9 @@
+  × expected `]`, but found identifier
+   ╭─[tests/parsing/mismatched-bracket/source.wdl:7:8]
+ 6 │     Map[String, String] x
+ 7 │     Map[Boolean, Array[String] y
+   ·        ┬                       ┬
+   ·        │                       ╰── unexpected identifier
+   ·        ╰── this bracket is not matched
+ 8 │     String z
+   ╰────

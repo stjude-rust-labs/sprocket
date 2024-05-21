@@ -24,7 +24,14 @@ use super::tree::SyntaxKind;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     /// A new node has started.
-    NodeStarted(SyntaxKind),
+    NodeStarted {
+        /// The kind of the node.
+        kind: SyntaxKind,
+        /// For left-recursive syntactic constructs, the parser produces
+        /// a child node before it sees a parent. `forward_parent`
+        /// saves the position of current event's parent.
+        forward_parent: Option<usize>,
+    },
 
     /// A node has finished.
     NodeFinished,
@@ -36,9 +43,16 @@ pub enum Event {
         /// The source span of the token.
         span: SourceSpan,
     },
+}
 
-    /// An error was encountered.
-    Error(Error),
+impl Event {
+    /// Gets an start node event for an abandoned node.
+    pub fn abandoned() -> Self {
+        Self::NodeStarted {
+            kind: SyntaxKind::Abandoned,
+            forward_parent: None,
+        }
+    }
 }
 
 /// Utility type for displaying "found" tokens in a parser expectation error.
@@ -158,6 +172,48 @@ pub enum Error {
         #[label(primary, "a version statement must come before this")]
         span: Option<SourceSpan>,
     },
+    /// A placeholder was encountered in a metadata string.
+    #[error("a metadata string cannot contain a placeholder")]
+    MetadataStringPlaceholder {
+        /// The span where the string placeholder was encountered.
+        #[label(primary, "consider escaping this placeholder")]
+        span: SourceSpan,
+    },
+    /// An unterminated placeholder was encountered.
+    #[error("an unterminated string was encountered")]
+    UnterminatedString {
+        /// The span of the opening quote of the string.
+        #[label(primary, "this quote is not matched")]
+        span: SourceSpan,
+    },
+    /// An unmatched brace was encountered.
+    #[error("expected `}}`, but found {found}", found = Found::new(*.found, *.describe))]
+    UnmatchedBrace {
+        /// The found raw token (`None` for end of input).
+        found: Option<u8>,
+        /// The span of the found token.
+        #[label(primary, "unexpected {found}", found = Found::new(*.found, *.describe))]
+        span: SourceSpan,
+        /// The function used to describe the raw token.
+        describe: fn(u8) -> &'static str,
+        /// The span of the opening brace.
+        #[label("this brace is not matched")]
+        opening: SourceSpan,
+    },
+    /// An unmatched bracket was encountered.
+    #[error("expected `]`, but found {found}", found = Found::new(*.found, *.describe))]
+    UnmatchedBracket {
+        /// The found raw token (`None` for end of input).
+        found: Option<u8>,
+        /// The span of the found token.
+        #[label("unexpected {found}", found = Found::new(*.found, *.describe))]
+        span: SourceSpan,
+        /// The function used to describe the raw token.
+        describe: fn(u8) -> &'static str,
+        /// The span of the opening bracket.
+        #[label(primary, "this bracket is not matched")]
+        opening: SourceSpan,
+    },
 }
 
 /// A trait implemented by parser tokens.
@@ -199,20 +255,22 @@ impl Marker {
     }
 
     /// Completes the syntax tree node.
-    pub fn complete<'a, T>(self, parser: &mut Parser<'a, T>, kind: SyntaxKind)
+    pub fn complete<'a, T>(self, parser: &mut Parser<'a, T>, kind: SyntaxKind) -> CompletedMarker
     where
         T: ParserToken<'a>,
     {
         // Update the node kind and push a finished event
         match &mut parser.events[self.0] {
-            Event::NodeStarted(k) => {
-                *k = kind;
+            Event::NodeStarted { kind: existing, .. } => {
+                *existing = kind;
             }
             _ => unreachable!(),
         }
 
         parser.events.push(Event::NodeFinished);
+        let m = CompletedMarker::new(self.0, kind);
         std::mem::forget(self);
+        m
     }
 
     /// Abandons the node due to an error.
@@ -223,7 +281,10 @@ impl Marker {
         // If the current node has no children, just pop it from the event list
         if self.0 == parser.events.len() - 1 {
             match parser.events.pop() {
-                Some(Event::NodeStarted(SyntaxKind::Abandoned)) => (),
+                Some(Event::NodeStarted {
+                    kind: SyntaxKind::Abandoned,
+                    forward_parent: None,
+                }) => (),
                 _ => unreachable!(),
             }
         }
@@ -240,6 +301,128 @@ impl Drop for Marker {
     }
 }
 
+/// Represents a marker for a node that has been completed.
+#[derive(Debug, Clone, Copy)]
+pub struct CompletedMarker {
+    /// Marks the position in the event list where the node was started.
+    pos: usize,
+    /// The kind of the completed node.
+    kind: SyntaxKind,
+}
+
+impl CompletedMarker {
+    /// Constructs a new completed marker with the given start position and
+    /// syntax kind.
+    fn new(pos: usize, kind: SyntaxKind) -> Self {
+        CompletedMarker { pos, kind }
+    }
+
+    /// Creates a new node that precedes the completed node.
+    pub fn precede<'a, T>(self, parser: &mut Parser<'a, T>) -> Marker
+    where
+        T: ParserToken<'a>,
+    {
+        let new_pos = parser.start();
+        match &mut parser.events[self.pos] {
+            Event::NodeStarted { forward_parent, .. } => {
+                *forward_parent = Some(new_pos.0 - self.pos);
+            }
+            _ => unreachable!(),
+        }
+        new_pos
+    }
+
+    /// Extends the completed marker to the left up to `marker`.
+    pub fn extend_to<'a, T>(self, parser: &mut Parser<'a, T>, marker: Marker) -> CompletedMarker
+    where
+        T: ParserToken<'a>,
+    {
+        let pos = marker.0;
+        std::mem::forget(marker);
+        match &mut parser.events[pos] {
+            Event::NodeStarted { forward_parent, .. } => {
+                *forward_parent = Some(self.pos - pos);
+            }
+            _ => unreachable!(),
+        }
+        self
+    }
+
+    /// Gets the kind of the completed marker.
+    pub fn kind(&self) -> SyntaxKind {
+        self.kind
+    }
+}
+
+/// A utility type used during string interpolation.
+///
+/// See the [Parser::interpolate] method.
+#[allow(missing_debug_implementations)]
+pub struct Interpolator<'a, T>
+where
+    T: Logos<'a>,
+{
+    /// The lexer to use for the interpolation.
+    lexer: Lexer<'a, T>,
+    /// The parser events.
+    events: Vec<Event>,
+    /// The parser errors.
+    errors: Vec<Error>,
+}
+
+impl<'a, T> Interpolator<'a, T>
+where
+    T: Logos<'a, Source = str, Error = lexer::Error, Extras = ()> + Copy,
+{
+    /// Adds an event to the parser event list.
+    pub fn event(&mut self, event: Event) {
+        self.events.push(event);
+    }
+
+    /// Adds an error to the parser error list.
+    pub fn error(&mut self, error: Error) {
+        self.errors.push(error);
+    }
+
+    /// Consumes the interpolator and returns a parser.
+    pub fn into_parser<T2>(self) -> Parser<'a, T2>
+    where
+        T2: ParserToken<'a>,
+        T::Extras: Into<T2::Extras>,
+    {
+        Parser {
+            lexer: Some(self.lexer.morph()),
+            events: self.events,
+            errors: self.errors,
+        }
+    }
+}
+
+impl<'a, T> Iterator for Interpolator<'a, T>
+where
+    T: Logos<'a, Error = lexer::Error>,
+{
+    type Item = (LexerResult<T>, SourceSpan);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.lexer.next()
+    }
+}
+
+/// The output of a parse.
+#[allow(missing_debug_implementations)]
+pub struct Output<'a, T>
+where
+    T: Logos<'a>,
+{
+    /// The parser's lexer.
+    pub lexer: Lexer<'a, T>,
+    /// The parser events.
+    pub events: Vec<Event>,
+    /// The parser errors.
+    pub errors: Vec<Error>,
+}
+
 /// Implements a WDL parser.
 ///
 /// The parser produces a list of events that can be used to
@@ -250,9 +433,15 @@ where
     T: ParserToken<'a>,
 {
     /// The lexer that returns a stream of tokens for the parser.
-    lexer: Lexer<'a, T>,
+    ///
+    /// This may temporarily be `None` during string interpolation.
+    ///
+    /// See the [interpolate][Self::interpolate] method.
+    lexer: Option<Lexer<'a, T>>,
     /// The events produced by the parser.
     events: Vec<Event>,
+    /// The errors encountered so far.
+    errors: Vec<Error>,
 }
 
 impl<'a, T> Parser<'a, T>
@@ -262,21 +451,25 @@ where
     /// Construct a new parser from the given lexer.
     pub fn new(lexer: Lexer<'a, T>) -> Self {
         Self {
-            lexer,
+            lexer: Some(lexer),
             events: Default::default(),
+            errors: Default::default(),
         }
     }
 
     /// Gets the current span of the parser.
     pub fn span(&self) -> SourceSpan {
-        self.lexer.span()
+        self.lexer
+            .as_ref()
+            .map(|l| l.span())
+            .unwrap_or(SourceSpan::new(0.into(), 0))
     }
 
     /// Peeks at the next token from the lexer without consuming it.
     ///
     /// The token is not added to the event list.
     pub fn peek(&mut self) -> Option<(T, SourceSpan)> {
-        while let Some((res, span)) = self.lexer.peek() {
+        while let Some((res, span)) = self.lexer.as_mut()?.peek() {
             if let Some(t) = self.consume_trivia(res, span, true) {
                 return Some(t);
             }
@@ -300,8 +493,7 @@ where
 
     /// Parses a delimited list of nodes via a callback.
     ///
-    /// The parsing stops when it encounters the `until` token or if
-    /// the callback returns `Ok(false)`.
+    /// The parsing stops when it encounters the `until` token.
     pub fn delimited<F>(
         &mut self,
         delimiter: Option<T>,
@@ -309,7 +501,7 @@ where
         recovery: TokenSet,
         mut cb: F,
     ) where
-        F: FnMut(&mut Self, Marker) -> Result<bool, (Marker, Error)>,
+        F: FnMut(&mut Self, Marker) -> Result<(), (Marker, Error)>,
     {
         let recovery = if let Some(delimiter) = delimiter {
             recovery
@@ -326,27 +518,34 @@ where
             }
 
             let marker = self.start();
-            match cb(self, marker) {
-                Ok(true) => {}
-                Ok(false) => break,
-                Err((marker, e)) => {
-                    self.error(e);
-                    self.recover(recovery);
-                    marker.abandon(self);
-                }
-            }
-
-            if let Some(delimiter) = delimiter {
-                self.next_if(delimiter);
+            if let Err((marker, e)) = cb(self, marker) {
+                self.error(e);
+                self.recover(recovery);
+                marker.abandon(self);
             }
 
             next = self.peek();
+
+            if let Some(delimiter) = delimiter {
+                if let Some((token, _)) = next {
+                    if until.contains(token.into_raw()) {
+                        break;
+                    }
+
+                    if let Err(e) = self.expect(delimiter) {
+                        self.error(e);
+                        self.recover(recovery);
+                    }
+
+                    next = self.peek();
+                }
+            }
         }
     }
 
     /// Adds an error event to the event list.
     pub fn error(&mut self, error: Error) {
-        self.events.push(Event::Error(error));
+        self.errors.push(error);
     }
 
     /// Recovers from an error by consuming all tokens not
@@ -364,16 +563,19 @@ where
     /// Starts a new node event.
     pub fn start(&mut self) -> Marker {
         let pos = self.events.len();
-        self.events.push(Event::NodeStarted(SyntaxKind::Abandoned));
+        self.events.push(Event::NodeStarted {
+            kind: SyntaxKind::Abandoned,
+            forward_parent: None,
+        });
         Marker::new(pos)
     }
 
     /// Requires that the current token is the given token.
     ///
     /// Panics if the token is not the given token.
-    pub fn require(&mut self, token: T) {
+    pub fn require(&mut self, token: T) -> SourceSpan {
         match self.next() {
-            Some((t, _)) if t == token => {}
+            Some((t, span)) if t == token => span,
             _ => panic!(
                 "lexer not at required token {token}",
                 token = T::describe(token.into_raw())
@@ -392,7 +594,7 @@ where
             found => {
                 let found = found.map(|(t, _)| t.into_raw());
                 panic!(
-                    "expected token {found}",
+                    "unexpected token {found}",
                     found = Found::new(found, T::describe)
                 );
             }
@@ -403,11 +605,8 @@ where
     ///
     /// Returns an error if the token is not the given token.
     pub fn expect(&mut self, token: T) -> Result<SourceSpan, Error> {
-        match self.peek() {
-            Some((t, span)) if t == token => {
-                self.next();
-                Ok(span)
-            }
+        match self.next() {
+            Some((t, span)) if t == token => Ok(span),
             Some((t, span)) => Err(Error::Expected {
                 expected: T::describe(token.into_raw()),
                 found: Some(t.into_raw()),
@@ -428,11 +627,8 @@ where
     ///
     /// Returns an error if the token is not the given token.
     pub fn expect_with_name(&mut self, token: T, name: &'static str) -> Result<SourceSpan, Error> {
-        match self.peek() {
-            Some((t, span)) if t == token => {
-                self.next();
-                Ok(span)
-            }
+        match self.next() {
+            Some((t, span)) if t == token => Ok(span),
             Some((t, span)) => Err(Error::Expected {
                 expected: name,
                 found: Some(t.into_raw()),
@@ -456,11 +652,8 @@ where
         tokens: TokenSet,
         expected: &'static [&'static str],
     ) -> Result<(T, SourceSpan), Error> {
-        match self.peek() {
-            Some((t, span)) if tokens.contains(t.into_raw()) => {
-                self.next();
-                Ok((t, span))
-            }
+        match self.next() {
+            Some((t, span)) if tokens.contains(t.into_raw()) => Ok((t, span)),
             Some((t, span)) => Err(Error::ExpectedOneOf {
                 expected,
                 found: Some(t.into_raw()),
@@ -476,6 +669,29 @@ where
         }
     }
 
+    /// Used to interpolate strings with a different string interpolation token.
+    ///
+    /// The provided callback receives a [Interpolator].
+    ///
+    /// The callback should use [Interpolator::into_parser] for the return
+    /// value.
+    pub fn interpolate<T2, F, R>(&mut self, cb: F) -> R
+    where
+        T2: Logos<'a, Source = str, Error = lexer::Error, Extras = ()> + Copy,
+        F: FnOnce(Interpolator<'a, T2>) -> (Parser<'a, T>, R),
+    {
+        let input = Interpolator {
+            lexer: std::mem::take(&mut self.lexer)
+                .expect("lexer should exist")
+                .morph(),
+            events: std::mem::take(&mut self.events),
+            errors: std::mem::take(&mut self.errors),
+        };
+        let (p, result) = cb(input);
+        *self = p;
+        result
+    }
+
     /// Morph this parser into a parser for a new token type.
     ///
     /// The returned parser continues to point at the same span
@@ -486,14 +702,31 @@ where
         T::Extras: Into<T2::Extras>,
     {
         Parser {
-            lexer: self.lexer.morph(),
+            lexer: self.lexer.map(|l| l.morph()),
             events: self.events,
+            errors: self.errors,
         }
     }
 
-    /// Consumes the parser and returns the list of parser events.
-    pub fn into_events(self) -> Vec<Event> {
-        self.events
+    /// Consumes the parser and returns an interpolator.
+    pub fn into_interpolator<T2>(self) -> Interpolator<'a, T2>
+    where
+        T2: Logos<'a, Source = str, Error = lexer::Error, Extras = ()> + Copy,
+    {
+        Interpolator {
+            lexer: self.lexer.expect("lexer should be present").morph(),
+            events: self.events,
+            errors: self.errors,
+        }
+    }
+
+    /// Consumes the parser and returns the output.
+    pub fn finish(self) -> Output<'a, T> {
+        Output {
+            lexer: self.lexer.expect("lexer should be present"),
+            events: self.events,
+            errors: self.errors,
+        }
     }
 
     /// Consumes any trivia tokens by adding them to the event list.
@@ -514,11 +747,17 @@ where
                     span,
                 }
             }
-            Err(e) => Event::Error(Error::Lexer { error: e, span }),
+            Err(e) => {
+                self.error(Error::Lexer { error: e, span });
+                Event::Token {
+                    kind: SyntaxKind::Unknown,
+                    span,
+                }
+            }
         };
 
         if peeked {
-            self.lexer.next();
+            self.lexer.as_mut().expect("should have a lexer").next();
         }
 
         self.events.push(event);
@@ -533,7 +772,7 @@ where
     type Item = (T, SourceSpan);
 
     fn next(&mut self) -> Option<(T, SourceSpan)> {
-        while let Some((res, span)) = self.lexer.next() {
+        while let Some((res, span)) = self.lexer.as_mut()?.next() {
             if let Some((token, span)) = self.consume_trivia(res, span, false) {
                 self.events.push(Event::Token {
                     kind: token.into_syntax(),

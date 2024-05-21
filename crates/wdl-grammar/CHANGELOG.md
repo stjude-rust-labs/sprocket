@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Adds support for parsing `meta` and `parameter_meta` sections in tasks
+  and workflows in the experimental parser ([#39](https://github.com/stjude-rust-labs/wdl/pull/39)).
 * Adds support for parsing struct definitions to the experimental parser;
   requires the `experimental` feature to be activated ([#38](https://github.com/stjude-rust-labs/wdl/pull/38)).
 * Adds a new experimental `SyntaxTree` representation; requires the 

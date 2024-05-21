@@ -1,4 +1,4 @@
-RootNode@0..226
+RootNode@0..227
   Comment@0..71 "# This test ensures t ..."
   Whitespace@71..73 "\n\n"
   VersionStatementNode@73..84
@@ -6,7 +6,7 @@ RootNode@0..226
     Whitespace@80..81 " "
     Version@81..84 "1.1"
   Whitespace@84..86 "\n\n"
-  StructDefinitionNode@86..225
+  StructDefinitionNode@86..226
     StructKeyword@86..92 "struct"
     NameNode@92..101
       Whitespace@92..93 " "
@@ -14,34 +14,35 @@ RootNode@0..226
     Whitespace@101..102 " "
     OpenBrace@102..103 "{"
     Whitespace@103..108 "\n    "
-    Whitespace@108..109 " "
-    Comment@109..124 "# Unknown token"
-    Whitespace@124..129 "\n    "
-    UnboundDeclNode@129..137
-      PrimitiveTypeNode@129..136
-        StringTypeKeyword@129..135 "String"
-        Whitespace@135..136 " "
-      Ident@136..137 "a"
-    Whitespace@137..142 "\n    "
-    QuestionMark@142..143 "?"
-    Whitespace@143..145 "  "
-    Comment@145..163 "# Unexpected token"
-    Whitespace@163..168 "\n    "
-    UnboundDeclNode@168..175
-      PrimitiveTypeNode@168..174
-        FloatTypeKeyword@168..173 "Float"
-        Whitespace@173..174 " "
-      Ident@174..175 "b"
-    Whitespace@175..180 "\n    "
-    StructKeyword@180..186 "struct"
-    Whitespace@186..189 "   "
-    Comment@189..209 "# Unexpected keyword"
-    Whitespace@209..214 "\n    "
-    UnboundDeclNode@214..223
-      TypeRefNode@214..222
-        Ident@214..221 "Integer"
-        Whitespace@221..222 " "
-      Ident@222..223 "c"
-    Whitespace@223..224 "\n"
-    CloseBrace@224..225 "}"
-  Whitespace@225..226 "\n"
+    Unknown@108..109 ";"
+    Whitespace@109..110 " "
+    Comment@110..125 "# Unknown token"
+    Whitespace@125..130 "\n    "
+    UnboundDeclNode@130..138
+      PrimitiveTypeNode@130..137
+        StringTypeKeyword@130..136 "String"
+        Whitespace@136..137 " "
+      Ident@137..138 "a"
+    Whitespace@138..143 "\n    "
+    QuestionMark@143..144 "?"
+    Whitespace@144..146 "  "
+    Comment@146..164 "# Unexpected token"
+    Whitespace@164..169 "\n    "
+    UnboundDeclNode@169..176
+      PrimitiveTypeNode@169..175
+        FloatTypeKeyword@169..174 "Float"
+        Whitespace@174..175 " "
+      Ident@175..176 "b"
+    Whitespace@176..181 "\n    "
+    StructKeyword@181..187 "struct"
+    Whitespace@187..190 "   "
+    Comment@190..210 "# Unexpected keyword"
+    Whitespace@210..215 "\n    "
+    UnboundDeclNode@215..224
+      TypeRefNode@215..223
+        Ident@215..222 "Integer"
+        Whitespace@222..223 " "
+      Ident@223..224 "c"
+    Whitespace@224..225 "\n"
+    CloseBrace@225..226 "}"
+  Whitespace@226..227 "\n"
