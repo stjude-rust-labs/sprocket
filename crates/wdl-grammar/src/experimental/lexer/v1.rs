@@ -213,10 +213,6 @@ pub enum Token {
     #[regex(r"(?&id)")]
     Ident,
 
-    /// A qualified name.
-    #[regex(r"(?&id)(\.(?&id))+")]
-    QualifiedName,
-
     /// A start of a single-quoted string.
     ///
     /// When encountered, [morph][super::Lexer::morph] the lexer to use
@@ -440,7 +436,6 @@ impl<'a> ParserToken<'a> for Token {
             Self::Float => SyntaxKind::Float,
             Self::Integer => SyntaxKind::Integer,
             Self::Ident => SyntaxKind::Ident,
-            Self::QualifiedName => SyntaxKind::QualifiedName,
             Self::SQStringStart => SyntaxKind::SingleQuote,
             Self::DQStringStart => SyntaxKind::DoubleQuote,
             Self::HeredocCommandStart => SyntaxKind::OpenHeredoc,
@@ -525,7 +520,6 @@ impl<'a> ParserToken<'a> for Token {
             Self::Float => "float",
             Self::Integer => "integer",
             Self::Ident => "identifier",
-            Self::QualifiedName => "qualified name",
             Self::SQStringStart => "`'`",
             Self::DQStringStart => "`\"`",
             Self::HeredocCommandStart => "`<<<`",

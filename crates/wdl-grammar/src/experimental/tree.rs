@@ -35,8 +35,6 @@ pub enum SyntaxKind {
     Integer,
     /// An identifier token.
     Ident,
-    /// A qualified name token.
-    QualifiedName,
     /// A single quote token.
     SingleQuote,
     /// A double quote token.
@@ -169,6 +167,8 @@ pub enum SyntaxKind {
     Dot,
     /// A literal string text token.
     LiteralStringText,
+    /// A placeholder open token.
+    PlaceholderOpen,
 
     /// Abandoned nodes are nodes that encountered errors.
     ///
@@ -195,6 +195,8 @@ pub enum SyntaxKind {
     WorkflowDefinitionNode,
     /// Represents an unbound declaration node.
     UnboundDeclNode,
+    /// Represents a bound declaration node.
+    BoundDeclNode,
     /// Represents a primitive type node.
     PrimitiveTypeNode,
     /// Represents a map type node.
@@ -227,6 +229,72 @@ pub enum SyntaxKind {
     LiteralNullNode,
     /// Represents a literal string node.
     LiteralStringNode,
+    /// Represents a literal pair node.
+    LiteralPairNode,
+    /// Represents a literal array node.
+    LiteralArrayNode,
+    /// Represents a literal map node.
+    LiteralMapNode,
+    /// Represents a literal map item node.
+    LiteralMapItemNode,
+    /// Represents a literal object node.
+    LiteralObjectNode,
+    /// Represents a literal object item node.
+    LiteralObjectItemNode,
+    /// Represents a literal struct node.
+    LiteralStructNode,
+    /// Represents a literal struct item node.
+    LiteralStructItemNode,
+    /// Represents a parenthesized expression node.
+    ParenthesizedExprNode,
+    /// Represents a name reference node.
+    NameReferenceNode,
+    /// Represents an `if` expression node.
+    IfExprNode,
+    /// Represents a logical not expression node.
+    LogicalNotExprNode,
+    /// Represents a negation expression node.
+    NegationExprNode,
+    /// Represents a logical `OR` expression node.
+    LogicalOrExprNode,
+    /// Represents a logical `AND` expression node.
+    LogicalAndExprNode,
+    /// Represents an equality expression node.
+    EqualityExprNode,
+    /// Represents an inequality expression node.
+    InequalityExprNode,
+    /// Represents a "less than" expression node.
+    LessExprNode,
+    /// Represents a "less than or equal to" expression node.
+    LessEqualExprNode,
+    /// Represents a "greater than" expression node.
+    GreaterExprNode,
+    /// Represents a "greater than or equal to" expression node.
+    GreaterEqualExprNode,
+    /// Represents an addition expression node.
+    AdditionExprNode,
+    /// Represents a subtraction expression node.
+    SubtractionExprNode,
+    /// Represents a multiplication expression node.
+    MultiplicationExprNode,
+    /// Represents a division expression node.
+    DivisionExprNode,
+    /// Represents a modulo expression node.
+    ModuloExprNode,
+    /// Represents a call expression node.'
+    CallExprNode,
+    /// Represents an index expression node.
+    IndexExprNode,
+    /// Represents an an access expression node.
+    AccessExprNode,
+    /// Represents a placeholder node in a string literal.
+    PlaceholderNode,
+    /// Placeholder `sep` option node.
+    PlaceholderSepOptionNode,
+    /// Placeholder `default` option node.
+    PlaceholderDefaultOptionNode,
+    /// Placeholder `true`/`false` option node.
+    PlaceholderTrueFalseOptionNode,
 
     // WARNING: this must always be the last variant.
     /// The exclusive maximum syntax kind value.

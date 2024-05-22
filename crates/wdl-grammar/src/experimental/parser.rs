@@ -1,7 +1,7 @@
 //! Module for the parser implementation.
 //!
-//! The parser consumes a token stream from the lexer and produces
-//! a stream of parser events that can be used to construct a CST.
+//! The parser consumes a token stream from a lexer and produces
+//! a list of parser events that can be used to construct a CST.
 //!
 //! The design of this is very much based on `rust-analyzer`.
 
@@ -126,8 +126,10 @@ pub enum Error {
         /// The lexer error that occurred.
         error: lexer::Error,
         /// The span where the error occurred.
-        #[label(primary, "this is not a WDL token")]
+        #[label(primary, "{text}")]
         span: SourceSpan,
+        /// The error text corresponding to the span.
+        text: &'static str,
     },
     /// An unexpected token was encountered when a single item was expected.
     #[error("expected {expected}, but found {found}", found = Found::new(*.found, *.describe))]
@@ -212,6 +214,34 @@ pub enum Error {
         describe: fn(u8) -> &'static str,
         /// The span of the opening bracket.
         #[label(primary, "this bracket is not matched")]
+        opening: SourceSpan,
+    },
+    /// An unmatched placeholder was encountered.
+    #[error("expected `}}`, but found {found}", found = Found::new(*.found, *.describe))]
+    UnmatchedPlaceholder {
+        /// The found raw token (`None` for end of input).
+        found: Option<u8>,
+        /// The span of the found token.
+        #[label("unexpected {found}", found = Found::new(*.found, *.describe))]
+        span: SourceSpan,
+        /// The function used to describe the raw token.
+        describe: fn(u8) -> &'static str,
+        /// The span of the opening bracket.
+        #[label(primary, "this placeholder opening is not matched")]
+        opening: SourceSpan,
+    },
+    /// An unmatched parenthesis was encountered.
+    #[error("expected `)`, but found {found}", found = Found::new(*.found, *.describe))]
+    UnmatchedParen {
+        /// The found raw token (`None` for end of input).
+        found: Option<u8>,
+        /// The span of the found token.
+        #[label("unexpected {found}", found = Found::new(*.found, *.describe))]
+        span: SourceSpan,
+        /// The function used to describe the raw token.
+        describe: fn(u8) -> &'static str,
+        /// The span of the opening bracket.
+        #[label(primary, "this parenthesis is not matched")]
         opening: SourceSpan,
     },
 }
@@ -384,6 +414,16 @@ where
         self.errors.push(error);
     }
 
+    /// Starts a new node event.
+    pub fn start(&mut self) -> Marker {
+        let pos = self.events.len();
+        self.events.push(Event::NodeStarted {
+            kind: SyntaxKind::Abandoned,
+            forward_parent: None,
+        });
+        Marker::new(pos)
+    }
+
     /// Consumes the interpolator and returns a parser.
     pub fn into_parser<T2>(self) -> Parser<'a, T2>
     where
@@ -463,6 +503,11 @@ where
             .as_ref()
             .map(|l| l.span())
             .unwrap_or(SourceSpan::new(0.into(), 0))
+    }
+
+    /// Gets the source being parsed at the given span.
+    pub fn source(&self, span: SourceSpan) -> &'a str {
+        self.lexer.as_ref().expect("expected a lexer").source(span)
     }
 
     /// Peeks at the next token from the lexer without consuming it.
@@ -748,7 +793,11 @@ where
                 }
             }
             Err(e) => {
-                self.error(Error::Lexer { error: e, span });
+                self.error(Error::Lexer {
+                    error: e,
+                    span,
+                    text: Self::unsupported_token_text(self.source(span)),
+                });
                 Event::Token {
                     kind: SyntaxKind::Unknown,
                     span,
@@ -762,6 +811,15 @@ where
 
         self.events.push(event);
         None
+    }
+
+    /// A helper for unsupported token error span text.
+    fn unsupported_token_text(token: &str) -> &'static str {
+        match token {
+            "&" => "did you mean to use `&&` here?",
+            "|" => "did you mean to use `||` here?",
+            _ => "this is not a supported WDL token",
+        }
     }
 }
 

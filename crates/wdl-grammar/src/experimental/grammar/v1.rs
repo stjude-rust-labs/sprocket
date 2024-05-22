@@ -10,6 +10,7 @@ use crate::experimental::lexer::v1::SQStringToken;
 use crate::experimental::lexer::v1::Token;
 use crate::experimental::lexer::TokenSet;
 use crate::experimental::parser;
+use crate::experimental::parser::CompletedMarker;
 use crate::experimental::parser::Error;
 use crate::experimental::parser::Event;
 use crate::experimental::parser::Interpolator;
@@ -164,11 +165,78 @@ const METADATA_ARRAY_RECOVERY_SET: TokenSet = TokenSet::new(&[
     Token::CloseBracket as u8,
 ]);
 
+/// A token set for expression atoms.
+const ATOM_EXPECTED_SET: TokenSet = TokenSet::new(&[
+    Token::Integer as u8,
+    Token::Float as u8,
+    Token::TrueKeyword as u8,
+    Token::FalseKeyword as u8,
+    Token::DQStringStart as u8,
+    Token::SQStringStart as u8,
+    Token::OpenBracket as u8,
+    Token::OpenBrace as u8,
+    Token::OpenParen as u8,
+    Token::ObjectKeyword as u8,
+    Token::Ident as u8,
+    Token::IfKeyword as u8,
+]);
+
+/// A token set for prefix operators.
+///
+/// This intentionally excludes open parenthesis for grouping expressions as it
+/// is handled during parsing of atoms due to the ambiguity with pair literals.
+const PREFIX_OPERATOR_EXPECTED_SET: TokenSet =
+    TokenSet::new(&[Token::Exclamation as u8, Token::Minus as u8]);
+
+/// A token set for infix operators.
+const INFIX_OPERATOR_EXPECTED_SET: TokenSet = TokenSet::new(&[
+    Token::LogicalOr as u8,
+    Token::LogicalAnd as u8,
+    Token::Plus as u8,
+    Token::Minus as u8,
+    Token::Asterisk as u8,
+    Token::Slash as u8,
+    Token::Percent as u8,
+    Token::Equal as u8,
+    Token::NotEqual as u8,
+    Token::Less as u8,
+    Token::LessEqual as u8,
+    Token::Greater as u8,
+    Token::GreaterEqual as u8,
+]);
+
+/// A token set for postfix operators.
+const POSTFIX_OPERATOR_EXPECTED_SET: TokenSet = TokenSet::new(&[
+    Token::OpenParen as u8,
+    Token::OpenBracket as u8,
+    Token::Dot as u8,
+]);
+
+/// A token set used to recover to the next expression.
+const EXPR_RECOVERY_SET: TokenSet = ATOM_EXPECTED_SET.union(PREFIX_OPERATOR_EXPECTED_SET);
+
+/// A token set for map item recovery.
+///
+/// As the key and value in a map are both expressions, we recover
+/// only at the next comma.
+const MAP_RECOVERY_SET: TokenSet = TokenSet::new(&[Token::Comma as u8, Token::CloseBrace as u8]);
+
+/// A token set for literal struct item recovery.
+///
+/// As both the key and value in a literal struct may be an identifier,
+/// we recover only at the next comma.
+const LITERAL_OBJECT_RECOVERY_SET: TokenSet =
+    TokenSet::new(&[Token::Comma as u8, Token::CloseBrace as u8]);
+
 /// A token set used to parse a delimited set of things until a closing brace.
 const UNTIL_CLOSE_BRACE: TokenSet = TokenSet::new(&[Token::CloseBrace as u8]);
 
 /// A token set used to parse a delimited set of things until a closing bracket.
 const UNTIL_CLOSE_BRACKET: TokenSet = TokenSet::new(&[Token::CloseBracket as u8]);
+
+/// A token set used to parse a delimited set of things until a closing
+/// parenthesis.
+const UNTIL_CLOSE_PAREN: TokenSet = TokenSet::new(&[Token::CloseParen as u8]);
 
 /// A helper for parsing surrounding braces.
 ///
@@ -229,6 +297,40 @@ where
         None => {
             let span = parser.span();
             Err(Error::UnmatchedBracket {
+                found: None,
+                span,
+                describe: Token::describe,
+                opening,
+            })
+        }
+    }
+}
+
+/// A helper for parsing surrounding parenthesis.
+///
+/// An example would be a call expression.
+fn paren<F>(parser: &mut Parser<'_>, cb: F) -> Result<(), Error>
+where
+    F: FnOnce(&mut Parser<'_>) -> Result<(), Error>,
+{
+    let opening = match parser.expect(Token::OpenParen) {
+        Ok(span) => span,
+        Err(e) => return Err(e),
+    };
+
+    cb(parser)?;
+
+    match parser.next() {
+        Some((Token::CloseParen, _)) => Ok(()),
+        Some((token, span)) => Err(Error::UnmatchedParen {
+            found: Some(token.into_raw()),
+            span,
+            describe: Token::describe,
+            opening,
+        }),
+        None => {
+            let span = parser.span();
+            Err(Error::UnmatchedParen {
                 found: None,
                 span,
                 describe: Token::describe,
@@ -567,11 +669,21 @@ fn metadata_object_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (
 fn metadata_value(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
     match parser.peek() {
         Some((Token::Minus, _)) | Some((Token::Integer, _)) | Some((Token::Float, _)) => {
-            number(parser, marker, true)
+            number(parser, marker, true)?;
+            Ok(())
         }
-        Some((Token::SQStringStart, _)) => single_quote_string(parser, marker, true),
-        Some((Token::DQStringStart, _)) => double_quote_string(parser, marker, true),
-        Some((Token::TrueKeyword, _)) | Some((Token::FalseKeyword, _)) => boolean(parser, marker),
+        Some((Token::SQStringStart, _)) => {
+            single_quote_string(parser, marker, false)?;
+            Ok(())
+        }
+        Some((Token::DQStringStart, _)) => {
+            double_quote_string(parser, marker, false)?;
+            Ok(())
+        }
+        Some((Token::TrueKeyword, _)) | Some((Token::FalseKeyword, _)) => {
+            boolean(parser, marker)?;
+            Ok(())
+        }
         Some((Token::NullKeyword, _)) => null(parser, marker),
         Some((Token::OpenBrace, _)) => metadata_object(parser, marker),
         Some((Token::OpenBracket, _)) => metadata_array(parser, marker),
@@ -597,7 +709,7 @@ fn number(
     parser: &mut Parser<'_>,
     marker: Marker,
     accept_minus: bool,
-) -> Result<(), (Marker, Error)> {
+) -> Result<CompletedMarker, (Marker, Error)> {
     if accept_minus {
         parser.next_if(Token::Minus);
     }
@@ -610,14 +722,95 @@ fn number(
         Ok(_) => unreachable!(),
         Err(e) => return Err((marker, e)),
     };
-    marker.complete(parser, kind);
-    Ok(())
+
+    Ok(marker.complete(parser, kind))
+}
+
+/// Parses a placeholder option.
+fn placeholder_option(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    match parser.peek() {
+        Some((Token::Ident, span)) => {
+            let kind = match parser.source(span) {
+                "sep" => SyntaxKind::PlaceholderSepOptionNode,
+                "default" => SyntaxKind::PlaceholderDefaultOptionNode,
+                _ => {
+                    // Not a placeholder option
+                    marker.abandon(parser);
+                    return Ok(());
+                }
+            };
+
+            parser.next();
+            expected!(parser, marker, Token::Assignment);
+            expected_fn!(parser, marker, string);
+            marker.complete(parser, kind);
+            Ok(())
+        }
+        Some((t @ Token::TrueKeyword, _)) | Some((t @ Token::FalseKeyword, _)) => {
+            parser.next();
+            expected!(parser, marker, Token::Assignment);
+            expected_fn!(parser, marker, string);
+            expected!(
+                parser,
+                marker,
+                if t == Token::TrueKeyword {
+                    Token::FalseKeyword
+                } else {
+                    Token::TrueKeyword
+                }
+            );
+            expected!(parser, marker, Token::Assignment);
+            expected_fn!(parser, marker, string);
+            marker.complete(parser, SyntaxKind::PlaceholderTrueFalseOptionNode);
+            Ok(())
+        }
+        _ => {
+            // Not a placeholder option
+            marker.abandon(parser);
+            Ok(())
+        }
+    }
+}
+
+/// Parses a placeholder expression.
+fn placeholder_expr(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+    opening: SourceSpan,
+) -> Result<(), (Marker, Error)> {
+    expected_fn!(parser, marker, placeholder_option);
+    expected_fn!(parser, marker, expr);
+
+    // Check for a closing brace; if it's missing, add an error
+    // but don't consume the token; the found token will be considered
+    // part of the string
+    match parser.peek() {
+        Some((Token::CloseBrace, _)) => {
+            parser.next();
+            marker.complete(parser, SyntaxKind::PlaceholderNode);
+            Ok(())
+        }
+        found => {
+            let (found, found_span) = found
+                .map(|(t, s)| (Some(t.into_raw()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            Err((
+                marker,
+                Error::UnmatchedPlaceholder {
+                    found,
+                    span: found_span,
+                    describe: Token::describe,
+                    opening,
+                },
+            ))
+        }
+    }
 }
 
 /// Interpolates a single-quoted string.
 fn single_quote_interpolate(
     start: SourceSpan,
-    in_metadata: bool,
+    allow_interpolation: bool,
     mut interpolator: Interpolator<'_, SQStringToken>,
 ) -> (Parser<'_>, Result<(), Error>) {
     let mut text = None;
@@ -625,7 +818,7 @@ fn single_quote_interpolate(
 
     while let Some((Ok(token), span)) = interpolator.next() {
         match token {
-            SQStringToken::PlaceholderStart if !in_metadata => {
+            SQStringToken::PlaceholderStart if allow_interpolation => {
                 // Add any encountered literal text
                 if let Some(span) = text.take() {
                     interpolator.event(Event::Token {
@@ -634,7 +827,24 @@ fn single_quote_interpolate(
                     })
                 }
 
-                todo!("parse placeholder expression")
+                let marker = interpolator.start();
+                interpolator.event(Event::Token {
+                    kind: SyntaxKind::PlaceholderOpen,
+                    span,
+                });
+
+                // Parse the placeholder expression
+                let mut parser = interpolator.into_parser();
+                if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
+                    parser.error(e);
+                    marker.abandon(&mut parser);
+                    parser.recover(TokenSet::new(&[
+                        Token::CloseBrace as u8,
+                        Token::SQStringStart as u8,
+                    ]));
+                }
+
+                interpolator = parser.into_interpolator();
             }
             t @ (SQStringToken::PlaceholderStart
             | SQStringToken::Escape
@@ -689,26 +899,48 @@ fn single_quote_interpolate(
     }
 }
 
+/// Parses either a single-quote string or a double-quote string.
+fn string(parser: &mut Parser<'_>, marker: Marker) -> Result<CompletedMarker, (Marker, Error)> {
+    match parser.peek() {
+        Some((Token::SQStringStart, _)) => single_quote_string(parser, marker, true),
+        Some((Token::DQStringStart, _)) => double_quote_string(parser, marker, true),
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(t.into_raw()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            Err((
+                marker,
+                Error::Expected {
+                    expected: "string",
+                    found,
+                    span,
+                    describe: Token::describe,
+                },
+            ))
+        }
+    }
+}
+
 /// Parses a single-quoted string.
 fn single_quote_string(
     parser: &mut Parser<'_>,
     marker: Marker,
-    in_metadata: bool,
-) -> Result<(), (Marker, Error)> {
+    allow_interpolation: bool,
+) -> Result<CompletedMarker, (Marker, Error)> {
     let start = parser.require(Token::SQStringStart);
 
-    if let Err(e) = parser.interpolate(|i| single_quote_interpolate(start, in_metadata, i)) {
+    if let Err(e) = parser.interpolate(|i| single_quote_interpolate(start, allow_interpolation, i))
+    {
         return Err((marker, e));
     }
 
-    marker.complete(parser, SyntaxKind::LiteralStringNode);
-    Ok(())
+    Ok(marker.complete(parser, SyntaxKind::LiteralStringNode))
 }
 
 /// Interpolates a double-quoted string.
 fn double_quote_interpolate(
     start: SourceSpan,
-    in_metadata: bool,
+    allow_interpolation: bool,
     mut interpolator: Interpolator<'_, DQStringToken>,
 ) -> (Parser<'_>, Result<(), Error>) {
     let mut text = None;
@@ -716,7 +948,7 @@ fn double_quote_interpolate(
 
     while let Some((Ok(token), span)) = interpolator.next() {
         match token {
-            DQStringToken::PlaceholderStart if !in_metadata => {
+            DQStringToken::PlaceholderStart if allow_interpolation => {
                 // Add any encountered literal text
                 if let Some(span) = text.take() {
                     interpolator.event(Event::Token {
@@ -725,7 +957,24 @@ fn double_quote_interpolate(
                     })
                 }
 
-                todo!("parse placeholder expression")
+                let marker = interpolator.start();
+                interpolator.event(Event::Token {
+                    kind: SyntaxKind::PlaceholderOpen,
+                    span,
+                });
+
+                // Parse the placeholder expression
+                let mut parser = interpolator.into_parser();
+                if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
+                    parser.error(e);
+                    marker.abandon(&mut parser);
+                    parser.recover(TokenSet::new(&[
+                        Token::CloseBrace as u8,
+                        Token::DQStringStart as u8,
+                    ]));
+                }
+
+                interpolator = parser.into_interpolator();
             }
             t @ (DQStringToken::PlaceholderStart
             | DQStringToken::Escape
@@ -784,26 +1033,26 @@ fn double_quote_interpolate(
 fn double_quote_string(
     parser: &mut Parser<'_>,
     marker: Marker,
-    in_metadata: bool,
-) -> Result<(), (Marker, Error)> {
+    allow_interpolation: bool,
+) -> Result<CompletedMarker, (Marker, Error)> {
     let start = parser.require(Token::DQStringStart);
 
-    if let Err(e) = parser.interpolate(|i| double_quote_interpolate(start, in_metadata, i)) {
+    if let Err(e) = parser.interpolate(|i| double_quote_interpolate(start, allow_interpolation, i))
+    {
         return Err((marker, e));
     }
 
-    marker.complete(parser, SyntaxKind::LiteralStringNode);
-    Ok(())
+    Ok(marker.complete(parser, SyntaxKind::LiteralStringNode))
 }
 
 /// Parses a literal boolean.
-fn boolean(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+fn boolean(parser: &mut Parser<'_>, marker: Marker) -> Result<CompletedMarker, (Marker, Error)> {
     parser.require_in(TokenSet::new(&[
         Token::TrueKeyword as u8,
         Token::FalseKeyword as u8,
     ]));
-    marker.complete(parser, SyntaxKind::LiteralBooleanNode);
-    Ok(())
+
+    Ok(marker.complete(parser, SyntaxKind::LiteralBooleanNode))
 }
 
 /// Parses a literal null.
@@ -869,8 +1118,13 @@ fn parameter_metadata_section(
 }
 
 /// Parses a bound declaration.
-fn bound_decl(_parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Marker, Error)> {
-    todo!("parse bound declaration")
+fn bound_decl(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    expected_fn!(parser, marker, ty);
+    expected_fn!(parser, marker, name);
+    expected!(parser, marker, Token::Assignment);
+    expected_fn!(parser, marker, expr);
+    marker.complete(parser, SyntaxKind::BoundDeclNode);
+    Ok(())
 }
 
 /// Parses a conditional statement in a workflow.
@@ -889,4 +1143,421 @@ fn scatter_statement(parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Ma
 fn call_statement(parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Marker, Error)> {
     parser.require(Token::CallKeyword);
     todo!("parse call statement")
+}
+
+/// Parses an expression.
+#[inline]
+fn expr(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    expr_with_precedence(parser, marker, 0)?;
+    Ok(())
+}
+
+/// Parses an expression with the given minimum precedence.
+///
+/// See https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+fn expr_with_precedence(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+    min_precedence: u8,
+) -> Result<CompletedMarker, (Marker, Error)> {
+    // First parse an atom or a prefix operation as the left-hand side
+    let mut lhs = match parser.peek() {
+        Some((token, _)) if ATOM_EXPECTED_SET.contains(token.into_raw()) => {
+            let lhs = parser.start();
+            match atom_expr(parser, lhs, token) {
+                Ok(lhs) => lhs,
+                Err((lhs, e)) => {
+                    lhs.abandon(parser);
+                    return Err((marker, e));
+                }
+            }
+        }
+        Some((token, _)) if PREFIX_OPERATOR_EXPECTED_SET.contains(token.into_raw()) => {
+            let prefix = parser.start();
+            parser.next();
+            let rhs = parser.start();
+            let (precedence, kind, associativity) = prefix_precedence(token);
+            match expr_with_precedence(
+                parser,
+                rhs,
+                // Add one to the precedence for left-associative operators
+                match associativity {
+                    Associativity::Left => precedence + 1,
+                    Associativity::Right => precedence,
+                },
+            ) {
+                Ok(_) => prefix.complete(parser, kind),
+                Err((rhs, e)) => {
+                    prefix.abandon(parser);
+                    rhs.abandon(parser);
+                    return Err((marker, e));
+                }
+            }
+        }
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(t.into_raw()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            return Err((
+                marker,
+                Error::Expected {
+                    expected: "expression",
+                    found,
+                    span,
+                    describe: Token::describe,
+                },
+            ));
+        }
+    };
+
+    // Extend the parent chain of the left-hand side to the provided marker.
+    lhs = lhs.extend_to(parser, marker);
+
+    loop {
+        // Check for either an infix or postix operation
+        match parser.peek() {
+            Some((token, _)) if INFIX_OPERATOR_EXPECTED_SET.contains(token.into_raw()) => {
+                // The operation is an infix operation; check the precedence level
+                let (precedence, kind, associativity) = infix_precedence(token);
+                if precedence < min_precedence {
+                    break;
+                }
+
+                let infix = lhs.precede(parser);
+                parser.next();
+
+                // Recuse for the right-hand side
+                let rhs = parser.start();
+                if let Err((rhs, e)) = expr_with_precedence(
+                    parser,
+                    rhs,
+                    // Add one to the precedence for left-associative operators
+                    match associativity {
+                        Associativity::Left => precedence + 1,
+                        Associativity::Right => precedence,
+                    },
+                ) {
+                    rhs.abandon(parser);
+                    return Err((infix, e));
+                }
+
+                lhs = infix.complete(parser, kind);
+            }
+            Some((token, _)) if POSTFIX_OPERATOR_EXPECTED_SET.contains(token.into_raw()) => {
+                // The operation is a postfix operation; check the precedence level
+                let precedence = postfix_precedence(token);
+                if precedence < min_precedence {
+                    break;
+                }
+
+                // Call the operation-specific parse function
+                let postfix = lhs.precede(parser);
+                let res = match token {
+                    Token::OpenParen => call_expr(parser, postfix),
+                    Token::OpenBracket => index_expr(parser, postfix),
+                    Token::Dot => access_expr(parser, postfix),
+                    _ => panic!("unexpected postfix operator"),
+                };
+
+                lhs = match res {
+                    Ok(marker) => marker,
+                    Err((postfix, e)) => {
+                        return Err((postfix, e));
+                    }
+                };
+            }
+            _ => break,
+        }
+    }
+
+    Ok(lhs)
+}
+
+/// Parses an atomic expression such as a literal.
+///
+/// Due to the WDL grammar having an ambiguity between parenthesized expressions
+/// and pair literals, this function handles the former in addition to pair
+/// literals.
+fn atom_expr(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+    peeked: Token,
+) -> Result<CompletedMarker, (Marker, Error)> {
+    match peeked {
+        Token::Float | Token::Integer => number(parser, marker, false),
+        Token::TrueKeyword | Token::FalseKeyword => boolean(parser, marker),
+        Token::SQStringStart => single_quote_string(parser, marker, true),
+        Token::DQStringStart => double_quote_string(parser, marker, true),
+        Token::OpenBracket => array(parser, marker),
+        Token::OpenBrace => map(parser, marker),
+        Token::OpenParen => pair_or_paren_expr(parser, marker),
+        Token::ObjectKeyword => object(parser, marker),
+        Token::Ident => literal_struct_or_name_ref(parser, marker),
+        Token::IfKeyword => if_expr(parser, marker),
+        _ => unreachable!(),
+    }
+}
+
+/// Parses an array literal expression.
+fn array(parser: &mut Parser<'_>, marker: Marker) -> Result<CompletedMarker, (Marker, Error)> {
+    if let Err(e) = bracketed(parser, |parser| {
+        parser.delimited(
+            Some(Token::Comma),
+            UNTIL_CLOSE_BRACKET,
+            EXPR_RECOVERY_SET,
+            expr,
+        );
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+
+    Ok(marker.complete(parser, SyntaxKind::LiteralArrayNode))
+}
+
+/// Parses a map literal expression.
+fn map(parser: &mut Parser<'_>, marker: Marker) -> Result<CompletedMarker, (Marker, Error)> {
+    if let Err(e) = braced(parser, |parser| {
+        parser.delimited(
+            Some(Token::Comma),
+            UNTIL_CLOSE_BRACE,
+            MAP_RECOVERY_SET,
+            map_item,
+        );
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+
+    Ok(marker.complete(parser, SyntaxKind::LiteralMapNode))
+}
+
+/// Parses a single item in a literal map.
+fn map_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    expected_fn!(parser, marker, expr);
+    expected!(parser, marker, Token::Colon);
+    expected_fn!(parser, marker, expr);
+    marker.complete(parser, SyntaxKind::LiteralMapItemNode);
+    Ok(())
+}
+
+/// Parses a pair literal or parenthesized expression.
+fn pair_or_paren_expr(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<CompletedMarker, (Marker, Error)> {
+    let opening = match parser.expect(Token::OpenParen) {
+        Ok(span) => span,
+        Err(e) => return Err((marker, e)),
+    };
+
+    expected_fn!(parser, marker, expr);
+
+    if parser.next_if(Token::CloseParen) {
+        // This was actually a parenthesized expression.
+        return Ok(marker.complete(parser, SyntaxKind::ParenthesizedExprNode));
+    }
+
+    // At this point, it must be a pair literal
+    expected!(parser, marker, Token::Comma);
+    expected_fn!(parser, marker, expr);
+
+    match parser.next() {
+        Some((Token::CloseParen, _)) => Ok(marker.complete(parser, SyntaxKind::LiteralPairNode)),
+        Some((token, span)) => Err((
+            marker,
+            Error::UnmatchedParen {
+                found: Some(token.into_raw()),
+                span,
+                describe: Token::describe,
+                opening,
+            },
+        )),
+        None => {
+            let span = parser.span();
+            Err((
+                marker,
+                Error::UnmatchedParen {
+                    found: None,
+                    span,
+                    describe: Token::describe,
+                    opening,
+                },
+            ))
+        }
+    }
+}
+
+/// Parses an object literal expression.
+fn object(parser: &mut Parser<'_>, marker: Marker) -> Result<CompletedMarker, (Marker, Error)> {
+    parser.require(Token::ObjectKeyword);
+
+    if let Err(e) = braced(parser, |parser| {
+        parser.delimited(
+            Some(Token::Comma),
+            UNTIL_CLOSE_BRACE,
+            LITERAL_OBJECT_RECOVERY_SET,
+            object_item,
+        );
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+
+    Ok(marker.complete(parser, SyntaxKind::LiteralObjectNode))
+}
+
+/// Parses a single item in a literal object.
+fn object_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    expected!(parser, marker, Token::Ident);
+    expected!(parser, marker, Token::Colon);
+    expected_fn!(parser, marker, expr);
+    marker.complete(parser, SyntaxKind::LiteralObjectItemNode);
+    Ok(())
+}
+
+/// Parses a literal struct or a name reference.
+fn literal_struct_or_name_ref(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<CompletedMarker, (Marker, Error)> {
+    parser.require(Token::Ident);
+
+    if !matches!(parser.peek(), Some((Token::OpenBrace, _)) | None) {
+        // This is actually a name reference.
+        return Ok(marker.complete(parser, SyntaxKind::NameReferenceNode));
+    }
+
+    if let Err(e) = braced(parser, |parser| {
+        parser.delimited(
+            Some(Token::Comma),
+            UNTIL_CLOSE_BRACE,
+            LITERAL_OBJECT_RECOVERY_SET, // same as literal objects
+            literal_struct_item,
+        );
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+
+    Ok(marker.complete(parser, SyntaxKind::LiteralStructNode))
+}
+
+/// Parses a single item in a literal struct.
+fn literal_struct_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    expected!(parser, marker, Token::Ident);
+    expected!(parser, marker, Token::Colon);
+    expected_fn!(parser, marker, expr);
+    marker.complete(parser, SyntaxKind::LiteralStructItemNode);
+    Ok(())
+}
+
+/// Parses an `if` expression.
+fn if_expr(parser: &mut Parser<'_>, marker: Marker) -> Result<CompletedMarker, (Marker, Error)> {
+    parser.require(Token::IfKeyword);
+    expected_fn!(parser, marker, expr);
+    expected!(parser, marker, Token::ThenKeyword);
+    expected_fn!(parser, marker, expr);
+    expected!(parser, marker, Token::ElseKeyword);
+    expected_fn!(parser, marker, expr);
+    Ok(marker.complete(parser, SyntaxKind::IfExprNode))
+}
+
+/// Parses a call expression.
+fn call_expr(parser: &mut Parser<'_>, marker: Marker) -> Result<CompletedMarker, (Marker, Error)> {
+    if let Err(e) = paren(parser, |parser| {
+        parser.delimited(
+            Some(Token::Comma),
+            UNTIL_CLOSE_PAREN,
+            EXPR_RECOVERY_SET,
+            expr,
+        );
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+
+    Ok(marker.complete(parser, SyntaxKind::CallExprNode))
+}
+
+/// Parses an index expression.
+fn index_expr(parser: &mut Parser<'_>, marker: Marker) -> Result<CompletedMarker, (Marker, Error)> {
+    if let Err(e) = bracketed(parser, |parser| {
+        expected_fn!(parser, expr);
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+    Ok(marker.complete(parser, SyntaxKind::IndexExprNode))
+}
+
+/// Parses an access expression.
+fn access_expr(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<CompletedMarker, (Marker, Error)> {
+    parser.require(Token::Dot);
+    expected!(parser, marker, Token::Ident);
+    Ok(marker.complete(parser, SyntaxKind::AccessExprNode))
+}
+
+/// An operator associativity.
+enum Associativity {
+    /// The operator has left-associativity.
+    Left,
+    /// The operator has right-associativity.
+    Right,
+}
+
+/// Determines the precedence of a prefix operator.
+///
+/// See: https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table
+fn prefix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
+    use Associativity::*;
+    use SyntaxKind::*;
+    match token {
+        Token::Exclamation => (7, LogicalNotExprNode, Right),
+        Token::Minus => (7, NegationExprNode, Right),
+        // As paren expression is ambiguous with a pair literal expression,
+        // this is handled in `atom_expr`
+        // Token::OpenParen => 11,
+        _ => panic!("unknown prefix operator token"),
+    }
+}
+
+/// Determines the precedence of an infix operator.
+///
+/// https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table
+fn infix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
+    use Associativity::*;
+    use SyntaxKind::*;
+    match token {
+        Token::LogicalOr => (1, LogicalOrExprNode, Left),
+        Token::LogicalAnd => (2, LogicalAndExprNode, Left),
+        Token::Equal => (3, EqualityExprNode, Left),
+        Token::NotEqual => (3, InequalityExprNode, Left),
+        Token::Less => (4, LessExprNode, Left),
+        Token::LessEqual => (4, LessEqualExprNode, Left),
+        Token::Greater => (4, GreaterExprNode, Left),
+        Token::GreaterEqual => (4, GreaterEqualExprNode, Left),
+        Token::Plus => (5, AdditionExprNode, Left),
+        Token::Minus => (5, SubtractionExprNode, Left),
+        Token::Asterisk => (6, MultiplicationExprNode, Left),
+        Token::Slash => (6, DivisionExprNode, Left),
+        Token::Percent => (6, ModuloExprNode, Left),
+        _ => panic!("unknown infix operator token"),
+    }
+}
+
+/// Determines the precedence of a postfix operator.
+///
+/// https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table
+fn postfix_precedence(token: Token) -> u8 {
+    // All postfix operators are left-associative
+    match token {
+        Token::OpenParen => 8,
+        Token::OpenBracket => 9,
+        Token::Dot => 10,
+        _ => panic!("unknown postfix operator token"),
+    }
 }

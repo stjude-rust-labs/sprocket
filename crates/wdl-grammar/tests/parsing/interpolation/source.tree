@@ -1,0 +1,254 @@
+RootNode@0..410
+  Comment@0..41 "# This is a test of s ..."
+  Whitespace@41..43 "\n\n"
+  VersionStatementNode@43..54
+    VersionKeyword@43..50 "version"
+    Whitespace@50..51 " "
+    Version@51..54 "1.1"
+  Whitespace@54..56 "\n\n"
+  TaskDefinitionNode@56..409
+    TaskKeyword@56..60 "task"
+    NameNode@60..65
+      Whitespace@60..61 " "
+      Ident@61..65 "test"
+    Whitespace@65..66 " "
+    OpenBrace@66..67 "{"
+    Whitespace@67..72 "\n    "
+    BoundDeclNode@72..98
+      PrimitiveTypeNode@72..79
+        StringTypeKeyword@72..78 "String"
+        Whitespace@78..79 " "
+      NameNode@79..83
+        Ident@79..83 "name"
+      Whitespace@83..84 " "
+      Assignment@84..85 "="
+      LiteralStringNode@85..93
+        Whitespace@85..86 " "
+        SingleQuote@86..87 "'"
+        LiteralStringText@87..92 "world"
+        SingleQuote@92..93 "'"
+      Whitespace@93..98 "\n    "
+    BoundDeclNode@98..129
+      PrimitiveTypeNode@98..105
+        StringTypeKeyword@98..104 "String"
+        Whitespace@104..105 " "
+      NameNode@105..106
+        Ident@105..106 "a"
+      Whitespace@106..107 " "
+      Assignment@107..108 "="
+      LiteralStringNode@108..124
+        Whitespace@108..109 " "
+        SingleQuote@109..110 "'"
+        LiteralStringText@110..116 "Hello "
+        PlaceholderNode@116..123
+          PlaceholderOpen@116..118 "${"
+          NameReferenceNode@118..122
+            Ident@118..122 "name"
+          CloseBrace@122..123 "}"
+        SingleQuote@123..124 "'"
+      Whitespace@124..129 "\n    "
+    BoundDeclNode@129..161
+      PrimitiveTypeNode@129..136
+        StringTypeKeyword@129..135 "String"
+        Whitespace@135..136 " "
+      NameNode@136..137
+        Ident@136..137 "b"
+      Whitespace@137..138 " "
+      Assignment@138..139 "="
+      LiteralStringNode@139..156
+        Whitespace@139..140 " "
+        DoubleQuote@140..141 "\""
+        LiteralStringText@141..147 "Hello "
+        PlaceholderNode@147..155
+          PlaceholderOpen@147..149 "~{"
+          NameReferenceNode@149..154
+            Ident@149..154 "world"
+          CloseBrace@154..155 "}"
+        DoubleQuote@155..156 "\""
+      Whitespace@156..161 "\n    "
+    BoundDeclNode@161..195
+      PrimitiveTypeNode@161..168
+        StringTypeKeyword@161..167 "String"
+        Whitespace@167..168 " "
+      NameNode@168..169
+        Ident@168..169 "c"
+      Whitespace@169..170 " "
+      Assignment@170..171 "="
+      LiteralStringNode@171..190
+        Whitespace@171..172 " "
+        DoubleQuote@172..173 "\""
+        LiteralStringText@173..179 "Hello "
+        PlaceholderNode@179..189
+          PlaceholderOpen@179..181 "${"
+          LiteralStringNode@181..188
+            DoubleQuote@181..182 "\""
+            LiteralStringText@182..187 "world"
+            DoubleQuote@187..188 "\""
+          CloseBrace@188..189 "}"
+        DoubleQuote@189..190 "\""
+      Whitespace@190..195 "\n    "
+    BoundDeclNode@195..229
+      PrimitiveTypeNode@195..202
+        StringTypeKeyword@195..201 "String"
+        Whitespace@201..202 " "
+      NameNode@202..203
+        Ident@202..203 "d"
+      Whitespace@203..204 " "
+      Assignment@204..205 "="
+      LiteralStringNode@205..224
+        Whitespace@205..206 " "
+        SingleQuote@206..207 "'"
+        LiteralStringText@207..213 "Hello "
+        PlaceholderNode@213..223
+          PlaceholderOpen@213..215 "~{"
+          LiteralStringNode@215..222
+            SingleQuote@215..216 "'"
+            LiteralStringText@216..221 "world"
+            SingleQuote@221..222 "'"
+          CloseBrace@222..223 "}"
+        SingleQuote@223..224 "'"
+      Whitespace@224..229 "\n    "
+    BoundDeclNode@229..280
+      PrimitiveTypeNode@229..236
+        StringTypeKeyword@229..235 "String"
+        Whitespace@235..236 " "
+      NameNode@236..237
+        Ident@236..237 "e"
+      Whitespace@237..238 " "
+      Assignment@238..239 "="
+      LiteralStringNode@239..275
+        Whitespace@239..240 " "
+        SingleQuote@240..241 "'"
+        LiteralStringText@241..247 "Hello "
+        PlaceholderNode@247..274
+          PlaceholderOpen@247..249 "~{"
+          LiteralStringNode@249..273
+            SingleQuote@249..250 "'"
+            LiteralStringText@250..253 "to "
+            PlaceholderNode@253..271
+              PlaceholderOpen@253..255 "${"
+              LiteralStringNode@255..270
+                DoubleQuote@255..256 "\""
+                LiteralStringText@256..261 "you, "
+                PlaceholderNode@261..269
+                  PlaceholderOpen@261..263 "~{"
+                  NameReferenceNode@263..268
+                    Ident@263..268 "world"
+                  CloseBrace@268..269 "}"
+                DoubleQuote@269..270 "\""
+              CloseBrace@270..271 "}"
+            LiteralStringText@271..272 "!"
+            SingleQuote@272..273 "'"
+          CloseBrace@273..274 "}"
+        SingleQuote@274..275 "'"
+      Whitespace@275..280 "\n    "
+    BoundDeclNode@280..318
+      PrimitiveTypeNode@280..287
+        StringTypeKeyword@280..286 "String"
+        Whitespace@286..287 " "
+      NameNode@287..288
+        Ident@287..288 "f"
+      Whitespace@288..289 " "
+      Assignment@289..290 "="
+      LiteralStringNode@290..313
+        Whitespace@290..291 " "
+        DoubleQuote@291..292 "\""
+        PlaceholderNode@292..312
+          PlaceholderOpen@292..294 "~{"
+          PlaceholderSepOptionNode@294..301
+            Ident@294..297 "sep"
+            Assignment@297..298 "="
+            LiteralStringNode@298..301
+              DoubleQuote@298..299 "\""
+              LiteralStringText@299..300 " "
+              DoubleQuote@300..301 "\""
+          LiteralArrayNode@301..311
+            Whitespace@301..302 " "
+            OpenBracket@302..303 "["
+            LiteralIntegerNode@303..304
+              Integer@303..304 "1"
+            Comma@304..305 ","
+            Whitespace@305..306 " "
+            LiteralIntegerNode@306..307
+              Integer@306..307 "2"
+            Comma@307..308 ","
+            Whitespace@308..309 " "
+            LiteralIntegerNode@309..310
+              Integer@309..310 "3"
+            CloseBracket@310..311 "]"
+          CloseBrace@311..312 "}"
+        DoubleQuote@312..313 "\""
+      Whitespace@313..318 "\n    "
+    BoundDeclNode@318..360
+      PrimitiveTypeNode@318..325
+        StringTypeKeyword@318..324 "String"
+        Whitespace@324..325 " "
+      NameNode@325..326
+        Ident@325..326 "g"
+      Whitespace@326..327 " "
+      Assignment@327..328 "="
+      LiteralStringNode@328..355
+        Whitespace@328..329 " "
+        DoubleQuote@329..330 "\""
+        PlaceholderNode@330..354
+          PlaceholderOpen@330..332 "~{"
+          PlaceholderDefaultOptionNode@332..345
+            Ident@332..339 "default"
+            Assignment@339..340 "="
+            LiteralStringNode@340..345
+              DoubleQuote@340..341 "\""
+              LiteralStringText@341..344 "n/a"
+              DoubleQuote@344..345 "\""
+          AdditionExprNode@345..353
+            DivisionExprNode@345..351
+              MultiplicationExprNode@345..349
+                LiteralIntegerNode@345..347
+                  Whitespace@345..346 " "
+                  Integer@346..347 "1"
+                Asterisk@347..348 "*"
+                LiteralIntegerNode@348..349
+                  Integer@348..349 "2"
+              Slash@349..350 "/"
+              LiteralIntegerNode@350..351
+                Integer@350..351 "2"
+            Plus@351..352 "+"
+            LiteralIntegerNode@352..353
+              Integer@352..353 "1"
+          CloseBrace@353..354 "}"
+        DoubleQuote@354..355 "\""
+      Whitespace@355..360 "\n    "
+    BoundDeclNode@360..408
+      PrimitiveTypeNode@360..367
+        StringTypeKeyword@360..366 "String"
+        Whitespace@366..367 " "
+      NameNode@367..368
+        Ident@367..368 "h"
+      Whitespace@368..369 " "
+      Assignment@369..370 "="
+      LiteralStringNode@370..407
+        Whitespace@370..371 " "
+        DoubleQuote@371..372 "\""
+        PlaceholderNode@372..406
+          PlaceholderOpen@372..374 "~{"
+          PlaceholderTrueFalseOptionNode@374..399
+            TrueKeyword@374..378 "true"
+            Assignment@378..379 "="
+            LiteralStringNode@379..386
+              DoubleQuote@379..380 "\""
+              LiteralStringText@380..385 "false"
+              DoubleQuote@385..386 "\""
+            Whitespace@386..387 " "
+            FalseKeyword@387..392 "false"
+            Assignment@392..393 "="
+            LiteralStringNode@393..399
+              DoubleQuote@393..394 "\""
+              LiteralStringText@394..398 "true"
+              DoubleQuote@398..399 "\""
+          LiteralBooleanNode@399..405
+            Whitespace@399..400 " "
+            FalseKeyword@400..405 "false"
+          CloseBrace@405..406 "}"
+        DoubleQuote@406..407 "\""
+      Whitespace@407..408 "\n"
+    CloseBrace@408..409 "}"
+  Whitespace@409..410 "\n"

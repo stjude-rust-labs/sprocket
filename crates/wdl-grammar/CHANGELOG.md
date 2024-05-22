@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Adds support for bound declarations and expressions in the experimental
+  parser ([#42](https://github.com/stjude-rust-labs/wdl/pull/42)).
 * Adds support for parsing `meta` and `parameter_meta` sections in tasks
   and workflows in the experimental parser ([#39](https://github.com/stjude-rust-labs/wdl/pull/39)).
 * Adds support for parsing struct definitions to the experimental parser;

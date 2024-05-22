@@ -1,0 +1,120 @@
+RootNode@0..179
+  Comment@0..39 "# This is a test of p ..."
+  Whitespace@39..41 "\n\n"
+  VersionStatementNode@41..52
+    VersionKeyword@41..48 "version"
+    Whitespace@48..49 " "
+    Version@49..52 "1.1"
+  Whitespace@52..54 "\n\n"
+  TaskDefinitionNode@54..178
+    TaskKeyword@54..58 "task"
+    NameNode@58..63
+      Whitespace@58..59 " "
+      Ident@59..63 "test"
+    Whitespace@63..64 " "
+    OpenBrace@64..65 "{"
+    Whitespace@65..70 "\n    "
+    BoundDeclNode@70..92
+      PrimitiveTypeNode@70..78
+        BooleanTypeKeyword@70..77 "Boolean"
+        Whitespace@77..78 " "
+      NameNode@78..79
+        Ident@78..79 "a"
+      Whitespace@79..80 " "
+      Assignment@80..81 "="
+      LogicalNotExprNode@81..92
+        Whitespace@81..82 " "
+        Exclamation@82..83 "!"
+        LiteralBooleanNode@83..87
+          TrueKeyword@83..87 "true"
+        Whitespace@87..92 "\n    "
+    BoundDeclNode@92..123
+      PrimitiveTypeNode@92..100
+        BooleanTypeKeyword@92..99 "Boolean"
+        Whitespace@99..100 " "
+      NameNode@100..101
+        Ident@100..101 "b"
+      Whitespace@101..102 " "
+      Assignment@102..103 "="
+      LogicalNotExprNode@103..123
+        Whitespace@103..104 " "
+        Exclamation@104..105 "!"
+        LogicalNotExprNode@105..123
+          Exclamation@105..106 "!"
+          LogicalNotExprNode@106..123
+            Exclamation@106..107 "!"
+            LogicalNotExprNode@107..123
+              Exclamation@107..108 "!"
+              LogicalNotExprNode@108..123
+                Exclamation@108..109 "!"
+                LogicalNotExprNode@109..123
+                  Exclamation@109..110 "!"
+                  LogicalNotExprNode@110..123
+                    Exclamation@110..111 "!"
+                    LogicalNotExprNode@111..123
+                      Exclamation@111..112 "!"
+                      LogicalNotExprNode@112..123
+                        Exclamation@112..113 "!"
+                        LiteralBooleanNode@113..118
+                          FalseKeyword@113..118 "false"
+                        Whitespace@118..123 "\n    "
+    BoundDeclNode@123..138
+      PrimitiveTypeNode@123..127
+        IntTypeKeyword@123..126 "Int"
+        Whitespace@126..127 " "
+      NameNode@127..128
+        Ident@127..128 "c"
+      Whitespace@128..129 " "
+      Assignment@129..130 "="
+      NegationExprNode@130..138
+        Whitespace@130..131 " "
+        Minus@131..132 "-"
+        LiteralIntegerNode@132..133
+          Integer@132..133 "2"
+        Whitespace@133..138 "\n    "
+    BoundDeclNode@138..157
+      PrimitiveTypeNode@138..144
+        FloatTypeKeyword@138..143 "Float"
+        Whitespace@143..144 " "
+      NameNode@144..145
+        Ident@144..145 "d"
+      Whitespace@145..146 " "
+      Assignment@146..147 "="
+      NegationExprNode@147..157
+        Whitespace@147..148 " "
+        Minus@148..149 "-"
+        LiteralFloatNode@149..152
+          Float@149..152 "2.0"
+        Whitespace@152..157 "\n    "
+    BoundDeclNode@157..177
+      PrimitiveTypeNode@157..161
+        IntTypeKeyword@157..160 "Int"
+        Whitespace@160..161 " "
+      NameNode@161..162
+        Ident@161..162 "e"
+      Whitespace@162..163 " "
+      Assignment@163..164 "="
+      NegationExprNode@164..177
+        Whitespace@164..165 " "
+        Minus@165..166 "-"
+        NegationExprNode@166..177
+          Minus@166..167 "-"
+          NegationExprNode@167..177
+            Minus@167..168 "-"
+            NegationExprNode@168..177
+              Minus@168..169 "-"
+              NegationExprNode@169..177
+                Minus@169..170 "-"
+                NegationExprNode@170..177
+                  Minus@170..171 "-"
+                  NegationExprNode@171..177
+                    Minus@171..172 "-"
+                    NegationExprNode@172..177
+                      Minus@172..173 "-"
+                      NegationExprNode@173..177
+                        Minus@173..174 "-"
+                        LiteralIntegerNode@174..176
+                          Integer@174..176 "42"
+                        Whitespace@176..177 "\n"
+    CloseBrace@177..178 "}"
+  Whitespace@178..179 "\n"

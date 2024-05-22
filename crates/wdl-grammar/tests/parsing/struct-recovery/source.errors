@@ -3,7 +3,7 @@
  5 │ struct MyStruct {
  6 │     ; # Unknown token
    ·     ┬
-   ·     ╰── this is not a WDL token
+   ·     ╰── this is not a supported WDL token
  7 │     String a
    ╰────
   × expected type, but found `?`

@@ -1,0 +1,68 @@
+RootNode@0..118
+  Comment@0..38 "# This is a test of a ..."
+  Whitespace@38..40 "\n\n"
+  VersionStatementNode@40..51
+    VersionKeyword@40..47 "version"
+    Whitespace@47..48 " "
+    Version@48..51 "1.1"
+  Whitespace@51..53 "\n\n"
+  TaskDefinitionNode@53..117
+    TaskKeyword@53..57 "task"
+    NameNode@57..62
+      Whitespace@57..58 " "
+      Ident@58..62 "test"
+    Whitespace@62..63 " "
+    OpenBrace@63..64 "{"
+    Whitespace@64..69 "\n    "
+    BoundDeclNode@69..83
+      PrimitiveTypeNode@69..73
+        IntTypeKeyword@69..72 "Int"
+        Whitespace@72..73 " "
+      NameNode@73..74
+        Ident@73..74 "x"
+      Whitespace@74..75 " "
+      Assignment@75..76 "="
+      LiteralIntegerNode@76..78
+        Whitespace@76..77 " "
+        Integer@77..78 "0"
+      Whitespace@78..83 "\n    "
+    BoundDeclNode@83..98
+      PrimitiveTypeNode@83..87
+        IntTypeKeyword@83..86 "Int"
+        Whitespace@86..87 " "
+      NameNode@87..88
+        Ident@87..88 "y"
+      Whitespace@88..89 " "
+      Assignment@89..90 "="
+      NegationExprNode@90..98
+        Whitespace@90..91 " "
+        Minus@91..92 "-"
+        NameReferenceNode@92..98
+          Ident@92..93 "x"
+          Whitespace@93..98 "\n    "
+    BoundDeclNode@98..116
+      PrimitiveTypeNode@98..102
+        IntTypeKeyword@98..101 "Int"
+        Whitespace@101..102 " "
+      NameNode@102..103
+        Ident@102..103 "z"
+      Whitespace@103..104 " "
+      Assignment@104..105 "="
+      AdditionExprNode@105..116
+        NameReferenceNode@105..108
+          Whitespace@105..106 " "
+          Ident@106..107 "x"
+          Whitespace@107..108 " "
+        Plus@108..109 "+"
+        MultiplicationExprNode@109..116
+          NameReferenceNode@109..112
+            Whitespace@109..110 " "
+            Ident@110..111 "y"
+            Whitespace@111..112 " "
+          Asterisk@112..113 "*"
+          NameReferenceNode@113..116
+            Whitespace@113..114 " "
+            Ident@114..115 "x"
+            Whitespace@115..116 "\n"
+    CloseBrace@116..117 "}"
+  Whitespace@117..118 "\n"
