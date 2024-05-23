@@ -12,4 +12,5 @@ task test {
     String f = "~{sep=" " [1, 2, 3]}"
     String g = "~{default="n/a" 1*2/2+1}"
     String h = "~{true="false" false="true" false}"
+    String i = "~{sep('\n', [1, 2, 3])}" # Not a `sep` option
 }

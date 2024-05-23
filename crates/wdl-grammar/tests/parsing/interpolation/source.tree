@@ -1,4 +1,4 @@
-RootNode@0..410
+RootNode@0..472
   Comment@0..41 "# This is a test of s ..."
   Whitespace@41..43 "\n\n"
   VersionStatementNode@43..54
@@ -6,7 +6,7 @@ RootNode@0..410
     Whitespace@50..51 " "
     Version@51..54 "1.1"
   Whitespace@54..56 "\n\n"
-  TaskDefinitionNode@56..409
+  TaskDefinitionNode@56..471
     TaskKeyword@56..60 "task"
     NameNode@60..65
       Whitespace@60..61 " "
@@ -217,7 +217,7 @@ RootNode@0..410
           CloseBrace@353..354 "}"
         DoubleQuote@354..355 "\""
       Whitespace@355..360 "\n    "
-    BoundDeclNode@360..408
+    BoundDeclNode@360..412
       PrimitiveTypeNode@360..367
         StringTypeKeyword@360..366 "String"
         Whitespace@366..367 " "
@@ -249,6 +249,48 @@ RootNode@0..410
             FalseKeyword@400..405 "false"
           CloseBrace@405..406 "}"
         DoubleQuote@406..407 "\""
-      Whitespace@407..408 "\n"
-    CloseBrace@408..409 "}"
-  Whitespace@409..410 "\n"
+      Whitespace@407..412 "\n    "
+    BoundDeclNode@412..470
+      PrimitiveTypeNode@412..419
+        StringTypeKeyword@412..418 "String"
+        Whitespace@418..419 " "
+      NameNode@419..420
+        Ident@419..420 "i"
+      Whitespace@420..421 " "
+      Assignment@421..422 "="
+      LiteralStringNode@422..448
+        Whitespace@422..423 " "
+        DoubleQuote@423..424 "\""
+        PlaceholderNode@424..447
+          PlaceholderOpen@424..426 "~{"
+          CallExprNode@426..446
+            NameReferenceNode@426..429
+              Ident@426..429 "sep"
+            OpenParen@429..430 "("
+            LiteralStringNode@430..434
+              SingleQuote@430..431 "'"
+              LiteralStringText@431..433 "\\n"
+              SingleQuote@433..434 "'"
+            Comma@434..435 ","
+            Whitespace@435..436 " "
+            LiteralArrayNode@436..445
+              OpenBracket@436..437 "["
+              LiteralIntegerNode@437..438
+                Integer@437..438 "1"
+              Comma@438..439 ","
+              Whitespace@439..440 " "
+              LiteralIntegerNode@440..441
+                Integer@440..441 "2"
+              Comma@441..442 ","
+              Whitespace@442..443 " "
+              LiteralIntegerNode@443..444
+                Integer@443..444 "3"
+              CloseBracket@444..445 "]"
+            CloseParen@445..446 ")"
+          CloseBrace@446..447 "}"
+        DoubleQuote@447..448 "\""
+      Whitespace@448..449 " "
+      Comment@449..469 "# Not a `sep` option"
+      Whitespace@469..470 "\n"
+    CloseBrace@470..471 "}"
+  Whitespace@471..472 "\n"

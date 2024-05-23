@@ -390,7 +390,7 @@ impl CompletedMarker {
 #[allow(missing_debug_implementations)]
 pub struct Interpolator<'a, T>
 where
-    T: Logos<'a>,
+    T: Logos<'a, Extras = ()>,
 {
     /// The lexer to use for the interpolation.
     lexer: Lexer<'a, T>,
@@ -440,7 +440,7 @@ where
 
 impl<'a, T> Iterator for Interpolator<'a, T>
 where
-    T: Logos<'a, Error = lexer::Error>,
+    T: Logos<'a, Error = lexer::Error, Extras = ()> + Copy,
 {
     type Item = (LexerResult<T>, SourceSpan);
 
@@ -453,7 +453,7 @@ where
 #[allow(missing_debug_implementations)]
 pub struct Output<'a, T>
 where
-    T: Logos<'a>,
+    T: ParserToken<'a>,
 {
     /// The parser's lexer.
     pub lexer: Lexer<'a, T>,
@@ -510,7 +510,8 @@ where
         self.lexer.as_ref().expect("expected a lexer").source(span)
     }
 
-    /// Peeks at the next token from the lexer without consuming it.
+    /// Peeks at the next token (i.e. lookahead 1) from the lexer without
+    /// consuming it.
     ///
     /// The token is not added to the event list.
     pub fn peek(&mut self) -> Option<(T, SourceSpan)> {
@@ -518,6 +519,34 @@ where
             if let Some(t) = self.consume_trivia(res, span, true) {
                 return Some(t);
             }
+        }
+
+        None
+    }
+
+    /// Peeks at the next and next-next tokens (i.e. lookahead 2) from the lexer
+    /// without consuming either token.
+    ///
+    /// The tokens are not added to the event list.
+    pub fn peek2(&mut self) -> Option<((T, SourceSpan), (T, SourceSpan))> {
+        let first = self.peek()?;
+
+        // We have to clone the lexer here since it only supports a single lookahead.
+        // The clone is cheap, but it does mean we'll re-tokenize this second lookahead
+        // eventually.
+        let mut lexer = self.lexer.clone()?;
+        lexer
+            .next()
+            .unwrap()
+            .0
+            .expect("should have peeked at a valid token");
+        while let Some((Ok(token), span)) = lexer.peek() {
+            if token.is_trivia() {
+                // Do not consume trivia here as we're between peeked tokens.
+                continue;
+            }
+
+            return Some((first, (token, span)));
         }
 
         None

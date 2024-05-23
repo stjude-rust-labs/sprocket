@@ -728,8 +728,8 @@ fn number(
 
 /// Parses a placeholder option.
 fn placeholder_option(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
-    match parser.peek() {
-        Some((Token::Ident, span)) => {
+    match parser.peek2() {
+        Some(((Token::Ident, span), (Token::Assignment, _))) => {
             let kind = match parser.source(span) {
                 "sep" => SyntaxKind::PlaceholderSepOptionNode,
                 "default" => SyntaxKind::PlaceholderDefaultOptionNode,
@@ -746,7 +746,8 @@ fn placeholder_option(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Ma
             marker.complete(parser, kind);
             Ok(())
         }
-        Some((t @ Token::TrueKeyword, _)) | Some((t @ Token::FalseKeyword, _)) => {
+        Some(((t @ Token::TrueKeyword, _), (Token::Assignment, _)))
+        | Some(((t @ Token::FalseKeyword, _), (Token::Assignment, _))) => {
             parser.next();
             expected!(parser, marker, Token::Assignment);
             expected_fn!(parser, marker, string);
