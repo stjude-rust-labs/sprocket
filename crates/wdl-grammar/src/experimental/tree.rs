@@ -187,6 +187,8 @@ pub enum SyntaxKind {
     VersionStatementNode,
     /// Represents an import statement node.
     ImportStatementNode,
+    /// Represents an import alias node.
+    ImportAliasNode,
     /// Represents a struct definition node.
     StructDefinitionNode,
     /// Represents a task definition node.

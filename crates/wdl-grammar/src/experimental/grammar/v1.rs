@@ -379,9 +379,30 @@ fn item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> 
 }
 
 /// Parses an import statement.
-fn import_statement(parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Marker, Error)> {
+fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
     parser.require(Token::ImportKeyword);
-    todo!("parse import statements")
+    expected_fn!(parser, marker, string);
+
+    if parser.next_if(Token::AsKeyword) {
+        expected!(parser, marker, Token::Ident);
+    }
+
+    while let Some((Token::AliasKeyword, _)) = parser.peek() {
+        expected_fn!(parser, marker, import_alias);
+    }
+
+    marker.complete(parser, SyntaxKind::ImportStatementNode);
+    Ok(())
+}
+
+/// Parses an import alias.
+fn import_alias(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    parser.require(Token::AliasKeyword);
+    expected!(parser, marker, Token::Ident);
+    expected!(parser, marker, Token::AsKeyword);
+    expected!(parser, marker, Token::Ident);
+    marker.complete(parser, SyntaxKind::ImportAliasNode);
+    Ok(())
 }
 
 /// Parses a name (i.e. identifier) for a struct, task, or workflow definition.

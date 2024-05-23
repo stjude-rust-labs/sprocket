@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Adds support for import statements to the experimental parser ([#43](https://github.com/stjude-rust-labs/wdl/pull/43)).
 * Adds support for bound declarations and expressions in the experimental
   parser ([#42](https://github.com/stjude-rust-labs/wdl/pull/42)).
 * Adds support for parsing `meta` and `parameter_meta` sections in tasks
