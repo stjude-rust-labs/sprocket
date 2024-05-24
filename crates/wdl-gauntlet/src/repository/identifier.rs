@@ -1,8 +1,5 @@
 //! Identifiers for repositories.
 
-use serde::Deserialize;
-use serde::Serialize;
-
 /// The character that separates the organization from the repository name.
 const SEPARATOR: char = '/';
 
@@ -43,7 +40,7 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {}
 
 /// A repository identifier.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Identifier {
     /// The organization of the repository identifier.
     organization: String,
@@ -88,5 +85,39 @@ impl std::str::FromStr for Identifier {
         let name = parts.next().unwrap().to_string();
 
         Ok(Self { organization, name })
+    }
+}
+
+impl serde::Serialize for Identifier {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        format!(
+            "{org}{sep}{name}",
+            org = self.organization,
+            sep = SEPARATOR,
+            name = self.name
+        )
+        .serialize(serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Identifier {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let (organization, name) = s.split_once(SEPARATOR).ok_or_else(|| {
+            serde::de::Error::custom(
+                "expected a repository identifier in the format `<organization>/<name>`",
+            )
+        })?;
+
+        Ok(Self {
+            organization: organization.to_string(),
+            name: name.to_string(),
+        })
     }
 }

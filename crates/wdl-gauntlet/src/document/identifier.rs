@@ -66,8 +66,11 @@ pub struct Identifier {
 
 impl Identifier {
     /// Creates a new [`Identifier`].
-    pub fn new(repository: repository::Identifier, path: String) -> Self {
-        Self { repository, path }
+    pub fn new(repository: repository::Identifier, relative_path: String) -> Self {
+        Self {
+            repository,
+            path: relative_path,
+        }
     }
 
     /// Gets the [`repository::Identifier`] from this [`Identifier`] by

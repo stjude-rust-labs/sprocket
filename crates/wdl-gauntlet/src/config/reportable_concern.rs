@@ -2,7 +2,8 @@
 //!
 //! Reportable concerns are [`Concern`](wdl_core::Concern)s that have been
 //! simplified and serialized for reporting within a [configuration
-//! file](crate::config::Inner).
+//! file](crate::config::Inner). Reportable concerns ignore `LintWarning`s,
+//! only focusing on `ParseError`s and `ValidationFailure`s.
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -10,9 +11,6 @@ use serde::Serialize;
 /// A kind of reportable concern.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum Kind {
-    /// A lint warning.
-    LintWarning,
-
     /// A parse error.
     ParseError,
 
@@ -53,9 +51,9 @@ impl ReportableConcern {
     /// use wdl_gauntlet::config::ReportableConcern;
     ///
     /// let reportable_concern =
-    ///     ReportableConcern::new(Kind::LintWarning, "Foo/Bar:quux.wdl", "Hello, world!");
+    ///     ReportableConcern::new(Kind::ValidationFailure, "Foo/Bar:quux.wdl", "Hello, world!");
     ///
-    /// assert_eq!(reportable_concern.kind(), &Kind::LintWarning);
+    /// assert_eq!(reportable_concern.kind(), &Kind::ValidationFailure);
     /// assert_eq!(reportable_concern.document(), "Foo/Bar:quux.wdl");
     /// assert_eq!(reportable_concern.message(), "Hello, world!");
     /// ```
@@ -85,32 +83,28 @@ impl ReportableConcern {
     /// let error = parse::Error::new("Hello, world!", Location::Unplaced);
     /// let concern = Concern::ParseError(error);
     ///
-    /// let reportable_concern = ReportableConcern::from_concern("Foo/Bar:quux.wdl", concern);
+    /// let reportable_concern = ReportableConcern::from_concern("Foo/Bar:quux.wdl", concern).unwrap();
     ///
     /// assert_eq!(reportable_concern.message(), "Hello, world!");
     /// assert_eq!(reportable_concern.document(), "Foo/Bar:quux.wdl");
     /// assert_eq!(reportable_concern.kind(), &Kind::ParseError);
     /// ```
-    pub fn from_concern(document: impl Into<String>, concern: wdl_core::Concern) -> Self {
+    pub fn from_concern(document: impl Into<String>, concern: wdl_core::Concern) -> Option<Self> {
         let document = document.into();
         let message = concern.to_string();
 
         match &concern {
-            wdl_core::Concern::LintWarning(_) => ReportableConcern {
-                kind: Kind::LintWarning,
-                document,
-                message,
-            },
-            wdl_core::Concern::ParseError(_) => ReportableConcern {
+            wdl_core::Concern::LintWarning(_) => None,
+            wdl_core::Concern::ParseError(_) => Some(ReportableConcern {
                 kind: Kind::ParseError,
                 document,
                 message,
-            },
-            wdl_core::Concern::ValidationFailure(_) => ReportableConcern {
+            }),
+            wdl_core::Concern::ValidationFailure(_) => Some(ReportableConcern {
                 kind: Kind::ValidationFailure,
                 document,
                 message,
-            },
+            }),
         }
     }
 
@@ -123,9 +117,9 @@ impl ReportableConcern {
     /// use wdl_gauntlet::config::ReportableConcern;
     ///
     /// let reportable_concern =
-    ///     ReportableConcern::new(Kind::LintWarning, "Foo/Bar:quux.wdl", "Hello, world!");
+    ///     ReportableConcern::new(Kind::ValidationFailure, "Foo/Bar:quux.wdl", "Hello, world!");
     ///
-    /// assert_eq!(reportable_concern.kind(), &Kind::LintWarning);
+    /// assert_eq!(reportable_concern.kind(), &Kind::ValidationFailure);
     /// ```
     pub fn kind(&self) -> &Kind {
         &self.kind
@@ -140,7 +134,7 @@ impl ReportableConcern {
     /// use wdl_gauntlet::config::ReportableConcern;
     ///
     /// let reportable_concern =
-    ///     ReportableConcern::new(Kind::LintWarning, "Foo/Bar:quux.wdl", "Hello, world!");
+    ///     ReportableConcern::new(Kind::ValidationFailure, "Foo/Bar:quux.wdl", "Hello, world!");
     ///
     /// assert_eq!(reportable_concern.document(), "Foo/Bar:quux.wdl");
     /// ```
@@ -157,7 +151,7 @@ impl ReportableConcern {
     /// use wdl_gauntlet::config::ReportableConcern;
     ///
     /// let reportable_concern =
-    ///     ReportableConcern::new(Kind::LintWarning, "Foo/Bar:quux.wdl", "Hello, world!");
+    ///     ReportableConcern::new(Kind::ValidationFailure, "Foo/Bar:quux.wdl", "Hello, world!");
     ///
     /// assert_eq!(reportable_concern.message(), "Hello, world!");
     /// ```

@@ -60,5 +60,3 @@ jobs:
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - run: cargo run --release --bin wdl-gauntlet
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

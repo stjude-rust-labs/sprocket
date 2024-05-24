@@ -148,9 +148,8 @@ impl Config {
     ///
     /// let config = r#"version = "v1"
     ///
-    /// [[repositories]]
-    /// organization = "Foo"
-    /// name = "Bar""#
+    /// [repositories."Foo/Bar"]
+    /// identifier = "Foo/Bar""#
     ///     .parse::<gauntlet::Config>()?;
     ///
     /// assert_eq!(config.inner().version(), &wdl_core::Version::V1);
@@ -173,25 +172,21 @@ impl Config {
     ///
     /// let mut config = r#"version = "v1"
     ///
-    /// [[repositories]]
-    /// organization = "Foo"
-    /// name = "Bar""#
+    /// [repositories."Foo/Bar"]
+    /// identifier = "Foo/Bar"
+    /// commit_hash = "d8e8b48ce8faad50b24779d785cd504baadfb13f""#
     ///     .parse::<gauntlet::Config>()?;
-    ///
-    /// config
-    ///     .inner_mut()
-    ///     .extend_repositories(vec!["Foo/Baz".parse::<gauntlet::repository::Identifier>()?]);
     ///
     /// let mut concerns = IndexSet::new();
     /// concerns.insert(ReportableConcern::new(
-    ///     Kind::LintWarning,
+    ///     Kind::ValidationFailure,
     ///     "Foo/Bar:quux.wdl",
     ///     "Hello, world!",
     /// ));
     /// config.inner_mut().set_concerns(concerns);
     ///
     /// assert_eq!(config.inner().version(), &wdl_core::Version::V1);
-    /// assert_eq!(config.inner().repositories().len(), 2);
+    /// assert_eq!(config.inner().repositories().len(), 1);
     /// assert_eq!(config.inner().concerns().len(), 1);
     ///
     /// Ok::<(), Box<dyn std::error::Error>>(())

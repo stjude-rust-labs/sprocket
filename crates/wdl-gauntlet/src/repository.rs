@@ -1,343 +1,261 @@
 //! A local repository of files from a remote GitHub repository.
 
-use async_recursion::async_recursion;
-use chrono::Utc;
+use std::path::Path;
+use std::path::PathBuf;
+
+use faster_hex;
+use git2::build::RepoBuilder;
+use git2::FetchOptions;
 use indexmap::IndexMap;
-use log::debug;
 use log::info;
-use log::warn;
-use octocrab::etag::EntityTag;
-use octocrab::models::repos::ContentItems;
-use octocrab::Octocrab;
-use reqwest::header::ETAG;
-use reqwest::Client;
-use urlencoding::encode;
+use serde::Deserialize;
+use serde::Serialize;
 
-pub mod builder;
-pub mod cache;
 pub mod identifier;
-pub mod options;
+pub mod work_dir;
 
-pub use builder::Builder;
-pub use cache::Cache;
 pub use identifier::Identifier;
-pub use options::Options;
+pub use work_dir::WorkDir;
 
-/// The URL to ping when checking if GitHub has applied rate limiting.
-const RATE_LIMIT_PING_URL: &str = "https://api.github.com";
+/// Fetch up to this many commits when cloning a repository.
+const FETCH_DEPTH: i32 = 25;
 
-/// The time to sleep between requests when checking if GitHub has applied rate
-/// limiting.
-const RATE_LIMIT_SLEEP_TIME: i64 = 60;
+/// A byte slice that can be converted to a [`git2::Oid`].
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct RawHash([u8; 20]);
 
-/// The substring to look for in the response to detect whether GitHub has
-/// applied rate limiting.
-const RATE_LIMIT_EXCEEDED: &str = "API rate limit exceeded";
-
-/// The HTTP response header indicating when rate limiting will be lifted by
-/// GitHub.
-const RATE_LIMIT_RESET_HEADER: &str = "X-RateLimit-Reset";
-
-/// The user agent to set when sending HTTP requests.
-const USER_AGENT: &str = "wdl-grammar gauntlet";
-
-/// An error related to a [`Repository`].
-#[derive(Debug)]
-pub enum Error {
-    /// An error related to the cache.
-    Cache(cache::Error),
-
-    /// Missing an expected header.
-    MissingHeader(&'static str),
-
-    /// An error related to [`octocrab`].
-    Octocrab(octocrab::Error),
-
-    /// An error from [`reqwest`].
-    Reqwest(reqwest::Error),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::Cache(err) => write!(f, "cache error: {err}"),
-            Error::MissingHeader(header) => {
-                write!(f, "missing header: {header}")
-            }
-            Error::Octocrab(err) => write!(f, "octocrab error: {err}"),
-            Error::Reqwest(err) => write!(f, "reqwest error: {err}"),
-        }
+impl Serialize for RawHash {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        faster_hex::hex_string(&self.0).serialize(serializer)
     }
 }
 
-impl std::error::Error for Error {}
+impl<'de> Deserialize<'de> for RawHash {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        if s.len() != 40 {
+            return Err(serde::de::Error::custom(
+                "a commit hash must have 40 characters",
+            ));
+        }
 
-/// A [`Result`](std::result::Result) with an [`Error`].
-pub type Result<T> = std::result::Result<T, Error>;
+        let mut hash = [0u8; 20];
+        faster_hex::hex_decode(s.as_bytes(), &mut hash).map_err(serde::de::Error::custom)?;
+        Ok(Self(hash))
+    }
+}
 
 /// A repository of GitHub files.
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct Repository {
-    /// The local cache of the repository files.
-    cache: Cache,
-
-    /// The GitHub client.
-    client: Octocrab,
-
     /// The name for the [`Repository`] expressed as an [`Identifier`].
     identifier: Identifier,
 
-    /// The options for operating the [`Repository`].
-    options: Options,
+    /// The commit hash for the [`Repository`].
+    commit_hash: Option<RawHash>,
 }
 
 impl Repository {
-    /// Gets the cache from the [`Repository`] by reference.
-    #[allow(dead_code)]
-    pub fn cache(&self) -> &Cache {
-        &self.cache
-    }
+    /// Create a new [`Repository`].
+    /// Repositories initialized with this method will _always_ have
+    /// `Some(commit_hash)`.
+    pub fn new(identifier: Identifier, commit_hash: Option<RawHash>, work_dir: &Path) -> Self {
+        let repo_root = work_dir
+            .join(identifier.organization())
+            .join(identifier.name());
 
-    /// Gets the client from the [`Repository`] by reference.
-    #[allow(dead_code)]
-    pub fn client(&self) -> &Octocrab {
-        &self.client
+        // Ensure the root directory exists.
+        if !repo_root.exists() {
+            info!("creating repository root directory: {:?}", repo_root);
+            std::fs::create_dir_all(&repo_root)
+                .expect("failed to create repository root directory");
+        }
+
+        info!("cloning repository: {:?}", identifier);
+        let mut fo = FetchOptions::new();
+        fo.depth(FETCH_DEPTH);
+        let git_repo = RepoBuilder::new()
+            .fetch_options(fo)
+            .clone(
+                format!("https://github.com/{}.git", identifier).as_str(),
+                &repo_root,
+            )
+            .expect("failed to clone repository");
+
+        let commit_hash = match commit_hash {
+            Some(hash) => {
+                let obj = git_repo
+                    .find_object(
+                        git2::Oid::from_bytes(&hash.0).expect("failed to convert hash"),
+                        Some(git2::ObjectType::Commit),
+                    )
+                    .expect("failed to find object");
+                git_repo
+                    .set_head_detached(obj.id())
+                    .expect("failed to set head detached");
+                hash
+            }
+            None => {
+                let head = git_repo.head().expect("failed to get head");
+                let commit = head.peel_to_commit().expect("failed to peel to commit");
+
+                let mut bytes = [0u8; 20];
+                bytes.copy_from_slice(commit.id().as_bytes());
+                RawHash(bytes)
+            }
+        };
+
+        Self {
+            identifier,
+            commit_hash: Some(commit_hash),
+        }
     }
 
     /// Gets the repository identifier from the [`Repository`] by reference.
-    #[allow(dead_code)]
     pub fn identifier(&self) -> &Identifier {
         &self.identifier
     }
 
-    /// Gets the options from the [`Repository`] by reference.
-    #[allow(dead_code)]
-    pub fn options(&self) -> &Options {
-        &self.options
+    /// Gets the commit hash from the [`Repository`] by reference.
+    pub fn commit_hash(&self) -> &Option<RawHash> {
+        &self.commit_hash
     }
 
-    /// Hydrates the repository by contacting GitHub.
-    ///
-    /// This occurs by traversing the files in the repository, comparing the
-    /// `etag` HTTP response header to the one stored locally to see if any of
-    /// the files have changed, updating any files that have changed and,
-    /// finally, returning a map of those files and their contents.
-    ///
-    /// **Note:** only files with a `.wdl` extension are considered.
-    async fn hydrate_from_remote(&mut self) -> Result<IndexMap<String, String>> {
-        info!("{}: hydrating from remote.", self.identifier);
-
-        let content = get_remote_repo_content(&self.client, &self.identifier, None).await?;
-
-        dive_for_wdl(self, content).await
-    }
-
-    /// Hydrates the repository simply by looking at local files.
-    async fn hydrate_from_cache(&mut self) -> Result<IndexMap<String, String>> {
-        info!("{}: hydrating from local cache.", self.identifier);
-
-        let mut map = IndexMap::new();
-
-        for (path, _) in self.cache.registry().entries() {
-            // SAFETY: the first unwrap is safe because, since we are assuming a
-            // well-formed cache, this should always unwrap.
-            //
-            // The second unwrap is safe because we just checked that the path
-            // exists in the registry, so retreiving the value for that path
-            // will always unwrap.
-            let entry = self.cache.get(path).unwrap().unwrap();
-            map.insert(path.clone(), entry.contents().to_string());
+    /// Retrieve all the WDL files from the [`Repository`].
+    pub fn wdl_files(&self, root: &Path) -> IndexMap<String, String> {
+        let repo_root = root
+            .join(self.identifier.organization())
+            .join(self.identifier.name());
+        // Ensure repo_root exists.
+        if !repo_root.exists() {
+            info!("creating repository root directory: {:?}", repo_root);
+            std::fs::create_dir_all(&repo_root)
+                .expect("failed to create repository root directory");
         }
 
-        Ok(map)
-    }
-
-    /// Hydrates the repository according to the [`Options`] set.
-    pub async fn hydrate(&mut self) -> Result<IndexMap<String, String>> {
-        match self.options.hydrate_remote {
-            true => self.hydrate_from_remote().await,
-            false => self.hydrate_from_cache().await,
-        }
-    }
-}
-
-/// Dives into a [`ContentItems`] to pull out any `.wdl` files. This function is
-/// called recursively as directories are encountered within the repository.
-#[async_recursion]
-async fn dive_for_wdl(
-    repository: &mut Repository,
-    content: ContentItems,
-) -> Result<IndexMap<String, String>> {
-    let mut result = IndexMap::new();
-
-    for item in content.items {
-        if let Some(download_url) = item.download_url
-            && item.path.ends_with(".wdl")
-        {
-            let entry = match repository.cache.get(&item.path) {
-                Ok(entry) => entry,
-                Err(err) => return Err(Error::Cache(err)),
-            };
-
-            let etag = retrieve_etag(&download_url).await?;
-
-            if let Some(entry) = entry {
-                // SAFETY: this should always unwrap, as we are getting the etag
-                // directly from the GitHub server.
-                if entry.etag() == &etag.parse::<EntityTag>().unwrap() {
-                    debug!("{}: etags match, using cached version.", item.path);
-                    result.insert(item.path, entry.contents().to_owned());
-                    continue;
-                } else {
-                    debug!(
-                        "{}: etags don't match, overwriting with latest version.",
-                        item.path
-                    );
-                }
-            } else {
-                debug!("{}: cache entry not found, downloading.", item.path);
+        let git_repo = match git2::Repository::open(&repo_root) {
+            Ok(repo) => {
+                info!("opening existing repository: {:?}", repo_root);
+                repo
             }
-
-            let response = reqwest::get(download_url).await.map_err(Error::Reqwest)?;
-            let contents = response.text().await.map_err(Error::Reqwest)?;
-
-            repository
-                .cache
-                .insert(&item.path, etag, &contents)
-                .map_err(Error::Cache)?;
-            result.insert(item.path, contents);
-        } else if item.r#type == "dir" {
-            result.extend(
-                dive_for_wdl(
-                    repository,
-                    get_remote_repo_content(
-                        &repository.client,
-                        &repository.identifier,
-                        Some(&item.path),
+            Err(_) => {
+                info!("cloning repository: {:?}", self.identifier);
+                let mut fo = FetchOptions::new();
+                fo.depth(FETCH_DEPTH);
+                RepoBuilder::new()
+                    .fetch_options(fo)
+                    .clone(
+                        format!("https://github.com/{}.git", self.identifier).as_str(),
+                        &repo_root,
                     )
-                    .await?,
-                )
-                .await?,
+                    .expect("failed to clone repository")
+            }
+        };
+
+        match self.commit_hash.clone() {
+            Some(hash) => {
+                let obj = git_repo
+                    .find_object(
+                        git2::Oid::from_bytes(&hash.0).expect("failed to convert hash"),
+                        Some(git2::ObjectType::Commit),
+                    )
+                    .expect("failed to find object");
+                git_repo
+                    .set_head_detached(obj.id())
+                    .expect("failed to set head detached");
+                let mut co = git2::build::CheckoutBuilder::new();
+                co.force();
+                git_repo
+                    .checkout_head(Some(&mut co))
+                    .expect("failed to checkout head");
+            }
+            None => {
+                unreachable!("commit hash must be set");
+            }
+        };
+        let mut wdl_files = IndexMap::new();
+        add_wdl_files(&repo_root, &mut wdl_files, &repo_root);
+
+        match std::fs::remove_dir_all(&repo_root) {
+            Ok(_) => {
+                info!(
+                    "removed repository after parsing WDL files: {:?}",
+                    repo_root
+                );
+            }
+            Err(_) => {
+                info!(
+                    "failed to remove repository after parsing WDL files: {:?}",
+                    repo_root
+                );
+            }
+        }
+
+        wdl_files
+    }
+
+    /// Update to the latest commit hash for the [`Repository`].
+    pub fn update(&mut self, root: &Path) {
+        let repo_root = root
+            .join(self.identifier.organization())
+            .join(self.identifier.name());
+
+        // Try to delete the current repository.
+        // SAFETY: It shouldn't matter if this succeeds or fails.
+        let _ = std::fs::remove_dir_all(&repo_root);
+
+        // [Re-]Clone the repository.
+        info!("cloning repository: {:?}", self.identifier);
+        let mut fo = FetchOptions::new();
+        fo.depth(FETCH_DEPTH);
+        let git_repo = RepoBuilder::new()
+            .fetch_options(fo)
+            .clone(
+                format!("https://github.com/{}.git", self.identifier).as_str(),
+                &repo_root,
             )
-        }
-    }
+            .expect("failed to clone repository");
 
-    Ok(result)
-}
+        // Update the commit hash.
+        let head = git_repo.head().expect("failed to get head");
+        let commit = head.peel_to_commit().expect("failed to peel to commit");
 
-/// A function to pull out content for a particular path within a GitHub
-/// repository. If the `path` is [`None`], the root of the repository is
-/// searched.
-///
-/// **Note:** rate limiting is handled at this level.
-#[async_recursion]
-async fn get_remote_repo_content<'a: 'async_recursion>(
-    client: &Octocrab,
-    identifier: &Identifier,
-    path: Option<&str>,
-) -> Result<ContentItems> {
-    debug!(
-        "{}: searching for files{}",
-        identifier,
-        path.map(|s| format!(" at path `{}`", s))
-            .unwrap_or_default()
-    );
-
-    let binding = client.repos(identifier.organization(), identifier.name());
-    let mut request = binding.get_content();
-
-    if let Some(path) = path {
-        request = request.path(encode(path));
-    }
-
-    match request.send().await {
-        Ok(result) => Ok(result),
-        Err(err) => match &err {
-            octocrab::Error::GitHub { source, .. } => {
-                debug!("error: {err}");
-                if source.message.contains(RATE_LIMIT_EXCEEDED) {
-                    wait_for_timeout().await?;
-                    get_remote_repo_content(client, identifier, path).await
-                } else {
-                    Err(Error::Octocrab(err))
-                }
-            }
-            _ => {
-                debug!("error: {err}");
-                Err(Error::Octocrab(err))
-            }
-        },
+        let mut bytes = [0u8; 20];
+        bytes.copy_from_slice(commit.id().as_bytes());
+        self.commit_hash = Some(RawHash(bytes));
     }
 }
 
-/// A simple function to loop while we wait for rate-limiting applied by GitHub
-/// to lift.
-async fn wait_for_timeout() -> Result<()> {
-    let client = Client::builder().user_agent(USER_AGENT).build().unwrap();
-
-    let response = client
-        .head(RATE_LIMIT_PING_URL)
-        .send()
-        .await
-        .map_err(Error::Reqwest)?;
-
-    let timestamp = response
-        .headers()
-        .get(RATE_LIMIT_RESET_HEADER)
-        .map(Ok)
-        .unwrap_or(Err(Error::MissingHeader(RATE_LIMIT_RESET_HEADER)))
-        .map(|s| s.to_str().unwrap().parse::<i64>().unwrap())?;
-
-    let mut first_loop = true;
-
-    loop {
-        let duration = timestamp
-            .checked_sub(Utc::now().timestamp())
-            .unwrap_or_else(|| panic!("overflow when computing duration"));
-
-        if duration == 0 || duration.is_negative() {
-            break;
+/// Add to an [`IndexMap`] all the WDL files in a directory
+/// and its subdirectories.
+fn add_wdl_files(path: &PathBuf, wdl_files: &mut IndexMap<String, String>, leading_dirs: &Path) {
+    if path.is_dir() {
+        for entry in std::fs::read_dir(path).expect("failed to read directory") {
+            let entry = entry.expect("failed to read entry");
+            let path = entry.path();
+            add_wdl_files(&path, wdl_files, leading_dirs);
         }
-
-        // SAFETY: this should always cast, as we just checked above if the
-        // duration was negative and broke out of the loop if so.
-        let sleep_for = std::cmp::min(duration, RATE_LIMIT_SLEEP_TIME) as u64;
-
-        if first_loop {
-            warn!("rate limit: activated.");
+    } else if path.is_file() {
+        let path_str = path
+            .to_str()
+            .expect("failed to convert file name to string");
+        if path_str.ends_with(".wdl") {
+            let contents = std::fs::read_to_string(path).expect("failed to read file contents");
+            // Strip leading directories from the path.
+            // SAFETY: `path_str` is guaranteed to start with `leading_dirs`
+            wdl_files.insert(
+                path_str
+                    .strip_prefix(leading_dirs.to_str().unwrap())
+                    .unwrap()
+                    .to_string(),
+                contents,
+            );
         }
-
-        warn!(
-            "rate limit: sleeping for {} seconds ({} seconds remaining).",
-            sleep_for, duration
-        );
-
-        std::thread::sleep(std::time::Duration::from_secs(sleep_for));
-        first_loop = false;
     }
-
-    Ok(())
-}
-
-/// A utility function to grab an `etag` HTTP response header from a URL.
-async fn retrieve_etag(download_url: &str) -> Result<String> {
-    let response = Client::builder()
-        .build()
-        .map_err(Error::Reqwest)?
-        .head(download_url)
-        .send()
-        .await
-        .map_err(Error::Reqwest)?;
-
-    Ok(response
-        .headers()
-        .get(ETAG)
-        .map(Ok)
-        .unwrap_or(Err(Error::MissingHeader(ETAG.as_str())))?
-        .to_str()
-        // SAFETY: for GitHub URLs (which is the only thing this method is used
-        // to retrieve), the `etag` header will always be present, so this will
-        // always unwrap.
-        .unwrap()
-        .to_string())
 }

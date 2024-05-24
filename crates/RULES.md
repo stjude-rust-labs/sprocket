@@ -1,4 +1,4 @@
-# Rules 
+# Rules
 
 This table documents all implemented `wdl` rules (validation failures and lint
 warnings) implemented on the `main` branch of the `stjude-rust-labs/wdl`
