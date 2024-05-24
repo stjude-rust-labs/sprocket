@@ -16,6 +16,7 @@
 
 #[cfg(feature = "experimental")]
 mod test {
+    use std::collections::HashSet;
     use std::env;
     use std::ffi::OsStr;
     use std::fs;
@@ -35,10 +36,22 @@ mod test {
     use wdl_grammar::experimental::tree::SyntaxTree;
 
     fn find_tests() -> Vec<PathBuf> {
+        // Check for filter arguments consisting of test names
+        let mut filter = HashSet::new();
+        for arg in std::env::args().skip_while(|a| a != "--").skip(1) {
+            if !arg.starts_with('-') {
+                filter.insert(arg);
+            }
+        }
+
         let mut tests: Vec<PathBuf> = Vec::new();
         for entry in Path::new("tests/parsing").read_dir().unwrap() {
-            let path = entry.unwrap().path();
-            if !path.is_dir() {
+            let entry = entry.expect("failed to read directory");
+            let path = entry.path();
+            if !path.is_dir()
+                || (!filter.is_empty()
+                    && !filter.contains(entry.file_name().to_str().expect("name should be UTF-8")))
+            {
                 continue;
             }
 

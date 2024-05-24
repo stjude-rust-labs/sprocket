@@ -222,14 +222,35 @@ pub enum Error {
 /// The result type for the lexer.
 pub type LexerResult<T> = Result<T, Error>;
 
+/// Records information for a lexer peek operation.
+///
+/// See the [Lexer::peek] method.
+#[derive(Debug, Clone, Copy)]
+struct Peeked<T> {
+    /// The result of the peek operation.
+    result: LexerResult<T>,
+    /// The span of the result.
+    span: SourceSpan,
+    /// The offset *before* the peek.
+    ///
+    /// This is used to discard the peek for morphing lexers.
+    offset: usize,
+}
+
 /// Implements a WDL lexer.
 ///
 /// A lexer produces a stream of tokens from a WDL source string.
 #[allow(missing_debug_implementations)]
 #[derive(Clone)]
-pub struct Lexer<'a, T>(logos::Lexer<'a, T>)
+pub struct Lexer<'a, T>
 where
-    T: Logos<'a, Extras = ()>;
+    T: Logos<'a, Extras = ()>,
+{
+    /// The underlying logos lexer.
+    lexer: logos::Lexer<'a, T>,
+    /// The peeked token.
+    peeked: Option<Peeked<T>>,
+}
 
 impl<'a, T> Lexer<'a, T>
 where
@@ -240,28 +261,39 @@ where
     where
         T::Extras: Default,
     {
-        Self(T::lexer(source))
+        Self {
+            lexer: T::lexer(source),
+            peeked: None,
+        }
     }
 
     /// Gets the source string of the given span.
     pub fn source(&self, span: SourceSpan) -> &'a str {
-        &self.0.source()[span.offset()..span.offset() + span.len()]
+        &self.lexer.source()[span.offset()..span.offset() + span.len()]
     }
 
     /// Gets the length of the source.
     pub fn source_len(&self) -> usize {
-        self.0.source().len()
+        self.lexer.source().len()
     }
 
     /// Gets the current span of the lexer.
     pub fn span(&self) -> SourceSpan {
-        to_source_span(self.0.span())
+        to_source_span(self.lexer.span())
     }
 
     /// Peeks at the next token.
     pub fn peek(&mut self) -> Option<(LexerResult<T>, SourceSpan)> {
-        let mut lexer = self.0.clone();
-        lexer.next().map(|r| (r, to_source_span(lexer.span())))
+        if self.peeked.is_none() {
+            let offset = self.lexer.span().start;
+            self.peeked = self.lexer.next().map(|r| Peeked {
+                result: r,
+                span: to_source_span(self.lexer.span()),
+                offset,
+            });
+        }
+
+        self.peeked.map(|p| (p.result, p.span))
     }
 
     /// Morph this lexer into a lexer for a new token type.
@@ -272,7 +304,26 @@ where
     where
         T2: Logos<'a, Source = str, Error = Error, Extras = ()> + Copy,
     {
-        Lexer(self.0.morph())
+        // If the lexer has peeked, we need to "reset" the lexer so that it is no longer
+        // peeked; this allows the morphed lexer to lex the previously peeked
+        // span
+        let lexer = match self.peeked {
+            Some(peeked) => {
+                let mut lexer = T2::lexer(self.lexer.source());
+                if peeked.offset > 0 {
+                    lexer.bump(peeked.offset);
+                    lexer.next();
+                }
+
+                lexer
+            }
+            None => self.lexer.morph(),
+        };
+
+        Lexer {
+            lexer,
+            peeked: None,
+        }
     }
 }
 
@@ -283,7 +334,13 @@ where
     type Item = (LexerResult<T>, SourceSpan);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|r| (r, to_source_span(self.0.span())))
+        if let Some(peeked) = self.peeked.take() {
+            return Some((peeked.result, peeked.span));
+        }
+
+        self.lexer
+            .next()
+            .map(|r| (r, to_source_span(self.lexer.span())))
     }
 }
 

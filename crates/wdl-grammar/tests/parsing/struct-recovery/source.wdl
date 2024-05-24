@@ -8,5 +8,5 @@ struct MyStruct {
     ?  # Unexpected token
     Float b
     struct   # Unexpected keyword
-    Integer c
+    Int c
 }

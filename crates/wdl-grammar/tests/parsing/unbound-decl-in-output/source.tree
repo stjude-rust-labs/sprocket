@@ -1,0 +1,33 @@
+RootNode@0..167
+  Comment@0..70 "# This is a test of a ..."
+  Whitespace@70..72 "\n\n"
+  VersionStatementNode@72..83
+    VersionKeyword@72..79 "version"
+    Whitespace@79..80 " "
+    Version@80..83 "1.1"
+  Whitespace@83..85 "\n\n"
+  TaskDefinitionNode@85..166
+    TaskKeyword@85..89 "task"
+    NameNode@89..94
+      Whitespace@89..90 " "
+      Ident@90..94 "test"
+    Whitespace@94..95 " "
+    OpenBrace@95..96 "{"
+    Whitespace@96..101 "\n    "
+    OutputSectionNode@101..164
+      OutputKeyword@101..107 "output"
+      Whitespace@107..108 " "
+      OpenBrace@108..109 "{"
+      Whitespace@109..118 "\n        "
+      Comment@118..141 "# This should be bound!"
+      Whitespace@141..150 "\n        "
+      PrimitiveTypeNode@150..157
+        StringTypeKeyword@150..156 "String"
+        Whitespace@156..157 " "
+      NameNode@157..158
+        Ident@157..158 "x"
+      Whitespace@158..163 "\n    "
+      CloseBrace@163..164 "}"
+    Whitespace@164..165 "\n"
+    CloseBrace@165..166 "}"
+  Whitespace@166..167 "\n"

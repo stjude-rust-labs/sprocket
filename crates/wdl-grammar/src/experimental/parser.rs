@@ -679,8 +679,11 @@ where
     ///
     /// Returns an error if the token is not the given token.
     pub fn expect(&mut self, token: T) -> Result<SourceSpan, Error> {
-        match self.next() {
-            Some((t, span)) if t == token => Ok(span),
+        match self.peek() {
+            Some((t, span)) if t == token => {
+                self.next();
+                Ok(span)
+            }
             Some((t, span)) => Err(Error::Expected {
                 expected: T::describe(token.into_raw()),
                 found: Some(t.into_raw()),
@@ -701,8 +704,11 @@ where
     ///
     /// Returns an error if the token is not the given token.
     pub fn expect_with_name(&mut self, token: T, name: &'static str) -> Result<SourceSpan, Error> {
-        match self.next() {
-            Some((t, span)) if t == token => Ok(span),
+        match self.peek() {
+            Some((t, span)) if t == token => {
+                self.next();
+                Ok(span)
+            }
             Some((t, span)) => Err(Error::Expected {
                 expected: name,
                 found: Some(t.into_raw()),
@@ -726,8 +732,11 @@ where
         tokens: TokenSet,
         expected: &'static [&'static str],
     ) -> Result<(T, SourceSpan), Error> {
-        match self.next() {
-            Some((t, span)) if tokens.contains(t.into_raw()) => Ok((t, span)),
+        match self.peek() {
+            Some((t, span)) if tokens.contains(t.into_raw()) => {
+                self.next();
+                Ok((t, span))
+            }
             Some((t, span)) => Err(Error::ExpectedOneOf {
                 expected,
                 found: Some(t.into_raw()),

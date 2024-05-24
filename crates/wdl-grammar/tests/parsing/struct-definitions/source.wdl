@@ -47,7 +47,7 @@ struct ComplexTypes {
 
     # Pairs
     Pair[Boolean, Boolean] k
-    Pair[Pair[Pair[String?, String], Integer], Float] l
+    Pair[Pair[Pair[String?, String], Int], Float] l
     Pair[Map[String?, Pair[String, String]], Int?] m
     Pair[Array[String], Array[String?]] n
 

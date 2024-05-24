@@ -20,5 +20,5 @@
  10 │     struct   # Unexpected keyword
     ·     ───┬──
     ·        ╰── unexpected `struct` keyword
- 11 │     Integer c
+ 11 │     Int c
     ╰────

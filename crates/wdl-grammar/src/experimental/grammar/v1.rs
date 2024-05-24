@@ -50,7 +50,7 @@ const PRIMITIVE_TYPE_SET: TokenSet = TokenSet::new(&[
 ]);
 
 /// The expected names of primitive types.
-const PRIMITIVE_TYPE_NAMES: &[&str] = &["Boolean", "Integer", "Float", "String", "File"];
+const PRIMITIVE_TYPE_NAMES: &[&str] = &["Boolean", "Int", "Float", "String", "File"];
 
 /// A set of tokens for all types.
 const TYPE_EXPECTED_SET: TokenSet = PRIMITIVE_TYPE_SET.union(TokenSet::new(&[
@@ -61,12 +61,17 @@ const TYPE_EXPECTED_SET: TokenSet = PRIMITIVE_TYPE_SET.union(TokenSet::new(&[
     Token::Ident as u8,
 ]));
 
-/// The expected set of tokens in a struct definition of a WDL document.
-const STRUCT_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET;
-
 /// The recovery set for struct items.
 const STRUCT_ITEM_RECOVERY_SET: TokenSet =
-    STRUCT_ITEM_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
+    TYPE_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
+
+/// The recovery set for input items.
+const INPUT_ITEM_RECOVERY_SET: TokenSet =
+    TYPE_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
+
+/// The recovery set for output items.
+const OUTPUT_ITEM_RECOVERY_SET: TokenSet =
+    TYPE_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
 
 /// The expected set of tokens in a task definition.
 const TASK_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
@@ -636,9 +641,33 @@ fn workflow_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker,
 }
 
 /// Parses an input section in a task or workflow.
-fn input_section(parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Marker, Error)> {
+fn input_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
     parser.require(Token::InputKeyword);
-    todo!("parse input sections")
+    if let Err(e) = braced(parser, |parser| {
+        parser.delimited(None, UNTIL_CLOSE_BRACE, INPUT_ITEM_RECOVERY_SET, decl);
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+
+    marker.complete(parser, SyntaxKind::InputSectionNode);
+    Ok(())
+}
+
+/// Parses a declaration (either bound or unbound).
+fn decl(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    expected_fn!(parser, marker, ty);
+    expected!(parser, marker, Token::Ident);
+
+    let kind = if parser.next_if(Token::Assignment) {
+        expected_fn!(parser, marker, expr);
+        SyntaxKind::BoundDeclNode
+    } else {
+        SyntaxKind::UnboundDeclNode
+    };
+
+    marker.complete(parser, kind);
+    Ok(())
 }
 
 /// Parses a command section in a task.
@@ -648,9 +677,22 @@ fn command_section(parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Mark
 }
 
 /// Parses an output section in a task or workflow.
-fn output_section(parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Marker, Error)> {
+fn output_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
     parser.require(Token::OutputKeyword);
-    todo!("parse output sections")
+    if let Err(e) = braced(parser, |parser| {
+        parser.delimited(
+            None,
+            UNTIL_CLOSE_BRACE,
+            OUTPUT_ITEM_RECOVERY_SET,
+            bound_decl,
+        );
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+
+    marker.complete(parser, SyntaxKind::OutputSectionNode);
+    Ok(())
 }
 
 /// Parses a runtime section in a task.

@@ -199,6 +199,10 @@ pub enum SyntaxKind {
     UnboundDeclNode,
     /// Represents a bound declaration node.
     BoundDeclNode,
+    /// Represents an input section node.
+    InputSectionNode,
+    /// Represents an output section node.
+    OutputSectionNode,
     /// Represents a primitive type node.
     PrimitiveTypeNode,
     /// Represents a map type node.

@@ -11,9 +11,9 @@ task test {
     Boolean f = 2 <= 2
     Boolean g = 1 > 2
     Boolean h = 2 >= 2
-    Integer i = 30 + 12
-    Integer j = 30 - -12
-    Integer k = 10 * 10
-    Integer l = 10 / 10
-    Integer m = 10 % 10
+    Int i = 30 + 12
+    Int j = 30 - -12
+    Int k = 10 * 10
+    Int l = 10 / 10
+    Int m = 10 % 10
 }
