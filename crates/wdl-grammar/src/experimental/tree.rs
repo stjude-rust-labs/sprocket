@@ -207,6 +207,10 @@ pub enum SyntaxKind {
     OutputSectionNode,
     /// Represents a command section node.
     CommandSectionNode,
+    /// Represents a runtime section node.
+    RuntimeSectionNode,
+    /// Represents a runtime item node.
+    RuntimeItemNode,
     /// Represents a primitive type node.
     PrimitiveTypeNode,
     /// Represents a map type node.

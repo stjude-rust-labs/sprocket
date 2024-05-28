@@ -75,6 +75,10 @@ const INPUT_ITEM_RECOVERY_SET: TokenSet =
 const OUTPUT_ITEM_RECOVERY_SET: TokenSet =
     TYPE_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
 
+/// The recovery set for runtime items.
+const RUNTIME_SECTION_RECOVERY_SET: TokenSet =
+    TokenSet::new(&[Token::Ident as u8, Token::CloseBrace as u8]);
+
 /// The expected set of tokens in a task definition.
 const TASK_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
     Token::InputKeyword as u8,
@@ -896,9 +900,31 @@ fn output_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
 }
 
 /// Parses a runtime section in a task.
-fn runtime_section(parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Marker, Error)> {
+fn runtime_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
     parser.require(Token::RuntimeKeyword);
-    todo!("parse runtime sections")
+    if let Err(e) = braced(parser, |parser| {
+        parser.delimited(
+            None,
+            UNTIL_CLOSE_BRACE,
+            RUNTIME_SECTION_RECOVERY_SET,
+            runtime_item,
+        );
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+
+    marker.complete(parser, SyntaxKind::RuntimeSectionNode);
+    Ok(())
+}
+
+/// Parses a runtime item in a runtime section.
+fn runtime_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    expected!(parser, marker, Token::Ident);
+    expected!(parser, marker, Token::Colon);
+    expected_fn!(parser, marker, expr);
+    marker.complete(parser, SyntaxKind::RuntimeItemNode);
+    Ok(())
 }
 
 /// Parses a metadata section in a task or workflow.
