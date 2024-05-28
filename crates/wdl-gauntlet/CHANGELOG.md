@@ -9,13 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Core goal of crate is changed: **The goal of (new) `wdl-gauntlet` is to ensure the parsing of syntactically valid WDLs never regresses.**
-* `LintWarnings` are ignored
+* Core goal of crate is split in two:
+  * **The goal of** (base) **`wdl-gauntlet` is to ensure the parsing of syntactically valid WDLs never regresses.**
+  * **The goal of `wdl-gauntlet --arena` is to test lint rules against WDL "in the wild".**
+* `LintWarnings` are ignored (when there is no `--arena` flag)
 * uses `libgit2` (via the `git2` crate) instead of the GitHub REST API (via `octocrab` and `reqwest` crates)
 * no more persistent cache (Now uses `temp-dir`)
 
 ### Added
 
+* The `--arena` flag and `Arena.toml` for lint rule testing
 * more test repos!
 * test repos are tracked at specific commits
 

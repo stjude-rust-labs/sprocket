@@ -53,10 +53,16 @@ jobs:
 
   gauntlet:
     runs-on: ubuntu-22.04
-    env:
-      CACHE_DIR: ~/.config/wdl-grammar
     steps:
       - uses: actions/checkout@v3
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - run: cargo run --release --bin wdl-gauntlet
+
+  arena:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Update Rust
+        run: rustup update nightly && rustup default nightly
+      - run: cargo run --release --bin wdl-gauntlet -- --arena

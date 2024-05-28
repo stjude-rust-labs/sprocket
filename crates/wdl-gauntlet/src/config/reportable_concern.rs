@@ -16,6 +16,9 @@ pub enum Kind {
 
     /// A validation failure.
     ValidationFailure,
+
+    /// A lint warning.
+    LintWarning,
 }
 
 /// A representation of an error to ignore as serialized in the configuration
@@ -83,28 +86,55 @@ impl ReportableConcern {
     /// let error = parse::Error::new("Hello, world!", Location::Unplaced);
     /// let concern = Concern::ParseError(error);
     ///
-    /// let reportable_concern = ReportableConcern::from_concern("Foo/Bar:quux.wdl", concern).unwrap();
+    /// let reportable_concern =
+    ///     ReportableConcern::from_concern("Foo/Bar:quux.wdl", concern, false).unwrap();
     ///
     /// assert_eq!(reportable_concern.message(), "Hello, world!");
     /// assert_eq!(reportable_concern.document(), "Foo/Bar:quux.wdl");
     /// assert_eq!(reportable_concern.kind(), &Kind::ParseError);
     /// ```
-    pub fn from_concern(document: impl Into<String>, concern: wdl_core::Concern) -> Option<Self> {
+    pub fn from_concern(
+        document: impl Into<String>,
+        concern: wdl_core::Concern,
+        arena: bool,
+    ) -> Option<Self> {
         let document = document.into();
         let message = concern.to_string();
 
         match &concern {
-            wdl_core::Concern::LintWarning(_) => None,
-            wdl_core::Concern::ParseError(_) => Some(ReportableConcern {
-                kind: Kind::ParseError,
-                document,
-                message,
-            }),
-            wdl_core::Concern::ValidationFailure(_) => Some(ReportableConcern {
-                kind: Kind::ValidationFailure,
-                document,
-                message,
-            }),
+            wdl_core::Concern::LintWarning(_) => {
+                if !arena {
+                    None
+                } else {
+                    Some(ReportableConcern {
+                        kind: Kind::LintWarning,
+                        document,
+                        message,
+                    })
+                }
+            }
+            wdl_core::Concern::ParseError(_) => {
+                if arena {
+                    None
+                } else {
+                    Some(ReportableConcern {
+                        kind: Kind::ParseError,
+                        document,
+                        message,
+                    })
+                }
+            }
+            wdl_core::Concern::ValidationFailure(_) => {
+                if arena {
+                    None
+                } else {
+                    Some(ReportableConcern {
+                        kind: Kind::ValidationFailure,
+                        document,
+                        message,
+                    })
+                }
+            }
         }
     }
 

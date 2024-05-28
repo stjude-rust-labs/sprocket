@@ -1,4 +1,4 @@
-//! `wdl-grammar gauntlet`
+//! `wdl-gauntlet`
 
 #![feature(let_chains)]
 #![warn(missing_docs)]
@@ -89,6 +89,11 @@ pub struct Args {
     /// should be negligible.
     pub repositories: Option<Vec<String>>,
 
+    /// Enable "arena mode", which switches the reported concerns from
+    /// syntax errors to opinionated lint warnings.
+    #[arg(short, long)]
+    pub arena: bool,
+
     /// The location of the config file.
     #[arg(short, long)]
     pub config_file: Option<PathBuf>,
@@ -103,7 +108,7 @@ pub struct Args {
     #[arg(short, long)]
     pub filter: Option<Vec<String>>,
 
-    /// Enables logging for all modules (not just `wdl-grammar`).
+    /// Enables logging for all modules (not just `wdl-gauntlet`).
     #[arg(short, long)]
     pub log_all_modules: bool,
 
@@ -126,16 +131,12 @@ pub struct Args {
     #[arg(long)]
     pub refresh: bool,
 
-    /// Skips the retreiving of remote objects.
-    #[arg(long)]
-    pub skip_remote: bool,
-
     /// Displays warnings as part of the report output.
     #[arg(long)]
     pub show_warnings: bool,
 
     /// The Workflow Description Language (WDL) specification version to use.
-    #[arg(value_name = "VERSION", short = 's', long, default_value_t, value_enum)]
+    #[arg(value_name = "VERSION", long, default_value_t, value_enum)]
     pub specification_version: wdl_core::Version,
 
     /// All available information, including trace information, is logged in
@@ -156,7 +157,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
             Config::default()
         }
         false => {
-            let path = args.config_file.unwrap_or(Config::default_path());
+            let path = args.config_file.unwrap_or(Config::default_path(args.arena));
             Config::load_or_new(path, args.specification_version).map_err(Error::Config)?
         }
     };
@@ -224,63 +225,36 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                         .map_err(Error::GrammarV1)?
                         .into_parts();
                     if let Some(these_concerns) = these_concerns {
-                        if let Some(parse_errors) = these_concerns.parse_errors() {
-                            detected_concerns.extend(parse_errors.into_iter().map(|error| {
-                                // SAFETY: We ensure these concerns are not LintWarnings,
-                                // so they will always unwrap.
+                        detected_concerns.extend(these_concerns.into_inner().iter().filter_map(
+                            |concern| {
+                                // from_concern() will return `None` if the concern is not
+                                // of the right type (based on the value of `args.arena`)
+                                // in which case filter_map() will drop it.
                                 ReportableConcern::from_concern(
                                     document_identifier.to_string(),
-                                    wdl_core::Concern::ParseError(error.to_owned()),
+                                    concern.clone(),
+                                    args.arena,
                                 )
-                                .unwrap()
-                            }));
-                        }
-                        if let Some(validation_failures) = these_concerns.validation_failures() {
-                            detected_concerns.extend(validation_failures.into_iter().map(
-                                |failure| {
-                                    // SAFETY: We ensure these concerns are not LintWarnings,
-                                    // so they will always unwrap.
-                                    ReportableConcern::from_concern(
-                                        document_identifier.to_string(),
-                                        wdl_core::Concern::ValidationFailure(failure.to_owned()),
-                                    )
-                                    .unwrap()
-                                },
-                            ));
-                        }
+                            },
+                        ));
                     }
 
                     if let Some(pt) = pt {
                         let (_, these_concerns) =
                             ast::v1::parse(pt).map_err(Error::AstV1)?.into_parts();
                         if let Some(these_concerns) = these_concerns {
-                            if let Some(parse_errors) = these_concerns.parse_errors() {
-                                detected_concerns.extend(parse_errors.into_iter().map(|error| {
-                                    // SAFETY: We ensure these concerns are not LintWarnings,
-                                    // so they will always unwrap.
+                            detected_concerns.extend(
+                                these_concerns.into_inner().iter().filter_map(|concern| {
+                                    // from_concern() will return `None` if the concern is not
+                                    // of the right type (based on the value of `args.arena`)
+                                    // in which case filter_map() will drop it.
                                     ReportableConcern::from_concern(
                                         document_identifier.to_string(),
-                                        wdl_core::Concern::ParseError(error.to_owned()),
+                                        concern.clone(),
+                                        args.arena,
                                     )
-                                    .unwrap()
-                                }));
-                            }
-                            if let Some(validation_failures) = these_concerns.validation_failures()
-                            {
-                                detected_concerns.extend(validation_failures.into_iter().map(
-                                    |failure| {
-                                        // SAFETY: We ensure these concerns are not LintWarnings,
-                                        // so they will always unwrap.
-                                        ReportableConcern::from_concern(
-                                            document_identifier.to_string(),
-                                            wdl_core::Concern::ValidationFailure(
-                                                failure.to_owned(),
-                                            ),
-                                        )
-                                        .unwrap()
-                                    },
-                                ));
-                            }
+                                }),
+                            );
                         }
                     }
 

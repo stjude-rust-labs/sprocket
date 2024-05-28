@@ -15,12 +15,14 @@ pub mod reportable_concern;
 pub use inner::Inner;
 pub use reportable_concern::ReportableConcern;
 
-/// The default directory name for the `wdl-grammar` configuration file and
-/// cache.
-const DEFAULT_CONFIG_DIR: &str = "wdl-grammar";
+/// The default directory name for the `wdl-gauntlet` configuration file
+const DEFAULT_CONFIG_DIR: &str = "wdl-gauntlet";
 
-/// The default name for the `wdl-grammar` configuration file.
+/// The default name for the `wdl-gauntlet` configuration file.
 const DEFAULT_CONFIG_FILE: &str = "Gauntlet.toml";
+
+/// The default name for the `wdl-gauntlet --arena` configuration file.
+const DEFAULT_ARENA_CONFIG_FILE: &str = "Arena.toml";
 
 /// An error related to a [`Config`].
 #[derive(Debug)]
@@ -83,18 +85,25 @@ impl Config {
     ///   within the current working directory, that is returned.
     /// * Otherwise, the default configuration directory is searched for a file
     ///   matching the default configuration file name.
+    /// * Presence of the `--arena` flag will change the default configuration
+    ///   file name.
     ///
     /// **Note:** the file may not actually exist—it is up to the consumer to
     /// check if the file exists before acting on it.
-    pub fn default_path() -> PathBuf {
+    pub fn default_path(arena: bool) -> PathBuf {
         let mut path = std::env::current_dir().expect("cannot locate working directory");
-        path.push(DEFAULT_CONFIG_FILE);
+        let filename = if arena {
+            DEFAULT_ARENA_CONFIG_FILE
+        } else {
+            DEFAULT_CONFIG_FILE
+        };
+        path.push(filename);
         if path.exists() {
             return path;
         }
 
         let mut path = default_config_dir();
-        path.push(DEFAULT_CONFIG_FILE);
+        path.push(filename);
         path
     }
 

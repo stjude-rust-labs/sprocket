@@ -48,15 +48,7 @@ impl WorkDir {
     /// By a guarantee of [`Repository::new()`], the added repository will
     /// _always_ have `Some(commit_hash)`.
     pub fn add_by_identifier(&mut self, identifier: &Identifier) {
-        let repository = Repository::new(
-            identifier.clone(),
-            None,
-            &self
-                .root
-                .path()
-                .join(identifier.organization())
-                .join(identifier.name()),
-        );
+        let repository = Repository::new(identifier.clone(), None, self.root());
 
         self.repositories.insert(identifier.clone(), repository);
     }

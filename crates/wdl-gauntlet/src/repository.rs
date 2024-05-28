@@ -70,13 +70,6 @@ impl Repository {
             .join(identifier.organization())
             .join(identifier.name());
 
-        // Ensure the root directory exists.
-        if !repo_root.exists() {
-            info!("creating repository root directory: {:?}", repo_root);
-            std::fs::create_dir_all(&repo_root)
-                .expect("failed to create repository root directory");
-        }
-
         info!("cloning repository: {:?}", identifier);
         let mut fo = FetchOptions::new();
         fo.depth(FETCH_DEPTH);
@@ -132,12 +125,6 @@ impl Repository {
         let repo_root = root
             .join(self.identifier.organization())
             .join(self.identifier.name());
-        // Ensure repo_root exists.
-        if !repo_root.exists() {
-            info!("creating repository root directory: {:?}", repo_root);
-            std::fs::create_dir_all(&repo_root)
-                .expect("failed to create repository root directory");
-        }
 
         let git_repo = match git2::Repository::open(&repo_root) {
             Ok(repo) => {
@@ -206,11 +193,7 @@ impl Repository {
             .join(self.identifier.organization())
             .join(self.identifier.name());
 
-        // Try to delete the current repository.
-        // SAFETY: It shouldn't matter if this succeeds or fails.
-        let _ = std::fs::remove_dir_all(&repo_root);
-
-        // [Re-]Clone the repository.
+        // Clone the repository.
         info!("cloning repository: {:?}", self.identifier);
         let mut fo = FetchOptions::new();
         fo.depth(FETCH_DEPTH);
