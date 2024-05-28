@@ -63,6 +63,8 @@ pub enum SyntaxKind {
     PairTypeKeyword,
     /// The `String` type keyword token.
     StringTypeKeyword,
+    /// The `after` keyword token.
+    AfterKeyword,
     /// The `alias` keyword token.
     AliasKeyword,
     /// The `as` keyword token.
@@ -185,6 +187,8 @@ pub enum SyntaxKind {
     RootNode,
     /// Represents a name node (for a struct, task, or workflow).
     NameNode,
+    /// Represents a qualified name node (for a call statement).
+    QualifiedNameNode,
     /// Represents a version statement node.
     VersionStatementNode,
     /// Represents an import statement node.
@@ -309,6 +313,16 @@ pub enum SyntaxKind {
     PlaceholderDefaultOptionNode,
     /// Placeholder `true`/`false` option node.
     PlaceholderTrueFalseOptionNode,
+    /// Represents a conditional statement node.
+    ConditionalStatementNode,
+    /// Represents a scatter statement node.
+    ScatterStatementNode,
+    /// Represents a call statement node.
+    CallStatementNode,
+    /// Represents an `after` clause node (in a call statement).
+    AfterClauseNode,
+    /// Represents a call input item node.
+    CallInputItemNode,
 
     // WARNING: this must always be the last variant.
     /// The exclusive maximum syntax kind value.

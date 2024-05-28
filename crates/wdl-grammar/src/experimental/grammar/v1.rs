@@ -132,6 +132,21 @@ const WORKFLOW_ITEM_EXPECTED_NAMES: &[&str] = &[
 const WORKFLOW_ITEM_RECOVERY_SET: TokenSet =
     WORKFLOW_ITEM_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
 
+/// The recovery set for workflow statements.
+const WORKFLOW_STATEMENT_RECOVERY_SET: TokenSet = TokenSet::new(&[
+    Token::IfKeyword as u8,
+    Token::CallKeyword as u8,
+    Token::ScatterKeyword as u8,
+    Token::CloseBrace as u8,
+]);
+
+/// The recovery set for input items in a call statement.
+const CALL_INPUT_ITEM_RECOVERY_SET: TokenSet = TokenSet::new(&[
+    Token::Ident as u8,
+    Token::Comma as u8,
+    Token::CloseBrace as u8,
+]);
+
 /// The expected token set for metadata values.
 const METADATA_VALUE_EXPECTED_SET: TokenSet = TokenSet::new(&[
     Token::Minus as u8,
@@ -637,6 +652,30 @@ fn workflow_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker,
                 marker,
                 Error::ExpectedOneOf {
                     expected: WORKFLOW_ITEM_EXPECTED_NAMES,
+                    found,
+                    span,
+                    describe: Token::describe,
+                },
+            ))
+        }
+    }
+}
+
+/// Parses a workflow statement.
+fn workflow_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    match parser.peek() {
+        Some((Token::IfKeyword, _)) => conditional_statement(parser, marker),
+        Some((Token::ScatterKeyword, _)) => scatter_statement(parser, marker),
+        Some((Token::CallKeyword, _)) => call_statement(parser, marker),
+        Some((t, _)) if TYPE_EXPECTED_SET.contains(t.into_raw()) => bound_decl(parser, marker),
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(t.into_raw()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            Err((
+                marker,
+                Error::Expected {
+                    expected: "workflow statement",
                     found,
                     span,
                     describe: Token::describe,
@@ -1418,21 +1457,116 @@ fn bound_decl(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Er
 }
 
 /// Parses a conditional statement in a workflow.
-fn conditional_statement(parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Marker, Error)> {
+fn conditional_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
     parser.require(Token::IfKeyword);
-    todo!("parse conditional statement")
+    expected_fn!(parser, marker, expr);
+    if let Err(e) = braced(parser, |parser| {
+        parser.delimited(
+            None,
+            UNTIL_CLOSE_BRACE,
+            WORKFLOW_STATEMENT_RECOVERY_SET,
+            workflow_statement,
+        );
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+
+    marker.complete(parser, SyntaxKind::ConditionalStatementNode);
+    Ok(())
 }
 
 /// Parses a scatter statement in a workflow.
-fn scatter_statement(parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Marker, Error)> {
+fn scatter_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
     parser.require(Token::ScatterKeyword);
-    todo!("parse scatter statement")
+    if let Err(e) = paren(parser, |parser| {
+        expected_fn!(parser, name);
+        parser.expect(Token::InKeyword)?;
+        expected_fn!(parser, expr);
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+
+    if let Err(e) = braced(parser, |parser| {
+        parser.delimited(
+            None,
+            UNTIL_CLOSE_BRACE,
+            WORKFLOW_STATEMENT_RECOVERY_SET,
+            workflow_statement,
+        );
+        Ok(())
+    }) {
+        return Err((marker, e));
+    }
+
+    marker.complete(parser, SyntaxKind::ScatterStatementNode);
+    Ok(())
 }
 
 /// Parses a call statement in a workflow.
-fn call_statement(parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Marker, Error)> {
+fn call_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
     parser.require(Token::CallKeyword);
-    todo!("parse call statement")
+    expected_fn!(parser, marker, qualified_name);
+
+    if parser.next_if(Token::AsKeyword) {
+        expected_fn!(parser, marker, name);
+    }
+
+    while let Some((Token::AfterKeyword, _)) = parser.peek() {
+        expected_fn!(parser, marker, after_clause);
+    }
+
+    if let Some((Token::OpenBrace, _)) = parser.peek() {
+        if let Err(e) = braced(parser, |parser| {
+            parser.expect(Token::InputKeyword)?;
+            parser.expect(Token::Colon)?;
+            parser.delimited(
+                Some(Token::Comma),
+                UNTIL_CLOSE_BRACE,
+                CALL_INPUT_ITEM_RECOVERY_SET,
+                call_input_item,
+            );
+            Ok(())
+        }) {
+            return Err((marker, e));
+        }
+    }
+
+    marker.complete(parser, SyntaxKind::CallStatementNode);
+    Ok(())
+}
+
+/// Parses a qualified name in a call statement.
+fn qualified_name(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    expected!(parser, marker, Token::Ident);
+
+    if parser.next_if(Token::Dot) {
+        expected!(parser, marker, Token::Ident);
+    }
+
+    marker.complete(parser, SyntaxKind::QualifiedNameNode);
+    Ok(())
+}
+
+/// Parses an `after` clause in a call statement.
+fn after_clause(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    parser.require(Token::AfterKeyword);
+    expected!(parser, marker, Token::Ident);
+    marker.complete(parser, SyntaxKind::AfterClauseNode);
+    Ok(())
+}
+
+/// Parses a call input item.
+fn call_input_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    expected!(parser, marker, Token::Ident);
+
+    if parser.next_if(Token::Assignment) {
+        expected_fn!(parser, marker, expr);
+    }
+
+    marker.complete(parser, SyntaxKind::CallInputItemNode);
+    Ok(())
 }
 
 /// Parses an expression.

@@ -1,0 +1,117 @@
+RootNode@0..331
+  Comment@0..52 "# This is a test of c ..."
+  Whitespace@52..54 "\n\n"
+  VersionStatementNode@54..65
+    VersionKeyword@54..61 "version"
+    Whitespace@61..62 " "
+    Version@62..65 "1.1"
+  Whitespace@65..67 "\n\n"
+  WorkflowDefinitionNode@67..330
+    WorkflowKeyword@67..75 "workflow"
+    NameNode@75..80
+      Whitespace@75..76 " "
+      Ident@76..80 "test"
+    Whitespace@80..81 " "
+    OpenBrace@81..82 "{"
+    Whitespace@82..87 "\n    "
+    ConditionalStatementNode@87..328
+      IfKeyword@87..89 "if"
+      LiteralBooleanNode@89..94
+        Whitespace@89..90 " "
+        TrueKeyword@90..94 "true"
+      Whitespace@94..95 " "
+      OpenBrace@95..96 "{"
+      Whitespace@96..105 "\n        "
+      ConditionalStatementNode@105..241
+        IfKeyword@105..107 "if"
+        LiteralBooleanNode@107..113
+          Whitespace@107..108 " "
+          FalseKeyword@108..113 "false"
+        Whitespace@113..114 " "
+        OpenBrace@114..115 "{"
+        Whitespace@115..128 "\n            "
+        ScatterStatementNode@128..231
+          ScatterKeyword@128..135 "scatter"
+          Whitespace@135..136 " "
+          OpenParen@136..137 "("
+          NameNode@137..138
+            Ident@137..138 "x"
+          Whitespace@138..139 " "
+          InKeyword@139..141 "in"
+          NameReferenceNode@141..143
+            Whitespace@141..142 " "
+            Ident@142..143 "y"
+          CloseParen@143..144 ")"
+          Whitespace@144..145 " "
+          OpenBrace@145..146 "{"
+          Whitespace@146..163 "\n                "
+          ConditionalStatementNode@163..217
+            IfKeyword@163..165 "if"
+            LiteralBooleanNode@165..170
+              Whitespace@165..166 " "
+              TrueKeyword@166..170 "true"
+            Whitespace@170..171 " "
+            OpenBrace@171..172 "{"
+            Whitespace@172..193 "\n                    "
+            CallStatementNode@193..216
+              CallKeyword@193..197 "call"
+              QualifiedNameNode@197..216
+                Whitespace@197..198 " "
+                Ident@198..199 "z"
+                Whitespace@199..216 "\n                "
+            CloseBrace@216..217 "}"
+          Whitespace@217..230 "\n            "
+          CloseBrace@230..231 "}"
+        Whitespace@231..240 "\n        "
+        CloseBrace@240..241 "}"
+      Whitespace@241..251 "\n\n        "
+      CallStatementNode@251..283
+        CallKeyword@251..255 "call"
+        QualifiedNameNode@255..258
+          Whitespace@255..256 " "
+          Ident@256..257 "z"
+          Whitespace@257..258 " "
+        OpenBrace@258..259 "{"
+        Whitespace@259..260 " "
+        InputKeyword@260..265 "input"
+        Colon@265..266 ":"
+        Whitespace@266..267 " "
+        CallInputItemNode@267..282
+          Ident@267..271 "name"
+          Whitespace@271..272 " "
+          Assignment@272..273 "="
+          LiteralStringNode@273..281
+            Whitespace@273..274 " "
+            DoubleQuote@274..275 "\""
+            LiteralStringText@275..280 "world"
+            DoubleQuote@280..281 "\""
+          Whitespace@281..282 " "
+        CloseBrace@282..283 "}"
+      Whitespace@283..292 "\n        "
+      CallStatementNode@292..322
+        CallKeyword@292..296 "call"
+        QualifiedNameNode@296..299
+          Whitespace@296..297 " "
+          Ident@297..298 "z"
+          Whitespace@298..299 " "
+        OpenBrace@299..300 "{"
+        Whitespace@300..301 " "
+        InputKeyword@301..306 "input"
+        Colon@306..307 ":"
+        Whitespace@307..308 " "
+        CallInputItemNode@308..321
+          Ident@308..312 "name"
+          Whitespace@312..313 " "
+          Assignment@313..314 "="
+          LiteralStringNode@314..320
+            Whitespace@314..315 " "
+            DoubleQuote@315..316 "\""
+            LiteralStringText@316..319 "you"
+            DoubleQuote@319..320 "\""
+          Whitespace@320..321 " "
+        CloseBrace@321..322 "}"
+      Whitespace@322..327 "\n    "
+      CloseBrace@327..328 "}"
+    Whitespace@328..329 "\n"
+    CloseBrace@329..330 "}"
+  Whitespace@330..331 "\n"

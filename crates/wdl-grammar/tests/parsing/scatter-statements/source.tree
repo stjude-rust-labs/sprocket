@@ -1,0 +1,92 @@
+RootNode@0..193
+  Comment@0..39 "# This is a test of s ..."
+  Whitespace@39..41 "\n\n"
+  VersionStatementNode@41..52
+    VersionKeyword@41..48 "version"
+    Whitespace@48..49 " "
+    Version@49..52 "1.1"
+  Whitespace@52..54 "\n\n"
+  WorkflowDefinitionNode@54..192
+    WorkflowKeyword@54..62 "workflow"
+    NameNode@62..67
+      Whitespace@62..63 " "
+      Ident@63..67 "test"
+    Whitespace@67..68 " "
+    OpenBrace@68..69 "{"
+    Whitespace@69..74 "\n    "
+    ScatterStatementNode@74..190
+      ScatterKeyword@74..81 "scatter"
+      Whitespace@81..82 " "
+      OpenParen@82..83 "("
+      NameNode@83..84
+        Ident@83..84 "a"
+      Whitespace@84..85 " "
+      InKeyword@85..87 "in"
+      LiteralArrayNode@87..97
+        Whitespace@87..88 " "
+        OpenBracket@88..89 "["
+        LiteralIntegerNode@89..90
+          Integer@89..90 "1"
+        Comma@90..91 ","
+        Whitespace@91..92 " "
+        LiteralIntegerNode@92..93
+          Integer@92..93 "2"
+        Comma@93..94 ","
+        Whitespace@94..95 " "
+        LiteralIntegerNode@95..96
+          Integer@95..96 "3"
+        CloseBracket@96..97 "]"
+      CloseParen@97..98 ")"
+      Whitespace@98..99 " "
+      OpenBrace@99..100 "{"
+      Whitespace@100..109 "\n        "
+      BoundDeclNode@109..135
+        PrimitiveTypeNode@109..116
+          StringTypeKeyword@109..115 "String"
+          Whitespace@115..116 " "
+        NameNode@116..119
+          Ident@116..119 "msg"
+        Whitespace@119..120 " "
+        Assignment@120..121 "="
+        LiteralStringNode@121..126
+          Whitespace@121..122 " "
+          DoubleQuote@122..123 "\""
+          LiteralStringText@123..125 "hi"
+          DoubleQuote@125..126 "\""
+        Whitespace@126..135 "\n        "
+      CallStatementNode@135..154
+        CallKeyword@135..139 "call"
+        QualifiedNameNode@139..142
+          Whitespace@139..140 " "
+          Ident@140..141 "x"
+          Whitespace@141..142 " "
+        OpenBrace@142..143 "{"
+        Whitespace@143..144 " "
+        InputKeyword@144..149 "input"
+        Colon@149..150 ":"
+        Whitespace@150..151 " "
+        CallInputItemNode@151..153
+          Ident@151..152 "a"
+          Whitespace@152..153 " "
+        CloseBrace@153..154 "}"
+      Whitespace@154..163 "\n        "
+      CallStatementNode@163..184
+        CallKeyword@163..167 "call"
+        QualifiedNameNode@167..170
+          Whitespace@167..168 " "
+          Ident@168..169 "y"
+          Whitespace@169..170 " "
+        OpenBrace@170..171 "{"
+        Whitespace@171..172 " "
+        InputKeyword@172..177 "input"
+        Colon@177..178 ":"
+        Whitespace@178..179 " "
+        CallInputItemNode@179..183
+          Ident@179..182 "msg"
+          Whitespace@182..183 " "
+        CloseBrace@183..184 "}"
+      Whitespace@184..189 "\n    "
+      CloseBrace@189..190 "}"
+    Whitespace@190..191 "\n"
+    CloseBrace@191..192 "}"
+  Whitespace@192..193 "\n"
