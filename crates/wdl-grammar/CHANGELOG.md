@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Adds support for command sections in the experimental parser
+  ([#47](https://github.com/stjude-rust-labs/wdl/pull/47)).
 * Adds support for input and output sections in the experimental
   parser ([#46](https://github.com/stjude-rust-labs/wdl/pull/46)).
 * Adds support for import statements to the experimental parser ([#43](https://github.com/stjude-rust-labs/wdl/pull/43)).

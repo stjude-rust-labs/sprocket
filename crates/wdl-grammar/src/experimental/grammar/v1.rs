@@ -5,7 +5,9 @@ use miette::SourceSpan;
 use super::macros::expected;
 use super::macros::expected_fn;
 use crate::experimental::grammar::macros::expected_with_name;
+use crate::experimental::lexer::v1::BraceCommandToken;
 use crate::experimental::lexer::v1::DQStringToken;
+use crate::experimental::lexer::v1::HeredocCommandToken;
 use crate::experimental::lexer::v1::SQStringToken;
 use crate::experimental::lexer::v1::Token;
 use crate::experimental::lexer::TokenSet;
@@ -671,9 +673,207 @@ fn decl(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> 
 }
 
 /// Parses a command section in a task.
-fn command_section(parser: &mut Parser<'_>, _marker: Marker) -> Result<(), (Marker, Error)> {
+fn command_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
     parser.require(Token::CommandKeyword);
-    todo!("parse command sections")
+
+    // Check to see if this is a "braced" command
+    if let Some((Token::OpenBrace, _)) = parser.peek() {
+        let start = parser.next().expect("should have token").1;
+        if let Err(e) =
+            parser.interpolate(|interpolator| interpolate_brace_command(start, interpolator))
+        {
+            return Err((marker, e));
+        }
+    } else {
+        // Not a "braced" command, so it should be a "heredoc" command.
+        let start = match parser.expect(Token::HeredocCommandStart) {
+            Ok(span) => span,
+            Err(e) => return Err((marker, e)),
+        };
+
+        if let Err(e) =
+            parser.interpolate(|interpolator| interpolate_heredoc_command(start, interpolator))
+        {
+            return Err((marker, e));
+        }
+    }
+
+    marker.complete(parser, SyntaxKind::CommandSectionNode);
+    Ok(())
+}
+
+/// Interpolates a brace command.
+fn interpolate_brace_command(
+    start: SourceSpan,
+    mut interpolator: Interpolator<'_, BraceCommandToken>,
+) -> (Parser<'_>, Result<(), Error>) {
+    let mut text = None;
+    let mut end = None;
+
+    while let Some((Ok(token), span)) = interpolator.next() {
+        match token {
+            BraceCommandToken::PlaceholderStart => {
+                // Add any encountered literal text
+                if let Some(span) = text.take() {
+                    interpolator.event(Event::Token {
+                        kind: SyntaxKind::LiteralCommandText,
+                        span,
+                    })
+                }
+
+                let marker = interpolator.start();
+                interpolator.event(Event::Token {
+                    kind: SyntaxKind::PlaceholderOpen,
+                    span,
+                });
+
+                // Parse the placeholder expression
+                let mut parser = interpolator.into_parser();
+                if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
+                    parser.error(e);
+                    marker.abandon(&mut parser);
+                    parser.recover(TokenSet::new(&[Token::CloseBrace as u8]));
+                }
+
+                interpolator = parser.into_interpolator();
+            }
+            BraceCommandToken::Escape
+            | BraceCommandToken::Text
+            | BraceCommandToken::DollarSign
+            | BraceCommandToken::Tilde => {
+                // Update the span of the text to include this token
+                text = match text {
+                    Some(prev) => Some(SourceSpan::new(
+                        prev.offset().into(),
+                        prev.len() + span.len(),
+                    )),
+                    None => Some(span),
+                };
+            }
+            BraceCommandToken::End => {
+                end = Some(span);
+                break;
+            }
+        }
+    }
+
+    if let Some(span) = text.take() {
+        interpolator.event(Event::Token {
+            kind: SyntaxKind::LiteralCommandText,
+            span,
+        })
+    }
+
+    match end {
+        Some(span) => {
+            // Push an end brace as we're done interpolating the command
+            interpolator.event(Event::Token {
+                kind: SyntaxKind::CloseBrace,
+                span,
+            });
+
+            (interpolator.into_parser(), Ok(()))
+        }
+        None => {
+            // Command wasn't terminated
+            (
+                interpolator.into_parser(),
+                Err(Error::UnterminatedCommand {
+                    span: start,
+                    desc: Token::describe(Token::OpenBrace as u8),
+                }),
+            )
+        }
+    }
+}
+
+/// Interpolates a heredoc command.
+fn interpolate_heredoc_command(
+    start: SourceSpan,
+    mut interpolator: Interpolator<'_, HeredocCommandToken>,
+) -> (Parser<'_>, Result<(), Error>) {
+    let mut text = None;
+    let mut end = None;
+
+    while let Some((Ok(token), span)) = interpolator.next() {
+        match token {
+            HeredocCommandToken::PlaceholderStart => {
+                // Add any encountered literal text
+                if let Some(span) = text.take() {
+                    interpolator.event(Event::Token {
+                        kind: SyntaxKind::LiteralCommandText,
+                        span,
+                    })
+                }
+
+                let marker = interpolator.start();
+                interpolator.event(Event::Token {
+                    kind: SyntaxKind::PlaceholderOpen,
+                    span,
+                });
+
+                // Parse the placeholder expression
+                let mut parser = interpolator.into_parser();
+                if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
+                    parser.error(e);
+                    marker.abandon(&mut parser);
+                    parser.recover(TokenSet::new(&[
+                        Token::CloseBrace as u8,
+                        Token::HeredocCommandEnd as u8,
+                    ]));
+                }
+
+                interpolator = parser.into_interpolator();
+            }
+            HeredocCommandToken::Escape
+            | HeredocCommandToken::Text
+            | HeredocCommandToken::SingleCloseAngle
+            | HeredocCommandToken::DoubleCloseAngle
+            | HeredocCommandToken::Tilde => {
+                // Update the span of the text to include this token
+                text = match text {
+                    Some(prev) => Some(SourceSpan::new(
+                        prev.offset().into(),
+                        prev.len() + span.len(),
+                    )),
+                    None => Some(span),
+                };
+            }
+            HeredocCommandToken::End => {
+                end = Some(span);
+                break;
+            }
+        }
+    }
+
+    if let Some(span) = text.take() {
+        interpolator.event(Event::Token {
+            kind: SyntaxKind::LiteralCommandText,
+            span,
+        })
+    }
+
+    match end {
+        Some(span) => {
+            // Push an end heredoc as we're done interpolating the command
+            interpolator.event(Event::Token {
+                kind: SyntaxKind::CloseHeredoc,
+                span,
+            });
+
+            (interpolator.into_parser(), Ok(()))
+        }
+        None => {
+            // Command wasn't terminated
+            (
+                interpolator.into_parser(),
+                Err(Error::UnterminatedCommand {
+                    span: start,
+                    desc: Token::describe(Token::HeredocCommandStart as u8),
+                }),
+            )
+        }
+    }
 }
 
 /// Parses an output section in a task or workflow.

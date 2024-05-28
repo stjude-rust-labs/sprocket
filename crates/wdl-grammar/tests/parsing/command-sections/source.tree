@@ -1,0 +1,100 @@
+RootNode@0..467
+  Comment@0..37 "# This is a test of c ..."
+  Whitespace@37..39 "\n\n"
+  VersionStatementNode@39..50
+    VersionKeyword@39..46 "version"
+    Whitespace@46..47 " "
+    Version@47..50 "1.1"
+  Whitespace@50..52 "\n\n"
+  TaskDefinitionNode@52..263
+    TaskKeyword@52..56 "task"
+    NameNode@56..64
+      Whitespace@56..57 " "
+      Ident@57..64 "heredoc"
+    Whitespace@64..65 " "
+    OpenBrace@65..66 "{"
+    Whitespace@66..71 "\n    "
+    InputSectionNode@71..114
+      InputKeyword@71..76 "input"
+      Whitespace@76..77 " "
+      OpenBrace@77..78 "{"
+      Whitespace@78..87 "\n        "
+      BoundDeclNode@87..113
+        PrimitiveTypeNode@87..94
+          StringTypeKeyword@87..93 "String"
+          Whitespace@93..94 " "
+        Ident@94..98 "name"
+        Whitespace@98..99 " "
+        Assignment@99..100 "="
+        LiteralStringNode@100..108
+          Whitespace@100..101 " "
+          DoubleQuote@101..102 "\""
+          LiteralStringText@102..107 "world"
+          DoubleQuote@107..108 "\""
+        Whitespace@108..113 "\n    "
+      CloseBrace@113..114 "}"
+    Whitespace@114..120 "\n\n    "
+    CommandSectionNode@120..261
+      CommandKeyword@120..127 "command"
+      Whitespace@127..128 " "
+      OpenHeredoc@128..131 "<<<"
+      LiteralCommandText@131..170 "\n        set -e\n      ..."
+      PlaceholderNode@170..177
+        PlaceholderOpen@170..172 "~{"
+        NameReferenceNode@172..176
+          Ident@172..176 "name"
+        CloseBrace@176..177 "}"
+      LiteralCommandText@177..258 "\\\\n\"! >> output.txt\n  ..."
+      CloseHeredoc@258..261 ">>>"
+    Whitespace@261..262 "\n"
+    CloseBrace@262..263 "}"
+  Whitespace@263..265 "\n\n"
+  TaskDefinitionNode@265..466
+    TaskKeyword@265..269 "task"
+    NameNode@269..275
+      Whitespace@269..270 " "
+      Ident@270..275 "brace"
+    Whitespace@275..276 " "
+    OpenBrace@276..277 "{"
+    Whitespace@277..282 "\n    "
+    InputSectionNode@282..325
+      InputKeyword@282..287 "input"
+      Whitespace@287..288 " "
+      OpenBrace@288..289 "{"
+      Whitespace@289..298 "\n        "
+      BoundDeclNode@298..324
+        PrimitiveTypeNode@298..305
+          StringTypeKeyword@298..304 "String"
+          Whitespace@304..305 " "
+        Ident@305..309 "name"
+        Whitespace@309..310 " "
+        Assignment@310..311 "="
+        LiteralStringNode@311..319
+          Whitespace@311..312 " "
+          DoubleQuote@312..313 "\""
+          LiteralStringText@313..318 "world"
+          DoubleQuote@318..319 "\""
+        Whitespace@319..324 "\n    "
+      CloseBrace@324..325 "}"
+    Whitespace@325..331 "\n\n    "
+    CommandSectionNode@331..464
+      CommandKeyword@331..338 "command"
+      Whitespace@338..339 " "
+      OpenBrace@339..340 "{"
+      LiteralCommandText@340..379 "\n        set -e\n      ..."
+      PlaceholderNode@379..386
+        PlaceholderOpen@379..381 "~{"
+        NameReferenceNode@381..385
+          Ident@381..385 "name"
+        CloseBrace@385..386 "}"
+      LiteralCommandText@386..422 "\\\\n\"! >> output.txt\n  ..."
+      PlaceholderNode@422..432
+        PlaceholderOpen@422..424 "${"
+        NameReferenceNode@424..431
+          Ident@424..431 "ENV_VAR"
+        CloseBrace@431..432 "}"
+      LiteralCommandText@432..463 "\" > env.txt # interpo ..."
+      CloseBrace@463..464 "}"
+    Whitespace@464..465 "\n"
+    CloseBrace@465..466 "}"
+  Whitespace@466..467 "\n"

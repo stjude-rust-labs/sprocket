@@ -188,6 +188,15 @@ pub enum Error {
         #[label(primary, "this quote is not matched")]
         span: SourceSpan,
     },
+    /// An unterminated command was encountered.
+    #[error("an unterminated command was encountered")]
+    UnterminatedCommand {
+        /// The span of the command opening.
+        #[label(primary, "this {desc} is not matched")]
+        span: SourceSpan,
+        /// The description of the command opening token.
+        desc: &'static str,
+    },
     /// An unmatched brace was encountered.
     #[error("expected `}}`, but found {found}", found = Found::new(*.found, *.describe))]
     UnmatchedBrace {

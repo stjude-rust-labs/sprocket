@@ -23,7 +23,7 @@ pub enum SQStringToken {
     /// This token is considered part of the literal text.
     ///
     /// Note that escape sequences are not validated by the lexer.
-    #[regex(r"\\.")]
+    #[regex(r"\\(\n|\r|.)")]
     Escape,
 
     /// A span of literal text.
@@ -62,7 +62,7 @@ pub enum DQStringToken {
     /// This token is considered part of the literal text.
     ///
     /// Note that escape sequences are not validated by the lexer.
-    #[regex(r"\\.")]
+    #[regex(r"\\(\n|\r|.)")]
     Escape,
 
     /// A span of literal text of the string.
@@ -100,7 +100,7 @@ pub enum HeredocCommandToken {
     /// This token is considered part of the literal text.
     ///
     /// Note that escape sequences are not validated by the lexer.
-    #[regex(r"\\.")]
+    #[regex(r"\\(\n|\r|.)")]
     Escape,
 
     /// A span of literal text.
@@ -111,14 +111,22 @@ pub enum HeredocCommandToken {
     #[token("~")]
     Tilde,
 
-    /// An ending angle bracket.
+    /// A single close angle bracket (not the end).
     ///
-    /// When three of these tokens are sequentially encountered,
-    /// [morph][super::Lexer::morph] the lexer to use [Token].
-    ///
-    /// Otherwise, consider the token to be part of the
-    /// literal text.
+    /// This token is part of the literal text.
     #[token(">")]
+    SingleCloseAngle,
+
+    /// A double close angle bracket (not the end).
+    ///
+    /// This token is part of the literal text.
+    #[token(">>")]
+    DoubleCloseAngle,
+
+    /// An ending triple close angle bracket.
+    ///
+    /// When encountered, [morph][super::Lexer::morph] the lexer to use [Token].
+    #[token(">>>")]
     End,
 }
 
@@ -139,7 +147,7 @@ pub enum BraceCommandToken {
     /// This token is considered part of the literal text.
     ///
     /// Note that escape sequences are not validated by the lexer.
-    #[regex(r"\\.")]
+    #[regex(r"\\(\n|\r|.)")]
     Escape,
 
     /// A span of literal text.
@@ -233,6 +241,9 @@ pub enum Token {
     /// [HeredocCommandToken].
     #[token("<<<")]
     HeredocCommandStart,
+    /// An end of a heredoc command.
+    #[token(">>>")]
+    HeredocCommandEnd,
 
     /// The `Array` type keyword.
     #[token("Array")]
@@ -439,6 +450,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::SQStringStart => SyntaxKind::SingleQuote,
             Self::DQStringStart => SyntaxKind::DoubleQuote,
             Self::HeredocCommandStart => SyntaxKind::OpenHeredoc,
+            Self::HeredocCommandEnd => SyntaxKind::CloseHeredoc,
             Self::ArrayTypeKeyword => SyntaxKind::ArrayTypeKeyword,
             Self::BooleanTypeKeyword => SyntaxKind::BooleanTypeKeyword,
             Self::FileTypeKeyword => SyntaxKind::FileTypeKeyword,
@@ -523,6 +535,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::SQStringStart => "`'`",
             Self::DQStringStart => "`\"`",
             Self::HeredocCommandStart => "`<<<`",
+            Self::HeredocCommandEnd => "`>>>`",
             Self::ArrayTypeKeyword => "`Array` keyword",
             Self::BooleanTypeKeyword => "`Boolean` keyword",
             Self::FileTypeKeyword => "`File` keyword",
@@ -1078,11 +1091,7 @@ foo123_BAR"#,
         );
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::End), 116..117))
-        );
-        assert_eq!(
-            lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::End), 117..118))
+            Some((Ok(HeredocCommandToken::DoubleCloseAngle), 116..118))
         );
         assert_eq!(
             lexer.next().map(map),
@@ -1098,15 +1107,7 @@ foo123_BAR"#,
         );
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::End), 140..141))
-        );
-        assert_eq!(
-            lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::End), 141..142))
-        );
-        assert_eq!(
-            lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::End), 142..143))
+            Some((Ok(HeredocCommandToken::End), 140..143))
         );
 
         let mut lexer = lexer.morph::<Token>();
