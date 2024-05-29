@@ -3,7 +3,7 @@
  4 │ 
  5 │ task test {
    ·           ┬
-   ·           ╰── this brace is not matched
+   ·           ╰── this `{` is not matched
  6 │     meta {
  7 │     }
    ╰────

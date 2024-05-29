@@ -11,7 +11,7 @@
  5 │ task test {
  6 │     meta {
    ·          ┬
-   ·          ╰── this brace is not matched
+   ·          ╰── this `{` is not matched
  7 │         a: 'unterminated
  8 │     }
  9 │ }
@@ -21,7 +21,7 @@
  4 │ 
  5 │ task test {
    ·           ┬
-   ·           ╰── this brace is not matched
+   ·           ╰── this `{` is not matched
  6 │     meta {
  7 │         a: 'unterminated
  8 │     }

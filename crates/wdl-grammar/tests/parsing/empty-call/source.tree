@@ -1,0 +1,27 @@
+RootNode@0..81
+  Comment@0..34 "# This is a test of a ..."
+  Whitespace@34..36 "\n\n"
+  VersionStatementNode@36..47
+    VersionKeyword@36..43 "version"
+    Whitespace@43..44 " "
+    Version@44..47 "1.1"
+  Whitespace@47..49 "\n\n"
+  WorkflowDefinitionNode@49..81
+    WorkflowKeyword@49..57 "workflow"
+    NameNode@57..62
+      Whitespace@57..58 " "
+      Ident@58..62 "test"
+    Whitespace@62..63 " "
+    OpenBrace@63..64 "{"
+    Whitespace@64..69 "\n    "
+    CallStatementNode@69..79
+      CallKeyword@69..73 "call"
+      QualifiedNameNode@73..76
+        Whitespace@73..74 " "
+        Ident@74..75 "x"
+        Whitespace@75..76 " "
+      OpenBrace@76..77 "{"
+      Whitespace@77..78 " "
+      CloseBrace@78..79 "}"
+    Whitespace@79..80 "\n"
+    CloseBrace@80..81 "}"

@@ -55,34 +55,6 @@ impl Event {
     }
 }
 
-/// Utility type for displaying "found" tokens in a parser expectation error.
-struct Found {
-    /// The raw token that was found (or `None` for end-of-input).
-    token: Option<u8>,
-    /// The function used to describe a raw token.
-    describe: fn(u8) -> &'static str,
-}
-
-impl Found {
-    /// Constructs a new `Found`.
-    fn new(token: Option<u8>, describe: fn(u8) -> &'static str) -> Self {
-        Self { token, describe }
-    }
-}
-
-impl fmt::Display for Found {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self.token {
-                Some(t) => (self.describe)(t),
-                None => "end of input",
-            }
-        )
-    }
-}
-
 /// Utility type for displaying "expected" items in a parser expectation error.
 struct Expected<'a> {
     /// The set of expected items.
@@ -132,31 +104,27 @@ pub enum Error {
         text: &'static str,
     },
     /// An unexpected token was encountered when a single item was expected.
-    #[error("expected {expected}, but found {found}", found = Found::new(*.found, *.describe))]
+    #[error("expected {expected}, but found {found}", found = .found.unwrap_or("end of input"))]
     Expected {
         /// The expected item.
         expected: &'static str,
-        /// The found raw token (`None` for end of input).
-        found: Option<u8>,
+        /// The found token (`None` for end of input).
+        found: Option<&'static str>,
         /// The span of the found token.
-        #[label(primary, "unexpected {found}", found = Found::new(*.found, *.describe))]
+        #[label(primary, "unexpected {found}", found = .found.unwrap_or("end of input"))]
         span: SourceSpan,
-        /// The function used to describe the raw token.
-        describe: fn(u8) -> &'static str,
     },
     /// An unexpected token was encountered when one of multiple items was
     /// expected.
-    #[error("expected {expected}, but found {found}", expected = Expected::new(.expected), found = Found::new(*.found, *.describe))]
+    #[error("expected {expected}, but found {found}", expected = Expected::new(.expected), found = .found.unwrap_or("end of input"))]
     ExpectedOneOf {
         /// The expected items.
         expected: &'static [&'static str],
-        /// The found raw token (`None` for end of input).
-        found: Option<u8>,
+        /// The found token (`None` for end of input).
+        found: Option<&'static str>,
         /// The span of the found token.
-        #[label(primary, "unexpected {found}", found = Found::new(*.found, *.describe))]
+        #[label(primary, "unexpected {found}", found = .found.unwrap_or("end of input"))]
         span: SourceSpan,
-        /// The function used to describe the raw token.
-        describe: fn(u8) -> &'static str,
     },
     /// An unsupported WDL document version was encountered.
     #[error("unsupported WDL version `{version}`")]
@@ -197,61 +165,21 @@ pub enum Error {
         /// The description of the command opening token.
         desc: &'static str,
     },
-    /// An unmatched brace was encountered.
-    #[error("expected `}}`, but found {found}", found = Found::new(*.found, *.describe))]
-    UnmatchedBrace {
-        /// The found raw token (`None` for end of input).
-        found: Option<u8>,
+    /// An unmatched token was encountered.
+    #[error("expected {close}, but found {found}", found = .found.unwrap_or("end of input"))]
+    Unmatched {
+        /// The open token.
+        open: &'static str,
+        /// The close token.
+        close: &'static str,
+        /// The found token (`None` for end of input).
+        found: Option<&'static str>,
         /// The span of the found token.
-        #[label(primary, "unexpected {found}", found = Found::new(*.found, *.describe))]
+        #[label(primary, "unexpected {found}", found = .found.unwrap_or("end of input"))]
         span: SourceSpan,
-        /// The function used to describe the raw token.
-        describe: fn(u8) -> &'static str,
-        /// The span of the opening brace.
-        #[label("this brace is not matched")]
-        opening: SourceSpan,
-    },
-    /// An unmatched bracket was encountered.
-    #[error("expected `]`, but found {found}", found = Found::new(*.found, *.describe))]
-    UnmatchedBracket {
-        /// The found raw token (`None` for end of input).
-        found: Option<u8>,
-        /// The span of the found token.
-        #[label("unexpected {found}", found = Found::new(*.found, *.describe))]
-        span: SourceSpan,
-        /// The function used to describe the raw token.
-        describe: fn(u8) -> &'static str,
-        /// The span of the opening bracket.
-        #[label(primary, "this bracket is not matched")]
-        opening: SourceSpan,
-    },
-    /// An unmatched placeholder was encountered.
-    #[error("expected `}}`, but found {found}", found = Found::new(*.found, *.describe))]
-    UnmatchedPlaceholder {
-        /// The found raw token (`None` for end of input).
-        found: Option<u8>,
-        /// The span of the found token.
-        #[label("unexpected {found}", found = Found::new(*.found, *.describe))]
-        span: SourceSpan,
-        /// The function used to describe the raw token.
-        describe: fn(u8) -> &'static str,
-        /// The span of the opening bracket.
-        #[label(primary, "this placeholder opening is not matched")]
-        opening: SourceSpan,
-    },
-    /// An unmatched parenthesis was encountered.
-    #[error("expected `)`, but found {found}", found = Found::new(*.found, *.describe))]
-    UnmatchedParen {
-        /// The found raw token (`None` for end of input).
-        found: Option<u8>,
-        /// The span of the found token.
-        #[label("unexpected {found}", found = Found::new(*.found, *.describe))]
-        span: SourceSpan,
-        /// The function used to describe the raw token.
-        describe: fn(u8) -> &'static str,
-        /// The span of the opening bracket.
-        #[label(primary, "this parenthesis is not matched")]
-        opening: SourceSpan,
+        /// The span of the opening token.
+        #[label("this {open} is not matched")]
+        open_span: SourceSpan,
     },
 }
 
@@ -675,10 +603,10 @@ where
         match self.next() {
             Some((t, _)) if tokens.contains(t.into_raw()) => {}
             found => {
-                let found = found.map(|(t, _)| t.into_raw());
+                let found = found.map(|(t, _)| T::describe(t.into_raw()));
                 panic!(
                     "unexpected token {found}",
-                    found = Found::new(found, T::describe)
+                    found = found.unwrap_or("end of input")
                 );
             }
         }
@@ -693,18 +621,17 @@ where
                 self.next();
                 Ok(span)
             }
-            Some((t, span)) => Err(Error::Expected {
-                expected: T::describe(token.into_raw()),
-                found: Some(t.into_raw()),
-                span,
-                describe: T::describe,
-            }),
-            None => Err(Error::Expected {
-                expected: T::describe(token.into_raw()),
-                found: None,
-                span: self.span(),
-                describe: T::describe,
-            }),
+            found => {
+                let (found, span) = found
+                    .map(|(t, s)| (Some(T::describe(t.into_raw())), s))
+                    .unwrap_or_else(|| (None, self.span()));
+
+                Err(Error::Expected {
+                    expected: T::describe(token.into_raw()),
+                    found,
+                    span,
+                })
+            }
         }
     }
 
@@ -718,18 +645,17 @@ where
                 self.next();
                 Ok(span)
             }
-            Some((t, span)) => Err(Error::Expected {
-                expected: name,
-                found: Some(t.into_raw()),
-                span,
-                describe: T::describe,
-            }),
-            None => Err(Error::Expected {
-                expected: name,
-                found: None,
-                span: self.span(),
-                describe: T::describe,
-            }),
+            found => {
+                let (found, span) = found
+                    .map(|(t, s)| (Some(T::describe(t.into_raw())), s))
+                    .unwrap_or_else(|| (None, self.span()));
+
+                Err(Error::Expected {
+                    expected: name,
+                    found,
+                    span,
+                })
+            }
         }
     }
 
@@ -746,18 +672,17 @@ where
                 self.next();
                 Ok((t, span))
             }
-            Some((t, span)) => Err(Error::ExpectedOneOf {
-                expected,
-                found: Some(t.into_raw()),
-                span,
-                describe: T::describe,
-            }),
-            None => Err(Error::ExpectedOneOf {
-                expected,
-                found: None,
-                span: self.span(),
-                describe: T::describe,
-            }),
+            found => {
+                let (found, span) = found
+                    .map(|(t, s)| (Some(T::describe(t.into_raw())), s))
+                    .unwrap_or_else(|| (None, self.span()));
+
+                Err(Error::ExpectedOneOf {
+                    expected,
+                    found,
+                    span,
+                })
+            }
         }
     }
 
