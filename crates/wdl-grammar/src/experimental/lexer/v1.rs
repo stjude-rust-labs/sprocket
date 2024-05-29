@@ -1,8 +1,13 @@
 //! WDL (v1) tokens.
 
 use logos::Logos;
+use miette::SourceSpan;
 
 use super::Error;
+use crate::experimental::grammar::v1::double_quote_interpolate;
+use crate::experimental::grammar::v1::interpolate_heredoc_command;
+use crate::experimental::grammar::v1::single_quote_interpolate;
+use crate::experimental::parser::Parser;
 use crate::experimental::parser::ParserToken;
 use crate::experimental::tree::SyntaxKind;
 
@@ -608,6 +613,29 @@ impl<'a> ParserToken<'a> for Token {
 
     fn is_trivia(self) -> bool {
         matches!(self, Self::Whitespace | Self::Comment)
+    }
+
+    fn recover_interpolation(token: Self, start: SourceSpan, parser: &mut Parser<'a, Self>) {
+        match token {
+            Self::SQStringStart => {
+                if let Err(e) = parser.interpolate(|i| single_quote_interpolate(start, true, i)) {
+                    parser.error(e);
+                }
+            }
+            Self::DQStringStart => {
+                if let Err(e) = parser.interpolate(|i| double_quote_interpolate(start, true, i)) {
+                    parser.error(e);
+                }
+            }
+            Self::HeredocCommandStart => {
+                if let Err(e) = parser.interpolate(|i| interpolate_heredoc_command(start, i)) {
+                    parser.error(e);
+                }
+            }
+            _ => {
+                // Not an interpolation
+            }
+        }
     }
 }
 

@@ -1,8 +1,0 @@
-  × a metadata string cannot contain a placeholder
-   ╭─[tests/parsing/placeholder-in-metadata/source.wdl:7:37]
- 6 │     meta {
- 7 │         s: "this has a placeholder: ~{x}!"
-   ·                                     ─┬
-   ·                                      ╰── consider escaping this placeholder
- 8 │     }
-   ╰────

@@ -142,13 +142,6 @@ pub enum Error {
         #[label(primary, "a version statement must come before this")]
         span: Option<SourceSpan>,
     },
-    /// A placeholder was encountered in a metadata string.
-    #[error("a metadata string cannot contain a placeholder")]
-    MetadataStringPlaceholder {
-        /// The span where the string placeholder was encountered.
-        #[label(primary, "consider escaping this placeholder")]
-        span: SourceSpan,
-    },
     /// An unterminated placeholder was encountered.
     #[error("an unterminated string was encountered")]
     UnterminatedString {
@@ -204,6 +197,10 @@ pub trait ParserToken<'a>:
     ///
     /// Trivia tokens are still added to the concrete syntax tree.
     fn is_trivia(self) -> bool;
+
+    /// A helper for recovering at an interpolation point.
+    #[allow(unused_variables)]
+    fn recover_interpolation(token: Self, start: SourceSpan, parser: &mut Parser<'a, Self>) {}
 }
 
 /// Marks the start of a node in the event list.
@@ -562,12 +559,17 @@ where
     /// Recovers from an error by consuming all tokens not
     /// in the given token set.
     pub fn recover(&mut self, tokens: TokenSet) {
-        while let Some((token, _)) = self.peek() {
+        while let Some((token, span)) = self.peek() {
             if tokens.contains(token.into_raw()) {
                 break;
             }
 
             self.next().unwrap();
+
+            // If the token starts an interpolation, then we need
+            // to move past the entire set of tokens that are part
+            // of the interpolation
+            T::recover_interpolation(token, span, self);
         }
     }
 

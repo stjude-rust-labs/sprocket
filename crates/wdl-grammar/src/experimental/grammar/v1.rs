@@ -761,6 +761,7 @@ fn interpolate_brace_command(
                     parser.error(e);
                     marker.abandon(&mut parser);
                     parser.recover(TokenSet::new(&[Token::CloseBrace as u8]));
+                    parser.next_if(Token::CloseBrace);
                 }
 
                 interpolator = parser.into_interpolator();
@@ -816,7 +817,7 @@ fn interpolate_brace_command(
 }
 
 /// Interpolates a heredoc command.
-fn interpolate_heredoc_command(
+pub(crate) fn interpolate_heredoc_command(
     start: SourceSpan,
     mut interpolator: Interpolator<'_, HeredocCommandToken>,
 ) -> (Parser<'_>, Result<(), Error>) {
@@ -849,6 +850,7 @@ fn interpolate_heredoc_command(
                         Token::CloseBrace as u8,
                         Token::HeredocCommandEnd as u8,
                     ]));
+                    parser.next_if(Token::CloseBrace);
                 }
 
                 interpolator = parser.into_interpolator();
@@ -1116,7 +1118,7 @@ fn placeholder_expr(
 }
 
 /// Interpolates a single-quoted string.
-fn single_quote_interpolate(
+pub(crate) fn single_quote_interpolate(
     start: SourceSpan,
     allow_interpolation: bool,
     mut interpolator: Interpolator<'_, SQStringToken>,
@@ -1150,20 +1152,16 @@ fn single_quote_interpolate(
                         Token::CloseBrace as u8,
                         Token::SQStringStart as u8,
                     ]));
+                    parser.next_if(Token::CloseBrace);
                 }
 
                 interpolator = parser.into_interpolator();
             }
-            t @ (SQStringToken::PlaceholderStart
+            SQStringToken::PlaceholderStart
             | SQStringToken::Escape
             | SQStringToken::Text
             | SQStringToken::DollarSign
-            | SQStringToken::Tilde) => {
-                // Placeholders are not be allowed at this point
-                if t == SQStringToken::PlaceholderStart {
-                    interpolator.error(Error::MetadataStringPlaceholder { span });
-                }
-
+            | SQStringToken::Tilde => {
                 // Update the span of the text to include this token
                 text = match text {
                     Some(prev) => Some(SourceSpan::new(
@@ -1245,7 +1243,7 @@ fn single_quote_string(
 }
 
 /// Interpolates a double-quoted string.
-fn double_quote_interpolate(
+pub(crate) fn double_quote_interpolate(
     start: SourceSpan,
     allow_interpolation: bool,
     mut interpolator: Interpolator<'_, DQStringToken>,
@@ -1279,20 +1277,16 @@ fn double_quote_interpolate(
                         Token::CloseBrace as u8,
                         Token::DQStringStart as u8,
                     ]));
+                    parser.next_if(Token::CloseBrace);
                 }
 
                 interpolator = parser.into_interpolator();
             }
-            t @ (DQStringToken::PlaceholderStart
+            DQStringToken::PlaceholderStart
             | DQStringToken::Escape
             | DQStringToken::Text
             | DQStringToken::DollarSign
-            | DQStringToken::Tilde) => {
-                // Placeholders are not be allowed at this point
-                if t == DQStringToken::PlaceholderStart {
-                    interpolator.error(Error::MetadataStringPlaceholder { span });
-                }
-
+            | DQStringToken::Tilde => {
                 text = match text {
                     Some(prev) => Some(SourceSpan::new(
                         prev.offset().into(),

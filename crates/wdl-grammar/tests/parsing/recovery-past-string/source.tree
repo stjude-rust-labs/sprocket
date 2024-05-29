@@ -1,0 +1,46 @@
+RootNode@0..168
+  Comment@0..67 "# This is a test of r ..."
+  Whitespace@67..69 "\n\n"
+  VersionStatementNode@69..80
+    VersionKeyword@69..76 "version"
+    Whitespace@76..77 " "
+    Version@77..80 "1.1"
+  Whitespace@80..82 "\n\n"
+  TaskDefinitionNode@82..167
+    TaskKeyword@82..86 "task"
+    Whitespace@86..87 " "
+    Ident@87..91 "test"
+    Whitespace@91..92 " "
+    OpenBrace@92..93 "{"
+    Whitespace@93..98 "\n    "
+    MetadataSectionNode@98..165
+      MetaKeyword@98..102 "meta"
+      Whitespace@102..103 " "
+      OpenBrace@103..104 "{"
+      Whitespace@104..113 "\n        "
+      DoubleQuote@113..114 "\""
+      LiteralStringText@114..121 "invalid"
+      DoubleQuote@121..122 "\""
+      Colon@122..123 ":"
+      Whitespace@123..124 " "
+      DoubleQuote@124..125 "\""
+      PlaceholderNode@125..133
+        PlaceholderOpen@125..127 "~{"
+        NameReferenceNode@127..132
+          Ident@127..132 "value"
+        CloseBrace@132..133 "}"
+      DoubleQuote@133..134 "\""
+      Whitespace@134..143 "\n        "
+      MetadataObjectItemNode@143..159
+        Ident@143..150 "correct"
+        Colon@150..151 ":"
+        LiteralStringNode@151..159
+          Whitespace@151..152 " "
+          DoubleQuote@152..153 "\""
+          LiteralStringText@153..158 "value"
+          DoubleQuote@158..159 "\""
+      Whitespace@159..164 "\n    "
+      CloseBrace@164..165 "}"
+    Whitespace@165..166 "\n"
+    CloseBrace@166..167 "}"
+  Whitespace@167..168 "\n"

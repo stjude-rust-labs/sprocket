@@ -1,0 +1,8 @@
+  × expected metadata key, but found `"`
+   ╭─[tests/parsing/recovery-past-string/source.wdl:7:9]
+ 6 │     meta {
+ 7 │         "invalid": "~{value}"
+   ·         ┬
+   ·         ╰── unexpected `"`
+ 8 │         correct: "value"
+   ╰────
