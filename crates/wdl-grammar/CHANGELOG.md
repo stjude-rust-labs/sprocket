@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed parsing of postfix `+` qualifier on array types in the experimental 
+  parser ([#53](https://github.com/stjude-rust-labs/wdl/pull/53)).
 * Fixed parsing of placeholder options in the experimental parser such
   that it can disambiguate between the `sep` option and a `sep` function
   call ([#44](https://github.com/stjude-rust-labs/wdl/pull/44)).

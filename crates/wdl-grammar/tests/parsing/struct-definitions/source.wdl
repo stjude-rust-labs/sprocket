@@ -44,6 +44,8 @@ struct ComplexTypes {
     Array[Map[String, Object]] h
     Array[Array[Array[Array[Array[File?]]]]] i
     Array[CustomType] j
+    Array[Int]+ non_empty
+    Array[Int]+? non_empty_or_undefined
 
     # Pairs
     Pair[Boolean, Boolean] k

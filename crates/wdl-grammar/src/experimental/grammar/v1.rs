@@ -555,6 +555,7 @@ fn array_type(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Er
     if let Err(e) = bracketed(parser, parse) {
         return Err((marker, e));
     }
+    parser.next_if(Token::Plus);
     parser.next_if(Token::QuestionMark);
     marker.complete(parser, SyntaxKind::ArrayTypeNode);
     Ok(())
