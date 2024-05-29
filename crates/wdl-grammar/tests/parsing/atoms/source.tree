@@ -8,9 +8,8 @@ RootNode@0..602
   Whitespace@51..53 "\n\n"
   TaskDefinitionNode@53..601
     TaskKeyword@53..57 "task"
-    NameNode@57..62
-      Whitespace@57..58 " "
-      Ident@58..62 "test"
+    Whitespace@57..58 " "
+    Ident@58..62 "test"
     Whitespace@62..63 " "
     OpenBrace@63..64 "{"
     Whitespace@64..69 "\n    "
@@ -18,8 +17,7 @@ RootNode@0..602
       PrimitiveTypeNode@69..73
         IntTypeKeyword@69..72 "Int"
         Whitespace@72..73 " "
-      NameNode@73..74
-        Ident@73..74 "a"
+      Ident@73..74 "a"
       Whitespace@74..75 " "
       Assignment@75..76 "="
       LiteralIntegerNode@76..78
@@ -30,8 +28,7 @@ RootNode@0..602
       PrimitiveTypeNode@83..89
         FloatTypeKeyword@83..88 "Float"
         Whitespace@88..89 " "
-      NameNode@89..90
-        Ident@89..90 "b"
+      Ident@89..90 "b"
       Whitespace@90..91 " "
       Assignment@91..92 "="
       LiteralFloatNode@92..97
@@ -42,8 +39,7 @@ RootNode@0..602
       PrimitiveTypeNode@102..110
         BooleanTypeKeyword@102..109 "Boolean"
         Whitespace@109..110 " "
-      NameNode@110..111
-        Ident@110..111 "c"
+      Ident@110..111 "c"
       Whitespace@111..112 " "
       Assignment@112..113 "="
       LiteralBooleanNode@113..118
@@ -54,8 +50,7 @@ RootNode@0..602
       PrimitiveTypeNode@123..131
         BooleanTypeKeyword@123..130 "Boolean"
         Whitespace@130..131 " "
-      NameNode@131..132
-        Ident@131..132 "d"
+      Ident@131..132 "d"
       Whitespace@132..133 " "
       Assignment@133..134 "="
       LiteralBooleanNode@134..140
@@ -66,8 +61,7 @@ RootNode@0..602
       PrimitiveTypeNode@145..152
         StringTypeKeyword@145..151 "String"
         Whitespace@151..152 " "
-      NameNode@152..153
-        Ident@152..153 "e"
+      Ident@152..153 "e"
       Whitespace@153..154 " "
       Assignment@154..155 "="
       LiteralStringNode@155..163
@@ -80,8 +74,7 @@ RootNode@0..602
       PrimitiveTypeNode@168..175
         StringTypeKeyword@168..174 "String"
         Whitespace@174..175 " "
-      NameNode@175..176
-        Ident@175..176 "f"
+      Ident@175..176 "f"
       Whitespace@176..177 " "
       Assignment@177..178 "="
       LiteralStringNode@178..186
@@ -98,8 +91,7 @@ RootNode@0..602
           IntTypeKeyword@197..200 "Int"
         CloseBracket@200..201 "]"
         Whitespace@201..202 " "
-      NameNode@202..203
-        Ident@202..203 "g"
+      Ident@202..203 "g"
       Whitespace@203..204 " "
       Assignment@204..205 "="
       LiteralArrayNode@205..215
@@ -129,8 +121,7 @@ RootNode@0..602
           StringTypeKeyword@234..240 "String"
         CloseBracket@240..241 "]"
         Whitespace@241..242 " "
-      NameNode@242..243
-        Ident@242..243 "h"
+      Ident@242..243 "h"
       Whitespace@243..244 " "
       Assignment@244..245 "="
       LiteralPairNode@245..258
@@ -162,8 +153,7 @@ RootNode@0..602
           CloseBracket@287..288 "]"
         CloseBracket@288..289 "]"
         Whitespace@289..290 " "
-      NameNode@290..291
-        Ident@290..291 "i"
+      Ident@290..291 "i"
       Whitespace@291..292 " "
       Assignment@292..293 "="
       LiteralMapNode@293..316
@@ -191,8 +181,7 @@ RootNode@0..602
       ObjectTypeNode@321..328
         ObjectTypeKeyword@321..327 "Object"
         Whitespace@327..328 " "
-      NameNode@328..329
-        Ident@328..329 "j"
+      Ident@328..329 "j"
       Whitespace@329..330 " "
       Assignment@330..331 "="
       LiteralObjectNode@331..369
@@ -232,8 +221,7 @@ RootNode@0..602
       TypeRefNode@374..383
         Ident@374..382 "MyStruct"
         Whitespace@382..383 " "
-      NameNode@383..384
-        Ident@383..384 "k"
+      Ident@383..384 "k"
       Whitespace@384..385 " "
       Assignment@385..386 "="
       LiteralStructNode@386..446
@@ -298,8 +286,7 @@ RootNode@0..602
       PrimitiveTypeNode@451..455
         IntTypeKeyword@451..454 "Int"
         Whitespace@454..455 " "
-      NameNode@455..456
-        Ident@455..456 "l"
+      Ident@455..456 "l"
       Whitespace@456..457 " "
       Assignment@457..458 "="
       IndexExprNode@458..463
@@ -315,8 +302,7 @@ RootNode@0..602
       PrimitiveTypeNode@468..472
         IntTypeKeyword@468..471 "Int"
         Whitespace@471..472 " "
-      NameNode@472..473
-        Ident@472..473 "m"
+      Ident@472..473 "m"
       Whitespace@473..474 " "
       Assignment@474..475 "="
       IfExprNode@475..507
@@ -356,8 +342,7 @@ RootNode@0..602
           IntTypeKeyword@513..516 "Int"
         CloseBracket@516..517 "]"
         Whitespace@517..518 " "
-      NameNode@518..519
-        Ident@518..519 "n"
+      Ident@518..519 "n"
       Whitespace@519..520 " "
       Assignment@520..521 "="
       LiteralArrayNode@521..524
@@ -377,8 +362,7 @@ RootNode@0..602
           StringTypeKeyword@541..547 "String"
         CloseBracket@547..548 "]"
         Whitespace@548..549 " "
-      NameNode@549..550
-        Ident@549..550 "o"
+      Ident@549..550 "o"
       Whitespace@550..551 " "
       Assignment@551..552 "="
       LiteralMapNode@552..555
@@ -390,8 +374,7 @@ RootNode@0..602
       TypeRefNode@560..564
         Ident@560..563 "Foo"
         Whitespace@563..564 " "
-      NameNode@564..565
-        Ident@564..565 "p"
+      Ident@564..565 "p"
       Whitespace@565..566 " "
       Assignment@566..567 "="
       LiteralStructNode@567..574
@@ -405,8 +388,7 @@ RootNode@0..602
       ObjectTypeNode@579..586
         ObjectTypeKeyword@579..585 "Object"
         Whitespace@585..586 " "
-      NameNode@586..587
-        Ident@586..587 "q"
+      Ident@586..587 "q"
       Whitespace@587..588 " "
       Assignment@588..589 "="
       LiteralObjectNode@589..599

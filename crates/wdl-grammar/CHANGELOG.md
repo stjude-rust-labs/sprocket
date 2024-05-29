@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed parsing of reserved identifiers and recovery in metadata sections
+  in the experimental parser ([#52](https://github.com/stjude-rust-labs/wdl/pull/52)).
 * Fixed parsing of empty inputs to a task call statement in the
   experimental parser ([#54](https://github.com/stjude-rust-labs/wdl/pull/54)).
 * Fixed parsing of postfix `+` qualifier on array types in the experimental 

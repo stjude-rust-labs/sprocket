@@ -477,7 +477,7 @@ where
             .unwrap()
             .0
             .expect("should have peeked at a valid token");
-        while let Some((Ok(token), span)) = lexer.peek() {
+        while let Some((Ok(token), span)) = lexer.next() {
             if token.is_trivia() {
                 // Do not consume trivia here as we're between peeked tokens.
                 continue;
@@ -743,6 +743,19 @@ where
             lexer: self.lexer.expect("lexer should be present"),
             events: self.events,
             errors: self.errors,
+        }
+    }
+
+    /// Updates the syntax kind of the last token event.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the last event was not a token.
+    pub fn update_last_token_kind(&mut self, new_kind: SyntaxKind) {
+        let last = self.events.last_mut().expect("expected a last event");
+        match last {
+            Event::Token { kind, .. } => *kind = new_kind,
+            _ => panic!("the last event is not a token"),
         }
     }
 

@@ -8,9 +8,8 @@ RootNode@0..274
   Whitespace@52..54 "\n\n"
   TaskDefinitionNode@54..273
     TaskKeyword@54..58 "task"
-    NameNode@58..63
-      Whitespace@58..59 " "
-      Ident@59..63 "test"
+    Whitespace@58..59 " "
+    Ident@59..63 "test"
     Whitespace@63..64 " "
     OpenBrace@64..65 "{"
     Whitespace@65..70 "\n    "
@@ -18,8 +17,7 @@ RootNode@0..274
       PrimitiveTypeNode@70..78
         BooleanTypeKeyword@70..77 "Boolean"
         Whitespace@77..78 " "
-      NameNode@78..79
-        Ident@78..79 "a"
+      Ident@78..79 "a"
       Whitespace@79..80 " "
       Assignment@80..81 "="
       LogicalOrExprNode@81..153
@@ -108,8 +106,7 @@ RootNode@0..274
       PrimitiveTypeNode@153..157
         IntTypeKeyword@153..156 "Int"
         Whitespace@156..157 " "
-      NameNode@157..158
-        Ident@157..158 "b"
+      Ident@157..158 "b"
       Whitespace@158..159 " "
       Assignment@159..160 "="
       SubtractionExprNode@160..193
@@ -159,8 +156,7 @@ RootNode@0..274
       PrimitiveTypeNode@193..201
         BooleanTypeKeyword@193..200 "Boolean"
         Whitespace@200..201 " "
-      NameNode@201..202
-        Ident@201..202 "c"
+      Ident@201..202 "c"
       Whitespace@202..203 " "
       Assignment@203..204 "="
       LogicalOrExprNode@204..272

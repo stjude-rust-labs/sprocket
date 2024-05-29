@@ -8,9 +8,8 @@ RootNode@0..354
   Whitespace@41..43 "\n\n"
   TaskDefinitionNode@43..353
     TaskKeyword@43..47 "task"
-    NameNode@47..52
-      Whitespace@47..48 " "
-      Ident@48..52 "test"
+    Whitespace@47..48 " "
+    Ident@48..52 "test"
     Whitespace@52..53 " "
     OpenBrace@53..54 "{"
     Whitespace@54..59 "\n    "
@@ -18,8 +17,7 @@ RootNode@0..354
       PrimitiveTypeNode@59..67
         BooleanTypeKeyword@59..66 "Boolean"
         Whitespace@66..67 " "
-      NameNode@67..68
-        Ident@67..68 "a"
+      Ident@67..68 "a"
       Whitespace@68..69 " "
       Assignment@69..70 "="
       LogicalOrExprNode@70..89
@@ -36,8 +34,7 @@ RootNode@0..354
       PrimitiveTypeNode@89..97
         BooleanTypeKeyword@89..96 "Boolean"
         Whitespace@96..97 " "
-      NameNode@97..98
-        Ident@97..98 "b"
+      Ident@97..98 "b"
       Whitespace@98..99 " "
       Assignment@99..100 "="
       LogicalAndExprNode@100..115
@@ -54,8 +51,7 @@ RootNode@0..354
       PrimitiveTypeNode@115..123
         BooleanTypeKeyword@115..122 "Boolean"
         Whitespace@122..123 " "
-      NameNode@123..124
-        Ident@123..124 "c"
+      Ident@123..124 "c"
       Whitespace@124..125 " "
       Assignment@125..126 "="
       EqualityExprNode@126..138
@@ -72,8 +68,7 @@ RootNode@0..354
       PrimitiveTypeNode@138..146
         BooleanTypeKeyword@138..145 "Boolean"
         Whitespace@145..146 " "
-      NameNode@146..147
-        Ident@146..147 "d"
+      Ident@146..147 "d"
       Whitespace@147..148 " "
       Assignment@148..149 "="
       InequalityExprNode@149..165
@@ -90,8 +85,7 @@ RootNode@0..354
       PrimitiveTypeNode@165..173
         BooleanTypeKeyword@165..172 "Boolean"
         Whitespace@172..173 " "
-      NameNode@173..174
-        Ident@173..174 "e"
+      Ident@173..174 "e"
       Whitespace@174..175 " "
       Assignment@175..176 "="
       LessExprNode@176..187
@@ -108,8 +102,7 @@ RootNode@0..354
       PrimitiveTypeNode@187..195
         BooleanTypeKeyword@187..194 "Boolean"
         Whitespace@194..195 " "
-      NameNode@195..196
-        Ident@195..196 "f"
+      Ident@195..196 "f"
       Whitespace@196..197 " "
       Assignment@197..198 "="
       LessEqualExprNode@198..210
@@ -126,8 +119,7 @@ RootNode@0..354
       PrimitiveTypeNode@210..218
         BooleanTypeKeyword@210..217 "Boolean"
         Whitespace@217..218 " "
-      NameNode@218..219
-        Ident@218..219 "g"
+      Ident@218..219 "g"
       Whitespace@219..220 " "
       Assignment@220..221 "="
       GreaterExprNode@221..232
@@ -144,8 +136,7 @@ RootNode@0..354
       PrimitiveTypeNode@232..240
         BooleanTypeKeyword@232..239 "Boolean"
         Whitespace@239..240 " "
-      NameNode@240..241
-        Ident@240..241 "h"
+      Ident@240..241 "h"
       Whitespace@241..242 " "
       Assignment@242..243 "="
       GreaterEqualExprNode@243..255
@@ -162,8 +153,7 @@ RootNode@0..354
       PrimitiveTypeNode@255..259
         IntTypeKeyword@255..258 "Int"
         Whitespace@258..259 " "
-      NameNode@259..260
-        Ident@259..260 "i"
+      Ident@259..260 "i"
       Whitespace@260..261 " "
       Assignment@261..262 "="
       AdditionExprNode@262..275
@@ -180,8 +170,7 @@ RootNode@0..354
       PrimitiveTypeNode@275..279
         IntTypeKeyword@275..278 "Int"
         Whitespace@278..279 " "
-      NameNode@279..280
-        Ident@279..280 "j"
+      Ident@279..280 "j"
       Whitespace@280..281 " "
       Assignment@281..282 "="
       SubtractionExprNode@282..296
@@ -200,8 +189,7 @@ RootNode@0..354
       PrimitiveTypeNode@296..300
         IntTypeKeyword@296..299 "Int"
         Whitespace@299..300 " "
-      NameNode@300..301
-        Ident@300..301 "k"
+      Ident@300..301 "k"
       Whitespace@301..302 " "
       Assignment@302..303 "="
       MultiplicationExprNode@303..316
@@ -218,8 +206,7 @@ RootNode@0..354
       PrimitiveTypeNode@316..320
         IntTypeKeyword@316..319 "Int"
         Whitespace@319..320 " "
-      NameNode@320..321
-        Ident@320..321 "l"
+      Ident@320..321 "l"
       Whitespace@321..322 " "
       Assignment@322..323 "="
       DivisionExprNode@323..336
@@ -236,8 +223,7 @@ RootNode@0..354
       PrimitiveTypeNode@336..340
         IntTypeKeyword@336..339 "Int"
         Whitespace@339..340 " "
-      NameNode@340..341
-        Ident@340..341 "m"
+      Ident@340..341 "m"
       Whitespace@341..342 " "
       Assignment@342..343 "="
       ModuloExprNode@343..352

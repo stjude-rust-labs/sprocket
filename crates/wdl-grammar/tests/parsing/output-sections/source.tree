@@ -8,9 +8,8 @@ RootNode@0..415
   Whitespace@72..74 "\n\n"
   TaskDefinitionNode@74..241
     TaskKeyword@74..78 "task"
-    NameNode@78..80
-      Whitespace@78..79 " "
-      Ident@79..80 "t"
+    Whitespace@78..79 " "
+    Ident@79..80 "t"
     Whitespace@80..81 " "
     OpenBrace@81..82 "{"
     Whitespace@82..87 "\n    "
@@ -23,8 +22,7 @@ RootNode@0..415
         PrimitiveTypeNode@104..111
           StringTypeKeyword@104..110 "String"
           Whitespace@110..111 " "
-        NameNode@111..112
-          Ident@111..112 "a"
+        Ident@111..112 "a"
         Whitespace@112..113 " "
         Assignment@113..114 "="
         LiteralStringNode@114..123
@@ -37,8 +35,7 @@ RootNode@0..415
         PrimitiveTypeNode@132..136
           IntTypeKeyword@132..135 "Int"
           Whitespace@135..136 " "
-        NameNode@136..137
-          Ident@136..137 "b"
+        Ident@136..137 "b"
         Whitespace@137..138 " "
         Assignment@138..139 "="
         AdditionExprNode@139..154
@@ -55,8 +52,7 @@ RootNode@0..415
         PrimitiveTypeNode@154..161
           StringTypeKeyword@154..160 "String"
           Whitespace@160..161 " "
-        NameNode@161..162
-          Ident@161..162 "c"
+        Ident@161..162 "c"
         Whitespace@162..163 " "
         Assignment@163..164 "="
         LiteralStringNode@164..178
@@ -82,8 +78,7 @@ RootNode@0..415
             IntTypeKeyword@199..202 "Int"
           CloseBracket@202..203 "]"
           Whitespace@203..204 " "
-        NameNode@204..205
-          Ident@204..205 "d"
+        Ident@204..205 "d"
         Whitespace@205..206 " "
         Assignment@206..207 "="
         LiteralMapNode@207..233
@@ -129,9 +124,8 @@ RootNode@0..415
   Whitespace@241..243 "\n\n"
   WorkflowDefinitionNode@243..414
     WorkflowKeyword@243..251 "workflow"
-    NameNode@251..253
-      Whitespace@251..252 " "
-      Ident@252..253 "w"
+    Whitespace@251..252 " "
+    Ident@252..253 "w"
     Whitespace@253..254 " "
     OpenBrace@254..255 "{"
     Whitespace@255..260 "\n    "
@@ -144,8 +138,7 @@ RootNode@0..415
         PrimitiveTypeNode@277..284
           StringTypeKeyword@277..283 "String"
           Whitespace@283..284 " "
-        NameNode@284..285
-          Ident@284..285 "a"
+        Ident@284..285 "a"
         Whitespace@285..286 " "
         Assignment@286..287 "="
         LiteralStringNode@287..296
@@ -158,8 +151,7 @@ RootNode@0..415
         PrimitiveTypeNode@305..309
           IntTypeKeyword@305..308 "Int"
           Whitespace@308..309 " "
-        NameNode@309..310
-          Ident@309..310 "b"
+        Ident@309..310 "b"
         Whitespace@310..311 " "
         Assignment@311..312 "="
         AdditionExprNode@312..327
@@ -176,8 +168,7 @@ RootNode@0..415
         PrimitiveTypeNode@327..334
           StringTypeKeyword@327..333 "String"
           Whitespace@333..334 " "
-        NameNode@334..335
-          Ident@334..335 "c"
+        Ident@334..335 "c"
         Whitespace@335..336 " "
         Assignment@336..337 "="
         LiteralStringNode@337..351
@@ -203,8 +194,7 @@ RootNode@0..415
             IntTypeKeyword@372..375 "Int"
           CloseBracket@375..376 "]"
           Whitespace@376..377 " "
-        NameNode@377..378
-          Ident@377..378 "d"
+        Ident@377..378 "d"
         Whitespace@378..379 " "
         Assignment@379..380 "="
         LiteralMapNode@380..406

@@ -8,9 +8,8 @@ RootNode@0..472
   Whitespace@54..56 "\n\n"
   TaskDefinitionNode@56..471
     TaskKeyword@56..60 "task"
-    NameNode@60..65
-      Whitespace@60..61 " "
-      Ident@61..65 "test"
+    Whitespace@60..61 " "
+    Ident@61..65 "test"
     Whitespace@65..66 " "
     OpenBrace@66..67 "{"
     Whitespace@67..72 "\n    "
@@ -18,8 +17,7 @@ RootNode@0..472
       PrimitiveTypeNode@72..79
         StringTypeKeyword@72..78 "String"
         Whitespace@78..79 " "
-      NameNode@79..83
-        Ident@79..83 "name"
+      Ident@79..83 "name"
       Whitespace@83..84 " "
       Assignment@84..85 "="
       LiteralStringNode@85..93
@@ -32,8 +30,7 @@ RootNode@0..472
       PrimitiveTypeNode@98..105
         StringTypeKeyword@98..104 "String"
         Whitespace@104..105 " "
-      NameNode@105..106
-        Ident@105..106 "a"
+      Ident@105..106 "a"
       Whitespace@106..107 " "
       Assignment@107..108 "="
       LiteralStringNode@108..124
@@ -51,8 +48,7 @@ RootNode@0..472
       PrimitiveTypeNode@129..136
         StringTypeKeyword@129..135 "String"
         Whitespace@135..136 " "
-      NameNode@136..137
-        Ident@136..137 "b"
+      Ident@136..137 "b"
       Whitespace@137..138 " "
       Assignment@138..139 "="
       LiteralStringNode@139..156
@@ -70,8 +66,7 @@ RootNode@0..472
       PrimitiveTypeNode@161..168
         StringTypeKeyword@161..167 "String"
         Whitespace@167..168 " "
-      NameNode@168..169
-        Ident@168..169 "c"
+      Ident@168..169 "c"
       Whitespace@169..170 " "
       Assignment@170..171 "="
       LiteralStringNode@171..190
@@ -91,8 +86,7 @@ RootNode@0..472
       PrimitiveTypeNode@195..202
         StringTypeKeyword@195..201 "String"
         Whitespace@201..202 " "
-      NameNode@202..203
-        Ident@202..203 "d"
+      Ident@202..203 "d"
       Whitespace@203..204 " "
       Assignment@204..205 "="
       LiteralStringNode@205..224
@@ -112,8 +106,7 @@ RootNode@0..472
       PrimitiveTypeNode@229..236
         StringTypeKeyword@229..235 "String"
         Whitespace@235..236 " "
-      NameNode@236..237
-        Ident@236..237 "e"
+      Ident@236..237 "e"
       Whitespace@237..238 " "
       Assignment@238..239 "="
       LiteralStringNode@239..275
@@ -146,8 +139,7 @@ RootNode@0..472
       PrimitiveTypeNode@280..287
         StringTypeKeyword@280..286 "String"
         Whitespace@286..287 " "
-      NameNode@287..288
-        Ident@287..288 "f"
+      Ident@287..288 "f"
       Whitespace@288..289 " "
       Assignment@289..290 "="
       LiteralStringNode@290..313
@@ -183,8 +175,7 @@ RootNode@0..472
       PrimitiveTypeNode@318..325
         StringTypeKeyword@318..324 "String"
         Whitespace@324..325 " "
-      NameNode@325..326
-        Ident@325..326 "g"
+      Ident@325..326 "g"
       Whitespace@326..327 " "
       Assignment@327..328 "="
       LiteralStringNode@328..355
@@ -221,8 +212,7 @@ RootNode@0..472
       PrimitiveTypeNode@360..367
         StringTypeKeyword@360..366 "String"
         Whitespace@366..367 " "
-      NameNode@367..368
-        Ident@367..368 "h"
+      Ident@367..368 "h"
       Whitespace@368..369 " "
       Assignment@369..370 "="
       LiteralStringNode@370..407
@@ -254,8 +244,7 @@ RootNode@0..472
       PrimitiveTypeNode@412..419
         StringTypeKeyword@412..418 "String"
         Whitespace@418..419 " "
-      NameNode@419..420
-        Ident@419..420 "i"
+      Ident@419..420 "i"
       Whitespace@420..421 " "
       Assignment@421..422 "="
       LiteralStringNode@422..448

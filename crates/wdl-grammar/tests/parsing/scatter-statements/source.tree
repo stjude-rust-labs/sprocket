@@ -8,9 +8,8 @@ RootNode@0..193
   Whitespace@52..54 "\n\n"
   WorkflowDefinitionNode@54..192
     WorkflowKeyword@54..62 "workflow"
-    NameNode@62..67
-      Whitespace@62..63 " "
-      Ident@63..67 "test"
+    Whitespace@62..63 " "
+    Ident@63..67 "test"
     Whitespace@67..68 " "
     OpenBrace@68..69 "{"
     Whitespace@69..74 "\n    "
@@ -18,8 +17,7 @@ RootNode@0..193
       ScatterKeyword@74..81 "scatter"
       Whitespace@81..82 " "
       OpenParen@82..83 "("
-      NameNode@83..84
-        Ident@83..84 "a"
+      Ident@83..84 "a"
       Whitespace@84..85 " "
       InKeyword@85..87 "in"
       LiteralArrayNode@87..97
@@ -44,8 +42,7 @@ RootNode@0..193
         PrimitiveTypeNode@109..116
           StringTypeKeyword@109..115 "String"
           Whitespace@115..116 " "
-        NameNode@116..119
-          Ident@116..119 "msg"
+        Ident@116..119 "msg"
         Whitespace@119..120 " "
         Assignment@120..121 "="
         LiteralStringNode@121..126
@@ -56,10 +53,9 @@ RootNode@0..193
         Whitespace@126..135 "\n        "
       CallStatementNode@135..154
         CallKeyword@135..139 "call"
-        QualifiedNameNode@139..142
-          Whitespace@139..140 " "
-          Ident@140..141 "x"
-          Whitespace@141..142 " "
+        Whitespace@139..140 " "
+        Ident@140..141 "x"
+        Whitespace@141..142 " "
         OpenBrace@142..143 "{"
         Whitespace@143..144 " "
         InputKeyword@144..149 "input"
@@ -72,10 +68,9 @@ RootNode@0..193
       Whitespace@154..163 "\n        "
       CallStatementNode@163..184
         CallKeyword@163..167 "call"
-        QualifiedNameNode@167..170
-          Whitespace@167..168 " "
-          Ident@168..169 "y"
-          Whitespace@169..170 " "
+        Whitespace@167..168 " "
+        Ident@168..169 "y"
+        Whitespace@169..170 " "
         OpenBrace@170..171 "{"
         Whitespace@171..172 " "
         InputKeyword@172..177 "input"

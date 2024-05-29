@@ -8,9 +8,8 @@ RootNode@0..324
   Whitespace@52..54 "\n\n"
   TaskDefinitionNode@54..324
     TaskKeyword@54..58 "task"
-    NameNode@58..63
-      Whitespace@58..59 " "
-      Ident@59..63 "test"
+    Whitespace@58..59 " "
+    Ident@59..63 "test"
     Whitespace@63..64 " "
     OpenBrace@64..65 "{"
     Whitespace@65..70 "\n    "
@@ -18,8 +17,7 @@ RootNode@0..324
       PrimitiveTypeNode@70..74
         IntTypeKeyword@70..73 "Int"
         Whitespace@73..74 " "
-      NameNode@74..75
-        Ident@74..75 "a"
+      Ident@74..75 "a"
       Whitespace@75..76 " "
       Assignment@76..77 "="
       CallExprNode@77..87
@@ -39,8 +37,7 @@ RootNode@0..324
       PrimitiveTypeNode@92..96
         IntTypeKeyword@92..95 "Int"
         Whitespace@95..96 " "
-      NameNode@96..97
-        Ident@96..97 "b"
+      Ident@96..97 "b"
       Whitespace@97..98 " "
       Assignment@98..99 "="
       CallExprNode@99..120
@@ -73,8 +70,7 @@ RootNode@0..324
           StringTypeKeyword@131..137 "String"
         CloseBracket@137..138 "]"
         Whitespace@138..139 " "
-      NameNode@139..140
-        Ident@139..140 "c"
+      Ident@139..140 "c"
       Whitespace@140..141 " "
       Assignment@141..142 "="
       LiteralArrayNode@142..158
@@ -102,8 +98,7 @@ RootNode@0..324
       PrimitiveTypeNode@163..170
         StringTypeKeyword@163..169 "String"
         Whitespace@169..170 " "
-      NameNode@170..171
-        Ident@170..171 "d"
+      Ident@170..171 "d"
       Whitespace@171..172 " "
       Assignment@172..173 "="
       IndexExprNode@173..182
@@ -125,8 +120,7 @@ RootNode@0..324
       TypeRefNode@187..196
         Ident@187..195 "MyStruct"
         Whitespace@195..196 " "
-      NameNode@196..197
-        Ident@196..197 "e"
+      Ident@196..197 "e"
       Whitespace@197..198 " "
       Assignment@198..199 "="
       LiteralStructNode@199..271
@@ -162,8 +156,7 @@ RootNode@0..324
       TypeRefNode@276..282
         Ident@276..281 "MyFoo"
         Whitespace@281..282 " "
-      NameNode@282..283
-        Ident@282..283 "f"
+      Ident@282..283 "f"
       Whitespace@283..284 " "
       Assignment@284..285 "="
       LiteralStructNode@285..322

@@ -7,9 +7,8 @@ RootNode@0..83
     Version@49..52 "1.1"
   Whitespace@52..54 "\n\n"
   TaskKeyword@54..58 "task"
-  NameNode@58..63
-    Whitespace@58..59 " "
-    Ident@59..63 "test"
+  Whitespace@58..59 " "
+  Ident@59..63 "test"
   Whitespace@63..64 " "
   OpenBrace@64..65 "{"
   Whitespace@65..70 "\n    "

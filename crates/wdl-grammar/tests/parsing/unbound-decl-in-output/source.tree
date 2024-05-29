@@ -8,9 +8,8 @@ RootNode@0..167
   Whitespace@83..85 "\n\n"
   TaskDefinitionNode@85..166
     TaskKeyword@85..89 "task"
-    NameNode@89..94
-      Whitespace@89..90 " "
-      Ident@90..94 "test"
+    Whitespace@89..90 " "
+    Ident@90..94 "test"
     Whitespace@94..95 " "
     OpenBrace@95..96 "{"
     Whitespace@96..101 "\n    "
@@ -24,8 +23,7 @@ RootNode@0..167
       PrimitiveTypeNode@150..157
         StringTypeKeyword@150..156 "String"
         Whitespace@156..157 " "
-      NameNode@157..158
-        Ident@157..158 "x"
+      Ident@157..158 "x"
       Whitespace@158..163 "\n    "
       CloseBrace@163..164 "}"
     Whitespace@164..165 "\n"

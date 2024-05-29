@@ -24,19 +24,13 @@ mod macros {
         };
     }
 
-    /// A macro for expecting the next token be a particular token and
-    /// providing an alternative name for the expected item.
+    /// A macro for expecting the next token be in the given token set.
     ///
     /// Returns an error if the token is not the specified token.
-    macro_rules! expected_with_name {
-        ($parser:ident, $marker:ident, $token:expr, $expected:literal) => {
-            if let Err(e) = $parser.expect_with_name($token, $expected) {
+    macro_rules! expected_in {
+        ($parser:ident, $marker:ident, $set:ident $(, $names:literal)+) => {
+            if let Err(e) = $parser.expect_in($set, &[$($names),+]) {
                 return Err(($marker, e));
-            }
-        };
-        ($parser:ident, $token:expr, $expected:literal) => {
-            if let Err(e) = $parser.expect_with_name($token, $expected) {
-                return Err((e));
             }
         };
     }
@@ -63,7 +57,7 @@ mod macros {
 
     pub(crate) use expected;
     pub(crate) use expected_fn;
-    pub(crate) use expected_with_name;
+    pub(crate) use expected_in;
 }
 
 /// A parser type used for parsing the document preamble.

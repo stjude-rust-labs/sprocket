@@ -8,9 +8,8 @@ RootNode@0..333
   Whitespace@82..84 "\n\n"
   TaskDefinitionNode@84..206
     TaskKeyword@84..88 "task"
-    NameNode@88..94
-      Whitespace@88..89 " "
-      Ident@89..94 "first"
+    Whitespace@88..89 " "
+    Ident@89..94 "first"
     Whitespace@94..95 " "
     OpenBrace@95..96 "{"
     Whitespace@96..101 "\n    "
@@ -18,8 +17,7 @@ RootNode@0..333
       PrimitiveTypeNode@101..108
         StringTypeKeyword@101..107 "String"
         Whitespace@107..108 " "
-      NameNode@108..109
-        Ident@108..109 "x"
+      Ident@108..109 "x"
       Whitespace@109..110 " "
       Assignment@110..111 "="
       LiteralStringNode@111..128
@@ -39,9 +37,8 @@ RootNode@0..333
   Whitespace@206..208 "\n\n"
   TaskDefinitionNode@208..332
     TaskKeyword@208..212 "task"
-    NameNode@212..219
-      Whitespace@212..213 " "
-      Ident@213..219 "second"
+    Whitespace@212..213 " "
+    Ident@213..219 "second"
     Whitespace@219..220 " "
     OpenBrace@220..221 "{"
     Whitespace@221..226 "\n    "
@@ -49,8 +46,7 @@ RootNode@0..333
       PrimitiveTypeNode@226..233
         StringTypeKeyword@226..232 "String"
         Whitespace@232..233 " "
-      NameNode@233..234
-        Ident@233..234 "x"
+      Ident@233..234 "x"
       Whitespace@234..235 " "
       Assignment@235..236 "="
       LiteralStringNode@236..253

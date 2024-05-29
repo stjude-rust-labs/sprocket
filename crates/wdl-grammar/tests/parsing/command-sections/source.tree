@@ -8,9 +8,8 @@ RootNode@0..467
   Whitespace@50..52 "\n\n"
   TaskDefinitionNode@52..263
     TaskKeyword@52..56 "task"
-    NameNode@56..64
-      Whitespace@56..57 " "
-      Ident@57..64 "heredoc"
+    Whitespace@56..57 " "
+    Ident@57..64 "heredoc"
     Whitespace@64..65 " "
     OpenBrace@65..66 "{"
     Whitespace@66..71 "\n    "
@@ -51,9 +50,8 @@ RootNode@0..467
   Whitespace@263..265 "\n\n"
   TaskDefinitionNode@265..466
     TaskKeyword@265..269 "task"
-    NameNode@269..275
-      Whitespace@269..270 " "
-      Ident@270..275 "brace"
+    Whitespace@269..270 " "
+    Ident@270..275 "brace"
     Whitespace@275..276 " "
     OpenBrace@276..277 "{"
     Whitespace@277..282 "\n    "

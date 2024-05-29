@@ -8,18 +8,16 @@ RootNode@0..81
   Whitespace@47..49 "\n\n"
   WorkflowDefinitionNode@49..81
     WorkflowKeyword@49..57 "workflow"
-    NameNode@57..62
-      Whitespace@57..58 " "
-      Ident@58..62 "test"
+    Whitespace@57..58 " "
+    Ident@58..62 "test"
     Whitespace@62..63 " "
     OpenBrace@63..64 "{"
     Whitespace@64..69 "\n    "
     CallStatementNode@69..79
       CallKeyword@69..73 "call"
-      QualifiedNameNode@73..76
-        Whitespace@73..74 " "
-        Ident@74..75 "x"
-        Whitespace@75..76 " "
+      Whitespace@73..74 " "
+      Ident@74..75 "x"
+      Whitespace@75..76 " "
       OpenBrace@76..77 "{"
       Whitespace@77..78 " "
       CloseBrace@78..79 "}"

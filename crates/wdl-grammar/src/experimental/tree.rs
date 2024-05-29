@@ -185,10 +185,6 @@ pub enum SyntaxKind {
     Abandoned,
     /// Represents the WDL document root node.
     RootNode,
-    /// Represents a name node (for a struct, task, or workflow).
-    NameNode,
-    /// Represents a qualified name node (for a call statement).
-    QualifiedNameNode,
     /// Represents a version statement node.
     VersionStatementNode,
     /// Represents an import statement node.

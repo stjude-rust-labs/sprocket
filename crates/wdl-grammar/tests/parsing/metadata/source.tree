@@ -8,9 +8,8 @@ RootNode@0..2459
   Whitespace@77..79 "\n\n"
   TaskDefinitionNode@79..1267
     TaskKeyword@79..83 "task"
-    NameNode@83..88
-      Whitespace@83..84 " "
-      Ident@84..88 "test"
+    Whitespace@83..84 " "
+    Ident@84..88 "test"
     Whitespace@88..89 " "
     OpenBrace@89..90 "{"
     Whitespace@90..95 "\n    "
@@ -504,9 +503,8 @@ RootNode@0..2459
   Whitespace@1267..1269 "\n\n"
   WorkflowDefinitionNode@1269..2458
     WorkflowKeyword@1269..1277 "workflow"
-    NameNode@1277..1279
-      Whitespace@1277..1278 " "
-      Ident@1278..1279 "w"
+    Whitespace@1277..1278 " "
+    Ident@1278..1279 "w"
     Whitespace@1279..1280 " "
     OpenBrace@1280..1281 "{"
     Whitespace@1281..1286 "\n    "

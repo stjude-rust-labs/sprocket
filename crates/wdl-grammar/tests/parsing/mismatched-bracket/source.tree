@@ -8,9 +8,8 @@ RootNode@0..143
   Whitespace@54..56 "\n\n"
   StructDefinitionNode@56..143
     StructKeyword@56..62 "struct"
-    NameNode@62..67
-      Whitespace@62..63 " "
-      Ident@63..67 "test"
+    Whitespace@62..63 " "
+    Ident@63..67 "test"
     Whitespace@67..68 " "
     OpenBrace@68..69 "{"
     Whitespace@69..74 "\n    "

@@ -8,9 +8,8 @@ RootNode@0..355
   Whitespace@59..61 "\n\n"
   TaskDefinitionNode@61..354
     TaskKeyword@61..65 "task"
-    NameNode@65..70
-      Whitespace@65..66 " "
-      Ident@66..70 "test"
+    Whitespace@65..66 " "
+    Ident@66..70 "test"
     Whitespace@70..71 " "
     OpenBrace@71..72 "{"
     Whitespace@72..77 "\n    "

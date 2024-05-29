@@ -1,0 +1,8 @@
+  × expected metadata key, but found integer
+   ╭─[tests/parsing/metadata-recovery/source.wdl:7:9]
+ 6 │     meta {
+ 7 │         1: 1
+   ·         ┬
+   ·         ╰── unexpected integer
+ 8 │         baz: "bar"
+   ╰────
