@@ -154,8 +154,8 @@ RootNode@0..472
               DoubleQuote@298..299 "\""
               LiteralStringText@299..300 " "
               DoubleQuote@300..301 "\""
-          LiteralArrayNode@301..311
-            Whitespace@301..302 " "
+          Whitespace@301..302 " "
+          LiteralArrayNode@302..311
             OpenBracket@302..303 "["
             LiteralIntegerNode@303..304
               Integer@303..304 "1"
@@ -190,11 +190,11 @@ RootNode@0..472
               DoubleQuote@340..341 "\""
               LiteralStringText@341..344 "n/a"
               DoubleQuote@344..345 "\""
-          AdditionExprNode@345..353
-            DivisionExprNode@345..351
-              MultiplicationExprNode@345..349
-                LiteralIntegerNode@345..347
-                  Whitespace@345..346 " "
+          Whitespace@345..346 " "
+          AdditionExprNode@346..353
+            DivisionExprNode@346..351
+              MultiplicationExprNode@346..349
+                LiteralIntegerNode@346..347
                   Integer@346..347 "1"
                 Asterisk@347..348 "*"
                 LiteralIntegerNode@348..349
@@ -234,8 +234,8 @@ RootNode@0..472
               DoubleQuote@393..394 "\""
               LiteralStringText@394..398 "true"
               DoubleQuote@398..399 "\""
-          LiteralBooleanNode@399..405
-            Whitespace@399..400 " "
+          Whitespace@399..400 " "
+          LiteralBooleanNode@400..405
             FalseKeyword@400..405 "false"
           CloseBrace@405..406 "}"
         DoubleQuote@406..407 "\""

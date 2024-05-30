@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed the experimental parser to accept multiple placeholder options
+  ([#57](https://github.com/stjude-rust-labs/wdl/pull/57)).
 * Fixed recovery in the experimental parser to move past interpolations in
   strings and commands ([#56](https://github.com/stjude-rust-labs/wdl/pull/56)).
 * Fixed parsing of reserved identifiers and recovery in metadata sections

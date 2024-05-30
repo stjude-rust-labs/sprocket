@@ -1034,49 +1034,53 @@ fn number(
     Ok(marker.complete(parser, kind))
 }
 
-/// Parses a placeholder option.
-fn placeholder_option(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
-    match parser.peek2() {
-        Some(((Token::Ident, span), (Token::Assignment, _))) => {
-            let kind = match parser.source(span) {
-                "sep" => SyntaxKind::PlaceholderSepOptionNode,
-                "default" => SyntaxKind::PlaceholderDefaultOptionNode,
-                _ => {
-                    // Not a placeholder option
-                    marker.abandon(parser);
-                    return Ok(());
-                }
-            };
+/// Parses placeholder options.
+fn placeholder_options(parser: &mut Parser<'_>, mut marker: Marker) -> Result<(), (Marker, Error)> {
+    loop {
+        match parser.peek2() {
+            Some(((Token::Ident, span), (Token::Assignment, _))) => {
+                let kind = match parser.source(span) {
+                    "sep" => SyntaxKind::PlaceholderSepOptionNode,
+                    "default" => SyntaxKind::PlaceholderDefaultOptionNode,
+                    _ => {
+                        // Not a placeholder option
+                        marker.abandon(parser);
+                        return Ok(());
+                    }
+                };
 
-            parser.next();
-            expected!(parser, marker, Token::Assignment);
-            expected_fn!(parser, marker, string);
-            marker.complete(parser, kind);
-            Ok(())
-        }
-        Some(((t @ Token::TrueKeyword, _), (Token::Assignment, _)))
-        | Some(((t @ Token::FalseKeyword, _), (Token::Assignment, _))) => {
-            parser.next();
-            expected!(parser, marker, Token::Assignment);
-            expected_fn!(parser, marker, string);
-            expected!(
-                parser,
-                marker,
-                if t == Token::TrueKeyword {
-                    Token::FalseKeyword
-                } else {
-                    Token::TrueKeyword
-                }
-            );
-            expected!(parser, marker, Token::Assignment);
-            expected_fn!(parser, marker, string);
-            marker.complete(parser, SyntaxKind::PlaceholderTrueFalseOptionNode);
-            Ok(())
-        }
-        _ => {
-            // Not a placeholder option
-            marker.abandon(parser);
-            Ok(())
+                parser.next();
+                expected!(parser, marker, Token::Assignment);
+                expected_fn!(parser, marker, string);
+                marker.complete(parser, kind);
+                marker = parser.start();
+                continue;
+            }
+            Some(((t @ Token::TrueKeyword, _), (Token::Assignment, _)))
+            | Some(((t @ Token::FalseKeyword, _), (Token::Assignment, _))) => {
+                parser.next();
+                expected!(parser, marker, Token::Assignment);
+                expected_fn!(parser, marker, string);
+                expected!(
+                    parser,
+                    marker,
+                    if t == Token::TrueKeyword {
+                        Token::FalseKeyword
+                    } else {
+                        Token::TrueKeyword
+                    }
+                );
+                expected!(parser, marker, Token::Assignment);
+                expected_fn!(parser, marker, string);
+                marker.complete(parser, SyntaxKind::PlaceholderTrueFalseOptionNode);
+                marker = parser.start();
+                continue;
+            }
+            _ => {
+                // Not a placeholder option
+                marker.abandon(parser);
+                return Ok(());
+            }
         }
     }
 }
@@ -1087,7 +1091,7 @@ fn placeholder_expr(
     marker: Marker,
     open_span: SourceSpan,
 ) -> Result<(), (Marker, Error)> {
-    expected_fn!(parser, marker, placeholder_option);
+    expected_fn!(parser, marker, placeholder_options);
     expected_fn!(parser, marker, expr);
 
     // Check for a closing brace; if it's missing, add an error

@@ -1,0 +1,72 @@
+RootNode@0..156
+  Comment@0..58 "# This is a test of a ..."
+  Whitespace@58..60 "\n\n"
+  VersionStatementNode@60..71
+    VersionKeyword@60..67 "version"
+    Whitespace@67..68 " "
+    Version@68..71 "1.1"
+  Whitespace@71..73 "\n\n"
+  TaskDefinitionNode@73..155
+    TaskKeyword@73..77 "task"
+    Whitespace@77..78 " "
+    Ident@78..82 "test"
+    Whitespace@82..83 " "
+    OpenBrace@83..84 "{"
+    Whitespace@84..89 "\n    "
+    BoundDeclNode@89..154
+      PrimitiveTypeNode@89..96
+        StringTypeKeyword@89..95 "String"
+        Whitespace@95..96 " "
+      Ident@96..97 "x"
+      Whitespace@97..98 " "
+      Assignment@98..99 "="
+      LiteralStringNode@99..153
+        Whitespace@99..100 " "
+        DoubleQuote@100..101 "\""
+        PlaceholderNode@101..152
+          PlaceholderOpen@101..103 "~{"
+          PlaceholderSepOptionNode@103..113
+            Ident@103..106 "sep"
+            Whitespace@106..107 " "
+            Assignment@107..108 "="
+            LiteralStringNode@108..113
+              Whitespace@108..109 " "
+              DoubleQuote@109..110 "\""
+              LiteralStringText@110..112 ", "
+              DoubleQuote@112..113 "\""
+          PlaceholderDefaultOptionNode@113..126
+            Whitespace@113..114 " "
+            Ident@114..121 "default"
+            Whitespace@121..122 " "
+            Assignment@122..123 "="
+            LiteralStringNode@123..126
+              Whitespace@123..124 " "
+              DoubleQuote@124..125 "\""
+              DoubleQuote@125..126 "\""
+          PlaceholderTrueFalseOptionNode@126..149
+            Whitespace@126..127 " "
+            TrueKeyword@127..131 "true"
+            Whitespace@131..132 " "
+            Assignment@132..133 "="
+            LiteralStringNode@133..137
+              Whitespace@133..134 " "
+              DoubleQuote@134..135 "\""
+              LiteralStringText@135..136 "Y"
+              DoubleQuote@136..137 "\""
+            Whitespace@137..138 " "
+            FalseKeyword@138..143 "false"
+            Whitespace@143..144 " "
+            Assignment@144..145 "="
+            LiteralStringNode@145..149
+              Whitespace@145..146 " "
+              DoubleQuote@146..147 "\""
+              LiteralStringText@147..148 "N"
+              DoubleQuote@148..149 "\""
+          Whitespace@149..150 " "
+          NameReferenceNode@150..151
+            Ident@150..151 "v"
+          CloseBrace@151..152 "}"
+        DoubleQuote@152..153 "\""
+      Whitespace@153..154 "\n"
+    CloseBrace@154..155 "}"
+  Whitespace@155..156 "\n"
