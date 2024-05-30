@@ -1,12 +1,4 @@
 RootNode@0..64
   Comment@0..48 "# This is a test of a ..."
   Whitespace@48..50 "\n\n"
-  TaskDefinitionNode@50..63
-    TaskKeyword@50..54 "task"
-    Whitespace@54..55 " "
-    Ident@55..58 "foo"
-    Whitespace@58..59 " "
-    OpenBrace@59..60 "{"
-    Whitespace@60..62 "\n\n"
-    CloseBrace@62..63 "}"
-  Whitespace@63..64 "\n"
+  Unparsed@50..64 "task foo {\n\n}\n"

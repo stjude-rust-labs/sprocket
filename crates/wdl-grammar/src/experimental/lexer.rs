@@ -325,6 +325,30 @@ where
             peeked: None,
         }
     }
+
+    /// Consumes the remainder of the source, returning the span
+    /// of the consumed text.
+    pub fn consume_remainder(&mut self) -> Option<SourceSpan> {
+        // Reset the lexer if we've peeked
+        if let Some(peeked) = self.peeked.take() {
+            self.lexer = T::lexer(self.lexer.source());
+            if peeked.offset > 0 {
+                self.lexer.bump(peeked.offset);
+                self.lexer.next();
+            }
+        }
+
+        // Bump the remaining source
+        self.lexer.next();
+        self.lexer.bump(self.lexer.remainder().len());
+        let span = self.lexer.span();
+        assert!(self.next().is_none(), "lexer should be completed");
+        if span.is_empty() {
+            None
+        } else {
+            Some(to_source_span(span))
+        }
+    }
 }
 
 impl<'a, T> Iterator for Lexer<'a, T>

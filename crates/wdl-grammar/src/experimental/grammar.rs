@@ -69,8 +69,8 @@ type PreambleParser<'a> = Parser<'a, PreambleToken>;
 pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Vec<Error>) {
     let root = parser.start();
     // Look for a starting `version` keyword token
-    // If this fails, an error is emitted and we'll fallback to the latest version
-    // of the grammar to parse the remainder of the source.
+    // If this fails, an error is emitted and we'll skip parsing the remainder of
+    // the file.
     let (mut parser, err) = match parser.peek() {
         Some((PreambleToken::VersionKeyword, _)) => {
             let marker = parser.start();
@@ -111,12 +111,11 @@ pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Ve
         ),
     };
 
-    // Fallback to parsing with the latest supported version
-    // This will attempt to parse as much as possible, despite maybe not being
-    // correct for what's in the document
+    // At this point, the parse cannot continue; but we still want the tree to cover
+    // every span of the source, so we will insert a special "unparsed" token for
+    // the remaining source.
     parser.error(err);
-    let mut parser = parser.morph();
-    v1::items(&mut parser);
+    parser.consume_remainder();
     root.complete(&mut parser, SyntaxKind::RootNode);
     let output = parser.finish();
     (output.events, output.errors)

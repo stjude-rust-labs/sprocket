@@ -761,6 +761,25 @@ where
         }
     }
 
+    /// Consumes the remainder of the unparsed source into a special
+    /// "unparsed" token.
+    ///
+    /// This occurs when a source file is missing a version statement or
+    /// if the version specified is unsupported.
+    pub fn consume_remainder(&mut self) {
+        if let Some(span) = self
+            .lexer
+            .as_mut()
+            .expect("there should be a lexer")
+            .consume_remainder()
+        {
+            self.events.push(Event::Token {
+                kind: SyntaxKind::Unparsed,
+                span,
+            });
+        }
+    }
+
     /// Consumes any trivia tokens by adding them to the event list.
     fn consume_trivia(
         &mut self,

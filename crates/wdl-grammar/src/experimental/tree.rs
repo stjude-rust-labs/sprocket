@@ -23,6 +23,10 @@ use crate::experimental::parser::Parser;
 pub enum SyntaxKind {
     /// The token is unknown to WDL.
     Unknown,
+    /// The token represents unparsed source.
+    ///
+    /// Unparsed source occurs in WDL source files with unsupported versions.
+    Unparsed,
     /// A whitespace token.
     Whitespace,
     /// A comment token.

@@ -4,4 +4,5 @@
  3 │ version 100000.0
    ·         ────┬───
    ·             ╰── this version of WDL is not supported
+ 4 │ 
    ╰────
