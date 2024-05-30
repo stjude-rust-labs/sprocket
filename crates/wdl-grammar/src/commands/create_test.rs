@@ -85,7 +85,9 @@ pub fn create_test(args: Args) -> Result<()> {
         .unwrap_or_else(|| get_contents_stdin().map_err(Error::Common))?;
 
     let parse_tree = match args.specification_version {
-        wdl_core::Version::V1 => grammar::v1::parse_rule(rule, &input).map_err(Error::GrammarV1)?,
+        wdl_core::Version::V1 => {
+            grammar::v1::parse_rule(rule, &input, true).map_err(Error::GrammarV1)?
+        }
     };
 
     if let Some(concerns) = parse_tree.concerns() {

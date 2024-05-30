@@ -24,6 +24,7 @@ repository. Note that the information may be out of sync with released packages.
 | `missing_runtime_block`   | `v1::W005` | Completeness | [`wdl-grammar`][wdl-grammar-lints] |
 | `snake_case`              | `v1::W006` | Naming       | [`wdl-grammar`][wdl-grammar-lints] |
 | `newline_eof`             | `v1::W007` | Spacing      | [`wdl-grammar`][wdl-grammar-lints] |
+| `document_preamble`       | `v1::W009` | Spacing      | [`wdl-grammar`][wdl-grammar-lints] |
 | `preamble_comment`        | `v1::W010` | Style        | [`wdl-grammar`][wdl-grammar-lints] |
 | `one_empty_line`          | `v1::W011` | Spacing      | [`wdl-grammar`][wdl-grammar-lints] |
 

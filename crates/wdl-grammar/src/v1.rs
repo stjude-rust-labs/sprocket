@@ -23,6 +23,7 @@
 //! | `missing_runtime_block` | `v1::W005` | Completeness | [Link](lint::MissingRuntimeBlock) |
 //! | `snake_case`            | `v1::W006` | Naming       | [Link](lint::SnakeCase)           |
 //! | `newline_eof`           | `v1::W007` | Spacing      | [Link](lint::NewlineEOF)          |
+//! | `document_preamble`     | `v1::W009` | Spacing      | [Link](lint::DocumentPreamble)    |
 //! | `preamble_comment`      | `v1::W010` | Style        | [Link](lint::PreambleComment)     |
 //! | `one_empty_line`        | `v1::W011` | Spacing      | [Link](lint::OneEmptyLine)        |
 
@@ -81,7 +82,7 @@ pub type Result<'a> = wdl_core::parse::Result<Pair<'a, crate::v1::Rule>>;
 ///
 /// // A valid grammar tree with lint warnings.
 ///
-/// let result = grammar::v1::parse_rule(Rule::document, "version 1.1\n \n")?;
+/// let result = grammar::v1::parse_rule(Rule::document, "version 1.1\n \n", true)?;
 ///
 /// let concerns = result.concerns().unwrap();
 /// assert_eq!(concerns.inner().len(), 1);
@@ -97,7 +98,7 @@ pub type Result<'a> = wdl_core::parse::Result<Pair<'a, crate::v1::Rule>>;
 ///
 /// // An invalid grammar tree due to pest parsing.
 ///
-/// let result = grammar::v1::parse_rule(Rule::document, "Hello, world!").unwrap();
+/// let result = grammar::v1::parse_rule(Rule::document, "Hello, world!", true).unwrap();
 ///
 /// let concerns = result.concerns().unwrap();
 /// assert_eq!(concerns.inner().len(), 1);
@@ -126,6 +127,7 @@ pub type Result<'a> = wdl_core::parse::Result<Pair<'a, crate::v1::Rule>>;
 ///     }
 /// }
 /// "#,
+///     true,
 /// )
 /// .unwrap();
 ///
@@ -143,7 +145,7 @@ pub type Result<'a> = wdl_core::parse::Result<Pair<'a, crate::v1::Rule>>;
 ///
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub fn parse_rule(rule: Rule, input: &str) -> std::result::Result<Result<'_>, Error> {
+pub fn parse_rule(rule: Rule, input: &str, lint: bool) -> std::result::Result<Result<'_>, Error> {
     let mut concerns = concerns::Builder::default();
 
     let mut pt = match Parser::parse(rule, input) {
@@ -176,11 +178,13 @@ pub fn parse_rule(rule: Rule, input: &str) -> std::result::Result<Result<'_>, Er
         }
     }
 
-    if let Some(warnings) = Linter::lint(&pt, lint::rules()).map_err(Error::Lint)? {
-        for warning in warnings {
-            concerns = concerns.push(Concern::LintWarning(warning));
-        }
-    };
+    if lint {
+        if let Some(warnings) = Linter::lint(&pt, lint::rules()).map_err(Error::Lint)? {
+            for warning in warnings {
+                concerns = concerns.push(Concern::LintWarning(warning));
+            }
+        };
+    }
 
     // SAFETY: the parse tree is always [`Some`] at this point, even if the
     // concerns are empty, so this will always unwrap.
@@ -228,7 +232,7 @@ pub fn parse_rule(rule: Rule, input: &str) -> std::result::Result<Result<'_>, Er
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn parse(input: &str) -> std::result::Result<Result<'_>, Error> {
-    parse_rule(Rule::document, input)
+    parse_rule(Rule::document, input, true)
 }
 
 /// Gets a rule by name.

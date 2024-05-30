@@ -10,7 +10,7 @@
 /// * `$target` - the name of the entity to attempt to construct from the
 ///   `$type_`.
 pub macro valid_node($input:literal, $type_:ident, $target:ident) {{
-    let node = wdl_grammar::v1::parse_rule(wdl_grammar::v1::Rule::$type_, $input)
+    let node = wdl_grammar::v1::parse_rule(wdl_grammar::v1::Rule::$type_, $input, false)
         .unwrap()
         .into_tree()
         .unwrap();
@@ -38,10 +38,11 @@ pub macro create_invalid_node_test($input:literal, $type_:ident, $name:ident, $t
         );
 
         let result = std::panic::catch_unwind(|| {
-            let parse_node = wdl_grammar::v1::parse_rule(wdl_grammar::v1::Rule::$type_, $input)
-                .unwrap()
-                .into_tree()
-                .unwrap();
+            let parse_node =
+                wdl_grammar::v1::parse_rule(wdl_grammar::v1::Rule::$type_, $input, false)
+                    .unwrap()
+                    .into_tree()
+                    .unwrap();
 
             $target::try_from(parse_node)
         });

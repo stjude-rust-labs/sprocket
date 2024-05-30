@@ -194,6 +194,7 @@ mod tests {
         let import = wdl_grammar::v1::parse_rule(
             wdl_grammar::v1::Rule::import,
             r#"import "hello.wdl" as hello alias foo as bar alias baz as quux"#,
+            false,
         )
         .unwrap()
         .into_tree()
