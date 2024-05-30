@@ -1,4 +1,4 @@
-RootNode@0..602
+RootNode@0..649
   Comment@0..38 "# This is a test for  ..."
   Whitespace@38..40 "\n\n"
   VersionStatementNode@40..51
@@ -6,7 +6,7 @@ RootNode@0..602
     Whitespace@47..48 " "
     Version@48..51 "1.1"
   Whitespace@51..53 "\n\n"
-  TaskDefinitionNode@53..601
+  TaskDefinitionNode@53..648
     TaskKeyword@53..57 "task"
     Whitespace@57..58 " "
     Ident@58..62 "test"
@@ -384,7 +384,7 @@ RootNode@0..602
         OpenBrace@572..573 "{"
         CloseBrace@573..574 "}"
       Whitespace@574..579 "\n    "
-    BoundDeclNode@579..600
+    BoundDeclNode@579..604
       ObjectTypeNode@579..586
         ObjectTypeKeyword@579..585 "Object"
         Whitespace@585..586 " "
@@ -397,6 +397,35 @@ RootNode@0..602
         Whitespace@596..597 " "
         OpenBrace@597..598 "{"
         CloseBrace@598..599 "}"
-      Whitespace@599..600 "\n"
-    CloseBrace@600..601 "}"
-  Whitespace@601..602 "\n"
+      Whitespace@599..604 "\n    "
+    BoundDeclNode@604..625
+      PrimitiveTypeNode@604..611
+        StringTypeKeyword@604..610 "String"
+        QuestionMark@610..611 "?"
+      Whitespace@611..612 " "
+      Ident@612..613 "r"
+      Whitespace@613..614 " "
+      Assignment@614..615 "="
+      LiteralNoneNode@615..620
+        Whitespace@615..616 " "
+        NoneKeyword@616..620 "None"
+      Whitespace@620..625 "\n    "
+    BoundDeclNode@625..647
+      PrimitiveTypeNode@625..633
+        BooleanTypeKeyword@625..632 "Boolean"
+        Whitespace@632..633 " "
+      Ident@633..634 "s"
+      Whitespace@634..635 " "
+      Assignment@635..636 "="
+      EqualityExprNode@636..647
+        NameReferenceNode@636..639
+          Whitespace@636..637 " "
+          Ident@637..638 "r"
+          Whitespace@638..639 " "
+        Equal@639..641 "=="
+        LiteralNoneNode@641..646
+          Whitespace@641..642 " "
+          NoneKeyword@642..646 "None"
+        Whitespace@646..647 "\n"
+    CloseBrace@647..648 "}"
+  Whitespace@648..649 "\n"

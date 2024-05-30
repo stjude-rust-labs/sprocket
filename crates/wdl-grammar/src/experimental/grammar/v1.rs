@@ -264,7 +264,6 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::FloatTypeKeyword as u8,
     Token::IntTypeKeyword as u8,
     Token::MapTypeKeyword as u8,
-    Token::NoneTypeKeyword as u8,
     Token::ObjectTypeKeyword as u8,
     Token::PairTypeKeyword as u8,
     Token::StringTypeKeyword as u8,
@@ -280,6 +279,7 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::ImportKeyword as u8,
     Token::InputKeyword as u8,
     Token::MetaKeyword as u8,
+    Token::NoneKeyword as u8,
     Token::NullKeyword as u8,
     Token::ObjectKeyword as u8,
     Token::OutputKeyword as u8,
@@ -1012,6 +1012,12 @@ fn metadata_value(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
     }
 }
 
+/// Parses a literal `None` value.
+fn none(parser: &mut Parser<'_>, marker: Marker) -> Result<CompletedMarker, (Marker, Error)> {
+    parser.require(Token::NoneKeyword);
+    Ok(marker.complete(parser, SyntaxKind::LiteralNoneNode))
+}
+
 /// Parses a number.
 fn number(
     parser: &mut Parser<'_>,
@@ -1665,6 +1671,7 @@ fn atom_expr(
     peeked: Token,
 ) -> Result<CompletedMarker, (Marker, Error)> {
     match peeked {
+        Token::NoneKeyword => none(parser, marker),
         Token::Float | Token::Integer => number(parser, marker, false),
         Token::TrueKeyword | Token::FalseKeyword => boolean(parser, marker),
         Token::SQStringStart => single_quote_string(parser, marker, true),

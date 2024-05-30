@@ -20,4 +20,6 @@ task test {
     Map[String, String] o = {}
     Foo p = Foo {}
     Object q = object {}
+    String? r = None
+    Boolean s = r == None
 }

@@ -268,9 +268,6 @@ pub enum Token {
     /// The `Map` type keyword.
     #[token("Map")]
     MapTypeKeyword,
-    /// The `None` type keyword.
-    #[token("None")]
-    NoneTypeKeyword,
     /// The `Object` type keyword.
     #[token("Object")]
     ObjectTypeKeyword,
@@ -316,6 +313,9 @@ pub enum Token {
     /// The `meta` keyword.
     #[token("meta")]
     MetaKeyword,
+    /// The `None` keyword.
+    #[token("None")]
+    NoneKeyword,
     /// The `null` keyword.
     #[token("null")]
     NullKeyword,
@@ -465,7 +465,6 @@ impl<'a> ParserToken<'a> for Token {
             Self::FloatTypeKeyword => SyntaxKind::FloatTypeKeyword,
             Self::IntTypeKeyword => SyntaxKind::IntTypeKeyword,
             Self::MapTypeKeyword => SyntaxKind::MapTypeKeyword,
-            Self::NoneTypeKeyword => SyntaxKind::NoneTypeKeyword,
             Self::ObjectTypeKeyword => SyntaxKind::ObjectTypeKeyword,
             Self::PairTypeKeyword => SyntaxKind::PairTypeKeyword,
             Self::StringTypeKeyword => SyntaxKind::StringTypeKeyword,
@@ -481,6 +480,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::ImportKeyword => SyntaxKind::ImportKeyword,
             Self::InputKeyword => SyntaxKind::InputKeyword,
             Self::MetaKeyword => SyntaxKind::MetaKeyword,
+            Self::NoneKeyword => SyntaxKind::NoneKeyword,
             Self::NullKeyword => SyntaxKind::NullKeyword,
             Self::ObjectKeyword => SyntaxKind::ObjectKeyword,
             Self::OutputKeyword => SyntaxKind::OutputKeyword,
@@ -551,7 +551,6 @@ impl<'a> ParserToken<'a> for Token {
             Self::FloatTypeKeyword => "`Float` keyword",
             Self::IntTypeKeyword => "`Int` keyword",
             Self::MapTypeKeyword => "`Map` keyword",
-            Self::NoneTypeKeyword => "`None` keyword",
             Self::ObjectTypeKeyword => "`Object` keyword",
             Self::PairTypeKeyword => "`Pair` keyword",
             Self::StringTypeKeyword => "`String` keyword",
@@ -567,6 +566,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::ImportKeyword => "`import` keyword",
             Self::InputKeyword => "`input` keyword",
             Self::MetaKeyword => "`meta` keyword",
+            Self::NoneKeyword => "`None` keyword",
             Self::NullKeyword => "`null` keyword",
             Self::ObjectKeyword => "`object` keyword",
             Self::OutputKeyword => "`output` keyword",
@@ -1339,7 +1339,7 @@ workflow"#,
                 (Ok(Whitespace), 29..30),
                 (Ok(MapTypeKeyword), 30..33),
                 (Ok(Whitespace), 33..34),
-                (Ok(NoneTypeKeyword), 34..38),
+                (Ok(NoneKeyword), 34..38),
                 (Ok(Whitespace), 38..39),
                 (Ok(ObjectTypeKeyword), 39..45),
                 (Ok(Whitespace), 45..46),

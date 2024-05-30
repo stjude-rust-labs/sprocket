@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed handling of `None` literal values in expressions in the experimental
+  parser ([#58](https://github.com/stjude-rust-labs/wdl/pull/58)).
 * Fixed the experimental parser to accept multiple placeholder options
   ([#57](https://github.com/stjude-rust-labs/wdl/pull/57)).
 * Fixed recovery in the experimental parser to move past interpolations in

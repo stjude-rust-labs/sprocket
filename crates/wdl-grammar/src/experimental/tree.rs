@@ -55,8 +55,6 @@ pub enum SyntaxKind {
     IntTypeKeyword,
     /// The `Map` type keyword token.
     MapTypeKeyword,
-    /// The `None` type keyword token.
-    NoneTypeKeyword,
     /// The `Object` type keyword token.
     ObjectTypeKeyword,
     /// The `Pair` type keyword token.
@@ -87,6 +85,8 @@ pub enum SyntaxKind {
     InputKeyword,
     /// The `meta` keyword token.
     MetaKeyword,
+    /// The `None` keyword.
+    NoneKeyword,
     /// The `null` keyword token.
     NullKeyword,
     /// The `object` keyword token.
@@ -239,6 +239,8 @@ pub enum SyntaxKind {
     LiteralFloatNode,
     /// Represents a literal boolean node.
     LiteralBooleanNode,
+    /// Represents a literal `None` node.
+    LiteralNoneNode,
     /// Represents a literal null node.
     LiteralNullNode,
     /// Represents a literal string node.
