@@ -58,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   contributed by @simojoe).
 * Adds the `one_empty_line` rule that ensures no excess of empty lines
   (#33, contributed by @simojoe).
+* Adds the `double_quotes` rule for quote styling in string declarations
+  (contributed by @simojoe).
 
 ### Changed
 

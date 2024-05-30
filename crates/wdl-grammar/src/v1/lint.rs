@@ -3,6 +3,7 @@
 use pest::iterators::Pair;
 
 mod document_preamble;
+mod double_quotes;
 mod missing_runtime_block;
 mod mixed_indentation;
 mod newline_eof;
@@ -13,6 +14,7 @@ mod snake_case;
 mod whitespace;
 
 pub use document_preamble::DocumentPreamble;
+pub use double_quotes::DoubleQuotes;
 pub use missing_runtime_block::MissingRuntimeBlock;
 pub use mixed_indentation::MixedIndentation;
 pub use newline_eof::NewlineEOF;
@@ -43,5 +45,7 @@ pub fn rules<'a>() -> Vec<Box<dyn wdl_core::concern::lint::Rule<&'a Pair<'a, cra
         Box::new(PreambleComment),
         // v1::W011
         Box::new(OneEmptyLine),
+        // v1::W012
+        Box::new(DoubleQuotes),
     ]
 }

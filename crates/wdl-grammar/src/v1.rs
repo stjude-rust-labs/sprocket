@@ -26,6 +26,7 @@
 //! | `document_preamble`     | `v1::W009` | Spacing      | [Link](lint::DocumentPreamble)    |
 //! | `preamble_comment`      | `v1::W010` | Style        | [Link](lint::PreambleComment)     |
 //! | `one_empty_line`        | `v1::W011` | Spacing      | [Link](lint::OneEmptyLine)        |
+//! | `double_quotes `        | `v1::W012` | Naming       | [Link](lint::DoubleQuotes)        |
 
 use pest::iterators::Pair;
 use pest::Parser as _;

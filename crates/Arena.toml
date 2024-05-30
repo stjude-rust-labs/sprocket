@@ -10,7 +10,7 @@ commit_hash = "7dd6c4c7c8c9fc6dcd4eb5ff8f3262cd26d5e7cc"
 
 [repositories."stjudecloud/workflows"]
 identifier = "stjudecloud/workflows"
-commit_hash = "511a7358402c4ce24864cf837156df400fc94da2"
+commit_hash = "08e3d49c7fb10086fe516feb2f400c1d65ef6100"
 
 [[concerns]]
 kind = "LintWarning"
@@ -36,6 +36,36 @@ message = "[v1::W003::[Completeness]::Medium] missing parameter meta within task
 kind = "LintWarning"
 document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
 message = "[v1::W003::[Completeness]::Medium] missing parameter meta within task: ref_files (6:6-6:27)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
+message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (84:45-84:56)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
+message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (85:46-85:65)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
+message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (86:26-86:39)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
+message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (87:39-87:52)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
+message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (91:18-91:27)"
+
+[[concerns]]
+kind = "LintWarning"
+document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
+message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (93:17-93:36)"
 
 [[concerns]]
 kind = "LintWarning"
