@@ -55,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Changes the `snake_case` rule so that lowercase letters can be adjacent to digits without triggering
+  a warning (#55, contributed by @a-frantz)
 * Changes the singular `Group` feature of lint warnings to one or more `Tags` (#37, contributed by @a-frantz)
 * Changes the tags and levels of various rules to better align with #12 (#37, contributed by @a-frantz)
 
