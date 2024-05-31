@@ -154,21 +154,6 @@ message = "[v1::W007::[Spacing, Style]::Low] missing newline at the end of the f
 
 [[concerns]]
 kind = "LintWarning"
-document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W010::[Style]::Low] double pound signs are reserved for preamble comments (21:1-21:25)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W010::[Style]::Low] double pound signs are reserved for preamble comments (5:1-5:24)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W010::[Style]::Low] double pound signs are reserved for preamble comments (80:1-80:22)"
-
-[[concerns]]
-kind = "LintWarning"
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (32:12-32:14)"
 

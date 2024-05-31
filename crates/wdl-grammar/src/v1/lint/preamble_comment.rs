@@ -10,6 +10,7 @@ use wdl_core::concern::lint;
 use wdl_core::concern::lint::Rule;
 use wdl_core::concern::lint::TagSet;
 use wdl_core::concern::Code;
+use wdl_core::file::location::Position;
 use wdl_core::file::Location;
 use wdl_core::Version;
 
@@ -29,13 +30,13 @@ impl<'a> PreambleComment {
             .code(self.code())
             .level(lint::Level::Low)
             .tags(self.tags())
-            .subject("preamble comment without a double pound sign")
+            .subject("preamble comment(s) without a double pound sign")
             .body(
                 "Preamble comments are full line comments before the version declaration and they \
                  start with a double pound sign.",
             )
             .push_location(location)
-            .fix("Add a pound sign at the start of the line.")
+            .fix("Add a pound sign at the start of each offending comment.")
             .try_build()
             .unwrap()
     }
@@ -75,28 +76,58 @@ impl<'a> Rule<&Pair<'a, v1::Rule>> for PreambleComment {
         let mut warnings = VecDeque::new();
 
         let mut is_preamble = true;
+        let mut start_of_comment_block = None;
+        let mut end_of_comment_block = None;
 
         for node in tree.clone().into_inner().flatten() {
             match node.as_rule() {
                 v1::Rule::version => {
                     is_preamble = false;
+                    if start_of_comment_block.is_some() {
+                        let location = Location::Span {
+                            start: Position::try_from(start_of_comment_block.unwrap()).unwrap(),
+                            end: Position::try_from(end_of_comment_block.unwrap()).unwrap(),
+                        };
+                        warnings.push_back(self.missing_double_pound_sign(location));
+
+                        start_of_comment_block = None;
+                        end_of_comment_block = None;
+                    }
                 }
                 v1::Rule::COMMENT => {
                     // Catches missing double pound sign
-                    if is_preamble & !node.as_str().starts_with("##") {
-                        let location =
-                            Location::try_from(node.as_span()).map_err(lint::Error::Location)?;
-                        warnings.push_back(self.missing_double_pound_sign(location));
+                    if is_preamble & !node.as_str().trim().starts_with("##") {
+                        if start_of_comment_block.is_none() {
+                            start_of_comment_block = Some(node.as_span().start_pos());
+                        }
+                        end_of_comment_block = Some(node.as_span().end_pos());
                     }
 
                     // Catches preamble comment after version declaration
-                    if !is_preamble & node.as_str().starts_with("##") {
-                        let location =
-                            Location::try_from(node.as_span()).map_err(lint::Error::Location)?;
-                        warnings.push_back(self.preamble_comment_after_version(location));
+                    if !is_preamble
+                        & node.as_str().trim().starts_with("##")
+                        & !node.as_str().trim().starts_with("###")
+                    {
+                        if start_of_comment_block.is_none() {
+                            start_of_comment_block = Some(node.as_span().start_pos());
+                        }
+                        end_of_comment_block = Some(node.as_span().end_pos());
                     }
                 }
-                _ => {}
+                v1::Rule::WHITESPACE | v1::Rule::NEWLINE => {} // Whitespace shouldn't reset the
+                // comment block detection
+                _ => {
+                    if start_of_comment_block.is_some() {
+                        let location = Location::Span {
+                            start: Position::try_from(start_of_comment_block.unwrap()).unwrap(),
+                            end: Position::try_from(end_of_comment_block.unwrap()).unwrap(),
+                        };
+                        warnings.push_back(self.preamble_comment_after_version(location));
+
+                        start_of_comment_block = None;
+                        end_of_comment_block = None;
+                    }
+                }
             }
         }
 
@@ -135,7 +166,30 @@ version 1.0
         assert_eq!(warnings.len(), 1);
         assert_eq!(
             warnings.first().to_string(),
-            "[v1::W010::[Style]::Low] preamble comment without a double pound sign (1:1-1:12)"
+            "[v1::W010::[Style]::Low] preamble comment(s) without a double pound sign (1:1-1:12)"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn it_catches_badly_formatted_preamble_comment_block() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let tree = Parser::parse(
+            Rule::document,
+            r#"# a comment
+# that continues
+# over several lines
+version 1.0
+"#,
+        )?
+        .next()
+        .unwrap();
+
+        let warnings = PreambleComment.check(&tree)?.unwrap();
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings.first().to_string(),
+            "[v1::W010::[Style]::Low] preamble comment(s) without a double pound sign (1:1-3:21)"
         );
         Ok(())
     }
@@ -159,6 +213,31 @@ version 1.0
             warnings.first().to_string(),
             "[v1::W010::[Style]::Low] double pound signs are reserved for preamble comments \
              (4:1-4:19)"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn it_catches_preamble_comment_block_after_version() -> Result<(), Box<dyn std::error::Error>> {
+        let tree = Parser::parse(
+            Rule::document,
+            r#"## a comment
+version 1.0
+
+## a wrong comment
+## that continues
+## over several lines
+"#,
+        )?
+        .next()
+        .unwrap();
+
+        let warnings = PreambleComment.check(&tree)?.unwrap();
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings.first().to_string(),
+            "[v1::W010::[Style]::Low] double pound signs are reserved for preamble comments \
+             (4:1-6:22)"
         );
         Ok(())
     }
