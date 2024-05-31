@@ -1,6 +1,6 @@
 [package]
 name = "wdl-gauntlet"
-version = "0.1.0"
+version = "0.2.0"
 description = "Testing of parse trees and ASTs within the `wdl` family of crates"
 license.workspace = true
 edition.workspace = true
