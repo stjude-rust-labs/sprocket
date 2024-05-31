@@ -1043,51 +1043,55 @@ fn number(
 /// Parses placeholder options.
 fn placeholder_options(parser: &mut Parser<'_>, mut marker: Marker) -> Result<(), (Marker, Error)> {
     loop {
-        match parser.peek2() {
-            Some(((Token::Ident, span), (Token::Assignment, _))) => {
-                let kind = match parser.source(span) {
-                    "sep" => SyntaxKind::PlaceholderSepOptionNode,
-                    "default" => SyntaxKind::PlaceholderDefaultOptionNode,
-                    _ => {
-                        // Not a placeholder option
-                        marker.abandon(parser);
-                        return Ok(());
-                    }
-                };
+        if let Some(peek) = parser.peek2() {
+            match (peek.first, peek.second) {
+                ((Token::Ident, span), (Token::Assignment, _)) => {
+                    let kind = match parser.source(span) {
+                        "sep" => SyntaxKind::PlaceholderSepOptionNode,
+                        "default" => SyntaxKind::PlaceholderDefaultOptionNode,
+                        _ => {
+                            // Not a placeholder option
+                            marker.abandon(parser);
+                            return Ok(());
+                        }
+                    };
 
-                parser.next();
-                expected!(parser, marker, Token::Assignment);
-                expected_fn!(parser, marker, string);
-                marker.complete(parser, kind);
-                marker = parser.start();
-                continue;
-            }
-            Some(((t @ Token::TrueKeyword, _), (Token::Assignment, _)))
-            | Some(((t @ Token::FalseKeyword, _), (Token::Assignment, _))) => {
-                parser.next();
-                expected!(parser, marker, Token::Assignment);
-                expected_fn!(parser, marker, string);
-                expected!(
-                    parser,
-                    marker,
-                    if t == Token::TrueKeyword {
-                        Token::FalseKeyword
-                    } else {
-                        Token::TrueKeyword
-                    }
-                );
-                expected!(parser, marker, Token::Assignment);
-                expected_fn!(parser, marker, string);
-                marker.complete(parser, SyntaxKind::PlaceholderTrueFalseOptionNode);
-                marker = parser.start();
-                continue;
-            }
-            _ => {
-                // Not a placeholder option
-                marker.abandon(parser);
-                return Ok(());
+                    parser.next();
+                    expected!(parser, marker, Token::Assignment);
+                    expected_fn!(parser, marker, string);
+                    marker.complete(parser, kind);
+                    marker = parser.start();
+                    continue;
+                }
+                ((t @ Token::TrueKeyword, _), (Token::Assignment, _))
+                | ((t @ Token::FalseKeyword, _), (Token::Assignment, _)) => {
+                    parser.next();
+                    expected!(parser, marker, Token::Assignment);
+                    expected_fn!(parser, marker, string);
+                    expected!(
+                        parser,
+                        marker,
+                        if t == Token::TrueKeyword {
+                            Token::FalseKeyword
+                        } else {
+                            Token::TrueKeyword
+                        }
+                    );
+                    expected!(parser, marker, Token::Assignment);
+                    expected_fn!(parser, marker, string);
+                    marker.complete(parser, SyntaxKind::PlaceholderTrueFalseOptionNode);
+                    marker = parser.start();
+                    continue;
+                }
+                _ => {
+                    // Not a placeholder, fallthrough to below
+                }
             }
         }
+
+        // Not a placeholder option
+        marker.abandon(parser);
+        return Ok(());
     }
 }
 
@@ -1798,21 +1802,36 @@ fn literal_struct_or_name_ref(
     expected_in!(parser, marker, ANY_IDENT, "identifier");
     parser.update_last_token_kind(SyntaxKind::Ident);
 
-    if !matches!(parser.peek(), Some((Token::OpenBrace, _)) | None) {
-        // This is actually a name reference.
-        return Ok(marker.complete(parser, SyntaxKind::NameReferenceNode));
+    // To disambiguate between a name reference and a struct literal,
+    // we need to peek ahead 3 tokens for `{`, <any-ident>, `:`.
+    // Start by peeking one for open brace and then do the slightly
+    // more expensive `peek3` operation.
+    if let Some((Token::OpenBrace, _)) = parser.peek() {
+        if let Some(peek) = parser.peek3() {
+            match (peek.first, peek.second, peek.third) {
+                ((Token::OpenBrace, _), (t, _), (Token::Colon, _))
+                    if ANY_IDENT.contains(t.into_raw()) =>
+                {
+                    braced!(parser, marker, |parser| {
+                        parser.delimited(
+                            Some(Token::Comma),
+                            UNTIL_CLOSE_BRACE,
+                            LITERAL_OBJECT_RECOVERY_SET, // same as literal objects
+                            literal_struct_item,
+                        );
+                        Ok(())
+                    });
+                    return Ok(marker.complete(parser, SyntaxKind::LiteralStructNode));
+                }
+                _ => {
+                    // This is a name reference, fall through to below
+                }
+            }
+        }
     }
 
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            Some(Token::Comma),
-            UNTIL_CLOSE_BRACE,
-            LITERAL_OBJECT_RECOVERY_SET, // same as literal objects
-            literal_struct_item,
-        );
-        Ok(())
-    });
-    Ok(marker.complete(parser, SyntaxKind::LiteralStructNode))
+    // This is a name reference.
+    Ok(marker.complete(parser, SyntaxKind::NameReferenceNode))
 }
 
 /// Parses a single item in a literal struct.

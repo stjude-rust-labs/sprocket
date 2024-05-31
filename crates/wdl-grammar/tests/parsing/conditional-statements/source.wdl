@@ -12,6 +12,11 @@ workflow test {
             }
         }
 
+        # Ensure `x` is a name reference and not a struct literal
+        if x {
+            call y
+        }
+
         call z { input: name = "world" }
         call z { input: name = "you" }
     }

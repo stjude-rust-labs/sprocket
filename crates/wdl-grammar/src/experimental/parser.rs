@@ -397,6 +397,30 @@ where
     pub errors: Vec<Error>,
 }
 
+/// Represents the result of a `peek2` operation.
+///
+/// See [Parser::peek2].
+#[derive(Debug, Copy, Clone)]
+pub struct Peek2<T> {
+    /// The first peeked token.
+    pub first: (T, SourceSpan),
+    /// The second peeked token.
+    pub second: (T, SourceSpan),
+}
+
+/// Represents the result of a `peek3` operation.
+///
+/// See [Parser::peek3].
+#[derive(Debug, Copy, Clone)]
+pub struct Peek3<T> {
+    /// The first peeked token.
+    pub first: (T, SourceSpan),
+    /// The second peeked token.
+    pub second: (T, SourceSpan),
+    /// The third peeked token.
+    pub third: (T, SourceSpan),
+}
+
 /// Implements a WDL parser.
 ///
 /// The parser produces a list of events that can be used to
@@ -461,14 +485,18 @@ where
     /// Peeks at the next and next-next tokens (i.e. lookahead 2) from the lexer
     /// without consuming either token.
     ///
-    /// The tokens are not added to the event list.
-    pub fn peek2(&mut self) -> Option<((T, SourceSpan), (T, SourceSpan))> {
+    /// The returned tokens are not added to the event list.
+    pub fn peek2(&mut self) -> Option<Peek2<T>> {
         let first = self.peek()?;
 
         // We have to clone the lexer here since it only supports a single lookahead.
         // The clone is cheap, but it does mean we'll re-tokenize this second lookahead
         // eventually.
-        let mut lexer = self.lexer.clone()?;
+        let mut lexer = self
+            .lexer
+            .as_ref()
+            .expect("there should be a lexer")
+            .clone();
         lexer
             .next()
             .unwrap()
@@ -480,7 +508,52 @@ where
                 continue;
             }
 
-            return Some((first, (token, span)));
+            return Some(Peek2 {
+                first,
+                second: (token, span),
+            });
+        }
+
+        None
+    }
+
+    /// Peeks at the next, next-next, and next-next-next tokens (i.e. lookahead
+    /// 3) from the lexer without consuming any tokens.
+    ///
+    /// The returned tokens are not added to the event list.
+    pub fn peek3(&mut self) -> Option<Peek3<T>> {
+        let first = self.peek()?;
+
+        // We have to clone the lexer here since it only supports a single lookahead.
+        // The clone is cheap, but it does mean we'll re-tokenize this second lookahead
+        // eventually.
+        let mut lexer = self
+            .lexer
+            .as_ref()
+            .expect("there should be a lexer")
+            .clone();
+        lexer
+            .next()
+            .unwrap()
+            .0
+            .expect("should have peeked at a valid token");
+        let mut second = None;
+        while let Some((Ok(token), span)) = lexer.next() {
+            if token.is_trivia() {
+                // Do not consume trivia here as we're between peeked tokens.
+                continue;
+            }
+
+            if second.is_none() {
+                second = Some((token, span));
+                continue;
+            }
+
+            return Some(Peek3 {
+                first,
+                second: second.unwrap(),
+                third: (token, span),
+            });
         }
 
         None

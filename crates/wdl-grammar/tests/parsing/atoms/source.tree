@@ -1,4 +1,4 @@
-RootNode@0..649
+RootNode@0..661
   Comment@0..38 "# This is a test for  ..."
   Whitespace@38..40 "\n\n"
   VersionStatementNode@40..51
@@ -6,7 +6,7 @@ RootNode@0..649
     Whitespace@47..48 " "
     Version@48..51 "1.1"
   Whitespace@51..53 "\n\n"
-  TaskDefinitionNode@53..648
+  TaskDefinitionNode@53..660
     TaskKeyword@53..57 "task"
     Whitespace@57..58 " "
     Ident@58..62 "test"
@@ -370,62 +370,72 @@ RootNode@0..649
         OpenBrace@553..554 "{"
         CloseBrace@554..555 "}"
       Whitespace@555..560 "\n    "
-    BoundDeclNode@560..579
+    BoundDeclNode@560..591
       TypeRefNode@560..564
         Ident@560..563 "Foo"
         Whitespace@563..564 " "
       Ident@564..565 "p"
       Whitespace@565..566 " "
       Assignment@566..567 "="
-      LiteralStructNode@567..574
+      LiteralStructNode@567..586
         Whitespace@567..568 " "
         Ident@568..571 "Foo"
         Whitespace@571..572 " "
         OpenBrace@572..573 "{"
-        CloseBrace@573..574 "}"
-      Whitespace@574..579 "\n    "
-    BoundDeclNode@579..604
-      ObjectTypeNode@579..586
-        ObjectTypeKeyword@579..585 "Object"
-        Whitespace@585..586 " "
-      Ident@586..587 "q"
-      Whitespace@587..588 " "
-      Assignment@588..589 "="
-      LiteralObjectNode@589..599
-        Whitespace@589..590 " "
-        ObjectKeyword@590..596 "object"
-        Whitespace@596..597 " "
-        OpenBrace@597..598 "{"
-        CloseBrace@598..599 "}"
-      Whitespace@599..604 "\n    "
-    BoundDeclNode@604..625
-      PrimitiveTypeNode@604..611
-        StringTypeKeyword@604..610 "String"
-        QuestionMark@610..611 "?"
-      Whitespace@611..612 " "
-      Ident@612..613 "r"
-      Whitespace@613..614 " "
-      Assignment@614..615 "="
-      LiteralNoneNode@615..620
-        Whitespace@615..616 " "
-        NoneKeyword@616..620 "None"
-      Whitespace@620..625 "\n    "
-    BoundDeclNode@625..647
-      PrimitiveTypeNode@625..633
-        BooleanTypeKeyword@625..632 "Boolean"
-        Whitespace@632..633 " "
-      Ident@633..634 "s"
-      Whitespace@634..635 " "
-      Assignment@635..636 "="
-      EqualityExprNode@636..647
-        NameReferenceNode@636..639
-          Whitespace@636..637 " "
-          Ident@637..638 "r"
-          Whitespace@638..639 " "
-        Equal@639..641 "=="
-        LiteralNoneNode@641..646
-          Whitespace@641..642 " "
-          NoneKeyword@642..646 "None"
-        Whitespace@646..647 "\n"
-    CloseBrace@647..648 "}"
-  Whitespace@648..649 "\n"
+        Whitespace@573..574 " "
+        LiteralStructItemNode@574..585
+          Ident@574..577 "foo"
+          Colon@577..578 ":"
+          LiteralStringNode@578..584
+            Whitespace@578..579 " "
+            DoubleQuote@579..580 "\""
+            LiteralStringText@580..583 "bar"
+            DoubleQuote@583..584 "\""
+          Whitespace@584..585 " "
+        CloseBrace@585..586 "}"
+      Whitespace@586..591 "\n    "
+    BoundDeclNode@591..616
+      ObjectTypeNode@591..598
+        ObjectTypeKeyword@591..597 "Object"
+        Whitespace@597..598 " "
+      Ident@598..599 "q"
+      Whitespace@599..600 " "
+      Assignment@600..601 "="
+      LiteralObjectNode@601..611
+        Whitespace@601..602 " "
+        ObjectKeyword@602..608 "object"
+        Whitespace@608..609 " "
+        OpenBrace@609..610 "{"
+        CloseBrace@610..611 "}"
+      Whitespace@611..616 "\n    "
+    BoundDeclNode@616..637
+      PrimitiveTypeNode@616..623
+        StringTypeKeyword@616..622 "String"
+        QuestionMark@622..623 "?"
+      Whitespace@623..624 " "
+      Ident@624..625 "r"
+      Whitespace@625..626 " "
+      Assignment@626..627 "="
+      LiteralNoneNode@627..632
+        Whitespace@627..628 " "
+        NoneKeyword@628..632 "None"
+      Whitespace@632..637 "\n    "
+    BoundDeclNode@637..659
+      PrimitiveTypeNode@637..645
+        BooleanTypeKeyword@637..644 "Boolean"
+        Whitespace@644..645 " "
+      Ident@645..646 "s"
+      Whitespace@646..647 " "
+      Assignment@647..648 "="
+      EqualityExprNode@648..659
+        NameReferenceNode@648..651
+          Whitespace@648..649 " "
+          Ident@649..650 "r"
+          Whitespace@650..651 " "
+        Equal@651..653 "=="
+        LiteralNoneNode@653..658
+          Whitespace@653..654 " "
+          NoneKeyword@654..658 "None"
+        Whitespace@658..659 "\n"
+    CloseBrace@659..660 "}"
+  Whitespace@660..661 "\n"

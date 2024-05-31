@@ -18,7 +18,7 @@ task test {
     Int m = if c then k + 1 else a * 2
     Array[Int] n = []
     Map[String, String] o = {}
-    Foo p = Foo {}
+    Foo p = Foo { foo: "bar" }
     Object q = object {}
     String? r = None
     Boolean s = r == None

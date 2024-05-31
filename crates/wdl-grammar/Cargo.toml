@@ -27,7 +27,7 @@ logos = { workspace = true }
 miette = { workspace = true }
 thiserror = { workspace = true }
 rowan = { workspace = true }
-wdl-core = { path = "../wdl-core", version = "0.1.0" }
+wdl-core = { path = "../wdl-core", version = "0.2.0" }
 wdl-macros = { path = "../wdl-macros", version = "0.1.0" }
 
 [dev-dependencies]

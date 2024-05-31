@@ -23,5 +23,5 @@ temp-dir = "0.1.13"
 tokio.workspace = true
 toml.workspace = true
 wdl-ast = { path = "../wdl-ast", version = "0.1.0" }
-wdl-core = { path = "../wdl-core", version = "0.1.0" }
+wdl-core = { path = "../wdl-core", version = "0.2.0" }
 wdl-grammar = { path = "../wdl-grammar", version = "0.2.0" }
