@@ -42,9 +42,9 @@ impl<'a> Reporter<'a> {
             Concern::LintWarning(warning) => {
                 let mut diagnostic = Diagnostic::warning()
                     .with_code(format!(
-                        "{}::{}/{:?}",
+                        "{}::{}::{:?}",
                         warning.code(),
-                        warning.group(),
+                        warning.tags(),
                         warning.level()
                     ))
                     .with_message(warning.subject());
@@ -56,7 +56,7 @@ impl<'a> Reporter<'a> {
                     let byte_range = location.byte_range().unwrap();
 
                     diagnostic = diagnostic.with_labels(vec![
-                        Label::primary(handle, byte_range).with_message(warning.body()),
+                        Label::primary(handle, byte_range).with_message(warning.subject()),
                     ]);
                 }
 
