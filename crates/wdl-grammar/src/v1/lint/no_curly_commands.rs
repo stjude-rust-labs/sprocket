@@ -35,7 +35,7 @@ impl<'a> NoCurlyCommands {
             .tags(self.tags())
             .push_location(location)
             .subject("curly command found")
-            .body("Command blocks using curly braces (`{}`) can create ambiguity with Bash syntax.")
+            .body(self.body())
             .fix("Replace the curly command block with a heredoc command block.")
             .try_build()
             .unwrap()
@@ -50,6 +50,12 @@ impl<'a> Rule<&'a Pair<'a, v1::Rule>> for NoCurlyCommands {
 
     fn tags(&self) -> lint::TagSet {
         TagSet::new(&[lint::Tag::Clarity])
+    }
+
+    fn body(&self) -> &'static str {
+        "Curly command blocks are no longer considered idiomatic WDL. Idiomatic WDL code uses \
+         heredoc command blocks instead. This is because curly command blocks create ambiguity \
+         with Bash syntax."
     }
 
     fn check(&self, tree: &'a Pair<'_, v1::Rule>) -> lint::Result {

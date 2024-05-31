@@ -31,7 +31,7 @@ impl<'a> DoubleQuotes {
             .tags(self.tags())
             .push_location(location)
             .subject("string defined with single quotes")
-            .body("All strings should be defined using double quotes.")
+            .body(self.body())
             .fix("Change the single quotes to double quotes.")
             .try_build()
             .unwrap()
@@ -46,6 +46,12 @@ impl<'a> Rule<&'a Pair<'a, v1::Rule>> for DoubleQuotes {
 
     fn tags(&self) -> lint::TagSet {
         TagSet::new(&[lint::Tag::Clarity, lint::Tag::Style])
+    }
+
+    fn body(&self) -> &'static str {
+        "All strings should be defined using double quotes. There is no semantic difference \
+         between single and double quotes in WDL, but double quotes should be used exclusively to \
+         ensure consistency and avoid any confusion."
     }
 
     fn check(&self, tree: &'a Pair<'_, v1::Rule>) -> lint::Result {

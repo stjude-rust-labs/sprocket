@@ -33,10 +33,7 @@ impl<'a> DocumentPreamble {
             .level(lint::Level::Low)
             .tags(self.tags())
             .subject("Improperly placed version declaration")
-            .body(
-                "The version declaration must be the first line of a WDL document or immediately \
-                 following exactly one blank line and any preamble comments.",
-            )
+            .body(self.body())
             .push_location(location)
             .fix(
                 "Move the version declaration to the first line of the WDL document or \
@@ -57,7 +54,7 @@ impl<'a> DocumentPreamble {
             .level(lint::Level::Low)
             .tags(self.tags())
             .subject("Leading whitespace detected")
-            .body("No whitespace is allowed at the beginning of the document")
+            .body(self.body())
             .push_location(location)
             .fix("Remove leading whitespace.")
             .try_build()
@@ -73,6 +70,14 @@ impl<'a> Rule<&Pair<'a, v1::Rule>> for DocumentPreamble {
 
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing, Tag::Style])
+    }
+
+    fn body(&self) -> &'static str {
+        "The document preamble is defined as anything before the version declaration statement and \
+         the version declaration statement itself. Only comments and whitespace are permitted \
+         before the version declaration. If there are no comments, the version declaration must be \
+         the first line of the document. If there are comments, there must be exactly one blank \
+         line between the last comment and the version declaration."
     }
 
     fn check(&self, tree: &Pair<'_, v1::Rule>) -> lint::Result {

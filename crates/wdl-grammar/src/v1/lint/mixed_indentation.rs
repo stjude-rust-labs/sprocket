@@ -33,10 +33,7 @@ impl<'a> MixedIndentation {
             .level(lint::Level::High)
             .tags(self.tags())
             .subject("mixed indentation characters")
-            .body(
-                "Mixed indentation characters were found within a command. This causes leading \
-                 whitespace stripping to be skipped.",
-            )
+            .body(self.body())
             .push_location(location)
             .fix("Use the same whitespace character within the command.")
             .try_build()
@@ -52,6 +49,12 @@ impl Rule<&Pair<'_, v1::Rule>> for MixedIndentation {
 
     fn tags(&self) -> lint::TagSet {
         TagSet::new(&[lint::Tag::Style, lint::Tag::Spacing, lint::Tag::Clarity])
+    }
+
+    fn body(&self) -> &'static str {
+        "Mixing indentation characters (tab literals and spaces) within the command line causes \
+         leading whitespace stripping to be skipped. Commands may be whitespace sensitive, and \
+         skipping the whitespace stripping step may cause unexpected behavior."
     }
 
     fn check(&self, tree: &Pair<'_, v1::Rule>) -> lint::Result {

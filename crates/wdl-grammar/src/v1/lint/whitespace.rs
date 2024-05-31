@@ -35,10 +35,7 @@ impl<'a> Whitespace {
             .tags(self.tags())
             .push_location(location)
             .subject("line contains only whitespace")
-            .body(
-                "Blank lines should be completely empty with no characters 
-                between newlines.",
-            )
+            .body(self.body())
             .fix("Remove the whitespace(s).")
             .try_build()
             .unwrap()
@@ -56,12 +53,7 @@ impl<'a> Whitespace {
             .tags(self.tags())
             .push_location(location)
             .subject("trailing space")
-            .body(
-                "This line contains one or more a trailing space(s).
-                
-                Blank lines should be completely empty with no characters
-                between newlines.",
-            )
+            .body(self.body())
             .fix("Remove the trailing space(s).")
             .try_build()
             .unwrap()
@@ -79,12 +71,7 @@ impl<'a> Whitespace {
             .tags(self.tags())
             .push_location(location)
             .subject("trailing tab")
-            .body(
-                "This line contains one or more a trailing tab(s).
-                
-                Blank lines should be completely empty with no characters
-                between newlines.",
-            )
+            .body(self.body())
             .fix("Remove the trailing tab(s).")
             .try_build()
             .unwrap()
@@ -99,6 +86,12 @@ impl<'a> Rule<&Pair<'a, v1::Rule>> for Whitespace {
 
     fn tags(&self) -> lint::TagSet {
         TagSet::new(&[lint::Tag::Style, lint::Tag::Spacing])
+    }
+
+    fn body(&self) -> &'static str {
+        "Whitespace should be used judiciously. Spurious whitespace can cause issues with parsing, \
+         automation, and rendering. There should never be trailing whitespace at the end of lines \
+         and blank lines should be completely empty with no whitespace characters between newlines."
     }
 
     fn check(&self, tree: &Pair<'a, v1::Rule>) -> lint::Result {

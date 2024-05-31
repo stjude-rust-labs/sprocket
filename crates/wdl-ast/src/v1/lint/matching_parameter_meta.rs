@@ -62,11 +62,7 @@ impl<'a> MatchingParameterMeta {
                 "missing parameter meta within {}: {}",
                 context, parameter
             ))
-            .body(format!(
-                "Each input parameter within a {} should have an associated `parameter_meta` \
-                 entry with a detailed description of the input.",
-                context
-            ))
+            .body(self.body())
             .fix(
                 "Add a key to a `parameter_meta` block matching the parameter's exact name with a \
                  detailed description of the input.",
@@ -89,13 +85,13 @@ impl<'a> MatchingParameterMeta {
         lint::warning::Builder::default()
             .code(self.code())
             .level(lint::Level::Medium)
-            .tags(TagSet::new(&[lint::Tag::Completeness]))
+            .tags(self.tags())
             .push_location(location.clone())
             .subject(format!(
                 "extraneous parameter meta within {}: {}",
                 context, parameter
             ))
-            .body("A parameter meta entry with no corresponding input parameter was detected")
+            .body(self.body())
             .fix("Remove the parameter meta entry")
             .try_build()
             .unwrap()
@@ -110,6 +106,12 @@ impl<'a> Rule<&'a v1::Document> for MatchingParameterMeta {
 
     fn tags(&self) -> lint::TagSet {
         TagSet::new(&[lint::Tag::Completeness])
+    }
+
+    fn body(&self) -> &'static str {
+        "Each input parameter within a task or workflow should have an associated `parameter_meta` \
+         entry with a detailed description of the input. Non-input keys are not permitted within \
+         the `parameter_meta` block."
     }
 
     fn check(&self, tree: &'a v1::Document) -> lint::Result {

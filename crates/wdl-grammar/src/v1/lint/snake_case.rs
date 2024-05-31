@@ -42,7 +42,7 @@ impl<'a> SnakeCase {
             .level(lint::Level::Medium)
             .tags(self.tags())
             .subject("identifier must be snake case")
-            .body("Identifier must be formatted using snake case.")
+            .body(self.body())
             .push_location(warning.location)
             .fix(format!(
                 "Replace {0} by {1}",
@@ -72,6 +72,11 @@ impl Rule<&Pair<'_, v1::Rule>> for SnakeCase {
 
     fn tags(&self) -> lint::TagSet {
         TagSet::new(&[lint::Tag::Naming, lint::Tag::Style, lint::Tag::Clarity])
+    }
+
+    fn body(&self) -> &'static str {
+        "Workflow, task, and variable names should be in snake case. Maintaining a consistent \
+         naming convention makes the code easier to read and understand."
     }
 
     fn check(&self, tree: &Pair<'_, v1::Rule>) -> lint::Result {

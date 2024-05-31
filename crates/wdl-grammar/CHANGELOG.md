@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Conform to definition of body as outlined in #12 (#62, contributed by @a-frantz)
 * Changes the `preamble_comment` rule so that continuous blocks of comments are reported.
   Also permits triple+ pound sign comments outside of the preamble. (#55, contributed by @a-frantz)
 * Changes the `snake_case` rule so that lowercase letters can be adjacent to digits without triggering

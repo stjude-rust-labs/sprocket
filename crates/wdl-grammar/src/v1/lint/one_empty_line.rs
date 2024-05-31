@@ -33,7 +33,7 @@ impl<'a> OneEmptyLine {
             .tags(self.tags())
             .push_location(location)
             .subject("more than one empty line")
-            .body("There should be at most one empty line in a row.")
+            .body(self.body())
             .fix("Remove the superfluous empty lines.")
             .try_build()
             .unwrap()
@@ -48,6 +48,11 @@ impl<'a> Rule<&'a Pair<'a, v1::Rule>> for OneEmptyLine {
 
     fn tags(&self) -> TagSet {
         TagSet::new(&[lint::Tag::Spacing, lint::Tag::Style])
+    }
+
+    fn body(&self) -> &'static str {
+        "There should be at most one empty line in a row. Superfluous empty lines make the code \
+         harder to read."
     }
 
     fn check(&self, tree: &'a Pair<'_, v1::Rule>) -> lint::Result {

@@ -31,7 +31,7 @@ impl<'a> NewlineEOF {
             .tags(self.tags())
             .push_location(location)
             .subject("missing newline at the end of the file")
-            .body("There should always be a newline at the end of a WDL file.")
+            .body(self.body())
             .fix("Add a newline at the end of the file.")
             .try_build()
             .unwrap()
@@ -64,6 +64,10 @@ impl<'a> Rule<&'a Pair<'a, v1::Rule>> for NewlineEOF {
 
     fn tags(&self) -> TagSet {
         TagSet::new(&[lint::Tag::Spacing, lint::Tag::Style])
+    }
+
+    fn body(&self) -> &'static str {
+        "The file should end with one and only one newline character. This is to conform to [POSIX standards](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_206)."
     }
 
     fn check(&self, tree: &'a Pair<'_, v1::Rule>) -> lint::Result {

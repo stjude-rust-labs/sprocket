@@ -11,7 +11,7 @@
 //!
 //! The following abstract syntax tree linting rules are supported for WDL 1.x:
 //!
-//! | Name                      | Code       | Group        | Documentation                       |
+//! | Name                      | Code       | Tags         | Documentation                       |
 //! |:--------------------------|:-----------|:-------------|:-----------------------------------:|
 //! | `matching_parameter_meta` | `v1::W003` | Completeness | [Link](lint::MatchingParameterMeta) |
 

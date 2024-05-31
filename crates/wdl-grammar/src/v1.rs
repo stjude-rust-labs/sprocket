@@ -15,18 +15,18 @@
 //!
 //! The following parse tree linting rules are supported for WDL 1.x:
 //!
-//! | Name                    | Code       | Group        | Documentation                     |
-//! |:------------------------|:-----------|:-------------|:---------------------------------:|
-//! | `whitespace`            | `v1::W001` | Style        | [Link](lint::Whitespace)          |
-//! | `no_curly_commands`     | `v1::W002` | Pedantic     | [Link](lint::NoCurlyCommands)     |
-//! | `mixed_indentation`     | `v1::W004` | Style        | [Link](lint::MixedIndentation)    |
-//! | `missing_runtime_block` | `v1::W005` | Completeness | [Link](lint::MissingRuntimeBlock) |
-//! | `snake_case`            | `v1::W006` | Naming       | [Link](lint::SnakeCase)           |
-//! | `newline_eof`           | `v1::W007` | Spacing      | [Link](lint::NewlineEOF)          |
-//! | `document_preamble`     | `v1::W009` | Spacing      | [Link](lint::DocumentPreamble)    |
-//! | `preamble_comment`      | `v1::W010` | Style        | [Link](lint::PreambleComment)     |
-//! | `one_empty_line`        | `v1::W011` | Spacing      | [Link](lint::OneEmptyLine)        |
-//! | `double_quotes `        | `v1::W012` | Naming       | [Link](lint::DoubleQuotes)        |
+//! | Name                      | Code       | Tags                      | Documentation                     |
+//! |:--------------------------|:-----------|:--------------------------|:---------------------------------:|
+//! | `whitespace`              | `v1::W001` | Spacing, Style            | [Link](lint::Whitespace)          |
+//! | `no_curly_commands`       | `v1::W002` | Clarity                   | [Link](lint::NoCurlyCommands)     |
+//! | `mixed_indentation`       | `v1::W004` | Spacing, Style, Clarity   | [Link](lint::MixedIndentation)    |
+//! | `missing_runtime_block`   | `v1::W005` | Completeness, Portability | [Link](lint::MissingRuntimeBlock) |
+//! | `snake_case`              | `v1::W006` | Naming, Style, Clarity    | [Link](lint::SnakeCase)           |
+//! | `newline_eof`             | `v1::W007` | Spacing, Style            | [Link](lint::NewlineEOF)          |
+//! | `document_preamble`       | `v1::W009` | Spacing, Style            | [Link](lint::DocumentPreamble)    |
+//! | `preamble_comment`        | `v1::W010` | Style                     | [Link](lint::PreambleComment)     |
+//! | `one_empty_line`          | `v1::W011` | Spacing, Style            | [Link](lint::OneEmptyLine)        |
+//! | `double_quotes`           | `v1::W012` | Style, Clarity            | [Link](lint::DoubleQuotes)        |
 
 use pest::iterators::Pair;
 use pest::Parser as _;

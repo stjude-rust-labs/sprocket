@@ -33,7 +33,7 @@ impl<'a> MissingRuntimeBlock {
             .tags(self.tags())
             .push_location(location)
             .subject("missing runtime block within a task")
-            .body("Tasks that don't declare runtime blocks are unlikely to be portable")
+            .body(self.body())
             .fix(
                 "Add a runtime block to the task with desired cpu, memory and container/docker \
                  requirements",
@@ -50,6 +50,10 @@ impl<'a> Rule<&'a Pair<'a, v1::Rule>> for MissingRuntimeBlock {
 
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness, Tag::Portability])
+    }
+
+    fn body(&self) -> &'static str {
+        "Tasks that don't declare runtime blocks are unlikely to be portable."
     }
 
     fn check(&self, tree: &'a Pair<'a, v1::Rule>) -> lint::Result {

@@ -79,6 +79,9 @@ pub trait Rule<E>: std::fmt::Debug + Sync {
     /// Get the lint tags for this lint rule.
     fn tags(&self) -> TagSet;
 
+    /// Get the body of the lint rule.
+    fn body(&self) -> &'static str;
+
     /// Checks the tree according to the implemented lint rule.
     fn check(&self, tree: E) -> Result;
 }
