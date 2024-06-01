@@ -60,9 +60,16 @@ impl<'a> Reporter<'a> {
                     ]);
                 }
 
-                if let Some(fix) = warning.fix() {
-                    diagnostic = diagnostic.with_notes(vec![format!("fix: {}", fix)]);
-                }
+                let mut notes = match warning.fix() {
+                    Some(fix) => vec![format!("fix: {}", fix)],
+                    None => vec![],
+                };
+                notes.extend(vec![format!(
+                    "see `sprocket explain {}` for more information",
+                    warning.code()
+                )]);
+
+                diagnostic = diagnostic.with_notes(notes);
 
                 diagnostic
             }
