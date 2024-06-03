@@ -13,8 +13,6 @@ pub struct Args {
     pub rule_identifier: String,
 }
 
-/// TODO IDK how to get this fn signature to work with both ast_lint and
-/// grammar_lint
 pub fn pretty_print_rule<E>(rule: &dyn Rule<E>) {
     println!("{}", rule.name().bold().underline());
     println!("{}", format!("{}::{}", rule.code(), rule.tags(),).yellow());
@@ -31,11 +29,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
 
     match rule {
         Some(rule) => {
-            // pretty_print_rule(&rule);
-            println!("{}", rule.name().bold().underline());
-            println!("{}", format!("{}::{}", rule.code(), rule.tags(),).yellow());
-            println!();
-            println!("{}", rule.body());
+            pretty_print_rule(&*rule);
         }
         None => {
             let rule = ast_lint::rules()
@@ -44,11 +38,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
 
             match rule {
                 Some(rule) => {
-                    // pretty_print_rule(&rule);
-                    println!("{}", rule.name().bold().underline());
-                    println!("{}", format!("{}::{}", rule.code(), rule.tags(),).yellow());
-                    println!();
-                    println!("{}", rule.body());
+                    pretty_print_rule(&*rule);
                 }
                 None => {
                     anyhow::bail!("No rule found with the identifier '{}'", ident);
