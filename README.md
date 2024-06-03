@@ -34,7 +34,8 @@
 
 ## 🎨 Features
 
-* **`sprocket lint`.** Lint Workflow Description Language files.
+* **`sprocket lint`** Lint Workflow Description Language files.
+* **`sprocket explain`** Explain lint warnings.
 
 ## Guiding Principles
 
