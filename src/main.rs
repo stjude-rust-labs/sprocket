@@ -14,6 +14,9 @@ git_testament!(TESTAMENT);
 enum Commands {
     /// Lints Workflow Description Language files.
     Lint(commands::lint::Args),
+
+    /// Explains a lint warning.
+    Explain(commands::explain::Args),
 }
 
 #[derive(Parser)]
@@ -51,6 +54,7 @@ pub fn inner() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Lint(args) => commands::lint::lint(args),
+        Commands::Explain(args) => commands::explain::explain(args),
     }
 }
 
