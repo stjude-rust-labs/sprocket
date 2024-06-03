@@ -8,9 +8,9 @@ use wdl::grammar::v1::lint as grammar_lint;
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Args {
-    /// The rule name or code to explain.
+    /// The name or code of the rule to explain.
     #[arg(required = true)]
-    pub rule_name_or_code: String,
+    pub rule_identifier: String,
 }
 
 /// TODO IDK how to get this fn signature to work with both ast_lint and
@@ -23,7 +23,7 @@ pub fn pretty_print_rule<E>(rule: &dyn Rule<E>) {
 }
 
 pub fn explain(args: Args) -> anyhow::Result<()> {
-    let ident = args.rule_name_or_code;
+    let ident = args.rule_identifier;
 
     let rule = grammar_lint::rules()
         .into_iter()
