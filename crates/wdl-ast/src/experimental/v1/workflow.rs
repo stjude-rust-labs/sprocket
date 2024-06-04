@@ -573,9 +573,9 @@ impl AstNode for CallInputItem {
 mod test {
     use super::*;
     use crate::experimental::v1::UnboundDecl;
-    use crate::experimental::v1::VisitReason;
     use crate::experimental::v1::Visitor;
     use crate::experimental::Document;
+    use crate::experimental::VisitReason;
 
     #[test]
     fn workflows() {

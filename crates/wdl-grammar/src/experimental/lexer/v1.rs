@@ -1,6 +1,6 @@
 //! WDL (v1) tokens.
 
-use logos::Logos;
+pub use logos::Logos;
 use miette::SourceSpan;
 
 use super::Error;
@@ -10,6 +10,71 @@ use crate::experimental::grammar::v1::single_quote_interpolate;
 use crate::experimental::parser::Parser;
 use crate::experimental::parser::ParserToken;
 use crate::experimental::tree::SyntaxKind;
+
+/// Represents a token for supported escape sequences.
+#[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+#[logos()]
+pub enum EscapeToken {
+    /// Valid single escape sequences.
+    #[token(r"\\")]
+    #[token(r"\n")]
+    #[token(r"\r")]
+    #[token(r"\t")]
+    #[token(r"\'")]
+    #[token(r#"\""#)]
+    #[token(r"\~")]
+    #[token(r"\$")]
+    Valid,
+
+    /// A line continuation.
+    #[regex(r"\\\r?\n")]
+    Continuation,
+
+    /// Valid octal escape sequence.
+    #[regex(r"\\[0-7][0-7][0-7]")]
+    ValidOctal,
+
+    /// Invalid octal escape sequence.
+    #[regex(r"\\[0-9]")]
+    InvalidOctal,
+
+    /// Valid hex escape sequence.
+    #[regex(r"\\x[0-9a-fA-F]{2}")]
+    ValidHex,
+
+    /// Invalid hex escape sequence.
+    #[regex(r"\\x")]
+    InvalidHex,
+
+    /// Valid unicode escape sequence.
+    #[regex(r"(\\u[0-9a-fA-F]{4})|(\\U[0-9a-fA-F]{8})")]
+    ValidUnicode,
+
+    /// Invalid short unicode escape sequence.
+    #[token(r"\u")]
+    InvalidShortUnicode,
+
+    /// Invalid unicode escape sequence.
+    #[token(r"\U")]
+    InvalidUnicode,
+
+    /// A new line character.
+    #[token("\n")]
+    Newline,
+
+    /// A tab character.
+    #[token("\t")]
+    Tab,
+
+    /// An unknown escape sequence.
+    #[regex(r"\\.", priority = 0)]
+    Unknown,
+
+    /// Normal text.
+    #[regex(r"[^\\\n\t]+")]
+    Text,
+}
 
 /// Represents a token in a single quoted string (e.g. `'hello'`).
 #[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

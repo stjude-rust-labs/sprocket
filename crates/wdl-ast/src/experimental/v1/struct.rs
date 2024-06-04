@@ -57,10 +57,10 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use crate::experimental::v1::StructDefinition;
-    use crate::experimental::v1::VisitReason;
     use crate::experimental::v1::Visitor;
     use crate::experimental::AstToken;
     use crate::experimental::Document;
+    use crate::experimental::VisitReason;
 
     #[test]
     fn struct_definitions() {

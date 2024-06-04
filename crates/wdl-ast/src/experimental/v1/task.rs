@@ -301,7 +301,7 @@ impl AstNode for CommandSection {
 
 /// Represents a textual part of a command.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CommandText(SyntaxToken);
+pub struct CommandText(pub(super) SyntaxToken);
 
 impl AstToken for CommandText {
     fn can_cast(kind: SyntaxKind) -> bool
@@ -817,9 +817,9 @@ impl AstNode for ParameterMetadataSection {
 mod test {
     use super::*;
     use crate::experimental::v1::UnboundDecl;
-    use crate::experimental::v1::VisitReason;
     use crate::experimental::v1::Visitor;
     use crate::experimental::Document;
+    use crate::experimental::VisitReason;
 
     #[test]
     fn tasks() {

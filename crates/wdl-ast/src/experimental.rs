@@ -15,9 +15,11 @@
 
 use std::sync::Arc;
 
+use miette::SourceSpan;
 use rowan::ast::support::child;
 use rowan::ast::AstNode;
 use rowan::NodeOrToken;
+use rowan::TextRange;
 use wdl_grammar::experimental::parser::Error;
 use wdl_grammar::experimental::tree::SyntaxKind;
 use wdl_grammar::experimental::tree::SyntaxNode;
@@ -26,6 +28,8 @@ use wdl_grammar::experimental::tree::SyntaxTree;
 use wdl_grammar::experimental::tree::WorkflowDescriptionLanguage;
 
 pub mod v1;
+mod validation;
+pub use validation::*;
 
 /// Gets a token of a given parent that can cast to the given type.
 fn token<T: AstToken>(parent: &SyntaxNode) -> Option<T> {
@@ -33,6 +37,24 @@ fn token<T: AstToken>(parent: &SyntaxNode) -> Option<T> {
         .children_with_tokens()
         .filter_map(NodeOrToken::into_token)
         .find_map(T::cast)
+}
+
+/// Helper function for converting a `rowan::TextRange` to a
+/// `miette::SourceSpan`.
+fn to_source_span(range: TextRange) -> SourceSpan {
+    SourceSpan::new(usize::from(range.start()).into(), range.len().into())
+}
+
+/// Represents the reason an AST node has been visited.
+///
+/// Each node is visited exactly once, but the visitor will receive
+/// a call for entering the node and a call for exiting the node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum VisitReason {
+    /// The visit has entered the node.
+    Enter,
+    /// The visit has exited the node.
+    Exit,
 }
 
 /// The trait implemented on AST tokens to go from untyped `SyntaxToken`
@@ -126,7 +148,7 @@ impl Parse {
     /// Converts the parse into a result.
     pub fn into_result(self) -> Result<Document, Arc<[Error]>> {
         match self.errors {
-            Some(e) => Err(e),
+            Some(errors) => Err(errors),
             None => Ok(self.document),
         }
     }

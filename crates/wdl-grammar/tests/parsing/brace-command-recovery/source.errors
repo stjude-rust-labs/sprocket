@@ -1,8 +1,6 @@
-  × expected expression, but found `}`
-   ╭─[tests/parsing/brace-command-recovery/source.wdl:7:19]
- 6 │     command {
- 7 │         before ${!} after
-   ·                   ┬
-   ·                   ╰── unexpected `}`
- 8 │     }
-   ╰────
+error: expected expression, but found `}`
+  ┌─ tests/parsing/brace-command-recovery/source.wdl:7:19
+  │
+7 │         before ${!} after
+  │                   ^ unexpected `}`
+

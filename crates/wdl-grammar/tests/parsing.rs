@@ -26,11 +26,14 @@ mod test {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;
 
+    use codespan_reporting::diagnostic::Diagnostic;
+    use codespan_reporting::diagnostic::Label;
+    use codespan_reporting::diagnostic::LabelStyle;
+    use codespan_reporting::files::SimpleFiles;
+    use codespan_reporting::term;
+    use codespan_reporting::term::termcolor::Buffer;
+    use codespan_reporting::term::Config;
     use colored::Colorize;
-    use miette::GraphicalReportHandler;
-    use miette::GraphicalTheme;
-    use miette::NamedSource;
-    use miette::Report;
     use pretty_assertions::StrComparison;
     use rayon::prelude::*;
     use wdl_grammar::experimental::tree::SyntaxTree;
@@ -72,6 +75,77 @@ mod test {
         s.replace("\r\n", "\n")
     }
 
+    /// Converts a `miette::LabelSpan` to a `Label`.
+    fn to_label(l: miette::LabeledSpan) -> Label<usize> {
+        let mut label = Label::new(
+            if l.primary() {
+                LabelStyle::Primary
+            } else {
+                LabelStyle::Secondary
+            },
+            0,
+            l.offset()..l.offset() + l.len(),
+        );
+
+        if let Some(message) = l.label() {
+            label = label.with_message(message);
+        }
+
+        label
+    }
+
+    /// Converts a `miette::Diagnostic` to a `Diagnostic`.
+    fn to_diagnostic(d: &dyn miette::Diagnostic) -> Diagnostic<usize> {
+        let mut diagnostic = match d.severity().unwrap_or(miette::Severity::Error) {
+            miette::Severity::Advice => Diagnostic::help(),
+            miette::Severity::Warning => Diagnostic::warning(),
+            miette::Severity::Error => Diagnostic::error(),
+        };
+
+        if let Some(code) = d.code() {
+            diagnostic = diagnostic.with_code(code.to_string());
+        }
+
+        if let Some(mut labels) = d.labels() {
+            diagnostic = diagnostic.with_labels(labels.by_ref().map(to_label).collect());
+        }
+
+        diagnostic = match (d.help(), d.url()) {
+            (Some(help), Some(url)) => {
+                diagnostic.with_notes(vec![help.to_string(), format!("see: {url}")])
+            }
+            (Some(help), None) => diagnostic.with_notes(vec![help.to_string()]),
+            (None, Some(url)) => diagnostic.with_notes(vec![format!("see: {url}")]),
+            (None, None) => diagnostic,
+        };
+
+        diagnostic = diagnostic.with_message(d.to_string());
+
+        diagnostic
+    }
+
+    fn format_errors<E: miette::Diagnostic>(
+        errors: impl Iterator<Item = E>,
+        path: &Path,
+        source: &str,
+    ) -> String {
+        let mut files = SimpleFiles::new();
+        files.add(path.as_os_str().to_str().unwrap(), source);
+
+        let mut buffer = Buffer::no_color();
+        for error in errors {
+            term::emit(
+                &mut buffer,
+                &Config::default(),
+                &files,
+                &to_diagnostic(&error),
+            )
+            .expect("should emit");
+        }
+
+        String::from_utf8(buffer.into_inner()).expect("should be UTF-8")
+    }
+
     fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<(), String> {
         let result = normalize(result, is_error);
         if env::var_os("BLESS").is_some() {
@@ -103,21 +177,6 @@ mod test {
         Ok(())
     }
 
-    fn format_error(e: impl Into<Report>, path: &Path, source: &str) -> String {
-        let mut s = String::new();
-        let e = e.into();
-        GraphicalReportHandler::new()
-            .with_cause_chain()
-            .with_theme(GraphicalTheme::unicode_nocolor())
-            .render_report(
-                &mut s,
-                e.with_source_code(NamedSource::new(path.to_string_lossy(), source.to_string()))
-                    .as_ref(),
-            )
-            .expect("failed to render diagnostic");
-        s
-    }
-
     fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
         let path = test.join("source.wdl");
         let source = std::fs::read_to_string(&path)
@@ -132,11 +191,7 @@ mod test {
         compare_result(&path.with_extension("tree"), &format!("{:#?}", tree), false)?;
         compare_result(
             &path.with_extension("errors"),
-            &errors
-                .into_iter()
-                .map(|e| format_error(e, &path, &source))
-                .collect::<Vec<_>>()
-                .join(""),
+            &format_errors(errors.into_iter(), &path, &source),
             true,
         )?;
         ntests.fetch_add(1, Ordering::SeqCst);
@@ -145,7 +200,7 @@ mod test {
 
     pub fn main() {
         let tests = find_tests();
-        println!("running {} tests\n", tests.len());
+        println!("\nrunning {} tests\n", tests.len());
 
         let ntests = AtomicUsize::new(0);
         let errors = tests

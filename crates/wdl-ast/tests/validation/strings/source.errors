@@ -1,0 +1,58 @@
+error: unknown escape sequence `/j`
+  ┌─ tests/validation/strings/source.wdl:9:44
+  │
+9 │     String b = "invalid escape sequence ~{"/j"}"
+  │                                            ^^ this is an unknown escape sequence
+
+error: literal strings may not contain line continuations
+   ┌─ tests/validation/strings/source.wdl:10:22
+   │  
+10 │       String c = 'line /
+   │ ╭──────────────────────^
+11 │ │                 continuation'
+   │ ╰^ remove this line continuation
+
+error: invalid octal escape sequence
+   ┌─ tests/validation/strings/source.wdl:12:42
+   │
+12 │     String d = "invalid ~{"octal"} here: /0"
+   │                                          ^ expected a sequence of three octal digits to follow this
+
+error: invalid hex escape sequence
+   ┌─ tests/validation/strings/source.wdl:13:17
+   │
+13 │     String e = "/xnn is an invalid hex escape!"
+   │                 ^^ expected a sequence of two hexadecimal digits to follow this
+
+error: invalid unicode escape sequence
+   ┌─ tests/validation/strings/source.wdl:14:22
+   │
+14 │     String f = "this /u000 is too short"
+   │                      ^^ expected a sequence of four hexadecimal digits to follow this
+
+error: invalid unicode escape sequence
+   ┌─ tests/validation/strings/source.wdl:15:22
+   │
+15 │     String g = 'this /UAAAXAAAA contains a non-hex character!'
+   │                      ^^ expected a sequence of eight hexadecimal digits to follow this
+
+error: literal strings cannot contain tab characters
+   ┌─ tests/validation/strings/source.wdl:16:29
+   │
+16 │     String h = "can't have a    tab!"
+   │                             ^^^^ escape this tab with `/t`
+
+error: literal strings cannot contain newline characters
+   ┌─ tests/validation/strings/source.wdl:17:29
+   │  
+17 │       String i = "can't have a
+   │ ╭────────────────────────────^
+18 │ │                 newline"
+   │ ╰^ escape this newline with `/n`
+
+error: unknown escape sequence `/j`
+   ┌─ tests/validation/strings/source.wdl:24:36
+   │
+24 │         invalid escape sequence ~{"/j"}
+   │                                    ^^ this is an unknown escape sequence
+

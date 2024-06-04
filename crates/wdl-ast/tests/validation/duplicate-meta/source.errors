@@ -1,0 +1,18 @@
+error: task `t` contains a duplicate metadata section
+   ┌─ tests/validation/duplicate-meta/source.wdl:10:5
+   │
+ 6 │     meta {
+   │     ---- first metadata section is defined here
+   ·
+10 │     meta {
+   │     ^^^^ this metadata section is a duplicate
+
+error: workflow `w` contains a duplicate metadata section
+   ┌─ tests/validation/duplicate-meta/source.wdl:22:5
+   │
+18 │     meta {
+   │     ---- first metadata section is defined here
+   ·
+22 │     meta {
+   │     ^^^^ this metadata section is a duplicate
+

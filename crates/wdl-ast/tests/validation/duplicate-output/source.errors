@@ -1,0 +1,18 @@
+error: task `t` contains a duplicate output section
+   ┌─ tests/validation/duplicate-output/source.wdl:10:5
+   │
+ 6 │     output {
+   │     ------ first output section is defined here
+   ·
+10 │     output {
+   │     ^^^^^^ this output section is a duplicate
+
+error: workflow `w` contains a duplicate output section
+   ┌─ tests/validation/duplicate-output/source.wdl:22:5
+   │
+18 │     output {
+   │     ------ first output section is defined here
+   ·
+22 │     output {
+   │     ^^^^^^ this output section is a duplicate
+

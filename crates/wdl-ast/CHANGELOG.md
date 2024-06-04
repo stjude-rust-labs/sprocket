@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added validation rules for the experimental AST ([#65](https://github.com/stjude-rust-labs/wdl/pull/65)).
 * Added a new experimental AST for the experimental parser; this implementation
-  is currently feature-gated behind the `experimental` feature ([#TBD](TBD)).
+  is currently feature-gated behind the `experimental` feature ([#64](https://github.com/stjude-rust-labs/wdl/pull/64)).
 
 ### Changed
 

@@ -1,8 +1,6 @@
-  × expected `=`, but found `}`
-    ╭─[tests/parsing/unbound-decl-in-output/source.wdl:9:5]
-  8 │         String x
-  9 │     }
-    ·     ┬
-    ·     ╰── unexpected `}`
- 10 │ }
-    ╰────
+error: expected `=`, but found `}`
+  ┌─ tests/parsing/unbound-decl-in-output/source.wdl:9:5
+  │
+9 │     }
+  │     ^ unexpected `}`
+

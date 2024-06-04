@@ -1,9 +1,8 @@
-  × expected `]`, but found identifier
-   ╭─[tests/parsing/mismatched-bracket/source.wdl:7:32]
- 6 │     Map[String, String] x
- 7 │     Map[Boolean, Array[String] y
-   ·        ┬                       ┬
-   ·        │                       ╰── unexpected identifier
-   ·        ╰── this `[` is not matched
- 8 │     String z
-   ╰────
+error: expected `]`, but found identifier
+  ┌─ tests/parsing/mismatched-bracket/source.wdl:7:32
+  │
+7 │     Map[Boolean, Array[String] y
+  │        -                       ^ unexpected identifier
+  │        │                        
+  │        this `[` is not matched
+

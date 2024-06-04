@@ -679,11 +679,43 @@ impl AstNode for LiteralBoolean {
     }
 }
 
+/// Represents an integer token.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Integer(SyntaxToken);
+
+impl AstToken for Integer {
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        kind == SyntaxKind::Integer
+    }
+
+    fn cast(syntax: SyntaxToken) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::Integer => Some(Self(syntax)),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxToken {
+        &self.0
+    }
+}
+
 /// Represents a literal integer.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LiteralInteger(pub(super) SyntaxNode);
 
 impl LiteralInteger {
+    /// Gets the integer token for the literal.
+    pub fn token(&self) -> Integer {
+        token(&self.0).expect("should have integer token")
+    }
+
     /// Gets the value of the literal integer.
     ///
     /// A literal integer in WDL is a *signed* 64-bit integer.
@@ -702,14 +734,8 @@ impl LiteralInteger {
     /// `9223372036854775808`, which will only be accepted as an
     /// operand to a negation expression).
     pub fn value(&self) -> Option<u64> {
-        let token = self
-            .0
-            .children_with_tokens()
-            .filter_map(NodeOrToken::into_token)
-            .find(|t| t.kind() == SyntaxKind::Integer)
-            .expect("integer token should be present");
-
-        let text = token.text();
+        let token = self.token();
+        let text = token.as_str();
         let i = if text == "0" {
             0
         } else if text.starts_with("0x") || text.starts_with("0X") {
@@ -753,24 +779,49 @@ impl AstNode for LiteralInteger {
     }
 }
 
+/// Represents a float token.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Float(SyntaxToken);
+
+impl AstToken for Float {
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        kind == SyntaxKind::Float
+    }
+
+    fn cast(syntax: SyntaxToken) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::Float => Some(Self(syntax)),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxToken {
+        &self.0
+    }
+}
+
 /// Represents a literal float.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LiteralFloat(pub(crate) SyntaxNode);
 
 impl LiteralFloat {
+    /// Gets the float token for the literal.
+    pub fn token(&self) -> Float {
+        token(&self.0).expect("should have float token")
+    }
+
     /// Gets the value of the literal float.
     ///
     /// Returns `None` if the literal value is not in range.
     pub fn value(&self) -> Option<f64> {
-        let token = self
-            .0
-            .children_with_tokens()
-            .filter_map(NodeOrToken::into_token)
-            .find(|t| t.kind() == SyntaxKind::Float)
-            .expect("integer token should be present");
-
-        token
-            .text()
+        self.token()
+            .as_str()
             .parse()
             .ok()
             .and_then(|f: f64| if f.is_infinite() { None } else { Some(f) })
@@ -914,7 +965,7 @@ impl StringPart {
 
 /// Represents a textual part of a string.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StringText(SyntaxToken);
+pub struct StringText(pub(super) SyntaxToken);
 
 impl AstToken for StringText {
     fn can_cast(kind: SyntaxKind) -> bool
@@ -1945,9 +1996,9 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::experimental::v1::VisitReason;
     use crate::experimental::v1::Visitor;
     use crate::experimental::Document;
+    use crate::experimental::VisitReason;
 
     #[test]
     fn literal_booleans() {
@@ -1990,7 +2041,7 @@ task test {
             type State = ();
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
-                if reason != VisitReason::Enter {
+                if reason == VisitReason::Exit {
                     return;
                 }
 
@@ -2145,7 +2196,7 @@ task test {
             type State = ();
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
-                if reason != VisitReason::Enter {
+                if reason == VisitReason::Exit {
                     return;
                 }
 
@@ -2312,7 +2363,7 @@ task test {
             type State = ();
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
-                if reason != VisitReason::Enter {
+                if reason == VisitReason::Exit {
                     return;
                 }
 
@@ -2414,7 +2465,7 @@ task test {
             type State = ();
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
-                if reason != VisitReason::Enter {
+                if reason == VisitReason::Exit {
                     return;
                 }
 
@@ -2645,7 +2696,7 @@ task test {
             type State = ();
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
-                if reason != VisitReason::Enter {
+                if reason == VisitReason::Exit {
                     return;
                 }
 
@@ -2841,7 +2892,7 @@ task test {
             type State = ();
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
-                if reason != VisitReason::Enter {
+                if reason == VisitReason::Exit {
                     return;
                 }
 
@@ -2968,7 +3019,7 @@ task test {
             type State = ();
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
-                if reason != VisitReason::Enter {
+                if reason == VisitReason::Exit {
                     return;
                 }
 
@@ -3097,7 +3148,7 @@ task test {
             type State = ();
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
-                if reason != VisitReason::Enter {
+                if reason == VisitReason::Exit {
                     return;
                 }
 
@@ -3245,7 +3296,7 @@ task test {
             type State = ();
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
-                if reason != VisitReason::Enter {
+                if reason == VisitReason::Exit {
                     return;
                 }
 
@@ -3406,7 +3457,7 @@ task test {
             type State = ();
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
-                if reason != VisitReason::Enter {
+                if reason == VisitReason::Exit {
                     return;
                 }
 

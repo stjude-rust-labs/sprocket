@@ -1,0 +1,18 @@
+error: duplicate key `foo` in metadata object
+   ┌─ tests/validation/metadata-object-duplicate-keys/source.wdl:16:13
+   │
+ 8 │             foo: {
+   │             --- first key with this name is here
+   ·
+16 │             foo: "dup",
+   │             ^^^ this key is a duplicate
+
+error: duplicate key `bar` in metadata object
+   ┌─ tests/validation/metadata-object-duplicate-keys/source.wdl:13:17
+   │
+ 9 │                 bar: "first",
+   │                 --- first key with this name is here
+   ·
+13 │                 bar: "dup",
+   │                 ^^^ this key is a duplicate
+

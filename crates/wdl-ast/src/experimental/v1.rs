@@ -12,6 +12,7 @@ mod expr;
 mod import;
 mod r#struct;
 mod task;
+pub mod validation;
 mod visitor;
 mod workflow;
 
