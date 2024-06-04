@@ -23,9 +23,15 @@ tokio = { workspace = true, optional = true }
 wdl-core = { path = "../wdl-core", version = "0.2.0" }
 wdl-grammar = { path = "../wdl-grammar", version = "0.3.0" }
 wdl-macros = { path = "../wdl-macros", version = "0.1.0" }
+rowan = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+approx = { workspace = true }
 
 [features]
 binaries = ["dep:clap", "dep:env_logger", "dep:log", "dep:tokio"]
+experimental = ["wdl-grammar/experimental"]
 
 [[bin]]
 name = "wdl-ast"

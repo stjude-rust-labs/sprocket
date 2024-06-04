@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fix ignoring comments in expressions ([#23](https://github.com/stjude-rust-labs/wdl/pull/23)).
 
+### Added
+
+* Added a new experimental AST for the experimental parser; this implementation
+  is currently feature-gated behind the `experimental` feature ([#TBD](TBD)).
+
 ### Changed
 
 * Conform to definition of body as outlined in #12 (#62, contributed by @a-frantz)

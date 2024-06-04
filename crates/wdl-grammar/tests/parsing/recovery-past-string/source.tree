@@ -26,7 +26,7 @@ RootNode@0..168
       DoubleQuote@124..125 "\""
       PlaceholderNode@125..133
         PlaceholderOpen@125..127 "~{"
-        NameReferenceNode@127..132
+        NameRefNode@127..132
           Ident@127..132 "value"
         CloseBrace@132..133 "}"
       DoubleQuote@133..134 "\""

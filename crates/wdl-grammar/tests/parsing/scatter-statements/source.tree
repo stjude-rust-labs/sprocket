@@ -53,9 +53,10 @@ RootNode@0..193
         Whitespace@126..135 "\n        "
       CallStatementNode@135..154
         CallKeyword@135..139 "call"
-        Whitespace@139..140 " "
-        Ident@140..141 "x"
-        Whitespace@141..142 " "
+        CallTargetNode@139..142
+          Whitespace@139..140 " "
+          Ident@140..141 "x"
+          Whitespace@141..142 " "
         OpenBrace@142..143 "{"
         Whitespace@143..144 " "
         InputKeyword@144..149 "input"
@@ -68,9 +69,10 @@ RootNode@0..193
       Whitespace@154..163 "\n        "
       CallStatementNode@163..184
         CallKeyword@163..167 "call"
-        Whitespace@167..168 " "
-        Ident@168..169 "y"
-        Whitespace@169..170 " "
+        CallTargetNode@167..170
+          Whitespace@167..168 " "
+          Ident@168..169 "y"
+          Whitespace@169..170 " "
         OpenBrace@170..171 "{"
         Whitespace@171..172 " "
         InputKeyword@172..177 "input"

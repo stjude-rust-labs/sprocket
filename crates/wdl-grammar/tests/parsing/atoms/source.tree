@@ -97,7 +97,7 @@ RootNode@0..661
       LiteralArrayNode@205..215
         Whitespace@205..206 " "
         OpenBracket@206..207 "["
-        NameReferenceNode@207..208
+        NameRefNode@207..208
           Ident@207..208 "a"
         Comma@208..209 ","
         Whitespace@209..210 " "
@@ -266,18 +266,18 @@ RootNode@0..661
           Ident@431..432 "c"
           Colon@432..433 ":"
           LogicalOrExprNode@433..445
-            NameReferenceNode@433..436
+            NameRefNode@433..436
               Whitespace@433..434 " "
               Ident@434..435 "c"
               Whitespace@435..436 " "
             LogicalOr@436..438 "||"
             LogicalAndExprNode@438..445
-              NameReferenceNode@438..441
+              NameRefNode@438..441
                 Whitespace@438..439 " "
                 Ident@439..440 "d"
                 Whitespace@440..441 " "
               LogicalAnd@441..443 "&&"
-              NameReferenceNode@443..445
+              NameRefNode@443..445
                 Whitespace@443..444 " "
                 Ident@444..445 "c"
         CloseBrace@445..446 "}"
@@ -290,7 +290,7 @@ RootNode@0..661
       Whitespace@456..457 " "
       Assignment@457..458 "="
       IndexExprNode@458..463
-        NameReferenceNode@458..460
+        NameRefNode@458..460
           Whitespace@458..459 " "
           Ident@459..460 "g"
         OpenBracket@460..461 "["
@@ -308,13 +308,13 @@ RootNode@0..661
       IfExprNode@475..507
         Whitespace@475..476 " "
         IfKeyword@476..478 "if"
-        NameReferenceNode@478..481
+        NameRefNode@478..481
           Whitespace@478..479 " "
           Ident@479..480 "c"
           Whitespace@480..481 " "
         ThenKeyword@481..485 "then"
         AdditionExprNode@485..492
-          NameReferenceNode@485..488
+          NameRefNode@485..488
             Whitespace@485..486 " "
             Ident@486..487 "k"
             Whitespace@487..488 " "
@@ -325,7 +325,7 @@ RootNode@0..661
           Whitespace@491..492 " "
         ElseKeyword@492..496 "else"
         MultiplicationExprNode@496..507
-          NameReferenceNode@496..499
+          NameRefNode@496..499
             Whitespace@496..497 " "
             Ident@497..498 "a"
             Whitespace@498..499 " "
@@ -428,7 +428,7 @@ RootNode@0..661
       Whitespace@646..647 " "
       Assignment@647..648 "="
       EqualityExprNode@648..659
-        NameReferenceNode@648..651
+        NameRefNode@648..651
           Whitespace@648..649 " "
           Ident@649..650 "r"
           Whitespace@650..651 " "

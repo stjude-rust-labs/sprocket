@@ -1,6 +1,5 @@
 //! `wdl-gauntlet`
 
-#![feature(let_chains)]
 #![warn(missing_docs)]
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]

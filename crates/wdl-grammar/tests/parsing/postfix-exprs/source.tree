@@ -21,7 +21,7 @@ RootNode@0..324
       Whitespace@75..76 " "
       Assignment@76..77 "="
       CallExprNode@77..87
-        NameReferenceNode@77..81
+        NameRefNode@77..81
           Whitespace@77..78 " "
           Ident@78..81 "min"
         OpenParen@81..82 "("
@@ -41,19 +41,19 @@ RootNode@0..324
       Whitespace@97..98 " "
       Assignment@98..99 "="
       CallExprNode@99..120
-        NameReferenceNode@99..103
+        NameRefNode@99..103
           Whitespace@99..100 " "
           Ident@100..103 "min"
         OpenParen@103..104 "("
         CallExprNode@104..115
-          NameReferenceNode@104..107
+          NameRefNode@104..107
             Ident@104..107 "max"
           OpenParen@107..108 "("
           LiteralIntegerNode@108..111
             Integer@108..111 "100"
           Comma@111..112 ","
           Whitespace@112..113 " "
-          NameReferenceNode@113..114
+          NameRefNode@113..114
             Ident@113..114 "a"
           CloseParen@114..115 ")"
         Comma@115..116 ","
@@ -102,16 +102,16 @@ RootNode@0..324
       Whitespace@171..172 " "
       Assignment@172..173 "="
       IndexExprNode@173..182
-        NameReferenceNode@173..175
+        NameRefNode@173..175
           Whitespace@173..174 " "
           Ident@174..175 "c"
         OpenBracket@175..176 "["
         AdditionExprNode@176..181
-          NameReferenceNode@176..178
+          NameRefNode@176..178
             Ident@176..177 "a"
             Whitespace@177..178 " "
           Plus@178..179 "+"
-          NameReferenceNode@179..181
+          NameRefNode@179..181
             Whitespace@179..180 " "
             Ident@180..181 "b"
         CloseBracket@181..182 "]"
@@ -170,7 +170,7 @@ RootNode@0..324
           Colon@305..306 ":"
           AccessExprNode@306..316
             AccessExprNode@306..312
-              NameReferenceNode@306..308
+              NameRefNode@306..308
                 Whitespace@306..307 " "
                 Ident@307..308 "e"
               Dot@308..309 "."

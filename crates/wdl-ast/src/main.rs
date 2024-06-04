@@ -5,7 +5,6 @@
 //! the [`wdl-ast`](https://crates.io/crates/wdl-ast) crate. It is not intended
 //! to be used by a general audience.
 
-#![feature(let_chains)]
 #![warn(missing_docs)]
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]

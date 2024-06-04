@@ -1,6 +1,5 @@
 //! An abstract syntax tree for Workflow Description Language documents.
 
-#![feature(decl_macro)]
 #![warn(missing_docs)]
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
@@ -8,6 +7,8 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+#[cfg(feature = "experimental")]
+pub mod experimental;
 pub mod v1;
 
 /// An error related to an abstract syntax tree (AST).

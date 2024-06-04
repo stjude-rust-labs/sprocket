@@ -1480,21 +1480,14 @@ fn scatter_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Mar
 /// Parses a call statement in a workflow.
 fn call_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
     parser.require(Token::CallKeyword);
-    expected_in!(parser, marker, ANY_IDENT, "task name");
-    parser.update_last_token_kind(SyntaxKind::Ident);
+    expected_fn!(parser, marker, call_target);
 
-    if parser.next_if(Token::Dot) {
-        expected_in!(parser, marker, ANY_IDENT, "task name");
-        parser.update_last_token_kind(SyntaxKind::Ident);
-    }
-
-    if parser.next_if(Token::AsKeyword) {
-        expected_in!(parser, marker, ANY_IDENT, "call output name");
-        parser.update_last_token_kind(SyntaxKind::Ident);
+    if let Some((Token::AsKeyword, _)) = parser.peek() {
+        expected_fn!(parser, marker, call_alias);
     }
 
     while let Some((Token::AfterKeyword, _)) = parser.peek() {
-        expected_fn!(parser, marker, after_clause);
+        expected_fn!(parser, marker, call_after_clause);
     }
 
     if let Some((Token::OpenBrace, _)) = parser.peek() {
@@ -1515,12 +1508,35 @@ fn call_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
     Ok(())
 }
 
+/// Parses a call target (i.e. a qualified name) in a call statement.
+fn call_target(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    expected_in!(parser, marker, ANY_IDENT, "call target name");
+    parser.update_last_token_kind(SyntaxKind::Ident);
+
+    if parser.next_if(Token::Dot) {
+        expected_in!(parser, marker, ANY_IDENT, "call target name");
+        parser.update_last_token_kind(SyntaxKind::Ident);
+    }
+
+    marker.complete(parser, SyntaxKind::CallTargetNode);
+    Ok(())
+}
+
+/// Parses an alias (i.e. `as` clause) in a call statement.
+fn call_alias(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+    parser.require(Token::AsKeyword);
+    expected_in!(parser, marker, ANY_IDENT, "call output name");
+    parser.update_last_token_kind(SyntaxKind::Ident);
+    marker.complete(parser, SyntaxKind::CallAliasNode);
+    Ok(())
+}
+
 /// Parses an `after` clause in a call statement.
-fn after_clause(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
+fn call_after_clause(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Error)> {
     parser.require(Token::AfterKeyword);
     expected_in!(parser, marker, ANY_IDENT, "task name");
     parser.update_last_token_kind(SyntaxKind::Ident);
-    marker.complete(parser, SyntaxKind::AfterClauseNode);
+    marker.complete(parser, SyntaxKind::CallAfterNode);
     Ok(())
 }
 
@@ -1831,7 +1847,7 @@ fn literal_struct_or_name_ref(
     }
 
     // This is a name reference.
-    Ok(marker.complete(parser, SyntaxKind::NameReferenceNode))
+    Ok(marker.complete(parser, SyntaxKind::NameRefNode))
 }
 
 /// Parses a single item in a literal struct.

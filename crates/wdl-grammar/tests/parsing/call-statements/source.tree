@@ -15,14 +15,16 @@ RootNode@0..425
     Whitespace@66..71 "\n    "
     CallStatementNode@71..90
       CallKeyword@71..75 "call"
-      Whitespace@75..76 " "
-      Ident@76..85 "no_params"
-      Whitespace@85..90 "\n    "
+      CallTargetNode@75..90
+        Whitespace@75..76 " "
+        Ident@76..85 "no_params"
+        Whitespace@85..90 "\n    "
     CallStatementNode@90..132
       CallKeyword@90..94 "call"
-      Whitespace@94..95 " "
-      Ident@95..106 "with_params"
-      Whitespace@106..107 " "
+      CallTargetNode@94..107
+        Whitespace@94..95 " "
+        Ident@95..106 "with_params"
+        Whitespace@106..107 " "
       OpenBrace@107..108 "{"
       Whitespace@108..109 " "
       InputKeyword@109..114 "input"
@@ -52,17 +54,19 @@ RootNode@0..425
     Whitespace@132..137 "\n    "
     CallStatementNode@137..161
       CallKeyword@137..141 "call"
-      Whitespace@141..142 " "
-      Ident@142..151 "qualified"
-      Dot@151..152 "."
-      Ident@152..156 "name"
+      CallTargetNode@141..156
+        Whitespace@141..142 " "
+        Ident@142..151 "qualified"
+        Dot@151..152 "."
+        Ident@152..156 "name"
       Whitespace@156..161 "\n    "
     CallStatementNode@161..213
       CallKeyword@161..165 "call"
-      Whitespace@165..166 " "
-      Ident@166..175 "qualified"
-      Dot@175..176 "."
-      Ident@176..180 "name"
+      CallTargetNode@165..180
+        Whitespace@165..166 " "
+        Ident@166..175 "qualified"
+        Dot@175..176 "."
+        Ident@176..180 "name"
       Whitespace@180..181 " "
       OpenBrace@181..182 "{"
       Whitespace@182..183 " "
@@ -101,21 +105,25 @@ RootNode@0..425
     Whitespace@213..218 "\n    "
     CallStatementNode@218..240
       CallKeyword@218..222 "call"
-      Whitespace@222..223 " "
-      Ident@223..230 "aliased"
-      Whitespace@230..231 " "
-      AsKeyword@231..233 "as"
-      Whitespace@233..234 " "
-      Ident@234..235 "x"
+      CallTargetNode@222..231
+        Whitespace@222..223 " "
+        Ident@223..230 "aliased"
+        Whitespace@230..231 " "
+      CallAliasNode@231..235
+        AsKeyword@231..233 "as"
+        Whitespace@233..234 " "
+        Ident@234..235 "x"
       Whitespace@235..240 "\n    "
     CallStatementNode@240..268
       CallKeyword@240..244 "call"
-      Whitespace@244..245 " "
-      Ident@245..252 "aliased"
-      Whitespace@252..253 " "
-      AsKeyword@253..255 "as"
-      Whitespace@255..256 " "
-      Ident@256..257 "x"
+      CallTargetNode@244..253
+        Whitespace@244..245 " "
+        Ident@245..252 "aliased"
+        Whitespace@252..253 " "
+      CallAliasNode@253..257
+        AsKeyword@253..255 "as"
+        Whitespace@255..256 " "
+        Ident@256..257 "x"
       Whitespace@257..258 " "
       OpenBrace@258..259 "{"
       Whitespace@259..260 " "
@@ -126,30 +134,32 @@ RootNode@0..425
     Whitespace@268..273 "\n    "
     CallStatementNode@273..300
       CallKeyword@273..277 "call"
-      Whitespace@277..278 " "
-      Ident@278..279 "f"
-      Whitespace@279..280 " "
-      AfterClauseNode@280..287
+      CallTargetNode@277..280
+        Whitespace@277..278 " "
+        Ident@278..279 "f"
+        Whitespace@279..280 " "
+      CallAfterNode@280..287
         AfterKeyword@280..285 "after"
         Whitespace@285..286 " "
         Ident@286..287 "x"
       Whitespace@287..288 " "
-      AfterClauseNode@288..295
+      CallAfterNode@288..295
         AfterKeyword@288..293 "after"
         Whitespace@293..294 " "
         Ident@294..295 "y"
       Whitespace@295..300 "\n    "
     CallStatementNode@300..340
       CallKeyword@300..304 "call"
-      Whitespace@304..305 " "
-      Ident@305..306 "f"
-      Whitespace@306..307 " "
-      AfterClauseNode@307..314
+      CallTargetNode@304..307
+        Whitespace@304..305 " "
+        Ident@305..306 "f"
+        Whitespace@306..307 " "
+      CallAfterNode@307..314
         AfterKeyword@307..312 "after"
         Whitespace@312..313 " "
         Ident@313..314 "x"
       Whitespace@314..315 " "
-      AfterClauseNode@315..322
+      CallAfterNode@315..322
         AfterKeyword@315..320 "after"
         Whitespace@320..321 " "
         Ident@321..322 "y"
@@ -172,33 +182,37 @@ RootNode@0..425
     Whitespace@340..345 "\n    "
     CallStatementNode@345..369
       CallKeyword@345..349 "call"
-      Whitespace@349..350 " "
-      Ident@350..351 "f"
-      Whitespace@351..352 " "
-      AsKeyword@352..354 "as"
-      Whitespace@354..355 " "
-      Ident@355..356 "x"
+      CallTargetNode@349..352
+        Whitespace@349..350 " "
+        Ident@350..351 "f"
+        Whitespace@351..352 " "
+      CallAliasNode@352..356
+        AsKeyword@352..354 "as"
+        Whitespace@354..355 " "
+        Ident@355..356 "x"
       Whitespace@356..357 " "
-      AfterClauseNode@357..364
+      CallAfterNode@357..364
         AfterKeyword@357..362 "after"
         Whitespace@362..363 " "
         Ident@363..364 "x"
       Whitespace@364..369 "\n    "
     CallStatementNode@369..422
       CallKeyword@369..373 "call"
-      Whitespace@373..374 " "
-      Ident@374..375 "f"
-      Whitespace@375..376 " "
-      AsKeyword@376..378 "as"
-      Whitespace@378..379 " "
-      Ident@379..380 "x"
+      CallTargetNode@373..376
+        Whitespace@373..374 " "
+        Ident@374..375 "f"
+        Whitespace@375..376 " "
+      CallAliasNode@376..380
+        AsKeyword@376..378 "as"
+        Whitespace@378..379 " "
+        Ident@379..380 "x"
       Whitespace@380..381 " "
-      AfterClauseNode@381..388
+      CallAfterNode@381..388
         AfterKeyword@381..386 "after"
         Whitespace@386..387 " "
         Ident@387..388 "x"
       Whitespace@388..389 " "
-      AfterClauseNode@389..396
+      CallAfterNode@389..396
         AfterKeyword@389..394 "after"
         Whitespace@394..395 " "
         Ident@395..396 "y"

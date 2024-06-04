@@ -268,7 +268,7 @@ pub enum SyntaxKind {
     /// Represents a parenthesized expression node.
     ParenthesizedExprNode,
     /// Represents a name reference node.
-    NameReferenceNode,
+    NameRefNode,
     /// Represents an `if` expression node.
     IfExprNode,
     /// Represents a logical not expression node.
@@ -321,8 +321,12 @@ pub enum SyntaxKind {
     ScatterStatementNode,
     /// Represents a call statement node.
     CallStatementNode,
-    /// Represents an `after` clause node (in a call statement).
-    AfterClauseNode,
+    /// Represents a call target node in a call statement.
+    CallTargetNode,
+    /// Represents a call alias node in a call statement.
+    CallAliasNode,
+    /// Represents an `after` clause node in a call statement.
+    CallAfterNode,
     /// Represents a call input item node.
     CallInputItemNode,
 
@@ -435,6 +439,11 @@ impl SyntaxTree {
     /// Gets the root syntax node of the tree.
     pub fn root(&self) -> &SyntaxNode {
         &self.0
+    }
+
+    /// Converts the tree into a syntax node.
+    pub fn into_syntax(self) -> SyntaxNode {
+        self.0
     }
 }
 

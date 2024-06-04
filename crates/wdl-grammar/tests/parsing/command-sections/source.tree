@@ -40,7 +40,7 @@ RootNode@0..467
       LiteralCommandText@131..170 "\n        set -e\n      ..."
       PlaceholderNode@170..177
         PlaceholderOpen@170..172 "~{"
-        NameReferenceNode@172..176
+        NameRefNode@172..176
           Ident@172..176 "name"
         CloseBrace@176..177 "}"
       LiteralCommandText@177..258 "\\\\n\"! >> output.txt\n  ..."
@@ -82,13 +82,13 @@ RootNode@0..467
       LiteralCommandText@340..379 "\n        set -e\n      ..."
       PlaceholderNode@379..386
         PlaceholderOpen@379..381 "~{"
-        NameReferenceNode@381..385
+        NameRefNode@381..385
           Ident@381..385 "name"
         CloseBrace@385..386 "}"
       LiteralCommandText@386..422 "\\\\n\"! >> output.txt\n  ..."
       PlaceholderNode@422..432
         PlaceholderOpen@422..424 "${"
-        NameReferenceNode@424..431
+        NameRefNode@424..431
           Ident@424..431 "ENV_VAR"
         CloseBrace@431..432 "}"
       LiteralCommandText@432..463 "\" > env.txt # interpo ..."
