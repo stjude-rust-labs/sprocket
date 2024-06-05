@@ -1,10 +1,11 @@
 //! V1 AST representation for expressions.
 
+use rowan::ast::support;
 use rowan::ast::support::child;
 use rowan::ast::support::children;
 use rowan::ast::AstChildren;
 use rowan::ast::AstNode;
-use rowan::NodeOrToken;
+use wdl_grammar::experimental::tree::SyntaxElement;
 use wdl_grammar::experimental::tree::SyntaxKind;
 use wdl_grammar::experimental::tree::SyntaxNode;
 use wdl_grammar::experimental::tree::SyntaxToken;
@@ -711,6 +712,18 @@ impl AstToken for Integer {
 pub struct LiteralInteger(pub(super) SyntaxNode);
 
 impl LiteralInteger {
+    /// Gets the minus token for the literal integer.
+    ///
+    /// A minus token *only* occurs in metadata sections, where
+    /// expressions are not allowed and a prefix `-` is included
+    /// in the literal integer itself.
+    ///
+    /// Otherwise, a prefix `-` would be a negation expression and not
+    /// part of the literal integer.
+    pub fn minus(&self) -> Option<SyntaxToken> {
+        support::token(&self.0, SyntaxKind::Minus)
+    }
+
     /// Gets the integer token for the literal.
     pub fn token(&self) -> Integer {
         token(&self.0).expect("should have integer token")
@@ -718,22 +731,57 @@ impl LiteralInteger {
 
     /// Gets the value of the literal integer.
     ///
-    /// A literal integer in WDL is a *signed* 64-bit integer.
+    /// Returns `None` if the value is out of range.
+    pub fn value(&self) -> Option<i64> {
+        let value = self.as_u64()?;
+
+        // If there's a minus sign present, negate the value; this may
+        // only occur in metadata sections
+        if support::token(&self.0, SyntaxKind::Minus).is_some() {
+            if value == (i64::MAX as u64) + 1 {
+                return Some(i64::MIN);
+            }
+
+            return Some(-(value as i64));
+        }
+
+        if value == (i64::MAX as u64) + 1 {
+            return None;
+        }
+
+        Some(value as i64)
+    }
+
+    /// Gets the negated value of the literal integer.
     ///
-    /// However, as the minimum signed 64-bit integer is
-    /// `-9223372036854775808` and a literal of `9223372036854775808`
-    /// exceeds the maximum signed 64-bit integer, this returns an
-    /// unsigned 64-bit integer as the negation is not part of the
-    /// literal.
+    /// Returns `None` if the resulting negation would overflow.
     ///
-    /// Validation will check to make sure that the value does not
-    /// exceed the range of a signed 64-bit integer, taking into account
-    /// a prefix negation expression, if any.
+    /// This is used as part of negation expressions.
+    pub fn negate(&self) -> Option<i64> {
+        let value = self.as_u64()?;
+
+        // Check for "double" negation
+        if support::token(&self.0, SyntaxKind::Minus).is_some() {
+            // Can't negate i64::MIN as that would overflow
+            if value == (i64::MAX as u64) + 1 {
+                return None;
+            }
+
+            return Some(value as i64);
+        }
+
+        if value == (i64::MAX as u64) + 1 {
+            return Some(i64::MIN);
+        }
+
+        Some(-(value as i64))
+    }
+
+    /// Gets the unsigned representation of the literal integer.
     ///
-    /// Returns `None` if the literal value is out of range (excluding
-    /// `9223372036854775808`, which will only be accepted as an
-    /// operand to a negation expression).
-    pub fn value(&self) -> Option<u64> {
+    /// This returns `None` if the integer is out of range for a 64-bit signed
+    /// integer, excluding `i64::MAX + 1` to allow for negation.
+    fn as_u64(&self) -> Option<u64> {
         let token = self.token();
         let text = token.as_str();
         let i = if text == "0" {
@@ -746,6 +794,7 @@ impl LiteralInteger {
             text.parse::<u64>().ok()?
         };
 
+        // Allow 1 more than the maximum to account for negation
         if i > (i64::MAX as u64) + 1 {
             None
         } else {
@@ -811,6 +860,18 @@ impl AstToken for Float {
 pub struct LiteralFloat(pub(crate) SyntaxNode);
 
 impl LiteralFloat {
+    /// Gets the minus token for the literal float.
+    ///
+    /// A minus token *only* occurs in metadata sections, where
+    /// expressions are not allowed and a prefix `-` is included
+    /// in the literal float itself.
+    ///
+    /// Otherwise, a prefix `-` would be a negation expression and not
+    /// part of the literal float.
+    pub fn minus(&self) -> Option<SyntaxToken> {
+        support::token(&self.0, SyntaxKind::Minus)
+    }
+
     /// Gets the float token for the literal.
     pub fn token(&self) -> Float {
         token(&self.0).expect("should have float token")
@@ -954,11 +1015,11 @@ impl StringPart {
         }
     }
 
-    /// Casts the given syntax node or token to a string part.
-    fn cast(syntax: NodeOrToken<SyntaxNode, SyntaxToken>) -> Option<Self> {
+    /// Casts the given syntax element to a string part.
+    fn cast(syntax: SyntaxElement) -> Option<Self> {
         match syntax {
-            NodeOrToken::Node(n) => Some(Self::Placeholder(Placeholder::cast(n)?)),
-            NodeOrToken::Token(t) => Some(Self::Text(StringText::cast(t)?)),
+            SyntaxElement::Node(n) => Some(Self::Placeholder(Placeholder::cast(n)?)),
+            SyntaxElement::Token(t) => Some(Self::Text(StringText::cast(t)?)),
         }
     }
 }
@@ -2167,14 +2228,13 @@ task test {
         // Seventh declaration
         assert_eq!(decls[6].ty().to_string(), "Int");
         assert_eq!(decls[6].name().as_str(), "g");
-        assert_eq!(
+        assert!(
             decls[6]
                 .expr()
                 .unwrap_literal()
                 .unwrap_integer()
                 .value()
-                .unwrap(),
-            9223372036854775808
+                .is_none(),
         );
 
         // Eighth declaration
@@ -2189,8 +2249,8 @@ task test {
                 .is_none()
         );
 
-        // Use a visitor to visit the literal integers in the tree
-        struct MyVisitor(Vec<Option<u64>>);
+        // Use a visitor to visit the in-bound literal integers in the tree
+        struct MyVisitor(Vec<Option<i64>>);
 
         impl Visitor for MyVisitor {
             type State = ();
@@ -2217,7 +2277,7 @@ task test {
                 Some(4660),
                 Some(15),
                 Some(9223372036854775807),
-                Some(9223372036854775808),
+                None,
                 None,
             ]
         );

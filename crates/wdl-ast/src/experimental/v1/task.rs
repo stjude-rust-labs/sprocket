@@ -1,10 +1,11 @@
 //! V1 AST representation for task definitions.
 
+use rowan::ast::support;
 use rowan::ast::support::child;
 use rowan::ast::support::children;
 use rowan::ast::AstChildren;
 use rowan::ast::AstNode;
-use rowan::NodeOrToken;
+use wdl_grammar::experimental::tree::SyntaxElement;
 use wdl_grammar::experimental::tree::SyntaxKind;
 use wdl_grammar::experimental::tree::SyntaxNode;
 use wdl_grammar::experimental::tree::SyntaxToken;
@@ -246,9 +247,7 @@ pub struct CommandSection(pub(super) SyntaxNode);
 impl CommandSection {
     /// Gets whether or not the command section is a heredoc command.
     pub fn is_heredoc(&self) -> bool {
-        self.0
-            .children_with_tokens()
-            .any(|c| c.kind() == SyntaxKind::OpenHeredoc)
+        support::token(&self.0, SyntaxKind::OpenHeredoc).is_some()
     }
 
     /// Gets the parts of the command.
@@ -360,11 +359,11 @@ impl CommandPart {
         }
     }
 
-    /// Casts the given syntax node or token to a command part.
-    fn cast(syntax: NodeOrToken<SyntaxNode, SyntaxToken>) -> Option<Self> {
+    /// Casts the given syntax element to a command part.
+    fn cast(syntax: SyntaxElement) -> Option<Self> {
         match syntax {
-            NodeOrToken::Node(n) => Some(Self::Placeholder(Placeholder::cast(n)?)),
-            NodeOrToken::Token(t) => Some(Self::Text(CommandText::cast(t)?)),
+            SyntaxElement::Node(n) => Some(Self::Placeholder(Placeholder::cast(n)?)),
+            SyntaxElement::Token(t) => Some(Self::Text(CommandText::cast(t)?)),
         }
     }
 }

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Fixed the experimental parser to correctly lookahead to disambiguate struct
-  literals ([#TBD](TBD)).
+  literals ([#63](https://github.com/stjude-rust-labs/wdl/pull/63)).
 * Fixed the experimental parser to skip parsing if it cannot find a supported
   version statement ([#59](https://github.com/stjude-rust-labs/wdl/pull/59))
 * Fixed handling of `None` literal values in expressions in the experimental

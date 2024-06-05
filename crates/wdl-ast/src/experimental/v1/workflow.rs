@@ -4,7 +4,7 @@ use rowan::ast::support::child;
 use rowan::ast::support::children;
 use rowan::ast::AstChildren;
 use rowan::ast::AstNode;
-use rowan::NodeOrToken;
+use wdl_grammar::experimental::tree::SyntaxElement;
 use wdl_grammar::experimental::tree::SyntaxKind;
 use wdl_grammar::experimental::tree::SyntaxNode;
 use wdl_grammar::experimental::tree::WorkflowDescriptionLanguage;
@@ -421,7 +421,7 @@ impl CallTarget {
         let mut children = self
             .0
             .children_with_tokens()
-            .filter_map(NodeOrToken::into_token)
+            .filter_map(SyntaxElement::into_token)
             .filter_map(Ident::cast);
         let first = children.next().expect("should be at least one identifier");
         match children.next() {

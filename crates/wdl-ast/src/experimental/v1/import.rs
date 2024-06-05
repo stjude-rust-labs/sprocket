@@ -4,7 +4,7 @@ use rowan::ast::support::child;
 use rowan::ast::support::children;
 use rowan::ast::AstChildren;
 use rowan::ast::AstNode;
-use rowan::NodeOrToken;
+use wdl_grammar::experimental::tree::SyntaxElement;
 use wdl_grammar::experimental::tree::SyntaxKind;
 use wdl_grammar::experimental::tree::SyntaxNode;
 use wdl_grammar::experimental::tree::WorkflowDescriptionLanguage;
@@ -69,8 +69,8 @@ impl ImportAlias {
     /// Gets the source and target names of the alias.
     pub fn names(&self) -> (Ident, Ident) {
         let mut children = self.0.children_with_tokens().filter_map(|c| match c {
-            NodeOrToken::Node(_) => None,
-            NodeOrToken::Token(t) => Ident::cast(t),
+            SyntaxElement::Node(_) => None,
+            SyntaxElement::Token(t) => Ident::cast(t),
         });
 
         let source = children.next().expect("expected a source identifier");

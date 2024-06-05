@@ -18,9 +18,9 @@ use std::sync::Arc;
 use miette::SourceSpan;
 use rowan::ast::support::child;
 use rowan::ast::AstNode;
-use rowan::NodeOrToken;
 use rowan::TextRange;
 use wdl_grammar::experimental::parser::Error;
+use wdl_grammar::experimental::tree::SyntaxElement;
 use wdl_grammar::experimental::tree::SyntaxKind;
 use wdl_grammar::experimental::tree::SyntaxNode;
 use wdl_grammar::experimental::tree::SyntaxToken;
@@ -35,7 +35,7 @@ pub use validation::*;
 fn token<T: AstToken>(parent: &SyntaxNode) -> Option<T> {
     parent
         .children_with_tokens()
-        .filter_map(NodeOrToken::into_token)
+        .filter_map(SyntaxElement::into_token)
         .find_map(T::cast)
 }
 

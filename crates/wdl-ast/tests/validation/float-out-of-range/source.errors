@@ -4,3 +4,21 @@ error: literal float exceeds the range for a 64-bit float (-1.7976931348623157e3
 13 │     Float h = 1234.1234e1234
    │               ^^^^^^^^^^^^^^ this literal float is out of range
 
+error: literal float exceeds the range for a 64-bit float (-1.7976931348623157e308..=+1.7976931348623157e308)
+   ┌─ tests/validation/float-out-of-range/source.wdl:14:15
+   │
+14 │     Float i = -1234.1234e1234
+   │               ^^^^^^^^^^^^^^^ this literal float is out of range
+
+error: literal float exceeds the range for a 64-bit float (-1.7976931348623157e308..=+1.7976931348623157e308)
+   ┌─ tests/validation/float-out-of-range/source.wdl:24:12
+   │
+24 │         h: 1234.1234e1234
+   │            ^^^^^^^^^^^^^^ this literal float is out of range
+
+error: literal float exceeds the range for a 64-bit float (-1.7976931348623157e308..=+1.7976931348623157e308)
+   ┌─ tests/validation/float-out-of-range/source.wdl:25:12
+   │
+25 │         i: -1234.1234e1234
+   │            ^^^^^^^^^^^^^^^ this literal float is out of range
+

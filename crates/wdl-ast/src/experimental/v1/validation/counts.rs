@@ -4,6 +4,7 @@ use std::fmt;
 
 use miette::Diagnostic;
 use miette::SourceSpan;
+use rowan::ast::support;
 use rowan::ast::AstNode;
 use wdl_grammar::experimental::tree::SyntaxKind;
 use wdl_grammar::experimental::tree::SyntaxNode;
@@ -135,7 +136,7 @@ fn duplicate_section(
     first: SourceSpan,
     diagnostics: &mut Diagnostics,
 ) {
-    let token = match section {
+    let kind = match section {
         Section::Command => SyntaxKind::CommandKeyword,
         Section::Input => SyntaxKind::InputKeyword,
         Section::Output => SyntaxKind::OutputKeyword,
@@ -144,10 +145,7 @@ fn duplicate_section(
         Section::ParameterMetadata => SyntaxKind::ParameterMetaKeyword,
     };
 
-    let token = duplicate
-        .children_with_tokens()
-        .find(|c| c.kind() == token)
-        .expect("should have a keyword token");
+    let token = support::token(duplicate, kind).expect("should have keyword token");
     diagnostics.add(Error::DuplicateSection {
         context,
         name,
@@ -314,10 +312,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        let token = section
-            .syntax()
-            .children_with_tokens()
-            .find(|c| c.kind() == SyntaxKind::CommandKeyword)
+        let token = support::token(section.syntax(), SyntaxKind::CommandKeyword)
             .expect("should have a command keyword token");
         self.command = Some(to_source_span(token.text_range()));
     }
@@ -345,10 +340,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        let token = section
-            .syntax()
-            .children_with_tokens()
-            .find(|c| c.kind() == SyntaxKind::InputKeyword)
+        let token = support::token(section.syntax(), SyntaxKind::InputKeyword)
             .expect("should have an input keyword token");
         self.input = Some(to_source_span(token.text_range()));
     }
@@ -376,10 +368,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        let token = section
-            .syntax()
-            .children_with_tokens()
-            .find(|c| c.kind() == SyntaxKind::OutputKeyword)
+        let token = support::token(section.syntax(), SyntaxKind::OutputKeyword)
             .expect("should have an output keyword token");
         self.output = Some(to_source_span(token.text_range()));
     }
@@ -407,10 +396,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        let token = section
-            .syntax()
-            .children_with_tokens()
-            .find(|c| c.kind() == SyntaxKind::RuntimeKeyword)
+        let token = support::token(section.syntax(), SyntaxKind::RuntimeKeyword)
             .expect("should have a runtime keyword token");
         self.runtime = Some(to_source_span(token.text_range()));
     }
@@ -438,10 +424,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        let token = section
-            .syntax()
-            .children_with_tokens()
-            .find(|c| c.kind() == SyntaxKind::MetaKeyword)
+        let token = support::token(section.syntax(), SyntaxKind::MetaKeyword)
             .expect("should have a meta keyword token");
         self.metadata = Some(to_source_span(token.text_range()));
     }
@@ -469,10 +452,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        let token = section
-            .syntax()
-            .children_with_tokens()
-            .find(|c| c.kind() == SyntaxKind::ParameterMetaKeyword)
+        let token = support::token(section.syntax(), SyntaxKind::ParameterMetaKeyword)
             .expect("should have a parameter meta keyword token");
         self.param_metadata = Some(to_source_span(token.text_range()));
     }

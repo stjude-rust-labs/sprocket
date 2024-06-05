@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use rowan::ast::support;
 use rowan::ast::support::child;
 use rowan::ast::AstNode;
 use wdl_grammar::experimental::tree::SyntaxKind;
@@ -86,9 +87,7 @@ impl ArrayType {
 
     /// Determines if the type has the "non-empty" qualifier.
     pub fn is_non_empty(&self) -> bool {
-        self.0
-            .children_with_tokens()
-            .any(|c| c.kind() == SyntaxKind::Plus)
+        support::token(&self.0, SyntaxKind::Plus).is_some()
     }
 
     /// Determines if the type is optional.

@@ -2,6 +2,7 @@
 
 use miette::Diagnostic;
 use miette::SourceSpan;
+use rowan::ast::support;
 use rowan::ast::AstNode;
 use wdl_grammar::experimental::tree::SyntaxKind;
 
@@ -56,47 +57,50 @@ impl Visitor for NumberVisitor {
         // In the case of floats, we can simply check if `value` returns `is_none`,
         // which will indicate that the literal is out of range.
         //
-        // For integers, we check to see if the value is 9223372036854775808
-        // (0x8000000000000000), which is normally out of range for a signed
-        // 64-bit integer. However, if it is an immediate operand of a negation
-        // expression, we accept the value, as it's actually -9223372036854775808.
+        // For integers, we need to call the `negate` method if the literal is part
+        // of a negation expression; otherwise, we use `value`.
         //
         // If a value is out of range and an operand to a negation expression, we start
         // the error span at the minus token.
         match expr {
-            Expr::Literal(LiteralExpr::Integer(i)) => match i.value() {
-                Some(0x8000000000000000) if self.negation_start.is_some() => {
-                    // Value is in range for negation
-                }
-                Some(0x8000000000000000) | None => {
-                    // Value is out of range
-                    let range = i.token().syntax().text_range();
-                    let span = match self.negation_start {
-                        Some(start) => {
-                            SourceSpan::new(start.into(), usize::from(range.end()) - start)
-                        }
-                        None => to_source_span(range),
-                    };
+            Expr::Literal(LiteralExpr::Integer(i)) => {
+                let in_range = if self.negation_start.is_some() {
+                    i.negate().is_some()
+                } else {
+                    i.value().is_some()
+                };
 
-                    state.add(Error::IntOutOfBounds { span });
+                if in_range {
+                    return;
                 }
-                Some(_) => {
-                    // Value is in range
-                }
-            },
+
+                let start = self
+                    .negation_start
+                    .or_else(|| i.minus().map(|t| usize::from(t.text_range().start())));
+                let range = i.token().syntax().text_range();
+                let span = match start {
+                    Some(start) => SourceSpan::new(start.into(), usize::from(range.end()) - start),
+                    None => to_source_span(range),
+                };
+
+                state.add(Error::IntOutOfBounds { span });
+            }
             Expr::Literal(LiteralExpr::Float(f)) => {
-                if f.value().is_none() {
-                    // Value is out of range
-                    let range = f.token().syntax().text_range();
-                    let span = match self.negation_start {
-                        Some(start) => {
-                            SourceSpan::new(start.into(), usize::from(range.end()) - start)
-                        }
-                        None => to_source_span(range),
-                    };
-
-                    state.add(Error::FloatOutOfBounds { span });
+                if f.value().is_some() {
+                    // Value is in range
+                    return;
                 }
+
+                let start = self
+                    .negation_start
+                    .or_else(|| f.minus().map(|t| usize::from(t.text_range().start())));
+                let range = f.token().syntax().text_range();
+                let span = match start {
+                    Some(start) => SourceSpan::new(start.into(), usize::from(range.end()) - start),
+                    None => to_source_span(range),
+                };
+
+                state.add(Error::FloatOutOfBounds { span });
             }
             Expr::Negation(negation) => {
                 // Check to see if the very next expression is a literal integer or float
@@ -105,10 +109,7 @@ impl Visitor for NumberVisitor {
                     Expr::Literal(LiteralExpr::Integer(_)) | Expr::Literal(LiteralExpr::Float(_))
                 ) {
                     self.negation_start = Some(
-                        negation
-                            .syntax()
-                            .children_with_tokens()
-                            .find(|c| c.kind() == SyntaxKind::Minus)
+                        support::token(negation.syntax(), SyntaxKind::Minus)
                             .expect("should have minus token")
                             .text_range()
                             .start()

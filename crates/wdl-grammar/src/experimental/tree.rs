@@ -10,7 +10,7 @@ use super::parser::Error;
 use super::parser::Event;
 use crate::experimental::parser::Parser;
 
-/// Represents the kind of a node or token in a WDL concrete
+/// Represents the kind of syntax element (node or token) in a WDL concrete
 /// syntax tree (CST).
 ///
 /// Nodes have at least one token child and represent a syntactic construct.

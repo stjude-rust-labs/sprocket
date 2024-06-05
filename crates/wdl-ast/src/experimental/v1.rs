@@ -67,11 +67,7 @@ impl Ast {
     }
 
     /// Walks the AST with a pre-order traversal using the provided
-    /// visitor to visit each node.
-    ///
-    /// The visitor only visits the nodes in the AST; tokens may be
-    /// retrieved for each node via the [SyntaxNode::children_with_tokens]
-    /// method.
+    /// visitor to visit each element.
     pub fn visit<V: Visitor>(&self, state: &mut V::State, visitor: &mut V) {
         visit(&self.0, state, visitor)
     }

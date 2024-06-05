@@ -16,3 +16,21 @@ error: literal integer exceeds the range for a 64-bit signed integer (-922337203
 12 │     Int g = - 9223372036854775809
    │             ^^^^^^^^^^^^^^^^^^^^^ this literal integer is out of range
 
+error: literal integer exceeds the range for a 64-bit signed integer (-9223372036854775808..=9223372036854775807)
+   ┌─ tests/validation/int-out-of-range/source.wdl:18:12
+   │
+18 │         d: 0x8000000000000000
+   │            ^^^^^^^^^^^^^^^^^^ this literal integer is out of range
+
+error: literal integer exceeds the range for a 64-bit signed integer (-9223372036854775808..=9223372036854775807)
+   ┌─ tests/validation/int-out-of-range/source.wdl:19:12
+   │
+19 │         e: 9223372036854775808 
+   │            ^^^^^^^^^^^^^^^^^^^ this literal integer is out of range
+
+error: literal integer exceeds the range for a 64-bit signed integer (-9223372036854775808..=9223372036854775807)
+   ┌─ tests/validation/int-out-of-range/source.wdl:21:12
+   │
+21 │         g: - 9223372036854775809
+   │            ^^^^^^^^^^^^^^^^^^^^^ this literal integer is out of range
+
