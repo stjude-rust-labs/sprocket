@@ -248,9 +248,10 @@ impl Repository {
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn report_concerns(&self, config: Config, writer: StandardStream) -> Result<bool> {
+    pub fn report_concerns(&self, config: Config, writer: StandardStream) -> Result<(bool, bool)> {
         let mut reporter = Reporter::new(config, writer, &self.sources);
         let mut reported_error = false;
+        let mut reported_warning = false;
 
         for (file_name, handle) in self.handles.iter() {
             let document = self.parse(file_name)?;
@@ -263,13 +264,13 @@ impl Repository {
                         Concern::ParseError(_) | Concern::ValidationFailure(_) => {
                             reported_error = true
                         }
-                        _ => {}
+                        Concern::LintWarning(_) => reported_warning = true,
                     }
                 }
             }
         }
 
-        Ok(reported_error)
+        Ok((reported_error, reported_warning))
     }
 }
 

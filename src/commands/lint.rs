@@ -54,10 +54,15 @@ pub struct Args {
 pub fn lint(args: Args) -> anyhow::Result<()> {
     let (config, writer) = get_display_config(&args);
 
-    if sprocket::file::Repository::try_new(args.paths, args.extensions)?
+    match sprocket::file::Repository::try_new(args.paths, args.extensions)?
         .report_concerns(config, writer)?
     {
-        std::process::exit(1);
+        // There are parse errors or validation failures.
+        (true, _) => std::process::exit(1),
+        // There are no parse errors or validation failures, but there are lint warnings.
+        (false, true) => std::process::exit(2),
+        // There are no concerns.
+        _ => {}
     }
 
     Ok(())
