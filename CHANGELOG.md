@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - exit code `2` if there are no parse errors or validation failures, but there are lint warnings.
-  - exit code `0` means there were no concerns found at all.
+  - exit code `1` if there are parse errors or validation failures; exit code `0` means there were no concerns found at all.
 
 ## 0.2.0 - 6-3-2024
 
