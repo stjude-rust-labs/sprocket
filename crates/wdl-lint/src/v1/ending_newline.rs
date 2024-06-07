@@ -1,7 +1,7 @@
 //! A lint rule for newlines at the end of the document.
 
-use rowan::ast::AstNode;
 use wdl_ast::experimental::v1::Visitor;
+use wdl_ast::experimental::AstNode;
 use wdl_ast::experimental::Diagnostic;
 use wdl_ast::experimental::Diagnostics;
 use wdl_ast::experimental::Document;

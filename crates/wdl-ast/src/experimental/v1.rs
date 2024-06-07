@@ -1,9 +1,8 @@
 //! AST representation for a 1.x WDL document.
 
-use rowan::ast::support::children;
-use rowan::ast::AstChildren;
-use rowan::ast::AstNode;
-
+use crate::experimental::support::children;
+use crate::experimental::AstChildren;
+use crate::experimental::AstNode;
 use crate::experimental::SyntaxKind;
 use crate::experimental::SyntaxNode;
 use crate::experimental::WorkflowDescriptionLanguage;

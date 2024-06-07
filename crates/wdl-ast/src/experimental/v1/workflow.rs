@@ -1,17 +1,16 @@
 //! V1 AST representation for workflows.
 
-use rowan::ast::support::child;
-use rowan::ast::support::children;
-use rowan::ast::AstChildren;
-use rowan::ast::AstNode;
-
 use super::BoundDecl;
 use super::Expr;
 use super::InputSection;
 use super::MetadataSection;
 use super::OutputSection;
 use super::ParameterMetadataSection;
+use crate::experimental::support::child;
+use crate::experimental::support::children;
 use crate::experimental::token;
+use crate::experimental::AstChildren;
+use crate::experimental::AstNode;
 use crate::experimental::AstToken;
 use crate::experimental::Ident;
 use crate::experimental::SyntaxElement;
@@ -635,6 +634,7 @@ workflow test {
         assert_eq!(inputs.len(), 1);
 
         // First input declarations
+        assert_eq!(inputs[0].parent().unwrap_workflow().name().as_str(), "test");
         let decls: Vec<_> = inputs[0].declarations().collect();
         assert_eq!(decls.len(), 2);
 
@@ -663,6 +663,10 @@ workflow test {
         assert_eq!(outputs.len(), 1);
 
         // First output declarations
+        assert_eq!(
+            outputs[0].parent().unwrap_workflow().name().as_str(),
+            "test"
+        );
         let decls: Vec<_> = outputs[0].declarations().collect();
         assert_eq!(decls.len(), 1);
 
@@ -841,6 +845,10 @@ workflow test {
         assert_eq!(metadata.len(), 1);
 
         // First metadata
+        assert_eq!(
+            metadata[0].parent().unwrap_workflow().name().as_str(),
+            "test"
+        );
         let items: Vec<_> = metadata[0].items().collect();
         assert_eq!(items.len(), 2);
         assert_eq!(items[0].name().as_str(), "description");
@@ -856,6 +864,10 @@ workflow test {
         assert_eq!(param_meta.len(), 1);
 
         // First parameter metadata
+        assert_eq!(
+            param_meta[0].parent().unwrap_workflow().name().as_str(),
+            "test"
+        );
         let items: Vec<_> = param_meta[0].items().collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].name().as_str(), "name");

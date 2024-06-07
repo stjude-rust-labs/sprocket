@@ -15,8 +15,9 @@
 
 use std::sync::Arc;
 
-use rowan::ast::support::child;
-use rowan::ast::AstNode;
+pub use rowan::ast::support;
+pub use rowan::ast::AstChildren;
+pub use rowan::ast::AstNode;
 pub use wdl_grammar::experimental::Diagnostic;
 pub use wdl_grammar::experimental::Label;
 pub use wdl_grammar::experimental::Severity;
@@ -226,7 +227,7 @@ impl Document {
     ///
     /// A return value of `None` signifies a missing version statement.
     pub fn version_statement(&self) -> Option<VersionStatement> {
-        child(&self.0)
+        support::child(&self.0)
     }
 
     /// Gets the AST representation of the document.

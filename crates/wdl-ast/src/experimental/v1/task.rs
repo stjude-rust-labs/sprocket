@@ -1,11 +1,5 @@
 //! V1 AST representation for task definitions.
 
-use rowan::ast::support;
-use rowan::ast::support::child;
-use rowan::ast::support::children;
-use rowan::ast::AstChildren;
-use rowan::ast::AstNode;
-
 use super::BoundDecl;
 use super::Decl;
 use super::Expr;
@@ -14,7 +8,13 @@ use super::LiteralFloat;
 use super::LiteralInteger;
 use super::LiteralString;
 use super::Placeholder;
+use super::WorkflowDefinition;
+use crate::experimental::support;
+use crate::experimental::support::child;
+use crate::experimental::support::children;
 use crate::experimental::token;
+use crate::experimental::AstChildren;
+use crate::experimental::AstNode;
 use crate::experimental::AstToken;
 use crate::experimental::Ident;
 use crate::experimental::SyntaxElement;
@@ -168,6 +168,73 @@ impl AstNode for TaskItem {
     }
 }
 
+/// Represents either a task or a workflow.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TaskOrWorkflow {
+    /// The item is a task.
+    Task(TaskDefinition),
+    /// The item is a workflow.
+    Workflow(WorkflowDefinition),
+}
+
+impl TaskOrWorkflow {
+    /// Unwraps to a task definition.
+    ///
+    /// # Panics
+    ///
+    /// Panics if it is not a task definition.
+    pub fn unwrap_task(self) -> TaskDefinition {
+        match self {
+            Self::Task(task) => task,
+            _ => panic!("not a task definition"),
+        }
+    }
+
+    /// Unwraps to a workflow definition.
+    ///
+    /// # Panics
+    ///
+    /// Panics if it is not a workflow definition.
+    pub fn unwrap_workflow(self) -> WorkflowDefinition {
+        match self {
+            Self::Workflow(workflow) => workflow,
+            _ => panic!("not a workflow definition"),
+        }
+    }
+}
+
+impl AstNode for TaskOrWorkflow {
+    type Language = WorkflowDescriptionLanguage;
+
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        matches!(
+            kind,
+            SyntaxKind::TaskDefinitionNode | SyntaxKind::WorkflowDefinitionNode
+        )
+    }
+
+    fn cast(node: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match node.kind() {
+            SyntaxKind::TaskDefinitionNode => Some(Self::Task(TaskDefinition(node))),
+            SyntaxKind::WorkflowDefinitionNode => Some(Self::Workflow(WorkflowDefinition(node))),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        match self {
+            Self::Task(t) => &t.0,
+            Self::Workflow(w) => &w.0,
+        }
+    }
+}
+
 /// Represents an input section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InputSection(pub(super) SyntaxNode);
@@ -176,6 +243,12 @@ impl InputSection {
     /// Gets the declarations of the input section.
     pub fn declarations(&self) -> AstChildren<Decl> {
         children(&self.0)
+    }
+
+    /// Gets the parent of the input section.
+    pub fn parent(&self) -> TaskOrWorkflow {
+        TaskOrWorkflow::cast(self.0.parent().expect("should have a parent"))
+            .expect("parent should cast")
     }
 }
 
@@ -212,6 +285,12 @@ impl OutputSection {
     /// Gets the declarations of the output section.
     pub fn declarations(&self) -> AstChildren<BoundDecl> {
         children(&self.0)
+    }
+
+    /// Gets the parent of the output section.
+    pub fn parent(&self) -> TaskOrWorkflow {
+        TaskOrWorkflow::cast(self.0.parent().expect("should have a parent"))
+            .expect("parent should cast")
     }
 }
 
@@ -270,6 +349,12 @@ impl CommandSection {
         }
 
         None
+    }
+
+    /// Gets the parent of the command section.
+    pub fn parent(&self) -> TaskDefinition {
+        TaskDefinition::cast(self.0.parent().expect("should have a parent"))
+            .expect("parent should cast")
     }
 }
 
@@ -377,6 +462,12 @@ impl RuntimeSection {
     pub fn items(&self) -> AstChildren<RuntimeItem> {
         children(&self.0)
     }
+
+    /// Gets the parent of the runtime section.
+    pub fn parent(&self) -> TaskDefinition {
+        TaskDefinition::cast(self.0.parent().expect("should have a parent"))
+            .expect("parent should cast")
+    }
 }
 
 impl AstNode for RuntimeSection {
@@ -453,6 +544,12 @@ impl MetadataSection {
     /// Gets the items of the metadata section.
     pub fn items(&self) -> AstChildren<MetadataObjectItem> {
         children(&self.0)
+    }
+
+    /// Gets the parent of the metadata section.
+    pub fn parent(&self) -> TaskOrWorkflow {
+        TaskOrWorkflow::cast(self.0.parent().expect("should have a parent"))
+            .expect("parent should cast")
     }
 }
 
@@ -785,6 +882,12 @@ impl ParameterMetadataSection {
     pub fn items(&self) -> AstChildren<MetadataObjectItem> {
         children(&self.0)
     }
+
+    /// Gets the parent of the parameter metadata section.
+    pub fn parent(&self) -> TaskOrWorkflow {
+        TaskOrWorkflow::cast(self.0.parent().expect("should have a parent"))
+            .expect("parent should cast")
+    }
 }
 
 impl AstNode for ParameterMetadataSection {
@@ -871,6 +974,7 @@ task test {
         assert_eq!(inputs.len(), 1);
 
         // First task input
+        assert_eq!(inputs[0].parent().unwrap_task().name().as_str(), "test");
         let decls: Vec<_> = inputs[0].declarations().collect();
         assert_eq!(decls.len(), 1);
         assert_eq!(
@@ -887,6 +991,7 @@ task test {
         assert_eq!(outputs.len(), 1);
 
         // First task output
+        assert_eq!(outputs[0].parent().unwrap_task().name().as_str(), "test");
         let decls: Vec<_> = outputs[0].declarations().collect();
         assert_eq!(decls.len(), 1);
         assert_eq!(decls[0].ty().to_string(), "String");
@@ -907,6 +1012,7 @@ task test {
         assert_eq!(commands.len(), 1);
 
         // First task command
+        assert_eq!(commands[0].parent().name().as_str(), "test");
         assert!(commands[0].is_heredoc());
         let parts: Vec<_> = commands[0].parts().collect();
         assert_eq!(parts.len(), 3);
@@ -931,6 +1037,7 @@ task test {
         assert_eq!(runtimes.len(), 1);
 
         // First task runtime
+        assert_eq!(runtimes[0].parent().name().as_str(), "test");
         let items: Vec<_> = runtimes[0].items().collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].name().as_str(), "container");
@@ -950,6 +1057,7 @@ task test {
         assert_eq!(metadata.len(), 1);
 
         // First metadata
+        assert_eq!(metadata[0].parent().unwrap_task().name().as_str(), "test");
         let items: Vec<_> = metadata[0].items().collect();
         assert_eq!(items.len(), 2);
         assert_eq!(items[0].name().as_str(), "description");
@@ -967,6 +1075,7 @@ task test {
         assert_eq!(param_meta.len(), 1);
 
         // First task parameter metadata
+        assert_eq!(param_meta[0].parent().unwrap_task().name().as_str(), "test");
         let items: Vec<_> = param_meta[0].items().collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].name().as_str(), "name");

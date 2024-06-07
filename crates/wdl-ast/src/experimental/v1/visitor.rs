@@ -1,6 +1,5 @@
 //! Implementation of the V1 AST visitor.
 
-use rowan::ast::AstNode;
 use rowan::WalkEvent;
 
 use super::BoundDecl;
@@ -22,6 +21,7 @@ use super::StructDefinition;
 use super::TaskDefinition;
 use super::UnboundDecl;
 use super::WorkflowDefinition;
+use crate::experimental::AstNode;
 use crate::experimental::Document;
 use crate::experimental::SyntaxKind;
 use crate::experimental::SyntaxNode;

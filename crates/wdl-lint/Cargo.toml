@@ -13,7 +13,6 @@ readme = "../README.md"
 [dependencies]
 wdl-ast = { path = "../wdl-ast", version = "0.2.0", features = ["experimental"] }
 convert_case = { workspace = true }
-rowan = { workspace = true }
 
 [dev-dependencies]
 codespan-reporting = { workspace = true }

@@ -2,9 +2,7 @@
 
 use std::fmt;
 
-use rowan::ast::support;
-use rowan::ast::AstNode;
-
+use crate::experimental::support;
 use crate::experimental::v1::CommandSection;
 use crate::experimental::v1::InputSection;
 use crate::experimental::v1::MetadataSection;
@@ -13,8 +11,10 @@ use crate::experimental::v1::ParameterMetadataSection;
 use crate::experimental::v1::RuntimeSection;
 use crate::experimental::v1::StructDefinition;
 use crate::experimental::v1::TaskDefinition;
+use crate::experimental::v1::TaskOrWorkflow;
 use crate::experimental::v1::Visitor;
 use crate::experimental::v1::WorkflowDefinition;
+use crate::experimental::AstNode;
 use crate::experimental::AstToken;
 use crate::experimental::Diagnostic;
 use crate::experimental::Diagnostics;
@@ -25,24 +25,6 @@ use crate::experimental::SyntaxKind;
 use crate::experimental::SyntaxNode;
 use crate::experimental::ToSpan;
 use crate::experimental::VisitReason;
-
-/// Represents context of an error.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Context {
-    /// The error occurred in a task.
-    Task,
-    /// The error occurred in a workflow.
-    Workflow,
-}
-
-impl fmt::Display for Context {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Task => write!(f, "task"),
-            Self::Workflow => write!(f, "workflow"),
-        }
-    }
-}
 
 /// Represents section context of an error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -100,8 +82,7 @@ fn missing_command_section(task: Ident) -> Diagnostic {
 
 /// Creates a "duplicate section" diagnostic
 fn duplicate_section(
-    context: Context,
-    name: &str,
+    parent: TaskOrWorkflow,
     section: Section,
     first: Span,
     duplicate: &SyntaxNode,
@@ -117,8 +98,14 @@ fn duplicate_section(
 
     let token = support::token(duplicate, kind).expect("should have keyword token");
 
+    let (context, name) = match parent {
+        TaskOrWorkflow::Task(t) => ("task", t.name()),
+        TaskOrWorkflow::Workflow(w) => ("workflow", w.name()),
+    };
+
     Diagnostic::error(format!(
-        "{context} `{name}` contains a duplicate {section} section"
+        "{context} `{name}` contains a duplicate {section} section",
+        name = name.as_str()
     ))
     .with_label(
         format!("this {section} section is a duplicate"),
@@ -157,8 +144,6 @@ pub struct CountingVisitor {
     has_task: bool,
     /// Whether or not the document has at least one struct.
     has_struct: bool,
-    /// The context of the current task or workflow.
-    context: Option<(Context, String)>,
     /// The span of the first command section in the task.
     command: Option<Span>,
     /// The span of the first input section in the task or workflow.
@@ -177,7 +162,6 @@ pub struct CountingVisitor {
 impl CountingVisitor {
     /// Resets the task/workflow count state.
     fn reset(&mut self) {
-        self.context = None;
         self.command = None;
         self.input = None;
         self.output = None;
@@ -217,7 +201,6 @@ impl Visitor for CountingVisitor {
         }
 
         let name = workflow.name();
-        self.context = Some((Context::Workflow, name.as_str().to_string()));
         self.workflow = Some(name.span());
     }
 
@@ -236,7 +219,6 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        self.context = Some((Context::Task, task.name().as_str().to_string()));
         self.has_task = true;
     }
 
@@ -268,10 +250,8 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(command) = self.command {
-            let (context, name) = self.context.as_ref().expect("should have context");
             state.add(duplicate_section(
-                *context,
-                name,
+                TaskOrWorkflow::Task(section.parent()),
                 Section::Command,
                 command,
                 section.syntax(),
@@ -295,10 +275,8 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(input) = self.input {
-            let (context, name) = self.context.as_ref().expect("should have context");
             state.add(duplicate_section(
-                *context,
-                name,
+                section.parent(),
                 Section::Input,
                 input,
                 section.syntax(),
@@ -322,10 +300,8 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(output) = self.output {
-            let (context, name) = self.context.as_ref().expect("should have context");
             state.add(duplicate_section(
-                *context,
-                name,
+                section.parent(),
                 Section::Output,
                 output,
                 section.syntax(),
@@ -349,10 +325,8 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(runtime) = self.runtime {
-            let (context, name) = self.context.as_ref().expect("should have context");
             state.add(duplicate_section(
-                *context,
-                name,
+                TaskOrWorkflow::Task(section.parent()),
                 Section::Runtime,
                 runtime,
                 section.syntax(),
@@ -376,10 +350,8 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(metadata) = self.metadata {
-            let (context, name) = self.context.as_ref().expect("should have context");
             state.add(duplicate_section(
-                *context,
-                name,
+                section.parent(),
                 Section::Metadata,
                 metadata,
                 section.syntax(),
@@ -403,10 +375,8 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(metadata) = self.param_metadata {
-            let (context, name) = self.context.as_ref().expect("should have context");
             state.add(duplicate_section(
-                *context,
-                name,
+                section.parent(),
                 Section::ParameterMetadata,
                 metadata,
                 section.syntax(),

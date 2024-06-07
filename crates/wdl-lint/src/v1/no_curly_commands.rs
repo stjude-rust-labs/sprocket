@@ -1,9 +1,10 @@
 //! A lint rule for ensuring no curly commands are used.
 
-use rowan::ast::support;
-use rowan::ast::AstNode;
+use wdl_ast::experimental::support;
 use wdl_ast::experimental::v1::CommandSection;
 use wdl_ast::experimental::v1::Visitor;
+use wdl_ast::experimental::AstNode;
+use wdl_ast::experimental::AstToken;
 use wdl_ast::experimental::Diagnostic;
 use wdl_ast::experimental::Diagnostics;
 use wdl_ast::experimental::Span;
@@ -73,16 +74,14 @@ impl Visitor for NoCurlyCommandsVisitor {
         }
 
         if !section.is_heredoc() {
+            let name = section.parent().name();
             let command_keyword = support::token(section.syntax(), SyntaxKind::CommandKeyword)
                 .expect("should have a command keyword token");
-            let span = command_keyword.text_range();
 
-            let task = section
-                .syntax()
-                .parent()
-                .expect("should have a parent node");
-            let name = support::token(&task, SyntaxKind::Ident).expect("should have a task name");
-            state.add(curly_commands(name.text(), span.to_span()));
+            state.add(curly_commands(
+                name.as_str(),
+                command_keyword.text_range().to_span(),
+            ));
         }
     }
 }
