@@ -15,20 +15,23 @@
 
 use std::sync::Arc;
 
-use miette::SourceSpan;
 use rowan::ast::support::child;
 use rowan::ast::AstNode;
-use rowan::TextRange;
-use wdl_grammar::experimental::parser::Error;
-use wdl_grammar::experimental::tree::SyntaxElement;
-use wdl_grammar::experimental::tree::SyntaxKind;
-use wdl_grammar::experimental::tree::SyntaxNode;
-use wdl_grammar::experimental::tree::SyntaxToken;
-use wdl_grammar::experimental::tree::SyntaxTree;
-use wdl_grammar::experimental::tree::WorkflowDescriptionLanguage;
+pub use wdl_grammar::experimental::Diagnostic;
+pub use wdl_grammar::experimental::Label;
+pub use wdl_grammar::experimental::Severity;
+pub use wdl_grammar::experimental::Span;
+pub use wdl_grammar::experimental::SyntaxElement;
+pub use wdl_grammar::experimental::SyntaxKind;
+pub use wdl_grammar::experimental::SyntaxNode;
+pub use wdl_grammar::experimental::SyntaxToken;
+pub use wdl_grammar::experimental::SyntaxTree;
+pub use wdl_grammar::experimental::ToSpan;
+pub use wdl_grammar::experimental::WorkflowDescriptionLanguage;
 
 pub mod v1;
 mod validation;
+
 pub use validation::*;
 
 /// Gets a token of a given parent that can cast to the given type.
@@ -39,10 +42,23 @@ fn token<T: AstToken>(parent: &SyntaxNode) -> Option<T> {
         .find_map(T::cast)
 }
 
-/// Helper function for converting a `rowan::TextRange` to a
-/// `miette::SourceSpan`.
-fn to_source_span(range: TextRange) -> SourceSpan {
-    SourceSpan::new(usize::from(range.start()).into(), range.len().into())
+/// Gets the source span of the given node.
+///
+/// This differs from `SyntaxNode::text_range` in that it will exclude
+/// leading trivia child tokens of the node.
+pub fn span_of<N: AstNode<Language = WorkflowDescriptionLanguage>>(node: &N) -> Span {
+    let start = node
+        .syntax()
+        .children_with_tokens()
+        .find(|c| !matches!(c.kind(), SyntaxKind::Whitespace | SyntaxKind::Comment))
+        .expect("should have a non-trivia first child");
+    let end = node
+        .syntax()
+        .last_child_or_token()
+        .expect("should have last child");
+
+    let start = start.text_range().start().into();
+    Span::new(start, usize::from(end.text_range().end()) - start)
 }
 
 /// Represents the reason an AST node has been visited.
@@ -79,6 +95,11 @@ pub trait AstToken {
     fn as_str(&self) -> &str {
         self.syntax().text()
     }
+
+    /// Gets the source span of the token.
+    fn span(&self) -> Span {
+        self.syntax().text_range().to_span()
+    }
 }
 
 /// Represents the AST of a [Document].
@@ -104,28 +125,28 @@ impl Ast {
     }
 }
 
-/// Represents the result of a parse: a [Document] and a list of errors.
+/// Represents the result of a parse: a [Document] and a list of diagnostics.
 ///
 /// A parse always produces a [Document], even for documents that contain
 /// syntax errors.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct Parse {
     /// The document that was parsed.
     document: Document,
-    /// The parse errors that were encountered.
-    errors: Option<Arc<[Error]>>,
+    /// The parse diagnostics that were encountered.
+    diagnostics: Option<Arc<[Diagnostic]>>,
 }
 
 impl Parse {
     /// Constructs a new parse result from the given document and list of
-    /// parser errors.
-    fn new(document: Document, errors: Vec<Error>) -> Parse {
+    /// parser diagnostics.
+    fn new(document: Document, diagnostics: Vec<Diagnostic>) -> Parse {
         Self {
             document,
-            errors: if errors.is_empty() {
+            diagnostics: if diagnostics.is_empty() {
                 None
             } else {
-                Some(errors.into())
+                Some(diagnostics.into())
             },
         }
     }
@@ -135,9 +156,9 @@ impl Parse {
         &self.document.0
     }
 
-    /// Gets the errors from the parse.
-    pub fn errors(&self) -> &[Error] {
-        self.errors.as_deref().unwrap_or_default()
+    /// Gets the diagnostics from the parse.
+    pub fn diagnostics(&self) -> &[Diagnostic] {
+        self.diagnostics.as_deref().unwrap_or_default()
     }
 
     /// Gets the document resulting from the parse.
@@ -146,9 +167,9 @@ impl Parse {
     }
 
     /// Converts the parse into a result.
-    pub fn into_result(self) -> Result<Document, Arc<[Error]>> {
-        match self.errors {
-            Some(errors) => Err(errors),
+    pub fn into_result(self) -> Result<Document, Arc<[Diagnostic]>> {
+        match self.diagnostics {
+            Some(diagnostics) => Err(diagnostics),
             None => Ok(self.document),
         }
     }
@@ -171,7 +192,7 @@ impl Document {
     /// ```rust
     /// # use wdl_ast::experimental::{Document, AstToken, Ast};
     /// let parse = Document::parse("version 1.1");
-    /// assert!(parse.errors().is_empty());
+    /// assert!(parse.diagnostics().is_empty());
     ///
     /// let document = parse.document();
     /// assert_eq!(
@@ -191,10 +212,10 @@ impl Document {
     /// }
     /// ```
     pub fn parse(source: &str) -> Parse {
-        let (tree, errors) = SyntaxTree::parse(source);
+        let (tree, diagnostics) = SyntaxTree::parse(source);
         Parse::new(
             Document::cast(tree.into_syntax()).expect("document should cast"),
-            errors,
+            diagnostics,
         )
     }
 

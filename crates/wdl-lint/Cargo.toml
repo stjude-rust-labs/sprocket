@@ -1,0 +1,30 @@
+[package]
+name = "wdl-lint"
+description = "Lint rules for Workflow Description Language (WDL) documents"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/wdl-lint"
+readme = "../README.md"
+
+[dependencies]
+wdl-ast = { path = "../wdl-ast", version = "0.2.0", features = ["experimental"] }
+convert_case = { workspace = true }
+rowan = { workspace = true }
+
+[dev-dependencies]
+codespan-reporting = { workspace = true }
+pretty_assertions = { workspace = true }
+rayon = { workspace = true }
+colored = { workspace = true }
+
+[features]
+codespan = ["wdl-ast/codespan"]
+
+[[test]]
+name = "lints"
+required-features = ["codespan"]
+harness = false

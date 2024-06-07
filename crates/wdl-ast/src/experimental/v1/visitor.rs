@@ -2,8 +2,6 @@
 
 use rowan::ast::AstNode;
 use rowan::WalkEvent;
-use wdl_grammar::experimental::tree::SyntaxKind;
-use wdl_grammar::experimental::tree::SyntaxNode;
 
 use super::BoundDecl;
 use super::CallStatement;
@@ -25,6 +23,8 @@ use super::TaskDefinition;
 use super::UnboundDecl;
 use super::WorkflowDefinition;
 use crate::experimental::Document;
+use crate::experimental::SyntaxKind;
+use crate::experimental::SyntaxNode;
 use crate::experimental::VersionStatement;
 use crate::experimental::VisitReason;
 
@@ -34,7 +34,7 @@ use crate::experimental::VisitReason;
 /// that receives both a [VisitReason::Enter] call and a
 /// matching [VisitReason::Exit] call.
 #[allow(unused_variables)]
-pub trait Visitor {
+pub trait Visitor: Send + Sync {
     /// Represents the external visitation state.
     type State;
 

@@ -6,8 +6,8 @@ use rowan::GreenNodeBuilder;
 
 use super::grammar;
 use super::lexer::Lexer;
-use super::parser::Error;
 use super::parser::Event;
+use super::Diagnostic;
 use crate::experimental::parser::Parser;
 
 /// Represents the kind of syntax element (node or token) in a WDL concrete
@@ -376,19 +376,23 @@ impl SyntaxTree {
     ///
     /// A syntax tree is always returned, even for invalid WDL documents.
     ///
-    /// Additionally, the list of errors encountered during the parse is
+    /// Additionally, the list of diagnostics encountered during the parse is
     /// returned; if the list is empty, the tree is semantically correct.
     ///
     /// However, additional validation is required to ensure the source is
     /// a valid WDL document.
-    pub fn parse(source: &str) -> (Self, Vec<Error>) {
+    pub fn parse(source: &str) -> (Self, Vec<Diagnostic>) {
         let parser = Parser::new(Lexer::new(source));
         let (events, errors) = grammar::document(source, parser);
         Self::build(source, events, errors)
     }
 
     /// Builds the concrete syntax tree from a list of parser events.
-    fn build(source: &str, mut events: Vec<Event>, errors: Vec<Error>) -> (Self, Vec<Error>) {
+    fn build(
+        source: &str,
+        mut events: Vec<Event>,
+        diagnostics: Vec<Diagnostic>,
+    ) -> (Self, Vec<Diagnostic>) {
         let mut builder = GreenNodeBuilder::default();
         let mut ancestors = Vec::new();
 
@@ -426,14 +430,13 @@ impl SyntaxTree {
                     }
                 }
                 Event::NodeFinished => builder.finish_node(),
-                Event::Token { kind, span } => builder.token(
-                    kind.into(),
-                    &source[span.offset()..span.offset() + span.len()],
-                ),
+                Event::Token { kind, span } => {
+                    builder.token(kind.into(), &source[span.start()..span.end()])
+                }
             }
         }
 
-        (Self(SyntaxNode::new_root(builder.finish())), errors)
+        (Self(SyntaxNode::new_root(builder.finish())), diagnostics)
     }
 
     /// Gets the root syntax node of the tree.

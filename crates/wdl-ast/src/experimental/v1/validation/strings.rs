@@ -1,86 +1,70 @@
 //! Validation of string literals in a V1 AST.
 
-use miette::Diagnostic;
-use miette::SourceSpan;
 use wdl_grammar::experimental::lexer::v1::EscapeToken;
 use wdl_grammar::experimental::lexer::v1::Logos;
 
 use crate::experimental::v1::StringText;
 use crate::experimental::v1::Visitor;
 use crate::experimental::AstToken;
+use crate::experimental::Diagnostic;
 use crate::experimental::Diagnostics;
+use crate::experimental::Span;
 use crate::experimental::VisitReason;
 
-/// Represents a string validation error.
-#[derive(thiserror::Error, Diagnostic, Debug, Clone, PartialEq, Eq)]
-enum Error {
-    /// An unknown escape sequence was encountered.
-    #[error("unknown escape sequence `{sequence}`")]
-    UnknownEscapeSequence {
-        /// The invalid escape sequence.
-        sequence: String,
-        /// The span of the unknown escape sequence token.
-        #[label(primary, "this is an unknown escape sequence")]
-        span: SourceSpan,
-    },
-    /// An invalid line continuation was encountered.
-    #[error("literal strings may not contain line continuations")]
-    InvalidLineContinuation {
-        /// The span of the invalid line continuation.
-        #[label(primary, "remove this line continuation")]
-        span: SourceSpan,
-    },
-    /// An invalid octal escape sequence was encountered.
-    #[error("invalid octal escape sequence")]
-    InvalidOctalEscape {
-        /// The span of the invalid escape sequence.
-        #[label(primary, "expected a sequence of three octal digits to follow this")]
-        span: SourceSpan,
-    },
-    /// An invalid hex escape sequence was encountered.
-    #[error("invalid hex escape sequence")]
-    InvalidHexEscape {
-        /// The span of the invalid escape sequence.
-        #[label(
-            primary,
-            "expected a sequence of two hexadecimal digits to follow this"
-        )]
-        span: SourceSpan,
-    },
-    /// An invalid short unicode escape sequence was encountered.
-    #[error("invalid unicode escape sequence")]
-    InvalidShortUnicodeEscape {
-        /// The span of the invalid escape sequence.
-        #[label(
-            primary,
-            "expected a sequence of four hexadecimal digits to follow this"
-        )]
-        span: SourceSpan,
-    },
-    /// An invalid unicode escape sequence was encountered.
-    #[error("invalid unicode escape sequence")]
-    InvalidUnicodeEscape {
-        /// The span of the invalid escape sequence.
-        #[label(
-            primary,
-            "expected a sequence of eight hexadecimal digits to follow this"
-        )]
-        span: SourceSpan,
-    },
-    /// An unescaped newline was encountered.
-    #[error("literal strings cannot contain newline characters")]
-    MustEscapeNewline {
-        /// The span of the unescaped newline.
-        #[label(primary, "escape this newline with `\\n`")]
-        span: SourceSpan,
-    },
-    /// An unescaped tab was encountered.
-    #[error("literal strings cannot contain tab characters")]
-    MustEscapeTab {
-        /// The span of the unescaped tab.
-        #[label(primary, "escape this tab with `\\t`")]
-        span: SourceSpan,
-    },
+/// Creates an "unknown escape sequence" diagnostic
+fn unknown_escape_sequence(sequence: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(format!("unknown escape sequence `{sequence}`"))
+        .with_label("this is not a valid WDL escape sequence", span)
+}
+
+/// Creates an "invalid line continuation" diagnostic
+fn invalid_line_continuation(span: Span) -> Diagnostic {
+    Diagnostic::error("literal strings may not contain line continuations")
+        .with_label("remove this line continuation", span)
+}
+
+/// Creates an "invalid octal escape" diagnostic
+fn invalid_octal_escape(span: Span) -> Diagnostic {
+    Diagnostic::error("invalid octal escape sequence").with_label(
+        "expected a sequence of three octal digits to follow this",
+        span,
+    )
+}
+
+/// Creates an "invalid hex escape" diagnostic
+fn invalid_hex_escape(span: Span) -> Diagnostic {
+    Diagnostic::error("invalid hex escape sequence").with_label(
+        "expected a sequence of two hexadecimal digits to follow this",
+        span,
+    )
+}
+
+/// Creates an "invalid short unicode escape" diagnostic
+fn invalid_short_unicode_escape(span: Span) -> Diagnostic {
+    Diagnostic::error("invalid unicode escape sequence").with_label(
+        "expected a sequence of four hexadecimal digits to follow this",
+        span,
+    )
+}
+
+/// Creates an "invalid unicode escape" diagnostic
+fn invalid_unicode_escape(span: Span) -> Diagnostic {
+    Diagnostic::error("invalid unicode escape sequence").with_label(
+        "expected a sequence of eight hexadecimal digits to follow this",
+        span,
+    )
+}
+
+/// Creates a "must escape newline" diagnostic
+fn must_escape_newline(span: Span) -> Diagnostic {
+    Diagnostic::error("literal strings cannot contain newline characters")
+        .with_label("escape this newline with `\\n`", span)
+}
+
+/// Creates a "must escape tab" diagnostic
+fn must_escape_tab(span: Span) -> Diagnostic {
+    Diagnostic::error("literal strings cannot contain tab characters")
+        .with_label("escape this tab with `\\t`", span)
 }
 
 /// Used to check literal text in a string.
@@ -93,37 +77,35 @@ fn check_text(diagnostics: &mut Diagnostics, start: usize, text: &str) {
             | EscapeToken::ValidHex
             | EscapeToken::ValidUnicode
             | EscapeToken::Text => continue,
-            EscapeToken::InvalidOctal => diagnostics.add(Error::InvalidOctalEscape {
-                span: SourceSpan::new((start + span.start).into(), 1),
-            }),
-            EscapeToken::InvalidHex => diagnostics.add(Error::InvalidHexEscape {
-                span: SourceSpan::new((start + span.start).into(), span.len()),
-            }),
-            EscapeToken::InvalidShortUnicode => diagnostics.add(Error::InvalidShortUnicodeEscape {
-                span: SourceSpan::new((start + span.start).into(), span.len()),
-            }),
-            EscapeToken::InvalidUnicode => diagnostics.add(Error::InvalidUnicodeEscape {
-                span: SourceSpan::new((start + span.start).into(), span.len()),
-            }),
-            EscapeToken::Continuation => {
-                diagnostics.add(Error::InvalidLineContinuation {
-                    span: SourceSpan::new((start + span.start).into(), span.len()),
-                });
+            EscapeToken::InvalidOctal => {
+                diagnostics.add(invalid_octal_escape(Span::new(start + span.start, 1)))
             }
-            EscapeToken::Newline => {
-                diagnostics.add(Error::MustEscapeNewline {
-                    span: SourceSpan::new((start + span.start).into(), span.len()),
-                });
-            }
+            EscapeToken::InvalidHex => diagnostics.add(invalid_hex_escape(Span::new(
+                start + span.start,
+                span.len(),
+            ))),
+            EscapeToken::InvalidShortUnicode => diagnostics.add(invalid_short_unicode_escape(
+                Span::new(start + span.start, span.len()),
+            )),
+            EscapeToken::InvalidUnicode => diagnostics.add(invalid_unicode_escape(Span::new(
+                start + span.start,
+                span.len(),
+            ))),
+            EscapeToken::Continuation => diagnostics.add(invalid_line_continuation(Span::new(
+                start + span.start,
+                span.len(),
+            ))),
+            EscapeToken::Newline => diagnostics.add(must_escape_newline(Span::new(
+                start + span.start,
+                span.len(),
+            ))),
             EscapeToken::Tab => {
-                diagnostics.add(Error::MustEscapeTab {
-                    span: SourceSpan::new((start + span.start).into(), span.len()),
-                });
+                diagnostics.add(must_escape_tab(Span::new(start + span.start, span.len())))
             }
-            EscapeToken::Unknown => diagnostics.add(Error::UnknownEscapeSequence {
-                sequence: text[span.start..span.end].to_string(),
-                span: SourceSpan::new((start + span.start).into(), span.len()),
-            }),
+            EscapeToken::Unknown => diagnostics.add(unknown_escape_sequence(
+                &text[span.start..span.end],
+                Span::new(start + span.start, span.len()),
+            )),
         }
     }
 }

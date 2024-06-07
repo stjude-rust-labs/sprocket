@@ -3,10 +3,6 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use miette::Diagnostic;
-use miette::SourceSpan;
-
-use crate::experimental::to_source_span;
 use crate::experimental::v1::Expr;
 use crate::experimental::v1::LiteralExpr;
 use crate::experimental::v1::MetadataObject;
@@ -15,8 +11,10 @@ use crate::experimental::v1::ParameterMetadataSection;
 use crate::experimental::v1::RuntimeSection;
 use crate::experimental::v1::Visitor;
 use crate::experimental::AstToken;
+use crate::experimental::Diagnostic;
 use crate::experimental::Diagnostics;
 use crate::experimental::Ident;
+use crate::experimental::Span;
 use crate::experimental::VisitReason;
 
 /// Represents context about a unique key validation error.
@@ -49,27 +47,19 @@ impl fmt::Display for Context {
     }
 }
 
-/// Represents a unique key validation error.
-#[derive(thiserror::Error, Diagnostic, Debug, Clone, PartialEq, Eq)]
-enum Error {
-    /// A duplicate key was encountered.
-    #[error("duplicate key `{key}` in {context}")]
-    DuplicateKey {
-        /// The name of the duplicate key.
-        key: String,
-        /// The context for the error.
-        context: Context,
-        /// The span of the duplicate key.
-        #[label(primary, "this key is a duplicate")]
-        span: SourceSpan,
-        /// The span of the first key.
-        #[label("first key with this name is here")]
-        first: SourceSpan,
-    },
+/// Creates a "duplicate key" diagnostic
+fn duplicate_key(context: Context, name: Ident, first: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "duplicate key `{name}` in {context}",
+        name = name.as_str(),
+    ))
+    .with_label("this key is a duplicate", name.span())
+    .with_label("first key with this name is here", first)
 }
 
+/// Checks the given set of keys for duplicates
 fn check_duplicate_keys(
-    keys: &mut HashMap<String, SourceSpan>,
+    keys: &mut HashMap<String, Span>,
     names: impl Iterator<Item = Ident>,
     context: Context,
     diagnostics: &mut Diagnostics,
@@ -77,19 +67,11 @@ fn check_duplicate_keys(
     keys.clear();
     for name in names {
         if let Some(first) = keys.get(name.as_str()) {
-            diagnostics.add(Error::DuplicateKey {
-                key: name.as_str().to_string(),
-                context,
-                span: to_source_span(name.syntax().text_range()),
-                first: *first,
-            });
+            diagnostics.add(duplicate_key(context, name, *first));
             continue;
         }
 
-        keys.insert(
-            name.as_str().to_string(),
-            to_source_span(name.syntax().text_range()),
-        );
+        keys.insert(name.as_str().to_string(), name.span());
     }
 }
 
@@ -104,7 +86,7 @@ fn check_duplicate_keys(
 /// * object literals
 /// * struct literals
 #[derive(Default, Debug)]
-pub struct UniqueKeysVisitor(HashMap<String, SourceSpan>);
+pub struct UniqueKeysVisitor(HashMap<String, Span>);
 
 impl Visitor for UniqueKeysVisitor {
     type State = Diagnostics;

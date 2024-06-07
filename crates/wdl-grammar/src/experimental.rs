@@ -5,14 +5,10 @@
 //! concrete syntax tree (CST) representation.
 //!
 //! The parser will output a list of parser events that can be used
-//! to construct the CST. An event may be an "error" variant that
-//! signifies an error encountered during the parse; errors will
-//! be collated during tree construction so that the final output
-//! will be a CST and a list of errors. The errors will be based on
-//! `miette` diagnostics and contain all relevant spans from the
-//! original input.
+//! to construct the CST. The parser also keeps a list of [Diagnostic] emitted
+//! during the parse that relate to spans from the original source.
 //!
-//! See [SyntaxTree::parse][tree::SyntaxTree::parse] for parsing WDL source;
+//! See [SyntaxTree::parse] for parsing WDL source;
 //! users may inspect the resulting CST to determine the version of the
 //! document that was parsed.
 //!
@@ -21,7 +17,11 @@
 //! existing rules will be updated to use the new CST/AST representation
 //! at that time.
 
+mod diagnostic;
 pub mod grammar;
 pub mod lexer;
 pub mod parser;
-pub mod tree;
+mod tree;
+
+pub use diagnostic::*;
+pub use tree::*;

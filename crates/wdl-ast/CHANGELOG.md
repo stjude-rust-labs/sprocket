@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added a new experimental AST for the experimental parser; this implementation
   is currently feature-gated behind the `experimental` feature ([#64](https://github.com/stjude-rust-labs/wdl/pull/64)).
 
+### Changed
+
+* Removed dependency on `miette` and `thiserror` in the experimental parser,
+  re-exported key items from `wdl-grammar`'s experimental parser implementation,
+  and changed errors to use `Diagnostic` ([#68](https://github.com/stjude-rust-labs/wdl/pull/68)).
+
 ## 0.2.0 - 5-31-2024
 
 * Fix ignoring comments in expressions ([#23](https://github.com/stjude-rust-labs/wdl/pull/23)).

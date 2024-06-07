@@ -3,9 +3,10 @@
 use rowan::ast::support::children;
 use rowan::ast::AstChildren;
 use rowan::ast::AstNode;
-use wdl_grammar::experimental::tree::SyntaxKind;
-use wdl_grammar::experimental::tree::SyntaxNode;
-use wdl_grammar::experimental::tree::WorkflowDescriptionLanguage;
+
+use crate::experimental::SyntaxKind;
+use crate::experimental::SyntaxNode;
+use crate::experimental::WorkflowDescriptionLanguage;
 
 mod decls;
 mod expr;
@@ -36,7 +37,7 @@ pub use workflow::*;
 ///
 /// Elements of an AST are trivially cloned.
 ///
-/// [1]: wdl_grammar::experimental::tree::SyntaxTree
+/// [1]: crate::experimental::SyntaxTree
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Ast(SyntaxNode);
 

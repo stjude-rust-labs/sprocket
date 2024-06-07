@@ -1,13 +1,12 @@
 //! Module for the WDL grammar functions.
 
-use miette::SourceSpan;
-
 use super::lexer::PreambleToken;
-use super::parser::Error;
 use super::parser::Event;
 use super::parser::Marker;
 use super::parser::Parser;
 use super::tree::SyntaxKind;
+use super::Diagnostic;
+use super::Span;
 use crate::experimental::lexer::VersionStatementToken;
 
 pub mod v1;
@@ -15,7 +14,7 @@ pub mod v1;
 mod macros {
     /// A macro for expecting the next token be a particular token.
     ///
-    /// Returns an error if the token is not the specified token.
+    /// Returns a diagnostic if the token is not the specified token.
     macro_rules! expected {
         ($parser:ident, $marker:ident, $token:expr) => {
             if let Err(e) = $parser.expect($token) {
@@ -66,12 +65,12 @@ type PreambleParser<'a> = Parser<'a, PreambleToken>;
 /// Parses a WDL document.
 ///
 /// Returns the parser events that result from parsing the document.
-pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Vec<Error>) {
+pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Vec<Diagnostic>) {
     let root = parser.start();
     // Look for a starting `version` keyword token
     // If this fails, an error is emitted and we'll skip parsing the remainder of
     // the file.
-    let (mut parser, err) = match parser.peek() {
+    let (mut parser, diagnostic) = match parser.peek() {
         Some((PreambleToken::VersionKeyword, _)) => {
             let marker = parser.start();
             let (mut parser, res) = version_statement(parser, marker);
@@ -79,21 +78,19 @@ pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Ve
                 Ok(span) => {
                     // A version statement was successfully parsed, check to see if the
                     // version is supported by this implementation
-                    let version: &str = &source[span.offset()..span.offset() + span.len()];
+                    let version: &str = &source[span.start()..span.end()];
                     match version {
                         "1.0" | "1.1" => {
                             let mut parser = parser.morph();
                             v1::items(&mut parser);
                             root.complete(&mut parser, SyntaxKind::RootNode);
                             let output = parser.finish();
-                            return (output.events, output.errors);
+                            return (output.events, output.diagnostics);
                         }
                         _ => (
                             parser,
-                            Error::UnsupportedVersion {
-                                version: version.to_string(),
-                                span,
-                            },
+                            Diagnostic::error(format!("unsupported WDL version `{version}`"))
+                                .with_label("this version of WDL is not supported", span),
                         ),
                     }
                 }
@@ -103,22 +100,27 @@ pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Ve
                 }
             }
         }
-        found => (
-            parser,
-            Error::VersionRequired {
-                span: found.map(|(_, s)| s),
-            },
-        ),
+        found => {
+            let mut diagnostic =
+                Diagnostic::error("a WDL document must start with a version statement");
+
+            if let Some((_, span)) = found {
+                diagnostic =
+                    diagnostic.with_label("a version statement must come before this", span);
+            }
+
+            (parser, diagnostic)
+        }
     };
 
     // At this point, the parse cannot continue; but we still want the tree to cover
     // every span of the source, so we will insert a special "unparsed" token for
     // the remaining source.
-    parser.error(err);
+    parser.diagnostic(diagnostic);
     parser.consume_remainder();
     root.complete(&mut parser, SyntaxKind::RootNode);
     let output = parser.finish();
-    (output.events, output.errors)
+    (output.events, output.diagnostics)
 }
 
 /// Parses the version statement of a WDL source file.
@@ -129,7 +131,7 @@ pub fn version_statement(
     marker: Marker,
 ) -> (
     Parser<'_, PreambleToken>,
-    Result<SourceSpan, (Marker, Error)>,
+    Result<Span, (Marker, Diagnostic)>,
 ) {
     parser.require(PreambleToken::VersionKeyword);
 

@@ -8,14 +8,13 @@
 use std::fmt;
 
 use logos::Logos;
-use miette::Diagnostic;
-use miette::SourceSpan;
 
-use super::lexer;
 use super::lexer::Lexer;
 use super::lexer::LexerResult;
 use super::lexer::TokenSet;
 use super::tree::SyntaxKind;
+use super::Diagnostic;
+use super::Span;
 
 /// Represents an event produced by the parser.
 ///
@@ -41,7 +40,7 @@ pub enum Event {
         /// The syntax kind of the token.
         kind: SyntaxKind,
         /// The source span of the token.
-        span: SourceSpan,
+        span: Span,
     },
 }
 
@@ -55,15 +54,16 @@ impl Event {
     }
 }
 
-/// Utility type for displaying "expected" items in a parser expectation error.
+/// Utility type for displaying "expected" items in a parser expectation
+/// diagnostic.
 struct Expected<'a> {
     /// The set of expected items.
-    items: &'a [&'static str],
+    items: &'a [&'a str],
 }
 
 impl<'a> Expected<'a> {
     /// Constructs a new `Expected`.
-    fn new(items: &'a [&'static str]) -> Self {
+    fn new(items: &'a [&'a str]) -> Self {
         Self { items }
     }
 }
@@ -89,97 +89,50 @@ impl fmt::Display for Expected<'_> {
     }
 }
 
-/// Represents a parse error.
-#[derive(thiserror::Error, Diagnostic, Debug, Clone, PartialEq, Eq)]
-pub enum Error {
-    /// A lexer error occurred.
-    #[error("{error}")]
-    Lexer {
-        /// The lexer error that occurred.
-        error: lexer::Error,
-        /// The span where the error occurred.
-        #[label(primary, "{text}")]
-        span: SourceSpan,
-        /// The error text corresponding to the span.
-        text: &'static str,
-    },
-    /// An unexpected token was encountered when a single item was expected.
-    #[error("expected {expected}, but found {found}", found = .found.unwrap_or("end of input"))]
-    Expected {
-        /// The expected item.
-        expected: &'static str,
-        /// The found token (`None` for end of input).
-        found: Option<&'static str>,
-        /// The span of the found token.
-        #[label(primary, "unexpected {found}", found = .found.unwrap_or("end of input"))]
-        span: SourceSpan,
-    },
-    /// An unexpected token was encountered when one of multiple items was
-    /// expected.
-    #[error("expected {expected}, but found {found}", expected = Expected::new(.expected), found = .found.unwrap_or("end of input"))]
-    ExpectedOneOf {
-        /// The expected items.
-        expected: &'static [&'static str],
-        /// The found token (`None` for end of input).
-        found: Option<&'static str>,
-        /// The span of the found token.
-        #[label(primary, "unexpected {found}", found = .found.unwrap_or("end of input"))]
-        span: SourceSpan,
-    },
-    /// An unsupported WDL document version was encountered.
-    #[error("unsupported WDL version `{version}`")]
-    UnsupportedVersion {
-        /// The version that was not supported.
-        version: String,
-        /// The span of the unsupported version.
-        #[label(primary, "this version of WDL is not supported")]
-        span: SourceSpan,
-    },
-    /// A WDL document must start with a version statement.
-    #[error("a WDL document must start with a version statement")]
-    VersionRequired {
-        /// The span where the version statement must precede.
-        #[label(primary, "a version statement must come before this")]
-        span: Option<SourceSpan>,
-    },
-    /// An unterminated placeholder was encountered.
-    #[error("an unterminated string was encountered")]
-    UnterminatedString {
-        /// The span of the opening quote of the string.
-        #[label(primary, "this quote is not matched")]
-        span: SourceSpan,
-    },
-    /// An unterminated command was encountered.
-    #[error("an unterminated command was encountered")]
-    UnterminatedCommand {
-        /// The span of the command opening.
-        #[label(primary, "this {desc} is not matched")]
-        span: SourceSpan,
-        /// The description of the command opening token.
-        desc: &'static str,
-    },
-    /// An unmatched token was encountered.
-    #[error("expected {close}, but found {found}", found = .found.unwrap_or("end of input"))]
-    Unmatched {
-        /// The open token.
-        open: &'static str,
-        /// The close token.
-        close: &'static str,
-        /// The found token (`None` for end of input).
-        found: Option<&'static str>,
-        /// The span of the found token.
-        #[label(primary, "unexpected {found}", found = .found.unwrap_or("end of input"))]
-        span: SourceSpan,
-        /// The span of the opening token.
-        #[label("this {open} is not matched")]
-        open_span: SourceSpan,
-    },
+/// Creates an "expected, but found" diagnostic error.
+pub(crate) fn expected_found(expected: &str, found: Option<&str>, span: Span) -> Diagnostic {
+    let found = found.unwrap_or("end of input");
+    Diagnostic::error(format!("expected {expected}, but found {found}"))
+        .with_label(format!("unexpected {found}"), span)
+}
+
+/// Creates an "expected one of, but found" diagnostic error.
+pub(crate) fn expected_one_of(expected: &[&str], found: Option<&str>, span: Span) -> Diagnostic {
+    let found = found.unwrap_or("end of input");
+    Diagnostic::error(format!(
+        "expected {expected}, but found {found}",
+        expected = Expected::new(expected)
+    ))
+    .with_label(format!("unexpected {found}"), span)
+}
+
+/// Creates an "unterminated string" diagnostic error.
+pub(crate) fn unterminated_string(span: Span) -> Diagnostic {
+    Diagnostic::error("an unterminated string was encountered")
+        .with_label("this quote is not matched", span)
+}
+
+/// Creates an "unterminated command" diagnostic error.
+pub(crate) fn unterminated_command(opening: &str, span: Span) -> Diagnostic {
+    Diagnostic::error("an unterminated command was encountered")
+        .with_label(format!("this {opening} is not matched"), span)
+}
+
+/// Creates an "unmatched token" diagnostic error.
+pub(crate) fn unmatched(
+    open: &str,
+    open_span: Span,
+    close: &str,
+    found: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(format!("expected {close}, but found {found}"))
+        .with_label(format!("unexpected {found}"), span)
+        .with_label(format!("this {open} is not matched"), open_span)
 }
 
 /// A trait implemented by parser tokens.
-pub trait ParserToken<'a>:
-    Eq + Copy + Logos<'a, Source = str, Error = lexer::Error, Extras = ()>
-{
+pub trait ParserToken<'a>: Eq + Copy + Logos<'a, Source = str, Error = (), Extras = ()> {
     /// Converts the token into its syntax representation.
     fn into_syntax(self) -> SyntaxKind;
 
@@ -200,7 +153,7 @@ pub trait ParserToken<'a>:
 
     /// A helper for recovering at an interpolation point.
     #[allow(unused_variables)]
-    fn recover_interpolation(token: Self, start: SourceSpan, parser: &mut Parser<'a, Self>) {}
+    fn recover_interpolation(token: Self, start: Span, parser: &mut Parser<'a, Self>) {}
 }
 
 /// Marks the start of a node in the event list.
@@ -330,22 +283,22 @@ where
     lexer: Lexer<'a, T>,
     /// The parser events.
     events: Vec<Event>,
-    /// The parser errors.
-    errors: Vec<Error>,
+    /// The parser diagnostics.
+    diagnostics: Vec<Diagnostic>,
 }
 
 impl<'a, T> Interpolator<'a, T>
 where
-    T: Logos<'a, Source = str, Error = lexer::Error, Extras = ()> + Copy,
+    T: Logos<'a, Source = str, Error = (), Extras = ()> + Copy,
 {
     /// Adds an event to the parser event list.
     pub fn event(&mut self, event: Event) {
         self.events.push(event);
     }
 
-    /// Adds an error to the parser error list.
-    pub fn error(&mut self, error: Error) {
-        self.errors.push(error);
+    /// Adds a diagnostic to the parser error list.
+    pub fn diagnostic(&mut self, diagnostic: Diagnostic) {
+        self.diagnostics.push(diagnostic);
     }
 
     /// Starts a new node event.
@@ -367,16 +320,16 @@ where
         Parser {
             lexer: Some(self.lexer.morph()),
             events: self.events,
-            errors: self.errors,
+            diagnostics: self.diagnostics,
         }
     }
 }
 
 impl<'a, T> Iterator for Interpolator<'a, T>
 where
-    T: Logos<'a, Error = lexer::Error, Extras = ()> + Copy,
+    T: Logos<'a, Error = (), Extras = ()> + Copy,
 {
-    type Item = (LexerResult<T>, SourceSpan);
+    type Item = (LexerResult<T>, Span);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.lexer.next()
@@ -393,8 +346,8 @@ where
     pub lexer: Lexer<'a, T>,
     /// The parser events.
     pub events: Vec<Event>,
-    /// The parser errors.
-    pub errors: Vec<Error>,
+    /// The parser diagnostics.
+    pub diagnostics: Vec<Diagnostic>,
 }
 
 /// Represents the result of a `peek2` operation.
@@ -403,9 +356,9 @@ where
 #[derive(Debug, Copy, Clone)]
 pub struct Peek2<T> {
     /// The first peeked token.
-    pub first: (T, SourceSpan),
+    pub first: (T, Span),
     /// The second peeked token.
-    pub second: (T, SourceSpan),
+    pub second: (T, Span),
 }
 
 /// Represents the result of a `peek3` operation.
@@ -414,11 +367,11 @@ pub struct Peek2<T> {
 #[derive(Debug, Copy, Clone)]
 pub struct Peek3<T> {
     /// The first peeked token.
-    pub first: (T, SourceSpan),
+    pub first: (T, Span),
     /// The second peeked token.
-    pub second: (T, SourceSpan),
+    pub second: (T, Span),
     /// The third peeked token.
-    pub third: (T, SourceSpan),
+    pub third: (T, Span),
 }
 
 /// Implements a WDL parser.
@@ -438,8 +391,8 @@ where
     lexer: Option<Lexer<'a, T>>,
     /// The events produced by the parser.
     events: Vec<Event>,
-    /// The errors encountered so far.
-    errors: Vec<Error>,
+    /// The diagnostics encountered so far.
+    diagnostics: Vec<Diagnostic>,
 }
 
 impl<'a, T> Parser<'a, T>
@@ -451,20 +404,17 @@ where
         Self {
             lexer: Some(lexer),
             events: Default::default(),
-            errors: Default::default(),
+            diagnostics: Default::default(),
         }
     }
 
     /// Gets the current span of the parser.
-    pub fn span(&self) -> SourceSpan {
-        self.lexer
-            .as_ref()
-            .map(|l| l.span())
-            .unwrap_or(SourceSpan::new(0.into(), 0))
+    pub fn span(&self) -> Span {
+        self.lexer.as_ref().expect("expected a lexer").span()
     }
 
     /// Gets the source being parsed at the given span.
-    pub fn source(&self, span: SourceSpan) -> &'a str {
+    pub fn source(&self, span: Span) -> &'a str {
         self.lexer.as_ref().expect("expected a lexer").source(span)
     }
 
@@ -472,7 +422,7 @@ where
     /// consuming it.
     ///
     /// The token is not added to the event list.
-    pub fn peek(&mut self) -> Option<(T, SourceSpan)> {
+    pub fn peek(&mut self) -> Option<(T, Span)> {
         while let Some((res, span)) = self.lexer.as_mut()?.peek() {
             if let Some(t) = self.consume_trivia(res, span, true) {
                 return Some(t);
@@ -582,7 +532,7 @@ where
         recovery: TokenSet,
         mut cb: F,
     ) where
-        F: FnMut(&mut Self, Marker) -> Result<(), (Marker, Error)>,
+        F: FnMut(&mut Self, Marker) -> Result<(), (Marker, Diagnostic)>,
     {
         let recovery = if let Some(delimiter) = delimiter {
             recovery
@@ -592,7 +542,7 @@ where
             recovery.union(until)
         };
 
-        let mut next: Option<(T, SourceSpan)> = self.peek();
+        let mut next: Option<(T, Span)> = self.peek();
         while let Some((token, _)) = next {
             if until.contains(token.into_raw()) {
                 break;
@@ -600,7 +550,7 @@ where
 
             let marker = self.start();
             if let Err((marker, e)) = cb(self, marker) {
-                self.error(e);
+                self.diagnostic(e);
                 self.recover(recovery);
                 marker.abandon(self);
             }
@@ -614,7 +564,7 @@ where
                     }
 
                     if let Err(e) = self.expect(delimiter) {
-                        self.error(e);
+                        self.diagnostic(e);
                         self.recover(recovery);
                     }
 
@@ -624,9 +574,9 @@ where
         }
     }
 
-    /// Adds an error event to the event list.
-    pub fn error(&mut self, error: Error) {
-        self.errors.push(error);
+    /// Adds a diagnostic to the parser output.
+    pub fn diagnostic(&mut self, diagnostic: Diagnostic) {
+        self.diagnostics.push(diagnostic);
     }
 
     /// Recovers from an error by consuming all tokens not
@@ -659,7 +609,7 @@ where
     /// Requires that the current token is the given token.
     ///
     /// Panics if the token is not the given token.
-    pub fn require(&mut self, token: T) -> SourceSpan {
+    pub fn require(&mut self, token: T) -> Span {
         match self.next() {
             Some((t, span)) if t == token => span,
             _ => panic!(
@@ -690,7 +640,7 @@ where
     /// Expects the next token to be the given token.
     ///
     /// Returns an error if the token is not the given token.
-    pub fn expect(&mut self, token: T) -> Result<SourceSpan, Error> {
+    pub fn expect(&mut self, token: T) -> Result<Span, Diagnostic> {
         match self.peek() {
             Some((t, span)) if t == token => {
                 self.next();
@@ -700,12 +650,7 @@ where
                 let (found, span) = found
                     .map(|(t, s)| (Some(T::describe(t.into_raw())), s))
                     .unwrap_or_else(|| (None, self.span()));
-
-                Err(Error::Expected {
-                    expected: T::describe(token.into_raw()),
-                    found,
-                    span,
-                })
+                Err(expected_found(T::describe(token.into_raw()), found, span))
             }
         }
     }
@@ -714,7 +659,7 @@ where
     /// the provided name in the error.
     ///
     /// Returns an error if the token is not the given token.
-    pub fn expect_with_name(&mut self, token: T, name: &'static str) -> Result<SourceSpan, Error> {
+    pub fn expect_with_name(&mut self, token: T, name: &'static str) -> Result<Span, Diagnostic> {
         match self.peek() {
             Some((t, span)) if t == token => {
                 self.next();
@@ -724,12 +669,7 @@ where
                 let (found, span) = found
                     .map(|(t, s)| (Some(T::describe(t.into_raw())), s))
                     .unwrap_or_else(|| (None, self.span()));
-
-                Err(Error::Expected {
-                    expected: name,
-                    found,
-                    span,
-                })
+                Err(expected_found(name, found, span))
             }
         }
     }
@@ -740,8 +680,8 @@ where
     pub fn expect_in(
         &mut self,
         tokens: TokenSet,
-        expected: &'static [&'static str],
-    ) -> Result<(T, SourceSpan), Error> {
+        expected: &[&str],
+    ) -> Result<(T, Span), Diagnostic> {
         match self.peek() {
             Some((t, span)) if tokens.contains(t.into_raw()) => {
                 self.next();
@@ -752,11 +692,7 @@ where
                     .map(|(t, s)| (Some(T::describe(t.into_raw())), s))
                     .unwrap_or_else(|| (None, self.span()));
 
-                Err(Error::ExpectedOneOf {
-                    expected,
-                    found,
-                    span,
-                })
+                Err(expected_one_of(expected, found, span))
             }
         }
     }
@@ -769,7 +705,7 @@ where
     /// value.
     pub fn interpolate<T2, F, R>(&mut self, cb: F) -> R
     where
-        T2: Logos<'a, Source = str, Error = lexer::Error, Extras = ()> + Copy,
+        T2: Logos<'a, Source = str, Error = (), Extras = ()> + Copy,
         F: FnOnce(Interpolator<'a, T2>) -> (Parser<'a, T>, R),
     {
         let input = Interpolator {
@@ -777,7 +713,7 @@ where
                 .expect("lexer should exist")
                 .morph(),
             events: std::mem::take(&mut self.events),
-            errors: std::mem::take(&mut self.errors),
+            diagnostics: std::mem::take(&mut self.diagnostics),
         };
         let (p, result) = cb(input);
         *self = p;
@@ -796,19 +732,19 @@ where
         Parser {
             lexer: self.lexer.map(|l| l.morph()),
             events: self.events,
-            errors: self.errors,
+            diagnostics: self.diagnostics,
         }
     }
 
     /// Consumes the parser and returns an interpolator.
     pub fn into_interpolator<T2>(self) -> Interpolator<'a, T2>
     where
-        T2: Logos<'a, Source = str, Error = lexer::Error, Extras = ()> + Copy,
+        T2: Logos<'a, Source = str, Error = (), Extras = ()> + Copy,
     {
         Interpolator {
             lexer: self.lexer.expect("lexer should be present").morph(),
             events: self.events,
-            errors: self.errors,
+            diagnostics: self.diagnostics,
         }
     }
 
@@ -817,7 +753,7 @@ where
         Output {
             lexer: self.lexer.expect("lexer should be present"),
             events: self.events,
-            errors: self.errors,
+            diagnostics: self.diagnostics,
         }
     }
 
@@ -857,9 +793,9 @@ where
     fn consume_trivia(
         &mut self,
         res: LexerResult<T>,
-        span: SourceSpan,
+        span: Span,
         peeked: bool,
-    ) -> Option<(T, SourceSpan)> {
+    ) -> Option<(T, Span)> {
         let event = match res {
             Ok(token) => {
                 if !token.is_trivia() {
@@ -871,12 +807,11 @@ where
                     span,
                 }
             }
-            Err(e) => {
-                self.error(Error::Lexer {
-                    error: e,
-                    span,
-                    text: Self::unsupported_token_text(self.source(span)),
-                });
+            Err(_) => {
+                self.diagnostic(
+                    Diagnostic::error("an unknown token was encountered")
+                        .with_label(Self::unsupported_token_text(self.source(span)), span),
+                );
                 Event::Token {
                     kind: SyntaxKind::Unknown,
                     span,
@@ -906,9 +841,9 @@ impl<'a, T> Iterator for Parser<'a, T>
 where
     T: ParserToken<'a>,
 {
-    type Item = (T, SourceSpan);
+    type Item = (T, Span);
 
-    fn next(&mut self) -> Option<(T, SourceSpan)> {
+    fn next(&mut self) -> Option<(T, Span)> {
         while let Some((res, span)) = self.lexer.as_mut()?.next() {
             if let Some((token, span)) = self.consume_trivia(res, span, false) {
                 self.events.push(Event::Token {

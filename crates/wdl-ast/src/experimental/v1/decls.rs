@@ -5,14 +5,14 @@ use std::fmt;
 use rowan::ast::support;
 use rowan::ast::support::child;
 use rowan::ast::AstNode;
-use wdl_grammar::experimental::tree::SyntaxKind;
-use wdl_grammar::experimental::tree::SyntaxNode;
-use wdl_grammar::experimental::tree::WorkflowDescriptionLanguage;
 
 use super::Expr;
 use crate::experimental::token;
 use crate::experimental::AstToken;
 use crate::experimental::Ident;
+use crate::experimental::SyntaxKind;
+use crate::experimental::SyntaxNode;
+use crate::experimental::WorkflowDescriptionLanguage;
 
 /// Represents a `Map` type.
 #[derive(Clone, Debug, PartialEq, Eq)]

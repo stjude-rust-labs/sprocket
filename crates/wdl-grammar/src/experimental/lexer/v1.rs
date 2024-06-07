@@ -1,20 +1,18 @@
 //! WDL (v1) tokens.
 
 pub use logos::Logos;
-use miette::SourceSpan;
 
-use super::Error;
 use crate::experimental::grammar::v1::double_quote_interpolate;
 use crate::experimental::grammar::v1::interpolate_heredoc_command;
 use crate::experimental::grammar::v1::single_quote_interpolate;
 use crate::experimental::parser::Parser;
 use crate::experimental::parser::ParserToken;
 use crate::experimental::tree::SyntaxKind;
+use crate::experimental::Span;
 
 /// Represents a token for supported escape sequences.
 #[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
-#[logos()]
 pub enum EscapeToken {
     /// Valid single escape sequences.
     #[token(r"\\")]
@@ -79,7 +77,6 @@ pub enum EscapeToken {
 /// Represents a token in a single quoted string (e.g. `'hello'`).
 #[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
-#[logos(error = Error)]
 pub enum SQStringToken {
     /// A start of a placeholder.
     ///
@@ -118,7 +115,6 @@ pub enum SQStringToken {
 /// Represents a token in a double quoted string (e.g. `"hello"`).
 #[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
-#[logos(error = Error)]
 pub enum DQStringToken {
     /// A start of a placeholder.
     ///
@@ -157,7 +153,6 @@ pub enum DQStringToken {
 /// Represents a token in a heredoc command (e.g. `<<< hello >>>`).
 #[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
-#[logos(error = Error)]
 pub enum HeredocCommandToken {
     /// A start of a placeholder.
     ///
@@ -203,7 +198,6 @@ pub enum HeredocCommandToken {
 /// Represents a token in an "older-style" brace command.
 #[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
-#[logos(error = Error)]
 pub enum BraceCommandToken {
     /// A start of a placeholder.
     ///
@@ -262,7 +256,6 @@ pub enum BraceCommandToken {
 /// terminating before the sub-lexer token's `End` variant is encountered.
 #[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
-#[logos(error = Error)]
 #[logos(subpattern exp = r"[eE][+-]?[0-9]+")]
 #[logos(subpattern id = r"[a-zA-Z][a-zA-Z0-9_]*")]
 pub enum Token {
@@ -680,21 +673,21 @@ impl<'a> ParserToken<'a> for Token {
         matches!(self, Self::Whitespace | Self::Comment)
     }
 
-    fn recover_interpolation(token: Self, start: SourceSpan, parser: &mut Parser<'a, Self>) {
+    fn recover_interpolation(token: Self, start: Span, parser: &mut Parser<'a, Self>) {
         match token {
             Self::SQStringStart => {
                 if let Err(e) = parser.interpolate(|i| single_quote_interpolate(start, true, i)) {
-                    parser.error(e);
+                    parser.diagnostic(e);
                 }
             }
             Self::DQStringStart => {
                 if let Err(e) = parser.interpolate(|i| double_quote_interpolate(start, true, i)) {
-                    parser.error(e);
+                    parser.diagnostic(e);
                 }
             }
             Self::HeredocCommandStart => {
                 if let Err(e) = parser.interpolate(|i| interpolate_heredoc_command(start, i)) {
-                    parser.error(e);
+                    parser.diagnostic(e);
                 }
             }
             _ => {

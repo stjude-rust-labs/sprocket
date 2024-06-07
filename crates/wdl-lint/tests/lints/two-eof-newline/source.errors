@@ -1,0 +1,10 @@
+warning: multiple empty lines at the end of file [rule: EndingNewline]
+  ┌─ tests/lints/two-eof-newline/source.wdl:7:2
+  │  
+7 │   }
+  │ ╭─^
+8 │ │ 
+  │ ╰^ duplicate newline here
+  │  
+  = fix: remove all but one empty line at the end of the file
+

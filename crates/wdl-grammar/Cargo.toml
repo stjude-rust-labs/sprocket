@@ -10,6 +10,8 @@ repository = "https://github.com/stjude-rust-labs/wdl"
 documentation = "https://docs.rs/wdl-grammar"
 
 [dependencies]
+wdl-core = { path = "../wdl-core", version = "0.2.0" }
+wdl-macros = { path = "../wdl-macros", version = "0.1.0" }
 clap = { workspace = true, optional = true }
 colored = { workspace = true, optional = true }
 convert_case.workspace = true
@@ -23,12 +25,9 @@ serde = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 toml = { workspace = true, optional = true }
-logos = { workspace = true }
-miette = { workspace = true }
-thiserror = { workspace = true }
-rowan = { workspace = true }
-wdl-core = { path = "../wdl-core", version = "0.2.0" }
-wdl-macros = { path = "../wdl-macros", version = "0.1.0" }
+logos = { workspace = true, optional = true }
+rowan = { workspace = true, optional = true }
+codespan-reporting = { workspace = true, optional = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
@@ -48,7 +47,8 @@ binaries = [
     "dep:tokio",
     "dep:toml",
 ]
-experimental = []
+experimental = ["dep:logos", "dep:rowan"]
+codespan = ["experimental", "dep:codespan-reporting"]
 
 [[bin]]
 name = "wdl-grammar"
@@ -57,4 +57,5 @@ required-features = ["binaries"]
 
 [[test]]
 name = "parsing"
+required-features = ["codespan"]
 harness = false

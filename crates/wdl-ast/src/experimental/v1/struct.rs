@@ -3,13 +3,13 @@
 use rowan::ast::support::children;
 use rowan::ast::AstChildren;
 use rowan::ast::AstNode;
-use wdl_grammar::experimental::tree::SyntaxKind;
-use wdl_grammar::experimental::tree::SyntaxNode;
-use wdl_grammar::experimental::tree::WorkflowDescriptionLanguage;
 
 use super::UnboundDecl;
 use crate::experimental::token;
 use crate::experimental::Ident;
+use crate::experimental::SyntaxKind;
+use crate::experimental::SyntaxNode;
+use crate::experimental::WorkflowDescriptionLanguage;
 
 /// Represents a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]

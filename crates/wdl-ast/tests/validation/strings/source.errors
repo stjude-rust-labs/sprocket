@@ -2,7 +2,7 @@ error: unknown escape sequence `/j`
   ┌─ tests/validation/strings/source.wdl:9:44
   │
 9 │     String b = "invalid escape sequence ~{"/j"}"
-  │                                            ^^ this is an unknown escape sequence
+  │                                            ^^ this is not a valid WDL escape sequence
 
 error: literal strings may not contain line continuations
    ┌─ tests/validation/strings/source.wdl:10:22
@@ -54,5 +54,5 @@ error: unknown escape sequence `/j`
    ┌─ tests/validation/strings/source.wdl:24:36
    │
 24 │         invalid escape sequence ~{"/j"}
-   │                                    ^^ this is an unknown escape sequence
+   │                                    ^^ this is not a valid WDL escape sequence
 

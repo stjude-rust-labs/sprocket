@@ -2,14 +2,9 @@
 
 use std::fmt;
 
-use miette::Diagnostic;
-use miette::SourceSpan;
 use rowan::ast::support;
 use rowan::ast::AstNode;
-use wdl_grammar::experimental::tree::SyntaxKind;
-use wdl_grammar::experimental::tree::SyntaxNode;
 
-use crate::experimental::to_source_span;
 use crate::experimental::v1::CommandSection;
 use crate::experimental::v1::InputSection;
 use crate::experimental::v1::MetadataSection;
@@ -21,8 +16,14 @@ use crate::experimental::v1::TaskDefinition;
 use crate::experimental::v1::Visitor;
 use crate::experimental::v1::WorkflowDefinition;
 use crate::experimental::AstToken;
+use crate::experimental::Diagnostic;
 use crate::experimental::Diagnostics;
 use crate::experimental::Document;
+use crate::experimental::Ident;
+use crate::experimental::Span;
+use crate::experimental::SyntaxKind;
+use crate::experimental::SyntaxNode;
+use crate::experimental::ToSpan;
 use crate::experimental::VisitReason;
 
 /// Represents context of an error.
@@ -73,69 +74,38 @@ impl fmt::Display for Section {
     }
 }
 
-/// Represents a count validation error.
-#[derive(thiserror::Error, Diagnostic, Debug, Clone, PartialEq, Eq)]
-enum Error {
-    /// There must be at least one definition in the file.
-    #[error("there must be at least one task, workflow, or struct definition in the file")]
-    AtLeastOneDefinition,
-    /// Too many workflows are present in the file.
-    #[error("cannot define workflow `{workflow}` as only one workflow is allowed per source file")]
-    DuplicateWorkflow {
-        /// The name of the workflow exceeding the maximum.
-        workflow: String,
-        /// The span of the exceeding workflow.
-        #[label(primary, "consider moving this workflow to a new file")]
-        span: SourceSpan,
-        /// The span of the first workflow.
-        #[label("first workflow is defined here")]
-        first: SourceSpan,
-    },
-    /// Missing command section in a task.
-    #[error("task `{task}` is missing a command section")]
-    MissingCommandSection {
-        /// The name of the task or workflow.
-        task: String,
-        /// The span of the task missing the command section.
-        #[label(primary, "this task must have a command section")]
-        span: SourceSpan,
-    },
-    /// A duplicate section was encountered in a task or workflow.
-    #[error("{context} `{name}` contains a duplicate {section} section")]
-    DuplicateSection {
-        /// The error context.
-        context: Context,
-        /// The name of the task or workflow.
-        name: String,
-        /// The error section context.
-        section: Section,
-        /// The span of the duplicate section.
-        #[label(primary, "this {section} section is a duplicate")]
-        span: SourceSpan,
-        /// The span of the original section.
-        #[label("first {section} section is defined here")]
-        first: SourceSpan,
-    },
-    /// A struct must have at least one field.
-    #[error("struct `{name}` must have at least one declared member")]
-    EmptyStruct {
-        /// The name of empty struct.
-        name: String,
-        /// The span of the duplicate section.
-        #[label(primary, "this struct cannot be empty")]
-        span: SourceSpan,
-    },
+/// Creates a "at least one definition" diagnostic
+fn at_least_one_definition() -> Diagnostic {
+    Diagnostic::error("there must be at least one task, workflow, or struct definition in the file")
 }
 
-/// Adds a "duplicate section" diagnostic.
+/// Creates a "duplicate workflow" diagnostic
+fn duplicate_workflow(name: Ident, first: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "cannot define workflow `{name}` as only one workflow is allowed per source file",
+        name = name.as_str()
+    ))
+    .with_label("consider moving this workflow to a new file", name.span())
+    .with_label("first workflow is defined here", first)
+}
+
+/// Creates a "missing command section" diagnostic
+fn missing_command_section(task: Ident) -> Diagnostic {
+    Diagnostic::error(format!(
+        "task `{task}` is missing a command section",
+        task = task.as_str()
+    ))
+    .with_label("this task must have a command section", task.span())
+}
+
+/// Creates a "duplicate section" diagnostic
 fn duplicate_section(
     context: Context,
-    name: String,
-    duplicate: &SyntaxNode,
+    name: &str,
     section: Section,
-    first: SourceSpan,
-    diagnostics: &mut Diagnostics,
-) {
+    first: Span,
+    duplicate: &SyntaxNode,
+) -> Diagnostic {
     let kind = match section {
         Section::Command => SyntaxKind::CommandKeyword,
         Section::Input => SyntaxKind::InputKeyword,
@@ -146,13 +116,24 @@ fn duplicate_section(
     };
 
     let token = support::token(duplicate, kind).expect("should have keyword token");
-    diagnostics.add(Error::DuplicateSection {
-        context,
-        name,
-        section,
-        span: to_source_span(token.text_range()),
-        first,
-    });
+
+    Diagnostic::error(format!(
+        "{context} `{name}` contains a duplicate {section} section"
+    ))
+    .with_label(
+        format!("this {section} section is a duplicate"),
+        token.text_range(),
+    )
+    .with_label(format!("first {section} section is defined here"), first)
+}
+
+/// Creates an "empty struct" diagnostic
+fn empty_struct(name: Ident) -> Diagnostic {
+    Diagnostic::error(format!(
+        "struct `{name}` must have at least one declared member",
+        name = name.as_str()
+    ))
+    .with_label("this struct cannot be empty", name.span())
 }
 
 /// A visitor for counting items within an AST.
@@ -171,7 +152,7 @@ fn duplicate_section(
 #[derive(Default, Debug)]
 pub struct CountingVisitor {
     /// The span of the first workflow in the file.
-    workflow: Option<SourceSpan>,
+    workflow: Option<Span>,
     /// Whether or not the document has at least one task.
     has_task: bool,
     /// Whether or not the document has at least one struct.
@@ -179,18 +160,18 @@ pub struct CountingVisitor {
     /// The context of the current task or workflow.
     context: Option<(Context, String)>,
     /// The span of the first command section in the task.
-    command: Option<SourceSpan>,
+    command: Option<Span>,
     /// The span of the first input section in the task or workflow.
-    input: Option<SourceSpan>,
+    input: Option<Span>,
     /// The span of the first output section in the task or workflow.
-    output: Option<SourceSpan>,
+    output: Option<Span>,
     /// The span of the first runtime section in the task.
-    runtime: Option<SourceSpan>,
+    runtime: Option<Span>,
     /// The span of the first metadata section in the task or workflow.
-    metadata: Option<SourceSpan>,
+    metadata: Option<Span>,
     /// The span of the first parameter metadata section in the task or
     /// workflow.
-    param_metadata: Option<SourceSpan>,
+    param_metadata: Option<Span>,
 }
 
 impl CountingVisitor {
@@ -215,7 +196,7 @@ impl Visitor for CountingVisitor {
         }
 
         if self.workflow.is_none() && !self.has_task && !self.has_struct {
-            state.add(Error::AtLeastOneDefinition);
+            state.add(at_least_one_definition());
         }
     }
 
@@ -231,18 +212,13 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(first) = self.workflow {
-            let name = workflow.name();
-            state.add(Error::DuplicateWorkflow {
-                workflow: name.as_str().to_string(),
-                span: to_source_span(name.syntax().text_range()),
-                first,
-            });
+            state.add(duplicate_workflow(workflow.name(), first));
             return;
         }
 
         let name = workflow.name();
         self.context = Some((Context::Workflow, name.as_str().to_string()));
-        self.workflow = Some(to_source_span(name.syntax().text_range()));
+        self.workflow = Some(name.span());
     }
 
     fn task_definition(
@@ -253,11 +229,7 @@ impl Visitor for CountingVisitor {
     ) {
         if reason == VisitReason::Exit {
             if self.command.is_none() {
-                let name = task.name();
-                state.add(Error::MissingCommandSection {
-                    task: name.as_str().to_string(),
-                    span: to_source_span(name.syntax().text_range()),
-                });
+                state.add(missing_command_section(task.name()));
             }
 
             self.reset();
@@ -279,11 +251,7 @@ impl Visitor for CountingVisitor {
         }
 
         if def.members().next().is_none() {
-            let name = def.name();
-            state.add(Error::EmptyStruct {
-                name: name.as_str().to_string(),
-                span: to_source_span(name.syntax().text_range()),
-            });
+            state.add(empty_struct(def.name()));
         }
 
         self.has_task = true;
@@ -300,21 +268,20 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(command) = self.command {
-            let (context, name) = self.context.clone().expect("should have context");
-            duplicate_section(
-                context,
+            let (context, name) = self.context.as_ref().expect("should have context");
+            state.add(duplicate_section(
+                *context,
                 name,
-                section.syntax(),
                 Section::Command,
                 command,
-                state,
-            );
+                section.syntax(),
+            ));
             return;
         }
 
         let token = support::token(section.syntax(), SyntaxKind::CommandKeyword)
             .expect("should have a command keyword token");
-        self.command = Some(to_source_span(token.text_range()));
+        self.command = Some(token.text_range().to_span());
     }
 
     fn input_section(
@@ -328,21 +295,20 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(input) = self.input {
-            let (context, name) = self.context.clone().expect("should have context");
-            duplicate_section(
-                context,
+            let (context, name) = self.context.as_ref().expect("should have context");
+            state.add(duplicate_section(
+                *context,
                 name,
-                section.syntax(),
                 Section::Input,
                 input,
-                state,
-            );
+                section.syntax(),
+            ));
             return;
         }
 
         let token = support::token(section.syntax(), SyntaxKind::InputKeyword)
             .expect("should have an input keyword token");
-        self.input = Some(to_source_span(token.text_range()));
+        self.input = Some(token.text_range().to_span());
     }
 
     fn output_section(
@@ -356,21 +322,20 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(output) = self.output {
-            let (context, name) = self.context.clone().expect("should have context");
-            duplicate_section(
-                context,
+            let (context, name) = self.context.as_ref().expect("should have context");
+            state.add(duplicate_section(
+                *context,
                 name,
-                section.syntax(),
                 Section::Output,
                 output,
-                state,
-            );
+                section.syntax(),
+            ));
             return;
         }
 
         let token = support::token(section.syntax(), SyntaxKind::OutputKeyword)
             .expect("should have an output keyword token");
-        self.output = Some(to_source_span(token.text_range()));
+        self.output = Some(token.text_range().to_span());
     }
 
     fn runtime_section(
@@ -384,21 +349,20 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(runtime) = self.runtime {
-            let (context, name) = self.context.clone().expect("should have context");
-            duplicate_section(
-                context,
+            let (context, name) = self.context.as_ref().expect("should have context");
+            state.add(duplicate_section(
+                *context,
                 name,
-                section.syntax(),
                 Section::Runtime,
                 runtime,
-                state,
-            );
+                section.syntax(),
+            ));
             return;
         }
 
         let token = support::token(section.syntax(), SyntaxKind::RuntimeKeyword)
             .expect("should have a runtime keyword token");
-        self.runtime = Some(to_source_span(token.text_range()));
+        self.runtime = Some(token.text_range().to_span());
     }
 
     fn metadata_section(
@@ -412,21 +376,20 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(metadata) = self.metadata {
-            let (context, name) = self.context.clone().expect("should have context");
-            duplicate_section(
-                context,
+            let (context, name) = self.context.as_ref().expect("should have context");
+            state.add(duplicate_section(
+                *context,
                 name,
-                section.syntax(),
                 Section::Metadata,
                 metadata,
-                state,
-            );
+                section.syntax(),
+            ));
             return;
         }
 
         let token = support::token(section.syntax(), SyntaxKind::MetaKeyword)
             .expect("should have a meta keyword token");
-        self.metadata = Some(to_source_span(token.text_range()));
+        self.metadata = Some(token.text_range().to_span());
     }
 
     fn parameter_metadata_section(
@@ -440,20 +403,19 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(metadata) = self.param_metadata {
-            let (context, name) = self.context.clone().expect("should have context");
-            duplicate_section(
-                context,
+            let (context, name) = self.context.as_ref().expect("should have context");
+            state.add(duplicate_section(
+                *context,
                 name,
-                section.syntax(),
                 Section::ParameterMetadata,
                 metadata,
-                state,
-            );
+                section.syntax(),
+            ));
             return;
         }
 
         let token = support::token(section.syntax(), SyntaxKind::ParameterMetaKeyword)
             .expect("should have a parameter meta keyword token");
-        self.param_metadata = Some(to_source_span(token.text_range()));
+        self.param_metadata = Some(token.text_range().to_span());
     }
 }

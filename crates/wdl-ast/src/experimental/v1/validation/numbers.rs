@@ -1,36 +1,37 @@
 //! Validation of number literals in a V1 AST.
 
-use miette::Diagnostic;
-use miette::SourceSpan;
 use rowan::ast::support;
 use rowan::ast::AstNode;
-use wdl_grammar::experimental::tree::SyntaxKind;
 
-use crate::experimental::to_source_span;
 use crate::experimental::v1::Expr;
 use crate::experimental::v1::LiteralExpr;
 use crate::experimental::v1::Visitor;
 use crate::experimental::AstToken;
+use crate::experimental::Diagnostic;
 use crate::experimental::Diagnostics;
+use crate::experimental::Span;
+use crate::experimental::SyntaxKind;
+use crate::experimental::ToSpan;
 use crate::experimental::VisitReason;
 
-/// Represents a number validation error.
-#[derive(thiserror::Error, Diagnostic, Debug, Clone, PartialEq, Eq)]
-enum Error {
-    /// An integer value is out of bounds.
-    #[error("literal integer exceeds the range for a 64-bit signed integer ({min}..={max})", min = i64::MIN, max = i64::MAX)]
-    IntOutOfBounds {
-        /// The span of the invalid literal integer.
-        #[label(primary, "this literal integer is out of range")]
-        span: SourceSpan,
-    },
-    /// A float value is out of bounds.
-    #[error("literal float exceeds the range for a 64-bit float ({min:+e}..={max:+e})", min = f64::MIN, max = f64::MAX)]
-    FloatOutOfBounds {
-        /// The span of the invalid literal float.
-        #[label(primary, "this literal float is out of range")]
-        span: SourceSpan,
-    },
+/// Creates an "integer not in range" diagnostic
+fn integer_not_in_range(span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "literal integer exceeds the range for a 64-bit signed integer ({min}..={max})",
+        min = i64::MIN,
+        max = i64::MAX,
+    ))
+    .with_label("this literal integer is not in range", span)
+}
+
+/// Creates a "float not in range" diagnostic
+fn float_not_in_range(span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "literal float exceeds the range for a 64-bit float ({min:+e}..={max:+e})",
+        min = f64::MIN,
+        max = f64::MAX,
+    ))
+    .with_label("this literal float is not in range", span)
 }
 
 /// A visitor of numbers within an AST.
@@ -55,12 +56,12 @@ impl Visitor for NumberVisitor {
         // immediate literal integer or literal float operand.
         //
         // In the case of floats, we can simply check if `value` returns `is_none`,
-        // which will indicate that the literal is out of range.
+        // which will indicate that the literal is not in range.
         //
         // For integers, we need to call the `negate` method if the literal is part
         // of a negation expression; otherwise, we use `value`.
         //
-        // If a value is out of range and an operand to a negation expression, we start
+        // If a value is not in range and an operand to a negation expression, we start
         // the error span at the minus token.
         match expr {
             Expr::Literal(LiteralExpr::Integer(i)) => {
@@ -79,11 +80,11 @@ impl Visitor for NumberVisitor {
                     .or_else(|| i.minus().map(|t| usize::from(t.text_range().start())));
                 let range = i.token().syntax().text_range();
                 let span = match start {
-                    Some(start) => SourceSpan::new(start.into(), usize::from(range.end()) - start),
-                    None => to_source_span(range),
+                    Some(start) => Span::new(start, usize::from(range.end()) - start),
+                    None => range.to_span(),
                 };
 
-                state.add(Error::IntOutOfBounds { span });
+                state.add(integer_not_in_range(span));
             }
             Expr::Literal(LiteralExpr::Float(f)) => {
                 if f.value().is_some() {
@@ -96,11 +97,11 @@ impl Visitor for NumberVisitor {
                     .or_else(|| f.minus().map(|t| usize::from(t.text_range().start())));
                 let range = f.token().syntax().text_range();
                 let span = match start {
-                    Some(start) => SourceSpan::new(start.into(), usize::from(range.end()) - start),
-                    None => to_source_span(range),
+                    Some(start) => Span::new(start, usize::from(range.end()) - start),
+                    None => range.to_span(),
                 };
 
-                state.add(Error::FloatOutOfBounds { span });
+                state.add(float_not_in_range(span));
             }
             Expr::Negation(negation) => {
                 // Check to see if the very next expression is a literal integer or float

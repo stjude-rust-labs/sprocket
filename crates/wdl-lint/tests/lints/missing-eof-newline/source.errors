@@ -1,0 +1,8 @@
+warning: missing newline at the end of the file [rule: EndingNewline]
+  ┌─ tests/lints/missing-eof-newline/source.wdl:7:1
+  │
+7 │ }
+  │ ^ expected a newline to follow this
+  │
+  = fix: add an empty line at the end of the file
+

@@ -2,10 +2,9 @@
 
 use std::sync::Arc;
 
-use miette::Diagnostic;
-
 use super::v1;
 use super::Ast;
+use super::Diagnostic;
 use super::VisitReason;
 use crate::experimental::Document;
 use crate::experimental::VersionStatement;
@@ -16,15 +15,12 @@ use crate::experimental::VersionStatement;
 /// visitation of the AST.
 #[allow(missing_debug_implementations)]
 #[derive(Default)]
-pub struct Diagnostics(Vec<Box<dyn Diagnostic + Send + Sync>>);
+pub struct Diagnostics(Vec<Diagnostic>);
 
 impl Diagnostics {
     /// Adds a diagnostic to the collection.
-    pub fn add<D>(&mut self, diagnostic: D)
-    where
-        D: Diagnostic + Send + Sync + 'static,
-    {
-        self.0.push(diagnostic.into());
+    pub fn add(&mut self, diagnostic: Diagnostic) {
+        self.0.push(diagnostic);
     }
 }
 
@@ -48,7 +44,7 @@ impl Diagnostics {
 #[allow(missing_debug_implementations)]
 pub struct Validator {
     /// The set of version 1.x validation visitors.
-    v1: Vec<Box<dyn v1::Visitor<State = Diagnostics> + Send + Sync>>,
+    v1: Vec<Box<dyn v1::Visitor<State = Diagnostics>>>,
 }
 
 impl Validator {
@@ -60,27 +56,21 @@ impl Validator {
     }
 
     /// Adds a V1 visitor to the validator.
-    pub fn add_v1_visitor<V: v1::Visitor<State = Diagnostics> + Send + Sync + 'static>(
-        &mut self,
-        visitor: V,
-    ) {
+    pub fn add_v1_visitor<V: v1::Visitor<State = Diagnostics> + 'static>(&mut self, visitor: V) {
         self.v1.push(Box::new(visitor));
     }
 
     /// Adds multiple V1 visitors to the validator.
     pub fn add_v1_visitors(
         &mut self,
-        visitors: impl Iterator<Item = Box<dyn v1::Visitor<State = Diagnostics> + Send + Sync>>,
+        visitors: impl IntoIterator<Item = Box<dyn v1::Visitor<State = Diagnostics>>>,
     ) {
         self.v1.extend(visitors)
     }
 
     /// Validates the given document and returns the validation errors upon
     /// failure.
-    pub fn validate(
-        mut self,
-        document: &Document,
-    ) -> Result<(), Arc<[Box<dyn Diagnostic + Send + Sync>]>> {
+    pub fn validate(mut self, document: &Document) -> Result<(), Arc<[Diagnostic]>> {
         let mut diagnostics = Diagnostics::default();
 
         match document.ast() {
