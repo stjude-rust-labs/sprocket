@@ -1,0 +1,48 @@
+warning: workflow name `BadWorkflow` is not snake_case [rule: SnakeCase]
+  ┌─ tests/lints/snake-case/source.wdl:5:10
+  │
+5 │ workflow BadWorkflow {
+  │          ^^^^^^^^^^^ this name must be snake_case
+  │
+  = fix: replace `BadWorkflow` with `bad_workflow`
+
+warning: private declaration name `badPrivateDecl` is not snake_case [rule: SnakeCase]
+  ┌─ tests/lints/snake-case/source.wdl:6:11
+  │
+6 │     Float badPrivateDecl = 3.14
+  │           ^^^^^^^^^^^^^^ this name must be snake_case
+  │
+  = fix: replace `badPrivateDecl` with `bad_private_decl`
+
+warning: task name `BadTask` is not snake_case [rule: SnakeCase]
+   ┌─ tests/lints/snake-case/source.wdl:11:6
+   │
+11 │ task BadTask {
+   │      ^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `BadTask` with `bad_task`
+
+warning: input name `BadInput` is not snake_case [rule: SnakeCase]
+   ┌─ tests/lints/snake-case/source.wdl:13:16
+   │
+13 │         String BadInput
+   │                ^^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `BadInput` with `bad_input`
+
+warning: output name `badOut` is not snake_case [rule: SnakeCase]
+   ┌─ tests/lints/snake-case/source.wdl:20:14
+   │
+20 │         File badOut = "out.txt"
+   │              ^^^^^^ this name must be snake_case
+   │
+   = fix: replace `badOut` with `bad_out`
+
+warning: struct member name `bAdFiElD` is not snake_case [rule: SnakeCase]
+   ┌─ tests/lints/snake-case/source.wdl:42:12
+   │
+42 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
+   │            ^^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `bAdFiElD` with `b_ad_fi_el_d`
+
