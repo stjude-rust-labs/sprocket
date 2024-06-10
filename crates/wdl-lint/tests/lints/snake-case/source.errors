@@ -31,17 +31,17 @@ warning: input name `BadInput` is not snake_case [rule: SnakeCase]
    = fix: replace `BadInput` with `bad_input`
 
 warning: output name `badOut` is not snake_case [rule: SnakeCase]
-   ┌─ tests/lints/snake-case/source.wdl:20:14
+   ┌─ tests/lints/snake-case/source.wdl:26:14
    │
-20 │         File badOut = "out.txt"
+26 │         File badOut = "out.txt"
    │              ^^^^^^ this name must be snake_case
    │
    = fix: replace `badOut` with `bad_out`
 
 warning: struct member name `bAdFiElD` is not snake_case [rule: SnakeCase]
-   ┌─ tests/lints/snake-case/source.wdl:42:12
+   ┌─ tests/lints/snake-case/source.wdl:54:12
    │
-42 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
+54 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
    │            ^^^^^^^^ this name must be snake_case
    │
    = fix: replace `bAdFiElD` with `b_ad_fi_el_d`

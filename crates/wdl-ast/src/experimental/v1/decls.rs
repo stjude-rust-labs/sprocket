@@ -642,6 +642,32 @@ pub enum Decl {
 }
 
 impl Decl {
+    /// Gets the type of the declaration.
+    pub fn ty(&self) -> Type {
+        match self {
+            Self::Bound(d) => d.ty(),
+            Self::Unbound(d) => d.ty(),
+        }
+    }
+
+    /// Gets the name of the declaration.
+    pub fn name(&self) -> Ident {
+        match self {
+            Self::Bound(d) => d.name(),
+            Self::Unbound(d) => d.name(),
+        }
+    }
+
+    /// Gets the expression of the declaration.
+    ///
+    /// Returns `None` for unbound declarations.
+    pub fn expr(&self) -> Option<Expr> {
+        match self {
+            Self::Bound(d) => Some(d.expr()),
+            Self::Unbound(_) => None,
+        }
+    }
+
     /// Unwraps the declaration into a bound declaration.
     ///
     /// # Panics

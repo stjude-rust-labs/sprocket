@@ -13,6 +13,12 @@ task BadTask {
         String BadInput
         Int other_bad_input = 13
     }
+
+    parameter_meta {
+        BadInput: "not a good input"
+        other_bad_input: "also not a good input"
+    }
+
     command <<<
         echo "Hello World"
     >>>
@@ -28,6 +34,12 @@ task good_task {
         String good_input
         Int other_good_input = 42
     }
+
+    parameter_meta {
+        good_input: "a good input"
+        other_good_input: "also a good input"
+    }
+
     command <<<
         echo "Hello World"
     >>>

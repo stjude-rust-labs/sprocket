@@ -9,6 +9,7 @@ use crate::TagSet;
 
 mod double_quotes;
 mod ending_newline;
+mod matching_parameter_meta;
 mod missing_runtime;
 mod no_curly_commands;
 mod preamble_comments;
@@ -17,6 +18,7 @@ mod snake_case;
 
 pub use double_quotes::*;
 pub use ending_newline::*;
+pub use matching_parameter_meta::*;
 pub use missing_runtime::*;
 pub use no_curly_commands::*;
 pub use preamble_comments::*;
@@ -61,6 +63,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(EndingNewlineRule),
         Box::new(PreambleWhitespaceRule),
         Box::new(PreambleCommentsRule),
+        Box::new(MatchingParameterMetaRule),
     ];
 
     // Ensure all the rule ids are unique and pascal case
