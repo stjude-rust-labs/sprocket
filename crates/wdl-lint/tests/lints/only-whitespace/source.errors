@@ -1,0 +1,59 @@
+warning: line contains only whitespace [rule: Whitespace]
+  ┌─ tests/lints/only-whitespace/source.wdl:6:1
+  │
+6 │     
+  │ ^^^^
+  │
+  = fix: remove the whitespace from this line
+
+warning: line contains only whitespace [rule: Whitespace]
+  ┌─ tests/lints/only-whitespace/source.wdl:9:1
+  │
+9 │           
+  │ ^^^^^^^^^^
+  │
+  = fix: remove the whitespace from this line
+
+warning: more than one blank line in a row [rule: Whitespace]
+   ┌─ tests/lints/only-whitespace/source.wdl:9:1
+   │  
+ 9 │ ╭           
+10 │ │ 
+11 │ │ 
+12 │ │ workflow test {    
+   │ ╰^
+   │  
+   = fix: remove the unnecessary blank lines
+
+warning: line contains trailing whitespace [rule: Whitespace]
+   ┌─ tests/lints/only-whitespace/source.wdl:12:16
+   │
+12 │ workflow test {    
+   │                ^^^^
+   │
+   = fix: remove the trailing whitespace from this line
+
+warning: line contains only whitespace [rule: Whitespace]
+   ┌─ tests/lints/only-whitespace/source.wdl:13:1
+   │
+13 │     
+   │ ^^^^
+   │
+   = fix: remove the whitespace from this line
+
+warning: line contains trailing whitespace [rule: Whitespace]
+   ┌─ tests/lints/only-whitespace/source.wdl:14:18
+   │
+14 │     String x = ""           
+   │                  ^^^^^^^^^^^
+   │
+   = fix: remove the trailing whitespace from this line
+
+warning: line contains only whitespace [rule: Whitespace]
+   ┌─ tests/lints/only-whitespace/source.wdl:16:1
+   │
+16 │      
+   │ ^^^^^
+   │
+   = fix: remove the whitespace from this line
+

@@ -15,6 +15,7 @@ mod no_curly_commands;
 mod preamble_comments;
 mod preamble_whitespace;
 mod snake_case;
+mod whitespace;
 
 pub use double_quotes::*;
 pub use ending_newline::*;
@@ -24,6 +25,7 @@ pub use no_curly_commands::*;
 pub use preamble_comments::*;
 pub use preamble_whitespace::*;
 pub use snake_case::*;
+pub use whitespace::*;
 
 /// A trait implemented by lint rules.
 pub trait Rule {
@@ -64,6 +66,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(PreambleWhitespaceRule),
         Box::new(PreambleCommentsRule),
         Box::new(MatchingParameterMetaRule),
+        Box::new(WhitespaceRule),
     ];
 
     // Ensure all the rule ids are unique and pascal case
