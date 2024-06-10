@@ -1,0 +1,10 @@
+note: expected a blank line before the version statement [rule: PreambleWhitespace]
+  ┌─ tests/lints/missing-preamble-ws/source.wdl:1:50
+  │  
+1 │   ## This is a test of missing preamble whitespace.
+  │ ╭─────────────────────────────────────────────────^
+2 │ │ version 1.1
+  │ ╰^
+  │  
+  = fix: add a blank line between the last preamble comment and the version statement
+

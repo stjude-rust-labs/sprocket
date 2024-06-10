@@ -22,11 +22,13 @@ use super::TaskDefinition;
 use super::UnboundDecl;
 use super::WorkflowDefinition;
 use crate::experimental::AstNode;
+use crate::experimental::Comment;
 use crate::experimental::Document;
 use crate::experimental::SyntaxKind;
 use crate::experimental::SyntaxNode;
 use crate::experimental::VersionStatement;
 use crate::experimental::VisitReason;
+use crate::experimental::Whitespace;
 
 /// A trait used to implement a WDL V1 AST visitor.
 ///
@@ -40,6 +42,12 @@ pub trait Visitor: Send + Sync {
 
     /// Visits the root document node.
     fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {}
+
+    /// Visits a whitespace token.
+    fn whitespace(&mut self, state: &mut Self::State, whitespace: &Whitespace) {}
+
+    /// Visit a comment token.
+    fn comment(&mut self, state: &mut Self::State, comment: &Comment) {}
 
     /// Visits a top-level version statement node.
     fn version_statement(
@@ -113,8 +121,8 @@ pub trait Visitor: Send + Sync {
     ) {
     }
 
-    /// Visits command text in a command section node.
-    fn command_text(&mut self, state: &mut Self::State, reason: VisitReason, text: &CommandText) {}
+    /// Visits a command text token in a command section node.
+    fn command_text(&mut self, state: &mut Self::State, text: &CommandText) {}
 
     /// Visits a runtime section node.
     fn runtime_section(
@@ -161,8 +169,8 @@ pub trait Visitor: Send + Sync {
     /// Visits an expression node.
     fn expr(&mut self, state: &mut Self::State, reason: VisitReason, expr: &Expr) {}
 
-    /// Visits text in a literal string node.
-    fn string_text(&mut self, state: &mut Self::State, reason: VisitReason, text: &StringText) {}
+    /// Visits a string text token in a literal string node.
+    fn string_text(&mut self, state: &mut Self::State, text: &StringText) {}
 
     /// Visits a conditional statement node in a workflow.
     fn conditional_statement(
@@ -357,11 +365,17 @@ pub(super) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
             SyntaxKind::Abandoned | SyntaxKind::MAX => {
                 unreachable!("node should not exist in the tree")
             }
-            SyntaxKind::LiteralStringText => {
-                visitor.string_text(state, reason, &StringText(element.into_token().unwrap()))
+            SyntaxKind::Whitespace if reason == VisitReason::Enter => {
+                visitor.whitespace(state, &Whitespace(element.into_token().unwrap()))
             }
-            SyntaxKind::LiteralCommandText => {
-                visitor.command_text(state, reason, &CommandText(element.into_token().unwrap()))
+            SyntaxKind::Comment if reason == VisitReason::Enter => {
+                visitor.comment(state, &Comment(element.into_token().unwrap()))
+            }
+            SyntaxKind::LiteralStringText if reason == VisitReason::Enter => {
+                visitor.string_text(state, &StringText(element.into_token().unwrap()))
+            }
+            SyntaxKind::LiteralCommandText if reason == VisitReason::Enter => {
+                visitor.command_text(state, &CommandText(element.into_token().unwrap()))
             }
             _ => {
                 // Skip remaining tokens

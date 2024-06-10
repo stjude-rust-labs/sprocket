@@ -1,4 +1,4 @@
-# This is a test of the `NoCurlyCommands` lint
+## This is a test of the `NoCurlyCommands` lint
 
 version 1.1
 

@@ -8,6 +8,7 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 
 mod tags;
+pub(crate) mod util;
 pub mod v1;
 
 pub use tags::*;

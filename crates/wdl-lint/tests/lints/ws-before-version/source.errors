@@ -1,0 +1,11 @@
+note: unnecessary whitespace in document preamble [rule: PreambleWhitespace]
+  ┌─ tests/lints/ws-before-version/source.wdl:1:1
+  │  
+1 │ ╭     
+2 │ │ 
+3 │ │   
+4 │ │     version 1.1
+  │ ╰────^
+  │  
+  = fix: remove the unnecessary whitespace
+

@@ -11,12 +11,16 @@ mod double_quotes;
 mod ending_newline;
 mod missing_runtime;
 mod no_curly_commands;
+mod preamble_comments;
+mod preamble_whitespace;
 mod snake_case;
 
 pub use double_quotes::*;
 pub use ending_newline::*;
 pub use missing_runtime::*;
 pub use no_curly_commands::*;
+pub use preamble_comments::*;
+pub use preamble_whitespace::*;
 pub use snake_case::*;
 
 /// A trait implemented by lint rules.
@@ -55,6 +59,8 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(SnakeCaseRule),
         Box::new(MissingRuntimeRule),
         Box::new(EndingNewlineRule),
+        Box::new(PreambleWhitespaceRule),
+        Box::new(PreambleCommentsRule),
     ];
 
     // Ensure all the rule ids are unique and pascal case

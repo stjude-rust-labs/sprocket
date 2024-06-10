@@ -264,7 +264,7 @@ pub enum Token {
     Whitespace,
 
     /// A comment.
-    #[regex(r"#[^\n]*")]
+    #[regex(r"#[^\r\n]*")]
     Comment,
 
     /// A literal float.

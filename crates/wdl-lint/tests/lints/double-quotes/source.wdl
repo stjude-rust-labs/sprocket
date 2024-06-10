@@ -1,4 +1,4 @@
-# This is a test of the `double_quotes` lint
+## This is a test of the `double_quotes` lint
 
 version 1.1
 

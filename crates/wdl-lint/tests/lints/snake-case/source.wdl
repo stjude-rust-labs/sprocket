@@ -1,4 +1,4 @@
-# Test SnakeCase rule
+## Test SnakeCase rule
 
 version 1.0
 

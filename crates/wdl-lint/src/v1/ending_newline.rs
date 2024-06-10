@@ -10,6 +10,7 @@ use wdl_ast::experimental::SyntaxKind;
 use wdl_ast::experimental::VisitReason;
 
 use super::Rule;
+use crate::util::strip_newline;
 use crate::Tag;
 use crate::TagSet;
 
@@ -63,11 +64,6 @@ impl Rule for EndingNewlineRule {
     fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
         Box::new(EndingNewlineVisitor)
     }
-}
-
-/// Strips a newline sequence from the end of the given string.
-fn strip_newline(s: &str) -> Option<&str> {
-    s.strip_prefix("\r\n").or_else(|| s.strip_prefix('\n'))
 }
 
 /// Implements the visitor for the ending newline rule.

@@ -4,8 +4,10 @@ use std::sync::Arc;
 
 use super::v1;
 use super::Ast;
+use super::Comment;
 use super::Diagnostic;
 use super::VisitReason;
+use super::Whitespace;
 use crate::experimental::Document;
 use crate::experimental::VersionStatement;
 
@@ -112,6 +114,18 @@ impl v1::Visitor for Validator {
         }
     }
 
+    fn whitespace(&mut self, state: &mut Self::State, whitespace: &Whitespace) {
+        for visitor in self.v1.iter_mut() {
+            visitor.whitespace(state, whitespace);
+        }
+    }
+
+    fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
+        for visitor in self.v1.iter_mut() {
+            visitor.comment(state, comment);
+        }
+    }
+
     fn version_statement(
         &mut self,
         state: &mut Self::State,
@@ -200,14 +214,9 @@ impl v1::Visitor for Validator {
         }
     }
 
-    fn command_text(
-        &mut self,
-        state: &mut Self::State,
-        reason: VisitReason,
-        text: &v1::CommandText,
-    ) {
+    fn command_text(&mut self, state: &mut Self::State, text: &v1::CommandText) {
         for visitor in self.v1.iter_mut() {
-            visitor.command_text(state, reason, text);
+            visitor.command_text(state, text);
         }
     }
 
@@ -278,9 +287,9 @@ impl v1::Visitor for Validator {
         }
     }
 
-    fn string_text(&mut self, state: &mut Self::State, reason: VisitReason, text: &v1::StringText) {
+    fn string_text(&mut self, state: &mut Self::State, text: &v1::StringText) {
         for visitor in self.v1.iter_mut() {
-            visitor.string_text(state, reason, text);
+            visitor.string_text(state, text);
         }
     }
 

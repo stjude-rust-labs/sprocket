@@ -1,0 +1,18 @@
+note: unnecessary whitespace in document preamble [rule: PreambleWhitespace]
+  ┌─ tests/lints/unnecessary-preamble-ws/source.wdl:4:1
+  │
+4 │            
+  │ ^^^^^^^^^^^
+  │
+  = fix: remove the unnecessary whitespace
+
+note: unnecessary whitespace in document preamble [rule: PreambleWhitespace]
+  ┌─ tests/lints/unnecessary-preamble-ws/source.wdl:5:1
+  │  
+5 │ ╭ 
+6 │ │ 
+7 │ │   version 1.1
+  │ ╰──^
+  │  
+  = fix: remove the unnecessary whitespace
+

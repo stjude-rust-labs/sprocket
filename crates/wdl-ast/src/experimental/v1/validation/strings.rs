@@ -9,7 +9,6 @@ use crate::experimental::AstToken;
 use crate::experimental::Diagnostic;
 use crate::experimental::Diagnostics;
 use crate::experimental::Span;
-use crate::experimental::VisitReason;
 
 /// Creates an "unknown escape sequence" diagnostic
 fn unknown_escape_sequence(sequence: &str, span: Span) -> Diagnostic {
@@ -122,11 +121,7 @@ pub struct LiteralTextVisitor;
 impl Visitor for LiteralTextVisitor {
     type State = Diagnostics;
 
-    fn string_text(&mut self, state: &mut Self::State, reason: VisitReason, text: &StringText) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
+    fn string_text(&mut self, state: &mut Self::State, text: &StringText) {
         check_text(
             state,
             text.syntax().text_range().start().into(),

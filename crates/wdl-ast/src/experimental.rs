@@ -267,6 +267,33 @@ impl AstNode for Document {
     }
 }
 
+/// Represents a whitespace token in the AST.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Whitespace(SyntaxToken);
+
+impl AstToken for Whitespace {
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        kind == SyntaxKind::Whitespace
+    }
+
+    fn cast(syntax: SyntaxToken) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::Whitespace => Some(Self(syntax)),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxToken {
+        &self.0
+    }
+}
+
 /// Represents a comment token in the AST.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Comment(SyntaxToken);

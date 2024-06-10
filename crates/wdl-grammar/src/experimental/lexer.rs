@@ -87,7 +87,7 @@ pub enum PreambleToken {
     Whitespace,
 
     /// A comment.
-    #[regex(r"#[^\n]*")]
+    #[regex(r"#[^\r\n]*")]
     Comment,
 
     /// The `version` keyword.
@@ -155,7 +155,7 @@ pub enum VersionStatementToken {
     Whitespace,
 
     /// A comment.
-    #[regex(r"#[^\n]*")]
+    #[regex(r"#[^\r\n]*")]
     Comment,
 
     /// A WDL version.

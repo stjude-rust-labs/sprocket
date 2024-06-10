@@ -1,0 +1,16 @@
+note: preamble comments cannot start with more than two `#` [rule: PreambleComments]
+  ┌─ tests/lints/too-many-pounds-preamble/source.wdl:1:1
+  │
+1 │ ### This comment has too many pound signs!
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │
+  = fix: change the comment to start with `##` followed by a space
+
+note: preamble comments cannot start with more than two `#` [rule: PreambleComments]
+  ┌─ tests/lints/too-many-pounds-preamble/source.wdl:3:1
+  │
+3 │ ###### This comment also has too many pound signs!
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │
+  = fix: change the comment to start with `##` followed by a space
+
