@@ -1,0 +1,8 @@
+warning: task `test2` uses curly braces in command section [rule: NoCurlyCommands]
+   ┌─ tests/lints/command-mixed-trailing/source.wdl:15:5
+   │
+15 │     command {
+   │     ^^^^^^^ this command section uses curly braces
+   │
+   = fix: instead of curly braces, use heredoc syntax (<<<>>>>) for command sections
+

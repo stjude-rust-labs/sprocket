@@ -1,0 +1,29 @@
+## This is a test of having mixed indentation inside of a placeholder.
+## This should not cause a warning for the `CommandSectionMixedIndentation` rule.
+
+version 1.1
+
+task test1 {
+    command <<<
+        this line is ~{
+		    if true
+		    then "split across multiple lines with mixed indentation"
+		    else "by a placeholder"
+	    } but is all one literal line in the command text
+    >>>
+
+    runtime {}
+}
+
+task test2 {
+    # This will warn only about using curly braces.
+    command {
+        this line is ~{
+		    if true
+		    then "split across multiple lines with mixed indentation"
+		    else "by a placeholder"
+	    } but is all one literal line in the command text
+    }
+
+    runtime {}
+}

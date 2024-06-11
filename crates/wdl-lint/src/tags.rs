@@ -21,6 +21,9 @@ pub enum Tag {
 
     /// Rules associated with the portability of a document.
     Portability,
+
+    /// Rules associated with the correctness of a document.
+    Correctness,
 }
 
 impl std::fmt::Display for Tag {
@@ -32,6 +35,7 @@ impl std::fmt::Display for Tag {
             Self::Style => write!(f, "Style"),
             Self::Clarity => write!(f, "Clarity"),
             Self::Portability => write!(f, "Portability"),
+            Self::Correctness => write!(f, "Correctness"),
         }
     }
 }
