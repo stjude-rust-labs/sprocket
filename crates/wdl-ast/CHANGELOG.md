@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.4.0 - 06-13-2024
+
 ### Fixed
 
 * Fixed the experimental parser validation to check negative numbers in
@@ -28,7 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   re-exported key items from `wdl-grammar`'s experimental parser implementation,
   and changed errors to use `Diagnostic` ([#68](https://github.com/stjude-rust-labs/wdl/pull/68)).
 
-## 0.2.0 - 5-31-2024
+## 0.3.0 (unreleased)
+
+Note: this version was skipped to make the version numbers consistent across the crates.
+
+## 0.2.0 - 05-31-2024
 
 * Fix ignoring comments in expressions ([#23](https://github.com/stjude-rust-labs/wdl/pull/23)).
 

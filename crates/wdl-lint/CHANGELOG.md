@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.4.0 - 06-13-2024
+
 ### Added
 
 * Ported the `CommandSectionMixedIndentation` rule to `wdl-lint` ([#75](https://github.com/stjude-rust-labs/wdl/pull/75))
@@ -18,3 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Ported the `NoCurlyCommands` rule to `wdl-lint` ([#69](https://github.com/stjude-rust-labs/wdl/pull/69)).
 * Added the `wdl-lint` as the crate implementing linting rules for the future
   ([#68](https://github.com/stjude-rust-labs/wdl/pull/68)).
+
+## 0.3.0 (unreleased)
+
+Note: this version was skipped to make the version numbers consistent across the crates.
+
+## 0.2.0 (unreleased)
+
+Note: this version was skipped to make the version numbers consistent across the crates.
+
+## 0.1.0 (unreleased)
+
+Note: this version was skipped to make the version numbers consistent across the crates.
