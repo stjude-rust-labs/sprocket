@@ -1,99 +1,151 @@
-//! WDL 1.x abstract syntax tree.
-//!
-//! ## Validation Rules
-//!
-//! The following abstract syntax tree validation rules are supported for WDL
-//! 1.x:
-//!
-//! _None at present._
-//!
-//! ## Lint Rules
-//!
-//! The following abstract syntax tree linting rules are supported for WDL 1.x:
-//!
-//! | Name                      | Code       | Tags         | Documentation                       |
-//! |:--------------------------|:-----------|:-------------|:-----------------------------------:|
-//! | `matching_parameter_meta` | `v1::W003` | Completeness | [Link](lint::MatchingParameterMeta) |
+//! AST representation for a 1.x WDL document.
 
-use pest::iterators::Pair;
-use wdl_core::concern::concerns;
-use wdl_core::concern::lint::Linter;
-use wdl_core::concern::validation::Validator;
-use wdl_core::Concern;
-use wdl_grammar as grammar;
+use crate::support::children;
+use crate::AstChildren;
+use crate::AstNode;
+use crate::SyntaxKind;
+use crate::SyntaxNode;
+use crate::WorkflowDescriptionLanguage;
 
-pub mod document;
-pub mod lint;
+mod decls;
+mod expr;
+mod import;
+mod r#struct;
+mod task;
 pub mod validation;
+mod visitor;
+mod workflow;
 
-pub use document::Document;
+pub use decls::*;
+pub use expr::*;
+pub use import::*;
+pub use r#struct::*;
+pub use task::*;
+pub use visitor::*;
+pub use workflow::*;
 
-/// An unrecoverable error when parsing a WDL 1.x abstract syntax tree.
-#[derive(Debug)]
-pub enum Error {
-    /// An unrecoverable error that occurred during document parsing.
-    Document(document::Error),
+/// Represents a WDL V1 Abstract Syntax Tree (AST).
+///
+/// The AST is a facade over a [SyntaxTree][1].
+///
+/// A syntax tree is comprised of nodes that have either
+/// other nodes or tokens as children.
+///
+/// A token is a span of text from the WDL source text and
+/// is terminal in the tree.
+///
+/// Elements of an AST are trivially cloned.
+///
+/// [1]: crate::SyntaxTree
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Ast(SyntaxNode);
 
-    /// An unrecoverable error that occurred during linting.
-    Lint(wdl_core::concern::lint::Error),
+impl Ast {
+    /// Gets all of the document items in the AST.
+    pub fn items(&self) -> AstChildren<DocumentItem> {
+        children(&self.0)
+    }
 
-    /// An unrecoverable error that occurred during validation.
-    Validation(wdl_core::concern::validation::Error),
-}
+    /// Gets the import statements in the AST.
+    pub fn imports(&self) -> AstChildren<ImportStatement> {
+        children(&self.0)
+    }
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::Document(err) => write!(f, "document error: {err}"),
-            Error::Lint(err) => write!(f, "lint error: {err}"),
-            Error::Validation(err) => write!(f, "validation error: {err}"),
-        }
+    /// Gets the struct definitions in the AST.
+    pub fn structs(&self) -> AstChildren<StructDefinition> {
+        children(&self.0)
+    }
+
+    /// Gets the task definitions in the AST.
+    pub fn tasks(&self) -> AstChildren<TaskDefinition> {
+        children(&self.0)
+    }
+
+    /// Gets the workflow definitions in the AST.
+    pub fn workflows(&self) -> AstChildren<WorkflowDefinition> {
+        children(&self.0)
+    }
+
+    /// Walks the AST with a pre-order traversal using the provided
+    /// visitor to visit each element.
+    pub fn visit<V: Visitor>(&self, state: &mut V::State, visitor: &mut V) {
+        visit(&self.0, state, visitor)
     }
 }
 
-impl std::error::Error for Error {}
+impl AstNode for Ast {
+    type Language = WorkflowDescriptionLanguage;
 
-/// An abstract syntax tree [parse result](wdl_core::parse::Result).
-pub type Result = wdl_core::parse::Result<Document>;
-
-/// Parses an abstract syntax tree (in the form of a [`Document`]) from a
-/// [`Pair<'_, grammar::v1::Rule>`].
-///
-/// # Examples
-///
-/// ```
-/// use grammar::v1::Rule;
-/// use wdl_ast as ast;
-/// use wdl_grammar as grammar;
-///
-/// let pt = grammar::v1::parse("version 1.1")
-///     .unwrap()
-///     .into_tree()
-///     .unwrap();
-/// let ast = ast::v1::parse(pt).unwrap().into_tree().unwrap();
-///
-/// assert_eq!(ast.version(), &ast::v1::document::Version::OneDotOne);
-/// ```
-pub fn parse(tree: Pair<'_, grammar::v1::Rule>) -> std::result::Result<Result, Error> {
-    let mut concerns = concerns::Builder::default();
-
-    let document = Document::try_from(tree).map_err(Error::Document)?;
-
-    if let Some(failures) =
-        Validator::validate(&document, validation::rules()).map_err(Error::Validation)?
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
     {
-        for failure in failures {
-            concerns = concerns.push(Concern::ValidationFailure(failure));
-        }
-    };
+        kind == SyntaxKind::RootNode
+    }
 
-    if let Some(warnings) = Linter::lint(&document, lint::rules()).map_err(Error::Lint)? {
-        for warning in warnings {
-            concerns = concerns.push(Concern::LintWarning(warning));
+    fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::RootNode => Some(Self(syntax)),
+            _ => None,
         }
-    };
+    }
 
-    // SAFETY: the abstract syntax tree is always [`Some`] at this point, even
-    // if the concerns are empty, so this will always unwrap.
-    Ok(Result::try_new(Some(document), concerns.build()).unwrap())
+    fn syntax(&self) -> &SyntaxNode {
+        &self.0
+    }
+}
+
+/// Represents a document item.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DocumentItem {
+    /// The item is an import statement.
+    Import(ImportStatement),
+    /// The item is a struct definition.
+    Struct(StructDefinition),
+    /// The item is a task definition.
+    Task(TaskDefinition),
+    /// The item is a workflow definition.
+    Workflow(WorkflowDefinition),
+}
+
+impl AstNode for DocumentItem {
+    type Language = WorkflowDescriptionLanguage;
+
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        matches!(
+            kind,
+            SyntaxKind::ImportStatementNode
+                | SyntaxKind::StructDefinitionNode
+                | SyntaxKind::TaskDefinitionNode
+                | SyntaxKind::WorkflowDefinitionNode
+        )
+    }
+
+    fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::ImportStatementNode => Some(Self::Import(ImportStatement(syntax))),
+            SyntaxKind::StructDefinitionNode => Some(Self::Struct(StructDefinition(syntax))),
+            SyntaxKind::TaskDefinitionNode => Some(Self::Task(TaskDefinition(syntax))),
+            SyntaxKind::WorkflowDefinitionNode => Some(Self::Workflow(WorkflowDefinition(syntax))),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        match self {
+            Self::Import(i) => &i.0,
+            Self::Struct(s) => &s.0,
+            Self::Task(t) => &t.0,
+            Self::Workflow(w) => &w.0,
+        }
+    }
 }

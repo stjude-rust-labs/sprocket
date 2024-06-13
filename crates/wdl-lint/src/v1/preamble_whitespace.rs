@@ -1,17 +1,17 @@
 //! A lint rule that checks for an incorrect preamble whitespace.
 
-use wdl_ast::experimental::v1::Visitor;
-use wdl_ast::experimental::AstNode;
-use wdl_ast::experimental::AstToken;
-use wdl_ast::experimental::Diagnostic;
-use wdl_ast::experimental::Diagnostics;
-use wdl_ast::experimental::Span;
-use wdl_ast::experimental::SyntaxElement;
-use wdl_ast::experimental::SyntaxKind;
-use wdl_ast::experimental::ToSpan;
-use wdl_ast::experimental::VersionStatement;
-use wdl_ast::experimental::VisitReason;
-use wdl_ast::experimental::Whitespace;
+use wdl_ast::v1::Visitor;
+use wdl_ast::AstNode;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::Diagnostics;
+use wdl_ast::Span;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
+use wdl_ast::ToSpan;
+use wdl_ast::VersionStatement;
+use wdl_ast::VisitReason;
+use wdl_ast::Whitespace;
 
 use super::Rule;
 use crate::util::lines_with_offset;
@@ -64,7 +64,7 @@ impl Rule for PreambleWhitespaceRule {
     }
 
     fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(PreambleWhitespaceVisitor::default())
+        Box::<PreambleWhitespaceVisitor>::default()
     }
 }
 

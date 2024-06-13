@@ -31,8 +31,8 @@ use codespan_reporting::term::Config;
 use colored::Colorize;
 use pretty_assertions::StrComparison;
 use rayon::prelude::*;
-use wdl_grammar::experimental::Diagnostic;
-use wdl_grammar::experimental::SyntaxTree;
+use wdl_grammar::Diagnostic;
+use wdl_grammar::SyntaxTree;
 
 fn find_tests() -> Vec<PathBuf> {
     // Check for filter arguments consisting of test names

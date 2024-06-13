@@ -1,7 +1,7 @@
 //! Module for V1 lint rules.
 
-use wdl_ast::experimental::v1::Visitor;
-use wdl_ast::experimental::Diagnostics;
+use wdl_ast::v1::Visitor;
+use wdl_ast::Diagnostics;
 
 use crate::TagSet;
 

@@ -6,19 +6,19 @@ use std::fmt;
 use convert_case::Boundary;
 use convert_case::Case;
 use convert_case::Converter;
-use wdl_ast::experimental::v1::BoundDecl;
-use wdl_ast::experimental::v1::InputSection;
-use wdl_ast::experimental::v1::OutputSection;
-use wdl_ast::experimental::v1::StructDefinition;
-use wdl_ast::experimental::v1::TaskDefinition;
-use wdl_ast::experimental::v1::UnboundDecl;
-use wdl_ast::experimental::v1::Visitor;
-use wdl_ast::experimental::v1::WorkflowDefinition;
-use wdl_ast::experimental::AstToken;
-use wdl_ast::experimental::Diagnostic;
-use wdl_ast::experimental::Diagnostics;
-use wdl_ast::experimental::Span;
-use wdl_ast::experimental::VisitReason;
+use wdl_ast::v1::BoundDecl;
+use wdl_ast::v1::InputSection;
+use wdl_ast::v1::OutputSection;
+use wdl_ast::v1::StructDefinition;
+use wdl_ast::v1::TaskDefinition;
+use wdl_ast::v1::UnboundDecl;
+use wdl_ast::v1::Visitor;
+use wdl_ast::v1::WorkflowDefinition;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::Diagnostics;
+use wdl_ast::Span;
+use wdl_ast::VisitReason;
 
 use super::Rule;
 use crate::Tag;
@@ -101,7 +101,7 @@ impl Rule for SnakeCaseRule {
     }
 
     fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(SnakeCaseVisitor::default())
+        Box::<SnakeCaseVisitor>::default()
     }
 }
 

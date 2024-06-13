@@ -1,13 +1,13 @@
 //! A lint rule for using double quoted strings.
 
-use wdl_ast::experimental::span_of;
-use wdl_ast::experimental::v1::Expr;
-use wdl_ast::experimental::v1::LiteralExpr;
-use wdl_ast::experimental::v1::Visitor;
-use wdl_ast::experimental::Diagnostic;
-use wdl_ast::experimental::Diagnostics;
-use wdl_ast::experimental::Span;
-use wdl_ast::experimental::VisitReason;
+use wdl_ast::span_of;
+use wdl_ast::v1::Expr;
+use wdl_ast::v1::LiteralExpr;
+use wdl_ast::v1::Visitor;
+use wdl_ast::Diagnostic;
+use wdl_ast::Diagnostics;
+use wdl_ast::Span;
+use wdl_ast::VisitReason;
 
 use super::Rule;
 use crate::Tag;

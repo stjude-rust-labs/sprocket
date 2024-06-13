@@ -1,16 +1,13 @@
 <!-- 
-When creating a pull request, you should uncomment the section below that describes
-the type of pull request you are submitting.
+When creating a pull request, you should uncomment the section below that 
+describes the type of pull request you are submitting.
 -->
 
-<!-- START SECTION: adding a new linting/validation rule
+<!-- START SECTION: adding a new linting rule
 
-This pull request adds a new rule to `wdl`.
+This pull request adds a new rule to `wdl-lint`.
 
-- **Rule Name**: `a_rule_name`
-- **Rule Kind**: Lint warning/Validation error
-- **Rule Code**: `v1::W001`
-- **Packages**: `wdl-ast`/`wdl-grammar`
+- **Rule Name**: `MyLintRule`
 
 _Describe the rules you have implemented and link to any relevant issues._
 
@@ -26,25 +23,15 @@ Before submitting this PR, please make sure:
 
 Rule specific checks:
 
-- [ ] You have added the rule as an entry within the the package-specific rule
-      tables (`wdl-ast/src/v1.rs` for AST-based rules and 
-      `wdl-grammar/src/v1.rs` for parse tree-based rules).
-- [ ] You have added the rule as an entry within the the global rule
-      table at `RULES.md`.
-- [ ] You have added the rule to the appropriate `fn rules()`.
-    - Validation rules added to `wdl-ast` should be added to `fn rules()` within 
-      `wdl-ast/src/v1/validation.rs`.
-    - Lint rules added to `wdl-ast` should be added to `fn rules()` within `wdl-ast/src/v1/lint.rs`.
-    - Validation rules added to `wdl-grammar` should be added to `fn rules()` within 
-      `wdl-grammar/src/v1/validation.rs`.
-    - Lint rules added to `wdl-grammar` should be added to `fn rules()` within 
-      `wdl-grammar/src/v1/lint.rs`.
-- [ ] You have added a test that covers every possible setting for the rule 
-      within the file where the rule is implemented.
-- [ ] You have run `wdl-gauntlet --refresh` to ensure that there are no unintended
-      changes to the baseline configuration file (`Gauntlet.toml`).
-- [ ] You have run `wdl-gauntlet --refresh --arena` to ensure that all of the rules
-      added/removed are now reflected in the baseline configuration file
+- [ ] You have added the rule as an entry within `RULES.md`.
+- [ ] You have added the rule to the `rules()` function in `wdl-lint/src/v1.rs`.
+- [ ] You have added a test cases in `wdl-lint/tests/lints` that covers every 
+      possible diagnostic emitted for the rule within the file where the rule  
+      is implemented.
+- [ ] You have run `wdl-gauntlet --refresh` to ensure that there are no 
+      unintended changes to the baseline configuration file (`Gauntlet.toml`).
+- [ ] You have run `wdl-gauntlet --refresh --arena` to ensure that all of the 
+      rules added/removed are now reflected in the baseline configuration file 
       (`Arena.toml`).
 
 END SECTION -->

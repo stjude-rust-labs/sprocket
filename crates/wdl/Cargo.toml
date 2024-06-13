@@ -11,23 +11,38 @@ documentation = "https://docs.rs/wdl"
 readme = "../README.md"
 
 [dependencies]
-wdl-ast = { path = "../wdl-ast", version = "0.2.0", optional = true }
-wdl-core = { path = "../wdl-core", version = "0.2.0", optional = true }
 wdl-grammar = { path = "../wdl-grammar", version = "0.3.0", optional = true }
+wdl-ast = { path = "../wdl-ast", version = "0.2.0", optional = true }
+wdl-lint = { path = "../wdl-lint", version = "0.3.0", optional = true }
+clap = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
+colored = { workspace = true, optional = true }
+codespan-reporting = { workspace = true, optional = true }
+
+[dev-dependencies]
+clap = { workspace = true }
+anyhow = { workspace = true }
+codespan-reporting = { workspace = true }
 
 [features]
-default = []
+default = ["ast", "grammar", "lint"]
 ast = ["dep:wdl-ast"]
-core = ["dep:wdl-core"]
 grammar = ["dep:wdl-grammar"]
+lint = ["dep:wdl-lint"]
+codespan = ["ast", "wdl-ast/codespan", "dep:codespan-reporting"]
+binaries = ["codespan", "lint", "dep:clap", "dep:anyhow", "dep:colored"]
 
 [[example]]
-name = "wdl_explore"
-required-features = ["ast", "grammar"]
+name = "explore"
+required-features = ["codespan"]
 
 [[example]]
-name = "wdl_parse"
-required-features = ["ast", "grammar"]
+name = "parse"
+required-features = ["codespan"]
+
+[[bin]]
+name = "wdl"
+required-features = ["binaries"]
 
 [package.metadata.docs.rs]
 all-features = true

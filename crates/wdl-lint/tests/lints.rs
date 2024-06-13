@@ -28,9 +28,9 @@ use codespan_reporting::term::Config;
 use colored::Colorize;
 use pretty_assertions::StrComparison;
 use rayon::prelude::*;
-use wdl_ast::experimental::Diagnostic;
-use wdl_ast::experimental::Document;
-use wdl_ast::experimental::Validator;
+use wdl_ast::Diagnostic;
+use wdl_ast::Document;
+use wdl_ast::Validator;
 use wdl_lint::v1;
 
 fn find_tests() -> Vec<PathBuf> {

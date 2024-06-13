@@ -114,7 +114,8 @@ cargo test --examples --all-features
 cargo clippy --all-features
 
 # Ensure the project passes `cargo fmt`.
-cargo fmt --check
+# Currently this requires nightly Rust
+cargo +nightly fmt --check
 
 # Ensure the docs build.
 cargo doc

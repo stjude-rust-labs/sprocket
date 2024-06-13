@@ -1,5 +1,28 @@
-//! A crate for lexing and parsing the Workflow Description Language
-//! (WDL) using [`pest`](https://pest.rs).
+//! Lexing and parsing for Workflow Description Language (WDL) documents.
+//!
+//! This crate implements an infallible WDL parser based
+//! on the `logos` crate for lexing and the `rowan` crate for
+//! concrete syntax tree (CST) representation.
+//!
+//! The parser outputs a list of parser events that can be used
+//! to construct the CST; the parser also keeps a list of [Diagnostic]s emitted
+//! during the parse that relate to spans from the original source.
+//!
+//! See [SyntaxTree::parse] for parsing WDL source;
+//! users may inspect the resulting CST to determine the version of the
+//! document that was parsed.
+//!
+//! # Examples
+//!
+//! An example of parsing WDL source into a CST and printing the tree:
+//!
+//! ```rust
+//! use wdl_grammar::SyntaxTree;
+//!
+//! let (tree, diagnostics) = SyntaxTree::parse("version 1.1");
+//! assert!(diagnostics.is_empty());
+//! println!("{tree:#?}");
+//! ```
 
 #![warn(missing_docs)]
 #![warn(rust_2018_idioms)]
@@ -8,28 +31,11 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-#[cfg(feature = "experimental")]
-pub mod experimental;
-pub mod v1;
+mod diagnostic;
+pub mod grammar;
+pub mod lexer;
+pub mod parser;
+mod tree;
 
-/// An unrecoverable error.
-///
-/// **Note:** this is not a parse error, lint warning, or validation failure
-/// (which are expected and recoverable). Instead, this struct represents an
-/// unrecoverable error that occurred.
-#[derive(Debug)]
-pub enum Error {
-    /// A WDL 1.x error.
-    V1(v1::Error),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::V1(err) => write!(f, "{err}"),
-        }
-    }
-}
-
-/// A [`Result`](std::result::Result) with an [`Error`].
-pub type Result<T> = std::result::Result<T, Error>;
+pub use diagnostic::*;
+pub use tree::*;

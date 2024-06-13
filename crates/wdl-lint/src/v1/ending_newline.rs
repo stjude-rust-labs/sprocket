@@ -1,13 +1,13 @@
 //! A lint rule for newlines at the end of the document.
 
-use wdl_ast::experimental::v1::Visitor;
-use wdl_ast::experimental::AstNode;
-use wdl_ast::experimental::Diagnostic;
-use wdl_ast::experimental::Diagnostics;
-use wdl_ast::experimental::Document;
-use wdl_ast::experimental::Span;
-use wdl_ast::experimental::SyntaxKind;
-use wdl_ast::experimental::VisitReason;
+use wdl_ast::v1::Visitor;
+use wdl_ast::AstNode;
+use wdl_ast::Diagnostic;
+use wdl_ast::Diagnostics;
+use wdl_ast::Document;
+use wdl_ast::Span;
+use wdl_ast::SyntaxKind;
+use wdl_ast::VisitReason;
 
 use super::Rule;
 use crate::util::strip_newline;

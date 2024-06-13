@@ -1,14 +1,14 @@
 //! A lint rule for whitespace.
 
-use wdl_ast::experimental::v1::Visitor;
-use wdl_ast::experimental::AstToken;
-use wdl_ast::experimental::Diagnostic;
-use wdl_ast::experimental::Diagnostics;
-use wdl_ast::experimental::Span;
-use wdl_ast::experimental::SyntaxKind;
-use wdl_ast::experimental::VersionStatement;
-use wdl_ast::experimental::VisitReason;
-use wdl_ast::experimental::Whitespace;
+use wdl_ast::v1::Visitor;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::Diagnostics;
+use wdl_ast::Span;
+use wdl_ast::SyntaxKind;
+use wdl_ast::VersionStatement;
+use wdl_ast::VisitReason;
+use wdl_ast::Whitespace;
 
 use super::Rule;
 use crate::util::lines_with_offset;
@@ -67,7 +67,7 @@ impl Rule for WhitespaceRule {
     }
 
     fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(WhitespaceVisitor::default())
+        Box::<WhitespaceVisitor>::default()
     }
 }
 

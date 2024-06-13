@@ -37,8 +37,8 @@ pub use report::Report;
 use report::Status;
 use report::UnmatchedStatus;
 pub use repository::Repository;
-use wdl_ast::experimental::Document;
-use wdl_ast::experimental::Validator;
+use wdl_ast::Document;
+use wdl_ast::Validator;
 use wdl_lint::v1::rules;
 
 use crate::repository::WorkDir;

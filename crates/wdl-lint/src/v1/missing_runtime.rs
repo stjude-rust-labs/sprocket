@@ -1,12 +1,12 @@
 //! A lint rule for missing runtime sections.
 
-use wdl_ast::experimental::v1::TaskDefinition;
-use wdl_ast::experimental::v1::Visitor;
-use wdl_ast::experimental::AstToken;
-use wdl_ast::experimental::Diagnostic;
-use wdl_ast::experimental::Diagnostics;
-use wdl_ast::experimental::Span;
-use wdl_ast::experimental::VisitReason;
+use wdl_ast::v1::TaskDefinition;
+use wdl_ast::v1::Visitor;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::Diagnostics;
+use wdl_ast::Span;
+use wdl_ast::VisitReason;
 
 use super::Rule;
 use crate::Tag;

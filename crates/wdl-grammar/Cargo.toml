@@ -10,23 +10,8 @@ repository = "https://github.com/stjude-rust-labs/wdl"
 documentation = "https://docs.rs/wdl-grammar"
 
 [dependencies]
-wdl-core = { path = "../wdl-core", version = "0.2.0" }
-wdl-macros = { path = "../wdl-macros", version = "0.1.0" }
-clap = { workspace = true, optional = true }
-colored = { workspace = true, optional = true }
-convert_case.workspace = true
-env_logger = { workspace = true, optional = true }
-indexmap = { workspace = true, optional = true }
-log = { workspace = true, optional = true }
-nonempty.workspace = true
-pest = { workspace = true }
-pest_derive = { workspace = true }
-serde = { workspace = true, optional = true }
-serde_with = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
-toml = { workspace = true, optional = true }
-logos = { workspace = true, optional = true }
-rowan = { workspace = true, optional = true }
+logos = { workspace = true }
+rowan = { workspace = true }
 codespan-reporting = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -36,24 +21,7 @@ colored = { workspace = true }
 codespan-reporting = { workspace = true }
 
 [features]
-binaries = [
-    "dep:clap",
-    "dep:colored",
-    "dep:env_logger",
-    "dep:indexmap",
-    "dep:log",
-    "dep:serde",
-    "dep:serde_with",
-    "dep:tokio",
-    "dep:toml",
-]
-experimental = ["dep:logos", "dep:rowan"]
-codespan = ["experimental", "dep:codespan-reporting"]
-
-[[bin]]
-name = "wdl-grammar"
-path = "src/main.rs"
-required-features = ["binaries"]
+codespan = ["dep:codespan-reporting"]
 
 [[test]]
 name = "parsing"

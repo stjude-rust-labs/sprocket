@@ -1,14 +1,14 @@
 //! A lint rule that checks for an incorrect preamble comments.
 
-use wdl_ast::experimental::v1::Visitor;
-use wdl_ast::experimental::AstToken;
-use wdl_ast::experimental::Comment;
-use wdl_ast::experimental::Diagnostic;
-use wdl_ast::experimental::Diagnostics;
-use wdl_ast::experimental::Span;
-use wdl_ast::experimental::SyntaxKind;
-use wdl_ast::experimental::VersionStatement;
-use wdl_ast::experimental::VisitReason;
+use wdl_ast::v1::Visitor;
+use wdl_ast::AstToken;
+use wdl_ast::Comment;
+use wdl_ast::Diagnostic;
+use wdl_ast::Diagnostics;
+use wdl_ast::Span;
+use wdl_ast::SyntaxKind;
+use wdl_ast::VersionStatement;
+use wdl_ast::VisitReason;
 
 use super::Rule;
 use crate::Tag;
@@ -65,7 +65,7 @@ impl Rule for PreambleCommentsRule {
     }
 
     fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(PreambleCommentsVisitor::default())
+        Box::<PreambleCommentsVisitor>::default()
     }
 }
 

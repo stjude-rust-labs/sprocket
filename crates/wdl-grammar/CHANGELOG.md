@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Removed the old parser implementation in favor of the new parser 
+  implementation; this also removes the `experimental` feature from the crate ([#79](https://github.com/stjude-rust-labs/wdl/pull/79)).
 * Removed dependency on `miette` and `thiserror` in the experimental parser,
   introduced the `Diagnostic` type as a replacement, and switched the existing
   parser errors over to use `Diagnostic` ([#68](https://github.com/stjude-rust-labs/wdl/pull/68)).
