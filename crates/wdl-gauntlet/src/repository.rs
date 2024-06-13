@@ -51,14 +51,18 @@ impl<'de> Deserialize<'de> for RawHash {
     }
 }
 
-/// A repository of GitHub files.
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+/// A GitHub repository of WDL files.
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Repository {
     /// The name for the [`Repository`] expressed as an [`Identifier`].
     identifier: Identifier,
 
     /// The commit hash for the [`Repository`].
     commit_hash: Option<RawHash>,
+
+    /// A list of documents that should be filtered out from the repository.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    filters: Vec<String>,
 }
 
 impl Repository {
@@ -107,6 +111,7 @@ impl Repository {
         Self {
             identifier,
             commit_hash: Some(commit_hash),
+            filters: Default::default(),
         }
     }
 
@@ -118,6 +123,11 @@ impl Repository {
     /// Gets the commit hash from the [`Repository`] by reference.
     pub fn commit_hash(&self) -> &Option<RawHash> {
         &self.commit_hash
+    }
+
+    /// Gets the file path filters for the repository.
+    pub fn filters(&self) -> &[String] {
+        &self.filters
     }
 
     /// Retrieve all the WDL files from the [`Repository`].
@@ -217,12 +227,12 @@ impl Repository {
 
 /// Add to an [`IndexMap`] all the WDL files in a directory
 /// and its subdirectories.
-fn add_wdl_files(path: &PathBuf, wdl_files: &mut IndexMap<String, String>, leading_dirs: &Path) {
+fn add_wdl_files(path: &PathBuf, wdl_files: &mut IndexMap<String, String>, repo_root: &Path) {
     if path.is_dir() {
         for entry in std::fs::read_dir(path).expect("failed to read directory") {
             let entry = entry.expect("failed to read entry");
             let path = entry.path();
-            add_wdl_files(&path, wdl_files, leading_dirs);
+            add_wdl_files(&path, wdl_files, repo_root);
         }
     } else if path.is_file() {
         let path_str = path
@@ -230,13 +240,14 @@ fn add_wdl_files(path: &PathBuf, wdl_files: &mut IndexMap<String, String>, leadi
             .expect("failed to convert file name to string");
         if path_str.ends_with(".wdl") {
             let contents = std::fs::read_to_string(path).expect("failed to read file contents");
-            // Strip leading directories from the path.
+            // Strip the repo root from the path and normalize backslashes to slash.
             // SAFETY: `path_str` is guaranteed to start with `leading_dirs`
             wdl_files.insert(
                 path_str
-                    .strip_prefix(leading_dirs.to_str().unwrap())
-                    .unwrap()
-                    .to_string(),
+                    .strip_prefix(repo_root.to_str().expect("path should be UTF-8"))
+                    .expect("path should start with repo root")
+                    .to_string()
+                    .replace('\\', "/"),
                 contents,
             );
         }

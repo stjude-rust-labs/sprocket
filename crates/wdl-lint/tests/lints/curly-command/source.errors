@@ -1,4 +1,4 @@
-warning: task `bad` uses curly braces in command section [rule: NoCurlyCommands]
+warning[NoCurlyCommands]: task `bad` uses curly braces in command section
   ┌─ tests/lints/curly-command/source.wdl:7:5
   │
 7 │     command {

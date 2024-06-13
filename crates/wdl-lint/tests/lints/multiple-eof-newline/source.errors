@@ -1,4 +1,4 @@
-warning: multiple empty lines at the end of file [rule: EndingNewline]
+warning[EndingNewline]: multiple empty lines at the end of file
    ┌─ tests/lints/multiple-eof-newline/source.wdl:7:2
    │  
  7 │   }

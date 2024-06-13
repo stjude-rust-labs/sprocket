@@ -1,4 +1,4 @@
-note: unnecessary whitespace in document preamble [rule: PreambleWhitespace]
+note[PreambleWhitespace]: unnecessary whitespace in document preamble
   ┌─ tests/lints/ws-after-blank-line/source.wdl:3:1
   │  
 3 │ ╭      

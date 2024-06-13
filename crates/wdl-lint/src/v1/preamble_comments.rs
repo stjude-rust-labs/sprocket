@@ -6,6 +6,7 @@ use wdl_ast::experimental::Comment;
 use wdl_ast::experimental::Diagnostic;
 use wdl_ast::experimental::Diagnostics;
 use wdl_ast::experimental::Span;
+use wdl_ast::experimental::SyntaxKind;
 use wdl_ast::experimental::VersionStatement;
 use wdl_ast::experimental::VisitReason;
 
@@ -18,26 +19,10 @@ const ID: &str = "PreambleComments";
 
 /// Creates an "invalid preamble comment" diagnostic.
 fn invalid_preamble_comment(span: Span) -> Diagnostic {
-    Diagnostic::note("preamble comments must start with `##`")
+    Diagnostic::note("preamble comments must start with `##` followed by a space")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("change the comment to start with `##` followed by a space")
-}
-
-/// Creates a "too many pound signs" diagnostic.
-fn too_many_pound_signs(span: Span) -> Diagnostic {
-    Diagnostic::note("preamble comments cannot start with more than two `#`")
-        .with_rule(ID)
-        .with_highlight(span)
-        .with_fix("change the comment to start with `##` followed by a space")
-}
-
-/// Creates a "missing space" diagnostic.
-fn missing_space(span: Span) -> Diagnostic {
-    Diagnostic::note("preamble comments must have a space after `##`")
-        .with_rule(ID)
-        .with_highlight(span)
-        .with_fix("add a space between `##` and the start of the comment")
+        .with_fix("change each preamble comment to start with `##` followed by a space")
 }
 
 /// Creates a "preamble comment after version" diagnostic.
@@ -45,7 +30,7 @@ fn preamble_comment_after_version(span: Span) -> Diagnostic {
     Diagnostic::note("preamble comments cannot come after the version statement")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("change the comment to start with `#` followed by a space")
+        .with_fix("change each comment to start with `#` followed by a space")
 }
 
 /// Detects incorrect comments in a document preamble.
@@ -89,6 +74,8 @@ impl Rule for PreambleCommentsRule {
 struct PreambleCommentsVisitor {
     /// Whether or not the preamble has finished.
     finished: bool,
+    /// The number of comment tokens to skip.
+    skip_count: usize,
 }
 
 impl Visitor for PreambleCommentsVisitor {
@@ -109,34 +96,57 @@ impl Visitor for PreambleCommentsVisitor {
     }
 
     fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
-        let text = comment.as_str();
-        if self.finished {
-            if let Some(text) = text.strip_prefix("##") {
-                if !text.starts_with('#') {
-                    state.add(preamble_comment_after_version(comment.span()));
+        // Skip this comment if necessary; this occurs if we've consolidated multiple
+        // comments in a row into a single diagnostic
+        if self.skip_count > 0 {
+            self.skip_count -= 1;
+            return;
+        }
+
+        let check = |text: &str| {
+            let double_pound = text == "##" || text.starts_with("## ");
+            (self.finished && !double_pound) || (!self.finished && double_pound)
+        };
+
+        if check(comment.as_str()) {
+            // The comment is valid, stop here
+            return;
+        }
+
+        // Otherwise, look for the next siblings that might also be invalid;
+        // if so, consolidate them into a single diagnostic
+        let mut span = comment.span();
+        let mut current = comment.syntax().next_sibling_or_token();
+        while let Some(sibling) = current {
+            match sibling.kind() {
+                SyntaxKind::Comment => {
+                    // As we're processing this sibling comment here, increment the skip count
+                    self.skip_count += 1;
+
+                    if check(sibling.as_token().expect("should be a token").text()) {
+                        // The comment is valid, stop here
+                        break;
+                    }
+
+                    // Not valid, update the span
+                    span = Span::new(
+                        span.start(),
+                        usize::from(sibling.text_range().end()) - span.start(),
+                    );
                 }
+                SyntaxKind::Whitespace => {
+                    // Skip whitespace
+                }
+                _ => break,
             }
 
-            return;
+            current = sibling.next_sibling_or_token();
         }
 
-        if let Some(text) = text.strip_prefix("##") {
-            // Check for too many pound signs
-            if text.starts_with('#') {
-                state.add(too_many_pound_signs(comment.span()));
-                return;
-            }
-
-            // Check for missing space
-            if !text.is_empty() && !text.starts_with(' ') {
-                state.add(missing_space(comment.span()));
-                return;
-            }
-
-            // Valid preamble comment
-            return;
+        if self.finished {
+            state.add(preamble_comment_after_version(span));
+        } else {
+            state.add(invalid_preamble_comment(span));
         }
-
-        state.add(invalid_preamble_comment(comment.span()));
     }
 }

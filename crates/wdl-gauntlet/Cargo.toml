@@ -8,20 +8,20 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+wdl-ast = { path = "../wdl-ast", version = "0.2.0", features = ["codespan"] }
+wdl-lint = { path = "../wdl-lint", version = "0.3.0" }
 clap.workspace = true
 colored.workspace = true
-dirs = "5.0.1"
+dirs.workspace = true
 env_logger.workspace = true
-faster-hex = "0.9.0"
-git2 = "0.18.3"
+faster-hex.workspace = true
+git2.workspace = true
 indexmap.workspace = true
 log.workspace = true
-nonempty.workspace = true
 serde.workspace = true
 serde_with.workspace = true
-temp-dir = "0.1.13"
+temp-dir.workspace = true
 tokio.workspace = true
 toml.workspace = true
-wdl-ast = { path = "../wdl-ast", version = "0.2.0" }
-wdl-core = { path = "../wdl-core", version = "0.2.0" }
-wdl-grammar = { path = "../wdl-grammar", version = "0.3.0" }
+anyhow.workspace = true
+codespan-reporting.workspace = true

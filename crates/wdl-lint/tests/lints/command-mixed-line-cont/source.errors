@@ -1,4 +1,4 @@
-warning: mixed indentation within a command [rule: CommandSectionMixedIndentation]
+warning[CommandSectionMixedIndentation]: mixed indentation within a command
   ┌─ tests/lints/command-mixed-line-cont/source.wdl:8:2
   │
 6 │     command <<<
@@ -9,7 +9,7 @@ warning: mixed indentation within a command [rule: CommandSectionMixedIndentatio
   │
   = fix: use the same whitespace character for indentation
 
-warning: task `test2` uses curly braces in command section [rule: NoCurlyCommands]
+warning[NoCurlyCommands]: task `test2` uses curly braces in command section
    ┌─ tests/lints/command-mixed-line-cont/source.wdl:15:5
    │
 15 │     command {
@@ -17,7 +17,7 @@ warning: task `test2` uses curly braces in command section [rule: NoCurlyCommand
    │
    = fix: instead of curly braces, use heredoc syntax (<<<>>>>) for command sections
 
-warning: mixed indentation within a command [rule: CommandSectionMixedIndentation]
+warning[CommandSectionMixedIndentation]: mixed indentation within a command
    ┌─ tests/lints/command-mixed-line-cont/source.wdl:17:2
    │
 15 │     command {

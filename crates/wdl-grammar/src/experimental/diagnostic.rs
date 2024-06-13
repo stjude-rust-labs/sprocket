@@ -186,10 +186,10 @@ impl Diagnostic {
         };
 
         if let Some(rule) = &self.rule {
-            diagnostic.message = format!("{msg} [rule: {rule}]", msg = self.message);
-        } else {
-            diagnostic.message.clone_from(&self.message);
+            diagnostic.code = Some(rule.clone());
         }
+
+        diagnostic.message.clone_from(&self.message);
 
         if let Some(fix) = &self.fix {
             diagnostic.notes.push(format!("fix: {fix}"));

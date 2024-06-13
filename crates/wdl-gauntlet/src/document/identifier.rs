@@ -78,6 +78,11 @@ impl Identifier {
     pub fn repository(&self) -> &repository::Identifier {
         &self.repository
     }
+
+    /// Gets the path of the document.
+    pub fn path(&self) -> &str {
+        &self.path
+    }
 }
 
 impl std::fmt::Display for Identifier {

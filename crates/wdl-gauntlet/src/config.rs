@@ -7,13 +7,10 @@ use std::path::PathBuf;
 use log::debug;
 use log::log_enabled;
 use log::trace;
-use wdl_core::Version;
 
 pub mod inner;
-pub mod reportable_concern;
 
 pub use inner::Inner;
-pub use reportable_concern::ReportableConcern;
 
 /// The default directory name for the `wdl-gauntlet` configuration file
 const DEFAULT_CONFIG_DIR: &str = "wdl-gauntlet";
@@ -117,8 +114,8 @@ impl Config {
     ///
     /// In both cases, the `path` will be stored within the [`Config`]. This has
     /// the effect of ensuring the value loaded here will be saved to the
-    /// inteded location (should [`Config::save()`] be called).
-    pub fn load_or_new(path: PathBuf, version: Version) -> Result<Self> {
+    /// intended location (should [`Config::save()`] be called).
+    pub fn load_or_new(path: PathBuf) -> Result<Self> {
         if !path.exists() {
             debug!(
                 "no configuration exists at {}, creating new configuration.",
@@ -126,7 +123,7 @@ impl Config {
             );
             return Ok(Self {
                 path: Some(path),
-                inner: Inner::from(version),
+                inner: Inner::default(),
             });
         }
 
@@ -143,63 +140,21 @@ impl Config {
         if log_enabled!(log::Level::Trace) {
             trace!("Loaded configuration file with the following:");
             trace!("  -> {} repositories.", result.inner().repositories().len());
-            let num_concerns = result.inner().concerns().len();
-            trace!("  -> {} ignored errors.", num_concerns);
+            trace!(
+                "  -> {} ignored diagnostics.",
+                result.inner().diagnostics().len()
+            );
         }
 
         Ok(result)
     }
 
     /// Gets the [`Inner`] configuration by reference.
-    ///
-    /// ```
-    /// use wdl_gauntlet as gauntlet;
-    ///
-    /// let config = r#"version = "v1"
-    ///
-    /// [repositories."Foo/Bar"]
-    /// identifier = "Foo/Bar""#
-    ///     .parse::<gauntlet::Config>()?;
-    ///
-    /// assert_eq!(config.inner().version(), &wdl_core::Version::V1);
-    /// assert_eq!(config.inner().repositories().len(), 1);
-    /// assert_eq!(config.inner().concerns().len(), 0);
-    ///
-    /// Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
     pub fn inner(&self) -> &Inner {
         &self.inner
     }
 
     /// Gets the [`Inner`] configuration by mutable reference.
-    ///
-    /// ```
-    /// use indexmap::IndexSet;
-    /// use wdl_gauntlet as gauntlet;
-    /// use wdl_gauntlet::config::reportable_concern::Kind;
-    /// use wdl_gauntlet::config::ReportableConcern;
-    ///
-    /// let mut config = r#"version = "v1"
-    ///
-    /// [repositories."Foo/Bar"]
-    /// identifier = "Foo/Bar"
-    /// commit_hash = "d8e8b48ce8faad50b24779d785cd504baadfb13f""#
-    ///     .parse::<gauntlet::Config>()?;
-    ///
-    /// let mut concerns = IndexSet::new();
-    /// concerns.insert(ReportableConcern::new(
-    ///     Kind::ValidationFailure,
-    ///     "Foo/Bar:quux.wdl",
-    ///     "Hello, world!",
-    /// ));
-    /// config.inner_mut().set_concerns(concerns);
-    ///
-    /// assert_eq!(config.inner().version(), &wdl_core::Version::V1);
-    /// assert_eq!(config.inner().repositories().len(), 1);
-    /// assert_eq!(config.inner().concerns().len(), 1);
-    ///
-    /// Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
     pub fn inner_mut(&mut self) -> &mut Inner {
         &mut self.inner
     }

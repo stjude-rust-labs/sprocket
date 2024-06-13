@@ -6,17 +6,26 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::path::Path;
 use std::path::PathBuf;
 use std::process;
+use std::time::Duration;
+use std::time::Instant;
 
+use anyhow::Context;
+use anyhow::Result;
 use clap::Parser;
-use colored::Colorize as _;
+use codespan_reporting::files::SimpleFile;
+use codespan_reporting::term;
+use codespan_reporting::term::termcolor::Buffer;
+use codespan_reporting::term::termcolor::ColorChoice;
+use codespan_reporting::term::termcolor::StandardStream;
+use codespan_reporting::term::DisplayStyle;
+use colored::Colorize;
 use indexmap::IndexSet;
 use log::debug;
 use log::info;
 use log::trace;
-use wdl_ast as ast;
-use wdl_grammar as grammar;
 
 pub mod config;
 pub mod document;
@@ -25,56 +34,20 @@ pub mod repository;
 
 pub use config::Config;
 pub use report::Report;
+use report::Status;
+use report::UnmatchedStatus;
 pub use repository::Repository;
+use wdl_ast::experimental::Document;
+use wdl_ast::experimental::Validator;
+use wdl_lint::v1::rules;
 
-use crate::config::ReportableConcern;
-use crate::report::Status;
-use crate::repository::Identifier;
 use crate::repository::WorkDir;
 
 /// The exit code to emit when any test unexpectedly fails.
-const EXIT_CODE_FAILED: i32 = 1;
+const EXIT_CODE_UNEXPECTED: i32 = 1;
 
 /// The exit code to emit when an error was expected but not encountered.
-const EXIT_CODE_UNDETECTED_IGNORED_CONCERNS: i32 = 2;
-
-/// An error related to the `wdl-grammar gauntlet` subcommand.
-#[derive(Debug)]
-pub enum Error {
-    /// A WDL 1.x abstract syntax tree error.
-    AstV1(ast::v1::Error),
-
-    /// A configuration file error.
-    Config(config::Error),
-
-    /// An input/output error.
-    Io(std::io::Error),
-
-    /// A WDL 1.x parse tree error.
-    GrammarV1(grammar::v1::Error),
-
-    /// An error related to a repository [`Identifier`].
-    RepositoryIdentifier(repository::identifier::Error),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::AstV1(err) => write!(f, "ast error: {err}"),
-            Error::Config(err) => write!(f, "configuration file error: {err}"),
-            Error::Io(err) => write!(f, "i/o error: {err}"),
-            Error::GrammarV1(err) => write!(f, "grammar error: {err}"),
-            Error::RepositoryIdentifier(err) => {
-                write!(f, "repository identifier error: {err}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for Error {}
-
-/// A [`Result`](std::result::Result) with an [`Error`].
-type Result<T> = std::result::Result<T, Error>;
+const EXIT_CODE_MISSING: i32 = 2;
 
 /// A command-line utility for testing the compatibility of `wdl-grammar` and
 /// `wdl-ast` against a wide variety of community WDL repositories.
@@ -86,9 +59,9 @@ pub struct Args {
     /// test repository specified on the CL. Normally, there is only one
     /// repository on disk at a time. The difference in disk space usage
     /// should be negligible.
-    pub repositories: Option<Vec<String>>,
+    pub repositories: Vec<String>,
 
-    /// Enable "arena mode", which switches the reported concerns from
+    /// Enable "arena mode", which switches the reported diagnostics from
     /// syntax errors to opinionated lint warnings.
     #[arg(short, long)]
     pub arena: bool,
@@ -104,8 +77,8 @@ pub struct Args {
 
     /// If provided, only shows tests whose identifier contains the provided
     /// string(s).
-    #[arg(short, long)]
-    pub filter: Option<Vec<String>>,
+    #[arg(short, long = "filter")]
+    pub filters: Vec<String>,
 
     /// Enables logging for all modules (not just `wdl-gauntlet`).
     #[arg(short, long)]
@@ -123,7 +96,7 @@ pub struct Args {
     #[arg(short, long)]
     pub quiet: bool,
 
-    /// Overwrites the configuration file with new expected concerns and the
+    /// Overwrites the configuration file with new expected diagnostics and the
     /// latest commit hashes. This will create temporary shallow clones of every
     /// test repository. Normally, there is only one repository on disk at a
     /// time. The difference in disk space usage should be negligible.
@@ -133,10 +106,6 @@ pub struct Args {
     /// Displays warnings as part of the report output.
     #[arg(long)]
     pub show_warnings: bool,
-
-    /// The Workflow Description Language (WDL) specification version to use.
-    #[arg(value_name = "VERSION", long, default_value_t, value_enum)]
-    pub specification_version: wdl_core::Version,
 
     /// All available information, including trace information, is logged in
     /// the console.
@@ -157,7 +126,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
         }
         false => {
             let path = args.config_file.unwrap_or(Config::default_path(args.arena));
-            Config::load_or_new(path, args.specification_version).map_err(Error::Config)?
+            Config::load_or_new(path)?
         }
     };
 
@@ -168,47 +137,38 @@ pub async fn gauntlet(args: Args) -> Result<()> {
         config.inner_mut().update_repositories(work_dir.root());
     }
 
-    if let Some(repositories) = args.repositories {
-        repositories.into_iter().for_each(|value| {
-            let identifier = value
-                .parse::<Identifier>()
-                .map_err(Error::RepositoryIdentifier)
-                .unwrap();
-            work_dir.add_by_identifier(&identifier);
-        });
-        config
-            .inner_mut()
-            .extend_repositories(work_dir.repositories().clone())
+    for repo in args.repositories.into_iter() {
+        let identifier = repo
+            .parse()
+            .with_context(|| format!("repository identifier `{repo}` is not valid"))?;
+        work_dir.add_by_identifier(&identifier);
     }
 
-    let mut report = Report::from(std::io::stdout().lock());
+    config
+        .inner_mut()
+        .extend_repositories(work_dir.repositories().clone());
 
+    let mut report = Report::from(StandardStream::stdout(ColorChoice::Auto));
+    let mut total_time = Duration::ZERO;
     for (index, (repository_identifier, repo)) in config.inner().repositories().iter().enumerate() {
-        let results = repo.wdl_files(work_dir.root());
+        let files = repo.wdl_files(work_dir.root());
+        report.title(repository_identifier).with_context(|| {
+            format!("failed to write report title for repository `{repository_identifier}`")
+        })?;
+        report
+            .next_section()
+            .context("failed to write next section")?;
 
-        report.title(repository_identifier).map_err(Error::Io)?;
-        report.next_section().map_err(Error::Io)?;
-
-        for (relative_path, content) in results {
+        for (relative_path, source) in files {
             let abs_path = work_dir
                 .root()
                 .join(repository_identifier.organization())
                 .join(repository_identifier.name())
                 .join(&relative_path);
-            if let Some(ref filters) = args.filter {
-                let mut skip = true;
 
-                for filter in filters {
-                    if content.contains(filter) {
-                        skip = false;
-                        break;
-                    }
-                }
-
-                if skip {
-                    trace!("skipping: {:?}", abs_path);
-                    continue;
-                }
+            if args.filters.contains(&relative_path) || repo.filters().contains(&relative_path) {
+                trace!("skipping: {:?}", abs_path);
+                continue;
             }
 
             trace!("processing: {:?}", abs_path);
@@ -216,166 +176,194 @@ pub async fn gauntlet(args: Args) -> Result<()> {
             let document_identifier =
                 document::Identifier::new(repository_identifier.clone(), relative_path);
 
-            match config.inner().version() {
-                wdl_core::Version::V1 => {
-                    let mut detected_concerns = IndexSet::new();
-
-                    let (pt, these_concerns) = grammar::v1::parse(&content)
-                        .map_err(Error::GrammarV1)?
-                        .into_parts();
-                    if let Some(these_concerns) = these_concerns {
-                        detected_concerns.extend(these_concerns.into_inner().iter().filter_map(
-                            |concern| {
-                                // from_concern() will return `None` if the concern is not
-                                // of the right type (based on the value of `args.arena`)
-                                // in which case filter_map() will drop it.
-                                ReportableConcern::from_concern(
-                                    document_identifier.to_string(),
-                                    concern.clone(),
-                                    args.arena,
-                                )
-                            },
-                        ));
+            // Parse and validate the document
+            // If "arena mode" is activated, also validate with the lint rules enabled
+            let before = Instant::now();
+            let diagnostics = match Document::parse(&source).into_result() {
+                Ok(document) => {
+                    let mut validator = Validator::default();
+                    if args.arena {
+                        validator.add_v1_visitors(rules().into_iter().map(|r| r.visitor()));
                     }
 
-                    if let Some(pt) = pt {
-                        let (_, these_concerns) =
-                            ast::v1::parse(pt).map_err(Error::AstV1)?.into_parts();
-                        if let Some(these_concerns) = these_concerns {
-                            detected_concerns.extend(
-                                these_concerns.into_inner().iter().filter_map(|concern| {
-                                    // from_concern() will return `None` if the concern is not
-                                    // of the right type (based on the value of `args.arena`)
-                                    // in which case filter_map() will drop it.
-                                    ReportableConcern::from_concern(
-                                        document_identifier.to_string(),
-                                        concern.clone(),
-                                        args.arena,
-                                    )
-                                }),
-                            );
+                    match validator.validate(&document) {
+                        Ok(()) => None,
+                        Err(diagnostics) => Some(diagnostics),
+                    }
+                }
+                Err(diagnostics) => {
+                    // If we're in arena mode, skip over the files that failed to fully parse
+                    // We log those diagnostics as part of the normal gauntlet run.
+                    if args.arena {
+                        trace!("skipping {:?} as it has parse errors", abs_path);
+                        continue;
+                    }
+
+                    Some(diagnostics)
+                }
+            };
+
+            let elapsed = before.elapsed();
+            total_time += elapsed;
+
+            // Convert the diagnostics to a set of short-form messages
+            let mut actual = IndexSet::new();
+            if let Some(diagnostics) = diagnostics {
+                let file: SimpleFile<_, _> = SimpleFile::new(
+                    Path::new(document_identifier.path())
+                        .file_name()
+                        .expect("should have file name")
+                        .to_str()
+                        .expect("path should be UTF-8"),
+                    source,
+                );
+                let config = codespan_reporting::term::Config {
+                    display_style: DisplayStyle::Short,
+                    ..Default::default()
+                };
+
+                for diagnostic in diagnostics.iter() {
+                    let mut buffer = Buffer::no_color();
+                    term::emit(&mut buffer, &config, &file, &diagnostic.to_codespan())
+                        .context("failed to write diagnostic")?;
+
+                    assert!(
+                        actual.insert(
+                            std::str::from_utf8(buffer.as_slice())
+                                .context("diagnostic should be UTF-8")?
+                                .trim()
+                                .to_string()
+                        )
+                    );
+                }
+            }
+
+            // As the list of diagnostics has been sorted by document identifier, do
+            // a binary search and collect the matching messages
+            let diagnostics = config.inner().diagnostics();
+            let doc_id_str = document_identifier.to_string();
+            let expected: IndexSet<String> = diagnostics
+                .binary_search_by_key(&doc_id_str.as_str(), |d| d.document())
+                .map(|mut start_index| {
+                    // As binary search may return any matching index, back up until we find the
+                    // start of the range
+                    for i in (0..start_index).rev() {
+                        if diagnostics[i].document() != doc_id_str {
+                            break;
                         }
+
+                        start_index -= 1;
                     }
 
-                    let expected_concerns = config
-                        .inner()
-                        .concerns()
+                    diagnostics[start_index..]
                         .iter()
-                        .filter_map(|concern| {
-                            if concern.document() == document_identifier.to_string() {
-                                Some(concern.clone())
+                        .map_while(|d| {
+                            if d.document() == doc_id_str {
+                                Some(d.message().to_string())
                             } else {
                                 None
                             }
                         })
-                        .collect::<IndexSet<_>>();
+                        .collect()
+                })
+                .unwrap_or_default();
 
-                    let unexpected_concerns = &detected_concerns - &expected_concerns;
-                    let missing_concerns = &expected_concerns - &detected_concerns;
+            let unexpected = &actual - &expected;
+            let missing = &expected - &actual;
 
-                    if !unexpected_concerns.is_empty() {
-                        report
-                            .register(
-                                document_identifier,
-                                Status::UnexpectedConcerns(
-                                    unexpected_concerns.into_iter().collect::<Vec<_>>(),
-                                ),
-                            )
-                            .map_err(Error::Io)?;
-                    } else if !missing_concerns.is_empty() {
-                        report
-                            .register(
-                                document_identifier,
-                                Status::MissingExpectedConcerns(
-                                    missing_concerns.into_iter().collect::<Vec<_>>(),
-                                ),
-                            )
-                            .map_err(Error::Io)?;
-                    } else if !detected_concerns.is_empty() {
-                        report
-                            .register(document_identifier, Status::ConcernsMatched)
-                            .map_err(Error::Io)?;
-                    } else {
-                        report
-                            .register(document_identifier, Status::Success)
-                            .map_err(Error::Io)?;
+            let status = if !unexpected.is_empty() || !missing.is_empty() {
+                Status::DiagnosticsUnmatched(
+                    UnmatchedStatus {
+                        missing,
+                        unexpected,
+                        all: actual,
                     }
-                }
-            }
+                    .into(),
+                )
+            } else if !actual.is_empty() {
+                Status::DiagnosticsMatched(actual)
+            } else {
+                Status::Success
+            };
+
+            report
+                .register(document_identifier, status, elapsed)
+                .context("failed to register report status")?;
         }
 
-        report.next_section().map_err(Error::Io)?;
+        report
+            .next_section()
+            .context("failed to transition to next report section")?;
 
         if !args.no_errors {
             report
                 .report_unexpected_errors(repository_identifier)
-                .map_err(Error::Io)?;
+                .context("failed to report unexpected errors")?;
         }
 
-        report.next_section().map_err(Error::Io)?;
-
-        report.footer(repository_identifier).map_err(Error::Io)?;
-        report.next_section().map_err(Error::Io)?;
+        report
+            .next_section()
+            .context("failed to transition to next report section")?;
+        report
+            .footer(repository_identifier)
+            .context("failed to write report footer")?;
+        report
+            .next_section()
+            .context("failed to transition to next report section")?;
 
         if index != config.inner().repositories().len() - 1 {
             println!();
         }
     }
 
-    let missing_but_expected = report
-        .results()
-        .clone()
-        .into_iter()
-        .filter_map(|(_, status)| match status {
-            Status::MissingExpectedConcerns(concerns) => Some(concerns),
-            _ => None,
-        })
-        .flatten()
-        .collect::<IndexSet<_>>();
+    let mut missing = 0;
+    let mut unexpected = 0;
+    let mut diagnostics = Vec::new();
+    for (identifier, status) in report.into_results() {
+        let messages = match status {
+            Status::Success => continue,
+            Status::DiagnosticsMatched(all) => all,
+            Status::DiagnosticsUnmatched(unmatched) => {
+                missing += unmatched.missing.len();
+                unexpected += unmatched.unexpected.len();
+                unmatched.all
+            }
+        };
 
-    let unexpected = report
-        .results()
-        .clone()
-        .into_iter()
-        .filter_map(|(_, status)| match status {
-            Status::UnexpectedConcerns(concerns) => Some(concerns),
-            _ => None,
-        })
-        .flatten()
-        .collect::<IndexSet<_>>();
+        // Don't bother rebuilding the diagnostics
+        if !args.refresh {
+            continue;
+        }
+
+        for message in messages {
+            diagnostics.push(config::inner::Diagnostic::new(
+                identifier.to_string(),
+                message,
+            ));
+        }
+    }
+
+    println!("\nTotal analysis time: {total_time:?}");
 
     if args.refresh {
-        info!("adding {} new expected concerns.", unexpected.len());
-        info!(
-            "removing {} outdated expected concerns.",
-            missing_but_expected.len()
-        );
+        info!("adding {unexpected} new expected diagnostics.");
+        info!("removing {missing} outdated expected diagnostics.");
 
-        let existing = config.inner().concerns().clone();
-        let new = existing
-            .difference(&missing_but_expected)
-            .chain(unexpected.iter())
-            .cloned()
-            .collect::<IndexSet<_>>();
-        config.inner_mut().set_concerns(new);
-
-        config.save().map_err(Error::Config)?;
-    } else if !missing_but_expected.is_empty() {
+        config.inner_mut().set_diagnostics(diagnostics);
+        config.inner_mut().sort();
+        config.save().context("failed to save configuration file")?;
+    } else if missing > 0 {
         println!(
             "\n{}\n",
-            "undetected but expected concerns remain: you should remove these from your \
+            "missing but expected diagnostics remain: you should remove these from your \
              configuration file or run the command with the `--refresh` option!"
                 .red()
                 .bold()
         );
 
-        for concern in missing_but_expected {
-            println!("{}\n\n", concern);
-        }
-
-        process::exit(EXIT_CODE_UNDETECTED_IGNORED_CONCERNS);
-    } else if !unexpected.is_empty() {
-        process::exit(EXIT_CODE_FAILED);
+        process::exit(EXIT_CODE_MISSING);
+    } else if unexpected > 0 {
+        process::exit(EXIT_CODE_UNEXPECTED);
     }
 
     Ok(())

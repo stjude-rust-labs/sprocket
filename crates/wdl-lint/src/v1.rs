@@ -1,7 +1,5 @@
 //! Module for V1 lint rules.
 
-use convert_case::Case;
-use convert_case::Casing;
 use wdl_ast::experimental::v1::Visitor;
 use wdl_ast::experimental::Diagnostics;
 
@@ -75,6 +73,8 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
     // Ensure all the rule ids are unique and pascal case
     #[cfg(debug_assertions)]
     {
+        use convert_case::Case;
+        use convert_case::Casing;
         let mut set = std::collections::HashSet::new();
         for r in rules.iter() {
             if r.id().to_case(Case::Pascal) != r.id() {

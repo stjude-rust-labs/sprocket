@@ -1,4 +1,4 @@
-note: unnecessary whitespace in document preamble [rule: PreambleWhitespace]
+note[PreambleWhitespace]: unnecessary whitespace in document preamble
   ┌─ tests/lints/unnecessary-preamble-ws/source.wdl:4:1
   │
 4 │            
@@ -6,7 +6,7 @@ note: unnecessary whitespace in document preamble [rule: PreambleWhitespace]
   │
   = fix: remove the unnecessary whitespace
 
-note: unnecessary whitespace in document preamble [rule: PreambleWhitespace]
+note[PreambleWhitespace]: unnecessary whitespace in document preamble
   ┌─ tests/lints/unnecessary-preamble-ws/source.wdl:5:1
   │  
 5 │ ╭ 

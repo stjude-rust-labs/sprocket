@@ -1,358 +1,1104 @@
-version = "v1"
-
-[repositories."ENCODE-DCC/chip-seq-pipeline2"]
-identifier = "ENCODE-DCC/chip-seq-pipeline2"
-commit_hash = "26eeda81a0540dc793fc69b0c390d232ca7ca50a"
-
 [repositories."getwilds/ww-fastq-to-cram"]
 identifier = "getwilds/ww-fastq-to-cram"
 commit_hash = "7dd6c4c7c8c9fc6dcd4eb5ff8f3262cd26d5e7cc"
 
+[repositories."getwilds/ww-star-deseq2"]
+identifier = "getwilds/ww-star-deseq2"
+commit_hash = "3de83fa91db1b2d1b0d91dfc20e3ca71303c8d15"
+
+[repositories."getwilds/ww-vc-trio"]
+identifier = "getwilds/ww-vc-trio"
+commit_hash = "ee08634f28810e5d6fd1a904fc83f4e67821550e"
+
 [repositories."stjudecloud/workflows"]
 identifier = "stjudecloud/workflows"
-commit_hash = "08e3d49c7fb10086fe516feb2f400c1d65ef6100"
+commit_hash = "84bd23756563f32d144f11aa2e82a76e059a8b61"
+filters = ["/template/task-templates.wdl"]
 
-[[concerns]]
-kind = "LintWarning"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
-message = "[v1::W001::[Spacing, Style]::Low] trailing space (10:25)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
-message = "[v1::W001::[Spacing, Style]::Low] trailing space (68:66)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
-message = "[v1::W003::[Completeness]::Medium] missing parameter meta within task: files (5:6-5:23)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
-message = "[v1::W003::[Completeness]::Medium] missing parameter meta within task: labels (4:6-4:26)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
-message = "[v1::W003::[Completeness]::Medium] missing parameter meta within task: ref_files (6:6-6:27)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
-message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (84:45-84:56)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
-message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (85:46-85:65)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
-message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (86:26-86:39)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
-message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (87:39-87:52)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
-message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (91:18-91:27)"
-
-[[concerns]]
-kind = "LintWarning"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/compare_md5sum.wdl"
-message = "[v1::W012::[Style, Clarity]::Low] string defined with single quotes (93:17-93:36)"
-
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W001::[Spacing, Style]::Low] trailing space (133:46)"
+message = "ww-fastq-to-cram.wdl:129:5: note[MatchingParameterMeta]: task `FastqToUnmappedBam` has an extraneous parameter metadata key named `unmapped_bam`"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W001::[Spacing, Style]::Low] trailing space (182:63)"
+message = "ww-fastq-to-cram.wdl:134:6: warning[SnakeCase]: task name `ValidateCram` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W001::[Spacing, Style]::Low] trailing space (34:105)"
+message = "ww-fastq-to-cram.wdl:165:5: note[MatchingParameterMeta]: task `ValidateCram` has an extraneous parameter metadata key named `validation`"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W001::[Spacing, Style]::Low] trailing space (57:13)"
+message = "ww-fastq-to-cram.wdl:170:6: warning[SnakeCase]: task name `MergeBamsToCram` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W001::[Spacing, Style]::Low] trailing space (8:42)"
+message = "ww-fastq-to-cram.wdl:202:5: note[MatchingParameterMeta]: task `MergeBamsToCram` has an extraneous parameter metadata key named `cram`"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W003::[Completeness]::Medium] extraneous parameter meta within task: crai (203:5-203:9)"
+message = "ww-fastq-to-cram.wdl:203:5: note[MatchingParameterMeta]: task `MergeBamsToCram` has an extraneous parameter metadata key named `crai`"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W003::[Completeness]::Medium] extraneous parameter meta within task: cram (202:5-202:9)"
+message = "ww-fastq-to-cram.wdl:205:1: warning[EndingNewline]: missing newline at the end of the file"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W003::[Completeness]::Medium] extraneous parameter meta within task: unmapped_bam (129:5-129:17)"
+message = "ww-fastq-to-cram.wdl:23:10: warning[SnakeCase]: workflow name `PairedFastqsToUnmappedCram` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W003::[Completeness]::Medium] extraneous parameter meta within task: validation (165:5-165:15)"
+message = "ww-fastq-to-cram.wdl:57:13: warning[Whitespace]: line contains trailing whitespace"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W003::[Completeness]::Medium] extraneous parameter meta within workflow: unmapped_cram_indexes (75:5-75:26)"
+message = "ww-fastq-to-cram.wdl:74:5: note[MatchingParameterMeta]: workflow `PairedFastqsToUnmappedCram` has an extraneous parameter metadata key named `unmapped_crams`"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W003::[Completeness]::Medium] extraneous parameter meta within workflow: unmapped_crams (74:5-74:19)"
+message = "ww-fastq-to-cram.wdl:75:5: note[MatchingParameterMeta]: workflow `PairedFastqsToUnmappedCram` has an extraneous parameter metadata key named `unmapped_cram_indexes`"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W003::[Completeness]::Medium] extraneous parameter meta within workflow: validation (76:5-76:15)"
+message = "ww-fastq-to-cram.wdl:76:5: note[MatchingParameterMeta]: workflow `PairedFastqsToUnmappedCram` has an extraneous parameter metadata key named `validation`"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (134:6-134:18)"
+message = "ww-fastq-to-cram.wdl:83:6: warning[SnakeCase]: task name `FastqToUnmappedBam` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
-document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (170:6-170:21)"
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:10:22: warning[Whitespace]: line contains trailing whitespace"
 
-[[concerns]]
-kind = "LintWarning"
-document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (23:10-23:36)"
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:119:5: note[MatchingParameterMeta]: task `FindFastqs` has an extraneous parameter metadata key named `r1_locs`"
 
-[[concerns]]
-kind = "LintWarning"
-document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (83:6-83:24)"
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:120:5: note[MatchingParameterMeta]: task `FindFastqs` has an extraneous parameter metadata key named `r2_locs`"
 
-[[concerns]]
-kind = "LintWarning"
-document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "[v1::W007::[Spacing, Style]::Low] missing newline at the end of the file (205:2-205:2)"
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:125:6: warning[SnakeCase]: task name `ConcatenateFastQs` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:133:15: warning[DoubleQuotes]: string defined with single quotes"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:134:15: warning[DoubleQuotes]: string defined with single quotes"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:153:5: note[MatchingParameterMeta]: task `ConcatenateFastQs` has an extraneous parameter metadata key named `r1fastq`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:154:5: note[MatchingParameterMeta]: task `ConcatenateFastQs` has an extraneous parameter metadata key named `r2fastq`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:159:6: warning[SnakeCase]: task name `STARalignTwoPass` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:192:10: warning[SnakeCase]: output name `geneCounts` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:196:10: warning[SnakeCase]: output name `SJout` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:212:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:213:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `bai`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:214:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `geneCounts`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:215:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `log_final`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:216:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `log_progress`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:217:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `log`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:218:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `SJout`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:225:6: warning[SnakeCase]: task name `RNASeQC` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:255:5: note[MatchingParameterMeta]: task `RNASeQC` has an extraneous parameter metadata key named `rnaseqc_metrics`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:25:36: warning[Whitespace]: line contains trailing whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:30:13: warning[Whitespace]: line contains trailing whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:31:43: warning[Whitespace]: line contains trailing whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:32:43: warning[Whitespace]: line contains trailing whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:59:17: warning[SnakeCase]: output name `output_geneCounts` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:63:17: warning[SnakeCase]: output name `output_SJ` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:6:10: warning[SnakeCase]: workflow name `STAR2Pass` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:73:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:74:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_bai`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:75:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_gene_counts`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:76:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_log_final`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:77:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_log_progress`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:78:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_log`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:79:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_SJ`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:80:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_rnaseqc`"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:87:6: warning[SnakeCase]: task name `FindFastqs` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:9:25: warning[Whitespace]: line contains trailing whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:136:13: warning[Whitespace]: line contains trailing whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:145:13: warning[Whitespace]: line contains trailing whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:19:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `batchFile`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:19:10: warning[SnakeCase]: input name `batchFile` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:20:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `bedLocation`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:20:10: warning[SnakeCase]: input name `bedLocation` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:217:1: warning[Whitespace]: line contains only whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:21:12: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `ref_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:22:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `ref_fasta`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:23:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `ref_fasta_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:240:76: warning[Whitespace]: line contains trailing whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:242:17: warning[SnakeCase]: output name `GATK_vcf` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:243:17: warning[SnakeCase]: output name `SAM_vcf` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:244:17: warning[SnakeCase]: output name `Mutect_Vcf` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:245:17: warning[SnakeCase]: output name `Mutect_VcfIndex` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:246:17: warning[SnakeCase]: output name `Mutect_AnnotatedVcf` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:247:17: warning[SnakeCase]: output name `Mutect_AnnotatedTable` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:248:17: warning[SnakeCase]: output name `GATK_annotated_vcf` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:249:17: warning[SnakeCase]: output name `GATK_annotated` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:24:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `ref_dict`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:250:17: warning[SnakeCase]: output name `SAM_annotated_vcf` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:251:17: warning[SnakeCase]: output name `SAM_annotated` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:252:17: warning[SnakeCase]: output name `panelQC` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:253:17: warning[SnakeCase]: output name `PicardQC` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:254:17: warning[SnakeCase]: output name `PicardQCpertarget` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:255:17: warning[SnakeCase]: output name `consensusVariants` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:264:10: warning[MatchingParameterMeta]: task `annovar` is missing a parameter metadata key for input `input_vcf`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:265:12: warning[MatchingParameterMeta]: task `annovar` is missing a parameter metadata key for input `ref_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:266:12: warning[MatchingParameterMeta]: task `annovar` is missing a parameter metadata key for input `annovar_protocols`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:267:12: warning[MatchingParameterMeta]: task `annovar` is missing a parameter metadata key for input `annovar_operation`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:268:12: warning[MatchingParameterMeta]: task `annovar` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:28:11: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `ref_alt`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:298:6: warning[SnakeCase]: task name `ApplyBaseRecalibrator` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:29:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `ref_amb`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:2:1: note[PreambleComments]: preamble comments cannot come after the version statement"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:300:10: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `input_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:301:10: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `intervals`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:301:19: warning[Whitespace]: line contains trailing whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:302:10: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `input_bam_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:303:12: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `base_file_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:304:10: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `dbSNP_vcf`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:304:10: warning[SnakeCase]: input name `dbSNP_vcf` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:305:10: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `dbSNP_vcf_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:305:10: warning[SnakeCase]: input name `dbSNP_vcf_index` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:306:17: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `known_indels_sites_VCFs`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:306:17: warning[SnakeCase]: input name `known_indels_sites_VCFs` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:307:17: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `known_indels_sites_indices`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:308:10: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `ref_dict`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:309:10: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `ref_fasta`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:30:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `ref_ann`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:310:10: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `ref_fasta_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:311:12: warning[MatchingParameterMeta]: task `ApplyBaseRecalibrator` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:31:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `ref_bwt`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:32:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `ref_pac`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:33:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `ref_sa`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:342:10: warning[SnakeCase]: output name `sortOrder` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:34:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `dbSNP_vcf`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:34:10: warning[SnakeCase]: input name `dbSNP_vcf` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:353:6: warning[SnakeCase]: task name `bcftoolsMpileup` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:355:10: warning[MatchingParameterMeta]: task `bcftoolsMpileup` is missing a parameter metadata key for input `input_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:356:10: warning[MatchingParameterMeta]: task `bcftoolsMpileup` is missing a parameter metadata key for input `input_bam_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:357:12: warning[MatchingParameterMeta]: task `bcftoolsMpileup` is missing a parameter metadata key for input `base_file_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:358:10: warning[MatchingParameterMeta]: task `bcftoolsMpileup` is missing a parameter metadata key for input `sorted_bed`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:359:10: warning[MatchingParameterMeta]: task `bcftoolsMpileup` is missing a parameter metadata key for input `ref_dict`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:35:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `dbSNP_vcf_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:35:10: warning[SnakeCase]: input name `dbSNP_vcf_index` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:360:10: warning[MatchingParameterMeta]: task `bcftoolsMpileup` is missing a parameter metadata key for input `ref_fasta`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:361:10: warning[MatchingParameterMeta]: task `bcftoolsMpileup` is missing a parameter metadata key for input `ref_fasta_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:362:10: warning[MatchingParameterMeta]: task `bcftoolsMpileup` is missing a parameter metadata key for input `dbSNP_vcf`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:362:10: warning[SnakeCase]: input name `dbSNP_vcf` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:363:12: warning[MatchingParameterMeta]: task `bcftoolsMpileup` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:36:17: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `known_indels_sites_VCFs`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:36:17: warning[SnakeCase]: input name `known_indels_sites_VCFs` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:37:17: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `known_indels_sites_indices`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:38:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `af_only_gnomad`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:392:6: warning[SnakeCase]: task name `bedToolsQC` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:394:10: warning[MatchingParameterMeta]: task `bedToolsQC` is missing a parameter metadata key for input `input_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:395:10: warning[MatchingParameterMeta]: task `bedToolsQC` is missing a parameter metadata key for input `bed_file`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:396:10: warning[MatchingParameterMeta]: task `bedToolsQC` is missing a parameter metadata key for input `genome_sort_order`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:397:12: warning[MatchingParameterMeta]: task `bedToolsQC` is missing a parameter metadata key for input `base_file_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:398:12: warning[MatchingParameterMeta]: task `bedToolsQC` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:39:10: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `af_only_gnomad_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:409:10: warning[SnakeCase]: output name `meanQC` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:41:12: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `annovar_protocols`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:420:6: warning[SnakeCase]: task name `BwaMem` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:422:10: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `input_fastq`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:423:12: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `base_file_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:424:10: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `ref_fasta`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:425:10: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `ref_fasta_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:426:10: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `ref_dict`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:427:11: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `ref_alt`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:428:10: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `ref_amb`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:429:10: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `ref_ann`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:42:12: warning[MatchingParameterMeta]: workflow `ww_vc_trio` is missing a parameter metadata key for input `annovar_operation`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:430:10: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `ref_bwt`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:431:10: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `ref_pac`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:432:10: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `ref_sa`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:433:9: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `threads`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:434:12: warning[MatchingParameterMeta]: task `BwaMem` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:456:6: warning[SnakeCase]: task name `CollectHsMetrics` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:458:10: warning[MatchingParameterMeta]: task `CollectHsMetrics` is missing a parameter metadata key for input `input_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:459:12: warning[MatchingParameterMeta]: task `CollectHsMetrics` is missing a parameter metadata key for input `base_file_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:45:17: warning[SnakeCase]: private declaration name `batchInfo` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:460:10: warning[MatchingParameterMeta]: task `CollectHsMetrics` is missing a parameter metadata key for input `ref_fasta`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:461:10: warning[MatchingParameterMeta]: task `CollectHsMetrics` is missing a parameter metadata key for input `ref_fasta_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:462:10: warning[MatchingParameterMeta]: task `CollectHsMetrics` is missing a parameter metadata key for input `intervals`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:463:12: warning[MatchingParameterMeta]: task `CollectHsMetrics` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:47:10: warning[SnakeCase]: private declaration name `GATKDocker` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:481:10: warning[SnakeCase]: output name `picardMetrics` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:482:10: warning[SnakeCase]: output name `picardPerTarget` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:48:10: warning[SnakeCase]: private declaration name `bwaDocker` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:492:6: warning[SnakeCase]: task name `consensusProcessingR` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:494:10: warning[MatchingParameterMeta]: task `consensusProcessingR` is missing a parameter metadata key for input `GATKVars`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:494:10: warning[SnakeCase]: input name `GATKVars` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:495:10: warning[MatchingParameterMeta]: task `consensusProcessingR` is missing a parameter metadata key for input `SAMVars`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:495:10: warning[SnakeCase]: input name `SAMVars` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:496:10: warning[MatchingParameterMeta]: task `consensusProcessingR` is missing a parameter metadata key for input `MutectVars`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:496:10: warning[SnakeCase]: input name `MutectVars` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:497:12: warning[MatchingParameterMeta]: task `consensusProcessingR` is missing a parameter metadata key for input `base_file_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:498:12: warning[MatchingParameterMeta]: task `consensusProcessingR` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:49:10: warning[SnakeCase]: private declaration name `bedtoolsDocker` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:49:61: warning[Whitespace]: line contains trailing whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:507:10: warning[SnakeCase]: output name `consensusTSV` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:50:10: warning[SnakeCase]: private declaration name `bcftoolsDocker` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:518:6: warning[SnakeCase]: task name `HaplotypeCaller` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:51:10: warning[SnakeCase]: private declaration name `annovarDocker` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:520:10: warning[MatchingParameterMeta]: task `HaplotypeCaller` is missing a parameter metadata key for input `input_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:521:10: warning[MatchingParameterMeta]: task `HaplotypeCaller` is missing a parameter metadata key for input `input_bam_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:522:12: warning[MatchingParameterMeta]: task `HaplotypeCaller` is missing a parameter metadata key for input `base_file_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:523:10: warning[MatchingParameterMeta]: task `HaplotypeCaller` is missing a parameter metadata key for input `intervals`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:524:10: warning[MatchingParameterMeta]: task `HaplotypeCaller` is missing a parameter metadata key for input `ref_dict`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:525:10: warning[MatchingParameterMeta]: task `HaplotypeCaller` is missing a parameter metadata key for input `ref_fasta`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:526:10: warning[MatchingParameterMeta]: task `HaplotypeCaller` is missing a parameter metadata key for input `ref_fasta_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:527:10: warning[MatchingParameterMeta]: task `HaplotypeCaller` is missing a parameter metadata key for input `dbSNP_vcf`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:527:10: warning[SnakeCase]: input name `dbSNP_vcf` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:528:10: warning[MatchingParameterMeta]: task `HaplotypeCaller` is missing a parameter metadata key for input `dbSNP_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:528:10: warning[SnakeCase]: input name `dbSNP_index` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:529:12: warning[MatchingParameterMeta]: task `HaplotypeCaller` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:52:10: warning[SnakeCase]: private declaration name `RDocker` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:54:7: warning[SnakeCase]: private declaration name `bwaThreads` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:558:6: warning[SnakeCase]: task name `MergeBamAlignment` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:560:10: warning[MatchingParameterMeta]: task `MergeBamAlignment` is missing a parameter metadata key for input `unmapped_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:561:10: warning[MatchingParameterMeta]: task `MergeBamAlignment` is missing a parameter metadata key for input `aligned_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:562:12: warning[MatchingParameterMeta]: task `MergeBamAlignment` is missing a parameter metadata key for input `base_file_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:563:10: warning[MatchingParameterMeta]: task `MergeBamAlignment` is missing a parameter metadata key for input `ref_fasta`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:564:10: warning[MatchingParameterMeta]: task `MergeBamAlignment` is missing a parameter metadata key for input `ref_fasta_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:565:10: warning[MatchingParameterMeta]: task `MergeBamAlignment` is missing a parameter metadata key for input `ref_dict`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:566:12: warning[MatchingParameterMeta]: task `MergeBamAlignment` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:596:6: warning[SnakeCase]: task name `Mutect2TumorOnly` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:598:10: warning[MatchingParameterMeta]: task `Mutect2TumorOnly` is missing a parameter metadata key for input `input_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:599:10: warning[MatchingParameterMeta]: task `Mutect2TumorOnly` is missing a parameter metadata key for input `input_bam_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:600:12: warning[MatchingParameterMeta]: task `Mutect2TumorOnly` is missing a parameter metadata key for input `base_file_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:601:10: warning[MatchingParameterMeta]: task `Mutect2TumorOnly` is missing a parameter metadata key for input `intervals`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:602:10: warning[MatchingParameterMeta]: task `Mutect2TumorOnly` is missing a parameter metadata key for input `ref_dict`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:603:10: warning[MatchingParameterMeta]: task `Mutect2TumorOnly` is missing a parameter metadata key for input `ref_fasta`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:604:10: warning[MatchingParameterMeta]: task `Mutect2TumorOnly` is missing a parameter metadata key for input `ref_fasta_index`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:605:10: warning[MatchingParameterMeta]: task `Mutect2TumorOnly` is missing a parameter metadata key for input `genomeReference`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:605:10: warning[SnakeCase]: input name `genomeReference` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:606:10: warning[MatchingParameterMeta]: task `Mutect2TumorOnly` is missing a parameter metadata key for input `genomeReferenceIndex`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:606:10: warning[SnakeCase]: input name `genomeReferenceIndex` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:607:12: warning[MatchingParameterMeta]: task `Mutect2TumorOnly` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:643:6: warning[SnakeCase]: task name `SamToFastq` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:645:10: warning[MatchingParameterMeta]: task `SamToFastq` is missing a parameter metadata key for input `input_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:646:12: warning[MatchingParameterMeta]: task `SamToFastq` is missing a parameter metadata key for input `base_file_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:647:12: warning[MatchingParameterMeta]: task `SamToFastq` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:64:12: warning[SnakeCase]: private declaration name `sampleName` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:65:12: warning[SnakeCase]: private declaration name `molecularID` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:66:10: warning[SnakeCase]: private declaration name `sampleBam` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:680:6: warning[SnakeCase]: task name `SortBed` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:682:10: warning[MatchingParameterMeta]: task `SortBed` is missing a parameter metadata key for input `unsorted_bed`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:683:10: warning[MatchingParameterMeta]: task `SortBed` is missing a parameter metadata key for input `ref_dict`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:684:12: warning[MatchingParameterMeta]: task `SortBed` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:709:6: warning[SnakeCase]: task name `MarkDuplicates` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:711:10: warning[MatchingParameterMeta]: task `MarkDuplicates` is missing a parameter metadata key for input `input_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:712:12: warning[MatchingParameterMeta]: task `MarkDuplicates` is missing a parameter metadata key for input `output_bam_basename`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:713:12: warning[MatchingParameterMeta]: task `MarkDuplicates` is missing a parameter metadata key for input `metrics_filename`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:714:12: warning[MatchingParameterMeta]: task `MarkDuplicates` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:745:6: warning[SnakeCase]: task name `SortSam` is not snake_case"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:747:10: warning[MatchingParameterMeta]: task `SortSam` is missing a parameter metadata key for input `input_bam`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:748:12: warning[MatchingParameterMeta]: task `SortSam` is missing a parameter metadata key for input `base_file_name`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:749:12: warning[MatchingParameterMeta]: task `SortSam` is missing a parameter metadata key for input `docker`"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:771:2: warning[EndingNewline]: multiple empty lines at the end of file"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:96:1: warning[Whitespace]: line contains only whitespace"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (32:12-32:14)"
+message = "read_group.wdl:32:12: warning[SnakeCase]: struct member name `ID` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (33:13-33:15)"
+message = "read_group.wdl:33:13: warning[SnakeCase]: struct member name `BC` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (34:13-34:15)"
+message = "read_group.wdl:34:13: warning[SnakeCase]: struct member name `CN` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (35:13-35:15)"
+message = "read_group.wdl:35:13: warning[SnakeCase]: struct member name `DS` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (36:13-36:15)"
+message = "read_group.wdl:36:13: warning[SnakeCase]: struct member name `DT` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (37:13-37:15)"
+message = "read_group.wdl:37:13: warning[SnakeCase]: struct member name `FO` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (38:13-38:15)"
+message = "read_group.wdl:38:13: warning[SnakeCase]: struct member name `KS` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (39:13-39:15)"
+message = "read_group.wdl:39:13: warning[SnakeCase]: struct member name `LB` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (40:13-40:15)"
+message = "read_group.wdl:40:13: warning[SnakeCase]: struct member name `PG` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (41:10-41:12)"
+message = "read_group.wdl:41:10: warning[SnakeCase]: struct member name `PI` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (42:13-42:15)"
+message = "read_group.wdl:42:13: warning[SnakeCase]: struct member name `PL` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (43:13-43:15)"
+message = "read_group.wdl:43:13: warning[SnakeCase]: struct member name `PM` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (44:13-44:15)"
+message = "read_group.wdl:44:13: warning[SnakeCase]: struct member name `PU` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (45:13-45:15)"
+message = "read_group.wdl:45:13: warning[SnakeCase]: struct member name `SM` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (107:14-107:23)"
+message = "gatk4.wdl:107:14: warning[SnakeCase]: input name `dbSNP_vcf` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (108:14-108:29)"
+message = "gatk4.wdl:108:14: warning[SnakeCase]: input name `dbSNP_vcf_index` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (249:14-249:23)"
+message = "gatk4.wdl:249:14: warning[SnakeCase]: input name `dbSNP_vcf` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (250:14-250:29)"
+message = "gatk4.wdl:250:14: warning[SnakeCase]: input name `dbSNP_vcf_index` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (552:13-552:34)"
+message = "star.wdl:552:13: warning[SnakeCase]: input name `out_QS_conversion_add` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (553:13-553:34)"
+message = "star.wdl:553:13: warning[SnakeCase]: input name `out_sam_attr_IH_start` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (555:13-555:28)"
+message = "star.wdl:555:13: warning[SnakeCase]: input name `out_sam_flag_OR` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (556:13-556:29)"
+message = "star.wdl:556:13: warning[SnakeCase]: input name `out_sam_flag_AND` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (564:13-564:27)"
+message = "star.wdl:564:13: warning[SnakeCase]: input name `score_gap_GCAG` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (565:13-565:27)"
+message = "star.wdl:565:13: warning[SnakeCase]: input name `score_gap_ATAC` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (597:13-597:40)"
+message = "star.wdl:597:13: warning[SnakeCase]: input name `chim_score_junction_nonGTAG` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (61:13-61:36)"
+message = "star.wdl:61:13: warning[SnakeCase]: input name `genome_SA_index_n_bases` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (62:13-62:31)"
+message = "star.wdl:62:13: warning[SnakeCase]: input name `genome_SA_sparse_d` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (818:9-818:30)"
+message = "star.wdl:818:9: warning[SnakeCase]: struct member name `GT_AG_and_CT_AC_motif` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (819:9-819:30)"
+message = "star.wdl:819:9: warning[SnakeCase]: struct member name `GC_AG_and_CT_GC_motif` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (820:9-820:30)"
+message = "star.wdl:820:9: warning[SnakeCase]: struct member name `AT_AC_and_GT_AT_motif` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
-document = "stjudecloud/workflows:/tools/util.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (413:14-413:21)"
-
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (101:15-101:24)"
+message = "gatk-reference.wdl:101:15: warning[SnakeCase]: output name `dbSNP_vcf` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (102:15-102:30)"
+message = "gatk-reference.wdl:102:15: warning[SnakeCase]: output name `dbSNP_vcf_index` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (40:16-40:29)"
+message = "gatk-reference.wdl:40:16: warning[SnakeCase]: input name `dbSNP_vcf_url` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (41:16-41:30)"
+message = "gatk-reference.wdl:41:16: warning[SnakeCase]: input name `dbSNP_vcf_name` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (42:17-42:36)"
+message = "gatk-reference.wdl:42:17: warning[SnakeCase]: input name `dbSNP_vcf_index_url` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (43:17-43:37)"
+message = "gatk-reference.wdl:43:17: warning[SnakeCase]: input name `dbSNP_vcf_index_name` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
-document = "stjudecloud/workflows:/workflows/reference/make-qc-reference.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (125:14-125:21)"
-
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (138:13-138:40)"
+message = "rnaseq-core.wdl:138:13: warning[SnakeCase]: input name `chim_score_junction_nonGTAG` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (42:14-42:23)"
+message = "rnaseq-variant-calling.wdl:42:14: warning[SnakeCase]: input name `dbSNP_vcf` is not snake_case"
 
-[[concerns]]
-kind = "LintWarning"
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "[v1::W006::[Naming, Style, Clarity]::Medium] identifier must be snake case (43:14-43:29)"
+message = "rnaseq-variant-calling.wdl:43:14: warning[SnakeCase]: input name `dbSNP_vcf_index` is not snake_case"

@@ -1,5 +1,3 @@
-version = "v1"
-
 [repositories."ENCODE-DCC/chip-seq-pipeline2"]
 identifier = "ENCODE-DCC/chip-seq-pipeline2"
 commit_hash = "26eeda81a0540dc793fc69b0c390d232ca7ca50a"
@@ -10,7 +8,7 @@ commit_hash = "b8057d3e3fa575f45f55f7ac7df47fa9bc5f73e0"
 
 [repositories."aws-samples/amazon-omics-tutorials"]
 identifier = "aws-samples/amazon-omics-tutorials"
-commit_hash = "d8e8b48ce8faad50b24779d785cd504baadfb13f"
+commit_hash = "6c1ae7111deb8f4af68a3c43bff28c7008873b15"
 
 [repositories."biowdl/tasks"]
 identifier = "biowdl/tasks"
@@ -22,15 +20,15 @@ commit_hash = "04057c175d0307f96f3f90e2704a4594ebf4e314"
 
 [repositories."broadinstitute/palantir-workflows"]
 identifier = "broadinstitute/palantir-workflows"
-commit_hash = "4d28b6d381b765a12e9f838d305e39eddba1c9c7"
+commit_hash = "1e32078d3b57dcb2291534d0caa30f600d40967e"
 
 [repositories."broadinstitute/warp"]
 identifier = "broadinstitute/warp"
-commit_hash = "a22865d02b2f674da388c472654a73599afb94ed"
+commit_hash = "f094475689311ccf227b39b5f40b70762889566c"
 
 [repositories."chanzuckerberg/czid-workflows"]
 identifier = "chanzuckerberg/czid-workflows"
-commit_hash = "6ed1fc2ec1aa477b38ca45f0a39fa6402d2a0163"
+commit_hash = "15f611d382212519310a1187ef3fd0e96fe3ef21"
 
 [repositories."getwilds/ww-fastq-to-cram"]
 identifier = "getwilds/ww-fastq-to-cram"
@@ -46,658 +44,309 @@ commit_hash = "ee08634f28810e5d6fd1a904fc83f4e67821550e"
 
 [repositories."stjudecloud/workflows"]
 identifier = "stjudecloud/workflows"
-commit_hash = "2970ed4ffec95cbc3c94b3e85543d46c4e730f71"
+commit_hash = "84bd23756563f32d144f11aa2e82a76e059a8b61"
+filters = ["/template/task-templates.wdl"]
 
 [repositories."theiagen/public_health_bioinformatics"]
 identifier = "theiagen/public_health_bioinformatics"
-commit_hash = "dce427204424361a17c084224727e9df1e00eb63"
+commit_hash = "092f19a0f610eb0a01757456932519bbbfe2bbd9"
 
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/chip.wdl"
-message = "The following tokens are required: comma. (1262:26)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_bam2ta.wdl"
-message = "The following tokens are required: comma. (30:37)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_bam_to_pbam.wdl"
-message = "The following tokens are required: comma. (32:37)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_bowtie2.wdl"
-message = "The following tokens are required: comma. (33:37)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_bwa.wdl"
-message = "The following tokens are required: comma. (31:33)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_choose_ctl.wdl"
-message = "The following tokens are required: comma. (66:45)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_count_signal_track.wdl"
-message = "The following tokens are required: comma. (21:61)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_filter.wdl"
-message = "The following tokens are required: comma. (33:37)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_gc_bias.wdl"
-message = "The following tokens are required: comma. (18:25)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_idr.wdl"
-message = "The following tokens are required: comma. (31:31)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_jsd.wdl"
-message = "The following tokens are required: comma. (27:31)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_macs2.wdl"
-message = "The following tokens are required: comma. (36:39)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_macs2_signal_track.wdl"
-message = "The following tokens are required: comma. (29:61)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_overlap.wdl"
-message = "The following tokens are required: comma. (30:39)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_pool_ta.wdl"
-message = "The following tokens are required: comma. (19:39)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_reproducibility.wdl"
-message = "The following tokens are required: comma. (22:55)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_spp.wdl"
-message = "The following tokens are required: comma. (35:37)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_spr.wdl"
-message = "The following tokens are required: comma. (28:31)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_subsample_ctl.wdl"
-message = "The following tokens are required: comma. (25:51)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_trimmomatic.wdl"
-message = "The following tokens are required: comma. (37:45)"
-
-[[concerns]]
-kind = "ParseError"
-document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_xcor.wdl"
-message = "The following tokens are required: comma. (30:33)"
-
-[[concerns]]
-kind = "ParseError"
+[[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
-message = "The following tokens are required: singular_identifier. (112:41)"
+message = "mutec2.wdl:112:40: error: expected input section, output section, runtime section, metadata section, parameter metadata section, conditional statement, scatter statement, task call statement, or private declaration, but found `{`"
 
-[[concerns]]
-kind = "ParseError"
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
+message = "mutec2.wdl:112:67: error: expected declaration name, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
+message = "mutec2.wdl:113:62: error: expected declaration name, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
+message = "mutec2.wdl:114:71: error: expected declaration name, but found `*`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
+message = "mutec2.wdl:115:72: error: expected declaration name, but found `*`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
+message = "mutec2.wdl:117:5: error: expected import statement, struct definition, task definition, or workflow definition, but found `call` keyword"
+
+[[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
-message = "The following tokens are required: singular_identifier, or, and, add, sub, mul, div, remainder, eq, neq, lte, gte, lt, gt, member, index, call. (110:29)"
+message = "alphafold-600.wdl:110:29: error: expected runtime key, but found `,`"
 
-[[concerns]]
-kind = "ParseError"
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:111:23: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:142:29: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:143:23: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:174:29: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:175:23: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:210:29: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:211:23: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:244:29: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:245:23: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:284:29: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:285:23: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:323:29: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:324:23: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:325:28: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
+message = "alphafold-600.wdl:326:48: error: expected runtime key, but found `,`"
+
+[[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
-message = "The following tokens are required: singular_identifier, or, and, add, sub, mul, div, remainder, eq, neq, lte, gte, lt, gt, member, index, call. (58:29)"
+message = "esmfold.wdl:58:29: error: expected runtime key, but found `,`"
 
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
-message = "The following tokens are required: singular_identifier. (271:111)"
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
+message = "esmfold.wdl:59:23: error: expected runtime key, but found `,`"
 
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/palantir-workflows:/HaplotypeMap/BuildHaplotypeMap.wdl"
-message = "The following tokens are required: version. (17:1)"
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
+message = "esmfold.wdl:83:29: error: expected runtime key, but found `,`"
 
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/palantir-workflows:/ImputationPipeline/AggregatePRSResults.wdl"
-message = "The following tokens are required: or, and, add, sub, mul, div, remainder, eq, neq, lte, gte, lt, gt, member, index, call. (217:82)"
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
+message = "esmfold.wdl:84:23: error: expected runtime key, but found `,`"
 
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/palantir-workflows:/ImputationPipeline/EndToEndPipeline.wdl"
-message = "The following tokens are required: comma. (76:4)"
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
+message = "esmfold.wdl:85:28: error: expected runtime key, but found `,`"
 
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/palantir-workflows:/ImputationPipeline/Validation/ValidateImputation.wdl"
-message = "The following tokens are required: comma. (122:3)"
+[[diagnostics]]
+document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
+message = "esmfold.wdl:86:48: error: expected runtime key, but found `,`"
 
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/warp:/pipelines/broad/dna_seq/germline/single_sample/ugwgs/UltimaGenomicsWholeGenomeGermline.wdl"
-message = "The following tokens are required: comma. (126:5)"
-
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/warp:/tasks/broad/Funcotator.wdl"
-message = "The following tokens are required: whitespace, comment. (120:78)"
-
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
-message = "The following tokens are required: string. (65:32)"
-
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/warp:/tasks/broad/InternalTasks.wdl"
-message = "The following tokens are required: whitespace, comment. (64:77)"
-
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/warp:/tasks/broad/SplitLargeReadGroup.wdl"
-message = "The following tokens are required: comma. (48:5)"
-
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineAlignmentMarkDuplicates.wdl"
-message = "The following tokens are required: comma. (56:7)"
-
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
-message = "The following tokens are required: string. (814:27)"
-
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/warp:/tasks/skylab/FastqProcessing.wdl"
-message = "The following tokens are not allowed: space. (162:12)"
-
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/warp:/tests/cemba/pr/CheckCembaOutputs.wdl"
-message = "The following tokens are required: document. (1:1)"
-
-[[concerns]]
-kind = "ParseError"
-document = "broadinstitute/warp:/verification/VerifyTasks.wdl"
-message = "The following tokens are required: or, and, add, sub, mul, div, remainder, eq, neq, lte, gte, lt, gt. (75:119)"
-
-[[concerns]]
-kind = "ParseError"
-document = "stjudecloud/workflows:/template/task-templates.wdl"
-message = "The following tokens are required: expression. (49:35)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/freyja/wf_freyja_dashboard.wdl"
-message = "The following tokens are required: workflow_call_input. (26:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/freyja/wf_freyja_fastq.wdl"
-message = "The following tokens are required: workflow_call_input. (49:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/freyja/wf_freyja_plot.wdl"
-message = "The following tokens are required: workflow_call_input. (22:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/freyja/wf_freyja_update.wdl"
-message = "The following tokens are required: workflow_call_input. (12:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_augur.wdl"
-message = "The following tokens are required: workflow_call_input. (49:5)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_augur_prep.wdl"
-message = "The following tokens are required: workflow_call_input. (30:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_core_gene_snp.wdl"
-message = "The following tokens are required: workflow_call_input. (90:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_find_shared_variants.wdl"
-message = "The following tokens are required: workflow_call_input. (29:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_ksnp3.wdl"
-message = "The following tokens are required: workflow_call_input. (72:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_lyveset.wdl"
-message = "The following tokens are required: workflow_call_input. (24:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_mashtree_fasta.wdl"
-message = "The following tokens are required: workflow_call_input. (44:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_nextclade_addToRefTree.wdl"
-message = "The following tokens are required: workflow_call_input. (31:5)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_snippy_streamline.wdl"
-message = "The following tokens are required: workflow_call_input. (56:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_snippy_tree.wdl"
-message = "The following tokens are required: workflow_call_input. (186:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/standalone_modules/wf_amrfinderplus.wdl"
-message = "The following tokens are required: workflow_call_input. (18:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/standalone_modules/wf_gambit_query.wdl"
-message = "The following tokens are required: workflow_call_input. (18:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/standalone_modules/wf_gambitcore.wdl"
-message = "The following tokens are required: workflow_call_input. (18:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/standalone_modules/wf_kraken2_ont.wdl"
-message = "The following tokens are required: workflow_call_input. (29:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/standalone_modules/wf_kraken2_pe.wdl"
-message = "The following tokens are required: workflow_call_input. (31:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/standalone_modules/wf_kraken2_se.wdl"
-message = "The following tokens are required: workflow_call_input. (29:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/standalone_modules/wf_rasusa.wdl"
-message = "The following tokens are required: workflow_call_input. (24:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/standalone_modules/wf_snippy_variants.wdl"
-message = "The following tokens are required: workflow_call_input. (56:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/standalone_modules/wf_tbprofiler_tngs.wdl"
-message = "The following tokens are required: workflow_call_input. (20:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/submission/wf_terra_2_ncbi.wdl"
-message = "The following tokens are required: workflow_call_input. (23:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiacov/updates/wf_ncbi_scrub_pe.wdl"
-message = "The following tokens are required: workflow_call_input. (27:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiacov/updates/wf_ncbi_scrub_se.wdl"
-message = "The following tokens are required: workflow_call_input. (24:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiacov/updates/wf_pangolin_update.wdl"
-message = "The following tokens are required: workflow_call_input. (61:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiacov/updates/wf_vadr_update.wdl"
-message = "The following tokens are required: workflow_call_input. (20:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiacov/wf_theiacov_clearlabs.wdl"
-message = "The following tokens are required: workflow_call_input. (161:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiacov/wf_theiacov_fasta.wdl"
-message = "The following tokens are required: workflow_call_input. (120:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiacov/wf_theiacov_fasta_batch.wdl"
-message = "The following tokens are required: workflow_call_input. (62:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiacov/wf_theiacov_illumina_pe.wdl"
-message = "The following tokens are required: workflow_call_input. (344:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiacov/wf_theiacov_illumina_se.wdl"
-message = "The following tokens are required: workflow_call_input. (204:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiacov/wf_theiacov_ont.wdl"
-message = "The following tokens are required: workflow_call_input. (346:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiaeuk/wf_cauris_cladetyper.wdl"
-message = "The following tokens are required: workflow_call_input. (18:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiaeuk/wf_theiaeuk_illumina_pe.wdl"
-message = "The following tokens are required: workflow_call_input. (50:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiameta/wf_theiameta_illumina_pe.wdl"
-message = "The following tokens are required: workflow_call_input. (180:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiaprok/wf_theiaprok_fasta.wdl"
-message = "The following tokens are required: workflow_call_input. (52:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiaprok/wf_theiaprok_illumina_pe.wdl"
-message = "The following tokens are required: workflow_call_input. (69:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiaprok/wf_theiaprok_illumina_se.wdl"
-message = "The following tokens are required: workflow_call_input. (69:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/theiaprok/wf_theiaprok_ont.wdl"
-message = "The following tokens are required: workflow_call_input. (65:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/utilities/data_import/wf_assembly_fetch.wdl"
-message = "The following tokens are required: workflow_call_input. (27:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/utilities/data_import/wf_basespace_fetch.wdl"
-message = "The following tokens are required: workflow_call_input. (26:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/utilities/file_handling/wf_concatenate_column.wdl"
-message = "The following tokens are required: workflow_call_input. (18:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/utilities/file_handling/wf_rename_fastq_files.wdl"
-message = "The following tokens are required: workflow_call_input. (29:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/utilities/file_handling/wf_transfer_column.wdl"
-message = "The following tokens are required: workflow_call_input. (18:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/utilities/file_handling/wf_zip_column.wdl"
-message = "The following tokens are required: workflow_call_input. (18:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/utilities/wf_czgenepi_prep.wdl"
-message = "The following tokens are required: workflow_call_input. (37:3)"
-
-[[concerns]]
-kind = "ParseError"
-document = "theiagen/public_health_bioinformatics:/workflows/utilities/wf_theiavalidate.wdl"
-message = "The following tokens are required: workflow_call_input. (54:3)"
-
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/bcftools.wdl"
-message = '''[v1::E001] invalid escape character: '\_' (114:75-114:77)'''
+message = 'bcftools.wdl:114:75: error: unknown escape sequence `\_`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/bedtools.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (27:48-27:50)'''
+message = 'bedtools.wdl:27:48: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (63:32-63:34)'''
+message = 'bowtie.wdl:63:32: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (63:39-63:41)'''
+message = 'bowtie.wdl:63:39: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (63:46-63:48)'''
+message = 'bowtie.wdl:63:46: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (75:48-75:50)'''
+message = 'bowtie.wdl:75:48: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (122:57-122:59)'''
+message = 'centrifuge.wdl:122:57: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (122:64-122:66)'''
+message = 'centrifuge.wdl:122:64: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (199:57-199:59)'''
+message = 'centrifuge.wdl:199:57: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (199:64-199:66)'''
+message = 'centrifuge.wdl:199:64: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (256:57-256:59)'''
+message = 'centrifuge.wdl:256:57: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (256:64-256:66)'''
+message = 'centrifuge.wdl:256:64: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/common.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (275:45-275:47)'''
+message = 'common.wdl:275:45: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/fastqc.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (59:42-59:44)'''
+message = 'fastqc.wdl:59:42: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/fastqc.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (63:54-63:56)'''
+message = 'fastqc.wdl:63:54: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/fastqc.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (63:58-63:60)'''
+message = 'fastqc.wdl:63:58: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/gatk.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (127:57-127:59)'''
+message = 'gatk.wdl:127:57: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/gatk.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (1597:41-1597:43)'''
+message = 'gatk.wdl:1597:41: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/hisat2.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (60:34-60:36)'''
+message = 'hisat2.wdl:60:34: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/hisat2.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (60:41-60:43)'''
+message = 'hisat2.wdl:60:41: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/multiqc.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (133:45-133:47)'''
+message = 'multiqc.wdl:133:45: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (1021:48-1021:50)'''
+message = 'picard.wdl:1021:48: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (1191:48-1191:50)'''
+message = 'picard.wdl:1191:48: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (643:51-643:53)'''
+message = 'picard.wdl:643:51: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (785:51-785:53)'''
+message = 'picard.wdl:785:51: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (900:46-900:48)'''
+message = 'picard.wdl:900:46: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (901:46-901:48)'''
+message = 'picard.wdl:901:46: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (902:49-902:51)'''
+message = 'picard.wdl:902:49: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/sambamba.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (145:49-145:51)'''
+message = 'sambamba.wdl:145:49: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/sambamba.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (157:60-157:62)'''
+message = 'sambamba.wdl:157:60: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/sambamba.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (91:44-91:46)'''
+message = 'sambamba.wdl:91:44: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (238:53-238:55)'''
+message = 'samtools.wdl:238:53: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (326:44-326:46)'''
+message = 'samtools.wdl:326:44: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (414:44-414:46)'''
+message = 'samtools.wdl:414:44: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (458:49-458:51)'''
+message = 'samtools.wdl:458:49: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (470:60-470:62)'''
+message = 'samtools.wdl:470:60: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (80:42-80:44)'''
+message = 'samtools.wdl:80:42: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/umi-tools.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (95:49-95:51)'''
+message = 'umi-tools.wdl:95:49: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
 document = "biowdl/tasks:/umi.wdl"
-message = '''[v1::E001] invalid escape character: '\.' (39:60-39:62)'''
+message = 'umi.wdl:39:60: error: unknown escape sequence `\.`'
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
+document = "broadinstitute/palantir-workflows:/HaplotypeMap/BuildHaplotypeMap.wdl"
+message = "BuildHaplotypeMap.wdl:17:1: error: a WDL document must start with a version statement"
+
+[[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/scATAC/scATAC.wdl"
-message = "[v1::E003] duplicate runtime keys: 'cpu' (199:9-199:12, 203:9-203:12)"
+message = "scATAC.wdl:203:9: error: duplicate key `cpu` in runtime section"
 
-[[concerns]]
-kind = "ValidationFailure"
+[[diagnostics]]
+document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
+message = "GermlineVariantDiscovery.wdl:137:32: error: expected string, but found integer"
+
+[[diagnostics]]
+document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
+message = "GermlineVariantDiscovery.wdl:65:32: error: expected string, but found integer"
+
+[[diagnostics]]
+document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
+message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:814:27: error: expected string, but found integer"
+
+[[diagnostics]]
+document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
+message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:866:27: error: expected string, but found integer"
+
+[[diagnostics]]
+document = "broadinstitute/warp:/tests/cemba/pr/CheckCembaOutputs.wdl"
+message = "CheckCembaOutputs.wdl:1:1: error: a WDL document must start with a version statement"
+
+[[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/index-generation/index-generation.wdl"
-message = "[v1::E002] invalid version: 'version development' (1:1-1:20)"
+message = "index-generation.wdl:1:9: error: unsupported WDL version `development`"

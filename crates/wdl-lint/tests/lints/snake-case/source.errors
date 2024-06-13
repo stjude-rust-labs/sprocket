@@ -1,4 +1,4 @@
-warning: workflow name `BadWorkflow` is not snake_case [rule: SnakeCase]
+warning[SnakeCase]: workflow name `BadWorkflow` is not snake_case
   ┌─ tests/lints/snake-case/source.wdl:5:10
   │
 5 │ workflow BadWorkflow {
@@ -6,7 +6,7 @@ warning: workflow name `BadWorkflow` is not snake_case [rule: SnakeCase]
   │
   = fix: replace `BadWorkflow` with `bad_workflow`
 
-warning: private declaration name `badPrivateDecl` is not snake_case [rule: SnakeCase]
+warning[SnakeCase]: private declaration name `badPrivateDecl` is not snake_case
   ┌─ tests/lints/snake-case/source.wdl:6:11
   │
 6 │     Float badPrivateDecl = 3.14
@@ -14,7 +14,7 @@ warning: private declaration name `badPrivateDecl` is not snake_case [rule: Snak
   │
   = fix: replace `badPrivateDecl` with `bad_private_decl`
 
-warning: task name `BadTask` is not snake_case [rule: SnakeCase]
+warning[SnakeCase]: task name `BadTask` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:11:6
    │
 11 │ task BadTask {
@@ -22,7 +22,7 @@ warning: task name `BadTask` is not snake_case [rule: SnakeCase]
    │
    = fix: replace `BadTask` with `bad_task`
 
-warning: input name `BadInput` is not snake_case [rule: SnakeCase]
+warning[SnakeCase]: input name `BadInput` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:13:16
    │
 13 │         String BadInput
@@ -30,7 +30,7 @@ warning: input name `BadInput` is not snake_case [rule: SnakeCase]
    │
    = fix: replace `BadInput` with `bad_input`
 
-warning: output name `badOut` is not snake_case [rule: SnakeCase]
+warning[SnakeCase]: output name `badOut` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:26:14
    │
 26 │         File badOut = "out.txt"
@@ -38,7 +38,7 @@ warning: output name `badOut` is not snake_case [rule: SnakeCase]
    │
    = fix: replace `badOut` with `bad_out`
 
-warning: struct member name `bAdFiElD` is not snake_case [rule: SnakeCase]
+warning[SnakeCase]: struct member name `bAdFiElD` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:54:12
    │
 54 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
