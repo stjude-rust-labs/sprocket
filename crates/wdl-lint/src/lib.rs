@@ -1,5 +1,5 @@
 //! Lint rules for Workflow Description Language (WDL) documents.
-#![doc = include_str!("../../RULES.md")]
+#![doc = include_str!("../RULES.md")]
 //! # Examples
 //!
 //! An example of parsing a WDL document and linting it:
