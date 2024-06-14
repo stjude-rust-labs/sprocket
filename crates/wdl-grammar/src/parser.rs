@@ -564,8 +564,31 @@ where
                     }
 
                     if let Err(e) = self.expect(delimiter) {
-                        self.diagnostic(e);
+                        // Attach a label to the diagnostic hinting at where we expected the
+                        // delimiter to be; to do this, look back at the last non-trivia token event
+                        // in the parser events and use its span for the label.
+                        if let Some(span) = self.events.iter().rev().find_map(|e| match e {
+                            Event::Token { kind, span }
+                                if *kind != SyntaxKind::Whitespace
+                                    && *kind != SyntaxKind::Comment =>
+                            {
+                                Some(*span)
+                            }
+                            _ => None,
+                        }) {
+                            self.diagnostic(e.with_label(
+                                format!(
+                                    "consider adding a {desc} after this",
+                                    desc = T::describe(delimiter.into_raw())
+                                ),
+                                Span::new(span.end() - 1, 1),
+                            ));
+                        } else {
+                            self.diagnostic(e);
+                        }
+
                         self.recover(recovery);
+                        self.next_if(delimiter);
                     }
 
                     next = self.peek();

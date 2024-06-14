@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed a missing delimiter diagnostic to include a label for where the parser 
+  thinks the missing delimiter might go ([#84](https://github.com/stjude-rust-labs/wdl/pull/84)).
+
 ## 0.4.0 - 6-13-2024
 
 ### Changed
