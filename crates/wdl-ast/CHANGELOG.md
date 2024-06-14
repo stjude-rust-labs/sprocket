@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.3.0 - 06-13-2024
+
 ### Fixed
 
 * Fixed the experimental parser validation to check negative numbers in

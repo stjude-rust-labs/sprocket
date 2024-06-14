@@ -1,17 +1,17 @@
 [package]
 name = "wdl-lint"
+version = "0.2.0"
 description = "Lint rules for Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
-version.workspace = true
 homepage.workspace = true
 repository.workspace = true
 documentation = "https://docs.rs/wdl-lint"
 readme = "../README.md"
 
 [dependencies]
-wdl-ast = { path = "../wdl-ast", version = "0.2.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.3.0" }
 convert_case = { workspace = true }
 
 [dev-dependencies]

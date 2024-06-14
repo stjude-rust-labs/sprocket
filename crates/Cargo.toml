@@ -11,7 +11,6 @@ resolver = "2"
 [workspace.package]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-version = "0.3.0"
 authors = ["The Rust WDL project developers"]
 homepage = "https://github.com/stjude-rust-labs/wdl"
 repository = "https://github.com/stjude-rust-labs/wdl"

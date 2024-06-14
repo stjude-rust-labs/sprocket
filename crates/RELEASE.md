@@ -19,8 +19,8 @@ within a single commit.
 substitute the name of the crate that you are working on.
 
 **Note:** crates should be released sequentially based on the dependency tree.
-For example, `wdl-core` should be released before `wdl-grammar`, as
-`wdl-grammar` depends on `wdl-core`.
+For example, `wdl-grammar` should be released before `wdl-ast`, as
+`wdl-ast` depends on `wdl-grammar`.
 
 For every component crate that has changes:
 

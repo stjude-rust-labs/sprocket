@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.4.0 - 6-13-2024
+
 ### Changed
 
 * Removed the old parser implementation in favor of the new parser 
