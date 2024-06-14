@@ -1,6 +1,6 @@
 [package]
 name = "wdl-ast"
-version.workspace = true
+version = "0.2.0"
 authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,7 @@ repository = "https://github.com/stjude-rust-labs/wdl"
 documentation = "https://docs.rs/wdl-ast"
 
 [dependencies]
-wdl-grammar = { path = "../wdl-grammar", version = "0.4.0" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.3.0" }
 rowan = { workspace = true }
 
 [dev-dependencies]

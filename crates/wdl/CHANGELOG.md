@@ -5,19 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
-
-## 0.4.0 - 06-13-2024
+## [Unreleased]
 
 ### Changed
 
 * Updated to the new parser implementation and added a `wdl` binary ([#79](https://github.com/stjude-rust-labs/wdl/pull/79)).
-
-## 0.3.0 - 05-31-2024
-
-### Changed
-
-* Updated `wdl-ast`, `wdl-grammar`, and `wdl-core` crates.
 
 ## 0.2.0 — 12-17-2023
 

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.4.0 - 06-13-2024
+## Unreleased
 
 ### Changed
 
@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   introduced the `Diagnostic` type as a replacement, and switched the existing
   parser errors over to use `Diagnostic` ([#68](https://github.com/stjude-rust-labs/wdl/pull/68)).
 
-## 0.3.0 - 05-31-2024
+## 0.3.0 - 5-31-2024
 
 ### Fixed
 
