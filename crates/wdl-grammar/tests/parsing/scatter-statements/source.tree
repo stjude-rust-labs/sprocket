@@ -38,10 +38,10 @@ RootNode@0..193
       Whitespace@98..99 " "
       OpenBrace@99..100 "{"
       Whitespace@100..109 "\n        "
-      BoundDeclNode@109..135
-        PrimitiveTypeNode@109..116
+      BoundDeclNode@109..126
+        PrimitiveTypeNode@109..115
           StringTypeKeyword@109..115 "String"
-          Whitespace@115..116 " "
+        Whitespace@115..116 " "
         Ident@116..119 "msg"
         Whitespace@119..120 " "
         Assignment@120..121 "="
@@ -50,37 +50,37 @@ RootNode@0..193
           DoubleQuote@122..123 "\""
           LiteralStringText@123..125 "hi"
           DoubleQuote@125..126 "\""
-        Whitespace@126..135 "\n        "
+      Whitespace@126..135 "\n        "
       CallStatementNode@135..154
         CallKeyword@135..139 "call"
-        CallTargetNode@139..142
+        CallTargetNode@139..141
           Whitespace@139..140 " "
           Ident@140..141 "x"
-          Whitespace@141..142 " "
+        Whitespace@141..142 " "
         OpenBrace@142..143 "{"
         Whitespace@143..144 " "
         InputKeyword@144..149 "input"
         Colon@149..150 ":"
         Whitespace@150..151 " "
-        CallInputItemNode@151..153
+        CallInputItemNode@151..152
           Ident@151..152 "a"
-          Whitespace@152..153 " "
+        Whitespace@152..153 " "
         CloseBrace@153..154 "}"
       Whitespace@154..163 "\n        "
       CallStatementNode@163..184
         CallKeyword@163..167 "call"
-        CallTargetNode@167..170
+        CallTargetNode@167..169
           Whitespace@167..168 " "
           Ident@168..169 "y"
-          Whitespace@169..170 " "
+        Whitespace@169..170 " "
         OpenBrace@170..171 "{"
         Whitespace@171..172 " "
         InputKeyword@172..177 "input"
         Colon@177..178 ":"
         Whitespace@178..179 " "
-        CallInputItemNode@179..183
+        CallInputItemNode@179..182
           Ident@179..182 "msg"
-          Whitespace@182..183 " "
+        Whitespace@182..183 " "
         CloseBrace@183..184 "}"
       Whitespace@184..189 "\n    "
       CloseBrace@189..190 "}"

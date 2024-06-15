@@ -13,10 +13,10 @@ RootNode@0..156
     Whitespace@82..83 " "
     OpenBrace@83..84 "{"
     Whitespace@84..89 "\n    "
-    BoundDeclNode@89..154
-      PrimitiveTypeNode@89..96
+    BoundDeclNode@89..153
+      PrimitiveTypeNode@89..95
         StringTypeKeyword@89..95 "String"
-        Whitespace@95..96 " "
+      Whitespace@95..96 " "
       Ident@96..97 "x"
       Whitespace@97..98 " "
       Assignment@98..99 "="
@@ -67,6 +67,6 @@ RootNode@0..156
             Ident@150..151 "v"
           CloseBrace@151..152 "}"
         DoubleQuote@152..153 "\""
-      Whitespace@153..154 "\n"
+    Whitespace@153..154 "\n"
     CloseBrace@154..155 "}"
   Whitespace@155..156 "\n"

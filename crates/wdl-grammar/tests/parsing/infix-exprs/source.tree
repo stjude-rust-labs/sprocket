@@ -13,14 +13,14 @@ RootNode@0..354
     Whitespace@52..53 " "
     OpenBrace@53..54 "{"
     Whitespace@54..59 "\n    "
-    BoundDeclNode@59..89
-      PrimitiveTypeNode@59..67
+    BoundDeclNode@59..84
+      PrimitiveTypeNode@59..66
         BooleanTypeKeyword@59..66 "Boolean"
-        Whitespace@66..67 " "
+      Whitespace@66..67 " "
       Ident@67..68 "a"
       Whitespace@68..69 " "
       Assignment@69..70 "="
-      LogicalOrExprNode@70..89
+      LogicalOrExprNode@70..84
         LiteralBooleanNode@70..75
           Whitespace@70..71 " "
           TrueKeyword@71..75 "true"
@@ -29,66 +29,66 @@ RootNode@0..354
         LiteralBooleanNode@78..84
           Whitespace@78..79 " "
           FalseKeyword@79..84 "false"
-        Whitespace@84..89 "\n    "
-    BoundDeclNode@89..115
-      PrimitiveTypeNode@89..97
+    Whitespace@84..89 "\n    "
+    BoundDeclNode@89..110
+      PrimitiveTypeNode@89..96
         BooleanTypeKeyword@89..96 "Boolean"
-        Whitespace@96..97 " "
+      Whitespace@96..97 " "
       Ident@97..98 "b"
       Whitespace@98..99 " "
       Assignment@99..100 "="
-      LogicalAndExprNode@100..115
-        NameRefNode@100..103
+      LogicalAndExprNode@100..110
+        NameRefNode@100..102
           Whitespace@100..101 " "
           Ident@101..102 "a"
-          Whitespace@102..103 " "
+        Whitespace@102..103 " "
         LogicalAnd@103..105 "&&"
         LiteralBooleanNode@105..110
           Whitespace@105..106 " "
           TrueKeyword@106..110 "true"
-        Whitespace@110..115 "\n    "
-    BoundDeclNode@115..138
-      PrimitiveTypeNode@115..123
+    Whitespace@110..115 "\n    "
+    BoundDeclNode@115..133
+      PrimitiveTypeNode@115..122
         BooleanTypeKeyword@115..122 "Boolean"
-        Whitespace@122..123 " "
+      Whitespace@122..123 " "
       Ident@123..124 "c"
       Whitespace@124..125 " "
       Assignment@125..126 "="
-      EqualityExprNode@126..138
-        NameRefNode@126..129
+      EqualityExprNode@126..133
+        NameRefNode@126..128
           Whitespace@126..127 " "
           Ident@127..128 "a"
-          Whitespace@128..129 " "
+        Whitespace@128..129 " "
         Equal@129..131 "=="
-        NameRefNode@131..138
+        NameRefNode@131..133
           Whitespace@131..132 " "
           Ident@132..133 "b"
-          Whitespace@133..138 "\n    "
-    BoundDeclNode@138..165
-      PrimitiveTypeNode@138..146
+    Whitespace@133..138 "\n    "
+    BoundDeclNode@138..160
+      PrimitiveTypeNode@138..145
         BooleanTypeKeyword@138..145 "Boolean"
-        Whitespace@145..146 " "
+      Whitespace@145..146 " "
       Ident@146..147 "d"
       Whitespace@147..148 " "
       Assignment@148..149 "="
-      InequalityExprNode@149..165
-        NameRefNode@149..152
+      InequalityExprNode@149..160
+        NameRefNode@149..151
           Whitespace@149..150 " "
           Ident@150..151 "c"
-          Whitespace@151..152 " "
+        Whitespace@151..152 " "
         NotEqual@152..154 "!="
         LiteralBooleanNode@154..160
           Whitespace@154..155 " "
           FalseKeyword@155..160 "false"
-        Whitespace@160..165 "\n    "
-    BoundDeclNode@165..187
-      PrimitiveTypeNode@165..173
+    Whitespace@160..165 "\n    "
+    BoundDeclNode@165..182
+      PrimitiveTypeNode@165..172
         BooleanTypeKeyword@165..172 "Boolean"
-        Whitespace@172..173 " "
+      Whitespace@172..173 " "
       Ident@173..174 "e"
       Whitespace@174..175 " "
       Assignment@175..176 "="
-      LessExprNode@176..187
+      LessExprNode@176..182
         LiteralIntegerNode@176..178
           Whitespace@176..177 " "
           Integer@177..178 "1"
@@ -97,15 +97,15 @@ RootNode@0..354
         LiteralIntegerNode@180..182
           Whitespace@180..181 " "
           Integer@181..182 "2"
-        Whitespace@182..187 "\n    "
-    BoundDeclNode@187..210
-      PrimitiveTypeNode@187..195
+    Whitespace@182..187 "\n    "
+    BoundDeclNode@187..205
+      PrimitiveTypeNode@187..194
         BooleanTypeKeyword@187..194 "Boolean"
-        Whitespace@194..195 " "
+      Whitespace@194..195 " "
       Ident@195..196 "f"
       Whitespace@196..197 " "
       Assignment@197..198 "="
-      LessEqualExprNode@198..210
+      LessEqualExprNode@198..205
         LiteralIntegerNode@198..200
           Whitespace@198..199 " "
           Integer@199..200 "2"
@@ -114,15 +114,15 @@ RootNode@0..354
         LiteralIntegerNode@203..205
           Whitespace@203..204 " "
           Integer@204..205 "2"
-        Whitespace@205..210 "\n    "
-    BoundDeclNode@210..232
-      PrimitiveTypeNode@210..218
+    Whitespace@205..210 "\n    "
+    BoundDeclNode@210..227
+      PrimitiveTypeNode@210..217
         BooleanTypeKeyword@210..217 "Boolean"
-        Whitespace@217..218 " "
+      Whitespace@217..218 " "
       Ident@218..219 "g"
       Whitespace@219..220 " "
       Assignment@220..221 "="
-      GreaterExprNode@221..232
+      GreaterExprNode@221..227
         LiteralIntegerNode@221..223
           Whitespace@221..222 " "
           Integer@222..223 "1"
@@ -131,15 +131,15 @@ RootNode@0..354
         LiteralIntegerNode@225..227
           Whitespace@225..226 " "
           Integer@226..227 "2"
-        Whitespace@227..232 "\n    "
-    BoundDeclNode@232..255
-      PrimitiveTypeNode@232..240
+    Whitespace@227..232 "\n    "
+    BoundDeclNode@232..250
+      PrimitiveTypeNode@232..239
         BooleanTypeKeyword@232..239 "Boolean"
-        Whitespace@239..240 " "
+      Whitespace@239..240 " "
       Ident@240..241 "h"
       Whitespace@241..242 " "
       Assignment@242..243 "="
-      GreaterEqualExprNode@243..255
+      GreaterEqualExprNode@243..250
         LiteralIntegerNode@243..245
           Whitespace@243..244 " "
           Integer@244..245 "2"
@@ -148,15 +148,15 @@ RootNode@0..354
         LiteralIntegerNode@248..250
           Whitespace@248..249 " "
           Integer@249..250 "2"
-        Whitespace@250..255 "\n    "
-    BoundDeclNode@255..275
-      PrimitiveTypeNode@255..259
+    Whitespace@250..255 "\n    "
+    BoundDeclNode@255..270
+      PrimitiveTypeNode@255..258
         IntTypeKeyword@255..258 "Int"
-        Whitespace@258..259 " "
+      Whitespace@258..259 " "
       Ident@259..260 "i"
       Whitespace@260..261 " "
       Assignment@261..262 "="
-      AdditionExprNode@262..275
+      AdditionExprNode@262..270
         LiteralIntegerNode@262..265
           Whitespace@262..263 " "
           Integer@263..265 "30"
@@ -165,34 +165,34 @@ RootNode@0..354
         LiteralIntegerNode@267..270
           Whitespace@267..268 " "
           Integer@268..270 "12"
-        Whitespace@270..275 "\n    "
-    BoundDeclNode@275..296
-      PrimitiveTypeNode@275..279
+    Whitespace@270..275 "\n    "
+    BoundDeclNode@275..291
+      PrimitiveTypeNode@275..278
         IntTypeKeyword@275..278 "Int"
-        Whitespace@278..279 " "
+      Whitespace@278..279 " "
       Ident@279..280 "j"
       Whitespace@280..281 " "
       Assignment@281..282 "="
-      SubtractionExprNode@282..296
+      SubtractionExprNode@282..291
         LiteralIntegerNode@282..285
           Whitespace@282..283 " "
           Integer@283..285 "30"
         Whitespace@285..286 " "
         Minus@286..287 "-"
-        NegationExprNode@287..296
+        NegationExprNode@287..291
           Whitespace@287..288 " "
           Minus@288..289 "-"
           LiteralIntegerNode@289..291
             Integer@289..291 "12"
-          Whitespace@291..296 "\n    "
-    BoundDeclNode@296..316
-      PrimitiveTypeNode@296..300
+    Whitespace@291..296 "\n    "
+    BoundDeclNode@296..311
+      PrimitiveTypeNode@296..299
         IntTypeKeyword@296..299 "Int"
-        Whitespace@299..300 " "
+      Whitespace@299..300 " "
       Ident@300..301 "k"
       Whitespace@301..302 " "
       Assignment@302..303 "="
-      MultiplicationExprNode@303..316
+      MultiplicationExprNode@303..311
         LiteralIntegerNode@303..306
           Whitespace@303..304 " "
           Integer@304..306 "10"
@@ -201,15 +201,15 @@ RootNode@0..354
         LiteralIntegerNode@308..311
           Whitespace@308..309 " "
           Integer@309..311 "10"
-        Whitespace@311..316 "\n    "
-    BoundDeclNode@316..336
-      PrimitiveTypeNode@316..320
+    Whitespace@311..316 "\n    "
+    BoundDeclNode@316..331
+      PrimitiveTypeNode@316..319
         IntTypeKeyword@316..319 "Int"
-        Whitespace@319..320 " "
+      Whitespace@319..320 " "
       Ident@320..321 "l"
       Whitespace@321..322 " "
       Assignment@322..323 "="
-      DivisionExprNode@323..336
+      DivisionExprNode@323..331
         LiteralIntegerNode@323..326
           Whitespace@323..324 " "
           Integer@324..326 "10"
@@ -218,15 +218,15 @@ RootNode@0..354
         LiteralIntegerNode@328..331
           Whitespace@328..329 " "
           Integer@329..331 "10"
-        Whitespace@331..336 "\n    "
-    BoundDeclNode@336..352
-      PrimitiveTypeNode@336..340
+    Whitespace@331..336 "\n    "
+    BoundDeclNode@336..351
+      PrimitiveTypeNode@336..339
         IntTypeKeyword@336..339 "Int"
-        Whitespace@339..340 " "
+      Whitespace@339..340 " "
       Ident@340..341 "m"
       Whitespace@341..342 " "
       Assignment@342..343 "="
-      ModuloExprNode@343..352
+      ModuloExprNode@343..351
         LiteralIntegerNode@343..346
           Whitespace@343..344 " "
           Integer@344..346 "10"
@@ -235,6 +235,6 @@ RootNode@0..354
         LiteralIntegerNode@348..351
           Whitespace@348..349 " "
           Integer@349..351 "10"
-        Whitespace@351..352 "\n"
+    Whitespace@351..352 "\n"
     CloseBrace@352..353 "}"
   Whitespace@353..354 "\n"

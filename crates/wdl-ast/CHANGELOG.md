@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed the validation diagnostics to be ordered by the start of the primary
+  label ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).
+
 ## 0.3.0 - 06-13-2024
 
 ### Fixed

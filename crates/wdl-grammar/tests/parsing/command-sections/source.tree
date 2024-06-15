@@ -18,10 +18,10 @@ RootNode@0..467
       Whitespace@76..77 " "
       OpenBrace@77..78 "{"
       Whitespace@78..87 "\n        "
-      BoundDeclNode@87..113
-        PrimitiveTypeNode@87..94
+      BoundDeclNode@87..108
+        PrimitiveTypeNode@87..93
           StringTypeKeyword@87..93 "String"
-          Whitespace@93..94 " "
+        Whitespace@93..94 " "
         Ident@94..98 "name"
         Whitespace@98..99 " "
         Assignment@99..100 "="
@@ -30,7 +30,7 @@ RootNode@0..467
           DoubleQuote@101..102 "\""
           LiteralStringText@102..107 "world"
           DoubleQuote@107..108 "\""
-        Whitespace@108..113 "\n    "
+      Whitespace@108..113 "\n    "
       CloseBrace@113..114 "}"
     Whitespace@114..120 "\n\n    "
     CommandSectionNode@120..261
@@ -60,10 +60,10 @@ RootNode@0..467
       Whitespace@287..288 " "
       OpenBrace@288..289 "{"
       Whitespace@289..298 "\n        "
-      BoundDeclNode@298..324
-        PrimitiveTypeNode@298..305
+      BoundDeclNode@298..319
+        PrimitiveTypeNode@298..304
           StringTypeKeyword@298..304 "String"
-          Whitespace@304..305 " "
+        Whitespace@304..305 " "
         Ident@305..309 "name"
         Whitespace@309..310 " "
         Assignment@310..311 "="
@@ -72,7 +72,7 @@ RootNode@0..467
           DoubleQuote@312..313 "\""
           LiteralStringText@313..318 "world"
           DoubleQuote@318..319 "\""
-        Whitespace@319..324 "\n    "
+      Whitespace@319..324 "\n    "
       CloseBrace@324..325 "}"
     Whitespace@325..331 "\n\n    "
     CommandSectionNode@331..464

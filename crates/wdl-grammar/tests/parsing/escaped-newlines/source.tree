@@ -13,10 +13,10 @@ RootNode@0..333
     Whitespace@94..95 " "
     OpenBrace@95..96 "{"
     Whitespace@96..101 "\n    "
-    BoundDeclNode@101..134
-      PrimitiveTypeNode@101..108
+    BoundDeclNode@101..128
+      PrimitiveTypeNode@101..107
         StringTypeKeyword@101..107 "String"
-        Whitespace@107..108 " "
+      Whitespace@107..108 " "
       Ident@108..109 "x"
       Whitespace@109..110 " "
       Assignment@110..111 "="
@@ -25,7 +25,7 @@ RootNode@0..333
         DoubleQuote@112..113 "\""
         LiteralStringText@113..127 "first \\\nsecond"
         DoubleQuote@127..128 "\""
-      Whitespace@128..134 "\n\n    "
+    Whitespace@128..134 "\n\n    "
     CommandSectionNode@134..204
       CommandKeyword@134..141 "command"
       Whitespace@141..142 " "
@@ -42,10 +42,10 @@ RootNode@0..333
     Whitespace@219..220 " "
     OpenBrace@220..221 "{"
     Whitespace@221..226 "\n    "
-    BoundDeclNode@226..259
-      PrimitiveTypeNode@226..233
+    BoundDeclNode@226..253
+      PrimitiveTypeNode@226..232
         StringTypeKeyword@226..232 "String"
-        Whitespace@232..233 " "
+      Whitespace@232..233 " "
       Ident@233..234 "x"
       Whitespace@234..235 " "
       Assignment@235..236 "="
@@ -54,7 +54,7 @@ RootNode@0..333
         SingleQuote@237..238 "'"
         LiteralStringText@238..252 "first \\\nsecond"
         SingleQuote@252..253 "'"
-      Whitespace@253..259 "\n\n    "
+    Whitespace@253..259 "\n\n    "
     CommandSectionNode@259..330
       CommandKeyword@259..266 "command"
       Whitespace@266..267 " "

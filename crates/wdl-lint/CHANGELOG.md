@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed the preamble whitespace and preamble comment rules to look for the 
+  version statement trivia based on it now being children of the version 
+  statement ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).
+
 ## 0.1.0 - 06-13-2024
 
 ### Added

@@ -18,20 +18,20 @@ RootNode@0..374
       Whitespace@91..92 " "
       OpenBrace@92..93 "{"
       Whitespace@93..102 "\n        "
-      UnboundDeclNode@102..119
-        PrimitiveTypeNode@102..109
+      UnboundDeclNode@102..110
+        PrimitiveTypeNode@102..108
           StringTypeKeyword@102..108 "String"
-          Whitespace@108..109 " "
+        Whitespace@108..109 " "
         Ident@109..110 "a"
-        Whitespace@110..119 "\n        "
-      BoundDeclNode@119..141
-        PrimitiveTypeNode@119..123
+      Whitespace@110..119 "\n        "
+      BoundDeclNode@119..132
+        PrimitiveTypeNode@119..122
           IntTypeKeyword@119..122 "Int"
-          Whitespace@122..123 " "
+        Whitespace@122..123 " "
         Ident@123..124 "b"
         Whitespace@124..125 " "
         Assignment@125..126 "="
-        AdditionExprNode@126..141
+        AdditionExprNode@126..132
           LiteralIntegerNode@126..128
             Whitespace@126..127 " "
             Integer@127..128 "1"
@@ -40,11 +40,11 @@ RootNode@0..374
           LiteralIntegerNode@130..132
             Whitespace@130..131 " "
             Integer@131..132 "2"
-          Whitespace@132..141 "\n        "
-      BoundDeclNode@141..174
-        PrimitiveTypeNode@141..148
+      Whitespace@132..141 "\n        "
+      BoundDeclNode@141..165
+        PrimitiveTypeNode@141..147
           StringTypeKeyword@141..147 "String"
-          Whitespace@147..148 " "
+        Whitespace@147..148 " "
         Ident@148..149 "c"
         Whitespace@149..150 " "
         Assignment@150..151 "="
@@ -58,9 +58,9 @@ RootNode@0..374
               Ident@162..163 "a"
             CloseBrace@163..164 "}"
           DoubleQuote@164..165 "\""
-        Whitespace@165..174 "\n        "
-      UnboundDeclNode@174..197
-        MapTypeNode@174..191
+      Whitespace@165..174 "\n        "
+      UnboundDeclNode@174..192
+        MapTypeNode@174..190
           MapTypeKeyword@174..177 "Map"
           OpenBracket@177..178 "["
           PrimitiveTypeNode@178..184
@@ -70,9 +70,9 @@ RootNode@0..374
             Whitespace@185..186 " "
             IntTypeKeyword@186..189 "Int"
           CloseBracket@189..190 "]"
-          Whitespace@190..191 " "
+        Whitespace@190..191 " "
         Ident@191..192 "d"
-        Whitespace@192..197 "\n    "
+      Whitespace@192..197 "\n    "
       CloseBrace@197..198 "}"
     Whitespace@198..199 "\n"
     CloseBrace@199..200 "}"
@@ -89,14 +89,14 @@ RootNode@0..374
       Whitespace@224..225 " "
       OpenBrace@225..226 "{"
       Whitespace@226..235 "\n        "
-      UnboundDeclNode@235..253
+      UnboundDeclNode@235..244
         PrimitiveTypeNode@235..242
           StringTypeKeyword@235..241 "String"
           QuestionMark@241..242 "?"
         Whitespace@242..243 " "
         Ident@243..244 "a"
-        Whitespace@244..253 "\n        "
-      BoundDeclNode@253..276
+      Whitespace@244..253 "\n        "
+      BoundDeclNode@253..267
         PrimitiveTypeNode@253..257
           IntTypeKeyword@253..256 "Int"
           QuestionMark@256..257 "?"
@@ -104,7 +104,7 @@ RootNode@0..374
         Ident@258..259 "b"
         Whitespace@259..260 " "
         Assignment@260..261 "="
-        AdditionExprNode@261..276
+        AdditionExprNode@261..267
           LiteralIntegerNode@261..263
             Whitespace@261..262 " "
             Integer@262..263 "1"
@@ -113,11 +113,11 @@ RootNode@0..374
           LiteralIntegerNode@265..267
             Whitespace@265..266 " "
             Integer@266..267 "2"
-          Whitespace@267..276 "\n        "
-      BoundDeclNode@276..309
-        PrimitiveTypeNode@276..283
+      Whitespace@267..276 "\n        "
+      BoundDeclNode@276..300
+        PrimitiveTypeNode@276..282
           StringTypeKeyword@276..282 "String"
-          Whitespace@282..283 " "
+        Whitespace@282..283 " "
         Ident@283..284 "c"
         Whitespace@284..285 " "
         Assignment@285..286 "="
@@ -131,9 +131,9 @@ RootNode@0..374
               Ident@297..298 "a"
             CloseBrace@298..299 "}"
           DoubleQuote@299..300 "\""
-        Whitespace@300..309 "\n        "
-      UnboundDeclNode@309..336
-        MapTypeNode@309..326
+      Whitespace@300..309 "\n        "
+      UnboundDeclNode@309..327
+        MapTypeNode@309..325
           MapTypeKeyword@309..312 "Map"
           OpenBracket@312..313 "["
           PrimitiveTypeNode@313..319
@@ -143,19 +143,19 @@ RootNode@0..374
             Whitespace@320..321 " "
             IntTypeKeyword@321..324 "Int"
           CloseBracket@324..325 "]"
-          Whitespace@325..326 " "
+        Whitespace@325..326 " "
         Ident@326..327 "d"
-        Whitespace@327..336 "\n        "
-      UnboundDeclNode@336..351
-        PrimitiveTypeNode@336..341
+      Whitespace@327..336 "\n        "
+      UnboundDeclNode@336..342
+        PrimitiveTypeNode@336..340
           FileTypeKeyword@336..340 "File"
-          Whitespace@340..341 " "
+        Whitespace@340..341 " "
         Ident@341..342 "e"
-        Whitespace@342..351 "\n        "
-      BoundDeclNode@351..370
-        PrimitiveTypeNode@351..356
+      Whitespace@342..351 "\n        "
+      BoundDeclNode@351..365
+        PrimitiveTypeNode@351..355
           FileTypeKeyword@351..355 "File"
-          Whitespace@355..356 " "
+        Whitespace@355..356 " "
         Ident@356..357 "f"
         Whitespace@357..358 " "
         Assignment@358..359 "="
@@ -164,7 +164,7 @@ RootNode@0..374
           DoubleQuote@360..361 "\""
           LiteralStringText@361..364 "URL"
           DoubleQuote@364..365 "\""
-        Whitespace@365..370 "\n    "
+      Whitespace@365..370 "\n    "
       CloseBrace@370..371 "}"
     Whitespace@371..372 "\n"
     CloseBrace@372..373 "}"

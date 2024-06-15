@@ -18,7 +18,7 @@ RootNode@0..355
       Whitespace@84..85 " "
       OpenBrace@85..86 "{"
       Whitespace@86..95 "\n        "
-      RuntimeItemNode@95..130
+      RuntimeItemNode@95..121
         Ident@95..104 "container"
         Colon@104..105 ":"
         LiteralStringNode@105..121
@@ -26,8 +26,8 @@ RootNode@0..355
           DoubleQuote@106..107 "\""
           LiteralStringText@107..120 "ubuntu:latest"
           DoubleQuote@120..121 "\""
-        Whitespace@121..130 "\n        "
-      RuntimeItemNode@130..157
+      Whitespace@121..130 "\n        "
+      RuntimeItemNode@130..148
         Ident@130..139 "maxMemory"
         Colon@139..140 ":"
         LiteralStringNode@140..148
@@ -35,29 +35,29 @@ RootNode@0..355
           DoubleQuote@141..142 "\""
           LiteralStringText@142..147 "36 GB"
           DoubleQuote@147..148 "\""
-        Whitespace@148..157 "\n        "
-      RuntimeItemNode@157..176
+      Whitespace@148..157 "\n        "
+      RuntimeItemNode@157..167
         Ident@157..163 "maxCpu"
         Colon@163..164 ":"
         LiteralIntegerNode@164..167
           Whitespace@164..165 " "
           Integer@165..167 "24"
-        Whitespace@167..176 "\n        "
-      RuntimeItemNode@176..200
+      Whitespace@167..176 "\n        "
+      RuntimeItemNode@176..191
         Ident@176..185 "shortTask"
         Colon@185..186 ":"
         LiteralBooleanNode@186..191
           Whitespace@186..187 " "
           TrueKeyword@187..191 "true"
-        Whitespace@191..200 "\n        "
-      RuntimeItemNode@200..236
+      Whitespace@191..200 "\n        "
+      RuntimeItemNode@200..227
         Ident@200..220 "localizationOptional"
         Colon@220..221 ":"
         LiteralBooleanNode@221..227
           Whitespace@221..222 " "
           FalseKeyword@222..227 "false"
-        Whitespace@227..236 "\n        "
-      RuntimeItemNode@236..351
+      Whitespace@227..236 "\n        "
+      RuntimeItemNode@236..346
         Ident@236..242 "inputs"
         Colon@242..243 ":"
         LiteralObjectNode@243..346
@@ -66,7 +66,7 @@ RootNode@0..355
           Whitespace@250..251 " "
           OpenBrace@251..252 "{"
           Whitespace@252..265 "\n            "
-          LiteralObjectItemNode@265..345
+          LiteralObjectItemNode@265..336
             Ident@265..268 "foo"
             Colon@268..269 ":"
             LiteralObjectNode@269..336
@@ -75,17 +75,17 @@ RootNode@0..355
               Whitespace@276..277 " "
               OpenBrace@277..278 "{"
               Whitespace@278..296 " \n                "
-              LiteralObjectItemNode@296..335
+              LiteralObjectItemNode@296..322
                 Ident@296..316 "localizationOptional"
                 Colon@316..317 ":"
                 LiteralBooleanNode@317..322
                   Whitespace@317..318 " "
                   TrueKeyword@318..322 "true"
-                Whitespace@322..335 "\n            "
+              Whitespace@322..335 "\n            "
               CloseBrace@335..336 "}"
-            Whitespace@336..345 "\n        "
+          Whitespace@336..345 "\n        "
           CloseBrace@345..346 "}"
-        Whitespace@346..351 "\n    "
+      Whitespace@346..351 "\n    "
       CloseBrace@351..352 "}"
     Whitespace@352..353 "\n"
     CloseBrace@353..354 "}"

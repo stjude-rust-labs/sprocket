@@ -13,18 +13,18 @@ RootNode@0..425
     Whitespace@64..65 " "
     OpenBrace@65..66 "{"
     Whitespace@66..71 "\n    "
-    CallStatementNode@71..90
+    CallStatementNode@71..85
       CallKeyword@71..75 "call"
-      CallTargetNode@75..90
+      CallTargetNode@75..85
         Whitespace@75..76 " "
         Ident@76..85 "no_params"
-        Whitespace@85..90 "\n    "
+    Whitespace@85..90 "\n    "
     CallStatementNode@90..132
       CallKeyword@90..94 "call"
-      CallTargetNode@94..107
+      CallTargetNode@94..106
         Whitespace@94..95 " "
         Ident@95..106 "with_params"
-        Whitespace@106..107 " "
+      Whitespace@106..107 " "
       OpenBrace@107..108 "{"
       Whitespace@108..109 " "
       InputKeyword@109..114 "input"
@@ -42,24 +42,24 @@ RootNode@0..425
         Ident@122..123 "c"
       Comma@123..124 ","
       Whitespace@124..125 " "
-      CallInputItemNode@125..131
+      CallInputItemNode@125..130
         Ident@125..126 "d"
         Whitespace@126..127 " "
         Assignment@127..128 "="
         LiteralIntegerNode@128..130
           Whitespace@128..129 " "
           Integer@129..130 "1"
-        Whitespace@130..131 " "
+      Whitespace@130..131 " "
       CloseBrace@131..132 "}"
     Whitespace@132..137 "\n    "
-    CallStatementNode@137..161
+    CallStatementNode@137..156
       CallKeyword@137..141 "call"
       CallTargetNode@141..156
         Whitespace@141..142 " "
         Ident@142..151 "qualified"
         Dot@151..152 "."
         Ident@152..156 "name"
-      Whitespace@156..161 "\n    "
+    Whitespace@156..161 "\n    "
     CallStatementNode@161..213
       CallKeyword@161..165 "call"
       CallTargetNode@165..180
@@ -91,7 +91,7 @@ RootNode@0..425
           Integer@201..202 "2"
       Comma@202..203 ","
       Whitespace@203..204 " "
-      CallInputItemNode@204..212
+      CallInputItemNode@204..211
         Ident@204..205 "c"
         Whitespace@205..206 " "
         Assignment@206..207 "="
@@ -100,26 +100,26 @@ RootNode@0..425
           DoubleQuote@208..209 "\""
           LiteralStringText@209..210 "3"
           DoubleQuote@210..211 "\""
-        Whitespace@211..212 " "
+      Whitespace@211..212 " "
       CloseBrace@212..213 "}"
     Whitespace@213..218 "\n    "
-    CallStatementNode@218..240
+    CallStatementNode@218..235
       CallKeyword@218..222 "call"
-      CallTargetNode@222..231
+      CallTargetNode@222..230
         Whitespace@222..223 " "
         Ident@223..230 "aliased"
-        Whitespace@230..231 " "
+      Whitespace@230..231 " "
       CallAliasNode@231..235
         AsKeyword@231..233 "as"
         Whitespace@233..234 " "
         Ident@234..235 "x"
-      Whitespace@235..240 "\n    "
+    Whitespace@235..240 "\n    "
     CallStatementNode@240..268
       CallKeyword@240..244 "call"
-      CallTargetNode@244..253
+      CallTargetNode@244..252
         Whitespace@244..245 " "
         Ident@245..252 "aliased"
-        Whitespace@252..253 " "
+      Whitespace@252..253 " "
       CallAliasNode@253..257
         AsKeyword@253..255 "as"
         Whitespace@255..256 " "
@@ -132,12 +132,12 @@ RootNode@0..425
       Whitespace@266..267 " "
       CloseBrace@267..268 "}"
     Whitespace@268..273 "\n    "
-    CallStatementNode@273..300
+    CallStatementNode@273..295
       CallKeyword@273..277 "call"
-      CallTargetNode@277..280
+      CallTargetNode@277..279
         Whitespace@277..278 " "
         Ident@278..279 "f"
-        Whitespace@279..280 " "
+      Whitespace@279..280 " "
       CallAfterNode@280..287
         AfterKeyword@280..285 "after"
         Whitespace@285..286 " "
@@ -147,13 +147,13 @@ RootNode@0..425
         AfterKeyword@288..293 "after"
         Whitespace@293..294 " "
         Ident@294..295 "y"
-      Whitespace@295..300 "\n    "
+    Whitespace@295..300 "\n    "
     CallStatementNode@300..340
       CallKeyword@300..304 "call"
-      CallTargetNode@304..307
+      CallTargetNode@304..306
         Whitespace@304..305 " "
         Ident@305..306 "f"
-        Whitespace@306..307 " "
+      Whitespace@306..307 " "
       CallAfterNode@307..314
         AfterKeyword@307..312 "after"
         Whitespace@312..313 " "
@@ -169,7 +169,7 @@ RootNode@0..425
       InputKeyword@325..330 "input"
       Colon@330..331 ":"
       Whitespace@331..332 " "
-      CallInputItemNode@332..339
+      CallInputItemNode@332..338
         Ident@332..333 "a"
         Whitespace@333..334 " "
         Assignment@334..335 "="
@@ -177,15 +177,15 @@ RootNode@0..425
           Whitespace@335..336 " "
           OpenBracket@336..337 "["
           CloseBracket@337..338 "]"
-        Whitespace@338..339 " "
+      Whitespace@338..339 " "
       CloseBrace@339..340 "}"
     Whitespace@340..345 "\n    "
-    CallStatementNode@345..369
+    CallStatementNode@345..364
       CallKeyword@345..349 "call"
-      CallTargetNode@349..352
+      CallTargetNode@349..351
         Whitespace@349..350 " "
         Ident@350..351 "f"
-        Whitespace@351..352 " "
+      Whitespace@351..352 " "
       CallAliasNode@352..356
         AsKeyword@352..354 "as"
         Whitespace@354..355 " "
@@ -195,13 +195,13 @@ RootNode@0..425
         AfterKeyword@357..362 "after"
         Whitespace@362..363 " "
         Ident@363..364 "x"
-      Whitespace@364..369 "\n    "
+    Whitespace@364..369 "\n    "
     CallStatementNode@369..422
       CallKeyword@369..373 "call"
-      CallTargetNode@373..376
+      CallTargetNode@373..375
         Whitespace@373..374 " "
         Ident@374..375 "f"
-        Whitespace@375..376 " "
+      Whitespace@375..376 " "
       CallAliasNode@376..380
         AsKeyword@376..378 "as"
         Whitespace@378..379 " "
@@ -222,7 +222,7 @@ RootNode@0..425
       InputKeyword@399..404 "input"
       Colon@404..405 ":"
       Whitespace@405..406 " "
-      CallInputItemNode@406..421
+      CallInputItemNode@406..420
         Ident@406..410 "name"
         Whitespace@410..411 " "
         Assignment@411..412 "="
@@ -231,7 +231,7 @@ RootNode@0..425
           DoubleQuote@413..414 "\""
           LiteralStringText@414..419 "hello"
           DoubleQuote@419..420 "\""
-        Whitespace@420..421 " "
+      Whitespace@420..421 " "
       CloseBrace@421..422 "}"
     Whitespace@422..423 "\n"
     CloseBrace@423..424 "}"

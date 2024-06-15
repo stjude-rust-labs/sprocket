@@ -13,10 +13,10 @@ RootNode@0..472
     Whitespace@65..66 " "
     OpenBrace@66..67 "{"
     Whitespace@67..72 "\n    "
-    BoundDeclNode@72..98
-      PrimitiveTypeNode@72..79
+    BoundDeclNode@72..93
+      PrimitiveTypeNode@72..78
         StringTypeKeyword@72..78 "String"
-        Whitespace@78..79 " "
+      Whitespace@78..79 " "
       Ident@79..83 "name"
       Whitespace@83..84 " "
       Assignment@84..85 "="
@@ -25,11 +25,11 @@ RootNode@0..472
         SingleQuote@86..87 "'"
         LiteralStringText@87..92 "world"
         SingleQuote@92..93 "'"
-      Whitespace@93..98 "\n    "
-    BoundDeclNode@98..129
-      PrimitiveTypeNode@98..105
+    Whitespace@93..98 "\n    "
+    BoundDeclNode@98..124
+      PrimitiveTypeNode@98..104
         StringTypeKeyword@98..104 "String"
-        Whitespace@104..105 " "
+      Whitespace@104..105 " "
       Ident@105..106 "a"
       Whitespace@106..107 " "
       Assignment@107..108 "="
@@ -43,11 +43,11 @@ RootNode@0..472
             Ident@118..122 "name"
           CloseBrace@122..123 "}"
         SingleQuote@123..124 "'"
-      Whitespace@124..129 "\n    "
-    BoundDeclNode@129..161
-      PrimitiveTypeNode@129..136
+    Whitespace@124..129 "\n    "
+    BoundDeclNode@129..156
+      PrimitiveTypeNode@129..135
         StringTypeKeyword@129..135 "String"
-        Whitespace@135..136 " "
+      Whitespace@135..136 " "
       Ident@136..137 "b"
       Whitespace@137..138 " "
       Assignment@138..139 "="
@@ -61,11 +61,11 @@ RootNode@0..472
             Ident@149..154 "world"
           CloseBrace@154..155 "}"
         DoubleQuote@155..156 "\""
-      Whitespace@156..161 "\n    "
-    BoundDeclNode@161..195
-      PrimitiveTypeNode@161..168
+    Whitespace@156..161 "\n    "
+    BoundDeclNode@161..190
+      PrimitiveTypeNode@161..167
         StringTypeKeyword@161..167 "String"
-        Whitespace@167..168 " "
+      Whitespace@167..168 " "
       Ident@168..169 "c"
       Whitespace@169..170 " "
       Assignment@170..171 "="
@@ -81,11 +81,11 @@ RootNode@0..472
             DoubleQuote@187..188 "\""
           CloseBrace@188..189 "}"
         DoubleQuote@189..190 "\""
-      Whitespace@190..195 "\n    "
-    BoundDeclNode@195..229
-      PrimitiveTypeNode@195..202
+    Whitespace@190..195 "\n    "
+    BoundDeclNode@195..224
+      PrimitiveTypeNode@195..201
         StringTypeKeyword@195..201 "String"
-        Whitespace@201..202 " "
+      Whitespace@201..202 " "
       Ident@202..203 "d"
       Whitespace@203..204 " "
       Assignment@204..205 "="
@@ -101,11 +101,11 @@ RootNode@0..472
             SingleQuote@221..222 "'"
           CloseBrace@222..223 "}"
         SingleQuote@223..224 "'"
-      Whitespace@224..229 "\n    "
-    BoundDeclNode@229..280
-      PrimitiveTypeNode@229..236
+    Whitespace@224..229 "\n    "
+    BoundDeclNode@229..275
+      PrimitiveTypeNode@229..235
         StringTypeKeyword@229..235 "String"
-        Whitespace@235..236 " "
+      Whitespace@235..236 " "
       Ident@236..237 "e"
       Whitespace@237..238 " "
       Assignment@238..239 "="
@@ -134,11 +134,11 @@ RootNode@0..472
             SingleQuote@272..273 "'"
           CloseBrace@273..274 "}"
         SingleQuote@274..275 "'"
-      Whitespace@275..280 "\n    "
-    BoundDeclNode@280..318
-      PrimitiveTypeNode@280..287
+    Whitespace@275..280 "\n    "
+    BoundDeclNode@280..313
+      PrimitiveTypeNode@280..286
         StringTypeKeyword@280..286 "String"
-        Whitespace@286..287 " "
+      Whitespace@286..287 " "
       Ident@287..288 "f"
       Whitespace@288..289 " "
       Assignment@289..290 "="
@@ -170,11 +170,11 @@ RootNode@0..472
             CloseBracket@310..311 "]"
           CloseBrace@311..312 "}"
         DoubleQuote@312..313 "\""
-      Whitespace@313..318 "\n    "
-    BoundDeclNode@318..360
-      PrimitiveTypeNode@318..325
+    Whitespace@313..318 "\n    "
+    BoundDeclNode@318..355
+      PrimitiveTypeNode@318..324
         StringTypeKeyword@318..324 "String"
-        Whitespace@324..325 " "
+      Whitespace@324..325 " "
       Ident@325..326 "g"
       Whitespace@326..327 " "
       Assignment@327..328 "="
@@ -207,11 +207,11 @@ RootNode@0..472
               Integer@352..353 "1"
           CloseBrace@353..354 "}"
         DoubleQuote@354..355 "\""
-      Whitespace@355..360 "\n    "
-    BoundDeclNode@360..412
-      PrimitiveTypeNode@360..367
+    Whitespace@355..360 "\n    "
+    BoundDeclNode@360..407
+      PrimitiveTypeNode@360..366
         StringTypeKeyword@360..366 "String"
-        Whitespace@366..367 " "
+      Whitespace@366..367 " "
       Ident@367..368 "h"
       Whitespace@368..369 " "
       Assignment@369..370 "="
@@ -239,11 +239,11 @@ RootNode@0..472
             FalseKeyword@400..405 "false"
           CloseBrace@405..406 "}"
         DoubleQuote@406..407 "\""
-      Whitespace@407..412 "\n    "
-    BoundDeclNode@412..470
-      PrimitiveTypeNode@412..419
+    Whitespace@407..412 "\n    "
+    BoundDeclNode@412..448
+      PrimitiveTypeNode@412..418
         StringTypeKeyword@412..418 "String"
-        Whitespace@418..419 " "
+      Whitespace@418..419 " "
       Ident@419..420 "i"
       Whitespace@420..421 " "
       Assignment@421..422 "="
@@ -278,8 +278,8 @@ RootNode@0..472
             CloseParen@445..446 ")"
           CloseBrace@446..447 "}"
         DoubleQuote@447..448 "\""
-      Whitespace@448..449 " "
-      Comment@449..469 "# Not a `sep` option"
-      Whitespace@469..470 "\n"
+    Whitespace@448..449 " "
+    Comment@449..469 "# Not a `sep` option"
+    Whitespace@469..470 "\n"
     CloseBrace@470..471 "}"
   Whitespace@471..472 "\n"

@@ -18,9 +18,9 @@ RootNode@0..223
     Comment@110..125 "# Unknown token"
     Whitespace@125..130 "\n    "
     UnboundDeclNode@130..138
-      PrimitiveTypeNode@130..137
+      PrimitiveTypeNode@130..136
         StringTypeKeyword@130..136 "String"
-        Whitespace@136..137 " "
+      Whitespace@136..137 " "
       Ident@137..138 "a"
     Whitespace@138..143 "\n    "
     QuestionMark@143..144 "?"
@@ -28,9 +28,9 @@ RootNode@0..223
     Comment@146..164 "# Unexpected token"
     Whitespace@164..169 "\n    "
     UnboundDeclNode@169..176
-      PrimitiveTypeNode@169..175
+      PrimitiveTypeNode@169..174
         FloatTypeKeyword@169..174 "Float"
-        Whitespace@174..175 " "
+      Whitespace@174..175 " "
       Ident@175..176 "b"
     Whitespace@176..181 "\n    "
     StructKeyword@181..187 "struct"
@@ -38,9 +38,9 @@ RootNode@0..223
     Comment@190..210 "# Unexpected keyword"
     Whitespace@210..215 "\n    "
     UnboundDeclNode@215..220
-      PrimitiveTypeNode@215..219
+      PrimitiveTypeNode@215..218
         IntTypeKeyword@215..218 "Int"
-        Whitespace@218..219 " "
+      Whitespace@218..219 " "
       Ident@219..220 "c"
     Whitespace@220..221 "\n"
     CloseBrace@221..222 "}"

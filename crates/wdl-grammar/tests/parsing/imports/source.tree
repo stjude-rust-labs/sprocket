@@ -6,15 +6,15 @@ RootNode@0..245
     Whitespace@47..48 " "
     Version@48..51 "1.1"
   Whitespace@51..53 "\n\n"
-  ImportStatementNode@53..68
+  ImportStatementNode@53..67
     ImportKeyword@53..59 "import"
     LiteralStringNode@59..67
       Whitespace@59..60 " "
       DoubleQuote@60..61 "\""
       LiteralStringText@61..66 "a.wdl"
       DoubleQuote@66..67 "\""
-    Whitespace@67..68 "\n"
-  ImportStatementNode@68..121
+  Whitespace@67..68 "\n"
+  ImportStatementNode@68..120
     ImportKeyword@68..74 "import"
     LiteralStringNode@74..110
       Whitespace@74..75 " "
@@ -25,8 +25,8 @@ RootNode@0..245
     AsKeyword@111..113 "as"
     Whitespace@113..114 " "
     Ident@114..120 "stdlib"
-    Whitespace@120..121 "\n"
-  ImportStatementNode@121..171
+  Whitespace@120..121 "\n"
+  ImportStatementNode@121..169
     ImportKeyword@121..127 "import"
     LiteralStringNode@127..135
       Whitespace@127..128 " "
@@ -51,7 +51,7 @@ RootNode@0..245
       AsKeyword@163..165 "as"
       Whitespace@165..166 " "
       Ident@166..169 "Qux"
-    Whitespace@169..171 " \n"
+  Whitespace@169..171 " \n"
   ImportStatementNode@171..245
     ImportKeyword@171..177 "import"
     LiteralStringNode@177..185

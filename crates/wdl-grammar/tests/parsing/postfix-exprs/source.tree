@@ -13,10 +13,10 @@ RootNode@0..324
     Whitespace@63..64 " "
     OpenBrace@64..65 "{"
     Whitespace@65..70 "\n    "
-    BoundDeclNode@70..92
-      PrimitiveTypeNode@70..74
+    BoundDeclNode@70..87
+      PrimitiveTypeNode@70..73
         IntTypeKeyword@70..73 "Int"
-        Whitespace@73..74 " "
+      Whitespace@73..74 " "
       Ident@74..75 "a"
       Whitespace@75..76 " "
       Assignment@76..77 "="
@@ -32,11 +32,11 @@ RootNode@0..324
         LiteralIntegerNode@85..86
           Integer@85..86 "1"
         CloseParen@86..87 ")"
-      Whitespace@87..92 "\n    "
-    BoundDeclNode@92..125
-      PrimitiveTypeNode@92..96
+    Whitespace@87..92 "\n    "
+    BoundDeclNode@92..120
+      PrimitiveTypeNode@92..95
         IntTypeKeyword@92..95 "Int"
-        Whitespace@95..96 " "
+      Whitespace@95..96 " "
       Ident@96..97 "b"
       Whitespace@97..98 " "
       Assignment@98..99 "="
@@ -61,15 +61,15 @@ RootNode@0..324
         LiteralIntegerNode@117..119
           Integer@117..119 "10"
         CloseParen@119..120 ")"
-      Whitespace@120..125 "\n    "
-    BoundDeclNode@125..163
-      ArrayTypeNode@125..139
+    Whitespace@120..125 "\n    "
+    BoundDeclNode@125..158
+      ArrayTypeNode@125..138
         ArrayTypeKeyword@125..130 "Array"
         OpenBracket@130..131 "["
         PrimitiveTypeNode@131..137
           StringTypeKeyword@131..137 "String"
         CloseBracket@137..138 "]"
-        Whitespace@138..139 " "
+      Whitespace@138..139 " "
       Ident@139..140 "c"
       Whitespace@140..141 " "
       Assignment@141..142 "="
@@ -93,11 +93,11 @@ RootNode@0..324
           LiteralStringText@155..156 "c"
           DoubleQuote@156..157 "\""
         CloseBracket@157..158 "]"
-      Whitespace@158..163 "\n    "
-    BoundDeclNode@163..187
-      PrimitiveTypeNode@163..170
+    Whitespace@158..163 "\n    "
+    BoundDeclNode@163..182
+      PrimitiveTypeNode@163..169
         StringTypeKeyword@163..169 "String"
-        Whitespace@169..170 " "
+      Whitespace@169..170 " "
       Ident@170..171 "d"
       Whitespace@171..172 " "
       Assignment@172..173 "="
@@ -107,19 +107,19 @@ RootNode@0..324
           Ident@174..175 "c"
         OpenBracket@175..176 "["
         AdditionExprNode@176..181
-          NameRefNode@176..178
+          NameRefNode@176..177
             Ident@176..177 "a"
-            Whitespace@177..178 " "
+          Whitespace@177..178 " "
           Plus@178..179 "+"
           NameRefNode@179..181
             Whitespace@179..180 " "
             Ident@180..181 "b"
         CloseBracket@181..182 "]"
-      Whitespace@182..187 "\n    "
-    BoundDeclNode@187..276
-      TypeRefNode@187..196
+    Whitespace@182..187 "\n    "
+    BoundDeclNode@187..271
+      TypeRefNode@187..195
         Ident@187..195 "MyStruct"
-        Whitespace@195..196 " "
+      Whitespace@195..196 " "
       Ident@196..197 "e"
       Whitespace@197..198 " "
       Assignment@198..199 "="
@@ -129,7 +129,7 @@ RootNode@0..324
         Whitespace@208..209 " "
         OpenBrace@209..210 "{"
         Whitespace@210..219 "\n        "
-        LiteralStructItemNode@219..270
+        LiteralStructItemNode@219..265
           Ident@219..222 "foo"
           Colon@222..223 ":"
           LiteralStructNode@223..265
@@ -149,13 +149,13 @@ RootNode@0..324
             Comma@254..255 ","
             Whitespace@255..264 "\n        "
             CloseBrace@264..265 "}"
-          Whitespace@265..270 "\n    "
+        Whitespace@265..270 "\n    "
         CloseBrace@270..271 "}"
-      Whitespace@271..276 "\n    "
-    BoundDeclNode@276..323
-      TypeRefNode@276..282
+    Whitespace@271..276 "\n    "
+    BoundDeclNode@276..322
+      TypeRefNode@276..281
         Ident@276..281 "MyFoo"
-        Whitespace@281..282 " "
+      Whitespace@281..282 " "
       Ident@282..283 "f"
       Whitespace@283..284 " "
       Assignment@284..285 "="
@@ -165,7 +165,7 @@ RootNode@0..324
         Whitespace@291..292 " "
         OpenBrace@292..293 "{"
         Whitespace@293..302 "\n        "
-        LiteralStructItemNode@302..321
+        LiteralStructItemNode@302..316
           Ident@302..305 "foo"
           Colon@305..306 ":"
           AccessExprNode@306..316
@@ -177,7 +177,7 @@ RootNode@0..324
               Ident@309..312 "foo"
             Dot@312..313 "."
             Ident@313..316 "bar"
-          Whitespace@316..321 "\n    "
+        Whitespace@316..321 "\n    "
         CloseBrace@321..322 "}"
-      Whitespace@322..323 "\n"
+    Whitespace@322..323 "\n"
     CloseBrace@323..324 "}"

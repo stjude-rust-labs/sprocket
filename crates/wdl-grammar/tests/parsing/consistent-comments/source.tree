@@ -1,0 +1,45 @@
+RootNode@0..237
+  Comment@0..81 "## This is a test for ..."
+  Whitespace@81..82 "\n"
+  Comment@82..151 "## The comments shoul ..."
+  Whitespace@151..153 "\n\n"
+  VersionStatementNode@153..164
+    VersionKeyword@153..160 "version"
+    Whitespace@160..161 " "
+    Version@161..164 "1.1"
+  Whitespace@164..166 "\n\n"
+  WorkflowDefinitionNode@166..236
+    WorkflowKeyword@166..174 "workflow"
+    Whitespace@174..175 " "
+    Ident@175..179 "test"
+    Whitespace@179..180 " "
+    OpenBrace@180..181 "{"
+    Whitespace@181..186 "\n    "
+    Comment@186..193 "# First"
+    Whitespace@193..198 "\n    "
+    BoundDeclNode@198..207
+      PrimitiveTypeNode@198..201
+        IntTypeKeyword@198..201 "Int"
+      Whitespace@201..202 " "
+      Ident@202..203 "x"
+      Whitespace@203..204 " "
+      Assignment@204..205 "="
+      LiteralIntegerNode@205..207
+        Whitespace@205..206 " "
+        Integer@206..207 "1"
+    Whitespace@207..212 "\n    "
+    Comment@212..220 "# Second"
+    Whitespace@220..225 "\n    "
+    BoundDeclNode@225..234
+      PrimitiveTypeNode@225..228
+        IntTypeKeyword@225..228 "Int"
+      Whitespace@228..229 " "
+      Ident@229..230 "y"
+      Whitespace@230..231 " "
+      Assignment@231..232 "="
+      LiteralIntegerNode@232..234
+        Whitespace@232..233 " "
+        Integer@233..234 "2"
+    Whitespace@234..235 "\n"
+    CloseBrace@235..236 "}"
+  Whitespace@236..237 "\n"

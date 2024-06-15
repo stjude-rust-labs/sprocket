@@ -1,5 +1,6 @@
 //! Module for the concrete syntax tree (CST) representation.
 
+use std::cmp::Ordering;
 use std::fmt;
 
 use rowan::GreenNodeBuilder;
@@ -392,8 +393,17 @@ impl SyntaxTree {
     /// ```
     pub fn parse(source: &str) -> (Self, Vec<Diagnostic>) {
         let parser = Parser::new(Lexer::new(source));
-        let (events, errors) = grammar::document(source, parser);
-        Self::build(source, events, errors)
+        let (events, mut diagnostics) = grammar::document(source, parser);
+
+        // Sort the diagnostics by start of the primary label
+        diagnostics.sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
+            (None, None) => Ordering::Equal,
+            (None, Some(_)) => Ordering::Less,
+            (Some(_), None) => Ordering::Greater,
+            (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
+        });
+
+        Self::build(source, events, diagnostics)
     }
 
     /// Builds the concrete syntax tree from a list of parser events.

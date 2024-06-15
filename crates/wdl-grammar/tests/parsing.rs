@@ -71,11 +71,7 @@ fn normalize(s: &str, is_error: bool) -> String {
     s.replace("\r\n", "\n")
 }
 
-fn format_diagnostics(
-    diagnostics: impl Iterator<Item = Diagnostic>,
-    path: &Path,
-    source: &str,
-) -> String {
+fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> String {
     let file = SimpleFile::new(path.as_os_str().to_str().unwrap(), source);
     let mut buffer = Buffer::no_color();
     for diagnostic in diagnostics {
@@ -136,7 +132,7 @@ fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
     compare_result(&path.with_extension("tree"), &format!("{:#?}", tree), false)?;
     compare_result(
         &path.with_extension("errors"),
-        &format_diagnostics(diagnostics.into_iter(), &path, &source),
+        &format_diagnostics(&diagnostics, &path, &source),
         true,
     )?;
     ntests.fetch_add(1, Ordering::SeqCst);

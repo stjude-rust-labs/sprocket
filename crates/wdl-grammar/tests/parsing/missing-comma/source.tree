@@ -13,8 +13,8 @@ RootNode@0..195
     Whitespace@74..75 " "
     OpenBrace@75..76 "{"
     Whitespace@76..81 "\n    "
-    BoundDeclNode@81..193
-      MapTypeNode@81..101
+    BoundDeclNode@81..192
+      MapTypeNode@81..100
         MapTypeKeyword@81..84 "Map"
         OpenBracket@84..85 "["
         PrimitiveTypeNode@85..91
@@ -24,7 +24,7 @@ RootNode@0..195
           Whitespace@92..93 " "
           StringTypeKeyword@93..99 "String"
         CloseBracket@99..100 "]"
-        Whitespace@100..101 " "
+      Whitespace@100..101 " "
       Ident@101..104 "map"
       Whitespace@104..105 " "
       Assignment@105..106 "="
@@ -43,7 +43,7 @@ RootNode@0..195
             DoubleQuote@126..127 "\""
         Comma@127..128 ","
         Whitespace@128..137 "\n        "
-        LiteralMapItemNode@137..156
+        LiteralMapItemNode@137..147
           NameRefNode@137..140
             Ident@137..140 "bar"
           Colon@140..141 ":"
@@ -52,7 +52,7 @@ RootNode@0..195
             DoubleQuote@142..143 "\""
             LiteralStringText@143..146 "bar"
             DoubleQuote@146..147 "\""
-          Whitespace@147..156 "\n        "
+        Whitespace@147..156 "\n        "
         Ident@156..159 "baz"
         Colon@159..160 ":"
         Whitespace@160..161 " "
@@ -61,7 +61,7 @@ RootNode@0..195
         DoubleQuote@165..166 "\""
         Comma@166..167 ","
         Whitespace@167..176 "\n        "
-        LiteralMapItemNode@176..191
+        LiteralMapItemNode@176..186
           NameRefNode@176..179
             Ident@176..179 "qux"
           Colon@179..180 ":"
@@ -70,8 +70,8 @@ RootNode@0..195
             DoubleQuote@181..182 "\""
             LiteralStringText@182..185 "qux"
             DoubleQuote@185..186 "\""
-          Whitespace@186..191 "\n    "
+        Whitespace@186..191 "\n    "
         CloseBrace@191..192 "}"
-      Whitespace@192..193 "\n"
+    Whitespace@192..193 "\n"
     CloseBrace@193..194 "}"
   Whitespace@194..195 "\n"

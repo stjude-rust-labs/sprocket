@@ -1,5 +1,6 @@
 //! Validator for WDL documents.
 
+use std::cmp::Ordering;
 use std::sync::Arc;
 
 use super::v1;
@@ -87,6 +88,15 @@ impl Validator {
         if diagnostics.0.is_empty() {
             Ok(())
         } else {
+            // Sort the diagnostics by start of the primary label
+            diagnostics
+                .0
+                .sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
+                    (None, None) => Ordering::Equal,
+                    (None, Some(_)) => Ordering::Less,
+                    (Some(_), None) => Ordering::Greater,
+                    (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
+                });
             Err(diagnostics.0.into())
         }
     }

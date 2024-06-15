@@ -70,11 +70,7 @@ fn normalize(s: &str, is_error: bool) -> String {
     s.replace("\r\n", "\n")
 }
 
-fn format_diagnostics<'a>(
-    diagnostics: impl Iterator<Item = &'a Diagnostic>,
-    path: &Path,
-    source: &str,
-) -> String {
+fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> String {
     let file = SimpleFile::new(path.as_os_str().to_str().unwrap(), source);
     let mut buffer = Buffer::no_color();
     for diagnostic in diagnostics {
@@ -138,14 +134,14 @@ fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
             validator.add_v1_visitors(rules.iter().map(|r| r.visitor()));
             let errors = match validator.validate(&document) {
                 Ok(()) => String::new(),
-                Err(diagnostics) => format_diagnostics(diagnostics.iter(), &path, &source),
+                Err(diagnostics) => format_diagnostics(&diagnostics, &path, &source),
             };
             compare_result(&path.with_extension("errors"), &errors, true)?;
         }
         Err(diagnostics) => {
             compare_result(
                 &path.with_extension("errors"),
-                &format_diagnostics(diagnostics.iter(), &path, &source),
+                &format_diagnostics(&diagnostics, &path, &source),
                 true,
             )?;
         }

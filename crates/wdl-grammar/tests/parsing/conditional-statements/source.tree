@@ -51,12 +51,12 @@ RootNode@0..442
             Whitespace@170..171 " "
             OpenBrace@171..172 "{"
             Whitespace@172..193 "\n                    "
-            CallStatementNode@193..216
+            CallStatementNode@193..199
               CallKeyword@193..197 "call"
-              CallTargetNode@197..216
+              CallTargetNode@197..199
                 Whitespace@197..198 " "
                 Ident@198..199 "z"
-                Whitespace@199..216 "\n                "
+            Whitespace@199..216 "\n                "
             CloseBrace@216..217 "}"
           Whitespace@217..230 "\n            "
           CloseBrace@230..231 "}"
@@ -67,32 +67,32 @@ RootNode@0..442
       Whitespace@308..317 "\n        "
       ConditionalStatementNode@317..352
         IfKeyword@317..319 "if"
-        NameRefNode@319..322
+        NameRefNode@319..321
           Whitespace@319..320 " "
           Ident@320..321 "x"
-          Whitespace@321..322 " "
+        Whitespace@321..322 " "
         OpenBrace@322..323 "{"
         Whitespace@323..336 "\n            "
-        CallStatementNode@336..351
+        CallStatementNode@336..342
           CallKeyword@336..340 "call"
-          CallTargetNode@340..351
+          CallTargetNode@340..342
             Whitespace@340..341 " "
             Ident@341..342 "y"
-            Whitespace@342..351 "\n        "
+        Whitespace@342..351 "\n        "
         CloseBrace@351..352 "}"
       Whitespace@352..362 "\n\n        "
       CallStatementNode@362..394
         CallKeyword@362..366 "call"
-        CallTargetNode@366..369
+        CallTargetNode@366..368
           Whitespace@366..367 " "
           Ident@367..368 "z"
-          Whitespace@368..369 " "
+        Whitespace@368..369 " "
         OpenBrace@369..370 "{"
         Whitespace@370..371 " "
         InputKeyword@371..376 "input"
         Colon@376..377 ":"
         Whitespace@377..378 " "
-        CallInputItemNode@378..393
+        CallInputItemNode@378..392
           Ident@378..382 "name"
           Whitespace@382..383 " "
           Assignment@383..384 "="
@@ -101,21 +101,21 @@ RootNode@0..442
             DoubleQuote@385..386 "\""
             LiteralStringText@386..391 "world"
             DoubleQuote@391..392 "\""
-          Whitespace@392..393 " "
+        Whitespace@392..393 " "
         CloseBrace@393..394 "}"
       Whitespace@394..403 "\n        "
       CallStatementNode@403..433
         CallKeyword@403..407 "call"
-        CallTargetNode@407..410
+        CallTargetNode@407..409
           Whitespace@407..408 " "
           Ident@408..409 "z"
-          Whitespace@409..410 " "
+        Whitespace@409..410 " "
         OpenBrace@410..411 "{"
         Whitespace@411..412 " "
         InputKeyword@412..417 "input"
         Colon@417..418 ":"
         Whitespace@418..419 " "
-        CallInputItemNode@419..432
+        CallInputItemNode@419..431
           Ident@419..423 "name"
           Whitespace@423..424 " "
           Assignment@424..425 "="
@@ -124,7 +124,7 @@ RootNode@0..442
             DoubleQuote@426..427 "\""
             LiteralStringText@427..430 "you"
             DoubleQuote@430..431 "\""
-          Whitespace@431..432 " "
+        Whitespace@431..432 " "
         CloseBrace@432..433 "}"
       Whitespace@433..438 "\n    "
       CloseBrace@438..439 "}"

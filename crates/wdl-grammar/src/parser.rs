@@ -285,6 +285,8 @@ where
     events: Vec<Event>,
     /// The parser diagnostics.
     diagnostics: Vec<Diagnostic>,
+    /// The buffered events from a peek operation.
+    buffered: Vec<Event>,
 }
 
 impl<'a, T> Interpolator<'a, T>
@@ -303,6 +305,11 @@ where
 
     /// Starts a new node event.
     pub fn start(&mut self) -> Marker {
+        // Append any buffered trivia before we start this node
+        if !self.buffered.is_empty() {
+            self.events.append(&mut self.buffered);
+        }
+
         let pos = self.events.len();
         self.events.push(Event::NodeStarted {
             kind: SyntaxKind::Abandoned,
@@ -321,6 +328,7 @@ where
             lexer: Some(self.lexer.morph()),
             events: self.events,
             diagnostics: self.diagnostics,
+            buffered: Default::default(),
         }
     }
 }
@@ -393,6 +401,8 @@ where
     events: Vec<Event>,
     /// The diagnostics encountered so far.
     diagnostics: Vec<Diagnostic>,
+    /// The buffered events from a peek operation.
+    buffered: Vec<Event>,
 }
 
 impl<'a, T> Parser<'a, T>
@@ -405,6 +415,7 @@ where
             lexer: Some(lexer),
             events: Default::default(),
             diagnostics: Default::default(),
+            buffered: Default::default(),
         }
     }
 
@@ -427,6 +438,10 @@ where
             if let Some(t) = self.consume_trivia(res, span, true) {
                 return Some(t);
             }
+        }
+
+        if !self.buffered.is_empty() {
+            self.events.append(&mut self.buffered);
         }
 
         None
@@ -621,6 +636,11 @@ where
 
     /// Starts a new node event.
     pub fn start(&mut self) -> Marker {
+        // Append any buffered trivia before we start this node
+        if !self.buffered.is_empty() {
+            self.events.append(&mut self.buffered);
+        }
+
         let pos = self.events.len();
         self.events.push(Event::NodeStarted {
             kind: SyntaxKind::Abandoned,
@@ -737,6 +757,7 @@ where
                 .morph(),
             events: std::mem::take(&mut self.events),
             diagnostics: std::mem::take(&mut self.diagnostics),
+            buffered: std::mem::take(&mut self.buffered),
         };
         let (p, result) = cb(input);
         *self = p;
@@ -756,6 +777,7 @@ where
             lexer: self.lexer.map(|l| l.morph()),
             events: self.events,
             diagnostics: self.diagnostics,
+            buffered: self.buffered,
         }
     }
 
@@ -768,6 +790,7 @@ where
             lexer: self.lexer.expect("lexer should be present").morph(),
             events: self.events,
             diagnostics: self.diagnostics,
+            buffered: self.buffered,
         }
     }
 
@@ -819,6 +842,11 @@ where
         span: Span,
         peeked: bool,
     ) -> Option<(T, Span)> {
+        // If not peeked and there are buffered events, append them now
+        if !peeked && !self.buffered.is_empty() {
+            self.events.append(&mut self.buffered);
+        }
+
         let event = match res {
             Ok(token) => {
                 if !token.is_trivia() {
@@ -844,9 +872,10 @@ where
 
         if peeked {
             self.lexer.as_mut().expect("should have a lexer").next();
+            self.buffered.push(event);
+        } else {
+            self.events.push(event);
         }
-
-        self.events.push(event);
         None
     }
 
@@ -875,6 +904,10 @@ where
                 });
                 return Some((token, span));
             }
+        }
+
+        if !self.buffered.is_empty() {
+            self.events.append(&mut self.buffered);
         }
 
         None

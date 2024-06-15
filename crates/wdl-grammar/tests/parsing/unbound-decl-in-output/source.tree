@@ -20,9 +20,9 @@ RootNode@0..167
       Whitespace@109..118 "\n        "
       Comment@118..141 "# This should be bound!"
       Whitespace@141..150 "\n        "
-      PrimitiveTypeNode@150..157
+      PrimitiveTypeNode@150..156
         StringTypeKeyword@150..156 "String"
-        Whitespace@156..157 " "
+      Whitespace@156..157 " "
       Ident@157..158 "x"
       Whitespace@158..163 "\n    "
       CloseBrace@163..164 "}"

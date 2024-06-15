@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed trivia in the CST so that it appears at consistent locations; also
+  fixed the parser diagnostics to be ordered by the start of the primary label
+  ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).
 * Fixed a missing delimiter diagnostic to include a label for where the parser 
   thinks the missing delimiter might go ([#84](https://github.com/stjude-rust-labs/wdl/pull/84)).
 

@@ -29,7 +29,7 @@ RootNode@0..165
       Whitespace@135..136 " "
       OpenBrace@136..137 "{"
       Whitespace@137..146 "\n        "
-      RuntimeItemNode@146..161
+      RuntimeItemNode@146..156
         Ident@146..149 "foo"
         Colon@149..150 ":"
         LiteralStringNode@150..156
@@ -37,7 +37,7 @@ RootNode@0..165
           DoubleQuote@151..152 "\""
           LiteralStringText@152..155 "bar"
           DoubleQuote@155..156 "\""
-        Whitespace@156..161 "\n    "
+      Whitespace@156..161 "\n    "
       CloseBrace@161..162 "}"
     Whitespace@162..163 "\n"
     CloseBrace@163..164 "}"

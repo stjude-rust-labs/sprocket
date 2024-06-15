@@ -14,9 +14,9 @@ RootNode@0..120
     OpenBrace@68..69 "{"
     Whitespace@69..74 "\n    "
     UnboundDeclNode@74..82
-      PrimitiveTypeNode@74..81
+      PrimitiveTypeNode@74..80
         StringTypeKeyword@74..80 "String"
-        Whitespace@80..81 " "
+      Whitespace@80..81 " "
       Ident@81..82 "x"
     Whitespace@82..83 "\n"
     CloseBrace@83..84 "}"
@@ -37,9 +37,9 @@ RootNode@0..120
     OpenBrace@106..107 "{"
     Whitespace@107..112 "\n    "
     UnboundDeclNode@112..117
-      PrimitiveTypeNode@112..116
+      PrimitiveTypeNode@112..115
         IntTypeKeyword@112..115 "Int"
-        Whitespace@115..116 " "
+      Whitespace@115..116 " "
       Ident@116..117 "y"
     Whitespace@117..118 "\n"
     CloseBrace@118..119 "}"
