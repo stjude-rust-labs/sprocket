@@ -381,7 +381,11 @@ pub struct Peek3<T> {
     /// The second peeked token.
     pub second: (T, Span),
     /// The third peeked token.
-    pub third: (T, Span),
+    ///
+    /// The last one is a result to allow for unknown tokens.
+    ///
+    /// See why in `literal_struct_or_name_ref`.
+    pub third: (LexerResult<T>, Span),
 }
 
 /// Implements a WDL parser.
@@ -419,6 +423,14 @@ where
             diagnostics: Default::default(),
             buffered: Default::default(),
         }
+    }
+
+    /// Creates a new parser at the same location in the source as the given
+    /// parser.
+    ///
+    /// The new parser will have an empty event and diagnostic lists.
+    pub fn new_at(other: &Self) -> Self {
+        Self::new(other.lexer.as_ref().expect("should have lexer").clone())
     }
 
     /// Gets the current span of the parser.
@@ -471,7 +483,7 @@ where
             .expect("should have peeked at a valid token");
         while let Some((Ok(token), span)) = lexer.next() {
             if token.is_trivia() {
-                // Do not consume trivia here as we're between peeked tokens.
+                // Ignore trivia
                 continue;
             }
 
@@ -505,22 +517,38 @@ where
             .0
             .expect("should have peeked at a valid token");
         let mut second = None;
-        while let Some((Ok(token), span)) = lexer.next() {
-            if token.is_trivia() {
-                // Do not consume trivia here as we're between peeked tokens.
-                continue;
-            }
+        for (result, span) in lexer {
+            match result {
+                Ok(token) => {
+                    if token.is_trivia() {
+                        // Ignore trivia
+                        continue;
+                    }
 
-            if second.is_none() {
-                second = Some((token, span));
-                continue;
-            }
+                    if second.is_none() {
+                        second = Some((token, span));
+                        continue;
+                    }
 
-            return Some(Peek3 {
-                first,
-                second: second.unwrap(),
-                third: (token, span),
-            });
+                    return Some(Peek3 {
+                        first,
+                        second: second.unwrap(),
+                        third: (Ok(token), span),
+                    });
+                }
+                Err(e) => {
+                    // Only permissible to have an unrecognized token on the third peek
+                    if second.is_none() {
+                        break;
+                    }
+
+                    return Some(Peek3 {
+                        first,
+                        second: second.unwrap(),
+                        third: (Err(e), span),
+                    });
+                }
+            }
         }
 
         None

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed diagnostics around encountering string member names in struct literals
+  ([#87](https://github.com/stjude-rust-labs/wdl/pull/87)).
 * Fixed diagnostic label spans that point at strings to include the entire span
   of the string ([#86](https://github.com/stjude-rust-labs/wdl/pull/86)).
 * Fixed trivia in the CST so that it appears at consistent locations; also

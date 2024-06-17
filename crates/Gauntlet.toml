@@ -53,27 +53,19 @@ commit_hash = "74c12d3bbced7177638fdfdc50c56f8bc40a0f5a"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
-message = "mutec2.wdl:112:40: error: expected input section, output section, runtime section, metadata section, parameter metadata section, conditional statement, scatter statement, call statement, or private declaration, but found `{`"
+message = "mutec2.wdl:112:41: error: expected struct member name, but found string"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
-message = "mutec2.wdl:112:67: error: expected declaration name, but found `,`"
+message = "mutec2.wdl:113:41: error: expected struct member name, but found string"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
-message = "mutec2.wdl:113:62: error: expected declaration name, but found `,`"
+message = "mutec2.wdl:114:41: error: expected struct member name, but found string"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
-message = "mutec2.wdl:114:71: error: expected declaration name, but found `*`"
-
-[[diagnostics]]
-document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
-message = "mutec2.wdl:115:72: error: expected declaration name, but found `*`"
-
-[[diagnostics]]
-document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
-message = "mutec2.wdl:117:5: error: expected import statement, struct definition, task definition, or workflow definition, but found `call` keyword"
+message = "mutec2.wdl:115:41: error: expected struct member name, but found string"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
