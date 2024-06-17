@@ -4,11 +4,11 @@ commit_hash = "26eeda81a0540dc793fc69b0c390d232ca7ca50a"
 
 [repositories."PacificBiosciences/HiFi-human-WGS-WDL"]
 identifier = "PacificBiosciences/HiFi-human-WGS-WDL"
-commit_hash = "b8057d3e3fa575f45f55f7ac7df47fa9bc5f73e0"
+commit_hash = "9a1a2846443e4b621f1dca0259fd3fa21885156a"
 
 [repositories."aws-samples/amazon-omics-tutorials"]
 identifier = "aws-samples/amazon-omics-tutorials"
-commit_hash = "6c1ae7111deb8f4af68a3c43bff28c7008873b15"
+commit_hash = "0a49b4326f67ac72150159a183084a252cf45ee0"
 
 [repositories."biowdl/tasks"]
 identifier = "biowdl/tasks"
@@ -49,11 +49,11 @@ filters = ["/template/task-templates.wdl"]
 
 [repositories."theiagen/public_health_bioinformatics"]
 identifier = "theiagen/public_health_bioinformatics"
-commit_hash = "092f19a0f610eb0a01757456932519bbbfe2bbd9"
+commit_hash = "74c12d3bbced7177638fdfdc50c56f8bc40a0f5a"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
-message = "mutec2.wdl:112:40: error: expected input section, output section, runtime section, metadata section, parameter metadata section, conditional statement, scatter statement, task call statement, or private declaration, but found `{`"
+message = "mutec2.wdl:112:40: error: expected input section, output section, runtime section, metadata section, parameter metadata section, conditional statement, scatter statement, call statement, or private declaration, but found `{`"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"

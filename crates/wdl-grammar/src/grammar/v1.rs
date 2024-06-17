@@ -125,7 +125,7 @@ const WORKFLOW_ITEM_EXPECTED_NAMES: &[&str] = &[
     "parameter metadata section",
     "conditional statement",
     "scatter statement",
-    "task call statement",
+    "call statement",
     "private declaration",
 ];
 
@@ -374,8 +374,7 @@ pub fn items(parser: &mut Parser<'_>) {
     while parser.peek().is_some() {
         let marker = parser.start();
         if let Err((marker, e)) = item(parser, marker) {
-            parser.diagnostic(e);
-            parser.recover(TOP_RECOVERY_SET);
+            parser.recover(e, TOP_RECOVERY_SET);
             marker.abandon(parser);
         }
     }
@@ -736,9 +735,8 @@ fn interpolate_brace_command(
                 // Parse the placeholder expression
                 let mut parser = interpolator.into_parser();
                 if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
-                    parser.diagnostic(e);
                     marker.abandon(&mut parser);
-                    parser.recover(TokenSet::new(&[Token::CloseBrace as u8]));
+                    parser.recover(e, TokenSet::new(&[Token::CloseBrace as u8]));
                     parser.next_if(Token::CloseBrace);
                 }
 
@@ -819,12 +817,11 @@ pub(crate) fn interpolate_heredoc_command(
                 // Parse the placeholder expression
                 let mut parser = interpolator.into_parser();
                 if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
-                    parser.diagnostic(e);
                     marker.abandon(&mut parser);
-                    parser.recover(TokenSet::new(&[
-                        Token::CloseBrace as u8,
-                        Token::HeredocCommandEnd as u8,
-                    ]));
+                    parser.recover(
+                        e,
+                        TokenSet::new(&[Token::CloseBrace as u8, Token::HeredocCommandEnd as u8]),
+                    );
                     parser.next_if(Token::CloseBrace);
                 }
 
@@ -1134,12 +1131,11 @@ pub(crate) fn single_quote_interpolate(
                 // Parse the placeholder expression
                 let mut parser = interpolator.into_parser();
                 if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
-                    parser.diagnostic(e);
                     marker.abandon(&mut parser);
-                    parser.recover(TokenSet::new(&[
-                        Token::CloseBrace as u8,
-                        Token::SQStringStart as u8,
-                    ]));
+                    parser.recover(
+                        e,
+                        TokenSet::new(&[Token::CloseBrace as u8, Token::SQStringStart as u8]),
+                    );
                     parser.next_if(Token::CloseBrace);
                 }
 
@@ -1249,12 +1245,11 @@ pub(crate) fn double_quote_interpolate(
                 // Parse the placeholder expression
                 let mut parser = interpolator.into_parser();
                 if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
-                    parser.diagnostic(e);
                     marker.abandon(&mut parser);
-                    parser.recover(TokenSet::new(&[
-                        Token::CloseBrace as u8,
-                        Token::DQStringStart as u8,
-                    ]));
+                    parser.recover(
+                        e,
+                        TokenSet::new(&[Token::CloseBrace as u8, Token::DQStringStart as u8]),
+                    );
                     parser.next_if(Token::CloseBrace);
                 }
 

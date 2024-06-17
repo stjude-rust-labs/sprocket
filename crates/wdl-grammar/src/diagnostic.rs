@@ -172,6 +172,11 @@ impl Diagnostic {
         self.labels.iter()
     }
 
+    /// Gets the mutable labels of the diagnostic.
+    pub fn labels_mut(&mut self) -> impl Iterator<Item = &mut Label> {
+        self.labels.iter_mut()
+    }
+
     /// Converts this diagnostic to a `codespan` [Diagnostic].
     ///
     /// [Diagnostic]: codespan_reporting::diagnostic::Diagnostic
@@ -240,6 +245,11 @@ impl Label {
     /// Gets the span of the label.
     pub fn span(&self) -> Span {
         self.span
+    }
+
+    /// Sets the span of the label.
+    pub fn set_span(&mut self, span: Span) {
+        self.span = span;
     }
 }
 

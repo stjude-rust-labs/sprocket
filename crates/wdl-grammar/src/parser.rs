@@ -153,7 +153,9 @@ pub trait ParserToken<'a>: Eq + Copy + Logos<'a, Source = str, Error = (), Extra
 
     /// A helper for recovering at an interpolation point.
     #[allow(unused_variables)]
-    fn recover_interpolation(token: Self, start: Span, parser: &mut Parser<'a, Self>) {}
+    fn recover_interpolation(token: Self, start: Span, parser: &mut Parser<'a, Self>) -> bool {
+        false
+    }
 }
 
 /// Marks the start of a node in the event list.
@@ -565,8 +567,7 @@ where
 
             let marker = self.start();
             if let Err((marker, e)) = cb(self, marker) {
-                self.diagnostic(e);
-                self.recover(recovery);
+                self.recover(e, recovery);
                 marker.abandon(self);
             }
 
@@ -582,7 +583,7 @@ where
                         // Attach a label to the diagnostic hinting at where we expected the
                         // delimiter to be; to do this, look back at the last non-trivia token event
                         // in the parser events and use its span for the label.
-                        if let Some(span) = self.events.iter().rev().find_map(|e| match e {
+                        let e = if let Some(span) = self.events.iter().rev().find_map(|e| match e {
                             Event::Token { kind, span }
                                 if *kind != SyntaxKind::Whitespace
                                     && *kind != SyntaxKind::Comment =>
@@ -591,18 +592,18 @@ where
                             }
                             _ => None,
                         }) {
-                            self.diagnostic(e.with_label(
+                            e.with_label(
                                 format!(
                                     "consider adding a {desc} after this",
                                     desc = T::describe(delimiter.into_raw())
                                 ),
                                 Span::new(span.end() - 1, 1),
-                            ));
+                            )
                         } else {
-                            self.diagnostic(e);
-                        }
+                            e
+                        };
 
-                        self.recover(recovery);
+                        self.recover(e, recovery);
                         self.next_if(delimiter);
                     }
 
@@ -619,7 +620,7 @@ where
 
     /// Recovers from an error by consuming all tokens not
     /// in the given token set.
-    pub fn recover(&mut self, tokens: TokenSet) {
+    pub fn recover(&mut self, mut diagnostic: Diagnostic, tokens: TokenSet) {
         while let Some((token, span)) = self.peek() {
             if tokens.contains(token.into_raw()) {
                 break;
@@ -630,8 +631,31 @@ where
             // If the token starts an interpolation, then we need
             // to move past the entire set of tokens that are part
             // of the interpolation
-            T::recover_interpolation(token, span, self);
+            if T::recover_interpolation(token, span, self) {
+                // If the diagnostic label started at this token, we need to extend its length
+                // to cover the interpolation
+                for label in diagnostic.labels_mut() {
+                    let label_span = label.span();
+                    if label_span.start() != span.start() {
+                        continue;
+                    }
+
+                    // The label should include everything up to the current start
+                    label.set_span(Span::new(
+                        label_span.start(),
+                        self.lexer
+                            .as_ref()
+                            .expect("should have a lexer")
+                            .span()
+                            .end()
+                            - label_span.end()
+                            + 1,
+                    ));
+                }
+            }
         }
+
+        self.diagnostics.push(diagnostic);
     }
 
     /// Starts a new node event.

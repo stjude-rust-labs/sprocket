@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed diagnostic label spans that point at strings to include the entire span
+  of the string ([#86](https://github.com/stjude-rust-labs/wdl/pull/86)).
 * Fixed trivia in the CST so that it appears at consistent locations; also
   fixed the parser diagnostics to be ordered by the start of the primary label
   ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).

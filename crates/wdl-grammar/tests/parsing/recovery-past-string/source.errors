@@ -1,6 +1,6 @@
-error: expected metadata key, but found `"`
+error: expected metadata key, but found string
   ┌─ tests/parsing/recovery-past-string/source.wdl:7:9
   │
 7 │         "invalid": "~{value}"
-  │         ^ unexpected `"`
+  │         ^^^^^^^^^ unexpected string
 

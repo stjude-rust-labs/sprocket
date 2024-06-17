@@ -599,8 +599,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::Float => "float",
             Self::Integer => "integer",
             Self::Ident => "identifier",
-            Self::SQStringStart => "`'`",
-            Self::DQStringStart => "`\"`",
+            Self::SQStringStart | Self::DQStringStart => "string",
             Self::HeredocCommandStart => "`<<<`",
             Self::HeredocCommandEnd => "`>>>`",
             Self::ArrayTypeKeyword => "`Array` keyword",
@@ -673,25 +672,29 @@ impl<'a> ParserToken<'a> for Token {
         matches!(self, Self::Whitespace | Self::Comment)
     }
 
-    fn recover_interpolation(token: Self, start: Span, parser: &mut Parser<'a, Self>) {
+    fn recover_interpolation(token: Self, start: Span, parser: &mut Parser<'a, Self>) -> bool {
         match token {
             Self::SQStringStart => {
                 if let Err(e) = parser.interpolate(|i| single_quote_interpolate(start, true, i)) {
                     parser.diagnostic(e);
                 }
+                true
             }
             Self::DQStringStart => {
                 if let Err(e) = parser.interpolate(|i| double_quote_interpolate(start, true, i)) {
                     parser.diagnostic(e);
                 }
+                true
             }
             Self::HeredocCommandStart => {
                 if let Err(e) = parser.interpolate(|i| interpolate_heredoc_command(start, i)) {
                     parser.diagnostic(e);
                 }
+                true
             }
             _ => {
                 // Not an interpolation
+                false
             }
         }
     }
