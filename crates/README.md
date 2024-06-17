@@ -82,6 +82,33 @@ is not simple to derive which crate versions are compatible, and you'll need to
 manually sync those. We _highly_ recommend using the convenience crate if you
 intend to use more than one component crate in conjunction.
 
+## ✨ The `wdl` CLI tool
+
+The `wdl` CLI tool provides commands to assist in the development of
+the `wdl` family of crates.
+
+The `wdl` CLI tool can be run with the following command:
+
+```bash
+cargo run --bin wdl --features binaries -- $ARGS
+```
+
+Where `$ARGS` are the command line arguments to the `wdl` CLI tool.
+
+The `wdl` CLI tool currently supports three subcommands:
+
+* `parse` - Parses a WDL source file and prints both the parse diagnostics and
+  the resulting Concrete Syntax Tree (CST).
+* `check` - Parses and validates a WDL source file. Exits with a status code of
+  `0` if the file is syntactically valid; otherwise, prints the validation
+  diagnostics and exits with a status code of `1`.
+* `lint` - Parses, validates, and runs the linting rules on a WDL
+  source file. Exits with a status code of `0` if the file passes all lints;
+  otherwise, prints the linting diagnostics and exits with a status code of `1`.
+
+Each of the subcommands supports passing `-` as the file path to denote reading
+from STDIN instead of a file on disk.
+
 ## 🖥️ Development
 
 To bootstrap a development environment, please use the following commands.
