@@ -147,7 +147,7 @@ impl Repository {
         lint: bool,
     ) -> anyhow::Result<(bool, bool)> {
         let mut reporter = Reporter::new(config, writer);
-        let mut validation_failure = false;
+        let mut syntax_failure = false;
         let mut lint_failure = false;
 
         for (_path, handle) in self.handles.iter() {
@@ -157,7 +157,7 @@ impl Repository {
                     let validator = wdl::ast::Validator::default();
                     if let Err(diagnostics) = validator.validate(&document) {
                         reporter.emit_diagnostics(file.clone(), &diagnostics)?;
-                        validation_failure = true;
+                        syntax_failure = true;
                         continue;
                     }
 
@@ -174,12 +174,12 @@ impl Repository {
                 }
                 Err(diagnostics) => {
                     reporter.emit_diagnostics(file.clone(), &diagnostics)?;
-                    validation_failure = true;
+                    syntax_failure = true;
                 }
             }
         }
 
-        Ok((validation_failure, lint_failure))
+        Ok((syntax_failure, lint_failure))
     }
 }
 
