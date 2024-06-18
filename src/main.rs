@@ -12,8 +12,11 @@ git_testament!(TESTAMENT);
 #[derive(Subcommand)]
 #[allow(clippy::large_enum_variant)]
 enum Commands {
+    /// Checks the syntactic validity of Workflow Description Language files.
+    Check(commands::check::CheckArgs),
+
     /// Lints Workflow Description Language files.
-    Lint(commands::lint::Args),
+    Lint(commands::check::LintArgs),
 
     /// Explains a lint warning.
     Explain(commands::explain::Args),
@@ -53,7 +56,8 @@ pub fn inner() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     match cli.command {
-        Commands::Lint(args) => commands::lint::lint(args),
+        Commands::Check(args) => commands::check::check(args),
+        Commands::Lint(args) => commands::check::lint(args),
         Commands::Explain(args) => commands::explain::explain(args),
     }
 }

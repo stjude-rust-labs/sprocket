@@ -9,11 +9,11 @@ use codespan_reporting::term::DisplayStyle;
 
 #[derive(Clone, Debug, Default, ValueEnum)]
 pub enum Mode {
-    /// Prints concerns as multiple lines.
+    /// Prints diagnostics as multiple lines.
     #[default]
     Full,
 
-    /// Prints concerns as one line.
+    /// Prints diagnostics as one line.
     OneLine,
 }
 
@@ -26,17 +26,13 @@ impl std::fmt::Display for Mode {
     }
 }
 
-/// Arguments for the `lint` subcommand.
+/// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
-pub struct Args {
-    /// The files or directories to lint.
+pub struct Common {
+    /// The files or directories to check.
     #[arg(required = true)]
     paths: Vec<PathBuf>,
-
-    /// The extensions to collect when expanding a directory.
-    #[arg(short, long, default_value = "wdl")]
-    extensions: Vec<String>,
 
     /// Disables color output.
     #[arg(long)]
@@ -45,30 +41,53 @@ pub struct Args {
     /// The report mode.
     #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
     report_mode: Mode,
-
-    /// The specification version.
-    #[arg(short, long, default_value_t, value_enum, value_name = "VERSION")]
-    specification_version: wdl::core::Version,
 }
 
-pub fn lint(args: Args) -> anyhow::Result<()> {
-    let (config, writer) = get_display_config(&args);
+/// Arguments for the `check` subcommand.
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
+pub struct CheckArgs {
+    #[command(flatten)]
+    common: Common,
 
-    match sprocket::file::Repository::try_new(args.paths, args.extensions)?
-        .report_concerns(config, writer)?
+    /// Perform lint checks in addition to syntax validation.
+    #[arg(short, long)]
+    lint: bool,
+}
+
+/// Arguments for the `lint` subcommand.
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
+pub struct LintArgs {
+    #[command(flatten)]
+    common: Common,
+}
+
+pub fn check(args: CheckArgs) -> anyhow::Result<()> {
+    let (config, writer) = get_display_config(&args.common);
+
+    match sprocket::file::Repository::try_new(args.common.paths, vec!["wdl".to_string()])?
+        .report_diagnostics(config, writer, args.lint)?
     {
-        // There are parse errors or validation failures.
+        // There are syntax errors.
         (true, _) => std::process::exit(1),
-        // There are no parse errors or validation failures, but there are lint warnings.
+        // There are lint failures.
         (false, true) => std::process::exit(2),
-        // There are no concerns.
-        _ => {}
+        // There are no diagnostics.
+        (false, false) => {}
     }
 
     Ok(())
 }
 
-fn get_display_config(args: &Args) -> (Config, StandardStream) {
+pub fn lint(args: LintArgs) -> anyhow::Result<()> {
+    check(CheckArgs {
+        common: args.common,
+        lint: true,
+    })
+}
+
+fn get_display_config(args: &Common) -> (Config, StandardStream) {
     let display_style = match args.report_mode {
         Mode::Full => DisplayStyle::Rich,
         Mode::OneLine => DisplayStyle::Short,

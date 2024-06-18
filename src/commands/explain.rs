@@ -1,49 +1,50 @@
 use clap::Parser;
 use colored::Colorize;
-use wdl::ast::v1::lint as ast_lint;
-use wdl::core::concern::lint::Rule;
-use wdl::grammar::v1::lint as grammar_lint;
+use wdl::lint;
 
 /// Arguments for the `explain` subcommand.
 #[derive(Parser, Debug)]
-#[command(author, version, about)]
+#[command(author, version, about, after_help = list_all_rules())]
 pub struct Args {
-    /// The name or code of the rule to explain.
+    /// The name of the rule to explain.
     #[arg(required = true)]
-    pub rule_identifier: String,
+    pub rule_name: String,
 }
 
-pub fn pretty_print_rule<E>(rule: &dyn Rule<E>) {
-    println!("{}", rule.name().bold().underline());
-    println!("{}", format!("{}::{}", rule.code(), rule.tags(),).yellow());
-    println!();
-    println!("{}", rule.body());
+pub fn list_all_rules() -> String {
+    let mut result = "Available rules:".to_owned();
+    for rule in lint::v1::rules() {
+        result.push_str(&format!("\n  - {}", rule.id()));
+    }
+    result
+}
+
+pub fn pretty_print_rule(rule: &dyn lint::v1::Rule) -> String {
+    let mut result = format!("{}", rule.id().bold().underline());
+    result = format!("{}\n{}", result, rule.description());
+    result = format!("{}\n{}", result, format!("{}", rule.tags()).yellow());
+    result = format!("{}\n\n{}", result, rule.explanation());
+    match rule.url() {
+        Some(url) => format!("{}\n{}", result, url.underline().blue()),
+        None => result,
+    }
 }
 
 pub fn explain(args: Args) -> anyhow::Result<()> {
-    let ident = args.rule_identifier;
+    let name = args.rule_name;
+    let lowercase_name = name.to_lowercase();
 
-    let rule = grammar_lint::rules()
+    let rule = lint::v1::rules()
         .into_iter()
-        .find(|rule| rule.name() == ident || rule.code().to_string() == ident);
+        .find(|rule| rule.id().to_lowercase() == lowercase_name);
 
     match rule {
         Some(rule) => {
-            pretty_print_rule(&*rule);
+            println!("{}", pretty_print_rule(&*rule));
         }
         None => {
-            let rule = ast_lint::rules()
-                .into_iter()
-                .find(|rule| rule.name() == ident || rule.code().to_string() == ident);
-
-            match rule {
-                Some(rule) => {
-                    pretty_print_rule(&*rule);
-                }
-                None => {
-                    anyhow::bail!("No rule found with the identifier '{}'", ident);
-                }
-            }
+            println!("{}", list_all_rules());
+            anyhow::bail!("No rule found with the name '{}'", name);
         }
     }
 
