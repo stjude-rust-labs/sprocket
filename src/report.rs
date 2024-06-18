@@ -27,14 +27,14 @@ impl Reporter {
     /// Reports diagnostics to the terminal.
     pub(crate) fn emit_diagnostics(
         &mut self,
-        file: SimpleFile<String, String>,
+        file: &SimpleFile<String, String>,
         diagnostics: &[Diagnostic],
     ) -> Result<()> {
         for diagnostic in diagnostics.iter() {
             emit(
                 &mut self.stream,
                 &self.config,
-                &file,
+                file,
                 &diagnostic.to_codespan(),
             )
             .context("failed to emit diagnostic")?;

@@ -32,10 +32,11 @@ pub fn pretty_print_rule(rule: &dyn lint::v1::Rule) -> String {
 
 pub fn explain(args: Args) -> anyhow::Result<()> {
     let name = args.rule_name;
+    let lowercase_name = name.to_lowercase();
 
     let rule = lint::v1::rules()
         .into_iter()
-        .find(|rule| rule.id().to_lowercase() == name.to_lowercase());
+        .find(|rule| rule.id().to_lowercase() == lowercase_name);
 
     match rule {
         Some(rule) => {

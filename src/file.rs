@@ -156,7 +156,7 @@ impl Repository {
                 Ok(document) => {
                     let validator = wdl::ast::Validator::default();
                     if let Err(diagnostics) = validator.validate(&document) {
-                        reporter.emit_diagnostics(file.clone(), &diagnostics)?;
+                        reporter.emit_diagnostics(file, &diagnostics)?;
                         syntax_failure = true;
                         continue;
                     }
@@ -167,13 +167,13 @@ impl Repository {
                             wdl::lint::v1::rules().into_iter().map(|r| r.visitor()),
                         );
                         if let Err(diagnostics) = linter.validate(&document) {
-                            reporter.emit_diagnostics(file.clone(), &diagnostics)?;
+                            reporter.emit_diagnostics(file, &diagnostics)?;
                             lint_failure = true;
                         }
                     }
                 }
                 Err(diagnostics) => {
-                    reporter.emit_diagnostics(file.clone(), &diagnostics)?;
+                    reporter.emit_diagnostics(file, &diagnostics)?;
                     syntax_failure = true;
                 }
             }
