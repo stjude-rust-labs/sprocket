@@ -43,7 +43,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
         }
         None => {
             list_all_rules();
-            anyhow::bail!("No rule found with the identifier '{}'", name);
+            anyhow::bail!("No rule found with the name '{}'", name);
         }
     }
 
