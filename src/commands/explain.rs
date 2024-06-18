@@ -8,7 +8,7 @@ use wdl::lint;
 pub struct Args {
     /// The name of the rule to explain.
     #[arg(required = true)]
-    pub rule_identifier: String,
+    pub rule_name: String,
 }
 
 pub fn list_all_rules() {
@@ -24,14 +24,18 @@ pub fn pretty_print_rule(rule: &dyn lint::v1::Rule) {
     println!("{}", format!("{}", rule.tags()).yellow());
     println!();
     println!("{}", rule.explanation());
+    match rule.url() {
+        Some(url) => println!("{}", url.underline().blue()),
+        None => {}
+    }
 }
 
 pub fn explain(args: Args) -> anyhow::Result<()> {
-    let ident = args.rule_identifier;
+    let name = args.rule_name;
 
     let rule = lint::v1::rules()
         .into_iter()
-        .find(|rule| rule.id() == ident);
+        .find(|rule| rule.id().to_lowercase() == name.to_lowercase());
 
     match rule {
         Some(rule) => {
@@ -39,7 +43,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
         }
         None => {
             list_all_rules();
-            anyhow::bail!("No rule found with the identifier '{}'", ident);
+            anyhow::bail!("No rule found with the identifier '{}'", name);
         }
     }
 
