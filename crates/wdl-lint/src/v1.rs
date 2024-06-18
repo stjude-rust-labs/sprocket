@@ -12,6 +12,7 @@ mod import_placement;
 mod matching_parameter_meta;
 mod missing_runtime;
 mod no_curly_commands;
+mod pascal_case;
 mod preamble_comments;
 mod preamble_whitespace;
 mod snake_case;
@@ -24,6 +25,7 @@ pub use import_placement::*;
 pub use matching_parameter_meta::*;
 pub use missing_runtime::*;
 pub use no_curly_commands::*;
+pub use pascal_case::*;
 pub use preamble_comments::*;
 pub use preamble_whitespace::*;
 pub use snake_case::*;
@@ -71,6 +73,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(WhitespaceRule),
         Box::new(CommandSectionMixedIndentationRule),
         Box::new(ImportPlacementRule),
+        Box::new(PascalCaseRule),
     ];
 
     // Ensure all the rule ids are unique and pascal case

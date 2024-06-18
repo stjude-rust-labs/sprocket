@@ -8,7 +8,7 @@ commit_hash = "9a1a2846443e4b621f1dca0259fd3fa21885156a"
 
 [repositories."aws-samples/amazon-omics-tutorials"]
 identifier = "aws-samples/amazon-omics-tutorials"
-commit_hash = "0a49b4326f67ac72150159a183084a252cf45ee0"
+commit_hash = "136ecf7e5aaee18619e14ee65a97acc6d6704bef"
 
 [repositories."biowdl/tasks"]
 identifier = "biowdl/tasks"
@@ -44,7 +44,7 @@ commit_hash = "ee08634f28810e5d6fd1a904fc83f4e67821550e"
 
 [repositories."stjudecloud/workflows"]
 identifier = "stjudecloud/workflows"
-commit_hash = "84bd23756563f32d144f11aa2e82a76e059a8b61"
+commit_hash = "46a77b33c99c1952396fcaaf0845f1fb5a015987"
 filters = ["/template/task-templates.wdl"]
 
 [repositories."theiagen/public_health_bioinformatics"]

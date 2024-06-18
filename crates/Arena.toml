@@ -12,7 +12,7 @@ commit_hash = "ee08634f28810e5d6fd1a904fc83f4e67821550e"
 
 [repositories."stjudecloud/workflows"]
 identifier = "stjudecloud/workflows"
-commit_hash = "84bd23756563f32d144f11aa2e82a76e059a8b61"
+commit_hash = "46a77b33c99c1952396fcaaf0845f1fb5a015987"
 filters = ["/template/task-templates.wdl"]
 
 [[diagnostics]]

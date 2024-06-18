@@ -88,7 +88,7 @@ impl Rule for SnakeCaseRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that tasks, workflows, and variables use snake_case."
+        "Ensures that tasks, workflows, and variables are defined with snake_case names."
     }
 
     fn explanation(&self) -> &'static str {

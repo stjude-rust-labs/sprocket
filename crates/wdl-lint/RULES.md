@@ -15,7 +15,8 @@ be out of sync with released packages.
 | `MatchingParameterMeta`          | Completeness                  | Ensures that inputs have a matching entry in a `parameter_meta` section.              |
 | `MissingRuntime`                 | Completeness, Portability     | Ensures that tasks have a runtime section.                                            |
 | `NoCurlyCommands`                | Clarity                       | Ensures that tasks use heredoc syntax in command sections.                            |
+| `PascalCase`                     | Clarity, Naming, Style        | Ensures that structs are defined with PascalCase names.                               |
 | `PreambleComments`               | Clarity, Spacing, Style       | Ensures that documents have correct comments in the preamble.                         |
 | `PreambleWhitespace`             | Spacing, Style                | Ensures that documents have correct whitespace in the preamble.                       |
-| `SnakeCase`                      | Clarity, Naming, Style        | Ensures that tasks, workflows, and variables use snake_case.                          |
+| `SnakeCase`                      | Clarity, Naming, Style        | Ensures that tasks, workflows, and variables are defined with snake_case names.       |
 | `Whitespace`                     | Spacing, Style                | Ensures that a document does not contain undesired whitespace.                        |
