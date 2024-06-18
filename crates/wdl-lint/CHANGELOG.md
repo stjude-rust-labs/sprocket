@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added the `ImportPlacement` lint rule ([#89](https://github.com/stjude-rust-labs/wdl/pull/89)).
+
 ### Fixed
 
+* Fixed the preamble whitespace rule to check for a blank line following the
+  version statement ([#89](https://github.com/stjude-rust-labs/wdl/pull/89)).
 * Fixed the preamble whitespace and preamble comment rules to look for the 
   version statement trivia based on it now being children of the version 
   statement ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).

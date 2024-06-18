@@ -447,15 +447,19 @@ where
     /// consuming it.
     ///
     /// The token is not added to the event list.
+    ///
+    /// # Note
+    ///
+    /// Note that peeking may cause parser events to be buffered.
+    ///
+    /// If `peek` returns `None`, ensure all buffered events are added to the
+    /// event list by calling `next` on the parser; otherwise, calling `finish`
+    /// may panic.
     pub fn peek(&mut self) -> Option<(T, Span)> {
         while let Some((res, span)) = self.lexer.as_mut()?.peek() {
             if let Some(t) = self.consume_trivia(res, span, true) {
                 return Some(t);
             }
-        }
-
-        if !self.buffered.is_empty() {
-            self.events.append(&mut self.buffered);
         }
 
         None
@@ -847,7 +851,19 @@ where
     }
 
     /// Consumes the parser and returns the output.
+    ///
+    /// # Panics
+    ///
+    /// This method panics if buffered events remain in the parser.
+    ///
+    /// To ensure that no buffered events remain, call `next()` on the parser
+    /// and verify it returns `None` before calling this method.
     pub fn finish(self) -> Output<'a, T> {
+        assert!(
+            self.buffered.is_empty(),
+            "buffered events remain; ensure `next` was called after an unsuccessful peek"
+        );
+
         Output {
             lexer: self.lexer.expect("lexer should be present"),
             events: self.events,
@@ -874,6 +890,10 @@ where
     /// This occurs when a source file is missing a version statement or
     /// if the version specified is unsupported.
     pub fn consume_remainder(&mut self) {
+        if !self.buffered.is_empty() {
+            self.events.append(&mut self.buffered);
+        }
+
         if let Some(span) = self
             .lexer
             .as_mut()

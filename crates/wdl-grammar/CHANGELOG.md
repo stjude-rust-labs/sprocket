@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed the CST for an unparsable file (i.e. one without a supported version)
+  to contain trivia before the version statement and correct spans for the
+  unparsed token ([#89](https://github.com/stjude-rust-labs/wdl/pull/89)).
+* Fixed last trivia in the file attaching as a child to the last node in the
+  file instead of as a child of the root ([#89](https://github.com/stjude-rust-labs/wdl/pull/89)).
 * Fixed diagnostics around encountering string member names in struct literals
   ([#87](https://github.com/stjude-rust-labs/wdl/pull/87)).
 * Fixed diagnostic label spans that point at strings to include the entire span
@@ -16,14 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed trivia in the CST so that it appears at consistent locations; also
   fixed the parser diagnostics to be ordered by the start of the primary label
   ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).
-* Fixed a missing delimiter diagnostic to include a label for where the parser 
+* Fixed a missing delimiter diagnostic to include a label for where the parser
   thinks the missing delimiter might go ([#84](https://github.com/stjude-rust-labs/wdl/pull/84)).
 
 ## 0.4.0 - 6-13-2024
 
 ### Changed
 
-* Removed the old parser implementation in favor of the new parser 
+* Removed the old parser implementation in favor of the new parser
   implementation; this also removes the `experimental` feature from the crate ([#79](https://github.com/stjude-rust-labs/wdl/pull/79)).
 * Removed dependency on `miette` and `thiserror` in the experimental parser,
   introduced the `Diagnostic` type as a replacement, and switched the existing
@@ -47,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in the experimental parser ([#52](https://github.com/stjude-rust-labs/wdl/pull/52)).
 * Fixed parsing of empty inputs to a task call statement in the
   experimental parser ([#54](https://github.com/stjude-rust-labs/wdl/pull/54)).
-* Fixed parsing of postfix `+` qualifier on array types in the experimental 
+* Fixed parsing of postfix `+` qualifier on array types in the experimental
   parser ([#53](https://github.com/stjude-rust-labs/wdl/pull/53)).
 * Fixed parsing of placeholder options in the experimental parser such
   that it can disambiguate between the `sep` option and a `sep` function
@@ -70,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and workflows in the experimental parser ([#39](https://github.com/stjude-rust-labs/wdl/pull/39)).
 * Adds support for parsing struct definitions to the experimental parser;
   requires the `experimental` feature to be activated ([#38](https://github.com/stjude-rust-labs/wdl/pull/38)).
-* Adds a new experimental `SyntaxTree` representation; requires the 
+* Adds a new experimental `SyntaxTree` representation; requires the
   `experimental` feature to be activated ([#36](https://github.com/stjude-rust-labs/wdl/pull/36)).
 * Adds an `experimental` module containing the start of a new
   infallible WDL parser implementation based on `logos` and `rowan` ([#30](https://github.com/stjude-rust-labs/wdl/pull/30)).

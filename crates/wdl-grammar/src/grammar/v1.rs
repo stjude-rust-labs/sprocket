@@ -378,6 +378,9 @@ pub fn items(parser: &mut Parser<'_>) {
             marker.abandon(parser);
         }
     }
+
+    // This call to `next` is important as `next` adds any remaining buffered events
+    assert!(parser.next().is_none(), "parser is not finished");
 }
 
 /// Parses a single top-level item in a WDL document.

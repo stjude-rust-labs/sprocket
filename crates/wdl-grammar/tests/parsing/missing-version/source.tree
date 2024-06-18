@@ -1,2 +1,4 @@
-RootNode@0..14
-  Unparsed@0..14 "task foo {\n\n}\n"
+RootNode@0..64
+  Comment@0..48 "# This is a test of a ..."
+  Whitespace@48..50 "\n\n"
+  Unparsed@50..64 "task foo {\n\n}\n"

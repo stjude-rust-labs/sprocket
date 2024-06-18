@@ -1,0 +1,16 @@
+warning[ImportPlacement]: misplaced import
+   ┌─ tests/lints/import-placements/source.wdl:13:1
+   │
+13 │ import "bad"
+   │ ^^^^^^^^^^^^
+   │
+   = fix: move this import so that it comes after the version statement but before any document items
+
+warning[ImportPlacement]: misplaced import
+   ┌─ tests/lints/import-placements/source.wdl:14:1
+   │
+14 │ import "also bad"
+   │ ^^^^^^^^^^^^^^^^^
+   │
+   = fix: move this import so that it comes after the version statement but before any document items
+

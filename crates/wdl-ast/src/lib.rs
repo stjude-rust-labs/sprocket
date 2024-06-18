@@ -49,6 +49,7 @@ use std::sync::Arc;
 pub use rowan::ast::support;
 pub use rowan::ast::AstChildren;
 pub use rowan::ast::AstNode;
+pub use rowan::Direction;
 pub use wdl_grammar::Diagnostic;
 pub use wdl_grammar::Label;
 pub use wdl_grammar::Severity;

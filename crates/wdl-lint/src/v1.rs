@@ -8,6 +8,7 @@ use crate::TagSet;
 mod command_mixed_indentation;
 mod double_quotes;
 mod ending_newline;
+mod import_placement;
 mod matching_parameter_meta;
 mod missing_runtime;
 mod no_curly_commands;
@@ -19,6 +20,7 @@ mod whitespace;
 pub use command_mixed_indentation::*;
 pub use double_quotes::*;
 pub use ending_newline::*;
+pub use import_placement::*;
 pub use matching_parameter_meta::*;
 pub use missing_runtime::*;
 pub use no_curly_commands::*;
@@ -68,6 +70,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(MatchingParameterMetaRule),
         Box::new(WhitespaceRule),
         Box::new(CommandSectionMixedIndentationRule),
+        Box::new(ImportPlacementRule),
     ];
 
     // Ensure all the rule ids are unique and pascal case

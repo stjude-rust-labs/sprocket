@@ -29,12 +29,20 @@ fn unnecessary_whitespace(span: Span) -> Diagnostic {
         .with_fix("remove the unnecessary whitespace")
 }
 
-/// Creates an "expected a blank line" diagnostic.
-fn expected_blank_line(span: Span) -> Diagnostic {
+/// Creates an "expected a blank line before" diagnostic.
+fn expected_blank_line_before(span: Span) -> Diagnostic {
     Diagnostic::note("expected a blank line before the version statement")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("add a blank line between the last preamble comment and the version statement")
+}
+
+/// Creates an "expected a blank line after" diagnostic.
+fn expected_blank_line_after(span: Span) -> Diagnostic {
+    Diagnostic::note("expected a blank line after the version statement")
+        .with_rule(ID)
+        .with_label("add a blank line before this", span)
+        .with_fix("add a blank line immediately after the version statement")
 }
 
 /// Detects incorrect whitespace in a document preamble.
@@ -56,7 +64,7 @@ impl Rule for PreambleWhitespaceRule {
          before the version declaration. If there are no comments, the version declaration must be \
          the first line of the document. If there are comments, there must be exactly one blank \
          line between the last comment and the version declaration. No extraneous whitespace is \
-         allowed."
+         allowed. A blank line must come after the preamble."
     }
 
     fn tags(&self) -> TagSet {
@@ -71,8 +79,12 @@ impl Rule for PreambleWhitespaceRule {
 /// Implements the visitor for the preamble whitespace rule.
 #[derive(Default, Debug)]
 struct PreambleWhitespaceVisitor {
-    /// Whether or not the rule has finished.
-    finished: bool,
+    /// Whether or not we've entered the version statement.
+    entered_version: bool,
+    /// Whether or not we've exited the version statement.
+    exited_version: bool,
+    /// Whether or not we've visited whitespace *after* the version statement.
+    checked_blank_after: bool,
 }
 
 impl Visitor for PreambleWhitespaceVisitor {
@@ -85,11 +97,12 @@ impl Visitor for PreambleWhitespaceVisitor {
         stmt: &VersionStatement,
     ) {
         if reason == VisitReason::Exit {
+            self.exited_version = true;
             return;
         }
 
         // We're finished after the version statement
-        self.finished = true;
+        self.entered_version = true;
 
         // If the previous token is whitespace and its previous token is a comment,
         // then the whitespace should just be two lines
@@ -123,7 +136,7 @@ impl Visitor for PreambleWhitespaceVisitor {
                             // If the previous byte isn't a newline, then we are missing a blank
                             // line
                             if text.as_bytes()[next_start - 1] != b'\n' {
-                                state.add(expected_blank_line(Span::new(
+                                state.add(expected_blank_line_before(Span::new(
                                     usize::from(range.start()) + start,
                                     1,
                                 )));
@@ -143,7 +156,7 @@ impl Visitor for PreambleWhitespaceVisitor {
 
                     // We expected two lines
                     if count < 2 {
-                        state.add(expected_blank_line(range.to_span()));
+                        state.add(expected_blank_line_before(range.to_span()));
                     }
                 } else {
                     // Whitespace without a comment before it
@@ -157,7 +170,47 @@ impl Visitor for PreambleWhitespaceVisitor {
     }
 
     fn whitespace(&mut self, state: &mut Self::State, whitespace: &Whitespace) {
-        if self.finished {
+        if self.exited_version {
+            // Check to see if we've already checked for a blank line after the version
+            // statement
+            if self.checked_blank_after {
+                return;
+            }
+
+            self.checked_blank_after = true;
+
+            let mut count = 0;
+            let text = whitespace.as_str();
+            let span = whitespace.span();
+            for (_, _, next_start) in lines_with_offset(text) {
+                count += 1;
+                if count == 2 {
+                    // If the previous byte isn't a newline, then we are missing a blank
+                    // line after the version statement
+                    if text.as_bytes()[next_start - 1] != b'\n' {
+                        state.add(expected_blank_line_after(Span::new(
+                            span.start() + next_start,
+                            1,
+                        )));
+                    }
+
+                    break;
+                }
+            }
+
+            // We expected two lines
+            if count < 2 {
+                state.add(expected_blank_line_after(Span::new(
+                    span.start() + span.len(),
+                    1,
+                )));
+            }
+
+            return;
+        }
+
+        // Ignore whitespace inside the version statement itself
+        if self.entered_version {
             return;
         }
 

@@ -52,7 +52,7 @@ RootNode@0..245
       Whitespace@165..166 " "
       Ident@166..169 "Qux"
   Whitespace@169..171 " \n"
-  ImportStatementNode@171..245
+  ImportStatementNode@171..244
     ImportKeyword@171..177 "import"
     LiteralStringNode@177..185
       Whitespace@177..178 " "
@@ -90,4 +90,4 @@ RootNode@0..245
       AsKeyword@236..238 "as"
       Whitespace@238..239 " "
       Ident@239..244 "Corge"
-    Whitespace@244..245 "\n"
+  Whitespace@244..245 "\n"

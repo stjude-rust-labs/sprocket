@@ -49,6 +49,10 @@ message = "ww-fastq-to-cram.wdl:23:10: warning[SnakeCase]: workflow name `Paired
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:2:1: note[PreambleWhitespace]: expected a blank line after the version statement"
+
+[[diagnostics]]
+document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
 message = "ww-fastq-to-cram.wdl:57:13: warning[Whitespace]: line contains trailing whitespace"
 
 [[diagnostics]]
@@ -150,6 +154,10 @@ message = "ww-star-deseq2.wdl:255:5: note[MatchingParameterMeta]: task `RNASeQC`
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:25:36: warning[Whitespace]: line contains trailing whitespace"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:2:1: note[PreambleWhitespace]: expected a blank line after the version statement"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
@@ -354,6 +362,10 @@ message = "ww-vc-trio.wdl:29:10: warning[MatchingParameterMeta]: workflow `ww_vc
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
 message = "ww-vc-trio.wdl:2:1: note[PreambleComments]: preamble comments cannot come after the version statement"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:2:1: note[PreambleWhitespace]: expected a blank line after the version statement"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"

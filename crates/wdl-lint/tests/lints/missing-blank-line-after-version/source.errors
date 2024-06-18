@@ -1,0 +1,8 @@
+note[PreambleWhitespace]: expected a blank line after the version statement
+  ┌─ tests/lints/missing-blank-line-after-version/source.wdl:4:1
+  │
+4 │ workflow test {
+  │ ^ add a blank line before this
+  │
+  = fix: add a blank line immediately after the version statement
+
