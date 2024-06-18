@@ -19,15 +19,14 @@ pub fn list_all_rules() -> String {
     result
 }
 
-pub fn pretty_print_rule(rule: &dyn lint::v1::Rule) {
-    println!("{}", rule.id().bold().underline());
-    println!("{}", rule.description());
-    println!("{}", format!("{}", rule.tags()).yellow());
-    println!();
-    println!("{}", rule.explanation());
+pub fn pretty_print_rule(rule: &dyn lint::v1::Rule) -> String {
+    let mut result = format!("{}", rule.id().bold().underline());
+    result = format!("{}\n{}", result, rule.description());
+    result = format!("{}\n{}", result, format!("{}", rule.tags()).yellow());
+    result = format!("{}\n\n{}", result, rule.explanation());
     match rule.url() {
-        Some(url) => println!("{}", url.underline().blue()),
-        None => {}
+        Some(url) => format!("{}\n{}", result, url.underline().blue()),
+        None => result,
     }
 }
 
@@ -40,7 +39,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
 
     match rule {
         Some(rule) => {
-            pretty_print_rule(&*rule);
+            println!("{}", pretty_print_rule(&*rule));
         }
         None => {
             println!("{}", list_all_rules());
