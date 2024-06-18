@@ -6,19 +6,12 @@ use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::StandardStream;
 use codespan_reporting::term::Config;
 use indexmap::IndexMap;
-use wdl::core::Concern;
 
 use crate::report::Reporter;
 
 /// A filesystem error.
 #[derive(Debug)]
 pub enum Error {
-    /// A WDL 1.x abstract syntax tree error.
-    AstV1(wdl::ast::v1::Error),
-
-    /// A WDL 1.x grammar error.
-    GrammarV1(wdl::grammar::v1::Error),
-
     /// An invalid file name was provided.
     InvalidFileName(PathBuf),
 
@@ -38,8 +31,6 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::AstV1(err) => write!(f, "ast error: {err}"),
-            Error::GrammarV1(err) => write!(f, "grammar error: {err}"),
             Error::InvalidFileName(path) => write!(f, "invalid file name: {}", path.display()),
             Error::Io(err) => write!(f, "i/o error: {}", err),
             Error::MissingPath(path) => write!(f, "missing path: {}", path.display()),
@@ -148,129 +139,47 @@ impl Repository {
         Ok(())
     }
 
-    /// Attempts to parse an existing entry into a WDL v1.x abstract syntax
-    /// tree.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use sprocket::file::Repository;
-    ///
-    /// let mut repository = Repository::default();
-    /// repository.load("test.wdl")?;
-    /// let ast = repository.parse("test.wdl")?;
-    ///
-    /// assert!(matches!(ast.tree(), Some(_)));
-    ///
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
-    pub fn parse(&self, entry: impl AsRef<str>) -> Result<wdl::ast::v1::Result> {
-        let entry = entry.as_ref();
-        let handle = *self
-            .handles
-            .get(entry)
-            .ok_or(Error::MissingEntry(entry.to_owned()))?;
+    /// Reports all diagnostics for all documents in the [`Repository`].
+    pub fn report_diagnostics(
+        &self,
+        config: Config,
+        writer: StandardStream,
+        lint: bool,
+    ) -> anyhow::Result<(bool, bool)> {
+        let mut reporter = Reporter::new(config, writer);
+        let mut validation_failure = false;
+        let mut lint_failure = false;
 
-        let file = match self.sources.get(handle) {
-            Ok(result) => result,
-            // SAFETY: this entry will _always_ exist in the inner
-            // [`SimpleFiles`], as we just ensured it existed in the mapping
-            // between entry names and handles.
-            Err(_) => unreachable!(),
-        };
-
-        let mut all_concerns = wdl::core::concern::concerns::Builder::default();
-
-        let (pt, concerns) = wdl::grammar::v1::parse(file.source())
-            .map_err(Error::GrammarV1)?
-            .into_parts();
-
-        if let Some(concerns) = concerns {
-            for concern in concerns.into_inner() {
-                all_concerns = all_concerns.push(concern);
-            }
-        }
-
-        let pt = match pt {
-            Some(pt) => pt,
-            None => {
-                // SAFETY: because `grammar::v1::parse` returns a
-                // `grammar::v1::Result`, we know that either the concerns or the
-                // parse tree must be [`Some`] (else, this would have failed at
-                // `grammar::v1::Result` creation time). That said, we just checked
-                // that `pt` is [`None`]. In this case, it must follow that the
-                // concerns are not empty. As such, this will always unwrap.
-                return Ok(wdl::ast::v1::Result::try_new(None, all_concerns.build()).unwrap());
-            }
-        };
-
-        let (ast, concerns) = wdl::ast::v1::parse(pt).map_err(Error::AstV1)?.into_parts();
-
-        if let Some(concerns) = concerns {
-            for concern in concerns.into_inner() {
-                all_concerns = all_concerns.push(concern);
-            }
-        }
-
-        match ast {
-            Some(ast) => {
-                // SAFETY: the ast is [`Some`], so this will always unwrap.
-                Ok(wdl::ast::v1::Result::try_new(Some(ast), all_concerns.build()).unwrap())
-            }
-            None => {
-                // SAFETY: because `ast::v1::parse` returns a
-                // `ast::v1::Result`, we know that either the concerns or the
-                // parse tree must be [`Some`] (else, this would have failed at
-                // `ast::v1::Result` creation time). That said, we just checked
-                // that `ast` is [`None`]. In this case, it must follow that the
-                // concerns are not empty. As such, this will always unwrap.
-                Ok(wdl::ast::v1::Result::try_new(None, all_concerns.build()).unwrap())
-            }
-        }
-    }
-
-    /// Reports all concerns for all documents in the [`Repository`].
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use codespan_reporting::term::termcolor::ColorChoice;
-    /// use codespan_reporting::term::termcolor::StandardStream;
-    /// use codespan_reporting::term::Config;
-    /// use sprocket::file::Repository;
-    ///
-    /// let mut repository = Repository::default();
-    /// repository.load("test.wdl")?;
-    ///
-    /// let config = Config::default();
-    /// let writer = StandardStream::stderr(ColorChoice::Always);
-    /// repository.report_concerns(config, writer);
-    ///
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
-    pub fn report_concerns(&self, config: Config, writer: StandardStream) -> Result<(bool, bool)> {
-        let mut reporter = Reporter::new(config, writer, &self.sources);
-        let mut reported_error = false;
-        let mut reported_warning = false;
-
-        for (file_name, handle) in self.handles.iter() {
-            let document = self.parse(file_name)?;
-
-            if let Some(concerns) = document.into_concerns() {
-                for concern in concerns.into_inner() {
-                    reporter.report_concern(&concern, *handle);
-
-                    match concern {
-                        Concern::ParseError(_) | Concern::ValidationFailure(_) => {
-                            reported_error = true
-                        }
-                        Concern::LintWarning(_) => reported_warning = true,
+        for (_path, handle) in self.handles.iter() {
+            let file = self.sources.get(*handle).expect("Expected to find file");
+            match wdl::ast::Document::parse(file.source()).into_result() {
+                Ok(document) => {
+                    let validator = wdl::ast::Validator::default();
+                    if let Err(diagnostics) = validator.validate(&document) {
+                        reporter.emit_diagnostics(file.clone(), &diagnostics)?;
+                        validation_failure = true;
+                        continue;
                     }
+
+                    if lint {
+                        let mut linter = wdl::ast::Validator::empty();
+                        linter.add_v1_visitors(
+                            wdl::lint::v1::rules().into_iter().map(|r| r.visitor()),
+                        );
+                        if let Err(diagnostics) = linter.validate(&document) {
+                            reporter.emit_diagnostics(file.clone(), &diagnostics)?;
+                            lint_failure = true;
+                        }
+                    }
+                }
+                Err(diagnostics) => {
+                    reporter.emit_diagnostics(file.clone(), &diagnostics)?;
+                    validation_failure = true;
                 }
             }
         }
 
-        Ok((reported_error, reported_warning))
+        Ok((validation_failure, lint_failure))
     }
 }
 

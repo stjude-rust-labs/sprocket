@@ -1,130 +1,45 @@
 //! Reporting.
 
-use codespan_reporting::diagnostic::Diagnostic;
-use codespan_reporting::diagnostic::Label;
-use codespan_reporting::files::SimpleFiles;
-use codespan_reporting::term;
+use anyhow::Context;
+use anyhow::Result;
+use codespan_reporting::files::SimpleFile;
+use codespan_reporting::term::emit;
 use codespan_reporting::term::termcolor::StandardStream;
 use codespan_reporting::term::Config;
-use codespan_reporting::term::DisplayStyle;
-use wdl::core::concern::Concern;
+use wdl::grammar::Diagnostic;
 
 /// A reporter for Sprocket.
 #[derive(Debug)]
-pub(crate) struct Reporter<'a> {
+pub(crate) struct Reporter {
     /// The configuration.
     config: Config,
 
     /// The stream to write to.
     stream: StandardStream,
-
-    /// The file repository.
-    files: &'a SimpleFiles<String, String>,
 }
 
-impl<'a> Reporter<'a> {
+impl Reporter {
     /// Creates a new [`Reporter`].
-    pub(crate) fn new(
-        config: Config,
-        stream: StandardStream,
-        files: &'a SimpleFiles<String, String>,
-    ) -> Self {
-        Self {
-            config,
-            stream,
-            files,
-        }
+    pub(crate) fn new(config: Config, stream: StandardStream) -> Self {
+        Self { config, stream }
     }
 
-    /// Reports a concern to the terminal.
-    pub(crate) fn report_concern(&mut self, concern: &Concern, handle: usize) {
-        let diagnostic = match concern {
-            Concern::LintWarning(warning) => {
-                let mut diagnostic = Diagnostic::warning()
-                    .with_code(format!(
-                        "{}::{}::{:?}",
-                        warning.code(),
-                        warning.tags(),
-                        warning.level()
-                    ))
-                    .with_message(warning.subject());
+    /// Reports diagnostics to the terminal.
+    pub(crate) fn emit_diagnostics(
+        &mut self,
+        file: SimpleFile<String, String>,
+        diagnostics: &[Diagnostic],
+    ) -> Result<()> {
+        for diagnostic in diagnostics.iter() {
+            emit(
+                &mut self.stream,
+                &self.config,
+                &file,
+                &diagnostic.to_codespan(),
+            )
+            .context("failed to emit diagnostic")?;
+        }
 
-                for location in warning.locations() {
-                    // SAFETY: if `report` is called, then the location **must**
-                    // fall within the provided file's contents. As such, it will
-                    // never be [`Location::Unplaced`], and this will always unwrap.
-                    let byte_range = location.byte_range().unwrap();
-
-                    diagnostic = diagnostic.with_labels(vec![
-                        Label::primary(handle, byte_range).with_message(warning.subject()),
-                    ]);
-                }
-
-                let mut notes = match warning.fix() {
-                    Some(fix) => vec![format!("fix: {}", fix)],
-                    None => vec![],
-                };
-                notes.extend(vec![format!(
-                    "see `sprocket explain {}` for more information",
-                    warning.code()
-                )]);
-
-                diagnostic = diagnostic.with_notes(notes);
-
-                diagnostic
-            }
-            Concern::ParseError(error) => {
-                // SAFETY: if `report` is called, then the location **must**
-                // fall within the provided file's contents. As such, it will
-                // never be [`Location::Unplaced`], and this will always unwrap.
-                let byte_range = error.byte_range().unwrap();
-
-                let diagnostic = match &self.config.display_style {
-                    DisplayStyle::Rich => Diagnostic::error()
-                        .with_message("parse error")
-                        .with_labels(vec![
-                            Label::primary(handle, byte_range).with_message(error.message()),
-                        ]),
-                    _ => Diagnostic::error()
-                        .with_message(error.message().to_lowercase())
-                        .with_labels(vec![
-                            Label::primary(handle, byte_range).with_message(error.message()),
-                        ]),
-                };
-
-                diagnostic
-            }
-            Concern::ValidationFailure(failure) => {
-                let mut diagnostic = Diagnostic::error()
-                    .with_code(failure.code().to_string())
-                    .with_message(failure.subject());
-
-                for location in failure.locations() {
-                    // SAFETY: if `report` is called, then the location **must**
-                    // fall within the provided file's contents. As such, it will
-                    // never be [`Location::Unplaced`], and this will always unwrap.
-                    let byte_range = location.byte_range().unwrap();
-
-                    diagnostic = diagnostic.with_labels(vec![
-                        Label::primary(handle, byte_range).with_message(failure.body()),
-                    ]);
-                }
-
-                if let Some(fix) = failure.fix() {
-                    diagnostic = diagnostic.with_notes(vec![format!("fix: {}", fix)]);
-                }
-
-                diagnostic
-            }
-        };
-
-        // SAFETY: for use on the command line, this should always succeed.
-        term::emit(
-            &mut self.stream.lock(),
-            &self.config,
-            self.files,
-            &diagnostic,
-        )
-        .expect("writing diagnostic to stream failed")
+        Ok(())
     }
 }

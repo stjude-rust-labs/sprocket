@@ -9,11 +9,11 @@ use codespan_reporting::term::DisplayStyle;
 
 #[derive(Clone, Debug, Default, ValueEnum)]
 pub enum Mode {
-    /// Prints concerns as multiple lines.
+    /// Prints diagnostics as multiple lines.
     #[default]
     Full,
 
-    /// Prints concerns as one line.
+    /// Prints diagnostics as one line.
     OneLine,
 }
 
@@ -26,13 +26,17 @@ impl std::fmt::Display for Mode {
     }
 }
 
-/// Arguments for the `lint` subcommand.
+/// Arguments for the `check` subcommand.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Args {
-    /// The files or directories to lint.
+    /// The files or directories to check.
     #[arg(required = true)]
     paths: Vec<PathBuf>,
+
+    /// Perform lint checks in addition to validation.
+    #[arg(short, long)]
+    lint: bool,
 
     /// The extensions to collect when expanding a directory.
     #[arg(short, long, default_value = "wdl")]
@@ -45,24 +49,18 @@ pub struct Args {
     /// The report mode.
     #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
     report_mode: Mode,
-
-    /// The specification version.
-    #[arg(short, long, default_value_t, value_enum, value_name = "VERSION")]
-    specification_version: wdl::core::Version,
 }
 
-pub fn lint(args: Args) -> anyhow::Result<()> {
+pub fn check(args: Args) -> anyhow::Result<()> {
     let (config, writer) = get_display_config(&args);
 
     match sprocket::file::Repository::try_new(args.paths, args.extensions)?
-        .report_concerns(config, writer)?
+        .report_diagnostics(config, writer, false)?
     {
         // There are parse errors or validation failures.
         (true, _) => std::process::exit(1),
-        // There are no parse errors or validation failures, but there are lint warnings.
-        (false, true) => std::process::exit(2),
-        // There are no concerns.
-        _ => {}
+        // There are no diagnostics.
+        (false, _) => {}
     }
 
     Ok(())
