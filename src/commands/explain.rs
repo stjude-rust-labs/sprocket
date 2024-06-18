@@ -4,18 +4,19 @@ use wdl::lint;
 
 /// Arguments for the `explain` subcommand.
 #[derive(Parser, Debug)]
-#[command(author, version, about)]
+#[command(author, version, about, after_help = list_all_rules())]
 pub struct Args {
     /// The name of the rule to explain.
     #[arg(required = true)]
     pub rule_name: String,
 }
 
-pub fn list_all_rules() {
-    println!("{}", "Available rules:".bold().underline().green());
+pub fn list_all_rules() -> String {
+    let mut result = "Available rules:".to_owned();
     for rule in lint::v1::rules() {
-        println!("{}", rule.id().green());
+        result.push_str(&format!("\n  - {}", rule.id()));
     }
+    result
 }
 
 pub fn pretty_print_rule(rule: &dyn lint::v1::Rule) {
@@ -42,7 +43,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
             pretty_print_rule(&*rule);
         }
         None => {
-            list_all_rules();
+            println!("{}", list_all_rules());
             anyhow::bail!("No rule found with the name '{}'", name);
         }
     }
