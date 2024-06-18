@@ -26,21 +26,13 @@ impl std::fmt::Display for Mode {
     }
 }
 
-/// Arguments for the `check` subcommand.
+/// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
-pub struct Args {
+pub struct Common {
     /// The files or directories to check.
     #[arg(required = true)]
     paths: Vec<PathBuf>,
-
-    /// Perform lint checks in addition to validation.
-    #[arg(short, long)]
-    lint: bool,
-
-    /// The extensions to collect when expanding a directory.
-    #[arg(short, long, default_value = "wdl")]
-    extensions: Vec<String>,
 
     /// Disables color output.
     #[arg(long)]
@@ -51,22 +43,51 @@ pub struct Args {
     report_mode: Mode,
 }
 
-pub fn check(args: Args) -> anyhow::Result<()> {
-    let (config, writer) = get_display_config(&args);
+/// Arguments for the `check` subcommand.
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
+pub struct CheckArgs {
+    #[command(flatten)]
+    common: Common,
 
-    match sprocket::file::Repository::try_new(args.paths, args.extensions)?
-        .report_diagnostics(config, writer, false)?
+    /// Perform lint checks in addition to syntax validation.
+    #[arg(short, long)]
+    lint: bool,
+}
+
+/// Arguments for the `lint` subcommand.
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
+pub struct LintArgs {
+    #[command(flatten)]
+    common: Common,
+}
+
+pub fn check(args: CheckArgs) -> anyhow::Result<()> {
+    let (config, writer) = get_display_config(&args.common);
+
+    match sprocket::file::Repository::try_new(args.common.paths, vec!["wdl".to_string()])?
+        .report_diagnostics(config, writer, args.lint)?
     {
-        // There are parse errors or validation failures.
+        // There are syntax errors.
         (true, _) => std::process::exit(1),
+        // There are lint failures.
+        (false, true) => std::process::exit(2),
         // There are no diagnostics.
-        (false, _) => {}
+        (false, false) => {}
     }
 
     Ok(())
 }
 
-fn get_display_config(args: &Args) -> (Config, StandardStream) {
+pub fn lint(args: LintArgs) -> anyhow::Result<()> {
+    check(CheckArgs {
+        common: args.common,
+        lint: true,
+    })
+}
+
+fn get_display_config(args: &Common) -> (Config, StandardStream) {
     let display_style = match args.report_mode {
         Mode::Full => DisplayStyle::Rich,
         Mode::OneLine => DisplayStyle::Short,
