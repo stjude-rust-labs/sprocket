@@ -1,4 +1,4 @@
-RootNode@0..649
+RootNode@0..651
   Comment@0..70 "## This is a test of  ..."
   Whitespace@70..71 "\n"
   Comment@71..136 "## This should result ..."
@@ -8,7 +8,7 @@ RootNode@0..649
     Whitespace@145..146 " "
     Version@146..149 "1.1"
   Whitespace@149..151 "\n\n"
-  WorkflowDefinitionNode@151..648
+  WorkflowDefinitionNode@151..650
     WorkflowKeyword@151..159 "workflow"
     Whitespace@159..160 " "
     Ident@160..164 "test"
@@ -77,19 +77,21 @@ RootNode@0..649
     Whitespace@502..508 "\n\n    "
     Comment@508..592 "# This is also here t ..."
     Whitespace@592..597 "\n    "
-    ConditionalStatementNode@597..646
+    ConditionalStatementNode@597..648
       IfKeyword@597..599 "if"
       Whitespace@599..600 " "
-      NameRefNode@600..603
-        Ident@600..603 "foo"
-      Whitespace@603..604 " "
-      OpenBrace@604..605 "{"
-      Whitespace@605..614 "\n        "
-      DoubleQuote@614..615 "\""
-      LiteralStringText@615..639 "this is not legal either"
-      DoubleQuote@639..640 "\""
-      Whitespace@640..645 "\n    "
-      CloseBrace@645..646 "}"
-    Whitespace@646..647 "\n"
-    CloseBrace@647..648 "}"
-  Whitespace@648..649 "\n"
+      OpenParen@600..601 "("
+      NameRefNode@601..604
+        Ident@601..604 "foo"
+      CloseParen@604..605 ")"
+      Whitespace@605..606 " "
+      OpenBrace@606..607 "{"
+      Whitespace@607..616 "\n        "
+      DoubleQuote@616..617 "\""
+      LiteralStringText@617..641 "this is not legal either"
+      DoubleQuote@641..642 "\""
+      Whitespace@642..647 "\n    "
+      CloseBrace@647..648 "}"
+    Whitespace@648..649 "\n"
+    CloseBrace@649..650 "}"
+  Whitespace@650..651 "\n"

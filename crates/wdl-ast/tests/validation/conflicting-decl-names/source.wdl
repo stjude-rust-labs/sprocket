@@ -37,11 +37,11 @@ workflow w {
     Int z = x
     Int x = y
 
-    if true {
+    if (true) {
         Int x2 = 0
         String really_ok = "ok"
 
-        if false {
+        if (false) {
             Int b = 0
             Int x2 = 0
             String really_really_ok = "ok"

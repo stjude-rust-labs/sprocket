@@ -11,7 +11,7 @@ workflow test {
                                         "command_mem": (small_task_mem * 1024) - 512}
 
     # This is also here to check that we correctly handle this _not_ as a struct literal
-    if foo {
+    if (foo) {
         "this is not legal either"
     }
 }

@@ -1402,7 +1402,10 @@ fn conditional_statement(
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::IfKeyword);
-    expected_fn!(parser, marker, expr);
+    paren!(parser, marker, |parser| {
+        expected_fn!(parser, expr);
+        Ok(())
+    });
     braced!(parser, marker, |parser| {
         parser.delimited(
             None,
@@ -1777,58 +1780,18 @@ fn literal_struct_or_name_ref(
     parser.update_last_token_kind(SyntaxKind::Ident);
 
     // To disambiguate between a name reference and a struct literal,
-    // we need to peek ahead 3 tokens for `{`, <any-ident>, `:`.
-    // Start by peeking one for open brace and then do the slightly
-    // more expensive `peek3` operation.
+    // peek ahead for `{`.
     if let Some((Token::OpenBrace, _)) = parser.peek() {
-        if let Some(peek) = parser.peek3() {
-            let is_struct_literal = match (peek.first, peek.second, peek.third) {
-                ((Token::OpenBrace, _), (Token::SQStringStart, _), _)
-                | ((Token::OpenBrace, _), (Token::DQStringStart, _), _) => {
-                    // A string is following the brace; this is not legal syntax.
-                    // It may be an attempt to specify a struct literal member by a string instead
-                    // of the required identifier; to determine if that's the case, we need start a
-                    // new parse at the current location and attempt to recover
-                    // past any interpolations of the string. If the next token
-                    // after the string is a colon, treat it as a struct literal.
-                    let mut parser = Parser::new_at(parser);
-
-                    // Move to the start of the string
-                    parser.next();
-                    let (token, span) = parser.next().expect("should have parsed");
-                    let interpolated = Token::recover_interpolation(token, span, &mut parser);
-                    assert!(
-                        interpolated,
-                        "should have recovered through an interpolation"
-                    );
-
-                    // Check to see if a colon followed the string
-                    matches!(parser.peek(), Some((Token::Colon, _)))
-                }
-                ((Token::OpenBrace, _), (t, _), (Ok(Token::Colon), _))
-                    if ANY_IDENT.contains(t.into_raw()) =>
-                {
-                    true
-                }
-                _ => {
-                    // This is a name reference, not a struct literal
-                    false
-                }
-            };
-
-            if is_struct_literal {
-                braced!(parser, marker, |parser| {
-                    parser.delimited(
-                        Some(Token::Comma),
-                        UNTIL_CLOSE_BRACE,
-                        LITERAL_OBJECT_RECOVERY_SET, // same as literal objects
-                        literal_struct_item,
-                    );
-                    Ok(())
-                });
-                return Ok(marker.complete(parser, SyntaxKind::LiteralStructNode));
-            }
-        }
+        braced!(parser, marker, |parser| {
+            parser.delimited(
+                Some(Token::Comma),
+                UNTIL_CLOSE_BRACE,
+                LITERAL_OBJECT_RECOVERY_SET, // same as literal objects
+                literal_struct_item,
+            );
+            Ok(())
+        });
+        return Ok(marker.complete(parser, SyntaxKind::LiteralStructNode));
     }
 
     // This is a name reference.

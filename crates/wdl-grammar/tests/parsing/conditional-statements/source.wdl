@@ -3,17 +3,17 @@
 version 1.1
 
 workflow test {
-    if true {
-        if false {
+    if (true) {
+        if (false) {
             scatter (x in y) {
-                if true {
+                if (true) {
                     call z
                 }
             }
         }
 
         # Ensure `x` is a name reference and not a struct literal
-        if x {
+        if (x) {
             call y
         }
 

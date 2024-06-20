@@ -592,7 +592,7 @@ workflow test {
         String output = "hello, ~{name}!"
     }
 
-    if do_thing {
+    if (do_thing) {
         call foo.my_task
 
         scatter (a in [1, 2, 3]) {

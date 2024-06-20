@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed parsing of workflow conditional statements to require parenthesis
+  surrounding the expression ([#94](https://github.com/stjude-rust-labs/wdl/pull/94)).
 * Fixed attaching trivia to the CST before starting a node ([#91](https://github.com/stjude-rust-labs/wdl/pull/91)).
 * Fixed the CST for an unparsable file (i.e. one without a supported version)
   to contain trivia before the version statement and correct spans for the
