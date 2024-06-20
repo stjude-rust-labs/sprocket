@@ -110,6 +110,7 @@ impl Default for Validator {
                 Box::<v1::validation::CountingVisitor>::default(),
                 Box::<v1::validation::UniqueKeysVisitor>::default(),
                 Box::<v1::validation::NumberVisitor>::default(),
+                Box::<v1::validation::UniqueNamesVisitor>::default(),
             ],
         }
     }

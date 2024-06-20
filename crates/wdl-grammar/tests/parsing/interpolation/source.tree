@@ -20,8 +20,8 @@ RootNode@0..472
       Ident@79..83 "name"
       Whitespace@83..84 " "
       Assignment@84..85 "="
-      LiteralStringNode@85..93
-        Whitespace@85..86 " "
+      Whitespace@85..86 " "
+      LiteralStringNode@86..93
         SingleQuote@86..87 "'"
         LiteralStringText@87..92 "world"
         SingleQuote@92..93 "'"
@@ -33,8 +33,8 @@ RootNode@0..472
       Ident@105..106 "a"
       Whitespace@106..107 " "
       Assignment@107..108 "="
-      LiteralStringNode@108..124
-        Whitespace@108..109 " "
+      Whitespace@108..109 " "
+      LiteralStringNode@109..124
         SingleQuote@109..110 "'"
         LiteralStringText@110..116 "Hello "
         PlaceholderNode@116..123
@@ -51,8 +51,8 @@ RootNode@0..472
       Ident@136..137 "b"
       Whitespace@137..138 " "
       Assignment@138..139 "="
-      LiteralStringNode@139..156
-        Whitespace@139..140 " "
+      Whitespace@139..140 " "
+      LiteralStringNode@140..156
         DoubleQuote@140..141 "\""
         LiteralStringText@141..147 "Hello "
         PlaceholderNode@147..155
@@ -69,8 +69,8 @@ RootNode@0..472
       Ident@168..169 "c"
       Whitespace@169..170 " "
       Assignment@170..171 "="
-      LiteralStringNode@171..190
-        Whitespace@171..172 " "
+      Whitespace@171..172 " "
+      LiteralStringNode@172..190
         DoubleQuote@172..173 "\""
         LiteralStringText@173..179 "Hello "
         PlaceholderNode@179..189
@@ -89,8 +89,8 @@ RootNode@0..472
       Ident@202..203 "d"
       Whitespace@203..204 " "
       Assignment@204..205 "="
-      LiteralStringNode@205..224
-        Whitespace@205..206 " "
+      Whitespace@205..206 " "
+      LiteralStringNode@206..224
         SingleQuote@206..207 "'"
         LiteralStringText@207..213 "Hello "
         PlaceholderNode@213..223
@@ -109,8 +109,8 @@ RootNode@0..472
       Ident@236..237 "e"
       Whitespace@237..238 " "
       Assignment@238..239 "="
-      LiteralStringNode@239..275
-        Whitespace@239..240 " "
+      Whitespace@239..240 " "
+      LiteralStringNode@240..275
         SingleQuote@240..241 "'"
         LiteralStringText@241..247 "Hello "
         PlaceholderNode@247..274
@@ -142,8 +142,8 @@ RootNode@0..472
       Ident@287..288 "f"
       Whitespace@288..289 " "
       Assignment@289..290 "="
-      LiteralStringNode@290..313
-        Whitespace@290..291 " "
+      Whitespace@290..291 " "
+      LiteralStringNode@291..313
         DoubleQuote@291..292 "\""
         PlaceholderNode@292..312
           PlaceholderOpen@292..294 "~{"
@@ -178,8 +178,8 @@ RootNode@0..472
       Ident@325..326 "g"
       Whitespace@326..327 " "
       Assignment@327..328 "="
-      LiteralStringNode@328..355
-        Whitespace@328..329 " "
+      Whitespace@328..329 " "
+      LiteralStringNode@329..355
         DoubleQuote@329..330 "\""
         PlaceholderNode@330..354
           PlaceholderOpen@330..332 "~{"
@@ -215,8 +215,8 @@ RootNode@0..472
       Ident@367..368 "h"
       Whitespace@368..369 " "
       Assignment@369..370 "="
-      LiteralStringNode@370..407
-        Whitespace@370..371 " "
+      Whitespace@370..371 " "
+      LiteralStringNode@371..407
         DoubleQuote@371..372 "\""
         PlaceholderNode@372..406
           PlaceholderOpen@372..374 "~{"
@@ -247,8 +247,8 @@ RootNode@0..472
       Ident@419..420 "i"
       Whitespace@420..421 " "
       Assignment@421..422 "="
-      LiteralStringNode@422..448
-        Whitespace@422..423 " "
+      Whitespace@422..423 " "
+      LiteralStringNode@423..448
         DoubleQuote@423..424 "\""
         PlaceholderNode@424..447
           PlaceholderOpen@424..426 "~{"

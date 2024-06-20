@@ -2,13 +2,13 @@
 
 version 1.1
 
-import "good"
-import "good"
-import "good"
+import "foo.wdl"    # OK
+import "bar.wdl"    # OK
+import "baz.wdl"    # OK
 
 workflow test {
 
 }
 
-import "bad"
-import "also bad"
+import "qux.wdl"    # BAD
+import "jam.wdl"    # BAD

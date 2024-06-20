@@ -12,6 +12,8 @@ documentation = "https://docs.rs/wdl-ast"
 [dependencies]
 wdl-grammar = { path = "../wdl-grammar", version = "0.4.0" }
 rowan = { workspace = true }
+url = { workspace = true }
+urlencoding = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

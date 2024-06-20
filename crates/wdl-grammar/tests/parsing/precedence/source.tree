@@ -20,86 +20,86 @@ RootNode@0..274
       Ident@78..79 "a"
       Whitespace@79..80 " "
       Assignment@80..81 "="
-      LogicalOrExprNode@81..148
-        LiteralBooleanNode@81..86
-          Whitespace@81..82 " "
+      Whitespace@81..82 " "
+      LogicalOrExprNode@82..148
+        LiteralBooleanNode@82..86
           TrueKeyword@82..86 "true"
         Whitespace@86..87 " "
         LogicalOr@87..89 "||"
-        LogicalAndExprNode@89..148
-          LiteralBooleanNode@89..95
-            Whitespace@89..90 " "
+        Whitespace@89..90 " "
+        LogicalAndExprNode@90..148
+          LiteralBooleanNode@90..95
             FalseKeyword@90..95 "false"
           Whitespace@95..96 " "
           LogicalAnd@96..98 "&&"
-          InequalityExprNode@98..148
-            EqualityExprNode@98..105
-              LiteralIntegerNode@98..100
-                Whitespace@98..99 " "
+          Whitespace@98..99 " "
+          InequalityExprNode@99..148
+            EqualityExprNode@99..105
+              LiteralIntegerNode@99..100
                 Integer@99..100 "1"
               Whitespace@100..101 " "
               Equal@101..103 "=="
-              LiteralIntegerNode@103..105
-                Whitespace@103..104 " "
+              Whitespace@103..104 " "
+              LiteralIntegerNode@104..105
                 Integer@104..105 "0"
             Whitespace@105..106 " "
             NotEqual@106..108 "!="
-            GreaterEqualExprNode@108..148
-              GreaterExprNode@108..123
-                LessEqualExprNode@108..119
-                  LessExprNode@108..114
-                    LiteralIntegerNode@108..110
-                      Whitespace@108..109 " "
+            Whitespace@108..109 " "
+            GreaterEqualExprNode@109..148
+              GreaterExprNode@109..123
+                LessEqualExprNode@109..119
+                  LessExprNode@109..114
+                    LiteralIntegerNode@109..110
                       Integer@109..110 "1"
                     Whitespace@110..111 " "
                     Less@111..112 "<"
-                    LiteralIntegerNode@112..114
-                      Whitespace@112..113 " "
+                    Whitespace@112..113 " "
+                    LiteralIntegerNode@113..114
                       Integer@113..114 "0"
                   Whitespace@114..115 " "
                   LessEqual@115..117 "<="
-                  LiteralIntegerNode@117..119
-                    Whitespace@117..118 " "
+                  Whitespace@117..118 " "
+                  LiteralIntegerNode@118..119
                     Integer@118..119 "1"
                 Whitespace@119..120 " "
                 Greater@120..121 ">"
-                LiteralIntegerNode@121..123
-                  Whitespace@121..122 " "
+                Whitespace@121..122 " "
+                LiteralIntegerNode@122..123
                   Integer@122..123 "0"
               Whitespace@123..124 " "
               GreaterEqual@124..126 ">="
-              SubtractionExprNode@126..148
-                AdditionExprNode@126..132
-                  LiteralIntegerNode@126..128
-                    Whitespace@126..127 " "
+              Whitespace@126..127 " "
+              SubtractionExprNode@127..148
+                AdditionExprNode@127..132
+                  LiteralIntegerNode@127..128
                     Integer@127..128 "1"
                   Whitespace@128..129 " "
                   Plus@129..130 "+"
-                  LiteralIntegerNode@130..132
-                    Whitespace@130..131 " "
+                  Whitespace@130..131 " "
+                  LiteralIntegerNode@131..132
                     Integer@131..132 "2"
                 Whitespace@132..133 " "
                 Minus@133..134 "-"
-                ModuloExprNode@134..148
-                  DivisionExprNode@134..144
-                    MultiplicationExprNode@134..140
-                      LiteralIntegerNode@134..136
-                        Whitespace@134..135 " "
+                Whitespace@134..135 " "
+                ModuloExprNode@135..148
+                  DivisionExprNode@135..144
+                    MultiplicationExprNode@135..140
+                      LiteralIntegerNode@135..136
                         Integer@135..136 "3"
                       Whitespace@136..137 " "
                       Asterisk@137..138 "*"
-                      LiteralIntegerNode@138..140
-                        Whitespace@138..139 " "
+                      Whitespace@138..139 " "
+                      LiteralIntegerNode@139..140
                         Integer@139..140 "4"
                     Whitespace@140..141 " "
                     Slash@141..142 "/"
-                    LiteralIntegerNode@142..144
-                      Whitespace@142..143 " "
+                    Whitespace@142..143 " "
+                    LiteralIntegerNode@143..144
                       Integer@143..144 "5"
                   Whitespace@144..145 " "
                   Percent@145..146 "%"
-                  LiteralIntegerNode@146..148
-                    Whitespace@146..147 " "
+                  Whitespace@146..147 " "
+                  LiteralIntegerNode@147..148
                     Integer@147..148 "6"
     Whitespace@148..153 "\n    "
     BoundDeclNode@153..188
@@ -109,46 +109,46 @@ RootNode@0..274
       Ident@157..158 "b"
       Whitespace@158..159 " "
       Assignment@159..160 "="
-      SubtractionExprNode@160..188
-        ParenthesizedExprNode@160..168
-          Whitespace@160..161 " "
+      Whitespace@160..161 " "
+      SubtractionExprNode@161..188
+        ParenthesizedExprNode@161..168
           OpenParen@161..162 "("
           AdditionExprNode@162..167
             LiteralIntegerNode@162..163
               Integer@162..163 "1"
             Whitespace@163..164 " "
             Plus@164..165 "+"
-            LiteralIntegerNode@165..167
-              Whitespace@165..166 " "
+            Whitespace@165..166 " "
+            LiteralIntegerNode@166..167
               Integer@166..167 "2"
           CloseParen@167..168 ")"
         Whitespace@168..169 " "
         Minus@169..170 "-"
-        DivisionExprNode@170..188
-          ParenthesizedExprNode@170..178
-            Whitespace@170..171 " "
+        Whitespace@170..171 " "
+        DivisionExprNode@171..188
+          ParenthesizedExprNode@171..178
             OpenParen@171..172 "("
             MultiplicationExprNode@172..177
               LiteralIntegerNode@172..173
                 Integer@172..173 "3"
               Whitespace@173..174 " "
               Asterisk@174..175 "*"
-              LiteralIntegerNode@175..177
-                Whitespace@175..176 " "
+              Whitespace@175..176 " "
+              LiteralIntegerNode@176..177
                 Integer@176..177 "4"
             CloseParen@177..178 ")"
           Whitespace@178..179 " "
           Slash@179..180 "/"
-          ParenthesizedExprNode@180..188
-            Whitespace@180..181 " "
+          Whitespace@180..181 " "
+          ParenthesizedExprNode@181..188
             OpenParen@181..182 "("
             ModuloExprNode@182..187
               LiteralIntegerNode@182..183
                 Integer@182..183 "5"
               Whitespace@183..184 " "
               Percent@184..185 "%"
-              LiteralIntegerNode@185..187
-                Whitespace@185..186 " "
+              Whitespace@185..186 " "
+              LiteralIntegerNode@186..187
                 Integer@186..187 "6"
             CloseParen@187..188 ")"
     Whitespace@188..193 "\n    "
@@ -159,86 +159,86 @@ RootNode@0..274
       Ident@201..202 "c"
       Whitespace@202..203 " "
       Assignment@203..204 "="
-      LogicalOrExprNode@204..271
-        LogicalAndExprNode@204..263
-          EqualityExprNode@204..254
-            InequalityExprNode@204..249
-              LessExprNode@204..244
-                LessEqualExprNode@204..240
-                  GreaterExprNode@204..235
-                    GreaterEqualExprNode@204..231
-                      SubtractionExprNode@204..226
-                        AdditionExprNode@204..210
-                          LiteralIntegerNode@204..206
-                            Whitespace@204..205 " "
+      Whitespace@204..205 " "
+      LogicalOrExprNode@205..271
+        LogicalAndExprNode@205..263
+          EqualityExprNode@205..254
+            InequalityExprNode@205..249
+              LessExprNode@205..244
+                LessEqualExprNode@205..240
+                  GreaterExprNode@205..235
+                    GreaterEqualExprNode@205..231
+                      SubtractionExprNode@205..226
+                        AdditionExprNode@205..210
+                          LiteralIntegerNode@205..206
                             Integer@205..206 "1"
                           Whitespace@206..207 " "
                           Plus@207..208 "+"
-                          LiteralIntegerNode@208..210
-                            Whitespace@208..209 " "
+                          Whitespace@208..209 " "
+                          LiteralIntegerNode@209..210
                             Integer@209..210 "2"
                         Whitespace@210..211 " "
                         Minus@211..212 "-"
-                        ModuloExprNode@212..226
-                          DivisionExprNode@212..222
-                            MultiplicationExprNode@212..218
-                              LiteralIntegerNode@212..214
-                                Whitespace@212..213 " "
+                        Whitespace@212..213 " "
+                        ModuloExprNode@213..226
+                          DivisionExprNode@213..222
+                            MultiplicationExprNode@213..218
+                              LiteralIntegerNode@213..214
                                 Integer@213..214 "3"
                               Whitespace@214..215 " "
                               Asterisk@215..216 "*"
-                              LiteralIntegerNode@216..218
-                                Whitespace@216..217 " "
+                              Whitespace@216..217 " "
+                              LiteralIntegerNode@217..218
                                 Integer@217..218 "4"
                             Whitespace@218..219 " "
                             Slash@219..220 "/"
-                            LiteralIntegerNode@220..222
-                              Whitespace@220..221 " "
+                            Whitespace@220..221 " "
+                            LiteralIntegerNode@221..222
                               Integer@221..222 "5"
                           Whitespace@222..223 " "
                           Percent@223..224 "%"
-                          LiteralIntegerNode@224..226
-                            Whitespace@224..225 " "
+                          Whitespace@224..225 " "
+                          LiteralIntegerNode@225..226
                             Integer@225..226 "6"
                       Whitespace@226..227 " "
                       GreaterEqual@227..229 ">="
-                      LiteralIntegerNode@229..231
-                        Whitespace@229..230 " "
+                      Whitespace@229..230 " "
+                      LiteralIntegerNode@230..231
                         Integer@230..231 "0"
                     Whitespace@231..232 " "
                     Greater@232..233 ">"
-                    LiteralIntegerNode@233..235
-                      Whitespace@233..234 " "
+                    Whitespace@233..234 " "
+                    LiteralIntegerNode@234..235
                       Integer@234..235 "1"
                   Whitespace@235..236 " "
                   LessEqual@236..238 "<="
-                  LiteralIntegerNode@238..240
-                    Whitespace@238..239 " "
+                  Whitespace@238..239 " "
+                  LiteralIntegerNode@239..240
                     Integer@239..240 "0"
                 Whitespace@240..241 " "
                 Less@241..242 "<"
-                LiteralIntegerNode@242..244
-                  Whitespace@242..243 " "
+                Whitespace@242..243 " "
+                LiteralIntegerNode@243..244
                   Integer@243..244 "1"
               Whitespace@244..245 " "
               NotEqual@245..247 "!="
-              LiteralIntegerNode@247..249
-                Whitespace@247..248 " "
+              Whitespace@247..248 " "
+              LiteralIntegerNode@248..249
                 Integer@248..249 "0"
             Whitespace@249..250 " "
             Equal@250..252 "=="
-            LiteralIntegerNode@252..254
-              Whitespace@252..253 " "
+            Whitespace@252..253 " "
+            LiteralIntegerNode@253..254
               Integer@253..254 "1"
           Whitespace@254..255 " "
           LogicalAnd@255..257 "&&"
-          LiteralBooleanNode@257..263
-            Whitespace@257..258 " "
+          Whitespace@257..258 " "
+          LiteralBooleanNode@258..263
             FalseKeyword@258..263 "false"
         Whitespace@263..264 " "
         LogicalOr@264..266 "||"
-        LiteralBooleanNode@266..271
-          Whitespace@266..267 " "
+        Whitespace@266..267 " "
+        LiteralBooleanNode@267..271
           TrueKeyword@267..271 "true"
     Whitespace@271..272 "\n"
     CloseBrace@272..273 "}"

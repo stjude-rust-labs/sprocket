@@ -25,8 +25,8 @@ RootNode@0..415
         Ident@111..112 "a"
         Whitespace@112..113 " "
         Assignment@113..114 "="
-        LiteralStringNode@114..123
-          Whitespace@114..115 " "
+        Whitespace@114..115 " "
+        LiteralStringNode@115..123
           DoubleQuote@115..116 "\""
           LiteralStringText@116..122 "friend"
           DoubleQuote@122..123 "\""
@@ -38,14 +38,14 @@ RootNode@0..415
         Ident@136..137 "b"
         Whitespace@137..138 " "
         Assignment@138..139 "="
-        AdditionExprNode@139..145
-          LiteralIntegerNode@139..141
-            Whitespace@139..140 " "
+        Whitespace@139..140 " "
+        AdditionExprNode@140..145
+          LiteralIntegerNode@140..141
             Integer@140..141 "1"
           Whitespace@141..142 " "
           Plus@142..143 "+"
-          LiteralIntegerNode@143..145
-            Whitespace@143..144 " "
+          Whitespace@143..144 " "
+          LiteralIntegerNode@144..145
             Integer@144..145 "2"
       Whitespace@145..154 "\n        "
       BoundDeclNode@154..178
@@ -55,8 +55,8 @@ RootNode@0..415
         Ident@161..162 "c"
         Whitespace@162..163 " "
         Assignment@163..164 "="
-        LiteralStringNode@164..178
-          Whitespace@164..165 " "
+        Whitespace@164..165 " "
+        LiteralStringNode@165..178
           DoubleQuote@165..166 "\""
           LiteralStringText@166..173 "Hello, "
           PlaceholderNode@173..177
@@ -73,16 +73,16 @@ RootNode@0..415
           PrimitiveTypeNode@191..197
             StringTypeKeyword@191..197 "String"
           Comma@197..198 ","
-          PrimitiveTypeNode@198..202
-            Whitespace@198..199 " "
+          Whitespace@198..199 " "
+          PrimitiveTypeNode@199..202
             IntTypeKeyword@199..202 "Int"
           CloseBracket@202..203 "]"
         Whitespace@203..204 " "
         Ident@204..205 "d"
         Whitespace@205..206 " "
         Assignment@206..207 "="
-        LiteralMapNode@207..233
-          Whitespace@207..208 " "
+        Whitespace@207..208 " "
+        LiteralMapNode@208..233
           OpenBrace@208..209 "{"
           Whitespace@209..210 " "
           LiteralMapItemNode@210..216
@@ -91,8 +91,8 @@ RootNode@0..415
               LiteralStringText@211..212 "a"
               DoubleQuote@212..213 "\""
             Colon@213..214 ":"
-            LiteralIntegerNode@214..216
-              Whitespace@214..215 " "
+            Whitespace@214..215 " "
+            LiteralIntegerNode@215..216
               Integer@215..216 "0"
           Comma@216..217 ","
           Whitespace@217..218 " "
@@ -102,8 +102,8 @@ RootNode@0..415
               LiteralStringText@219..220 "b"
               DoubleQuote@220..221 "\""
             Colon@221..222 ":"
-            LiteralIntegerNode@222..224
-              Whitespace@222..223 " "
+            Whitespace@222..223 " "
+            LiteralIntegerNode@223..224
               Integer@223..224 "1"
           Comma@224..225 ","
           Whitespace@225..226 " "
@@ -113,8 +113,8 @@ RootNode@0..415
               LiteralStringText@227..228 "c"
               DoubleQuote@228..229 "\""
             Colon@229..230 ":"
-            LiteralIntegerNode@230..232
-              Whitespace@230..231 " "
+            Whitespace@230..231 " "
+            LiteralIntegerNode@231..232
               Integer@231..232 "2"
           CloseBrace@232..233 "}"
       Whitespace@233..238 "\n    "
@@ -141,8 +141,8 @@ RootNode@0..415
         Ident@284..285 "a"
         Whitespace@285..286 " "
         Assignment@286..287 "="
-        LiteralStringNode@287..296
-          Whitespace@287..288 " "
+        Whitespace@287..288 " "
+        LiteralStringNode@288..296
           DoubleQuote@288..289 "\""
           LiteralStringText@289..295 "friend"
           DoubleQuote@295..296 "\""
@@ -154,14 +154,14 @@ RootNode@0..415
         Ident@309..310 "b"
         Whitespace@310..311 " "
         Assignment@311..312 "="
-        AdditionExprNode@312..318
-          LiteralIntegerNode@312..314
-            Whitespace@312..313 " "
+        Whitespace@312..313 " "
+        AdditionExprNode@313..318
+          LiteralIntegerNode@313..314
             Integer@313..314 "1"
           Whitespace@314..315 " "
           Plus@315..316 "+"
-          LiteralIntegerNode@316..318
-            Whitespace@316..317 " "
+          Whitespace@316..317 " "
+          LiteralIntegerNode@317..318
             Integer@317..318 "2"
       Whitespace@318..327 "\n        "
       BoundDeclNode@327..351
@@ -171,8 +171,8 @@ RootNode@0..415
         Ident@334..335 "c"
         Whitespace@335..336 " "
         Assignment@336..337 "="
-        LiteralStringNode@337..351
-          Whitespace@337..338 " "
+        Whitespace@337..338 " "
+        LiteralStringNode@338..351
           DoubleQuote@338..339 "\""
           LiteralStringText@339..346 "Hello, "
           PlaceholderNode@346..350
@@ -189,16 +189,16 @@ RootNode@0..415
           PrimitiveTypeNode@364..370
             StringTypeKeyword@364..370 "String"
           Comma@370..371 ","
-          PrimitiveTypeNode@371..375
-            Whitespace@371..372 " "
+          Whitespace@371..372 " "
+          PrimitiveTypeNode@372..375
             IntTypeKeyword@372..375 "Int"
           CloseBracket@375..376 "]"
         Whitespace@376..377 " "
         Ident@377..378 "d"
         Whitespace@378..379 " "
         Assignment@379..380 "="
-        LiteralMapNode@380..406
-          Whitespace@380..381 " "
+        Whitespace@380..381 " "
+        LiteralMapNode@381..406
           OpenBrace@381..382 "{"
           Whitespace@382..383 " "
           LiteralMapItemNode@383..389
@@ -207,8 +207,8 @@ RootNode@0..415
               LiteralStringText@384..385 "a"
               DoubleQuote@385..386 "\""
             Colon@386..387 ":"
-            LiteralIntegerNode@387..389
-              Whitespace@387..388 " "
+            Whitespace@387..388 " "
+            LiteralIntegerNode@388..389
               Integer@388..389 "0"
           Comma@389..390 ","
           Whitespace@390..391 " "
@@ -218,8 +218,8 @@ RootNode@0..415
               LiteralStringText@392..393 "b"
               DoubleQuote@393..394 "\""
             Colon@394..395 ":"
-            LiteralIntegerNode@395..397
-              Whitespace@395..396 " "
+            Whitespace@395..396 " "
+            LiteralIntegerNode@396..397
               Integer@396..397 "1"
           Comma@397..398 ","
           Whitespace@398..399 " "
@@ -229,8 +229,8 @@ RootNode@0..415
               LiteralStringText@400..401 "c"
               DoubleQuote@401..402 "\""
             Colon@402..403 ":"
-            LiteralIntegerNode@403..405
-              Whitespace@403..404 " "
+            Whitespace@403..404 " "
+            LiteralIntegerNode@404..405
               Integer@404..405 "2"
           CloseBrace@405..406 "}"
       Whitespace@406..411 "\n    "

@@ -692,9 +692,15 @@ where
 
     /// Starts a new node event.
     pub fn start(&mut self) -> Marker {
-        // Append any buffered trivia before we start this node
-        if !self.buffered.is_empty() {
-            self.events.append(&mut self.buffered);
+        // Peek before starting the node so that any trivia appears as siblings to this
+        // node
+        if !self.events.is_empty() {
+            self.peek();
+
+            // Append any buffered trivia before we start this node
+            if !self.buffered.is_empty() {
+                self.events.append(&mut self.buffered);
+            }
         }
 
         let pos = self.events.len();

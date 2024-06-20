@@ -8,16 +8,16 @@ RootNode@0..245
   Whitespace@51..53 "\n\n"
   ImportStatementNode@53..67
     ImportKeyword@53..59 "import"
-    LiteralStringNode@59..67
-      Whitespace@59..60 " "
+    Whitespace@59..60 " "
+    LiteralStringNode@60..67
       DoubleQuote@60..61 "\""
       LiteralStringText@61..66 "a.wdl"
       DoubleQuote@66..67 "\""
   Whitespace@67..68 "\n"
   ImportStatementNode@68..120
     ImportKeyword@68..74 "import"
-    LiteralStringNode@74..110
-      Whitespace@74..75 " "
+    Whitespace@74..75 " "
+    LiteralStringNode@75..110
       DoubleQuote@75..76 "\""
       LiteralStringText@76..109 "http://example.com/li ..."
       DoubleQuote@109..110 "\""
@@ -28,8 +28,8 @@ RootNode@0..245
   Whitespace@120..121 "\n"
   ImportStatementNode@121..169
     ImportKeyword@121..127 "import"
-    LiteralStringNode@127..135
-      Whitespace@127..128 " "
+    Whitespace@127..128 " "
+    LiteralStringNode@128..135
       DoubleQuote@128..129 "\""
       LiteralStringText@129..134 "c.wdl"
       DoubleQuote@134..135 "\""
@@ -54,8 +54,8 @@ RootNode@0..245
   Whitespace@169..171 " \n"
   ImportStatementNode@171..244
     ImportKeyword@171..177 "import"
-    LiteralStringNode@177..185
-      Whitespace@177..178 " "
+    Whitespace@177..178 " "
+    LiteralStringNode@178..185
       DoubleQuote@178..179 "\""
       LiteralStringText@179..184 "d.wdl"
       DoubleQuote@184..185 "\""

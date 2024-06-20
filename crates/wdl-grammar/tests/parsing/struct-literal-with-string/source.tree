@@ -24,8 +24,8 @@ RootNode@0..649
       Ident@220..236 "standard_runtime"
       Whitespace@236..237 " "
       Assignment@237..238 "="
-      LiteralStructNode@238..502
-        Whitespace@238..239 " "
+      Whitespace@238..239 " "
+      LiteralStructNode@239..502
         Ident@239..246 "Runtime"
         Whitespace@246..247 " "
         OpenBrace@247..248 "{"
@@ -79,8 +79,8 @@ RootNode@0..649
     Whitespace@592..597 "\n    "
     ConditionalStatementNode@597..646
       IfKeyword@597..599 "if"
-      NameRefNode@599..603
-        Whitespace@599..600 " "
+      Whitespace@599..600 " "
+      NameRefNode@600..603
         Ident@600..603 "foo"
       Whitespace@603..604 " "
       OpenBrace@604..605 "{"

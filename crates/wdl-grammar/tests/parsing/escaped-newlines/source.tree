@@ -20,8 +20,8 @@ RootNode@0..333
       Ident@108..109 "x"
       Whitespace@109..110 " "
       Assignment@110..111 "="
-      LiteralStringNode@111..128
-        Whitespace@111..112 " "
+      Whitespace@111..112 " "
+      LiteralStringNode@112..128
         DoubleQuote@112..113 "\""
         LiteralStringText@113..127 "first \\\nsecond"
         DoubleQuote@127..128 "\""
@@ -49,8 +49,8 @@ RootNode@0..333
       Ident@233..234 "x"
       Whitespace@234..235 " "
       Assignment@235..236 "="
-      LiteralStringNode@236..253
-        Whitespace@236..237 " "
+      Whitespace@236..237 " "
+      LiteralStringNode@237..253
         SingleQuote@237..238 "'"
         LiteralStringText@238..252 "first \\\nsecond"
         SingleQuote@252..253 "'"

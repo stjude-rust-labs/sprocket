@@ -34,8 +34,8 @@ RootNode@0..168
       MetadataObjectItemNode@143..159
         Ident@143..150 "correct"
         Colon@150..151 ":"
-        LiteralStringNode@151..159
-          Whitespace@151..152 " "
+        Whitespace@151..152 " "
+        LiteralStringNode@152..159
           DoubleQuote@152..153 "\""
           LiteralStringText@153..158 "value"
           DoubleQuote@158..159 "\""

@@ -1,5 +1,12 @@
 //! V1 AST representation for import statements.
 
+use std::ffi::OsStr;
+use std::path::Path;
+
+use url::Url;
+use wdl_grammar::lexer::v1::Logos;
+use wdl_grammar::lexer::v1::Token;
+
 use super::LiteralString;
 use crate::support::child;
 use crate::support::children;
@@ -8,9 +15,11 @@ use crate::AstChildren;
 use crate::AstNode;
 use crate::AstToken;
 use crate::Ident;
+use crate::Span;
 use crate::SyntaxElement;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
+use crate::ToSpan;
 use crate::WorkflowDescriptionLanguage;
 
 /// Represents an import statement.
@@ -23,15 +32,59 @@ impl ImportStatement {
         child(&self.0).expect("import should have a URI")
     }
 
-    /// Gets the optional namespace of the import statement (i.e. the `as`
+    /// Gets the explicit namespace of the import statement (i.e. the `as`
     /// clause).
-    pub fn namespace(&self) -> Option<Ident> {
+    pub fn explicit_namespace(&self) -> Option<Ident> {
         token(&self.0)
     }
 
     /// Gets the aliased names of the import statement.
     pub fn aliases(&self) -> AstChildren<ImportAlias> {
         children(&self.0)
+    }
+
+    /// Gets the namespace of the import.
+    ///
+    /// If an explicit namespace was not present, this will determine the
+    /// namespace based on the URI.
+    ///
+    /// Returns `None` if the namespace could not be derived; this may occur
+    /// when the URI contains an interpolation or if the file stem of the
+    /// URI is not a valid WDL identifier.
+    ///
+    /// The returned span is either the span of the explicit namespace or the
+    /// span of the URI.
+    pub fn namespace(&self) -> Option<(String, Span)> {
+        if let Some(explicit) = self.explicit_namespace() {
+            return Some((explicit.as_str().to_string(), explicit.span()));
+        }
+
+        // Get just the file stem of the URI
+        let uri = self.uri();
+        let text = uri.text()?;
+        let stem = match Url::parse(text.as_str()) {
+            Ok(url) => Path::new(
+                urlencoding::decode(url.path_segments()?.last()?)
+                    .ok()?
+                    .as_ref(),
+            )
+            .file_stem()
+            .and_then(OsStr::to_str)?
+            .to_string(),
+            Err(_) => Path::new(text.as_str())
+                .file_stem()
+                .and_then(OsStr::to_str)?
+                .to_string(),
+        };
+
+        // Check to see if the stem is a valid WDL identifier
+        let mut lexer = Token::lexer(&stem);
+        match lexer.next()?.ok()? {
+            Token::Ident if lexer.next().is_none() => {}
+            _ => return None,
+        }
+
+        Some((stem.to_string(), uri.syntax().text_range().to_span()))
     }
 }
 
@@ -145,22 +198,32 @@ import "qux.wdl" as x alias A as B alias C as D
 
                 // First import statement
                 assert_eq!(imports[0].uri().text().unwrap().as_str(), "foo.wdl");
-                assert!(imports[0].namespace().is_none());
+                assert!(imports[0].explicit_namespace().is_none());
+                assert_eq!(
+                    imports[0].namespace().map(|(n, _)| n).as_deref(),
+                    Some("foo")
+                );
                 assert_eq!(imports[0].aliases().count(), 0);
 
                 // Second import statement
                 assert_eq!(imports[1].uri().text().unwrap().as_str(), "bar.wdl");
-                assert_eq!(imports[1].namespace().unwrap().as_str(), "x");
+                assert_eq!(imports[1].explicit_namespace().unwrap().as_str(), "x");
+                assert_eq!(imports[1].namespace().map(|(n, _)| n).as_deref(), Some("x"));
                 assert_eq!(imports[1].aliases().count(), 0);
 
                 // Third import statement
                 assert_eq!(imports[2].uri().text().unwrap().as_str(), "baz.wdl");
-                assert!(imports[2].namespace().is_none());
+                assert!(imports[2].explicit_namespace().is_none());
+                assert_eq!(
+                    imports[2].namespace().map(|(n, _)| n).as_deref(),
+                    Some("baz")
+                );
                 assert_aliases(imports[2].aliases());
 
                 // Fourth import statement
                 assert_eq!(imports[3].uri().text().unwrap().as_str(), "qux.wdl");
-                assert_eq!(imports[3].namespace().unwrap().as_str(), "x");
+                assert_eq!(imports[3].explicit_namespace().unwrap().as_str(), "x");
+                assert_eq!(imports[3].namespace().map(|(n, _)| n).as_deref(), Some("x"));
                 assert_aliases(imports[3].aliases());
 
                 // Use a visitor to visit the import statements in the tree

@@ -25,8 +25,8 @@ RootNode@0..467
         Ident@94..98 "name"
         Whitespace@98..99 " "
         Assignment@99..100 "="
-        LiteralStringNode@100..108
-          Whitespace@100..101 " "
+        Whitespace@100..101 " "
+        LiteralStringNode@101..108
           DoubleQuote@101..102 "\""
           LiteralStringText@102..107 "world"
           DoubleQuote@107..108 "\""
@@ -67,8 +67,8 @@ RootNode@0..467
         Ident@305..309 "name"
         Whitespace@309..310 " "
         Assignment@310..311 "="
-        LiteralStringNode@311..319
-          Whitespace@311..312 " "
+        Whitespace@311..312 " "
+        LiteralStringNode@312..319
           DoubleQuote@312..313 "\""
           LiteralStringText@313..318 "world"
           DoubleQuote@318..319 "\""

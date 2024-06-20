@@ -20,8 +20,8 @@ RootNode@0..193
       Ident@83..84 "a"
       Whitespace@84..85 " "
       InKeyword@85..87 "in"
-      LiteralArrayNode@87..97
-        Whitespace@87..88 " "
+      Whitespace@87..88 " "
+      LiteralArrayNode@88..97
         OpenBracket@88..89 "["
         LiteralIntegerNode@89..90
           Integer@89..90 "1"
@@ -45,16 +45,16 @@ RootNode@0..193
         Ident@116..119 "msg"
         Whitespace@119..120 " "
         Assignment@120..121 "="
-        LiteralStringNode@121..126
-          Whitespace@121..122 " "
+        Whitespace@121..122 " "
+        LiteralStringNode@122..126
           DoubleQuote@122..123 "\""
           LiteralStringText@123..125 "hi"
           DoubleQuote@125..126 "\""
       Whitespace@126..135 "\n        "
       CallStatementNode@135..154
         CallKeyword@135..139 "call"
-        CallTargetNode@139..141
-          Whitespace@139..140 " "
+        Whitespace@139..140 " "
+        CallTargetNode@140..141
           Ident@140..141 "x"
         Whitespace@141..142 " "
         OpenBrace@142..143 "{"
@@ -69,8 +69,8 @@ RootNode@0..193
       Whitespace@154..163 "\n        "
       CallStatementNode@163..184
         CallKeyword@163..167 "call"
-        CallTargetNode@167..169
-          Whitespace@167..168 " "
+        Whitespace@167..168 " "
+        CallTargetNode@168..169
           Ident@168..169 "y"
         Whitespace@169..170 " "
         OpenBrace@170..171 "{"

@@ -21,8 +21,8 @@ RootNode@0..175
       MetadataObjectItemNode@102..118
         Ident@102..109 "version"
         Colon@109..110 ":"
-        LiteralStringNode@110..118
-          Whitespace@110..111 " "
+        Whitespace@110..111 " "
+        LiteralStringNode@111..118
           DoubleQuote@111..112 "\""
           LiteralStringText@112..117 "1.1.1"
           DoubleQuote@117..118 "\""
@@ -37,8 +37,8 @@ RootNode@0..175
       MetadataObjectItemNode@155..166
         Ident@155..159 "task"
         Colon@159..160 ":"
-        LiteralStringNode@160..166
-          Whitespace@160..161 " "
+        Whitespace@160..161 " "
+        LiteralStringNode@161..166
           DoubleQuote@161..162 "\""
           LiteralStringText@162..165 "foo"
           DoubleQuote@165..166 "\""

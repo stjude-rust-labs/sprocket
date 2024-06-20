@@ -15,8 +15,8 @@ RootNode@0..81
     Whitespace@64..69 "\n    "
     CallStatementNode@69..79
       CallKeyword@69..73 "call"
-      CallTargetNode@73..75
-        Whitespace@73..74 " "
+      Whitespace@73..74 " "
+      CallTargetNode@74..75
         Ident@74..75 "x"
       Whitespace@75..76 " "
       OpenBrace@76..77 "{"

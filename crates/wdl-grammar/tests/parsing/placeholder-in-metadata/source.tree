@@ -21,8 +21,8 @@ RootNode@0..143
       MetadataObjectItemNode@100..134
         Ident@100..101 "s"
         Colon@101..102 ":"
-        LiteralStringNode@102..134
-          Whitespace@102..103 " "
+        Whitespace@102..103 " "
+        LiteralStringNode@103..134
           DoubleQuote@103..104 "\""
           LiteralStringText@104..133 "this has a placeholde ..."
           DoubleQuote@133..134 "\""

@@ -1,0 +1,34 @@
+error: conflicting workflow name `foo`
+  ┌─ tests/validation/conflicting-workflow-names/source.wdl:9:10
+  │
+5 │ task foo {
+  │      --- the task with the conflicting name is here
+  ·
+9 │ workflow foo {}
+  │          ^^^ this conflicts with a task of the same name
+
+error: cannot define workflow `bar` as only one workflow is allowed per source file
+   ┌─ tests/validation/conflicting-workflow-names/source.wdl:10:10
+   │
+ 9 │ workflow foo {}
+   │          --- first workflow is defined here
+10 │ workflow bar {}
+   │          ^^^ consider moving this workflow to a new file
+
+error: cannot define workflow `bar` as only one workflow is allowed per source file
+   ┌─ tests/validation/conflicting-workflow-names/source.wdl:11:10
+   │
+ 9 │ workflow foo {}
+   │          --- first workflow is defined here
+10 │ workflow bar {}
+11 │ workflow bar {}
+   │          ^^^ consider moving this workflow to a new file
+
+error: conflicting workflow name `bar`
+   ┌─ tests/validation/conflicting-workflow-names/source.wdl:11:10
+   │
+10 │ workflow bar {}
+   │          --- the workflow with the conflicting name is here
+11 │ workflow bar {}
+   │          ^^^ this conflicts with a workflow of the same name
+

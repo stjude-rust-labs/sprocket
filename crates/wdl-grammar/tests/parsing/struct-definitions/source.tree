@@ -120,8 +120,8 @@ RootNode@0..1134
         PrimitiveTypeNode@456..463
           BooleanTypeKeyword@456..463 "Boolean"
         Comma@463..464 ","
-        PrimitiveTypeNode@464..471
-          Whitespace@464..465 " "
+        Whitespace@464..465 " "
+        PrimitiveTypeNode@465..471
           StringTypeKeyword@465..471 "String"
         CloseBracket@471..472 "]"
       Whitespace@472..473 " "
@@ -135,8 +135,8 @@ RootNode@0..1134
           IntTypeKeyword@483..486 "Int"
           QuestionMark@486..487 "?"
         Comma@487..488 ","
-        ArrayTypeNode@488..502
-          Whitespace@488..489 " "
+        Whitespace@488..489 " "
+        ArrayTypeNode@489..502
           ArrayTypeKeyword@489..494 "Array"
           OpenBracket@494..495 "["
           PrimitiveTypeNode@495..501
@@ -153,15 +153,15 @@ RootNode@0..1134
         PrimitiveTypeNode@514..519
           FloatTypeKeyword@514..519 "Float"
         Comma@519..520 ","
-        MapTypeNode@520..552
-          Whitespace@520..521 " "
+        Whitespace@520..521 " "
+        MapTypeNode@521..552
           MapTypeKeyword@521..524 "Map"
           OpenBracket@524..525 "["
           PrimitiveTypeNode@525..531
             StringTypeKeyword@525..531 "String"
           Comma@531..532 ","
-          ArrayTypeNode@532..551
-            Whitespace@532..533 " "
+          Whitespace@532..533 " "
+          ArrayTypeNode@533..551
             ArrayTypeKeyword@533..538 "Array"
             OpenBracket@538..539 "["
             ArrayTypeNode@539..550
@@ -183,8 +183,8 @@ RootNode@0..1134
         PrimitiveTypeNode@564..570
           StringTypeKeyword@564..570 "String"
         Comma@570..571 ","
-        PairTypeNode@571..612
-          Whitespace@571..572 " "
+        Whitespace@571..572 " "
+        PairTypeNode@572..612
           PairTypeKeyword@572..576 "Pair"
           OpenBracket@576..577 "["
           ArrayTypeNode@577..590
@@ -194,15 +194,15 @@ RootNode@0..1134
               StringTypeKeyword@583..589 "String"
             CloseBracket@589..590 "]"
           Comma@590..591 ","
-          MapTypeNode@591..611
-            Whitespace@591..592 " "
+          Whitespace@591..592 " "
+          MapTypeNode@592..611
             MapTypeKeyword@592..595 "Map"
             OpenBracket@595..596 "["
             PrimitiveTypeNode@596..602
               StringTypeKeyword@596..602 "String"
             Comma@602..603 ","
-            PrimitiveTypeNode@603..610
-              Whitespace@603..604 " "
+            Whitespace@603..604 " "
+            PrimitiveTypeNode@604..610
               StringTypeKeyword@604..610 "String"
             CloseBracket@610..611 "]"
           CloseBracket@611..612 "]"
@@ -217,8 +217,8 @@ RootNode@0..1134
         PrimitiveTypeNode@624..628
           FileTypeKeyword@624..628 "File"
         Comma@628..629 ","
-        PrimitiveTypeNode@629..634
-          Whitespace@629..630 " "
+        Whitespace@629..630 " "
+        PrimitiveTypeNode@630..634
           FileTypeKeyword@630..634 "File"
         CloseBracket@634..635 "]"
       Whitespace@635..636 " "
@@ -260,8 +260,8 @@ RootNode@0..1134
           PrimitiveTypeNode@713..719
             StringTypeKeyword@713..719 "String"
           Comma@719..720 ","
-          ObjectTypeNode@720..727
-            Whitespace@720..721 " "
+          Whitespace@720..721 " "
+          ObjectTypeNode@721..727
             ObjectTypeKeyword@721..727 "Object"
           CloseBracket@727..728 "]"
         CloseBracket@728..729 "]"
@@ -337,8 +337,8 @@ RootNode@0..1134
         PrimitiveTypeNode@891..898
           BooleanTypeKeyword@891..898 "Boolean"
         Comma@898..899 ","
-        PrimitiveTypeNode@899..907
-          Whitespace@899..900 " "
+        Whitespace@899..900 " "
+        PrimitiveTypeNode@900..907
           BooleanTypeKeyword@900..907 "Boolean"
         CloseBracket@907..908 "]"
       Whitespace@908..909 " "
@@ -358,18 +358,18 @@ RootNode@0..1134
               StringTypeKeyword@930..936 "String"
               QuestionMark@936..937 "?"
             Comma@937..938 ","
-            PrimitiveTypeNode@938..945
-              Whitespace@938..939 " "
+            Whitespace@938..939 " "
+            PrimitiveTypeNode@939..945
               StringTypeKeyword@939..945 "String"
             CloseBracket@945..946 "]"
           Comma@946..947 ","
-          PrimitiveTypeNode@947..951
-            Whitespace@947..948 " "
+          Whitespace@947..948 " "
+          PrimitiveTypeNode@948..951
             IntTypeKeyword@948..951 "Int"
           CloseBracket@951..952 "]"
         Comma@952..953 ","
-        PrimitiveTypeNode@953..959
-          Whitespace@953..954 " "
+        Whitespace@953..954 " "
+        PrimitiveTypeNode@954..959
           FloatTypeKeyword@954..959 "Float"
         CloseBracket@959..960 "]"
       Whitespace@960..961 " "
@@ -386,21 +386,21 @@ RootNode@0..1134
             StringTypeKeyword@976..982 "String"
             QuestionMark@982..983 "?"
           Comma@983..984 ","
-          PairTypeNode@984..1005
-            Whitespace@984..985 " "
+          Whitespace@984..985 " "
+          PairTypeNode@985..1005
             PairTypeKeyword@985..989 "Pair"
             OpenBracket@989..990 "["
             PrimitiveTypeNode@990..996
               StringTypeKeyword@990..996 "String"
             Comma@996..997 ","
-            PrimitiveTypeNode@997..1004
-              Whitespace@997..998 " "
+            Whitespace@997..998 " "
+            PrimitiveTypeNode@998..1004
               StringTypeKeyword@998..1004 "String"
             CloseBracket@1004..1005 "]"
           CloseBracket@1005..1006 "]"
         Comma@1006..1007 ","
-        PrimitiveTypeNode@1007..1012
-          Whitespace@1007..1008 " "
+        Whitespace@1007..1008 " "
+        PrimitiveTypeNode@1008..1012
           IntTypeKeyword@1008..1011 "Int"
           QuestionMark@1011..1012 "?"
         CloseBracket@1012..1013 "]"
@@ -418,8 +418,8 @@ RootNode@0..1134
             StringTypeKeyword@1031..1037 "String"
           CloseBracket@1037..1038 "]"
         Comma@1038..1039 ","
-        ArrayTypeNode@1039..1054
-          Whitespace@1039..1040 " "
+        Whitespace@1039..1040 " "
+        ArrayTypeNode@1040..1054
           ArrayTypeKeyword@1040..1045 "Array"
           OpenBracket@1045..1046 "["
           PrimitiveTypeNode@1046..1053

@@ -312,8 +312,160 @@ document = "biowdl/tasks:/umi.wdl"
 message = 'umi.wdl:39:60: error: unknown escape sequence `\.`'
 
 [[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/ApplyBQSR.wdl"
+message = "ApplyBQSR.wdl:104:6: error: conflicting task name `ApplyBQSR`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/ApplyBQSRAllArgs.wdl"
+message = "ApplyBQSRAllArgs.wdl:287:6: error: conflicting task name `ApplyBQSR`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/BaseRecalibrator.wdl"
+message = "BaseRecalibrator.wdl:111:6: error: conflicting task name `BaseRecalibrator`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/BaseRecalibratorAllArgs.wdl"
+message = "BaseRecalibratorAllArgs.wdl:314:6: error: conflicting task name `BaseRecalibrator`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/ClipReads.wdl"
+message = "ClipReads.wdl:100:6: error: conflicting task name `ClipReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/ClipReadsAllArgs.wdl"
+message = "ClipReadsAllArgs.wdl:300:6: error: conflicting task name `ClipReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/CollectReadCounts.wdl"
+message = "CollectReadCounts.wdl:99:6: error: conflicting task name `CollectReadCounts`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/CollectReadCountsAllArgs.wdl"
+message = "CollectReadCountsAllArgs.wdl:262:6: error: conflicting task name `CollectReadCounts`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/CombineGVCFs.wdl"
+message = "CombineGVCFs.wdl:112:6: error: conflicting task name `CombineGVCFs`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/CombineGVCFsAllArgs.wdl"
+message = "CombineGVCFsAllArgs.wdl:319:6: error: conflicting task name `CombineGVCFs`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/CountBases.wdl"
+message = "CountBases.wdl:91:6: error: conflicting task name `CountBases`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/CountBasesAllArgs.wdl"
+message = "CountBasesAllArgs.wdl:258:6: error: conflicting task name `CountBases`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/CountReads.wdl"
+message = "CountReads.wdl:91:6: error: conflicting task name `CountReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/CountReadsAllArgs.wdl"
+message = "CountReadsAllArgs.wdl:258:6: error: conflicting task name `CountReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/FixMisencodedBaseQualityReads.wdl"
+message = "FixMisencodedBaseQualityReads.wdl:100:6: error: conflicting task name `FixMisencodedBaseQualityReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/FixMisencodedBaseQualityReadsAllArgs.wdl"
+message = "FixMisencodedBaseQualityReadsAllArgs.wdl:263:6: error: conflicting task name `FixMisencodedBaseQualityReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/FlagStat.wdl"
+message = "FlagStat.wdl:91:6: error: conflicting task name `FlagStat`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/FlagStatAllArgs.wdl"
+message = "FlagStatAllArgs.wdl:258:6: error: conflicting task name `FlagStat`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/GatherTranches.wdl"
+message = "GatherTranches.wdl:95:6: error: conflicting task name `GatherTranches`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/GatherTranchesAllArgs.wdl"
+message = "GatherTranchesAllArgs.wdl:146:6: error: conflicting task name `GatherTranches`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/LeftAlignIndels.wdl"
+message = "LeftAlignIndels.wdl:112:6: error: conflicting task name `LeftAlignIndels`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/LeftAlignIndelsAllArgs.wdl"
+message = "LeftAlignIndelsAllArgs.wdl:263:6: error: conflicting task name `LeftAlignIndels`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/PrintReads.wdl"
+message = "PrintReads.wdl:100:6: error: conflicting task name `PrintReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/PrintReadsAllArgs.wdl"
+message = "PrintReadsAllArgs.wdl:263:6: error: conflicting task name `PrintReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/ReadAnonymizer.wdl"
+message = "ReadAnonymizer.wdl:112:6: error: conflicting task name `ReadAnonymizer`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/ReadAnonymizerAllArgs.wdl"
+message = "ReadAnonymizerAllArgs.wdl:271:6: error: conflicting task name `ReadAnonymizer`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/RevertBaseQualityScores.wdl"
+message = "RevertBaseQualityScores.wdl:100:6: error: conflicting task name `RevertBaseQualityScores`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/RevertBaseQualityScoresAllArgs.wdl"
+message = "RevertBaseQualityScoresAllArgs.wdl:263:6: error: conflicting task name `RevertBaseQualityScores`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/SplitNCigarReads.wdl"
+message = "SplitNCigarReads.wdl:112:6: error: conflicting task name `SplitNCigarReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/SplitNCigarReadsAllArgs.wdl"
+message = "SplitNCigarReadsAllArgs.wdl:287:6: error: conflicting task name `SplitNCigarReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/SplitReads.wdl"
+message = "SplitReads.wdl:95:6: error: conflicting task name `SplitReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/SplitReadsAllArgs.wdl"
+message = "SplitReadsAllArgs.wdl:270:6: error: conflicting task name `SplitReads`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/UnmarkDuplicates.wdl"
+message = "UnmarkDuplicates.wdl:100:6: error: conflicting task name `UnmarkDuplicates`"
+
+[[diagnostics]]
+document = "broadinstitute/gatk-tool-wdls:/wdls/UnmarkDuplicatesAllArgs.wdl"
+message = "UnmarkDuplicatesAllArgs.wdl:263:6: error: conflicting task name `UnmarkDuplicates`"
+
+[[diagnostics]]
+document = "broadinstitute/palantir-workflows:/BenchmarkSVs/WittyerTasks.wdl"
+message = "WittyerTasks.wdl:74:14: error: conflicting declaration name `wittyer_config`"
+
+[[diagnostics]]
+document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkAndCompareVCFs.wdl"
+message = "BenchmarkAndCompareVCFs.wdl:43:14: error: conflicting declaration name `preemptible`"
+
+[[diagnostics]]
 document = "broadinstitute/palantir-workflows:/HaplotypeMap/BuildHaplotypeMap.wdl"
 message = "BuildHaplotypeMap.wdl:17:1: error: a WDL document must start with a version statement"
+
+[[diagnostics]]
+document = "broadinstitute/palantir-workflows:/LongReadRNABenchmark/IsoformDiscoveryBenchmark.wdl"
+message = "IsoformDiscoveryBenchmark.wdl:147:13: error: conflicting scatter variable name `gtf`"
+
+[[diagnostics]]
+document = "broadinstitute/warp:/pipelines/broad/dna_seq/somatic/single_sample/wgs/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl"
+message = "GDCWholeGenomeSomaticSingleSample.wdl:672:14: error: conflicting scatter variable name `ubam`"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/scATAC/scATAC.wdl"

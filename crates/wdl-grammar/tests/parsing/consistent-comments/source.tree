@@ -24,8 +24,8 @@ RootNode@0..237
       Ident@202..203 "x"
       Whitespace@203..204 " "
       Assignment@204..205 "="
-      LiteralIntegerNode@205..207
-        Whitespace@205..206 " "
+      Whitespace@205..206 " "
+      LiteralIntegerNode@206..207
         Integer@206..207 "1"
     Whitespace@207..212 "\n    "
     Comment@212..220 "# Second"
@@ -37,8 +37,8 @@ RootNode@0..237
       Ident@229..230 "y"
       Whitespace@230..231 " "
       Assignment@231..232 "="
-      LiteralIntegerNode@232..234
-        Whitespace@232..233 " "
+      Whitespace@232..233 " "
+      LiteralIntegerNode@233..234
         Integer@233..234 "2"
     Whitespace@234..235 "\n"
     CloseBrace@235..236 "}"

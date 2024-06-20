@@ -32,8 +32,8 @@ RootNode@0..165
       RuntimeItemNode@146..156
         Ident@146..149 "foo"
         Colon@149..150 ":"
-        LiteralStringNode@150..156
-          Whitespace@150..151 " "
+        Whitespace@150..151 " "
+        LiteralStringNode@151..156
           DoubleQuote@151..152 "\""
           LiteralStringText@152..155 "bar"
           DoubleQuote@155..156 "\""

@@ -26,8 +26,8 @@ RootNode@0..124
       MetadataObjectItemNode@105..115
         Ident@105..108 "baz"
         Colon@108..109 ":"
-        LiteralStringNode@109..115
-          Whitespace@109..110 " "
+        Whitespace@109..110 " "
+        LiteralStringNode@110..115
           DoubleQuote@110..111 "\""
           LiteralStringText@111..114 "bar"
           DoubleQuote@114..115 "\""

@@ -20,8 +20,8 @@ RootNode@0..156
       Ident@96..97 "x"
       Whitespace@97..98 " "
       Assignment@98..99 "="
-      LiteralStringNode@99..153
-        Whitespace@99..100 " "
+      Whitespace@99..100 " "
+      LiteralStringNode@100..153
         DoubleQuote@100..101 "\""
         PlaceholderNode@101..152
           PlaceholderOpen@101..103 "~{"
@@ -29,27 +29,27 @@ RootNode@0..156
             Ident@103..106 "sep"
             Whitespace@106..107 " "
             Assignment@107..108 "="
-            LiteralStringNode@108..113
-              Whitespace@108..109 " "
+            Whitespace@108..109 " "
+            LiteralStringNode@109..113
               DoubleQuote@109..110 "\""
               LiteralStringText@110..112 ", "
               DoubleQuote@112..113 "\""
-          PlaceholderDefaultOptionNode@113..126
-            Whitespace@113..114 " "
+          Whitespace@113..114 " "
+          PlaceholderDefaultOptionNode@114..126
             Ident@114..121 "default"
             Whitespace@121..122 " "
             Assignment@122..123 "="
-            LiteralStringNode@123..126
-              Whitespace@123..124 " "
+            Whitespace@123..124 " "
+            LiteralStringNode@124..126
               DoubleQuote@124..125 "\""
               DoubleQuote@125..126 "\""
-          PlaceholderTrueFalseOptionNode@126..149
-            Whitespace@126..127 " "
+          Whitespace@126..127 " "
+          PlaceholderTrueFalseOptionNode@127..149
             TrueKeyword@127..131 "true"
             Whitespace@131..132 " "
             Assignment@132..133 "="
-            LiteralStringNode@133..137
-              Whitespace@133..134 " "
+            Whitespace@133..134 " "
+            LiteralStringNode@134..137
               DoubleQuote@134..135 "\""
               LiteralStringText@135..136 "Y"
               DoubleQuote@136..137 "\""
@@ -57,8 +57,8 @@ RootNode@0..156
             FalseKeyword@138..143 "false"
             Whitespace@143..144 " "
             Assignment@144..145 "="
-            LiteralStringNode@145..149
-              Whitespace@145..146 " "
+            Whitespace@145..146 " "
+            LiteralStringNode@146..149
               DoubleQuote@146..147 "\""
               LiteralStringText@147..148 "N"
               DoubleQuote@148..149 "\""
