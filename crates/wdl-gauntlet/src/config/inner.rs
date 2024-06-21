@@ -9,31 +9,61 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde_with::serde_as;
 
+use crate::document;
 use crate::repository;
+use crate::repository::RawHash;
 
 /// Represents a diagnostic reported for a document.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Diagnostic {
     /// The identifier of the document containing the diagnostic.
-    document: String,
+    document: document::Identifier,
     /// The short-form diagnostic message.
     message: String,
+    /// Permalink to the source of the diagnostic.
+    #[serde(default)]
+    permalink: String,
 }
 
 impl Diagnostic {
     /// Creates a new diagnostic for the given document identifier and message.
-    pub fn new(document: String, message: String) -> Self {
-        Self { document, message }
+    pub fn new(
+        document: document::Identifier,
+        message: String,
+        hash: &RawHash,
+        line_no: Option<usize>,
+    ) -> Self {
+        let url = format!(
+            "https://github.com/{}/blob/{}{}",
+            document.repository(),
+            hash,
+            document.path()
+        );
+        let url = if let Some(line_no) = line_no {
+            format!("{}/#L{}", url, line_no)
+        } else {
+            url
+        };
+        Self {
+            document,
+            message,
+            permalink: url,
+        }
     }
 
     /// Gets the identifier of the document.
-    pub fn document(&self) -> &str {
+    pub fn document(&self) -> &document::Identifier {
         &self.document
     }
 
     /// Gets the diagnostic message.
     pub fn message(&self) -> &str {
         &self.message
+    }
+
+    /// Gets the permalink to the source of the diagnostic.
+    pub fn permalink(&self) -> &str {
+        &self.permalink
     }
 }
 

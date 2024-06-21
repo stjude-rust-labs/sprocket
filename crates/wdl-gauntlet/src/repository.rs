@@ -1,5 +1,6 @@
 //! A local repository of files from a remote GitHub repository.
 
+use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -48,6 +49,15 @@ impl<'de> Deserialize<'de> for RawHash {
         let mut hash = [0u8; 20];
         faster_hex::hex_decode(s.as_bytes(), &mut hash).map_err(serde::de::Error::custom)?;
         Ok(Self(hash))
+    }
+}
+
+impl fmt::Display for RawHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for byte in &self.0 {
+            write!(f, "{:02x}", byte)?;
+        }
+        Ok(())
     }
 }
 

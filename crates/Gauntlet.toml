@@ -28,7 +28,7 @@ commit_hash = "f094475689311ccf227b39b5f40b70762889566c"
 
 [repositories."chanzuckerberg/czid-workflows"]
 identifier = "chanzuckerberg/czid-workflows"
-commit_hash = "15f611d382212519310a1187ef3fd0e96fe3ef21"
+commit_hash = "a7c54be041e9fbd4cfdd9fac99226e6b4f6f3bfd"
 
 [repositories."getwilds/ww-fastq-to-cram"]
 identifier = "getwilds/ww-fastq-to-cram"
@@ -49,267 +49,332 @@ filters = ["/template/task-templates.wdl"]
 
 [repositories."theiagen/public_health_bioinformatics"]
 identifier = "theiagen/public_health_bioinformatics"
-commit_hash = "74c12d3bbced7177638fdfdc50c56f8bc40a0f5a"
+commit_hash = "501f799bf785cb2f755026962c75522211f99bfe"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
 message = "mutec2.wdl:112:41: error: expected struct member name, but found string"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl/#L112"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
 message = "mutec2.wdl:113:41: error: expected struct member name, but found string"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl/#L113"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
 message = "mutec2.wdl:114:41: error: expected struct member name, but found string"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl/#L114"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
 message = "mutec2.wdl:115:41: error: expected struct member name, but found string"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl/#L115"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:110:29: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L110"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:111:23: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L111"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:142:29: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L142"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:143:23: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L143"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:174:29: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L174"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:175:23: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L175"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:210:29: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L210"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:211:23: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L211"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:244:29: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L244"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:245:23: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L245"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:284:29: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L284"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:285:23: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L285"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:323:29: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L323"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:324:23: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L324"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:325:28: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L325"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl"
 message = "alphafold-600.wdl:326:48: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/alphafold/alphafold-600.wdl/#L326"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
 message = "esmfold.wdl:58:29: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl/#L58"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
 message = "esmfold.wdl:59:23: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl/#L59"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
 message = "esmfold.wdl:83:29: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl/#L83"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
 message = "esmfold.wdl:84:23: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl/#L84"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
 message = "esmfold.wdl:85:28: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl/#L85"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl"
 message = "esmfold.wdl:86:48: error: expected runtime key, but found `,`"
+permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/136ecf7e5aaee18619e14ee65a97acc6d6704bef/example-workflows/protein-folding/workflows/esmfold/esmfold.wdl/#L86"
 
 [[diagnostics]]
 document = "biowdl/tasks:/bcftools.wdl"
 message = 'bcftools.wdl:114:75: error: unknown escape sequence `\_`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/bcftools.wdl/#L114"
 
 [[diagnostics]]
 document = "biowdl/tasks:/bedtools.wdl"
 message = 'bedtools.wdl:27:48: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/bedtools.wdl/#L27"
 
 [[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
 message = 'bowtie.wdl:63:32: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/bowtie.wdl/#L63"
 
 [[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
 message = 'bowtie.wdl:63:39: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/bowtie.wdl/#L63"
 
 [[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
 message = 'bowtie.wdl:63:46: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/bowtie.wdl/#L63"
 
 [[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
 message = 'bowtie.wdl:75:48: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/bowtie.wdl/#L75"
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
 message = 'centrifuge.wdl:122:57: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/centrifuge.wdl/#L122"
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
 message = 'centrifuge.wdl:122:64: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/centrifuge.wdl/#L122"
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
 message = 'centrifuge.wdl:199:57: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/centrifuge.wdl/#L199"
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
 message = 'centrifuge.wdl:199:64: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/centrifuge.wdl/#L199"
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
 message = 'centrifuge.wdl:256:57: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/centrifuge.wdl/#L256"
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
 message = 'centrifuge.wdl:256:64: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/centrifuge.wdl/#L256"
 
 [[diagnostics]]
 document = "biowdl/tasks:/common.wdl"
 message = 'common.wdl:275:45: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/common.wdl/#L275"
 
 [[diagnostics]]
 document = "biowdl/tasks:/fastqc.wdl"
 message = 'fastqc.wdl:59:42: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/fastqc.wdl/#L59"
 
 [[diagnostics]]
 document = "biowdl/tasks:/fastqc.wdl"
 message = 'fastqc.wdl:63:54: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/fastqc.wdl/#L63"
 
 [[diagnostics]]
 document = "biowdl/tasks:/fastqc.wdl"
 message = 'fastqc.wdl:63:58: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/fastqc.wdl/#L63"
 
 [[diagnostics]]
 document = "biowdl/tasks:/gatk.wdl"
 message = 'gatk.wdl:127:57: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/gatk.wdl/#L127"
 
 [[diagnostics]]
 document = "biowdl/tasks:/gatk.wdl"
 message = 'gatk.wdl:1597:41: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/gatk.wdl/#L1597"
 
 [[diagnostics]]
 document = "biowdl/tasks:/hisat2.wdl"
 message = 'hisat2.wdl:60:34: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/hisat2.wdl/#L60"
 
 [[diagnostics]]
 document = "biowdl/tasks:/hisat2.wdl"
 message = 'hisat2.wdl:60:41: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/hisat2.wdl/#L60"
 
 [[diagnostics]]
 document = "biowdl/tasks:/multiqc.wdl"
 message = 'multiqc.wdl:133:45: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/multiqc.wdl/#L133"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
 message = 'picard.wdl:1021:48: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/picard.wdl/#L1021"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
 message = 'picard.wdl:1191:48: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/picard.wdl/#L1191"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
 message = 'picard.wdl:643:51: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/picard.wdl/#L643"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
 message = 'picard.wdl:785:51: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/picard.wdl/#L785"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
 message = 'picard.wdl:900:46: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/picard.wdl/#L900"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
 message = 'picard.wdl:901:46: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/picard.wdl/#L901"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
 message = 'picard.wdl:902:49: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/picard.wdl/#L902"
 
 [[diagnostics]]
 document = "biowdl/tasks:/sambamba.wdl"
 message = 'sambamba.wdl:145:49: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/sambamba.wdl/#L145"
 
 [[diagnostics]]
 document = "biowdl/tasks:/sambamba.wdl"
 message = 'sambamba.wdl:157:60: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/sambamba.wdl/#L157"
 
 [[diagnostics]]
 document = "biowdl/tasks:/sambamba.wdl"
 message = 'sambamba.wdl:91:44: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/sambamba.wdl/#L91"
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
 message = 'samtools.wdl:238:53: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/samtools.wdl/#L238"
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
 message = 'samtools.wdl:326:44: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/samtools.wdl/#L326"
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
 message = 'samtools.wdl:414:44: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/samtools.wdl/#L414"
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
 message = 'samtools.wdl:458:49: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/samtools.wdl/#L458"
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
 message = 'samtools.wdl:470:60: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/samtools.wdl/#L470"
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
 message = 'samtools.wdl:80:42: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/samtools.wdl/#L80"
 
 [[diagnostics]]
 document = "biowdl/tasks:/umi-tools.wdl"
 message = 'umi-tools.wdl:95:49: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/umi-tools.wdl/#L95"
 
 [[diagnostics]]
 document = "biowdl/tasks:/umi.wdl"
 message = 'umi.wdl:39:60: error: unknown escape sequence `\.`'
+permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026452d5dbae2/umi.wdl/#L39"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/ApplyBQSR.wdl"
@@ -458,6 +523,7 @@ message = "BenchmarkAndCompareVCFs.wdl:43:14: error: conflicting declaration nam
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/HaplotypeMap/BuildHaplotypeMap.wdl"
 message = "BuildHaplotypeMap.wdl:17:1: error: a WDL document must start with a version statement"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/1e32078d3b57dcb2291534d0caa30f600d40967e/HaplotypeMap/BuildHaplotypeMap.wdl/#L17"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/LongReadRNABenchmark/IsoformDiscoveryBenchmark.wdl"
@@ -470,27 +536,34 @@ message = "GDCWholeGenomeSomaticSingleSample.wdl:672:14: error: conflicting scat
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/scATAC/scATAC.wdl"
 message = "scATAC.wdl:203:9: error: duplicate key `cpu` in runtime section"
+permalink = "https://github.com/broadinstitute/warp/blob/f094475689311ccf227b39b5f40b70762889566c/pipelines/skylab/scATAC/scATAC.wdl/#L203"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:137:32: error: expected string, but found integer"
+permalink = "https://github.com/broadinstitute/warp/blob/f094475689311ccf227b39b5f40b70762889566c/tasks/broad/GermlineVariantDiscovery.wdl/#L137"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:65:32: error: expected string, but found integer"
+permalink = "https://github.com/broadinstitute/warp/blob/f094475689311ccf227b39b5f40b70762889566c/tasks/broad/GermlineVariantDiscovery.wdl/#L65"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
 message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:814:27: error: expected string, but found integer"
+permalink = "https://github.com/broadinstitute/warp/blob/f094475689311ccf227b39b5f40b70762889566c/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L814"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
 message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:866:27: error: expected string, but found integer"
+permalink = "https://github.com/broadinstitute/warp/blob/f094475689311ccf227b39b5f40b70762889566c/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L866"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tests/cemba/pr/CheckCembaOutputs.wdl"
 message = "CheckCembaOutputs.wdl:1:1: error: a WDL document must start with a version statement"
+permalink = "https://github.com/broadinstitute/warp/blob/f094475689311ccf227b39b5f40b70762889566c/tests/cemba/pr/CheckCembaOutputs.wdl/#L1"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/index-generation/index-generation.wdl"
 message = "index-generation.wdl:1:9: error: unsupported WDL version `development`"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/a7c54be041e9fbd4cfdd9fac99226e6b4f6f3bfd/workflows/index-generation/index-generation.wdl/#L1"

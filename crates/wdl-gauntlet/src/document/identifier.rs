@@ -2,8 +2,6 @@
 
 use serde::Deserialize;
 use serde::Serialize;
-use serde_with::serde_as;
-use serde_with::DisplayFromStr;
 
 use crate::repository;
 
@@ -53,11 +51,9 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {}
 
 /// A document identifier.
-#[serde_as]
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Identifier {
     /// The repository identifier.
-    #[serde_as(as = "DisplayFromStr")]
     repository: repository::Identifier,
 
     /// The path within the repository.
@@ -117,5 +113,28 @@ impl std::str::FromStr for Identifier {
         let path = parts.next().unwrap().to_string();
 
         Ok(Self { repository, path })
+    }
+}
+
+impl Serialize for Identifier {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.to_string().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Identifier {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let parts = s.split(SEPARATOR).collect::<Vec<_>>();
+        let repo = parts[0]
+            .parse::<repository::Identifier>()
+            .map_err(serde::de::Error::custom)?;
+        Ok(Identifier::new(repo, parts[1].to_string()))
     }
 }

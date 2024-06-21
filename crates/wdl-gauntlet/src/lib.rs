@@ -15,6 +15,7 @@ use std::time::Instant;
 use anyhow::Context;
 use anyhow::Result;
 use clap::Parser;
+use codespan_reporting::files::Files;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::Buffer;
@@ -227,13 +228,21 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                     term::emit(&mut buffer, &config, &file, &diagnostic.to_codespan())
                         .context("failed to write diagnostic")?;
 
+                    let byte_start = diagnostic
+                        .labels()
+                        .next()
+                        .map(|l| l.span().start())
+                        .unwrap_or_default();
+                    // The `+1` here is because line_index() is 0-based.
+                    let line_no = file.line_index((), byte_start).unwrap_or_default() + 1;
                     assert!(
-                        actual.insert(
+                        actual.insert((
                             std::str::from_utf8(buffer.as_slice())
                                 .context("diagnostic should be UTF-8")?
                                 .trim()
-                                .to_string()
-                        )
+                                .to_string(),
+                            line_no
+                        ))
                     );
                 }
             }
@@ -241,14 +250,13 @@ pub async fn gauntlet(args: Args) -> Result<()> {
             // As the list of diagnostics has been sorted by document identifier, do
             // a binary search and collect the matching messages
             let diagnostics = config.inner().diagnostics();
-            let doc_id_str = document_identifier.to_string();
             let expected: IndexSet<String> = diagnostics
-                .binary_search_by_key(&doc_id_str.as_str(), |d| d.document())
+                .binary_search_by_key(&document_identifier, |d| d.document().clone())
                 .map(|mut start_index| {
                     // As binary search may return any matching index, back up until we find the
                     // start of the range
                     for i in (0..start_index).rev() {
-                        if diagnostics[i].document() != doc_id_str {
+                        if diagnostics[i].document() != &document_identifier {
                             break;
                         }
 
@@ -258,7 +266,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                     diagnostics[start_index..]
                         .iter()
                         .map_while(|d| {
-                            if d.document() == doc_id_str {
+                            if d.document() == &document_identifier {
                                 Some(d.message().to_string())
                             } else {
                                 None
@@ -268,8 +276,9 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                 })
                 .unwrap_or_default();
 
-            let unexpected = &actual - &expected;
-            let missing = &expected - &actual;
+            let actual_messages: IndexSet<_> = actual.iter().map(|(m, _)| m.clone()).collect();
+            let unexpected = &actual_messages - &expected;
+            let missing = &expected - &actual_messages;
 
             let status = if !unexpected.is_empty() || !missing.is_empty() {
                 Status::DiagnosticsUnmatched(
@@ -335,10 +344,20 @@ pub async fn gauntlet(args: Args) -> Result<()> {
             continue;
         }
 
-        for message in messages {
+        let hash = config
+            .inner()
+            .repositories()
+            .get(identifier.repository())
+            .unwrap()
+            .commit_hash()
+            .as_ref()
+            .unwrap();
+        for (message, line_no) in messages {
             diagnostics.push(config::inner::Diagnostic::new(
-                identifier.to_string(),
+                identifier.clone(),
                 message,
+                hash,
+                Some(line_no),
             ));
         }
     }

@@ -23,7 +23,7 @@ pub struct UnmatchedStatus {
     /// were emitted by the parser/validator.
     pub unexpected: IndexSet<String>,
     /// The set of all diagnostics that were emitted.
-    pub all: IndexSet<String>,
+    pub all: IndexSet<(String, usize)>,
 }
 
 /// The status of a single parsing test.
@@ -36,7 +36,7 @@ pub enum Status {
     /// The document had diagnostics, but the diagnostics exactly matched what
     /// was already expected in the configuration, meaning that this
     /// [`Status`] is considered successful.
-    DiagnosticsMatched(IndexSet<String>),
+    DiagnosticsMatched(IndexSet<(String, usize)>),
 
     /// The document had diagnostics, but they did not match what was expected
     /// in the configuration.
