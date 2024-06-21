@@ -6,5 +6,6 @@
 # This is a test of unnecessary whitespace before the version statement
 
 workflow test {
-
+    meta {}
+    output {}
 }

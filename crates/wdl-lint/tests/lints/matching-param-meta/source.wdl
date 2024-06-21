@@ -3,6 +3,7 @@
 version 1.1
 
 task t {
+    meta {}
     input {
         String matching
         String does_not_exist
@@ -22,9 +23,12 @@ task t {
 
     runtime {}
     command <<<>>>
+    output {}
 }
 
 workflow w {
+    meta {}
+    output {}
     input {
         String matching
         String does_not_exist

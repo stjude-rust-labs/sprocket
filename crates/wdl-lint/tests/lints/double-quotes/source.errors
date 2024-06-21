@@ -1,24 +1,24 @@
 warning[DoubleQuotes]: string defined with single quotes
-  ┌─ tests/lints/double-quotes/source.wdl:7:18
+  ┌─ tests/lints/double-quotes/source.wdl:9:18
   │
-7 │     String bad = 'this string is not okay'
+9 │     String bad = 'this string is not okay'
   │                  ^^^^^^^^^^^^^^^^^^^^^^^^^
   │
   = fix: change the single quotes to double quotes
 
 warning[DoubleQuotes]: string defined with single quotes
-  ┌─ tests/lints/double-quotes/source.wdl:9:30
-  │
-9 │         "this string is ok ~{'but this is not and ~{"while this one is okay ~{'this one is not'}"}'}!"
-  │                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  │
-  = fix: change the single quotes to double quotes
+   ┌─ tests/lints/double-quotes/source.wdl:11:30
+   │
+11 │         "this string is ok ~{'but this is not and ~{"while this one is okay ~{'this one is not'}"}'}!"
+   │                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: change the single quotes to double quotes
 
 warning[DoubleQuotes]: string defined with single quotes
-  ┌─ tests/lints/double-quotes/source.wdl:9:79
-  │
-9 │         "this string is ok ~{'but this is not and ~{"while this one is okay ~{'this one is not'}"}'}!"
-  │                                                                               ^^^^^^^^^^^^^^^^^
-  │
-  = fix: change the single quotes to double quotes
+   ┌─ tests/lints/double-quotes/source.wdl:11:79
+   │
+11 │         "this string is ok ~{'but this is not and ~{"while this one is okay ~{'this one is not'}"}'}!"
+   │                                                                               ^^^^^^^^^^^^^^^^^
+   │
+   = fix: change the single quotes to double quotes
 

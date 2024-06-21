@@ -7,7 +7,8 @@ import "bar.wdl"    # OK
 import "baz.wdl"    # OK
 
 workflow test {
-
+    meta {}
+    output {}
 }
 
 import "qux.wdl"    # BAD

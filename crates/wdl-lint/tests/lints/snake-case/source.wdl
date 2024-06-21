@@ -3,12 +3,16 @@
 version 1.0
 
 workflow BadWorkflow {
+    meta {}
+    output {}
     Float badPrivateDecl = 3.14
     call BadTask
     call good_task
 }
 
 task BadTask {
+    meta {}
+
     input {
         String BadInput
         Int other_bad_input = 13
@@ -29,6 +33,7 @@ task BadTask {
 }
 
 task good_task {
+    meta {}
     Array[Int] good_private_decl = [1, 2, 3]
     input {
         String good_input

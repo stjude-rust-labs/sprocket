@@ -17,4 +17,6 @@ version 1.1
 
 workflow test {
     ## This one is bad!
+    meta {}
+    output {}
 }

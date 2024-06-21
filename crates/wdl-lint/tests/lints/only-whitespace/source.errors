@@ -42,17 +42,17 @@ warning[Whitespace]: line contains only whitespace
    = fix: remove the whitespace from this line
 
 warning[Whitespace]: line contains trailing whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:14:18
+   ┌─ tests/lints/only-whitespace/source.wdl:17:18
    │
-14 │     String x = ""           
+17 │     String x = ""           
    │                  ^^^^^^^^^^^
    │
    = fix: remove the trailing whitespace from this line
 
 warning[Whitespace]: line contains only whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:16:1
+   ┌─ tests/lints/only-whitespace/source.wdl:19:1
    │
-16 │      
+19 │      
    │ ^^^^^
    │
    = fix: remove the whitespace from this line

@@ -4,6 +4,9 @@
 version 1.1
 
 task test1 {
+    meta {}
+    parameter_meta {}
+
     command <<<
         this line is ~{
 		    if true
@@ -12,10 +15,14 @@ task test1 {
 	    } but is all one literal line in the command text
     >>>
 
+    output {}
     runtime {}
 }
 
 task test2 {
+    meta {}
+    parameter_meta {}
+
     # This will warn only about using curly braces.
     command {
         this line is ~{
@@ -25,5 +32,6 @@ task test2 {
 	    } but is all one literal line in the command text
     }
 
+    output {}
     runtime {}
 }

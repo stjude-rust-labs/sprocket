@@ -94,7 +94,7 @@ impl Rule for MatchingParameterMetaRule {
 fn check_parameter_meta(
     parent: TaskOrWorkflow,
     inputs: Option<InputSection>,
-    param_meta: Option<ParameterMetadataSection>,
+    param_meta: ParameterMetadataSection,
     diagnostics: &mut Diagnostics,
 ) {
     let expected: HashMap<_, _> = inputs
@@ -108,12 +108,10 @@ fn check_parameter_meta(
         .collect();
 
     let actual: HashMap<_, _> = param_meta
-        .iter()
-        .flat_map(|m| {
-            m.items().map(|i| {
-                let name = i.name();
-                (name.as_str().to_string(), name.span())
-            })
+        .items()
+        .map(|m| {
+            let name = m.name();
+            (name.as_str().to_string(), name.span())
         })
         .collect();
 
@@ -146,15 +144,22 @@ impl Visitor for MatchingParameterMetaVisitor {
             return;
         }
 
-        // Check the parameter metadata of the task
         // Note that only the first input and parameter_meta sections are checked as any
         // additional sections is considered a validation error
-        check_parameter_meta(
-            TaskOrWorkflow::Task(task.clone()),
-            task.inputs().next(),
-            task.parameter_metadata().next(),
-            state,
-        );
+        match task.parameter_metadata().next() {
+            Some(param_meta) => {
+                check_parameter_meta(
+                    TaskOrWorkflow::Task(task.clone()),
+                    task.inputs().next(),
+                    param_meta,
+                    state,
+                );
+            }
+            None => {
+                // If there is no parameter_meta section, then let the
+                // MissingMetas rule handle it
+            }
+        }
     }
 
     fn workflow_definition(
@@ -167,14 +172,21 @@ impl Visitor for MatchingParameterMetaVisitor {
             return;
         }
 
-        // Check the parameter metadata of the workflow
         // Note that only the first input and parameter_meta sections are checked as any
         // additional sections is considered a validation error
-        check_parameter_meta(
-            TaskOrWorkflow::Workflow(workflow.clone()),
-            workflow.inputs().next(),
-            workflow.parameter_metadata().next(),
-            state,
-        );
+        match workflow.parameter_metadata().next() {
+            Some(param_meta) => {
+                check_parameter_meta(
+                    TaskOrWorkflow::Workflow(workflow.clone()),
+                    workflow.inputs().next(),
+                    param_meta,
+                    state,
+                );
+            }
+            None => {
+                // If there is no parameter_meta section, then let the
+                // MissingMetas rule handle it
+            }
+        }
     }
 }

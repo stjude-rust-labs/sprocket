@@ -14,6 +14,8 @@ be out of sync with released packages.
 | `ImportPlacement`                | Clarity                       | Ensures that imports are placed between the version statement and any document items. |
 | `MatchingParameterMeta`          | Completeness                  | Ensures that inputs have a matching entry in a `parameter_meta` section.              |
 | `MissingRuntime`                 | Completeness, Portability     | Ensures that tasks have a runtime section.                                            |
+| `MissingMetas`                   | Completeness, Clarity         | Ensures that tasks have both a meta and a parameter_meta section.                     |
+| `MissingOutput`                  | Completeness, Portability     | Ensures that tasks have an output section.                                            |
 | `NoCurlyCommands`                | Clarity                       | Ensures that tasks use heredoc syntax in command sections.                            |
 | `PascalCase`                     | Clarity, Naming, Style        | Ensures that structs are defined with PascalCase names.                               |
 | `PreambleComments`               | Clarity, Spacing, Style       | Ensures that documents have correct comments in the preamble.                         |
