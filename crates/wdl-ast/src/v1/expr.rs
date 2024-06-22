@@ -1025,7 +1025,7 @@ impl StringPart {
 
 /// Represents a textual part of a string.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StringText(pub(super) SyntaxToken);
+pub struct StringText(pub(crate) SyntaxToken);
 
 impl AstToken for StringText {
     fn can_cast(kind: SyntaxKind) -> bool
@@ -1052,7 +1052,7 @@ impl AstToken for StringText {
 
 /// Represents a placeholder in a string or command.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Placeholder(pub(super) SyntaxNode);
+pub struct Placeholder(SyntaxNode);
 
 impl Placeholder {
     /// Returns whether or not placeholder has a tilde (`~`) opening.
@@ -1345,7 +1345,7 @@ impl AstNode for TrueFalseOption {
 
 /// Represents a literal array.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralArray(pub(super) SyntaxNode);
+pub struct LiteralArray(SyntaxNode);
 
 impl LiteralArray {
     /// Gets the elements of the literal array.
@@ -1381,7 +1381,7 @@ impl AstNode for LiteralArray {
 
 /// Represents a literal pair.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralPair(pub(super) SyntaxNode);
+pub struct LiteralPair(SyntaxNode);
 
 impl LiteralPair {
     /// Gets the first and second expressions in the literal pair.
@@ -1424,7 +1424,7 @@ impl AstNode for LiteralPair {
 
 /// Represents a literal map.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralMap(pub(super) SyntaxNode);
+pub struct LiteralMap(SyntaxNode);
 
 impl LiteralMap {
     /// Gets the items of the literal map.
@@ -1460,7 +1460,7 @@ impl AstNode for LiteralMap {
 
 /// Represents a literal map item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralMapItem(pub(super) SyntaxNode);
+pub struct LiteralMapItem(SyntaxNode);
 
 impl LiteralMapItem {
     /// Gets the key and the value of the item.
@@ -1499,7 +1499,7 @@ impl AstNode for LiteralMapItem {
 
 /// Represents a literal object.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralObject(pub(super) SyntaxNode);
+pub struct LiteralObject(SyntaxNode);
 
 impl LiteralObject {
     /// Gets the items of the literal object.
@@ -1559,7 +1559,7 @@ fn name_value(parent: &SyntaxNode) -> (Ident, Expr) {
 
 /// Represents a literal object item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralObjectItem(pub(super) SyntaxNode);
+pub struct LiteralObjectItem(SyntaxNode);
 
 impl LiteralObjectItem {
     /// Gets the name and the value of the item.
@@ -1595,7 +1595,7 @@ impl AstNode for LiteralObjectItem {
 
 /// Represents a literal struct.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralStruct(pub(super) SyntaxNode);
+pub struct LiteralStruct(SyntaxNode);
 
 impl LiteralStruct {
     /// Gets the name of the struct.
@@ -1636,7 +1636,7 @@ impl AstNode for LiteralStruct {
 
 /// Represents a literal struct item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralStructItem(pub(super) SyntaxNode);
+pub struct LiteralStructItem(SyntaxNode);
 
 impl LiteralStructItem {
     /// Gets the name and the value of the item.
@@ -1672,7 +1672,7 @@ impl AstNode for LiteralStructItem {
 
 /// Represents a literal `None`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralNone(pub(super) SyntaxNode);
+pub struct LiteralNone(SyntaxNode);
 
 impl AstNode for LiteralNone {
     type Language = WorkflowDescriptionLanguage;
@@ -1701,7 +1701,7 @@ impl AstNode for LiteralNone {
 
 /// Represents a reference to a name.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NameRef(pub(super) SyntaxNode);
+pub struct NameRef(SyntaxNode);
 
 impl NameRef {
     /// Gets the name being referenced.
@@ -1737,7 +1737,7 @@ impl AstNode for NameRef {
 
 /// Represents a parenthesized expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParenthesizedExpr(pub(super) SyntaxNode);
+pub struct ParenthesizedExpr(SyntaxNode);
 
 impl ParenthesizedExpr {
     /// Gets the inner expression.
@@ -1773,7 +1773,7 @@ impl AstNode for ParenthesizedExpr {
 
 /// Represents an `if` expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct IfExpr(pub(super) SyntaxNode);
+pub struct IfExpr(SyntaxNode);
 
 impl IfExpr {
     /// Gets the three expressions of the `if` expression
@@ -1822,7 +1822,7 @@ macro_rules! prefix_expression {
     ($name:ident, $kind:ident, $desc:literal) => {
         #[doc = concat!("Represents a ", $desc, " expression.")]
         #[derive(Clone, Debug, PartialEq, Eq)]
-        pub struct $name(pub(super) SyntaxNode);
+        pub struct $name(SyntaxNode);
 
         impl $name {
             /// Gets the operand expression.
@@ -1863,7 +1863,7 @@ macro_rules! infix_expression {
     ($name:ident, $kind:ident, $desc:literal) => {
         #[doc = concat!("Represents a ", $desc, " expression.")]
         #[derive(Clone, Debug, PartialEq, Eq)]
-        pub struct $name(pub(super) SyntaxNode);
+        pub struct $name(SyntaxNode);
 
         impl $name {
             /// Gets the operands of the expression.
@@ -1924,7 +1924,7 @@ infix_expression!(ModuloExpr, ModuloExprNode, "modulo");
 
 /// Represents a call expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CallExpr(pub(super) SyntaxNode);
+pub struct CallExpr(SyntaxNode);
 
 impl CallExpr {
     /// Gets the call target expression.
@@ -1965,7 +1965,7 @@ impl AstNode for CallExpr {
 
 /// Represents an index expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct IndexExpr(pub(super) SyntaxNode);
+pub struct IndexExpr(SyntaxNode);
 
 impl IndexExpr {
     /// Gets the operand and the index expressions.
@@ -2007,7 +2007,7 @@ impl AstNode for IndexExpr {
 
 /// Represents an access expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct AccessExpr(pub(super) SyntaxNode);
+pub struct AccessExpr(SyntaxNode);
 
 impl AccessExpr {
     /// Gets the operand and the name of the access.
@@ -2056,9 +2056,9 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::v1::Visitor;
     use crate::Document;
     use crate::VisitReason;
+    use crate::Visitor;
 
     #[test]
     fn literal_booleans() {
@@ -2112,7 +2112,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(Vec::new());
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, [true, false]);
     }
 
@@ -2266,7 +2266,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(Vec::new());
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(
             visitor.0,
             [
@@ -2435,7 +2435,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(Vec::new());
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_relative_eq!(
             visitor.0.as_slice(),
             [0.0, 0.0, 1234.1234, 123e123, 0.1234, 10.0, 0.2].as_slice()
@@ -2538,7 +2538,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(Vec::new());
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, ["hello", "world", "ception"]);
     }
 
@@ -2790,7 +2790,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(Vec::new());
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0.len(), 6);
         assert_eq!(visitor.0[0], ["1", "2", "3"]);
         assert_eq!(visitor.0[1], ["hello", "world", "!"]);
@@ -2980,7 +2980,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(Vec::new());
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(
             visitor
                 .0
@@ -3109,7 +3109,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(Vec::new());
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0.len(), 2);
         assert_eq!(visitor.0[0].len(), 0);
         assert_eq!(visitor.0[1].len(), 2);
@@ -3254,7 +3254,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(Vec::new());
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0.len(), 2);
         assert_eq!(visitor.0[0].len(), 0);
         assert_eq!(visitor.0[1].len(), 3);
@@ -3402,7 +3402,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(Vec::new());
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0.len(), 2);
         assert_eq!(visitor.0[0].len(), 1);
         assert_eq!(visitor.0[0]["foo"], "bar");
@@ -3463,7 +3463,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 2);
     }
 
@@ -3527,7 +3527,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(Vec::new());
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, ["a"]);
     }
 
@@ -3604,7 +3604,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 3);
     }
 
@@ -3672,7 +3672,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 2);
     }
 
@@ -3747,7 +3747,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 4);
     }
 
@@ -3824,7 +3824,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 4);
     }
 
@@ -3886,7 +3886,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -3948,7 +3948,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4010,7 +4010,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4072,7 +4072,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4150,7 +4150,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4228,7 +4228,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4306,7 +4306,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4384,7 +4384,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4462,7 +4462,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4540,7 +4540,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4618,7 +4618,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4696,7 +4696,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4774,7 +4774,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4875,7 +4875,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -4964,7 +4964,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 
@@ -5037,7 +5037,7 @@ task test {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 1);
     }
 }

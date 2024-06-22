@@ -63,9 +63,12 @@ pub use wdl_grammar::ToSpan;
 pub use wdl_grammar::WorkflowDescriptionLanguage;
 
 pub mod v1;
+
 mod validation;
+mod visitor;
 
 pub use validation::*;
+pub use visitor::*;
 
 /// Gets a token of a given parent that can cast to the given type.
 fn token<T: AstToken>(parent: &SyntaxNode) -> Option<T> {
@@ -276,6 +279,12 @@ impl Document {
                 }
             })
             .unwrap_or(Ast::Unsupported)
+    }
+
+    /// Visits the document with a pre-order traversal using the provided
+    /// visitor to visit each element in the document.
+    pub fn visit<V: Visitor>(&self, state: &mut V::State, visitor: &mut V) {
+        visit(&self.0, state, visitor)
     }
 }
 

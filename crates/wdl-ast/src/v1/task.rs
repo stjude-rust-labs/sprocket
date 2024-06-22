@@ -25,7 +25,7 @@ use crate::WorkflowDescriptionLanguage;
 
 /// Represents a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TaskDefinition(pub(super) SyntaxNode);
+pub struct TaskDefinition(pub(crate) SyntaxNode);
 
 impl TaskDefinition {
     /// Gets the name of the task.
@@ -237,7 +237,7 @@ impl AstNode for TaskOrWorkflow {
 
 /// Represents an input section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct InputSection(pub(super) SyntaxNode);
+pub struct InputSection(pub(crate) SyntaxNode);
 
 impl InputSection {
     /// Gets the declarations of the input section.
@@ -279,7 +279,7 @@ impl AstNode for InputSection {
 
 /// Represents an output section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct OutputSection(pub(super) SyntaxNode);
+pub struct OutputSection(pub(crate) SyntaxNode);
 
 impl OutputSection {
     /// Gets the declarations of the output section.
@@ -321,7 +321,7 @@ impl AstNode for OutputSection {
 
 /// Represents a command section in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CommandSection(pub(super) SyntaxNode);
+pub struct CommandSection(pub(crate) SyntaxNode);
 
 impl CommandSection {
     /// Gets whether or not the command section is a heredoc command.
@@ -385,7 +385,7 @@ impl AstNode for CommandSection {
 
 /// Represents a textual part of a command.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CommandText(pub(super) SyntaxToken);
+pub struct CommandText(pub(crate) SyntaxToken);
 
 impl AstToken for CommandText {
     fn can_cast(kind: SyntaxKind) -> bool
@@ -455,7 +455,7 @@ impl CommandPart {
 
 /// Represents a runtime section in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RuntimeSection(pub(super) SyntaxNode);
+pub struct RuntimeSection(pub(crate) SyntaxNode);
 
 impl RuntimeSection {
     /// Gets the items in the runtime section.
@@ -497,7 +497,7 @@ impl AstNode for RuntimeSection {
 
 /// Represents an item in a runtime section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RuntimeItem(pub(super) SyntaxNode);
+pub struct RuntimeItem(SyntaxNode);
 
 impl RuntimeItem {
     /// Gets the name of the runtime item.
@@ -538,7 +538,7 @@ impl AstNode for RuntimeItem {
 
 /// Represents a metadata section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MetadataSection(pub(super) SyntaxNode);
+pub struct MetadataSection(pub(crate) SyntaxNode);
 
 impl MetadataSection {
     /// Gets the items of the metadata section.
@@ -580,7 +580,7 @@ impl AstNode for MetadataSection {
 
 /// Represents a metadata object item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MetadataObjectItem(pub(super) SyntaxNode);
+pub struct MetadataObjectItem(SyntaxNode);
 
 impl MetadataObjectItem {
     /// Gets the name of the item.
@@ -774,7 +774,7 @@ impl AstNode for MetadataValue {
 
 /// Represents a literal null.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralNull(pub(super) SyntaxNode);
+pub struct LiteralNull(SyntaxNode);
 
 impl AstNode for LiteralNull {
     type Language = WorkflowDescriptionLanguage;
@@ -803,7 +803,7 @@ impl AstNode for LiteralNull {
 
 /// Represents a metadata object.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MetadataObject(pub(super) SyntaxNode);
+pub struct MetadataObject(pub(crate) SyntaxNode);
 
 impl MetadataObject {
     /// Gets the items of the metadata object.
@@ -839,7 +839,7 @@ impl AstNode for MetadataObject {
 
 /// Represents a metadata array.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MetadataArray(pub(super) SyntaxNode);
+pub struct MetadataArray(SyntaxNode);
 
 impl MetadataArray {
     /// Gets the elements of the metadata array.
@@ -875,7 +875,7 @@ impl AstNode for MetadataArray {
 
 /// Represents a parameter metadata section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParameterMetadataSection(pub(super) SyntaxNode);
+pub struct ParameterMetadataSection(pub(crate) SyntaxNode);
 
 impl ParameterMetadataSection {
     /// Gets the items of the parameter metadata section.
@@ -919,9 +919,9 @@ impl AstNode for ParameterMetadataSection {
 mod test {
     use super::*;
     use crate::v1::UnboundDecl;
-    use crate::v1::Visitor;
     use crate::Document;
     use crate::VisitReason;
+    use crate::Visitor;
 
     #[test]
     fn tasks() {
@@ -1213,7 +1213,7 @@ task test {
         }
 
         let mut visitor = MyVisitor::default();
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.tasks, 1);
         assert_eq!(visitor.inputs, 1);
         assert_eq!(visitor.outputs, 1);

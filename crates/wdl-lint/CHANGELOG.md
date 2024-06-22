@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   version statement trivia based on it now being children of the version 
   statement ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).
 
+### Changed
+
+### Changed
+
+* Refactored the lint rules so that they are not in a `v1` module
+  ([#95](https://github.com/stjude-rust-labs/wdl/pull/95)).
+
 ## 0.1.0 - 06-13-2024
 
 ### Added

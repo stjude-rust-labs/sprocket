@@ -24,7 +24,7 @@ Before submitting this PR, please make sure:
 Rule specific checks:
 
 - [ ] You have added the rule as an entry within `RULES.md`.
-- [ ] You have added the rule to the `rules()` function in `wdl-lint/src/v1.rs`.
+- [ ] You have added the rule to the `rules()` function in `wdl-lint/src/lib.rs`.
 - [ ] You have added a test cases in `wdl-lint/tests/lints` that covers every 
       possible diagnostic emitted for the rule within the file where the rule  
       is implemented.

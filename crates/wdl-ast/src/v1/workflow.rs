@@ -20,7 +20,7 @@ use crate::WorkflowDescriptionLanguage;
 
 /// Represents a workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WorkflowDefinition(pub(super) SyntaxNode);
+pub struct WorkflowDefinition(pub(crate) SyntaxNode);
 
 impl WorkflowDefinition {
     /// Gets the name of the workflow.
@@ -271,7 +271,7 @@ impl AstNode for WorkflowStatement {
 
 /// Represents a workflow conditional statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ConditionalStatement(pub(super) SyntaxNode);
+pub struct ConditionalStatement(pub(crate) SyntaxNode);
 
 impl ConditionalStatement {
     /// Gets the expression of the conditional statement
@@ -312,7 +312,7 @@ impl AstNode for ConditionalStatement {
 
 /// Represents a workflow scatter statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ScatterStatement(pub(super) SyntaxNode);
+pub struct ScatterStatement(pub(crate) SyntaxNode);
 
 impl ScatterStatement {
     /// Gets the scatter variable identifier.
@@ -358,7 +358,7 @@ impl AstNode for ScatterStatement {
 
 /// Represents a workflow call statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CallStatement(pub(super) SyntaxNode);
+pub struct CallStatement(pub(crate) SyntaxNode);
 
 impl CallStatement {
     /// Gets the target of the call.
@@ -409,7 +409,7 @@ impl AstNode for CallStatement {
 
 /// Represents a target in a call statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CallTarget(pub(super) SyntaxNode);
+pub struct CallTarget(SyntaxNode);
 
 impl CallTarget {
     /// Gets the name of the call target.
@@ -457,7 +457,7 @@ impl AstNode for CallTarget {
 
 /// Represents an alias in a call statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CallAlias(pub(super) SyntaxNode);
+pub struct CallAlias(SyntaxNode);
 
 impl CallAlias {
     /// Gets the alias name.
@@ -493,7 +493,7 @@ impl AstNode for CallAlias {
 
 /// Represents an after clause in a call statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CallAfter(pub(super) SyntaxNode);
+pub struct CallAfter(SyntaxNode);
 
 impl CallAfter {
     /// Gets the name from the `after` clause.
@@ -529,7 +529,7 @@ impl AstNode for CallAfter {
 
 /// Represents an input item in a call statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CallInputItem(pub(super) SyntaxNode);
+pub struct CallInputItem(SyntaxNode);
 
 impl CallInputItem {
     /// Gets the name of the input.
@@ -572,9 +572,9 @@ impl AstNode for CallInputItem {
 mod test {
     use super::*;
     use crate::v1::UnboundDecl;
-    use crate::v1::Visitor;
     use crate::Document;
     use crate::VisitReason;
+    use crate::Visitor;
 
     #[test]
     fn workflows() {
@@ -1016,7 +1016,7 @@ workflow test {
         }
 
         let mut visitor = MyVisitor::default();
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.workflows, 1);
         assert_eq!(visitor.inputs, 1);
         assert_eq!(visitor.outputs, 1);

@@ -547,7 +547,7 @@ impl fmt::Display for Type {
 
 /// Represents an unbound declaration.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct UnboundDecl(pub(super) SyntaxNode);
+pub struct UnboundDecl(pub(crate) SyntaxNode);
 
 impl UnboundDecl {
     /// Gets the type of the declaration.
@@ -588,7 +588,7 @@ impl AstNode for UnboundDecl {
 
 /// Represents a bound declaration in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BoundDecl(pub(super) SyntaxNode);
+pub struct BoundDecl(pub(crate) SyntaxNode);
 
 impl BoundDecl {
     /// Gets the type of the declaration.
@@ -725,9 +725,9 @@ impl AstNode for Decl {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::v1::Visitor;
     use crate::Document;
     use crate::VisitReason;
+    use crate::Visitor;
 
     #[test]
     fn decls() {
@@ -869,7 +869,7 @@ task test {
         }
 
         let mut visitor = MyVisitor::default();
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.bound, 5);
         assert_eq!(visitor.unbound, 5);
     }

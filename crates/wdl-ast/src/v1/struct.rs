@@ -12,7 +12,7 @@ use crate::WorkflowDescriptionLanguage;
 
 /// Represents a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StructDefinition(pub(super) SyntaxNode);
+pub struct StructDefinition(pub(crate) SyntaxNode);
 
 impl StructDefinition {
     /// Gets the name of the struct.
@@ -56,10 +56,10 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use crate::v1::StructDefinition;
-    use crate::v1::Visitor;
     use crate::AstToken;
     use crate::Document;
     use crate::VisitReason;
+    use crate::Visitor;
 
     #[test]
     fn struct_definitions() {
@@ -238,7 +238,7 @@ struct ComplexTypes {
         }
 
         let mut visitor = MyVisitor(0);
-        ast.visit(&mut (), &mut visitor);
+        document.visit(&mut (), &mut visitor);
         assert_eq!(visitor.0, 3);
     }
 }

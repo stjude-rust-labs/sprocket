@@ -3,7 +3,6 @@
 use crate::support;
 use crate::v1::Expr;
 use crate::v1::LiteralExpr;
-use crate::v1::Visitor;
 use crate::AstNode;
 use crate::AstToken;
 use crate::Diagnostic;
@@ -12,6 +11,7 @@ use crate::Span;
 use crate::SyntaxKind;
 use crate::ToSpan;
 use crate::VisitReason;
+use crate::Visitor;
 
 /// Creates an "integer not in range" diagnostic
 fn integer_not_in_range(span: Span) -> Diagnostic {

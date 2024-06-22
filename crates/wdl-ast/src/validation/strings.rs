@@ -4,11 +4,11 @@ use wdl_grammar::lexer::v1::EscapeToken;
 use wdl_grammar::lexer::v1::Logos;
 
 use crate::v1::StringText;
-use crate::v1::Visitor;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
 use crate::Span;
+use crate::Visitor;
 
 /// Creates an "unknown escape sequence" diagnostic
 fn unknown_escape_sequence(sequence: &str, span: Span) -> Diagnostic {

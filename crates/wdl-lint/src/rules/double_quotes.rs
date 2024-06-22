@@ -3,13 +3,13 @@
 use wdl_ast::span_of;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
-use wdl_ast::v1::Visitor;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Span;
 use wdl_ast::VisitReason;
+use wdl_ast::Visitor;
 
-use super::Rule;
+use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 

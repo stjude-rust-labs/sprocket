@@ -18,7 +18,7 @@ use colored::Colorize;
 use wdl::ast::Diagnostic;
 use wdl::ast::Document;
 use wdl::ast::Validator;
-use wdl::lint::v1::rules;
+use wdl::lint::rules;
 
 /// Emits the given diagnostics to the output stream.
 ///
@@ -135,7 +135,7 @@ impl LintCommand {
         match Document::parse(&source).into_result() {
             Ok(document) => {
                 let mut validator = Validator::default();
-                validator.add_v1_visitors(rules().into_iter().map(|r| r.visitor()));
+                validator.add_visitors(rules().into_iter().map(|r| r.visitor()));
                 if let Err(diagnostics) = validator.validate(&document) {
                     emit_diagnostics(&self.path, &source, &diagnostics)?;
 

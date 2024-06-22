@@ -3,7 +3,6 @@
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
-use wdl_ast::v1::Visitor;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
@@ -11,8 +10,9 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Span;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
+use wdl_ast::Visitor;
 
-use super::Rule;
+use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 

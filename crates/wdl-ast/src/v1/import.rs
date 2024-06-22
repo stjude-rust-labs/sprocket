@@ -24,7 +24,7 @@ use crate::WorkflowDescriptionLanguage;
 
 /// Represents an import statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ImportStatement(pub(super) SyntaxNode);
+pub struct ImportStatement(pub(crate) SyntaxNode);
 
 impl ImportStatement {
     /// Gets the URI of the import statement.
@@ -115,7 +115,7 @@ impl AstNode for ImportStatement {
 
 /// Represents an import alias.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ImportAlias(pub(super) SyntaxNode);
+pub struct ImportAlias(SyntaxNode);
 
 impl ImportAlias {
     /// Gets the source and target names of the alias.
@@ -161,10 +161,10 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::v1::Visitor;
     use crate::Ast;
     use crate::Document;
     use crate::VisitReason;
+    use crate::Visitor;
 
     #[test]
     fn import_statements() {
@@ -256,7 +256,7 @@ import "qux.wdl" as x alias A as B alias C as D
                 }
 
                 let mut visitor = MyVisitor(0);
-                ast.visit(&mut (), &mut visitor);
+                document.visit(&mut (), &mut visitor);
                 assert_eq!(visitor.0, 4);
             }
             _ => panic!("expected a V1 AST"),

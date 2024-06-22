@@ -15,12 +15,12 @@ use crate::v1::ScatterStatement;
 use crate::v1::StructDefinition;
 use crate::v1::TaskDefinition;
 use crate::v1::UnboundDecl;
-use crate::v1::Visitor;
 use crate::v1::WorkflowDefinition;
 use crate::AstToken;
 use crate::Diagnostics;
 use crate::Ident;
 use crate::VisitReason;
+use crate::Visitor;
 
 /// Represents the context of a name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

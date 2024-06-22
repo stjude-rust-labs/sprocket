@@ -1,26 +1,47 @@
-//! Implementation of the V1 AST visitor.
+//! Implementation for AST visitation.
+//!
+//! An AST visitor is called when a WDL document is being visited (see
+//! [Document::visit]); callbacks correspond to specific nodes and tokens in the
+//! AST based on [SyntaxKind]. As `SyntaxKind` is the union of nodes and tokens
+//! from _every_ version of WDL, the `Visitor` trait is also the union of
+//! visitation callbacks.
+//!
+//! The [Visitor] trait is not WDL version-specific, meaning that the trait's
+//! methods currently receive V1 representation of AST nodes.
+//!
+//! In the future, a major version change to the WDL specification will
+//! introduce V2 representations for AST nodes that are either brand new or have
+//! changed since V1.
+//!
+//! When this occurs, the `Visitor` trait will be extended to support the new
+//! syntax; however, syntax that has not changed since V1 will continue to use
+//! the V1 AST types.
+//!
+//! That means it is possible to receive callbacks for V1 nodes and tokens when
+//! visiting a V2 document; the hope is that enables some visitors to be
+//! "shared" across different WDL versions.
 
 use rowan::WalkEvent;
 
-use super::BoundDecl;
-use super::CallStatement;
-use super::CommandSection;
-use super::CommandText;
-use super::ConditionalStatement;
-use super::Expr;
-use super::ImportStatement;
-use super::InputSection;
-use super::MetadataObject;
-use super::MetadataSection;
-use super::OutputSection;
-use super::ParameterMetadataSection;
-use super::RuntimeSection;
-use super::ScatterStatement;
-use super::StringText;
-use super::StructDefinition;
-use super::TaskDefinition;
-use super::UnboundDecl;
-use super::WorkflowDefinition;
+use crate::v1::BoundDecl;
+use crate::v1::CallStatement;
+use crate::v1::CommandSection;
+use crate::v1::CommandText;
+use crate::v1::ConditionalStatement;
+use crate::v1::Expr;
+use crate::v1::ImportStatement;
+use crate::v1::InputSection;
+use crate::v1::MetadataObject;
+use crate::v1::MetadataSection;
+use crate::v1::OutputSection;
+use crate::v1::ParameterMetadataSection;
+use crate::v1::RuntimeSection;
+use crate::v1::ScatterStatement;
+use crate::v1::StringText;
+use crate::v1::StructDefinition;
+use crate::v1::TaskDefinition;
+use crate::v1::UnboundDecl;
+use crate::v1::WorkflowDefinition;
 use crate::AstNode;
 use crate::Comment;
 use crate::Document;
@@ -30,7 +51,7 @@ use crate::VersionStatement;
 use crate::VisitReason;
 use crate::Whitespace;
 
-/// A trait used to implement a WDL V1 AST visitor.
+/// A trait used to implement an AST visitor.
 ///
 /// Each encountered node will receive a corresponding method call
 /// that receives both a [VisitReason::Enter] call and a
@@ -202,7 +223,7 @@ pub trait Visitor: Send + Sync {
 
 /// Used to visit each descendant node of the given root in a preorder
 /// traversal.
-pub(super) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor: &mut V) {
+pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor: &mut V) {
     for event in root.preorder_with_tokens() {
         let (reason, element) = match event {
             WalkEvent::Enter(node) => (VisitReason::Enter, node),

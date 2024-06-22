@@ -12,8 +12,6 @@ mod expr;
 mod import;
 mod r#struct;
 mod task;
-pub mod validation;
-mod visitor;
 mod workflow;
 
 pub use decls::*;
@@ -21,7 +19,6 @@ pub use expr::*;
 pub use import::*;
 pub use r#struct::*;
 pub use task::*;
-pub use visitor::*;
 pub use workflow::*;
 
 /// Represents a WDL V1 Abstract Syntax Tree (AST).
@@ -64,12 +61,6 @@ impl Ast {
     /// Gets the workflow definitions in the AST.
     pub fn workflows(&self) -> AstChildren<WorkflowDefinition> {
         children(&self.0)
-    }
-
-    /// Walks the AST with a pre-order traversal using the provided
-    /// visitor to visit each element.
-    pub fn visit<V: Visitor>(&self, state: &mut V::State, visitor: &mut V) {
-        visit(&self.0, state, visitor)
     }
 }
 

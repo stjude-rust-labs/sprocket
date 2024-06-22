@@ -12,7 +12,6 @@ use crate::v1::RuntimeSection;
 use crate::v1::StructDefinition;
 use crate::v1::TaskDefinition;
 use crate::v1::TaskOrWorkflow;
-use crate::v1::Visitor;
 use crate::v1::WorkflowDefinition;
 use crate::AstNode;
 use crate::AstToken;
@@ -25,6 +24,7 @@ use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::ToSpan;
 use crate::VisitReason;
+use crate::Visitor;
 
 /// Represents section context of an error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

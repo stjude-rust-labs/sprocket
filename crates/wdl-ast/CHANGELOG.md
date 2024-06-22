@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed the validation diagnostics to be ordered by the start of the primary
   label ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).
 
+### Changed
+
+* Refactored the `Visitor` trait and validation visitors so that they are not 
+  in a `v1` module ([#95](https://github.com/stjude-rust-labs/wdl/pull/95)).
+
 ## 0.3.0 - 06-13-2024
 
 ### Fixed

@@ -9,13 +9,13 @@ use crate::v1::MetadataObject;
 use crate::v1::MetadataSection;
 use crate::v1::ParameterMetadataSection;
 use crate::v1::RuntimeSection;
-use crate::v1::Visitor;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
 use crate::Ident;
 use crate::Span;
 use crate::VisitReason;
+use crate::Visitor;
 
 /// Represents context about a unique key validation error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

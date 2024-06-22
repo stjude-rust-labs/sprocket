@@ -31,7 +31,7 @@ use rayon::prelude::*;
 use wdl_ast::Diagnostic;
 use wdl_ast::Document;
 use wdl_ast::Validator;
-use wdl_lint::v1;
+use wdl_lint::rules;
 
 fn find_tests() -> Vec<PathBuf> {
     // Check for filter arguments consisting of test names
@@ -129,9 +129,9 @@ fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
         .replace("\r\n", "\n");
     match Document::parse(&source).into_result() {
         Ok(document) => {
-            let rules = v1::rules();
+            let rules = rules();
             let mut validator = Validator::default();
-            validator.add_v1_visitors(rules.iter().map(|r| r.visitor()));
+            validator.add_visitors(rules.iter().map(|r| r.visitor()));
             let errors = match validator.validate(&document) {
                 Ok(()) => String::new(),
                 Err(diagnostics) => format_diagnostics(&diagnostics, &path, &source),
