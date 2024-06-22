@@ -9,6 +9,7 @@ mod command_mixed_indentation;
 mod double_quotes;
 mod ending_newline;
 mod import_placement;
+mod import_whitespace;
 mod matching_parameter_meta;
 mod missing_metas;
 mod missing_output;
@@ -24,6 +25,7 @@ pub use command_mixed_indentation::*;
 pub use double_quotes::*;
 pub use ending_newline::*;
 pub use import_placement::*;
+pub use import_whitespace::*;
 pub use matching_parameter_meta::*;
 pub use missing_metas::*;
 pub use missing_output::*;
@@ -77,6 +79,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(WhitespaceRule),
         Box::new(CommandSectionMixedIndentationRule),
         Box::new(ImportPlacementRule),
+        Box::new(ImportWhitespaceRule),
         Box::new(PascalCaseRule),
         Box::new(MissingMetasRule),
         Box::new(MissingOutputRule),
