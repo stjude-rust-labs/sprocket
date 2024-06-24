@@ -49,7 +49,7 @@ filters = ["/template/task-templates.wdl"]
 
 [repositories."theiagen/public_health_bioinformatics"]
 identifier = "theiagen/public_health_bioinformatics"
-commit_hash = "a00924a7cf6197b91fb82ebfe725320e770d6b85"
+commit_hash = "252b98cea3c1fbdd509c6bc3497a6e8060b9bf2a"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"

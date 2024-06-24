@@ -1,7 +1,7 @@
 warning[ImportPlacement]: misplaced import
    ┌─ tests/lints/import-placements/source.wdl:14:1
    │
-14 │ import "qux.wdl"    # BAD
+14 │ import "jam.wdl"    # BAD
    │ ^^^^^^^^^^^^^^^^
    │
    = fix: move this import so that it comes after the version statement but before any document items
@@ -9,7 +9,7 @@ warning[ImportPlacement]: misplaced import
 warning[ImportPlacement]: misplaced import
    ┌─ tests/lints/import-placements/source.wdl:15:1
    │
-15 │ import "jam.wdl"    # BAD
+15 │ import "qux.wdl"    # BAD
    │ ^^^^^^^^^^^^^^^^
    │
    = fix: move this import so that it comes after the version statement but before any document items

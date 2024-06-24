@@ -12,7 +12,8 @@ be out of sync with released packages.
 | `DoubleQuotes`                   | Clarity, Style                | Ensures that strings are defined using double quotes.                                 |
 | `EndingNewline`                  | Spacing, Style                | Ensures that documents end with a single newline character.                           |
 | `ImportPlacement`                | Clarity                       | Ensures that imports are placed between the version statement and any document items. |
-| `ImportWhitespace`               | Clarity, Style, Spacing       | Ensures that there is no extraneous whitespace between imports.                       |
+| `ImportSort`                     | Clarity, Style                | Ensures that imports are sorted lexicographically.                                    |
+| `ImportWhitespace`               | Clarity, Style, Spacing       | Ensures that there is no extraneous whitespace between or within imports.             |
 | `MatchingParameterMeta`          | Completeness                  | Ensures that inputs have a matching entry in a `parameter_meta` section.              |
 | `MissingRuntime`                 | Completeness, Portability     | Ensures that tasks have a runtime section.                                            |
 | `MissingMetas`                   | Completeness, Clarity         | Ensures that tasks have both a meta and a parameter_meta section.                     |

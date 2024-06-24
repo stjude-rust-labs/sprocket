@@ -1,0 +1,72 @@
+note[ImportSort]: imports are not sorted lexicographically
+  ┌─ tests/lints/within-import-whitespace/source.wdl:7:1
+  │
+7 │ import  "bar"  # BAD (2 spaces)
+  │ ^^^^^^^^^^^^^
+  │
+  = fix: sort the imports lexicographically
+
+note[ImportWhitespace]: improper whitespace in import statement
+  ┌─ tests/lints/within-import-whitespace/source.wdl:7:7
+  │
+7 │ import  "bar"  # BAD (2 spaces)
+  │       ^^ this should be a singular space (` `)
+  │
+  = fix: use minimal whitespace within import statements
+
+note[ImportWhitespace]: improper whitespace in import statement
+  ┌─ tests/lints/within-import-whitespace/source.wdl:8:7
+  │
+8 │ import  "baz"  # BAD (tab literal)
+  │       ^^ this should be a singular space (` `)
+  │
+  = fix: use minimal whitespace within import statements
+
+note[ImportWhitespace]: improper whitespace in import statement
+  ┌─ tests/lints/within-import-whitespace/source.wdl:9:14
+  │
+9 │ import "chuk"        as something  # BAD (many spaces)
+  │              ^^^^^^^^ this should be a singular space (` `)
+  │
+  = fix: use minimal whitespace within import statements
+
+note[ImportWhitespace]: improper whitespace in import statement
+   ┌─ tests/lints/within-import-whitespace/source.wdl:10:18
+   │
+10 │ import "lorem" as   ipsum  # BAD (space and tab)
+   │                  ^^^ this should be a singular space (` `)
+   │
+   = fix: use minimal whitespace within import statements
+
+note[ImportWhitespace]: improper whitespace in import statement
+   ┌─ tests/lints/within-import-whitespace/source.wdl:11:7
+   │
+11 │ import   "qux"  alias   jabber    as    quux  # really BAD
+   │       ^^^ this should be a singular space (` `)
+   │
+   = fix: use minimal whitespace within import statements
+
+note[ImportWhitespace]: improper whitespace in import statement
+   ┌─ tests/lints/within-import-whitespace/source.wdl:11:15
+   │
+11 │ import   "qux"  alias   jabber    as    quux  # really BAD
+   │               ^^ this should be a singular space (` `)
+   │
+   = fix: use minimal whitespace within import statements
+
+note[ImportWhitespace]: improper whitespace in import statement
+   ┌─ tests/lints/within-import-whitespace/source.wdl:12:7
+   │
+12 │ import  # BAD (comment within statement)
+   │       ^^ this should be a singular space (` `)
+   │
+   = fix: use minimal whitespace within import statements
+
+note[ImportSort]: comments are not allowed within an import statement
+   ┌─ tests/lints/within-import-whitespace/source.wdl:12:9
+   │
+12 │ import  # BAD (comment within statement)
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: remove the comment from the import statement
+

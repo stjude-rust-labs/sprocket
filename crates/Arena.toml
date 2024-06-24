@@ -936,6 +936,11 @@ message = "rnaseq-variant-calling.wdl:43:14: warning[SnakeCase]: input name `dbS
 permalink = "https://github.com/stjudecloud/workflows/blob/46a77b33c99c1952396fcaaf0845f1fb5a015987/workflows/rnaseq/rnaseq-variant-calling.wdl/#L43"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:4:1: note[ImportSort]: imports are not sorted lexicographically"
+permalink = "https://github.com/stjudecloud/workflows/blob/46a77b33c99c1952396fcaaf0845f1fb5a015987/workflows/rnaseq/rnaseq-variant-calling.wdl/#L4"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/scrnaseq/10x-bam-to-fastqs.wdl"
 message = "10x-bam-to-fastqs.wdl:47:10: note[MissingMetas]: workflow `cell_ranger_bam_to_fastqs` is missing a `meta` section"
 permalink = "https://github.com/stjudecloud/workflows/blob/46a77b33c99c1952396fcaaf0845f1fb5a015987/workflows/scrnaseq/10x-bam-to-fastqs.wdl/#L47"

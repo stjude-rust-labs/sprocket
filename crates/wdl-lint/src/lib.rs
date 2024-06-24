@@ -91,6 +91,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(rules::ImportWhitespaceRule),
         Box::new(rules::MissingMetasRule),
         Box::new(rules::MissingOutputRule),
+        Box::new(rules::ImportSortRule),
     ];
 
     // Ensure all the rule ids are unique and pascal case
