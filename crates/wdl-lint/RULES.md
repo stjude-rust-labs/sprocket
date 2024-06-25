@@ -14,6 +14,7 @@ be out of sync with released packages.
 | `ImportPlacement`                | Clarity                       | Ensures that imports are placed between the version statement and any document items. |
 | `ImportSort`                     | Clarity, Style                | Ensures that imports are sorted lexicographically.                                    |
 | `ImportWhitespace`               | Clarity, Style, Spacing       | Ensures that there is no extraneous whitespace between or within imports.             |
+| `InputNotSorted`                 | Style                         | Ensures that input declarations are sorted                 |
 | `MatchingParameterMeta`          | Completeness                  | Ensures that inputs have a matching entry in a `parameter_meta` section.              |
 | `MissingRuntime`                 | Completeness, Portability     | Ensures that tasks have a runtime section.                                            |
 | `MissingMetas`                   | Completeness, Clarity         | Ensures that tasks have both a meta and a parameter_meta section.                     |

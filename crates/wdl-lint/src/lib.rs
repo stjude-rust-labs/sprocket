@@ -92,6 +92,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(rules::MissingMetasRule),
         Box::new(rules::MissingOutputRule),
         Box::new(rules::ImportSortRule),
+        Box::new(rules::InputNotSortedRule),
         Box::new(rules::LineWidthRule::default()),
     ];
 

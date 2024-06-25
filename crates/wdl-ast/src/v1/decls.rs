@@ -74,6 +74,18 @@ impl fmt::Display for MapType {
     }
 }
 
+impl PartialOrd for MapType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for MapType {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.types().cmp(&other.types())
+    }
+}
+
 /// Represents an `Array` type.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArrayType(SyntaxNode);
@@ -135,6 +147,24 @@ impl fmt::Display for ArrayType {
     }
 }
 
+impl PartialOrd for ArrayType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ArrayType {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if self.is_non_empty() && !other.is_non_empty() {
+            std::cmp::Ordering::Less
+        } else if !self.is_non_empty() && other.is_non_empty() {
+            std::cmp::Ordering::Greater
+        } else {
+            self.element_type().cmp(&other.element_type())
+        }
+    }
+}
+
 /// Represents a `Pair` type.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PairType(SyntaxNode);
@@ -193,6 +223,18 @@ impl fmt::Display for PairType {
     }
 }
 
+impl PartialOrd for PairType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PairType {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.types().cmp(&other.types())
+    }
+}
+
 /// Represents a `Object` type.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObjectType(SyntaxNode);
@@ -239,6 +281,18 @@ impl fmt::Display for ObjectType {
             "Object{o}",
             o = if self.is_optional() { "?" } else { "" }
         )
+    }
+}
+
+impl PartialOrd for ObjectType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ObjectType {
+    fn cmp(&self, _: &Self) -> std::cmp::Ordering {
+        std::cmp::Ordering::Equal
     }
 }
 
@@ -297,6 +351,18 @@ impl fmt::Display for TypeRef {
     }
 }
 
+impl PartialOrd for TypeRef {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TypeRef {
+    fn cmp(&self, _: &Self) -> std::cmp::Ordering {
+        std::cmp::Ordering::Equal
+    }
+}
+
 /// Represents a kind of primitive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PrimitiveTypeKind {
@@ -338,6 +404,17 @@ impl PrimitiveType {
             self.0.last_token().map(|t| t.kind()),
             Some(SyntaxKind::QuestionMark)
         )
+    }
+
+    /// Defines an ordering for PrimitiveTypes
+    fn primitive_type_index(&self) -> usize {
+        match self.kind() {
+            PrimitiveTypeKind::Boolean => 2,
+            PrimitiveTypeKind::Integer => 4,
+            PrimitiveTypeKind::Float => 3,
+            PrimitiveTypeKind::String => 1,
+            PrimitiveTypeKind::File => 0,
+        }
     }
 }
 
@@ -381,6 +458,19 @@ impl fmt::Display for PrimitiveType {
         } else {
             Ok(())
         }
+    }
+}
+
+impl PartialOrd for PrimitiveType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PrimitiveType {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.primitive_type_index()
+            .cmp(&other.primitive_type_index())
     }
 }
 
@@ -455,7 +545,7 @@ impl Type {
     /// # Panics
     ///
     /// Panics if the type is not an object type.
-    pub fn unwrap_objet_type(self) -> ObjectType {
+    pub fn unwrap_object_type(self) -> ObjectType {
         match self {
             Self::Object(ty) => ty,
             _ => panic!("not an object type"),
@@ -483,6 +573,27 @@ impl Type {
         match self {
             Self::Primitive(ty) => ty,
             _ => panic!("not a primitive type"),
+        }
+    }
+
+    /// Defines an ordering for types.
+    fn type_index(&self) -> usize {
+        match self {
+            Type::Map(_) => 5,
+            Type::Array(a) => match a.is_non_empty() {
+                true => 1,
+                false => 2,
+            },
+            Type::Pair(_) => 6,
+            Type::Object(_) => 4,
+            Type::Ref(_) => 3,
+            Type::Primitive(p) => match p.kind() {
+                PrimitiveTypeKind::Boolean => 8,
+                PrimitiveTypeKind::Integer => 10,
+                PrimitiveTypeKind::Float => 9,
+                PrimitiveTypeKind::String => 7,
+                PrimitiveTypeKind::File => 0,
+            },
         }
     }
 }
@@ -542,6 +653,31 @@ impl fmt::Display for Type {
             Type::Ref(r) => r.fmt(f),
             Type::Primitive(p) => p.fmt(f),
         }
+    }
+}
+
+impl PartialOrd for Type {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Type {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        compare_types(self, other)
+    }
+}
+
+/// Compare all variants of Type.
+fn compare_types(a: &Type, b: &Type) -> std::cmp::Ordering {
+    // Check Array, Map, and Pair for sub-types
+    match (a, b) {
+        (Type::Map(a), Type::Map(b)) => a.cmp(b),
+        (Type::Array(a), Type::Array(b)) => a.cmp(b),
+        (Type::Pair(a), Type::Pair(b)) => a.cmp(b),
+        (Type::Ref(a), Type::Ref(b)) => a.cmp(b),
+        (Type::Object(a), Type::Object(b)) => a.cmp(b),
+        _ => a.type_index().cmp(&b.type_index()),
     }
 }
 
@@ -691,6 +827,20 @@ impl Decl {
             _ => panic!("not an unbound declaration"),
         }
     }
+
+    /// Define an ordering for declarations.
+    fn decl_index(&self) -> usize {
+        match self {
+            Self::Bound(b) => match b.ty().is_optional() {
+                true => 2,
+                false => 3,
+            },
+            Self::Unbound(u) => match u.ty().is_optional() {
+                true => 1,
+                false => 0,
+            },
+        }
+    }
 }
 
 impl AstNode for Decl {
@@ -719,6 +869,33 @@ impl AstNode for Decl {
             Self::Bound(b) => &b.0,
             Self::Unbound(u) => &u.0,
         }
+    }
+}
+
+impl PartialOrd for Decl {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Decl {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        compare_decl(self, other)
+    }
+}
+
+/// Compare all variants of Decl.
+fn compare_decl(a: &Decl, b: &Decl) -> std::cmp::Ordering {
+    if (matches!(a, Decl::Bound(_))
+        && matches!(b, Decl::Bound(_))
+        && a.ty().is_optional() == b.ty().is_optional())
+        || (matches!(a, Decl::Unbound(_))
+            && matches!(b, Decl::Unbound(_))
+            && a.ty().is_optional() == b.ty().is_optional())
+    {
+        a.ty().cmp(&b.ty())
+    } else {
+        a.decl_index().cmp(&b.decl_index())
     }
 }
 

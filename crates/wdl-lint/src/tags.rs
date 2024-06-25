@@ -24,6 +24,9 @@ pub enum Tag {
 
     /// Rules associated with the correctness of a document.
     Correctness,
+
+    /// Rules associated with sorting of document elements.
+    Sorting,
 }
 
 impl std::fmt::Display for Tag {
@@ -36,6 +39,7 @@ impl std::fmt::Display for Tag {
             Self::Clarity => write!(f, "Clarity"),
             Self::Portability => write!(f, "Portability"),
             Self::Correctness => write!(f, "Correctness"),
+            Self::Sorting => write!(f, "Sorting"),
         }
     }
 }

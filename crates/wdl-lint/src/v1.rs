@@ -10,6 +10,7 @@ mod double_quotes;
 mod ending_newline;
 mod import_placement;
 mod import_whitespace;
+mod input_not_sorted;
 mod matching_parameter_meta;
 mod missing_metas;
 mod missing_output;
@@ -26,6 +27,7 @@ pub use double_quotes::*;
 pub use ending_newline::*;
 pub use import_placement::*;
 pub use import_whitespace::*;
+pub use input_not_sorted::*;
 pub use matching_parameter_meta::*;
 pub use missing_metas::*;
 pub use missing_output::*;
@@ -83,6 +85,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(PascalCaseRule),
         Box::new(MissingMetasRule),
         Box::new(MissingOutputRule),
+        Box::new(InputNotSortedRule),
     ];
 
     // Ensure all the rule ids are unique and pascal case
