@@ -1,4 +1,5 @@
-## This is a test for checking for missing and extraneous entries in a `parameter_meta` section.
+## This is a test for checking for missing and extraneous entries
+## in a `parameter_meta` section.
 
 version 1.1
 

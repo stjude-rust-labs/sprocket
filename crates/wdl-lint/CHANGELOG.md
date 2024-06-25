@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added the `LineWidth` lint rule (#99).
 * Added the `ImportWhitespace` and `ImportSort` lint rules (#98).
 * Added the `MissingMetas` and `MissingOutput` lint rules (#96).
 * Added the `PascalCase` lint rule ([#90](https://github.com/stjude-rust-labs/wdl/pull/90)).

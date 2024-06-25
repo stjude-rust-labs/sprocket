@@ -24,3 +24,5 @@ be out of sync with released packages.
 | `PreambleWhitespace`             | Spacing, Style                | Ensures that documents have correct whitespace in the preamble.                       |
 | `SnakeCase`                      | Clarity, Naming, Style        | Ensures that tasks, workflows, and variables are defined with snake_case names.       |
 | `Whitespace`                     | Spacing, Style                | Ensures that a document does not contain undesired whitespace.                        |
+| `LineWidth`                      | Clarity, Spacing, Style       | Ensures that lines do not exceed a certain width.                                     |
+

@@ -7,18 +7,22 @@ warning[DoubleQuotes]: string defined with single quotes
   = fix: change the single quotes to double quotes
 
 warning[DoubleQuotes]: string defined with single quotes
-   ┌─ tests/lints/double-quotes/source.wdl:11:30
-   │
-11 │         "this string is ok ~{'but this is not and ~{"while this one is okay ~{'this one is not'}"}'}!"
-   │                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   │
+   ┌─ tests/lints/double-quotes/source.wdl:12:13
+   │  
+12 │ ╭             'but this is not and ~{
+13 │ │                 "while this one is okay ~{
+14 │ │                     'this one is not'
+15 │ │                 }"
+16 │ │             }'
+   │ ╰──────────────^
+   │  
    = fix: change the single quotes to double quotes
 
 warning[DoubleQuotes]: string defined with single quotes
-   ┌─ tests/lints/double-quotes/source.wdl:11:79
+   ┌─ tests/lints/double-quotes/source.wdl:14:21
    │
-11 │         "this string is ok ~{'but this is not and ~{"while this one is okay ~{'this one is not'}"}'}!"
-   │                                                                               ^^^^^^^^^^^^^^^^^
+14 │                     'this one is not'
+   │                     ^^^^^^^^^^^^^^^^^
    │
    = fix: change the single quotes to double quotes
 
