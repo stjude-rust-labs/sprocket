@@ -9,11 +9,12 @@
 //! use wdl_lint::ast::Document;
 //! use wdl_lint::ast::Validator;
 //! use wdl_lint::rules;
+//! use wdl_lint::ExceptVisitor;
 //!
 //! match Document::parse(source).into_result() {
 //!     Ok(document) => {
 //!         let mut validator = Validator::default();
-//!         validator.add_visitors(rules().into_iter().map(|r| r.visitor()));
+//!         validator.add_visitor(ExceptVisitor::new(rules().iter().map(AsRef::as_ref)));
 //!         match validator.validate(&document) {
 //!             Ok(_) => {
 //!                 // The document was valid WDL and passed all lints
@@ -36,14 +37,17 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use wdl_ast::Diagnostics;
+use wdl_ast::Visitor;
+
+mod except;
 pub mod rules;
 mod tags;
 pub(crate) mod util;
 
+pub use except::*;
 pub use tags::*;
 pub use wdl_ast as ast;
-use wdl_ast::Diagnostics;
-use wdl_ast::Visitor;
 
 /// A trait implemented by lint rules.
 pub trait Rule {

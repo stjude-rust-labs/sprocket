@@ -17,3 +17,8 @@ struct This_Is_Bad_Too {
 struct ThisNameIsAGoodOne {
     Int x
 }
+
+#@ except: PascalCase
+struct excepted_name {
+    Int x
+}

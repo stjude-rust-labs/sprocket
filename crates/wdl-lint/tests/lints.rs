@@ -32,6 +32,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Document;
 use wdl_ast::Validator;
 use wdl_lint::rules;
+use wdl_lint::ExceptVisitor;
 
 fn find_tests() -> Vec<PathBuf> {
     // Check for filter arguments consisting of test names
@@ -129,9 +130,8 @@ fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
         .replace("\r\n", "\n");
     match Document::parse(&source).into_result() {
         Ok(document) => {
-            let rules = rules();
             let mut validator = Validator::default();
-            validator.add_visitors(rules.iter().map(|r| r.visitor()));
+            validator.add_visitor(ExceptVisitor::new(rules().iter().map(AsRef::as_ref)));
             let errors = match validator.validate(&document) {
                 Ok(()) => String::new(),
                 Err(diagnostics) => format_diagnostics(&diagnostics, &path, &source),

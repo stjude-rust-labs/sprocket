@@ -1,4 +1,4 @@
-## This is a test of the `double_quotes` lint
+## This is a test of the `DoubleQuotes` lint
 
 version 1.1
 
@@ -15,5 +15,8 @@ workflow test {
                 }"
             }'
         }!"
+    String excepted =
+        #@ except: DoubleQuotes
+        'this string is excepted'
     output {}
 }

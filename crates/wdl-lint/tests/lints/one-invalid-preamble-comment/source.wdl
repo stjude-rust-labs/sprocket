@@ -1,3 +1,4 @@
+#@ except: PreambleWhitespace
 # This is a test of having one big invalid preamble comment.
 #
 

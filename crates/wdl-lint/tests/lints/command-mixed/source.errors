@@ -1,27 +1,19 @@
 warning[CommandSectionMixedIndentation]: mixed indentation within a command
-   ┌─ tests/lints/command-mixed/source.wdl:10:3
+   ┌─ tests/lints/command-mixed/source.wdl:11:3
    │
- 9 │     command <<<
+10 │     command <<<
    │     ------- this command section uses both tabs and spaces in leading whitespace
-10 │             this line has both tabs and spaces
+11 │             this line has both tabs and spaces
    │         ^ indented with tabs until this space
    │
    = fix: use the same whitespace character for indentation
 
-warning[NoCurlyCommands]: task `test2` uses curly braces in command section
-   ┌─ tests/lints/command-mixed/source.wdl:21:5
-   │
-21 │     command {
-   │     ^^^^^^^ this command section uses curly braces
-   │
-   = fix: instead of curly braces, use heredoc syntax (<<<>>>>) for command sections
-
 warning[CommandSectionMixedIndentation]: mixed indentation within a command
-   ┌─ tests/lints/command-mixed/source.wdl:22:3
+   ┌─ tests/lints/command-mixed/source.wdl:23:3
    │
-21 │     command {
+22 │     command {
    │     ------- this command section uses both tabs and spaces in leading whitespace
-22 │             this line has both tabs and spaces
+23 │             this line has both tabs and spaces
    │         ^ indented with tabs until this space
    │
    = fix: use the same whitespace character for indentation

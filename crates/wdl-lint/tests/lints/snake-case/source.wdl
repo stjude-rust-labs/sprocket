@@ -57,4 +57,6 @@ task good_task {
 struct GoodStruct {
     String good_field
     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
+    #@ except: SnakeCase
+    String OK
 }

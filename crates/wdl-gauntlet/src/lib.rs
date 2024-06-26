@@ -41,6 +41,7 @@ pub use repository::Repository;
 use wdl_lint::ast::Document;
 use wdl_lint::ast::Validator;
 use wdl_lint::rules;
+use wdl_lint::ExceptVisitor;
 
 use crate::repository::WorkDir;
 
@@ -184,7 +185,8 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                 Ok(document) => {
                     let mut validator = Validator::default();
                     if args.arena {
-                        validator.add_visitors(rules().into_iter().map(|r| r.visitor()));
+                        validator
+                            .add_visitor(ExceptVisitor::new(rules().iter().map(AsRef::as_ref)));
                     }
 
                     match validator.validate(&document) {

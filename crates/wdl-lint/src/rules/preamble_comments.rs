@@ -13,6 +13,7 @@ use wdl_ast::Visitor;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::EXCEPT_COMMENT_PREFIX;
 
 /// The identifier for the preamble comments rule.
 const ID: &str = "PreambleComments";
@@ -105,7 +106,8 @@ impl Visitor for PreambleCommentsVisitor {
 
         let check = |text: &str| {
             let double_pound = text == "##" || text.starts_with("## ");
-            (self.finished && !double_pound) || (!self.finished && double_pound)
+            let except = text.starts_with(EXCEPT_COMMENT_PREFIX);
+            (self.finished && !double_pound) || (!self.finished && (double_pound | except))
         };
 
         if check(comment.as_str()) {
