@@ -84,10 +84,6 @@ impl Rule for MatchingParameterMetaRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(MatchingParameterMetaVisitor)
-    }
 }
 
 /// Checks for both missing and extra items in a `parameter_meta` section.
@@ -128,10 +124,7 @@ fn check_parameter_meta(
     }
 }
 
-/// Implements the visitor for the matching parameter meta rule.
-struct MatchingParameterMetaVisitor;
-
-impl Visitor for MatchingParameterMetaVisitor {
+impl Visitor for MatchingParameterMetaRule {
     type State = Diagnostics;
 
     fn task_definition(

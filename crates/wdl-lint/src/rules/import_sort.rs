@@ -57,16 +57,9 @@ impl Rule for ImportSortRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Clarity])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(ImportSortVisitor)
-    }
 }
 
-/// Implements the visitor for the import sort rule.
-struct ImportSortVisitor;
-
-impl Visitor for ImportSortVisitor {
+impl Visitor for ImportSortRule {
     type State = Diagnostics;
 
     fn import_statement(

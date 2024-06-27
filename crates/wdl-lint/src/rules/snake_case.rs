@@ -79,8 +79,30 @@ fn check_name(context: Context, name: &str, span: Span, diagnostics: &mut Diagno
 }
 
 /// Detects non-snake_cased identifiers.
-#[derive(Debug, Clone, Copy)]
-pub struct SnakeCaseRule;
+#[derive(Default, Debug, Clone, Copy)]
+pub struct SnakeCaseRule {
+    /// Whether the visitor is currently within a struct.
+    within_struct: bool,
+    /// Whether the visitor is currently within an input section.
+    within_input: bool,
+    /// Whether the visitor is currently within an output section.
+    within_output: bool,
+}
+
+impl SnakeCaseRule {
+    /// Determines current declaration context.
+    fn determine_decl_context(&self) -> Context {
+        if self.within_struct {
+            Context::Struct
+        } else if self.within_input {
+            Context::Input
+        } else if self.within_output {
+            Context::Output
+        } else {
+            Context::PrivateDecl
+        }
+    }
+}
 
 impl Rule for SnakeCaseRule {
     fn id(&self) -> &'static str {
@@ -99,39 +121,9 @@ impl Rule for SnakeCaseRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Naming, Tag::Style, Tag::Clarity])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::<SnakeCaseVisitor>::default()
-    }
 }
 
-/// Implements the visitor for the snake case rule.
-#[derive(Debug, Default)]
-struct SnakeCaseVisitor {
-    /// Whether the visitor is currently within a struct.
-    within_struct: bool,
-    /// Whether the visitor is currently within an input section.
-    within_input: bool,
-    /// Whether the visitor is currently within an output section.
-    within_output: bool,
-}
-
-impl SnakeCaseVisitor {
-    /// Determines current declaration context.
-    fn determine_decl_context(&self) -> Context {
-        if self.within_struct {
-            Context::Struct
-        } else if self.within_input {
-            Context::Input
-        } else if self.within_output {
-            Context::Output
-        } else {
-            Context::PrivateDecl
-        }
-    }
-}
-
-impl Visitor for SnakeCaseVisitor {
+impl Visitor for SnakeCaseRule {
     type State = Diagnostics;
 
     fn struct_definition(

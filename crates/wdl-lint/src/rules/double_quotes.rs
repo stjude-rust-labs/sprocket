@@ -46,16 +46,9 @@ impl Rule for DoubleQuotesRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity, Tag::Style])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(DoubleQuotesVisitor)
-    }
 }
 
-/// Implements the visitor for the double quotes rule.
-struct DoubleQuotesVisitor;
-
-impl Visitor for DoubleQuotesVisitor {
+impl Visitor for DoubleQuotesRule {
     type State = Diagnostics;
 
     fn expr(&mut self, state: &mut Self::State, reason: VisitReason, expr: &Expr) {

@@ -1,4 +1,4 @@
-//! Implementation of the `except` visitor.
+//! Implementation of the lint visitor.
 
 use std::collections::HashSet;
 
@@ -19,6 +19,7 @@ use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::Whitespace;
 
+use crate::rules;
 use crate::Rule;
 
 /// The prefix of `except` comments.
@@ -31,7 +32,11 @@ fn unknown_rule(id: &str, span: Span) -> Diagnostic {
         .with_fix("remove the rule from the exception list")
 }
 
-/// A visitor that respects `#@ except` comments.
+/// A visitor that runs linting rules.
+///
+/// By default, the visitor runs all lint rules.
+///
+/// This visitor respects `#@ except` comments that precede AST nodes.
 ///
 /// The format for the comment is `#@ except: <ids>`, where `ids` is a
 /// comma-separated list of lint rule identifiers.
@@ -41,11 +46,10 @@ fn unknown_rule(id: &str, span: Span) -> Diagnostic {
 ///
 /// Otherwise, `#@ except` comments disable the rule for the immediately
 /// following AST node.
-#[derive(Default)]
 #[allow(missing_debug_implementations)]
-pub struct ExceptVisitor {
-    /// The map of rule name to visitor.
-    visitors: IndexMap<&'static str, Box<dyn Visitor<State = Diagnostics>>>,
+pub struct LintVisitor {
+    /// The map of rule name to rule.
+    rules: IndexMap<&'static str, Box<dyn Rule>>,
     /// The set of globally disabled rules; these rules no longer appear in the
     /// `visitors` map.
     global: HashSet<String>,
@@ -54,18 +58,18 @@ pub struct ExceptVisitor {
     exceptions: Vec<(usize, HashSet<String>)>,
 }
 
-impl ExceptVisitor {
-    /// Creates a new except visitor with the given rules.
-    pub fn new<'a>(rules: impl Iterator<Item = &'a dyn Rule>) -> Self {
+impl LintVisitor {
+    /// Creates a new linting visitor with the given rules.
+    pub fn new(rules: impl IntoIterator<Item = Box<dyn Rule>>) -> Self {
         Self {
-            visitors: rules.map(|r| (r.id(), r.visitor())).collect(),
+            rules: rules.into_iter().map(|r| (r.id(), r)).collect(),
             global: Default::default(),
             exceptions: Default::default(),
         }
     }
 
-    /// Invokes a callback on each rule's visitor provided the rule is not
-    /// currently excepted.
+    /// Invokes a callback on each rule provided the rule is not currently
+    /// excepted.
     fn each_enabled_rule<F>(
         &mut self,
         state: &mut Diagnostics,
@@ -73,7 +77,7 @@ impl ExceptVisitor {
         node: &SyntaxNode,
         mut cb: F,
     ) where
-        F: FnMut(&mut Diagnostics, &mut dyn Visitor<State = Diagnostics>),
+        F: FnMut(&mut Diagnostics, &mut dyn Rule),
     {
         let start = node.text_range().start().into();
 
@@ -84,12 +88,12 @@ impl ExceptVisitor {
             }
         }
 
-        for (id, visitor) in &mut self.visitors {
+        for (id, rule) in &mut self.rules {
             if self.exceptions.iter().any(|(_, set)| set.contains(*id)) {
                 continue;
             }
 
-            cb(state, visitor.as_mut());
+            cb(state, rule.as_mut());
         }
 
         if reason == VisitReason::Exit {
@@ -124,7 +128,7 @@ impl ExceptVisitor {
                     // Next trim the end
                     let trimmed: &str = trimmed_start.trim_end();
 
-                    if !self.visitors.contains_key(trimmed) && !self.global.contains(trimmed) {
+                    if !self.rules.contains_key(trimmed) && !self.global.contains(trimmed) {
                         // Calculate the span based off the current offset and how much whitespace
                         // was trimmed
                         let span = Span::new(
@@ -146,7 +150,17 @@ impl ExceptVisitor {
     }
 }
 
-impl Visitor for ExceptVisitor {
+impl Default for LintVisitor {
+    fn default() -> Self {
+        Self {
+            rules: rules().into_iter().map(|r| (r.id(), r)).collect(),
+            global: Default::default(),
+            exceptions: Default::default(),
+        }
+    }
+}
+
+impl Visitor for LintVisitor {
     type State = Diagnostics;
 
     fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {
@@ -156,37 +170,37 @@ impl Visitor for ExceptVisitor {
                 self.global = self.exceptions_for(state, stmt.syntax());
                 for id in &self.global {
                     // This is a shift remove to maintain the original order provided at
-                    // construction time; this is O(N), but both the set of visitors and exceptions
+                    // construction time; this is O(N), but both the set of rules and exceptions
                     // is consistently small.
-                    self.visitors.shift_remove(id.as_str());
+                    self.rules.shift_remove(id.as_str());
                 }
             }
         }
 
         // We don't need to check the exceptions here as the globally-disabled rules
         // were already removed.
-        for (_, visitor) in &mut self.visitors {
-            visitor.document(state, reason, doc);
+        for (_, rule) in &mut self.rules {
+            rule.document(state, reason, doc);
         }
     }
 
     fn whitespace(&mut self, state: &mut Self::State, whitespace: &Whitespace) {
-        for (id, visitor) in &mut self.visitors {
+        for (id, rule) in &mut self.rules {
             if self.exceptions.iter().any(|(_, set)| set.contains(*id)) {
                 continue;
             }
 
-            visitor.whitespace(state, whitespace);
+            rule.whitespace(state, whitespace);
         }
     }
 
     fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
-        for (id, visitor) in &mut self.visitors {
+        for (id, rule) in &mut self.rules {
             if self.exceptions.iter().any(|(_, set)| set.contains(*id)) {
                 continue;
             }
 
-            visitor.comment(state, comment);
+            rule.comment(state, comment);
         }
     }
 
@@ -196,10 +210,10 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         stmt: &VersionStatement,
     ) {
-        // We call every visitor here as we've already disabled the global rules based
-        // on the version statement
-        for (_, visitor) in &mut self.visitors {
-            visitor.version_statement(state, reason, stmt);
+        // We call every rule here as we've already disabled the global rules based on
+        // the version statement
+        for (_, rule) in &mut self.rules {
+            rule.version_statement(state, reason, stmt);
         }
     }
 
@@ -209,8 +223,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         stmt: &v1::ImportStatement,
     ) {
-        self.each_enabled_rule(state, reason, stmt.syntax(), |state, visitor| {
-            visitor.import_statement(state, reason, stmt)
+        self.each_enabled_rule(state, reason, stmt.syntax(), |state, rule| {
+            rule.import_statement(state, reason, stmt)
         });
     }
 
@@ -220,8 +234,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         def: &v1::StructDefinition,
     ) {
-        self.each_enabled_rule(state, reason, def.syntax(), |state, visitor| {
-            visitor.struct_definition(state, reason, def)
+        self.each_enabled_rule(state, reason, def.syntax(), |state, rule| {
+            rule.struct_definition(state, reason, def)
         });
     }
 
@@ -231,8 +245,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         task: &v1::TaskDefinition,
     ) {
-        self.each_enabled_rule(state, reason, task.syntax(), |state, visitor| {
-            visitor.task_definition(state, reason, task)
+        self.each_enabled_rule(state, reason, task.syntax(), |state, rule| {
+            rule.task_definition(state, reason, task)
         });
     }
 
@@ -242,8 +256,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         workflow: &v1::WorkflowDefinition,
     ) {
-        self.each_enabled_rule(state, reason, workflow.syntax(), |state, visitor| {
-            visitor.workflow_definition(state, reason, workflow)
+        self.each_enabled_rule(state, reason, workflow.syntax(), |state, rule| {
+            rule.workflow_definition(state, reason, workflow)
         });
     }
 
@@ -253,8 +267,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         section: &v1::InputSection,
     ) {
-        self.each_enabled_rule(state, reason, section.syntax(), |state, visitor| {
-            visitor.input_section(state, reason, section)
+        self.each_enabled_rule(state, reason, section.syntax(), |state, rule| {
+            rule.input_section(state, reason, section)
         });
     }
 
@@ -264,8 +278,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         section: &v1::OutputSection,
     ) {
-        self.each_enabled_rule(state, reason, section.syntax(), |state, visitor| {
-            visitor.output_section(state, reason, section)
+        self.each_enabled_rule(state, reason, section.syntax(), |state, rule| {
+            rule.output_section(state, reason, section)
         });
     }
 
@@ -275,18 +289,18 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         section: &v1::CommandSection,
     ) {
-        self.each_enabled_rule(state, reason, section.syntax(), |state, visitor| {
-            visitor.command_section(state, reason, section)
+        self.each_enabled_rule(state, reason, section.syntax(), |state, rule| {
+            rule.command_section(state, reason, section)
         });
     }
 
     fn command_text(&mut self, state: &mut Self::State, text: &v1::CommandText) {
-        for (id, visitor) in &mut self.visitors {
+        for (id, rule) in &mut self.rules {
             if self.exceptions.iter().any(|(_, set)| set.contains(*id)) {
                 continue;
             }
 
-            visitor.command_text(state, text);
+            rule.command_text(state, text);
         }
     }
 
@@ -296,8 +310,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         section: &v1::RuntimeSection,
     ) {
-        self.each_enabled_rule(state, reason, section.syntax(), |state, visitor| {
-            visitor.runtime_section(state, reason, section)
+        self.each_enabled_rule(state, reason, section.syntax(), |state, rule| {
+            rule.runtime_section(state, reason, section)
         });
     }
 
@@ -307,8 +321,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         section: &v1::MetadataSection,
     ) {
-        self.each_enabled_rule(state, reason, section.syntax(), |state, visitor| {
-            visitor.metadata_section(state, reason, section)
+        self.each_enabled_rule(state, reason, section.syntax(), |state, rule| {
+            rule.metadata_section(state, reason, section)
         });
     }
 
@@ -318,8 +332,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         section: &v1::ParameterMetadataSection,
     ) {
-        self.each_enabled_rule(state, reason, section.syntax(), |state, visitor| {
-            visitor.parameter_metadata_section(state, reason, section)
+        self.each_enabled_rule(state, reason, section.syntax(), |state, rule| {
+            rule.parameter_metadata_section(state, reason, section)
         });
     }
 
@@ -329,8 +343,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         object: &v1::MetadataObject,
     ) {
-        self.each_enabled_rule(state, reason, object.syntax(), |state, visitor| {
-            visitor.metadata_object(state, reason, object)
+        self.each_enabled_rule(state, reason, object.syntax(), |state, rule| {
+            rule.metadata_object(state, reason, object)
         });
     }
 
@@ -340,30 +354,30 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         decl: &v1::UnboundDecl,
     ) {
-        self.each_enabled_rule(state, reason, decl.syntax(), |state, visitor| {
-            visitor.unbound_decl(state, reason, decl)
+        self.each_enabled_rule(state, reason, decl.syntax(), |state, rule| {
+            rule.unbound_decl(state, reason, decl)
         });
     }
 
     fn bound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &v1::BoundDecl) {
-        self.each_enabled_rule(state, reason, decl.syntax(), |state, visitor| {
-            visitor.bound_decl(state, reason, decl)
+        self.each_enabled_rule(state, reason, decl.syntax(), |state, rule| {
+            rule.bound_decl(state, reason, decl)
         });
     }
 
     fn expr(&mut self, state: &mut Self::State, reason: VisitReason, expr: &v1::Expr) {
-        self.each_enabled_rule(state, reason, expr.syntax(), |state, visitor| {
-            visitor.expr(state, reason, expr)
+        self.each_enabled_rule(state, reason, expr.syntax(), |state, rule| {
+            rule.expr(state, reason, expr)
         });
     }
 
     fn string_text(&mut self, state: &mut Self::State, text: &v1::StringText) {
-        for (id, visitor) in &mut self.visitors {
+        for (id, rule) in &mut self.rules {
             if self.exceptions.iter().any(|(_, set)| set.contains(*id)) {
                 continue;
             }
 
-            visitor.string_text(state, text);
+            rule.string_text(state, text);
         }
     }
 
@@ -373,8 +387,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         stmt: &v1::ConditionalStatement,
     ) {
-        self.each_enabled_rule(state, reason, stmt.syntax(), |state, visitor| {
-            visitor.conditional_statement(state, reason, stmt)
+        self.each_enabled_rule(state, reason, stmt.syntax(), |state, rule| {
+            rule.conditional_statement(state, reason, stmt)
         });
     }
 
@@ -384,8 +398,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         stmt: &v1::ScatterStatement,
     ) {
-        self.each_enabled_rule(state, reason, stmt.syntax(), |state, visitor| {
-            visitor.scatter_statement(state, reason, stmt)
+        self.each_enabled_rule(state, reason, stmt.syntax(), |state, rule| {
+            rule.scatter_statement(state, reason, stmt)
         });
     }
 
@@ -395,8 +409,8 @@ impl Visitor for ExceptVisitor {
         reason: VisitReason,
         stmt: &v1::CallStatement,
     ) {
-        self.each_enabled_rule(state, reason, stmt.syntax(), |state, visitor| {
-            visitor.call_statement(state, reason, stmt)
+        self.each_enabled_rule(state, reason, stmt.syntax(), |state, rule| {
+            rule.call_statement(state, reason, stmt)
         });
     }
 }

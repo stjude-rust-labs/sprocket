@@ -63,12 +63,12 @@
 //! # let source = "version 1.1\nworkflow test {}";
 //! use wdl::ast::Document;
 //! use wdl::ast::Validator;
-//! use wdl::lint::rules;
+//! use wdl::lint::LintVisitor;
 //!
 //! match Document::parse(source).into_result() {
 //!     Ok(document) => {
 //!         let mut validator = Validator::default();
-//!         validator.add_visitors(rules().into_iter().map(|r| r.visitor()));
+//!         validator.add_visitor(LintVisitor::default());
 //!         match validator.validate(&document) {
 //!             Ok(_) => {
 //!                 // The document was valid WDL and passed all lints

@@ -52,16 +52,9 @@ impl Rule for InputNotSortedRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Sorting])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(InputNotSortedVisitor)
-    }
 }
 
-/// Implements the visitor for the input not sorted rule.
-struct InputNotSortedVisitor;
-
-impl Visitor for InputNotSortedVisitor {
+impl Visitor for InputNotSortedRule {
     type State = Diagnostics;
 
     fn input_section(

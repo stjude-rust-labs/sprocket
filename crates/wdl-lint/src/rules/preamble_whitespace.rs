@@ -46,8 +46,15 @@ fn expected_blank_line_after(span: Span) -> Diagnostic {
 }
 
 /// Detects incorrect whitespace in a document preamble.
-#[derive(Debug, Clone, Copy)]
-pub struct PreambleWhitespaceRule;
+#[derive(Default, Debug, Clone, Copy)]
+pub struct PreambleWhitespaceRule {
+    /// Whether or not we've entered the version statement.
+    entered_version: bool,
+    /// Whether or not we've exited the version statement.
+    exited_version: bool,
+    /// Whether or not we've visited whitespace *after* the version statement.
+    checked_blank_after: bool,
+}
 
 impl Rule for PreambleWhitespaceRule {
     fn id(&self) -> &'static str {
@@ -70,24 +77,9 @@ impl Rule for PreambleWhitespaceRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing, Tag::Style])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::<PreambleWhitespaceVisitor>::default()
-    }
 }
 
-/// Implements the visitor for the preamble whitespace rule.
-#[derive(Default, Debug)]
-struct PreambleWhitespaceVisitor {
-    /// Whether or not we've entered the version statement.
-    entered_version: bool,
-    /// Whether or not we've exited the version statement.
-    exited_version: bool,
-    /// Whether or not we've visited whitespace *after* the version statement.
-    checked_blank_after: bool,
-}
-
-impl Visitor for PreambleWhitespaceVisitor {
+impl Visitor for PreambleWhitespaceRule {
     type State = Diagnostics;
 
     fn version_statement(

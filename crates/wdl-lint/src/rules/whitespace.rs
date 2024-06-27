@@ -43,8 +43,12 @@ fn more_than_one_blank_line(span: Span) -> Diagnostic {
 }
 
 /// Detects undesired whitespace.
-#[derive(Debug, Clone, Copy)]
-pub struct WhitespaceRule;
+#[derive(Default, Debug, Clone, Copy)]
+pub struct WhitespaceRule {
+    /// Whether or not the version statement has been encountered in the
+    /// document.
+    has_version: bool,
+}
 
 impl Rule for WhitespaceRule {
     fn id(&self) -> &'static str {
@@ -65,21 +69,9 @@ impl Rule for WhitespaceRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Spacing])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::<WhitespaceVisitor>::default()
-    }
 }
 
-/// Implements the visitor for whitespace rule.
-#[derive(Default)]
-struct WhitespaceVisitor {
-    /// Whether or not the version statement has been encountered in the
-    /// document.
-    has_version: bool,
-}
-
-impl Visitor for WhitespaceVisitor {
+impl Visitor for WhitespaceRule {
     type State = Diagnostics;
 
     fn version_statement(

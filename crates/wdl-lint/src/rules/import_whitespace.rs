@@ -47,7 +47,7 @@ fn improper_whitespace_before_import(span: Span) -> Diagnostic {
 }
 
 /// Detects whitespace between imports.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct ImportWhitespaceRule;
 
 impl Rule for ImportWhitespaceRule {
@@ -73,17 +73,9 @@ impl Rule for ImportWhitespaceRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Spacing])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(ImportWhitespaceVisitor)
-    }
 }
 
-/// Implements the visitor for the import whitespace rule.
-#[derive(Debug, Default)]
-struct ImportWhitespaceVisitor;
-
-impl Visitor for ImportWhitespaceVisitor {
+impl Visitor for ImportWhitespaceRule {
     type State = Diagnostics;
 
     fn import_statement(

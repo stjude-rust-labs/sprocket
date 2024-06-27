@@ -51,16 +51,9 @@ impl Rule for NoCurlyCommandsRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(NoCurlyCommandsVisitor)
-    }
 }
 
-/// Implements the visitor for the no curly commands rule.
-struct NoCurlyCommandsVisitor;
-
-impl Visitor for NoCurlyCommandsVisitor {
+impl Visitor for NoCurlyCommandsRule {
     type State = Diagnostics;
 
     fn command_section(

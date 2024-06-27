@@ -35,8 +35,13 @@ fn preamble_comment_after_version(span: Span) -> Diagnostic {
 }
 
 /// Detects incorrect comments in a document preamble.
-#[derive(Debug, Clone, Copy)]
-pub struct PreambleCommentsRule;
+#[derive(Default, Debug, Clone, Copy)]
+pub struct PreambleCommentsRule {
+    /// Whether or not the preamble has finished.
+    finished: bool,
+    /// The number of comment tokens to skip.
+    skip_count: usize,
+}
 
 impl Rule for PreambleCommentsRule {
     fn id(&self) -> &'static str {
@@ -64,22 +69,9 @@ impl Rule for PreambleCommentsRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing, Tag::Style, Tag::Clarity])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::<PreambleCommentsVisitor>::default()
-    }
 }
 
-/// Implements the visitor for the preamble comments rule.
-#[derive(Default, Debug)]
-struct PreambleCommentsVisitor {
-    /// Whether or not the preamble has finished.
-    finished: bool,
-    /// The number of comment tokens to skip.
-    skip_count: usize,
-}
-
-impl Visitor for PreambleCommentsVisitor {
+impl Visitor for PreambleCommentsRule {
     type State = Diagnostics;
 
     fn version_statement(

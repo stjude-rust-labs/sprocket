@@ -65,16 +65,9 @@ impl Rule for MissingOutputRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness, Tag::Portability])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(MissingOutputVisitor)
-    }
 }
 
-/// Implements the visitor for the missing output section rule.
-struct MissingOutputVisitor;
-
-impl Visitor for MissingOutputVisitor {
+impl Visitor for MissingOutputRule {
     type State = Diagnostics;
 
     fn task_definition(

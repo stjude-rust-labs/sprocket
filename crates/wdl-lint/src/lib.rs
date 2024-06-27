@@ -8,13 +8,12 @@
 //! # let source = "version 1.1\nworkflow test {}";
 //! use wdl_lint::ast::Document;
 //! use wdl_lint::ast::Validator;
-//! use wdl_lint::rules;
-//! use wdl_lint::ExceptVisitor;
+//! use wdl_lint::LintVisitor;
 //!
 //! match Document::parse(source).into_result() {
 //!     Ok(document) => {
 //!         let mut validator = Validator::default();
-//!         validator.add_visitor(ExceptVisitor::new(rules().iter().map(AsRef::as_ref)));
+//!         validator.add_visitor(LintVisitor::default());
 //!         match validator.validate(&document) {
 //!             Ok(_) => {
 //!                 // The document was valid WDL and passed all lints
@@ -40,17 +39,17 @@
 use wdl_ast::Diagnostics;
 use wdl_ast::Visitor;
 
-mod except;
 pub mod rules;
 mod tags;
 pub(crate) mod util;
+mod visitor;
 
-pub use except::*;
 pub use tags::*;
+pub use visitor::*;
 pub use wdl_ast as ast;
 
 /// A trait implemented by lint rules.
-pub trait Rule {
+pub trait Rule: Visitor<State = Diagnostics> {
     /// The unique identifier for the lint rule.
     ///
     /// The identifier is required to be pascal case.
@@ -72,9 +71,6 @@ pub trait Rule {
     fn url(&self) -> Option<&'static str> {
         None
     }
-
-    /// Gets the visitor of the rule.
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>>;
 }
 
 /// Gets the default rule set.
@@ -82,15 +78,15 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
     let rules: Vec<Box<dyn Rule>> = vec![
         Box::new(rules::DoubleQuotesRule),
         Box::new(rules::NoCurlyCommandsRule),
-        Box::new(rules::SnakeCaseRule),
+        Box::new(rules::SnakeCaseRule::default()),
         Box::new(rules::MissingRuntimeRule),
         Box::new(rules::EndingNewlineRule),
-        Box::new(rules::PreambleWhitespaceRule),
-        Box::new(rules::PreambleCommentsRule),
+        Box::new(rules::PreambleWhitespaceRule::default()),
+        Box::new(rules::PreambleCommentsRule::default()),
         Box::new(rules::MatchingParameterMetaRule),
-        Box::new(rules::WhitespaceRule),
+        Box::new(rules::WhitespaceRule::default()),
         Box::new(rules::CommandSectionMixedIndentationRule),
-        Box::new(rules::ImportPlacementRule),
+        Box::new(rules::ImportPlacementRule::default()),
         Box::new(rules::PascalCaseRule),
         Box::new(rules::ImportWhitespaceRule),
         Box::new(rules::MissingMetasRule),
@@ -98,7 +94,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(rules::ImportSortRule),
         Box::new(rules::InputNotSortedRule),
         Box::new(rules::LineWidthRule::default()),
-        Box::new(rules::InconsistentNewlinesRule),
+        Box::new(rules::InconsistentNewlinesRule::default()),
     ];
 
     // Ensure all the rule ids are unique and pascal case

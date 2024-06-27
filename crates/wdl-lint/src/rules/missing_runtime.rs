@@ -43,16 +43,9 @@ impl Rule for MissingRuntimeRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness, Tag::Portability])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(MissingRuntimeVisitor)
-    }
 }
 
-/// Implements the visitor for the missing runtime section rule.
-struct MissingRuntimeVisitor;
-
-impl Visitor for MissingRuntimeVisitor {
+impl Visitor for MissingRuntimeRule {
     type State = Diagnostics;
 
     fn task_definition(

@@ -102,17 +102,9 @@ impl Rule for MissingMetasRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness, Tag::Clarity])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(MissingMetasVisitor)
-    }
 }
 
-/// Implements the visitor for the missing meta and parameter_meta sections
-/// rule.
-struct MissingMetasVisitor;
-
-impl Visitor for MissingMetasVisitor {
+impl Visitor for MissingMetasRule {
     type State = Diagnostics;
 
     fn task_definition(

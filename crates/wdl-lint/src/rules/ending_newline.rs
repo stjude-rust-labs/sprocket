@@ -60,16 +60,9 @@ impl Rule for EndingNewlineRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing, Tag::Style])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(EndingNewlineVisitor)
-    }
 }
 
-/// Implements the visitor for the ending newline rule.
-struct EndingNewlineVisitor;
-
-impl Visitor for EndingNewlineVisitor {
+impl Visitor for EndingNewlineRule {
     type State = Diagnostics;
 
     fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {

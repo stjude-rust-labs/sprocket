@@ -24,8 +24,15 @@ fn inconsistent_newlines(span: Span) -> Diagnostic {
 }
 
 /// Detects imports that are not sorted lexicographically.
-#[derive(Debug, Clone, Copy)]
-pub struct InconsistentNewlinesRule;
+#[derive(Default, Debug, Clone, Copy)]
+pub struct InconsistentNewlinesRule {
+    /// The number of carriage returns in the file.
+    carriage_return: u32,
+    /// The number of newlines in the file.
+    newline: u32,
+    /// Location of first inconsistent newline.
+    first_inconsistent: Option<Span>,
+}
 
 impl Rule for InconsistentNewlinesRule {
     fn id(&self) -> &'static str {
@@ -44,34 +51,9 @@ impl Rule for InconsistentNewlinesRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Clarity])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(InconsistentNewlinesVisitor::default())
-    }
 }
 
-/// Implements the visitor for the import sort rule.
-struct InconsistentNewlinesVisitor {
-    /// The number of carriage returns in the file.
-    carriage_return: u32,
-    /// The number of newlines in the file.
-    newline: u32,
-    /// Location of first inconsistent newline.
-    first_inconsistent: Option<Span>,
-}
-
-/// Implements the default inconsistent newlines visitor.
-impl Default for InconsistentNewlinesVisitor {
-    fn default() -> Self {
-        Self {
-            carriage_return: 0,
-            newline: 0,
-            first_inconsistent: None,
-        }
-    }
-}
-
-impl Visitor for InconsistentNewlinesVisitor {
+impl Visitor for InconsistentNewlinesRule {
     type State = Diagnostics;
 
     fn document(&mut self, state: &mut Self::State, reason: VisitReason, _doc: &wdl_ast::Document) {

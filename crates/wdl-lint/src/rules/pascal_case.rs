@@ -47,10 +47,6 @@ impl Rule for PascalCaseRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Naming, Tag::Style, Tag::Clarity])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(PascalCaseVisitor)
-    }
 }
 
 /// Checks if the given name is pascal case, and if not adds a warning to the
@@ -65,10 +61,7 @@ fn check_name(name: &str, span: Span, diagnostics: &mut Diagnostics) {
     }
 }
 
-/// Implements the visitor for the pascal case rule.
-struct PascalCaseVisitor;
-
-impl Visitor for PascalCaseVisitor {
+impl Visitor for PascalCaseRule {
     type State = Diagnostics;
 
     fn struct_definition(

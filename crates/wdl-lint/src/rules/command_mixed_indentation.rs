@@ -94,16 +94,9 @@ impl Rule for CommandSectionMixedIndentationRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Correctness, Tag::Spacing, Tag::Clarity])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(CommandSectionMixedIndentationVisitor)
-    }
 }
 
-/// Implements the visitor for the command section mixed indentation rule.
-struct CommandSectionMixedIndentationVisitor;
-
-impl Visitor for CommandSectionMixedIndentationVisitor {
+impl Visitor for CommandSectionMixedIndentationRule {
     type State = Diagnostics;
 
     fn command_section(

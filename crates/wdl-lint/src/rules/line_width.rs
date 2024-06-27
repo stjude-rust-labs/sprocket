@@ -23,43 +23,7 @@ fn line_too_long(span: Span, max_width: usize) -> Diagnostic {
 
 /// Detects lines that exceed a certain width.
 #[derive(Debug, Clone, Copy)]
-pub struct LineWidthRule(usize);
-
-/// Implements the default line width rule.
-impl Default for LineWidthRule {
-    fn default() -> Self {
-        Self(90)
-    }
-}
-
-impl Rule for LineWidthRule {
-    fn id(&self) -> &'static str {
-        ID
-    }
-
-    fn description(&self) -> &'static str {
-        "Ensures that lines do not exceed a certain width. That width is currently set to 90 \
-         characters."
-    }
-
-    fn explanation(&self) -> &'static str {
-        "Lines should not exceed a certain width to make it easier to read and understand the \
-         code. Code within the either the meta or parameter meta sections is not checked. Comments \
-         are included in the line width check. The current maximum width is 90 characters."
-    }
-
-    fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Spacing])
-    }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(LineWidthVisitor::new(self.0))
-    }
-}
-
-/// A visitor that detects lines that exceed a certain width.
-#[derive(Debug, Clone, Copy)]
-struct LineWidthVisitor {
+pub struct LineWidthRule {
     /// The maximum width of a line.
     max_width: usize,
     /// The offset of the previous newline.
@@ -68,16 +32,7 @@ struct LineWidthVisitor {
     should_ignore: bool,
 }
 
-impl LineWidthVisitor {
-    /// Creates a new line width visitor.
-    fn new(max_width: usize) -> Self {
-        Self {
-            max_width,
-            prev_newline_offset: 0,
-            should_ignore: false,
-        }
-    }
-
+impl LineWidthRule {
     /// Detects lines that exceed a certain width.
     fn detect_line_too_long(&mut self, state: &mut Diagnostics, text: &str, start: usize) {
         let mut cur_newline_offset = start;
@@ -104,7 +59,39 @@ impl LineWidthVisitor {
     }
 }
 
-impl Visitor for LineWidthVisitor {
+/// Implements the default line width rule.
+impl Default for LineWidthRule {
+    fn default() -> Self {
+        Self {
+            max_width: 90,
+            prev_newline_offset: 0,
+            should_ignore: false,
+        }
+    }
+}
+
+impl Rule for LineWidthRule {
+    fn id(&self) -> &'static str {
+        ID
+    }
+
+    fn description(&self) -> &'static str {
+        "Ensures that lines do not exceed a certain width. That width is currently set to 90 \
+         characters."
+    }
+
+    fn explanation(&self) -> &'static str {
+        "Lines should not exceed a certain width to make it easier to read and understand the \
+         code. Code within the either the meta or parameter meta sections is not checked. Comments \
+         are included in the line width check. The current maximum width is 90 characters."
+    }
+
+    fn tags(&self) -> TagSet {
+        TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Spacing])
+    }
+}
+
+impl Visitor for LineWidthRule {
     type State = Diagnostics;
 
     fn whitespace(&mut self, state: &mut Self::State, whitespace: &wdl_ast::Whitespace) {

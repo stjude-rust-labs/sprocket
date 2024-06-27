@@ -31,8 +31,11 @@ fn misplaced_import(span: Span) -> Diagnostic {
 }
 
 /// Detects incorrect import placements.
-#[derive(Debug, Clone, Copy)]
-pub struct ImportPlacementRule;
+#[derive(Default, Debug, Clone, Copy)]
+pub struct ImportPlacementRule {
+    /// Whether or not an import statement is considered invalid.
+    invalid: bool,
+}
 
 impl Rule for ImportPlacementRule {
     fn id(&self) -> &'static str {
@@ -51,20 +54,9 @@ impl Rule for ImportPlacementRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity])
     }
-
-    fn visitor(&self) -> Box<dyn Visitor<State = Diagnostics>> {
-        Box::new(ImportPlacementVisitor::default())
-    }
 }
 
-/// Implements the visitor for the import placement rule.
-#[derive(Default)]
-struct ImportPlacementVisitor {
-    /// Whether or not an import statement is considered invalid.
-    invalid: bool,
-}
-
-impl Visitor for ImportPlacementVisitor {
+impl Visitor for ImportPlacementRule {
     type State = Diagnostics;
 
     fn import_statement(
