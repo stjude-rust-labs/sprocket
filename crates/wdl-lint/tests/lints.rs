@@ -120,14 +120,13 @@ fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<(), Strin
 
 fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
     let path = test.join("source.wdl");
-    let source = std::fs::read_to_string(&path)
-        .map_err(|e| {
-            format!(
-                "failed to read source file `{path}`: {e}",
-                path = path.display()
-            )
-        })?
-        .replace("\r\n", "\n");
+    let source = std::fs::read_to_string(&path).map_err(|e| {
+        format!(
+            "failed to read source file `{path}`: {e}",
+            path = path.display()
+        )
+    })?;
+
     match Document::parse(&source).into_result() {
         Ok(document) => {
             let mut validator = Validator::default();

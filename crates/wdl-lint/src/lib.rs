@@ -98,6 +98,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(rules::ImportSortRule),
         Box::new(rules::InputNotSortedRule),
         Box::new(rules::LineWidthRule::default()),
+        Box::new(rules::InconsistentNewlinesRule),
     ];
 
     // Ensure all the rule ids are unique and pascal case

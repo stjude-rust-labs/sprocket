@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added the `InconsistentNewlines` line rule ([#104](https://github.com/stjude-rust-labs/wdl/pull/104)).
 * Add support for `#@ except` comments to disable lint rules ([#101](https://github.com/stjude-rust-labs/wdl/pull/101)).
 * Added the `LineWidth` lint rule (#99).
 * Added the `ImportWhitespace` and `ImportSort` lint rules (#98).

@@ -1,0 +1,9 @@
+note[InconsistentNewlines]: inconsistent newlines detected
+  ┌─ tests/lints/inconsistent-newlines/source.wdl:7:1
+  │  
+7 │ ╭ 
+8 │ │ workflow foo {}
+  │ ╰^ the first occurrence of a mismatched newline is here
+  │  
+  = fix: use either "/n" or "/r/n" consistently in the file
+
