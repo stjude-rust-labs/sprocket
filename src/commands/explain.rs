@@ -13,13 +13,13 @@ pub struct Args {
 
 pub fn list_all_rules() -> String {
     let mut result = "Available rules:".to_owned();
-    for rule in lint::v1::rules() {
+    for rule in lint::rules() {
         result.push_str(&format!("\n  - {}", rule.id()));
     }
     result
 }
 
-pub fn pretty_print_rule(rule: &dyn lint::v1::Rule) -> String {
+pub fn pretty_print_rule(rule: &dyn lint::Rule) -> String {
     let mut result = format!("{}", rule.id().bold().underline());
     result = format!("{}\n{}", result, rule.description());
     result = format!("{}\n{}", result, format!("{}", rule.tags()).yellow());
@@ -34,7 +34,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
     let name = args.rule_name;
     let lowercase_name = name.to_lowercase();
 
-    let rule = lint::v1::rules()
+    let rule = lint::rules()
         .into_iter()
         .find(|rule| rule.id().to_lowercase() == lowercase_name);
 

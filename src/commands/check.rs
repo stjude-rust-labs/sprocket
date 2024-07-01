@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::bail;
 use clap::Parser;
 use clap::ValueEnum;
 use codespan_reporting::term::termcolor::ColorChoice;
@@ -34,6 +35,10 @@ pub struct Common {
     #[arg(required = true)]
     paths: Vec<PathBuf>,
 
+    /// Lint rules to except from running.
+    #[arg(short, long, value_name = "RULE")]
+    except: Vec<String>,
+
     /// Disables color output.
     #[arg(long)]
     no_color: bool,
@@ -64,10 +69,14 @@ pub struct LintArgs {
 }
 
 pub fn check(args: CheckArgs) -> anyhow::Result<()> {
+    if !args.lint && !args.common.except.is_empty() {
+        bail!("cannot specify --except without --lint");
+    }
+
     let (config, writer) = get_display_config(&args.common);
 
     match sprocket::file::Repository::try_new(args.common.paths, vec!["wdl".to_string()])?
-        .report_diagnostics(config, writer, args.lint)?
+        .report_diagnostics(config, writer, args.lint, args.common.except)?
     {
         // There are syntax errors.
         (true, _) => std::process::exit(1),
