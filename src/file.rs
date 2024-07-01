@@ -165,17 +165,14 @@ impl Repository {
 
                     if lint {
                         let mut linter = wdl::ast::Validator::empty();
-                        let visitor = LintVisitor::new(
-                            wdl::lint::rules()
-                                .into_iter()
-                                .filter_map(|rule| {
-                                    if except_rules.contains(&rule.id().to_string()) {
-                                        None
-                                    } else {
-                                        Some(rule)
-                                    }
-                                })
-                            );
+                        let visitor =
+                            LintVisitor::new(wdl::lint::rules().into_iter().filter_map(|rule| {
+                                if except_rules.contains(&rule.id().to_string()) {
+                                    None
+                                } else {
+                                    Some(rule)
+                                }
+                            }));
                         linter.add_visitor(visitor);
                         if let Err(diagnostics) = linter.validate(&document) {
                             reporter.emit_diagnostics(file, &diagnostics)?;
