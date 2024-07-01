@@ -16,7 +16,7 @@ commit_hash = "2bf875300d90a3c9c8d670b3d99026452d5dbae2"
 
 [repositories."broadinstitute/gatk-tool-wdls"]
 identifier = "broadinstitute/gatk-tool-wdls"
-commit_hash = "04057c175d0307f96f3f90e2704a4594ebf4e314"
+commit_hash = "4536dd2c6719b86f4c50348f0ce354818260cadb"
 
 [repositories."broadinstitute/palantir-workflows"]
 identifier = "broadinstitute/palantir-workflows"
@@ -24,7 +24,7 @@ commit_hash = "1e32078d3b57dcb2291534d0caa30f600d40967e"
 
 [repositories."broadinstitute/warp"]
 identifier = "broadinstitute/warp"
-commit_hash = "77a5d123b4aaf44674d9026149442762826b3687"
+commit_hash = "4c62783f441ac7405f7c720ffd1059b066e3640e"
 
 [repositories."chanzuckerberg/czid-workflows"]
 identifier = "chanzuckerberg/czid-workflows"
@@ -44,7 +44,7 @@ commit_hash = "ee08634f28810e5d6fd1a904fc83f4e67821550e"
 
 [repositories."stjudecloud/workflows"]
 identifier = "stjudecloud/workflows"
-commit_hash = "f67825369c2459e4b5a0ae970873e462af33d7b0"
+commit_hash = "efdca837bc35fe5647de6aa95989652a5a9648dc"
 filters = ["/template/task-templates.wdl"]
 
 [repositories."theiagen/public_health_bioinformatics"]
@@ -379,172 +379,172 @@ permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/ApplyBQSR.wdl"
 message = "ApplyBQSR.wdl:104:6: error: conflicting task name `ApplyBQSR`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/ApplyBQSR.wdl/#L104"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/ApplyBQSR.wdl/#L104"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/ApplyBQSRAllArgs.wdl"
-message = "ApplyBQSRAllArgs.wdl:287:6: error: conflicting task name `ApplyBQSR`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/ApplyBQSRAllArgs.wdl/#L287"
+message = "ApplyBQSRAllArgs.wdl:291:6: error: conflicting task name `ApplyBQSR`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/ApplyBQSRAllArgs.wdl/#L291"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/BaseRecalibrator.wdl"
 message = "BaseRecalibrator.wdl:111:6: error: conflicting task name `BaseRecalibrator`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/BaseRecalibrator.wdl/#L111"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/BaseRecalibrator.wdl/#L111"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/BaseRecalibratorAllArgs.wdl"
-message = "BaseRecalibratorAllArgs.wdl:314:6: error: conflicting task name `BaseRecalibrator`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/BaseRecalibratorAllArgs.wdl/#L314"
+message = "BaseRecalibratorAllArgs.wdl:318:6: error: conflicting task name `BaseRecalibrator`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/BaseRecalibratorAllArgs.wdl/#L318"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/ClipReads.wdl"
 message = "ClipReads.wdl:100:6: error: conflicting task name `ClipReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/ClipReads.wdl/#L100"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/ClipReads.wdl/#L100"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/ClipReadsAllArgs.wdl"
-message = "ClipReadsAllArgs.wdl:300:6: error: conflicting task name `ClipReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/ClipReadsAllArgs.wdl/#L300"
+message = "ClipReadsAllArgs.wdl:304:6: error: conflicting task name `ClipReads`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/ClipReadsAllArgs.wdl/#L304"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/CollectReadCounts.wdl"
 message = "CollectReadCounts.wdl:99:6: error: conflicting task name `CollectReadCounts`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/CollectReadCounts.wdl/#L99"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/CollectReadCounts.wdl/#L99"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/CollectReadCountsAllArgs.wdl"
-message = "CollectReadCountsAllArgs.wdl:262:6: error: conflicting task name `CollectReadCounts`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/CollectReadCountsAllArgs.wdl/#L262"
+message = "CollectReadCountsAllArgs.wdl:266:6: error: conflicting task name `CollectReadCounts`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/CollectReadCountsAllArgs.wdl/#L266"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/CombineGVCFs.wdl"
 message = "CombineGVCFs.wdl:112:6: error: conflicting task name `CombineGVCFs`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/CombineGVCFs.wdl/#L112"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/CombineGVCFs.wdl/#L112"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/CombineGVCFsAllArgs.wdl"
-message = "CombineGVCFsAllArgs.wdl:319:6: error: conflicting task name `CombineGVCFs`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/CombineGVCFsAllArgs.wdl/#L319"
+message = "CombineGVCFsAllArgs.wdl:323:6: error: conflicting task name `CombineGVCFs`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/CombineGVCFsAllArgs.wdl/#L323"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/CountBases.wdl"
 message = "CountBases.wdl:91:6: error: conflicting task name `CountBases`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/CountBases.wdl/#L91"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/CountBases.wdl/#L91"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/CountBasesAllArgs.wdl"
-message = "CountBasesAllArgs.wdl:258:6: error: conflicting task name `CountBases`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/CountBasesAllArgs.wdl/#L258"
+message = "CountBasesAllArgs.wdl:262:6: error: conflicting task name `CountBases`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/CountBasesAllArgs.wdl/#L262"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/CountReads.wdl"
 message = "CountReads.wdl:91:6: error: conflicting task name `CountReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/CountReads.wdl/#L91"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/CountReads.wdl/#L91"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/CountReadsAllArgs.wdl"
-message = "CountReadsAllArgs.wdl:258:6: error: conflicting task name `CountReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/CountReadsAllArgs.wdl/#L258"
+message = "CountReadsAllArgs.wdl:262:6: error: conflicting task name `CountReads`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/CountReadsAllArgs.wdl/#L262"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/FixMisencodedBaseQualityReads.wdl"
 message = "FixMisencodedBaseQualityReads.wdl:100:6: error: conflicting task name `FixMisencodedBaseQualityReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/FixMisencodedBaseQualityReads.wdl/#L100"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/FixMisencodedBaseQualityReads.wdl/#L100"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/FixMisencodedBaseQualityReadsAllArgs.wdl"
-message = "FixMisencodedBaseQualityReadsAllArgs.wdl:263:6: error: conflicting task name `FixMisencodedBaseQualityReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/FixMisencodedBaseQualityReadsAllArgs.wdl/#L263"
+message = "FixMisencodedBaseQualityReadsAllArgs.wdl:267:6: error: conflicting task name `FixMisencodedBaseQualityReads`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/FixMisencodedBaseQualityReadsAllArgs.wdl/#L267"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/FlagStat.wdl"
 message = "FlagStat.wdl:91:6: error: conflicting task name `FlagStat`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/FlagStat.wdl/#L91"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/FlagStat.wdl/#L91"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/FlagStatAllArgs.wdl"
-message = "FlagStatAllArgs.wdl:258:6: error: conflicting task name `FlagStat`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/FlagStatAllArgs.wdl/#L258"
+message = "FlagStatAllArgs.wdl:262:6: error: conflicting task name `FlagStat`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/FlagStatAllArgs.wdl/#L262"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/GatherTranches.wdl"
 message = "GatherTranches.wdl:95:6: error: conflicting task name `GatherTranches`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/GatherTranches.wdl/#L95"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/GatherTranches.wdl/#L95"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/GatherTranchesAllArgs.wdl"
 message = "GatherTranchesAllArgs.wdl:146:6: error: conflicting task name `GatherTranches`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/GatherTranchesAllArgs.wdl/#L146"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/GatherTranchesAllArgs.wdl/#L146"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/LeftAlignIndels.wdl"
 message = "LeftAlignIndels.wdl:112:6: error: conflicting task name `LeftAlignIndels`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/LeftAlignIndels.wdl/#L112"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/LeftAlignIndels.wdl/#L112"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/LeftAlignIndelsAllArgs.wdl"
-message = "LeftAlignIndelsAllArgs.wdl:263:6: error: conflicting task name `LeftAlignIndels`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/LeftAlignIndelsAllArgs.wdl/#L263"
+message = "LeftAlignIndelsAllArgs.wdl:267:6: error: conflicting task name `LeftAlignIndels`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/LeftAlignIndelsAllArgs.wdl/#L267"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/PrintReads.wdl"
 message = "PrintReads.wdl:100:6: error: conflicting task name `PrintReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/PrintReads.wdl/#L100"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/PrintReads.wdl/#L100"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/PrintReadsAllArgs.wdl"
-message = "PrintReadsAllArgs.wdl:263:6: error: conflicting task name `PrintReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/PrintReadsAllArgs.wdl/#L263"
+message = "PrintReadsAllArgs.wdl:267:6: error: conflicting task name `PrintReads`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/PrintReadsAllArgs.wdl/#L267"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/ReadAnonymizer.wdl"
 message = "ReadAnonymizer.wdl:112:6: error: conflicting task name `ReadAnonymizer`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/ReadAnonymizer.wdl/#L112"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/ReadAnonymizer.wdl/#L112"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/ReadAnonymizerAllArgs.wdl"
-message = "ReadAnonymizerAllArgs.wdl:271:6: error: conflicting task name `ReadAnonymizer`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/ReadAnonymizerAllArgs.wdl/#L271"
+message = "ReadAnonymizerAllArgs.wdl:275:6: error: conflicting task name `ReadAnonymizer`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/ReadAnonymizerAllArgs.wdl/#L275"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/RevertBaseQualityScores.wdl"
 message = "RevertBaseQualityScores.wdl:100:6: error: conflicting task name `RevertBaseQualityScores`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/RevertBaseQualityScores.wdl/#L100"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/RevertBaseQualityScores.wdl/#L100"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/RevertBaseQualityScoresAllArgs.wdl"
-message = "RevertBaseQualityScoresAllArgs.wdl:263:6: error: conflicting task name `RevertBaseQualityScores`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/RevertBaseQualityScoresAllArgs.wdl/#L263"
+message = "RevertBaseQualityScoresAllArgs.wdl:267:6: error: conflicting task name `RevertBaseQualityScores`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/RevertBaseQualityScoresAllArgs.wdl/#L267"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/SplitNCigarReads.wdl"
 message = "SplitNCigarReads.wdl:112:6: error: conflicting task name `SplitNCigarReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/SplitNCigarReads.wdl/#L112"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/SplitNCigarReads.wdl/#L112"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/SplitNCigarReadsAllArgs.wdl"
-message = "SplitNCigarReadsAllArgs.wdl:287:6: error: conflicting task name `SplitNCigarReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/SplitNCigarReadsAllArgs.wdl/#L287"
+message = "SplitNCigarReadsAllArgs.wdl:291:6: error: conflicting task name `SplitNCigarReads`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/SplitNCigarReadsAllArgs.wdl/#L291"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/SplitReads.wdl"
 message = "SplitReads.wdl:95:6: error: conflicting task name `SplitReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/SplitReads.wdl/#L95"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/SplitReads.wdl/#L95"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/SplitReadsAllArgs.wdl"
-message = "SplitReadsAllArgs.wdl:270:6: error: conflicting task name `SplitReads`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/SplitReadsAllArgs.wdl/#L270"
+message = "SplitReadsAllArgs.wdl:274:6: error: conflicting task name `SplitReads`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/SplitReadsAllArgs.wdl/#L274"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/UnmarkDuplicates.wdl"
 message = "UnmarkDuplicates.wdl:100:6: error: conflicting task name `UnmarkDuplicates`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/UnmarkDuplicates.wdl/#L100"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/UnmarkDuplicates.wdl/#L100"
 
 [[diagnostics]]
 document = "broadinstitute/gatk-tool-wdls:/wdls/UnmarkDuplicatesAllArgs.wdl"
-message = "UnmarkDuplicatesAllArgs.wdl:263:6: error: conflicting task name `UnmarkDuplicates`"
-permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/04057c175d0307f96f3f90e2704a4594ebf4e314/wdls/UnmarkDuplicatesAllArgs.wdl/#L263"
+message = "UnmarkDuplicatesAllArgs.wdl:267:6: error: conflicting task name `UnmarkDuplicates`"
+permalink = "https://github.com/broadinstitute/gatk-tool-wdls/blob/4536dd2c6719b86f4c50348f0ce354818260cadb/wdls/UnmarkDuplicatesAllArgs.wdl/#L267"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/WittyerTasks.wdl"
@@ -569,37 +569,37 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/1e32078d3
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/broad/dna_seq/somatic/single_sample/wgs/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl"
 message = "GDCWholeGenomeSomaticSingleSample.wdl:672:14: error: conflicting scatter variable name `ubam`"
-permalink = "https://github.com/broadinstitute/warp/blob/77a5d123b4aaf44674d9026149442762826b3687/pipelines/broad/dna_seq/somatic/single_sample/wgs/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl/#L672"
+permalink = "https://github.com/broadinstitute/warp/blob/4c62783f441ac7405f7c720ffd1059b066e3640e/pipelines/broad/dna_seq/somatic/single_sample/wgs/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl/#L672"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/scATAC/scATAC.wdl"
 message = "scATAC.wdl:203:9: error: duplicate key `cpu` in runtime section"
-permalink = "https://github.com/broadinstitute/warp/blob/77a5d123b4aaf44674d9026149442762826b3687/pipelines/skylab/scATAC/scATAC.wdl/#L203"
+permalink = "https://github.com/broadinstitute/warp/blob/4c62783f441ac7405f7c720ffd1059b066e3640e/pipelines/skylab/scATAC/scATAC.wdl/#L203"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:137:32: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/77a5d123b4aaf44674d9026149442762826b3687/tasks/broad/GermlineVariantDiscovery.wdl/#L137"
+permalink = "https://github.com/broadinstitute/warp/blob/4c62783f441ac7405f7c720ffd1059b066e3640e/tasks/broad/GermlineVariantDiscovery.wdl/#L137"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:65:32: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/77a5d123b4aaf44674d9026149442762826b3687/tasks/broad/GermlineVariantDiscovery.wdl/#L65"
+permalink = "https://github.com/broadinstitute/warp/blob/4c62783f441ac7405f7c720ffd1059b066e3640e/tasks/broad/GermlineVariantDiscovery.wdl/#L65"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
 message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:814:27: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/77a5d123b4aaf44674d9026149442762826b3687/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L814"
+permalink = "https://github.com/broadinstitute/warp/blob/4c62783f441ac7405f7c720ffd1059b066e3640e/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L814"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
 message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:866:27: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/77a5d123b4aaf44674d9026149442762826b3687/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L866"
+permalink = "https://github.com/broadinstitute/warp/blob/4c62783f441ac7405f7c720ffd1059b066e3640e/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L866"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tests/cemba/pr/CheckCembaOutputs.wdl"
 message = "CheckCembaOutputs.wdl:1:1: error: a WDL document must start with a version statement"
-permalink = "https://github.com/broadinstitute/warp/blob/77a5d123b4aaf44674d9026149442762826b3687/tests/cemba/pr/CheckCembaOutputs.wdl/#L1"
+permalink = "https://github.com/broadinstitute/warp/blob/4c62783f441ac7405f7c720ffd1059b066e3640e/tests/cemba/pr/CheckCembaOutputs.wdl/#L1"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/index-generation/index-generation.wdl"

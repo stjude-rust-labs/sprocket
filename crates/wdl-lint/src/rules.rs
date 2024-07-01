@@ -1,5 +1,6 @@
 //! Module for the lint rules.
 
+mod call_input_spacing;
 mod command_mixed_indentation;
 mod double_quotes;
 mod ending_newline;
@@ -20,6 +21,7 @@ mod preamble_whitespace;
 mod snake_case;
 mod whitespace;
 
+pub use call_input_spacing::*;
 pub use command_mixed_indentation::*;
 pub use double_quotes::*;
 pub use ending_newline::*;

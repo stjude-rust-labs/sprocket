@@ -6,8 +6,8 @@ workflow test {
     input {
         File input_file
     }
-    call test_task {
-        input: input_file = input_file
+    call test_task { input:
+        input_file = input_file
     }
     output {
         File output_file = test_task.output_file

@@ -1,0 +1,50 @@
+note[CallInputSpacing]: call input not properly spaced
+   ┌─ tests/lints/input-spacing/source.wdl:11:15
+   │  
+11 │       call bar {
+   │ ╭──────────────^
+12 │ │         input: a="something"
+   │ ╰────────^
+   │  
+   = fix: change this whitespace to a single space
+
+note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace
+   ┌─ tests/lints/input-spacing/source.wdl:12:17
+   │
+12 │         input: a="something"
+   │                 ^
+   │
+   = fix: surround '=' with whitespace on each side
+
+note[CallInputSpacing]: call input keyword not properly spaced
+   ┌─ tests/lints/input-spacing/source.wdl:17:22
+   │
+17 │     call bar as ba2 {input:
+   │                      ^^^^^
+   │
+   = fix: add a single space prior to the input keyword
+
+note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace
+   ┌─ tests/lints/input-spacing/source.wdl:18:10
+   │
+18 │         a="something", b="somethingelse"
+   │          ^
+   │
+   = fix: surround '=' with whitespace on each side
+
+note[CallInputSpacing]: call inputs must be separated by newline
+   ┌─ tests/lints/input-spacing/source.wdl:18:24
+   │
+18 │         a="something", b="somethingelse"
+   │                        ^^^^^^^^^^^^^^^^^
+   │
+   = fix: add newline before the input
+
+note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace
+   ┌─ tests/lints/input-spacing/source.wdl:18:25
+   │
+18 │         a="something", b="somethingelse"
+   │                         ^
+   │
+   = fix: surround '=' with whitespace on each side
+
