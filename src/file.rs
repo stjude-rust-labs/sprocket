@@ -6,6 +6,7 @@ use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::StandardStream;
 use codespan_reporting::term::Config;
 use indexmap::IndexMap;
+use wdl::lint::LintVisitor;
 
 use crate::report::Reporter;
 
@@ -145,6 +146,7 @@ impl Repository {
         config: Config,
         writer: StandardStream,
         lint: bool,
+        except_rules: Vec<String>,
     ) -> anyhow::Result<(bool, bool)> {
         let mut reporter = Reporter::new(config, writer);
         let mut syntax_failure = false;
@@ -163,9 +165,15 @@ impl Repository {
 
                     if lint {
                         let mut linter = wdl::ast::Validator::empty();
-                        linter.add_v1_visitors(
-                            wdl::lint::v1::rules().into_iter().map(|r| r.visitor()),
-                        );
+                        let visitor =
+                            LintVisitor::new(wdl::lint::rules().into_iter().filter_map(|rule| {
+                                if except_rules.contains(&rule.id().to_string()) {
+                                    None
+                                } else {
+                                    Some(rule)
+                                }
+                            }));
+                        linter.add_visitor(visitor);
                         if let Err(diagnostics) = linter.validate(&document) {
                             reporter.emit_diagnostics(file, &diagnostics)?;
                             lint_failure = true;
