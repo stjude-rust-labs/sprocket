@@ -1,27 +1,27 @@
 note[PreambleWhitespace]: unnecessary whitespace in document preamble
-  ┌─ tests/lints/preamble-comment-after-version/source.wdl:2:1
+  ┌─ tests/lints/preamble-comment-after-version/source.wdl:3:1
   │
-2 │        ## Bad leading whitespace!
+3 │        ## Bad leading whitespace!
   │ ^^^^^^^
   │
   = fix: remove the unnecessary whitespace
 
 note[PreambleComments]: preamble comments cannot come after the version statement
-   ┌─ tests/lints/preamble-comment-after-version/source.wdl:6:1
+   ┌─ tests/lints/preamble-comment-after-version/source.wdl:7:1
    │  
- 6 │ ╭ ## This is a preamble comment after the version
- 7 │ │ 
- 8 │ │ ## Also a preamble comment
- 9 │ │ 
-10 │ │ ## And this one is bad too!
+ 7 │ ╭ ## This is a preamble comment after the version
+ 8 │ │ 
+ 9 │ │ ## Also a preamble comment
+10 │ │ 
+11 │ │ ## And this one is bad too!
    │ ╰───────────────────────────^
    │  
    = fix: change each comment to start with `#` followed by a space
 
 note[PreambleComments]: preamble comments cannot come after the version statement
-   ┌─ tests/lints/preamble-comment-after-version/source.wdl:19:5
+   ┌─ tests/lints/preamble-comment-after-version/source.wdl:20:5
    │
-19 │     ## This one is bad!
+20 │     ## This one is bad!
    │     ^^^^^^^^^^^^^^^^^^^
    │
    = fix: change each comment to start with `#` followed by a space

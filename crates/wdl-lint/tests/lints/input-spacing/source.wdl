@@ -1,4 +1,4 @@
-#@ except: SectionOrdering
+#@ except: DescriptionMissing, SectionOrdering
 
 version 1.1
 

@@ -3,6 +3,7 @@
 mod call_input_spacing;
 mod command_mixed_indentation;
 mod deprecated_object;
+mod description_missing;
 mod double_quotes;
 mod ending_newline;
 mod import_placement;
@@ -26,6 +27,7 @@ mod whitespace;
 pub use call_input_spacing::*;
 pub use command_mixed_indentation::*;
 pub use deprecated_object::*;
+pub use description_missing::*;
 pub use double_quotes::*;
 pub use ending_newline::*;
 pub use import_placement::*;

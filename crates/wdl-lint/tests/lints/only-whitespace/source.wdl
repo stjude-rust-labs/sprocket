@@ -1,4 +1,4 @@
-#@ except: SectionOrdering
+#@ except: DescriptionMissing, SectionOrdering
 ## This is a test of lines that only contain whitespace
 
 version 1.1

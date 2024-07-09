@@ -1,3 +1,4 @@
+#@ except: DescriptionMissing
 ## This is a test of whitespace within import statements and sort order.
 ## There should only ever be one diagnostic reported for a bad sort order.
 

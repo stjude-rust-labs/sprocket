@@ -11,6 +11,7 @@ be out of sync with released packages.
 | `CallInputSpacing`               | Style, Clarity, Spacing       | Ensures proper spacing for call inputs                                                |
 | `CommandSectionMixedIndentation` | Clarity, Correctness, Spacing | Ensures that lines within a command do not mix spaces and tabs.                       |
 | `DeprecatedObject`               | Deprecated                    | Ensures that the deprecated `Object` construct is not used.                           |
+| `DescriptionMissing`             | Completeness                  | Ensures that each meta section has a description key.                                 |
 | `DoubleQuotes`                   | Clarity, Style                | Ensures that strings are defined using double quotes.                                 |
 | `EndingNewline`                  | Spacing, Style                | Ensures that documents end with a single newline character.                           |
 | `ImportPlacement`                | Clarity, Sorting              | Ensures that imports are placed between the version statement and any document items. |

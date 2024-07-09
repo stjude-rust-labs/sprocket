@@ -1,14 +1,14 @@
 warning[EndingNewline]: multiple empty lines at the end of file
-   ┌─ tests/lints/multiple-eof-newline/source.wdl:9:2
+   ┌─ tests/lints/multiple-eof-newline/source.wdl:10:2
    │  
- 9 │   }
+10 │   }
    │ ╭─^
-10 │ │ 
 11 │ │ 
 12 │ │ 
 13 │ │ 
 14 │ │ 
 15 │ │ 
+16 │ │ 
    │ ╰^ duplicate newlines here
    │  
    = fix: remove all but one empty line at the end of the file

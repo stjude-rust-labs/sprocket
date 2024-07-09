@@ -1,4 +1,4 @@
-#@ except: NoCurlyCommands
+#@ except: NoCurlyCommands, DescriptionMissing
 ## This is a test of having tabs before spaces in command sections.
 
 version 1.1

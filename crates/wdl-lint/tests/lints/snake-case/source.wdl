@@ -1,4 +1,4 @@
-#@ except: SectionOrdering
+#@ except: DescriptionMissing, SectionOrdering
 ## Test SnakeCase rule
 
 version 1.0

@@ -1,3 +1,4 @@
+#@ except: DescriptionMissing
 # This is an invalid preamble comment.
 ## This one is fine
 # This one is invalid too!
