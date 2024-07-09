@@ -14,10 +14,14 @@ readme = "../README.md"
 wdl-grammar = { path = "../wdl-grammar", version = "0.5.0", optional = true }
 wdl-ast = { path = "../wdl-ast", version = "0.4.0", optional = true }
 wdl-lint = { path = "../wdl-lint", version = "0.3.0", optional = true }
+wdl-analysis = { path = "../wdl-analysis", version = "0.1.0", optional = true }
 clap = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 colored = { workspace = true, optional = true }
 codespan-reporting = { workspace = true, optional = true }
+env_logger = { workspace = true, optional = true }
+indicatif = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
 
 [dev-dependencies]
 clap = { workspace = true }
@@ -30,7 +34,7 @@ ast = ["dep:wdl-ast"]
 grammar = ["dep:wdl-grammar"]
 lint = ["dep:wdl-lint"]
 codespan = ["ast", "wdl-ast/codespan", "dep:codespan-reporting"]
-binaries = ["codespan", "lint", "dep:clap", "dep:anyhow", "dep:colored"]
+cli = ["codespan", "lint", "dep:wdl-analysis", "dep:clap", "dep:anyhow", "dep:colored", "dep:env_logger", "dep:indicatif", "dep:tokio"]
 
 [[example]]
 name = "explore"
@@ -42,7 +46,7 @@ required-features = ["codespan"]
 
 [[bin]]
 name = "wdl"
-required-features = ["binaries"]
+required-features = ["cli"]
 
 [package.metadata.docs.rs]
 all-features = true

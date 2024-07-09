@@ -1,4 +1,4 @@
-//! Validation of unique keys in a V1 AST.
+//! Validation of unique keys in an AST.
 
 use std::collections::HashMap;
 use std::fmt;
@@ -12,6 +12,7 @@ use crate::v1::RuntimeSection;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
+use crate::Document;
 use crate::Ident;
 use crate::Span;
 use crate::VisitReason;
@@ -90,6 +91,15 @@ pub struct UniqueKeysVisitor(HashMap<String, Span>);
 
 impl Visitor for UniqueKeysVisitor {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn runtime_section(
         &mut self,

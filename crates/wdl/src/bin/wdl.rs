@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fs;
 use std::io::IsTerminal;
 use std::io::Read;
@@ -15,18 +16,23 @@ use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
 use codespan_reporting::term::Config;
 use colored::Colorize;
+use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
 use wdl::ast::Diagnostic;
 use wdl::ast::Document;
+use wdl::ast::SyntaxNode;
 use wdl::ast::Validator;
 use wdl::lint::LintVisitor;
+use wdl_analysis::AnalysisEngine;
+use wdl_analysis::AnalysisResult;
 
 /// Emits the given diagnostics to the output stream.
 ///
 /// The use of color is determined by the presence of a terminal.
 ///
 /// In the future, we might want the color choice to be a CLI argument.
-fn emit_diagnostics(path: &Path, source: &str, diagnostics: &[Diagnostic]) -> Result<()> {
-    let file = SimpleFile::new(path.to_str().context("path should be UTF-8")?, source);
+fn emit_diagnostics(path: &str, source: &str, diagnostics: &[Diagnostic]) -> Result<()> {
+    let file = SimpleFile::new(path, source);
     let mut stream = StandardStream::stdout(ColorChoice::Auto);
     for diagnostic in diagnostics.iter() {
         emit(
@@ -39,6 +45,76 @@ fn emit_diagnostics(path: &Path, source: &str, diagnostics: &[Diagnostic]) -> Re
     }
 
     Ok(())
+}
+
+async fn analyze(path: &Path, lint: bool) -> Result<Vec<AnalysisResult>> {
+    let bar = ProgressBar::new(0);
+    bar.set_style(
+        ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {msg} {pos}/{len}")
+            .unwrap(),
+    );
+
+    let engine = AnalysisEngine::new_with_validator(move || {
+        let mut validator = Validator::default();
+        if lint {
+            validator.add_visitor(LintVisitor::default());
+        }
+        validator
+    })?;
+
+    let results = engine
+        .analyze_with_progress(path, move |kind, completed, total| {
+            if completed == 0 {
+                bar.set_length(total.try_into().unwrap());
+                bar.set_message(format!("{kind}"));
+            }
+            bar.set_position(completed.try_into().unwrap());
+        })
+        .await;
+
+    let mut count = 0;
+    let cwd = std::env::current_dir().ok();
+    for result in &results {
+        let path = result.id().path();
+
+        // Attempt to strip the CWD from the result path
+        let path = match (&cwd, &path) {
+            // Use the id itself if there is no path
+            (_, None) => result.id().to_str(),
+            // Use just the path if there's no CWD
+            (None, Some(path)) => path.to_string_lossy(),
+            // Strip the CWD from the path
+            (Some(cwd), Some(path)) => path.strip_prefix(cwd).unwrap_or(path).to_string_lossy(),
+        };
+
+        let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
+            Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
+            None => result.diagnostics().into(),
+        };
+
+        if !diagnostics.is_empty() {
+            emit_diagnostics(
+                &path,
+                &result
+                    .root()
+                    .map(|n| SyntaxNode::new_root(n.clone()).text().to_string())
+                    .unwrap_or(String::new()),
+                &diagnostics,
+            )?;
+            count += diagnostics.len();
+        }
+    }
+
+    engine.shutdown().await;
+
+    if count > 0 {
+        bail!(
+            "aborting due to previous {count} diagnostic{s}",
+            s = if count == 1 { "" } else { "s" }
+        );
+    }
+
+    Ok(results)
 }
 
 /// Reads source from the given path.
@@ -68,14 +144,14 @@ pub struct ParseCommand {
 }
 
 impl ParseCommand {
-    fn exec(self) -> Result<()> {
+    async fn exec(self) -> Result<()> {
         let source = read_source(&self.path)?;
-        let parse = Document::parse(&source);
-        if !parse.diagnostics().is_empty() {
-            emit_diagnostics(&self.path, &source, parse.diagnostics())?;
+        let (document, diagnostics) = Document::parse(&source);
+        if !diagnostics.is_empty() {
+            emit_diagnostics(&self.path.to_string_lossy(), &source, &diagnostics)?;
         }
 
-        println!("{document:#?}", document = parse.document());
+        println!("{document:#?}");
         Ok(())
     }
 }
@@ -90,32 +166,8 @@ pub struct CheckCommand {
 }
 
 impl CheckCommand {
-    fn exec(self) -> Result<()> {
-        let source = read_source(&self.path)?;
-        match Document::parse(&source).into_result() {
-            Ok(document) => {
-                let validator = Validator::default();
-                if let Err(diagnostics) = validator.validate(&document) {
-                    emit_diagnostics(&self.path, &source, &diagnostics)?;
-
-                    bail!(
-                        "aborting due to previous {count} diagnostic{s}",
-                        count = diagnostics.len(),
-                        s = if diagnostics.len() == 1 { "" } else { "s" }
-                    );
-                }
-            }
-            Err(diagnostics) => {
-                emit_diagnostics(&self.path, &source, &diagnostics)?;
-
-                bail!(
-                    "aborting due to previous {count} diagnostic{s}",
-                    count = diagnostics.len(),
-                    s = if diagnostics.len() == 1 { "" } else { "s" }
-                );
-            }
-        }
-
+    async fn exec(self) -> Result<()> {
+        analyze(&self.path, false).await?;
         Ok(())
     }
 }
@@ -130,33 +182,52 @@ pub struct LintCommand {
 }
 
 impl LintCommand {
-    fn exec(self) -> Result<()> {
+    async fn exec(self) -> Result<()> {
         let source = read_source(&self.path)?;
-        match Document::parse(&source).into_result() {
-            Ok(document) => {
-                let mut validator = Validator::default();
-                validator.add_visitor(LintVisitor::default());
-                if let Err(diagnostics) = validator.validate(&document) {
-                    emit_diagnostics(&self.path, &source, &diagnostics)?;
+        let (document, diagnostics) = Document::parse(&source);
+        if !diagnostics.is_empty() {
+            emit_diagnostics(&self.path.to_string_lossy(), &source, &diagnostics)?;
 
-                    bail!(
-                        "aborting due to previous {count} diagnostic{s}",
-                        count = diagnostics.len(),
-                        s = if diagnostics.len() == 1 { "" } else { "s" }
-                    );
-                }
-            }
-            Err(diagnostics) => {
-                emit_diagnostics(&self.path, &source, &diagnostics)?;
-
-                bail!(
-                    "aborting due to previous {count} diagnostic{s}",
-                    count = diagnostics.len(),
-                    s = if diagnostics.len() == 1 { "" } else { "s" }
-                );
-            }
+            bail!(
+                "aborting due to previous {count} diagnostic{s}",
+                count = diagnostics.len(),
+                s = if diagnostics.len() == 1 { "" } else { "s" }
+            );
         }
 
+        let mut validator = Validator::default();
+        validator.add_visitor(LintVisitor::default());
+        if let Err(diagnostics) = validator.validate(&document) {
+            emit_diagnostics(&self.path.to_string_lossy(), &source, &diagnostics)?;
+
+            bail!(
+                "aborting due to previous {count} diagnostic{s}",
+                count = diagnostics.len(),
+                s = if diagnostics.len() == 1 { "" } else { "s" }
+            );
+        }
+
+        Ok(())
+    }
+}
+
+/// Analyzes a WDL source file.
+#[derive(Args)]
+#[clap(disable_version_flag = true)]
+pub struct AnalyzeCommand {
+    /// The path to the source WDL file.
+    #[clap(value_name = "PATH")]
+    pub path: PathBuf,
+
+    /// Whether or not to run lints as part of analysis.
+    #[clap(long)]
+    pub lint: bool,
+}
+
+impl AnalyzeCommand {
+    async fn exec(self) -> Result<()> {
+        let results = analyze(&self.path, self.lint).await?;
+        println!("{:#?}", results);
         Ok(())
     }
 }
@@ -173,13 +244,21 @@ enum App {
     Parse(ParseCommand),
     Check(CheckCommand),
     Lint(LintCommand),
+    Analyze(AnalyzeCommand),
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
+    env_logger::builder()
+        .format_module_path(false)
+        .format_target(false)
+        .init();
+
     if let Err(e) = match App::parse() {
-        App::Parse(cmd) => cmd.exec(),
-        App::Check(cmd) => cmd.exec(),
-        App::Lint(cmd) => cmd.exec(),
+        App::Parse(cmd) => cmd.exec().await,
+        App::Check(cmd) => cmd.exec().await,
+        App::Lint(cmd) => cmd.exec().await,
+        App::Analyze(cmd) => cmd.exec().await,
     } {
         eprintln!(
             "{error}: {e:?}",

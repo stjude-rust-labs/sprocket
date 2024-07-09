@@ -9,6 +9,7 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
@@ -73,7 +74,7 @@ fn mixed_indentation(command: Span, span: Span, kind: IndentationKind) -> Diagno
 }
 
 /// Detects mixed indentation in a command section.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct CommandSectionMixedIndentationRule;
 
 impl Rule for CommandSectionMixedIndentationRule {
@@ -98,6 +99,15 @@ impl Rule for CommandSectionMixedIndentationRule {
 
 impl Visitor for CommandSectionMixedIndentationRule {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn command_section(
         &mut self,

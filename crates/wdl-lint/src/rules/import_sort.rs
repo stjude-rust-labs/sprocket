@@ -4,6 +4,7 @@ use wdl_ast::v1::ImportStatement;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
@@ -35,7 +36,7 @@ fn improper_comment(span: Span) -> Diagnostic {
 }
 
 /// Detects imports that are not sorted lexicographically.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct ImportSortRule;
 
 impl Rule for ImportSortRule {
@@ -62,6 +63,32 @@ impl Rule for ImportSortRule {
 impl Visitor for ImportSortRule {
     type State = Diagnostics;
 
+    fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+
+        let imports = doc
+            .syntax()
+            .children_with_tokens()
+            .filter(|c| c.kind() == SyntaxKind::ImportStatementNode)
+            .map(|c| c.into_node().unwrap());
+
+        let mut prev_import: Option<SyntaxNode> = None;
+        for import in imports {
+            if let Some(prev) = prev_import {
+                if import.text().to_string() < prev.text().to_string() {
+                    state.add(import_not_sorted(import.text_range().to_span()));
+                    return; // Only report one sorting diagnostic at a time.
+                }
+            }
+            prev_import = Some(import);
+        }
+    }
+
     fn import_statement(
         &mut self,
         state: &mut Self::State,
@@ -81,29 +108,6 @@ impl Visitor for ImportSortRule {
 
         for comment in internal_comments {
             state.add(improper_comment(comment.text_range().to_span()));
-        }
-    }
-
-    fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &wdl_ast::Document) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        let imports = doc
-            .syntax()
-            .children_with_tokens()
-            .filter(|c| c.kind() == SyntaxKind::ImportStatementNode)
-            .map(|c| c.into_node().unwrap());
-
-        let mut prev_import: Option<SyntaxNode> = None;
-        for import in imports {
-            if let Some(prev) = prev_import {
-                if import.text().to_string() < prev.text().to_string() {
-                    state.add(import_not_sorted(import.text_range().to_span()));
-                    return; // Only report one sorting diagnostic at a time.
-                }
-            }
-            prev_import = Some(import);
         }
     }
 }

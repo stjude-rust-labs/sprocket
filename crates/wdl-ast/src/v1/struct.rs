@@ -63,7 +63,7 @@ mod test {
 
     #[test]
     fn struct_definitions() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -96,7 +96,7 @@ struct ComplexTypes {
 }            
 "#,
         );
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let structs: Vec<_> = ast.structs().collect();
@@ -224,6 +224,8 @@ struct ComplexTypes {
 
         impl Visitor for MyVisitor {
             type State = ();
+
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
 
             fn struct_definition(
                 &mut self,

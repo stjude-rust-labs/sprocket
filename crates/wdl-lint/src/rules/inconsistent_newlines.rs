@@ -57,7 +57,14 @@ impl Visitor for InconsistentNewlinesRule {
     type State = Diagnostics;
 
     fn document(&mut self, state: &mut Self::State, reason: VisitReason, _doc: &wdl_ast::Document) {
-        if reason == VisitReason::Exit && self.newline > 0 && self.carriage_return > 0 {
+        if reason == VisitReason::Enter {
+            // We only process on exit so that it's one of the last diagnostics emitted
+            // Reset the visitor upon document entry
+            *self = Default::default();
+            return;
+        }
+
+        if self.newline > 0 && self.carriage_return > 0 {
             state.add(inconsistent_newlines(self.first_inconsistent.unwrap()));
         }
     }

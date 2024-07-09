@@ -3,6 +3,7 @@
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::VersionStatement;
@@ -73,6 +74,15 @@ impl Rule for WhitespaceRule {
 
 impl Visitor for WhitespaceRule {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn version_statement(
         &mut self,

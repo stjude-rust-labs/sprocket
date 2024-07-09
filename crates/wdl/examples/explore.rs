@@ -63,47 +63,45 @@ pub fn main() -> Result<()> {
         )
     })?;
 
-    match Document::parse(&source).into_result() {
-        Ok(document) => {
-            let validator = Validator::default();
-            if let Err(diagnostics) = validator.validate(&document) {
-                emit_diagnostics(&args.path, &source, &diagnostics)?;
-            }
+    let (document, diagnostics) = Document::parse(&source);
+    if !diagnostics.is_empty() {
+        emit_diagnostics(&args.path, &source, &diagnostics)?;
+    }
 
-            match document.ast() {
-                Ast::V1(ast) => {
-                    let mut tasks = false;
-                    for (i, task) in ast.tasks().enumerate() {
-                        tasks = true;
+    let mut validator = Validator::default();
+    if let Err(diagnostics) = validator.validate(&document) {
+        emit_diagnostics(&args.path, &source, &diagnostics)?;
+    }
 
-                        if i == 0 {
-                            println!("# Tasks\n");
-                        }
+    match document.ast() {
+        Ast::V1(ast) => {
+            let mut tasks = false;
+            for (i, task) in ast.tasks().enumerate() {
+                tasks = true;
 
-                        explore_task(&task);
-                    }
-
-                    if tasks {
-                        println!();
-                    }
-
-                    for (i, workflow) in ast.workflows().enumerate() {
-                        if i == 0 {
-                            println!("# Workflows\n");
-                        }
-
-                        explore_workflow(&workflow);
-                    }
+                if i == 0 {
+                    println!("# Tasks\n");
                 }
-                Ast::Unsupported => bail!(
-                    "document `{path}` has an unsupported WDL version",
-                    path = args.path.display()
-                ),
+
+                explore_task(&task);
+            }
+
+            if tasks {
+                println!();
+            }
+
+            for (i, workflow) in ast.workflows().enumerate() {
+                if i == 0 {
+                    println!("# Workflows\n");
+                }
+
+                explore_workflow(&workflow);
             }
         }
-        Err(diagnostics) => {
-            emit_diagnostics(&args.path, &source, &diagnostics)?;
-        }
+        Ast::Unsupported => bail!(
+            "document `{path}` has an unsupported WDL version",
+            path = args.path.display()
+        ),
     }
 
     Ok(())

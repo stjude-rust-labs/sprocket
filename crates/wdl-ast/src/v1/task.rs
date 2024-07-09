@@ -925,7 +925,7 @@ mod test {
 
     #[test]
     fn tasks() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -962,7 +962,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -1121,6 +1121,8 @@ task test {
 
         impl Visitor for MyVisitor {
             type State = ();
+
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
 
             fn task_definition(
                 &mut self,

@@ -126,24 +126,23 @@ fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
         )
     })?;
 
-    match Document::parse(&source).into_result() {
-        Ok(document) => {
-            let mut validator = Validator::default();
-            validator.add_visitor(LintVisitor::default());
-            let errors = match validator.validate(&document) {
-                Ok(()) => String::new(),
-                Err(diagnostics) => format_diagnostics(&diagnostics, &path, &source),
-            };
-            compare_result(&path.with_extension("errors"), &errors, true)?;
-        }
-        Err(diagnostics) => {
-            compare_result(
-                &path.with_extension("errors"),
-                &format_diagnostics(&diagnostics, &path, &source),
-                true,
-            )?;
-        }
+    let (document, diagnostics) = Document::parse(&source);
+    if !diagnostics.is_empty() {
+        compare_result(
+            &path.with_extension("errors"),
+            &format_diagnostics(&diagnostics, &path, &source),
+            true,
+        )?;
+    } else {
+        let mut validator = Validator::default();
+        validator.add_visitor(LintVisitor::default());
+        let errors = match validator.validate(&document) {
+            Ok(()) => String::new(),
+            Err(diagnostics) => format_diagnostics(&diagnostics, &path, &source),
+        };
+        compare_result(&path.with_extension("errors"), &errors, true)?;
     }
+
     ntests.fetch_add(1, Ordering::SeqCst);
     Ok(())
 }

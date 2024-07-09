@@ -7,6 +7,7 @@ use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -81,7 +82,7 @@ fn missing_sections(name: &str, context: Context, span: Span) -> Diagnostic {
 }
 
 /// A lint rule for missing meta and parameter_meta sections.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct MissingMetasRule;
 
 impl Rule for MissingMetasRule {
@@ -106,6 +107,15 @@ impl Rule for MissingMetasRule {
 
 impl Visitor for MissingMetasRule {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn task_definition(
         &mut self,

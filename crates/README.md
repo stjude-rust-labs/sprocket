@@ -90,21 +90,27 @@ the `wdl` family of crates.
 The `wdl` CLI tool can be run with the following command:
 
 ```bash
-cargo run --bin wdl --features binaries -- $ARGS
+cargo run --bin wdl --features cli -- $ARGS
 ```
 
 Where `$ARGS` are the command line arguments to the `wdl` CLI tool.
 
 The `wdl` CLI tool currently supports three subcommands:
 
-* `parse` - Parses a WDL source file and prints both the parse diagnostics and
-  the resulting Concrete Syntax Tree (CST).
-* `check` - Parses and validates a WDL source file. Exits with a status code of
-  `0` if the file is syntactically valid; otherwise, prints the validation
-  diagnostics and exits with a status code of `1`.
-* `lint` - Parses, validates, and runs the linting rules on a WDL
-  source file. Exits with a status code of `0` if the file passes all lints;
-  otherwise, prints the linting diagnostics and exits with a status code of `1`.
+* `parse` - Parses a WDL document and prints both the parse diagnostics and the
+  resulting Concrete Syntax Tree (CST).
+* `check` - Parses, validates, and analyzes a WDL document or a directory
+  containing WDL documents. Exits with a status code of `0` if the documents
+  are valid; otherwise, prints the validation diagnostics and exits with a
+  status code of `1`.
+* `lint` - Parses, validates, and runs the linting rules on a WDL document.
+  Exits with a status code of `0` if the file passes all lints; otherwise,
+  prints the linting diagnostics and exits with a status code of `1`.
+* `analyze` - Parses, validates, and analyzes a single WDL document or a
+  directory containing WDL documents. Prints a debug representation of the
+  document scopes and exits with a status code of `0` if the documents are
+  valid; otherwise, prints the validation diagnostics and exits with a status
+  code of `1`.
 
 Each of the subcommands supports passing `-` as the file path to denote reading
 from STDIN instead of a file on disk.

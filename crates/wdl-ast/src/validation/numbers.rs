@@ -1,4 +1,4 @@
-//! Validation of number literals in a V1 AST.
+//! Validation of number literals in an AST.
 
 use crate::support;
 use crate::v1::Expr;
@@ -7,6 +7,7 @@ use crate::AstNode;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
+use crate::Document;
 use crate::Span;
 use crate::SyntaxKind;
 use crate::ToSpan;
@@ -44,6 +45,15 @@ pub struct NumberVisitor {
 
 impl Visitor for NumberVisitor {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn expr(&mut self, state: &mut Self::State, reason: VisitReason, expr: &Expr) {
         if reason == VisitReason::Exit {

@@ -1,10 +1,14 @@
 //! Ensures that lines do not exceed a certain width.
 
+use wdl_ast::v1;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
+use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::Whitespace;
 
 use crate::Rule;
 use crate::Tag;
@@ -33,6 +37,14 @@ pub struct LineWidthRule {
 }
 
 impl LineWidthRule {
+    /// Constructs a new line width rule with the given maximum line width.
+    pub fn new(max_width: usize) -> Self {
+        Self {
+            max_width,
+            ..Default::default()
+        }
+    }
+
     /// Detects lines that exceed a certain width.
     fn detect_line_too_long(&mut self, state: &mut Diagnostics, text: &str, start: usize) {
         let mut cur_newline_offset = start;
@@ -94,43 +106,41 @@ impl Rule for LineWidthRule {
 impl Visitor for LineWidthRule {
     type State = Diagnostics;
 
-    fn whitespace(&mut self, state: &mut Self::State, whitespace: &wdl_ast::Whitespace) {
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Self {
+            max_width: self.max_width,
+            ..Default::default()
+        };
+    }
+
+    fn whitespace(&mut self, state: &mut Self::State, whitespace: &Whitespace) {
         self.detect_line_too_long(state, whitespace.as_str(), whitespace.span().start());
     }
 
-    fn command_text(&mut self, state: &mut Self::State, text: &wdl_ast::v1::CommandText) {
+    fn command_text(&mut self, state: &mut Self::State, text: &v1::CommandText) {
         self.detect_line_too_long(state, text.as_str(), text.span().start())
     }
 
     fn metadata_section(
         &mut self,
         _: &mut Self::State,
-        reason: wdl_ast::VisitReason,
-        _: &wdl_ast::v1::MetadataSection,
+        reason: VisitReason,
+        _: &v1::MetadataSection,
     ) {
-        match reason {
-            wdl_ast::VisitReason::Enter => {
-                self.should_ignore = true;
-            }
-            wdl_ast::VisitReason::Exit => {
-                self.should_ignore = false;
-            }
-        }
+        self.should_ignore = matches!(reason, VisitReason::Enter);
     }
 
     fn parameter_metadata_section(
         &mut self,
         _: &mut Self::State,
-        reason: wdl_ast::VisitReason,
-        _: &wdl_ast::v1::ParameterMetadataSection,
+        reason: VisitReason,
+        _: &v1::ParameterMetadataSection,
     ) {
-        match reason {
-            wdl_ast::VisitReason::Enter => {
-                self.should_ignore = true;
-            }
-            wdl_ast::VisitReason::Exit => {
-                self.should_ignore = false;
-            }
-        }
+        self.should_ignore = matches!(reason, VisitReason::Enter);
     }
 }

@@ -4,6 +4,7 @@ use wdl_ast::v1::CallStatement;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
@@ -50,7 +51,7 @@ fn call_input_assignment(span: Span) -> Diagnostic {
 }
 
 /// Detects unsorted input declarations.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct CallInputSpacingRule;
 
 impl Rule for CallInputSpacingRule {
@@ -79,6 +80,15 @@ impl Rule for CallInputSpacingRule {
 
 impl Visitor for CallInputSpacingRule {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn call_statement(
         &mut self,

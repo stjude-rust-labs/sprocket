@@ -1,4 +1,4 @@
-//! The experimental parser validation tests.
+//! The parser validation tests.
 //!
 //! This test looks for directories in `tests/validation`.
 //!
@@ -9,8 +9,6 @@
 //!
 //! The `source.errors` file may be automatically generated or updated by
 //! setting the `BLESS` environment variable when running this test.
-//!
-//! This test currently requires the `experimental` feature to run.
 
 use std::collections::HashSet;
 use std::env;
@@ -127,23 +125,23 @@ fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
             )
         })?
         .replace("\r\n", "\n");
-    match Document::parse(&source).into_result() {
-        Ok(document) => {
-            let validator = Validator::default();
-            let errors = match validator.validate(&document) {
-                Ok(()) => String::new(),
-                Err(diagnostics) => format_diagnostics(&diagnostics, &path, &source),
-            };
-            compare_result(&path.with_extension("errors"), &errors, true)?;
-        }
-        Err(diagnostics) => {
-            compare_result(
-                &path.with_extension("errors"),
-                &format_diagnostics(&diagnostics, &path, &source),
-                true,
-            )?;
-        }
+
+    let (document, diagnostics) = Document::parse(&source);
+    if !diagnostics.is_empty() {
+        compare_result(
+            &path.with_extension("errors"),
+            &format_diagnostics(&diagnostics, &path, &source),
+            true,
+        )?;
+    } else {
+        let mut validator = Validator::default();
+        let errors = match validator.validate(&document) {
+            Ok(()) => String::new(),
+            Err(diagnostics) => format_diagnostics(&diagnostics, &path, &source),
+        };
+        compare_result(&path.with_extension("errors"), &errors, true)?;
     }
+
     ntests.fetch_add(1, Ordering::SeqCst);
     Ok(())
 }

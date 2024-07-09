@@ -1,4 +1,4 @@
-//! The experimental parser file tests.
+//! The parser file tests.
 //!
 //! This test looks for directories in `tests/parsing`.
 //!
@@ -11,8 +11,6 @@
 //!
 //! Both `source.tree` and `source.errors` may be automatically generated or
 //! updated by setting the `BLESS` environment variable when running this test.
-//!
-//! This test currently requires the `experimental` feature to run.
 
 use std::collections::HashSet;
 use std::env;

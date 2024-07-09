@@ -6,6 +6,7 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
@@ -30,7 +31,7 @@ fn curly_commands(task: &str, span: Span) -> Diagnostic {
 }
 
 /// Detects curly command section for tasks.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct NoCurlyCommandsRule;
 
 impl Rule for NoCurlyCommandsRule {
@@ -55,6 +56,15 @@ impl Rule for NoCurlyCommandsRule {
 
 impl Visitor for NoCurlyCommandsRule {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn command_section(
         &mut self,

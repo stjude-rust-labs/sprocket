@@ -1,0 +1,8 @@
+error: import namespace is not a valid WDL identifier
+  ┌─ tests/analysis/import-namespace-invalid/source.wdl:5:8
+  │
+5 │ import "invalid-namespace.wdl"
+  │        ^^^^^^^^^^^^^^^^^^^^^^^ a namespace cannot be derived from this import path
+  │
+  = fix: add an `as` clause to the import to specify a namespace
+

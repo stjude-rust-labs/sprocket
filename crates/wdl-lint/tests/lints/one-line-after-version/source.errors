@@ -1,0 +1,6 @@
+error: there must be at least one task, workflow, or struct definition in the file
+  ┌─ tests/lints/one-line-after-version/source.wdl:6:1
+  │
+6 │ 
+  │  
+

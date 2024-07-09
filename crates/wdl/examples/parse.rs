@@ -49,18 +49,17 @@ pub fn main() -> Result<()> {
         )
     })?;
 
-    match Document::parse(&source).into_result() {
-        Ok(document) => {
-            let validator = Validator::default();
-            if let Err(diagnostics) = validator.validate(&document) {
-                emit_diagnostics(&args.path, &source, &diagnostics)?;
-            } else {
-                println!("{document:#?}");
-            }
-        }
-        Err(diagnostics) => {
-            emit_diagnostics(&args.path, &source, &diagnostics)?;
-        }
+    let (document, diagnostics) = Document::parse(&source);
+    if !diagnostics.is_empty() {
+        emit_diagnostics(&args.path, &source, &diagnostics)?;
+        return Ok(());
+    }
+
+    let mut validator = Validator::default();
+    if let Err(diagnostics) = validator.validate(&document) {
+        emit_diagnostics(&args.path, &source, &diagnostics)?;
+    } else {
+        println!("{document:#?}");
     }
 
     Ok(())

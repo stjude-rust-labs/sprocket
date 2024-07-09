@@ -4,6 +4,7 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -24,7 +25,7 @@ fn missing_runtime_section(task: &str, span: Span) -> Diagnostic {
 }
 
 /// Detects missing `runtime` section for tasks.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct MissingRuntimeRule;
 
 impl Rule for MissingRuntimeRule {
@@ -47,6 +48,15 @@ impl Rule for MissingRuntimeRule {
 
 impl Visitor for MissingRuntimeRule {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn task_definition(
         &mut self,

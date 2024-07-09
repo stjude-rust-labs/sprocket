@@ -5,6 +5,7 @@ use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -25,7 +26,7 @@ fn use_double_quotes(span: Span) -> Diagnostic {
 }
 
 /// Detects strings that are not defined with double quotes.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct DoubleQuotesRule;
 
 impl Rule for DoubleQuotesRule {
@@ -50,6 +51,15 @@ impl Rule for DoubleQuotesRule {
 
 impl Visitor for DoubleQuotesRule {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn expr(&mut self, state: &mut Self::State, reason: VisitReason, expr: &Expr) {
         if reason == VisitReason::Exit {

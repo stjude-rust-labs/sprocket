@@ -168,7 +168,7 @@ mod test {
 
     #[test]
     fn import_statements() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -178,7 +178,7 @@ import "baz.wdl" alias A as B alias C as D
 import "qux.wdl" as x alias A as B alias C as D
 "#,
         );
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         match document.ast() {
             Ast::V1(ast) => {
                 let assert_aliases = |mut aliases: AstChildren<ImportAlias>| {
@@ -231,6 +231,8 @@ import "qux.wdl" as x alias A as B alias C as D
 
                 impl Visitor for MyVisitor {
                     type State = ();
+
+                    fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
 
                     fn import_statement(
                         &mut self,

@@ -2082,7 +2082,7 @@ mod test {
 
     #[test]
     fn literal_booleans() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -2093,7 +2093,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -2120,6 +2120,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
                     return;
@@ -2138,7 +2140,7 @@ task test {
 
     #[test]
     fn literal_integer() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -2155,7 +2157,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -2274,6 +2276,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
                     return;
@@ -2304,7 +2308,7 @@ task test {
 
     #[test]
     fn literal_float() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -2321,7 +2325,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -2441,6 +2445,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
                     return;
@@ -2464,7 +2470,7 @@ task test {
 
     #[test]
     fn literal_string() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -2477,7 +2483,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -2543,6 +2549,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
                     return;
@@ -2564,7 +2572,7 @@ task test {
 
     #[test]
     fn literal_array() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -2576,7 +2584,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -2774,6 +2782,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
                     return;
@@ -2822,7 +2832,7 @@ task test {
 
     #[test]
     fn literal_pair() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -2834,7 +2844,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -2970,6 +2980,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
                     return;
@@ -3019,7 +3031,7 @@ task test {
 
     #[test]
     fn literal_map() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -3030,7 +3042,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -3097,6 +3109,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
                     return;
@@ -3139,7 +3153,7 @@ task test {
 
     #[test]
     fn literal_object() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -3150,7 +3164,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -3226,6 +3240,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
                     return;
@@ -3285,18 +3301,18 @@ task test {
 
     #[test]
     fn literal_struct() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
-task test {
+task test { 
     Foo a = Foo { foo: "bar" }
     Bar b = Bar { bar: 1, baz: [1, 2, 3] }
 }
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -3374,6 +3390,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
                     return;
@@ -3433,7 +3451,7 @@ task test {
 
     #[test]
     fn literal_none() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -3444,7 +3462,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -3473,6 +3491,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Literal(LiteralExpr::None(_)) = expr {
@@ -3489,7 +3509,7 @@ task test {
 
     #[test]
     fn name_ref() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -3500,7 +3520,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -3535,6 +3555,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
                     return;
@@ -3553,7 +3575,7 @@ task test {
 
     #[test]
     fn parenthesized() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -3564,7 +3586,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -3614,6 +3636,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Parenthesized(_) = expr {
@@ -3630,7 +3654,7 @@ task test {
 
     #[test]
     fn if_expr() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -3641,7 +3665,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -3682,6 +3706,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::If(_) = expr {
@@ -3698,7 +3724,7 @@ task test {
 
     #[test]
     fn logical_not() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -3709,7 +3735,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -3757,6 +3783,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::LogicalNot(_) = expr {
@@ -3773,7 +3801,7 @@ task test {
 
     #[test]
     fn negation() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -3784,7 +3812,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -3834,6 +3862,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Negation(_) = expr {
@@ -3850,7 +3880,7 @@ task test {
 
     #[test]
     fn logical_or() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -3862,7 +3892,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -3896,6 +3926,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::LogicalOr(_) = expr {
@@ -3912,7 +3944,7 @@ task test {
 
     #[test]
     fn logical_and() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -3924,7 +3956,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -3958,6 +3990,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::LogicalAnd(_) = expr {
@@ -3974,7 +4008,7 @@ task test {
 
     #[test]
     fn equality() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -3986,7 +4020,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4020,6 +4054,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Equality(_) = expr {
@@ -4036,7 +4072,7 @@ task test {
 
     #[test]
     fn inequality() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4048,7 +4084,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4082,6 +4118,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Inequality(_) = expr {
@@ -4098,7 +4136,7 @@ task test {
 
     #[test]
     fn less() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4110,7 +4148,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4160,6 +4198,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Less(_) = expr {
@@ -4176,7 +4216,7 @@ task test {
 
     #[test]
     fn less_equal() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4188,7 +4228,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4238,6 +4278,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::LessEqual(_) = expr {
@@ -4254,7 +4296,7 @@ task test {
 
     #[test]
     fn greater() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4266,7 +4308,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4316,6 +4358,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Greater(_) = expr {
@@ -4332,7 +4376,7 @@ task test {
 
     #[test]
     fn greater_equal() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4344,7 +4388,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4394,6 +4438,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::GreaterEqual(_) = expr {
@@ -4410,7 +4456,7 @@ task test {
 
     #[test]
     fn addition() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4422,7 +4468,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4472,6 +4518,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Addition(_) = expr {
@@ -4488,7 +4536,7 @@ task test {
 
     #[test]
     fn subtraction() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4500,7 +4548,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4550,6 +4598,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Subtraction(_) = expr {
@@ -4566,7 +4616,7 @@ task test {
 
     #[test]
     fn multiplication() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4578,7 +4628,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4628,6 +4678,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Multiplication(_) = expr {
@@ -4644,7 +4696,7 @@ task test {
 
     #[test]
     fn division() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4656,7 +4708,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4706,6 +4758,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Division(_) = expr {
@@ -4722,7 +4776,7 @@ task test {
 
     #[test]
     fn modulo() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4734,7 +4788,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4784,6 +4838,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Modulo(_) = expr {
@@ -4800,7 +4856,7 @@ task test {
 
     #[test]
     fn exponentiation() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.2
 
@@ -4812,7 +4868,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4880,7 +4936,7 @@ task test {
 
     #[test]
     fn call() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4891,7 +4947,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -4965,6 +5021,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Call(_) = expr {
@@ -4981,7 +5039,7 @@ task test {
 
     #[test]
     fn index() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -4992,7 +5050,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -5054,6 +5112,8 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
                     if let Expr::Index(_) = expr {
@@ -5070,7 +5130,7 @@ task test {
 
     #[test]
     fn access() {
-        let parse = Document::parse(
+        let (document, diagnostics) = Document::parse(
             r#"
 version 1.1
 
@@ -5081,7 +5141,7 @@ task test {
 "#,
         );
 
-        let document = parse.into_result().expect("there should be no errors");
+        assert!(diagnostics.is_empty());
         let ast = document.ast();
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
@@ -5126,6 +5186,8 @@ task test {
 
         impl Visitor for MyVisitor {
             type State = ();
+
+            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {

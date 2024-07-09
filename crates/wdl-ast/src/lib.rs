@@ -18,21 +18,14 @@
 //! use wdl_ast::Document;
 //! use wdl_ast::Validator;
 //!
-//! match Document::parse(source).into_result() {
-//!     Ok(document) => {
-//!         let validator = Validator::default();
-//!         match validator.validate(&document) {
-//!             Ok(_) => {
-//!                 // The document was valid WDL
-//!             }
-//!             Err(diagnostics) => {
-//!                 // Handle the failure to validate
-//!             }
-//!         }
-//!     }
-//!     Err(diagnostics) => {
-//!         // Handle the failure to parse
-//!     }
+//! let (document, diagnostics) = Document::parse(source);
+//! if !diagnostics.is_empty() {
+//!     // Handle the failure to parse
+//! }
+//!
+//! let mut validator = Validator::default();
+//! if let Err(diagnostics) = validator.validate(&document) {
+//!     // Handle the failure to validate
 //! }
 //! ```
 
@@ -44,7 +37,6 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 
 use std::fmt;
-use std::sync::Arc;
 
 pub use rowan::ast::support;
 pub use rowan::ast::AstChildren;
@@ -161,56 +153,6 @@ impl Ast {
     }
 }
 
-/// Represents the result of a parse: a [Document] and a list of diagnostics.
-///
-/// A parse always produces a [Document], even for documents that contain
-/// syntax errors.
-#[derive(Clone, Debug)]
-pub struct Parse {
-    /// The document that was parsed.
-    document: Document,
-    /// The parse diagnostics that were encountered.
-    diagnostics: Option<Arc<[Diagnostic]>>,
-}
-
-impl Parse {
-    /// Constructs a new parse result from the given document and list of
-    /// parser diagnostics.
-    fn new(document: Document, diagnostics: Vec<Diagnostic>) -> Parse {
-        Self {
-            document,
-            diagnostics: if diagnostics.is_empty() {
-                None
-            } else {
-                Some(diagnostics.into())
-            },
-        }
-    }
-
-    /// Gets the root syntax node from the parse.
-    pub fn root(&self) -> &SyntaxNode {
-        &self.document.0
-    }
-
-    /// Gets the diagnostics from the parse.
-    pub fn diagnostics(&self) -> &[Diagnostic] {
-        self.diagnostics.as_deref().unwrap_or_default()
-    }
-
-    /// Gets the document resulting from the parse.
-    pub fn document(&self) -> &Document {
-        &self.document
-    }
-
-    /// Converts the parse into a result.
-    pub fn into_result(self) -> Result<Document, Arc<[Diagnostic]>> {
-        match self.diagnostics {
-            Some(diagnostics) => Err(diagnostics),
-            None => Ok(self.document),
-        }
-    }
-}
-
 /// Represents a single WDL document.
 ///
 /// See [Document::ast] for getting a version-specific Abstract
@@ -227,10 +169,9 @@ impl Document {
     ///
     /// ```rust
     /// # use wdl_ast::{Document, AstToken, Ast};
-    /// let parse = Document::parse("version 1.1");
-    /// assert!(parse.diagnostics().is_empty());
+    /// let (document, diagnostics) = Document::parse("version 1.1");
+    /// assert!(diagnostics.is_empty());
     ///
-    /// let document = parse.document();
     /// assert_eq!(
     ///     document
     ///         .version_statement()
@@ -247,9 +188,9 @@ impl Document {
     ///     Ast::Unsupported => panic!("should be a V1 AST"),
     /// }
     /// ```
-    pub fn parse(source: &str) -> Parse {
+    pub fn parse(source: &str) -> (Self, Vec<Diagnostic>) {
         let (tree, diagnostics) = SyntaxTree::parse(source);
-        Parse::new(
+        (
             Document::cast(tree.into_syntax()).expect("document should cast"),
             diagnostics,
         )

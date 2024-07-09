@@ -4,6 +4,7 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
@@ -81,6 +82,15 @@ impl Rule for PreambleWhitespaceRule {
 
 impl Visitor for PreambleWhitespaceRule {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn version_statement(
         &mut self,
@@ -190,8 +200,12 @@ impl Visitor for PreambleWhitespaceRule {
                 }
             }
 
-            // We expected two lines
-            if count < 2 {
+            // We expected two lines or one if the whitespace is the last in the file
+            if count == 0
+                || (count == 1
+                    && (whitespace.syntax().parent().unwrap().kind() != SyntaxKind::RootNode
+                        || whitespace.syntax().next_sibling_or_token().is_some()))
+            {
                 state.add(expected_blank_line_after(Span::new(
                     span.start() + span.len(),
                     1,

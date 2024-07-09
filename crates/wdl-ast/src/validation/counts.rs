@@ -1,4 +1,4 @@
-//! Validation of various counts in a V1 AST.
+//! Validation of various counts in an AST.
 
 use std::fmt;
 
@@ -13,6 +13,7 @@ use crate::v1::StructDefinition;
 use crate::v1::TaskDefinition;
 use crate::v1::TaskOrWorkflow;
 use crate::v1::WorkflowDefinition;
+use crate::Ast;
 use crate::AstNode;
 use crate::AstToken;
 use crate::Diagnostic;
@@ -59,16 +60,8 @@ impl fmt::Display for Section {
 /// Creates a "at least one definition" diagnostic
 fn at_least_one_definition() -> Diagnostic {
     Diagnostic::error("there must be at least one task, workflow, or struct definition in the file")
-}
-
-/// Creates a "duplicate workflow" diagnostic
-fn duplicate_workflow(name: Ident, first: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "cannot define workflow `{name}` as only one workflow is allowed per source file",
-        name = name.as_str()
-    ))
-    .with_label("consider moving this workflow to a new file", name.span())
-    .with_label("first workflow is defined here", first)
+        // This highlight will show the last position in the file
+        .with_highlight(Span::new(usize::MAX - 1, 1))
 }
 
 /// Creates a "missing command section" diagnostic
@@ -138,8 +131,8 @@ fn empty_struct(name: Ident) -> Diagnostic {
 /// * Contains non-empty structs
 #[derive(Default, Debug)]
 pub struct CountingVisitor {
-    /// The span of the first workflow in the file.
-    workflow: Option<Span>,
+    /// Whether or not the document has at least one workflow.
+    has_workflow: bool,
     /// Whether or not the document has at least one task.
     has_task: bool,
     /// Whether or not the document has at least one struct.
@@ -174,34 +167,35 @@ impl CountingVisitor {
 impl Visitor for CountingVisitor {
     type State = Diagnostics;
 
-    fn document(&mut self, state: &mut Self::State, reason: VisitReason, _: &Document) {
+    fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {
         if reason == VisitReason::Enter {
+            // Upon entry of of a document, reset the visitor entirely.
+            *self = Default::default();
             return;
         }
 
-        if self.workflow.is_none() && !self.has_task && !self.has_struct {
+        // Ignore documents that are not supported
+        if matches!(doc.ast(), Ast::Unsupported) {
+            return;
+        }
+
+        if !self.has_workflow && !self.has_task && !self.has_struct {
             state.add(at_least_one_definition());
         }
     }
 
     fn workflow_definition(
         &mut self,
-        state: &mut Self::State,
+        _: &mut Self::State,
         reason: VisitReason,
-        workflow: &WorkflowDefinition,
+        _: &WorkflowDefinition,
     ) {
         if reason == VisitReason::Exit {
             self.reset();
             return;
         }
 
-        if let Some(first) = self.workflow {
-            state.add(duplicate_workflow(workflow.name(), first));
-            return;
-        }
-
-        let name = workflow.name();
-        self.workflow = Some(name.span());
+        self.has_workflow = true;
     }
 
     fn task_definition(

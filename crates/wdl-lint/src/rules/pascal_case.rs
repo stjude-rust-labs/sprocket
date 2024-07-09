@@ -7,6 +7,7 @@ use wdl_ast::v1::StructDefinition;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -27,7 +28,7 @@ fn use_pascal_case(name: &str, properly_cased_name: &str, span: Span) -> Diagnos
 }
 
 /// Detects structs defined without a pascal case name.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct PascalCaseRule;
 
 impl Rule for PascalCaseRule {
@@ -63,6 +64,15 @@ fn check_name(name: &str, span: Span, diagnostics: &mut Diagnostics) {
 
 impl Visitor for PascalCaseRule {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn struct_definition(
         &mut self,

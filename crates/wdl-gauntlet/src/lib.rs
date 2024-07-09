@@ -180,27 +180,25 @@ pub async fn gauntlet(args: Args) -> Result<()> {
             // Parse and validate the document
             // If "arena mode" is activated, also validate with the lint rules enabled
             let before = Instant::now();
-            let diagnostics = match Document::parse(&source).into_result() {
-                Ok(document) => {
-                    let mut validator = Validator::default();
-                    if args.arena {
-                        validator.add_visitor(LintVisitor::default());
-                    }
-
-                    match validator.validate(&document) {
-                        Ok(()) => None,
-                        Err(diagnostics) => Some(diagnostics),
-                    }
-                }
-                Err(diagnostics) => {
+            let (document, diagnostics) = Document::parse(&source);
+            let diagnostics = if !diagnostics.is_empty() {
+                if args.arena {
                     // If we're in arena mode, skip over the files that failed to fully parse
                     // We log those diagnostics as part of the normal gauntlet run.
-                    if args.arena {
-                        trace!("skipping {:?} as it has parse errors", abs_path);
-                        continue;
-                    }
+                    trace!("skipping {:?} as it has parse errors", abs_path);
+                    continue;
+                }
 
-                    Some(diagnostics)
+                diagnostics
+            } else {
+                let mut validator = Validator::default();
+                if args.arena {
+                    validator.add_visitor(LintVisitor::default());
+                }
+
+                match validator.validate(&document) {
+                    Ok(()) => diagnostics,
+                    Err(diagnostics) => diagnostics,
                 }
             };
 
@@ -209,7 +207,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
 
             // Convert the diagnostics to a set of short-form messages
             let mut actual = IndexSet::new();
-            if let Some(diagnostics) = diagnostics {
+            if !diagnostics.is_empty() {
                 let file: SimpleFile<_, _> = SimpleFile::new(
                     Path::new(document_identifier.path())
                         .file_name()

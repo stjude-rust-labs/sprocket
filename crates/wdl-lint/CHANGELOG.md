@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added the `SectionOrdering` lint rule ([#109](https://github.com/stjude-rust-labs/wdl/pull/109)).
 * Added the `DeprecatedObject` lint rule ([#112](https://github.com/stjude-rust-labs/wdl/pull/112)).
 
+### Fixed
+
+* Fixed a bug in the `PreambleWhitespace` rule that would cause it to fire if
+  there is only a single blank line after the version statement remaining in
+  the document ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
+
+### Changed
+
+* All lint rule visitations now reset their states upon document entry, 
+  allowing a validator to be reused between documents ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
+* Moved the `PartialOrd` implementation for types into the `InputSorting` rule.
+
 ## 0.3.0 - 06-28-2024
 
 ### Added

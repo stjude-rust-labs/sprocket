@@ -39,21 +39,14 @@
 //! use wdl::ast::Document;
 //! use wdl::ast::Validator;
 //!
-//! match Document::parse(source).into_result() {
-//!     Ok(document) => {
-//!         let validator = Validator::default();
-//!         match validator.validate(&document) {
-//!             Ok(_) => {
-//!                 // The document was valid WDL
-//!             }
-//!             Err(diagnostics) => {
-//!                 // Handle the failure to validate
-//!             }
-//!         }
-//!     }
-//!     Err(diagnostics) => {
-//!         // Handle the failure to parse
-//!     }
+//! let (document, diagnostics) = Document::parse(source);
+//! if !diagnostics.is_empty() {
+//!     // Handle the failure to parse
+//! }
+//!
+//! let mut validator = Validator::default();
+//! if let Err(diagnostics) = validator.validate(&document) {
+//!     // Handle the failure to validate
 //! }
 //! ```
 //!
@@ -65,22 +58,15 @@
 //! use wdl::ast::Validator;
 //! use wdl::lint::LintVisitor;
 //!
-//! match Document::parse(source).into_result() {
-//!     Ok(document) => {
-//!         let mut validator = Validator::default();
-//!         validator.add_visitor(LintVisitor::default());
-//!         match validator.validate(&document) {
-//!             Ok(_) => {
-//!                 // The document was valid WDL and passed all lints
-//!             }
-//!             Err(diagnostics) => {
-//!                 // Handle the failure to validate
-//!             }
-//!         }
-//!     }
-//!     Err(diagnostics) => {
-//!         // Handle the failure to parse
-//!     }
+//! let (document, diagnostics) = Document::parse(source);
+//! if !diagnostics.is_empty() {
+//!     // Handle the failure to parse
+//! }
+//!
+//! let mut validator = Validator::default();
+//! validator.add_visitor(LintVisitor::default());
+//! if let Err(diagnostics) = validator.validate(&document) {
+//!     // Handle the failure to validate
 //! }
 //! ```
 

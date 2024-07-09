@@ -4,6 +4,7 @@ use wdl_ast::span_of;
 use wdl_ast::v1::Type;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -24,7 +25,7 @@ fn deprecated_object_use(span: Span) -> Diagnostic {
 }
 
 /// Detects the use of the deprecated `Object` types.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct DeprecatedObjectRule;
 
 impl Rule for DeprecatedObjectRule {
@@ -54,6 +55,15 @@ impl Rule for DeprecatedObjectRule {
 
 impl Visitor for DeprecatedObjectRule {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn bound_decl(
         &mut self,

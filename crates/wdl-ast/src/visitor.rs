@@ -62,7 +62,11 @@ pub trait Visitor: Send + Sync {
     type State;
 
     /// Visits the root document node.
-    fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {}
+    ///
+    /// A visitor must implement this method and response to
+    /// `VisitReason::Enter` with resetting any internal state so that a visitor
+    /// may be reused between documents.
+    fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document);
 
     /// Visits a whitespace token.
     fn whitespace(&mut self, state: &mut Self::State, whitespace: &Whitespace) {}

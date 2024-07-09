@@ -1,4 +1,4 @@
-//! Validation of string literals in a V1 AST.
+//! Validation of string literals in an AST.
 
 use wdl_grammar::lexer::v1::EscapeToken;
 use wdl_grammar::lexer::v1::Logos;
@@ -7,7 +7,9 @@ use crate::v1::StringText;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
+use crate::Document;
 use crate::Span;
+use crate::VisitReason;
 use crate::Visitor;
 
 /// Creates an "unknown escape sequence" diagnostic
@@ -115,11 +117,20 @@ fn check_text(diagnostics: &mut Diagnostics, start: usize, text: &str) {
 ///
 /// * Does not contain characters that must be escaped.
 /// * Does not contain invalid escape sequences.
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct LiteralTextVisitor;
 
 impl Visitor for LiteralTextVisitor {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn string_text(&mut self, state: &mut Self::State, text: &StringText) {
         check_text(

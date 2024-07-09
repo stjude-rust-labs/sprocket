@@ -1,2 +1,6 @@
 error: a WDL document must start with a version statement
+  ┌─ tests/parsing/empty-document/source.wdl:1:1
+  │
+1 │ 
+  │  
 

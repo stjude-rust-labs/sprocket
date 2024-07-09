@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Add support for the exponentiation operator in WDL 1.2 ([#111](https://github.com/stjude-rust-labs/wdl/pull/111)).
 
+### Changed
+
+* Changed the API for parsing documents; `Document::parse` now returns
+  `(Document, Vec<Diagnostic>)` rather than a `Parse` type ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
+* The `Type` enumeration, and friends, in `wdl-ast` no longer implement
+  `PartialOrd`  and `Ord`; those implementations have moved to the sort lint
+  rule ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
+* The `PartialEq` implementation of the `Type` enumeration, and friends, is now
+  implemented in terms of WDL type equivalence and not by CST node equivalence
+  ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
+
 ## 0.4.0 - 06-28-2024
 
 ### Added

@@ -1,0 +1,103 @@
+error: conflicting call name `my_int`
+  ┌─ tests/analysis/conflicting-call-names/source.wdl:7:10
+  │
+6 │     Int my_int = 0      # FIRST
+  │         ------ the declaration with the conflicting name is here
+7 │     call my_int         # OK
+  │          ^^^^^^ this conflicts with a declaration of the same name
+  │
+  = fix: add an `as` clause to the call to specify a different name
+
+error: conflicting call name `foo`
+   ┌─ tests/analysis/conflicting-call-names/source.wdl:10:10
+   │
+ 9 │     call foo            # FIRST
+   │          --- the call with the conflicting name is here
+10 │     call foo            # NOT OK
+   │          ^^^ this conflicts with a call of the same name
+   │
+   = fix: add an `as` clause to the call to specify a different name
+
+error: conflicting call name `bar`
+   ┌─ tests/analysis/conflicting-call-names/source.wdl:13:17
+   │
+12 │     call foo as bar     # FIRST
+   │                 --- the call with the conflicting name is here
+13 │     call foo as bar     # NOT OK
+   │                 ^^^ this conflicts with a call of the same name
+
+error: conflicting call name `bar`
+   ┌─ tests/analysis/conflicting-call-names/source.wdl:15:10
+   │
+12 │     call foo as bar     # FIRST
+   │                 --- the call with the conflicting name is here
+   ·
+15 │     call bar            # NOT OK
+   │          ^^^ this conflicts with a call of the same name
+   │
+   = fix: add an `as` clause to the call to specify a different name
+
+error: conflicting call name `bar`
+   ┌─ tests/analysis/conflicting-call-names/source.wdl:17:14
+   │
+12 │     call foo as bar     # FIRST
+   │                 --- the call with the conflicting name is here
+   ·
+17 │     call foo.bar        # NOT OK
+   │              ^^^ this conflicts with a call of the same name
+   │
+   = fix: add an `as` clause to the call to specify a different name
+
+error: conflicting call name `baz`
+   ┌─ tests/analysis/conflicting-call-names/source.wdl:20:17
+   │
+18 │     call foo.baz        # FIRST
+   │              --- the call with the conflicting name is here
+19 │ 
+20 │     call foo as baz     # NOT OK
+   │                 ^^^ this conflicts with a call of the same name
+
+error: conflicting call name `foo`
+   ┌─ tests/analysis/conflicting-call-names/source.wdl:23:14
+   │
+ 9 │     call foo            # FIRST
+   │          --- the call with the conflicting name is here
+   ·
+23 │         call foo        # NOT OK
+   │              ^^^ this conflicts with a call of the same name
+   │
+   = fix: add an `as` clause to the call to specify a different name
+
+error: conflicting call name `x`
+   ┌─ tests/analysis/conflicting-call-names/source.wdl:24:14
+   │
+22 │     scatter (x in []) {
+   │              - the scatter variable with the conflicting name is here
+23 │         call foo        # NOT OK
+24 │         call x          # NOT OK
+   │              ^ this conflicts with a scatter variable of the same name
+   │
+   = fix: add an `as` clause to the call to specify a different name
+
+error: conflicting call name `x`
+   ┌─ tests/analysis/conflicting-call-names/source.wdl:28:10
+   │
+24 │         call x          # NOT OK
+   │              - the call with the conflicting name is here
+   ·
+28 │     call x              # NOT OK
+   │          ^ this conflicts with a call of the same name
+   │
+   = fix: add an `as` clause to the call to specify a different name
+
+error: conflicting call name `ok`
+   ┌─ tests/analysis/conflicting-call-names/source.wdl:29:10
+   │
+25 │         call ok         # OK
+   │              -- the call with the conflicting name is here
+   ·
+29 │     call ok             # NOT OK
+   │          ^^ this conflicts with a call of the same name
+   │
+   = fix: add an `as` clause to the call to specify a different name
+

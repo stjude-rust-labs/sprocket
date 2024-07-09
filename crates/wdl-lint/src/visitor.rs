@@ -165,6 +165,10 @@ impl Visitor for LintVisitor {
 
     fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {
         if reason == VisitReason::Enter {
+            // Reset state for a new document
+            self.global.clear();
+            self.exceptions.clear();
+
             // Set the global exceptions
             if let Some(stmt) = doc.version_statement() {
                 self.global = self.exceptions_for(state, stmt.syntax());

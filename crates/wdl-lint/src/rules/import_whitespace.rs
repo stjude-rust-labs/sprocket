@@ -4,6 +4,7 @@ use wdl_ast::v1::ImportStatement;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
@@ -77,6 +78,15 @@ impl Rule for ImportWhitespaceRule {
 
 impl Visitor for ImportWhitespaceRule {
     type State = Diagnostics;
+
+    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Reset the visitor upon document entry
+        *self = Default::default();
+    }
 
     fn import_statement(
         &mut self,
