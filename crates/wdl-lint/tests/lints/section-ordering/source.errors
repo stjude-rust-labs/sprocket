@@ -1,0 +1,22 @@
+note[SectionOrdering]: sections are not in order for workflow `foo`
+  ┌─ tests/lints/section-ordering/source.wdl:5:10
+  │
+5 │ workflow foo {
+  │          ^^^ this workflow contains sections that are out of order
+  ·
+9 │     parameter_meta {}
+  │     -------------- this section is out of order
+  │
+  = fix: order as `meta`, `parameter_meta`, `input`, private declarations/calls/scatters, `output`
+
+note[SectionOrdering]: sections are not in order for task `bar`
+   ┌─ tests/lints/section-ordering/source.wdl:16:6
+   │
+16 │ task bar {
+   │      ^^^ this task contains sections that are out of order
+   ·
+19 │     parameter_meta {}
+   │     -------------- this section is out of order
+   │
+   = fix: order as `meta`, `parameter_meta`, `input`, private declarations, `command`, `output`, `runtime`
+

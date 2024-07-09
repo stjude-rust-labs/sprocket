@@ -1,47 +1,47 @@
 warning[SnakeCase]: workflow name `BadWorkflow` is not snake_case
-  ┌─ tests/lints/snake-case/source.wdl:5:10
+  ┌─ tests/lints/snake-case/source.wdl:6:10
   │
-5 │ workflow BadWorkflow {
+6 │ workflow BadWorkflow {
   │          ^^^^^^^^^^^ this name must be snake_case
   │
   = fix: replace `BadWorkflow` with `bad_workflow`
 
 warning[SnakeCase]: private declaration name `badPrivateDecl` is not snake_case
-  ┌─ tests/lints/snake-case/source.wdl:8:11
+  ┌─ tests/lints/snake-case/source.wdl:9:11
   │
-8 │     Float badPrivateDecl = 3.14
+9 │     Float badPrivateDecl = 3.14
   │           ^^^^^^^^^^^^^^ this name must be snake_case
   │
   = fix: replace `badPrivateDecl` with `bad_private_decl`
 
 warning[SnakeCase]: task name `BadTask` is not snake_case
-   ┌─ tests/lints/snake-case/source.wdl:13:6
+   ┌─ tests/lints/snake-case/source.wdl:14:6
    │
-13 │ task BadTask {
+14 │ task BadTask {
    │      ^^^^^^^ this name must be snake_case
    │
    = fix: replace `BadTask` with `bad_task`
 
 warning[SnakeCase]: input name `BadInput` is not snake_case
-   ┌─ tests/lints/snake-case/source.wdl:17:16
+   ┌─ tests/lints/snake-case/source.wdl:18:16
    │
-17 │         String BadInput
+18 │         String BadInput
    │                ^^^^^^^^ this name must be snake_case
    │
    = fix: replace `BadInput` with `bad_input`
 
 warning[SnakeCase]: output name `badOut` is not snake_case
-   ┌─ tests/lints/snake-case/source.wdl:30:14
+   ┌─ tests/lints/snake-case/source.wdl:31:14
    │
-30 │         File badOut = "out.txt"
+31 │         File badOut = "out.txt"
    │              ^^^^^^ this name must be snake_case
    │
    = fix: replace `badOut` with `bad_out`
 
 warning[SnakeCase]: struct member name `bAdFiElD` is not snake_case
-   ┌─ tests/lints/snake-case/source.wdl:59:12
+   ┌─ tests/lints/snake-case/source.wdl:60:12
    │
-59 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
+60 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
    │            ^^^^^^^^ this name must be snake_case
    │
    = fix: replace `bAdFiElD` with `b_ad_fi_el_d`

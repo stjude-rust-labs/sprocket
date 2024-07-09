@@ -1,7 +1,7 @@
 note[MissingMetas]: task `test` is missing a `meta` section
-  ┌─ tests/lints/missing-meta/source.wdl:3:6
+  ┌─ tests/lints/missing-meta/source.wdl:5:6
   │
-3 │ task test {
+5 │ task test {
   │      ^^^^ this task is missing a `meta` section
   │
   = fix: add a `meta` section to the task

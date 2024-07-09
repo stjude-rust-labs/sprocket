@@ -1,7 +1,7 @@
 warning[NoCurlyCommands]: task `bad` uses curly braces in command section
-   ┌─ tests/lints/curly-command/source.wdl:10:5
+   ┌─ tests/lints/curly-command/source.wdl:11:5
    │
-10 │     command {
+11 │     command {
    │     ^^^^^^^ this command section uses curly braces
    │
    = fix: instead of curly braces, use heredoc syntax (<<<>>>>) for command sections

@@ -1,31 +1,31 @@
 warning[MatchingParameterMeta]: task `t` is missing a parameter metadata key for input `does_not_exist`
-   ┌─ tests/lints/matching-param-meta/source.wdl:10:16
+   ┌─ tests/lints/matching-param-meta/source.wdl:11:16
    │
-10 │         String does_not_exist
+11 │         String does_not_exist
    │                ^^^^^^^^^^^^^^ this input does not have an entry in the parameter metadata section
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
 
 note[MatchingParameterMeta]: task `t` has an extraneous parameter metadata key named `extra`
-   ┌─ tests/lints/matching-param-meta/source.wdl:22:9
+   ┌─ tests/lints/matching-param-meta/source.wdl:23:9
    │
-22 │         extra: "this should not be here"
+23 │         extra: "this should not be here"
    │         ^^^^^ this key does not correspond to any input declaration
    │
    = fix: remove the extraneous parameter metadata entry
 
 warning[MatchingParameterMeta]: workflow `w` is missing a parameter metadata key for input `does_not_exist`
-   ┌─ tests/lints/matching-param-meta/source.wdl:35:16
+   ┌─ tests/lints/matching-param-meta/source.wdl:36:16
    │
-35 │         String does_not_exist
+36 │         String does_not_exist
    │                ^^^^^^^^^^^^^^ this input does not have an entry in the parameter metadata section
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
 
 note[MatchingParameterMeta]: workflow `w` has an extraneous parameter metadata key named `extra`
-   ┌─ tests/lints/matching-param-meta/source.wdl:47:9
+   ┌─ tests/lints/matching-param-meta/source.wdl:48:9
    │
-47 │         extra: "this should not be here"
+48 │         extra: "this should not be here"
    │         ^^^^^ this key does not correspond to any input declaration
    │
    = fix: remove the extraneous parameter metadata entry

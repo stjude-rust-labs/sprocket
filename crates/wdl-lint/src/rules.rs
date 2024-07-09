@@ -2,6 +2,7 @@
 
 mod call_input_spacing;
 mod command_mixed_indentation;
+mod deprecated_object;
 mod double_quotes;
 mod ending_newline;
 mod import_placement;
@@ -18,11 +19,13 @@ mod no_curly_commands;
 mod pascal_case;
 mod preamble_comments;
 mod preamble_whitespace;
+mod section_order;
 mod snake_case;
 mod whitespace;
 
 pub use call_input_spacing::*;
 pub use command_mixed_indentation::*;
+pub use deprecated_object::*;
 pub use double_quotes::*;
 pub use ending_newline::*;
 pub use import_placement::*;
@@ -39,5 +42,6 @@ pub use no_curly_commands::*;
 pub use pascal_case::*;
 pub use preamble_comments::*;
 pub use preamble_whitespace::*;
+pub use section_order::*;
 pub use snake_case::*;
 pub use whitespace::*;

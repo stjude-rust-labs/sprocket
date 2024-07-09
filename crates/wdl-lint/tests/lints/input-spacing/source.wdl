@@ -1,3 +1,5 @@
+#@ except: SectionOrdering
+
 version 1.1
 
 struct Mystruct {

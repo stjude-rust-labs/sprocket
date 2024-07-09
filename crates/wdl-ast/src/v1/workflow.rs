@@ -143,7 +143,7 @@ impl AstNode for WorkflowItem {
             SyntaxKind::ScatterStatementNode => Some(Self::Scatter(ScatterStatement(syntax))),
             SyntaxKind::CallStatementNode => Some(Self::Call(CallStatement(syntax))),
             SyntaxKind::MetadataSectionNode => Some(Self::Metadata(MetadataSection(syntax))),
-            SyntaxKind::ParameterMetaKeyword => {
+            SyntaxKind::ParameterMetadataSectionNode => {
                 Some(Self::ParameterMetadata(ParameterMetadataSection(syntax)))
             }
             SyntaxKind::BoundDeclNode => Some(Self::Declaration(BoundDecl(syntax))),

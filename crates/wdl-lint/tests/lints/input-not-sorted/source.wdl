@@ -1,3 +1,5 @@
+#@ except: DeprecatedObject, SectionOrdering
+
 version 1.1
 
 struct Mystruct {

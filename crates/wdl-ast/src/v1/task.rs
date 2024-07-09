@@ -147,7 +147,7 @@ impl AstNode for TaskItem {
             SyntaxKind::CommandSectionNode => Some(Self::Command(CommandSection(syntax))),
             SyntaxKind::RuntimeSectionNode => Some(Self::Runtime(RuntimeSection(syntax))),
             SyntaxKind::MetadataSectionNode => Some(Self::Metadata(MetadataSection(syntax))),
-            SyntaxKind::ParameterMetaKeyword => {
+            SyntaxKind::ParameterMetadataSectionNode => {
                 Some(Self::ParameterMetadata(ParameterMetadataSection(syntax)))
             }
             SyntaxKind::BoundDeclNode => Some(Self::Declaration(BoundDecl(syntax))),

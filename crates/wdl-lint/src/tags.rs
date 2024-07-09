@@ -27,6 +27,9 @@ pub enum Tag {
 
     /// Rules associated with sorting of document elements.
     Sorting,
+
+    /// Rules associated with the use of deprecated language constructs.
+    Deprecated,
 }
 
 impl std::fmt::Display for Tag {
@@ -40,6 +43,7 @@ impl std::fmt::Display for Tag {
             Self::Portability => write!(f, "Portability"),
             Self::Correctness => write!(f, "Correctness"),
             Self::Sorting => write!(f, "Sorting"),
+            Self::Deprecated => write!(f, "Deprecated"),
         }
     }
 }

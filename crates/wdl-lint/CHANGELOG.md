@@ -5,11 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+* Added the `SectionOrdering` lint rule ([#109](https://github.com/stjude-rust-labs/wdl/pull/109)).
+* Added the `DeprecatedObject` lint rule ([#112](https://github.com/stjude-rust-labs/wdl/pull/112)).
+
 ## 0.3.0 - 06-28-2024
 
 ### Added
 
-* Added the `InconsistentNewlines` line rule ([#104](https://github.com/stjude-rust-labs/wdl/pull/104)).
+* Added the `InconsistentNewlines` lint rule ([#104](https://github.com/stjude-rust-labs/wdl/pull/104)).
 * Add support for `#@ except` comments to disable lint rules ([#101](https://github.com/stjude-rust-labs/wdl/pull/101)).
 * Added the `LineWidth` lint rule (#99).
 * Added the `ImportWhitespace` and `ImportSort` lint rules (#98).
