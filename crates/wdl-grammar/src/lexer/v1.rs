@@ -469,6 +469,9 @@ pub enum Token {
     /// The `*` symbol.
     #[token("*")]
     Asterisk,
+    /// The `**` symbol.
+    #[token("**")]
+    Exponentiation,
     /// The `/` symbol.
     #[token("/")]
     Slash,
@@ -570,6 +573,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::LogicalOr => SyntaxKind::LogicalOr,
             Self::LogicalAnd => SyntaxKind::LogicalAnd,
             Self::Asterisk => SyntaxKind::Asterisk,
+            Self::Exponentiation => SyntaxKind::Exponentiation,
             Self::Slash => SyntaxKind::Slash,
             Self::Percent => SyntaxKind::Percent,
             Self::Equal => SyntaxKind::Equal,
@@ -655,6 +659,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::LogicalOr => "`||`",
             Self::LogicalAnd => "`&&`",
             Self::Asterisk => "`*`",
+            Self::Exponentiation => "`**`",
             Self::Slash => "`/`",
             Self::Percent => "`%`",
             Self::Equal => "`==`",

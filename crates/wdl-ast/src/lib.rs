@@ -272,7 +272,7 @@ impl Document {
             .map(|s| {
                 let v = s.version();
                 match v.as_str() {
-                    "1.0" | "1.1" => {
+                    "1.0" | "1.1" | "1.2" => {
                         Ast::V1(v1::Ast::cast(self.0.clone()).expect("root should cast"))
                     }
                     _ => Ast::Unsupported,

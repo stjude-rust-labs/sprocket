@@ -216,6 +216,7 @@ const INFIX_OPERATOR_EXPECTED_SET: TokenSet = TokenSet::new(&[
     Token::Plus as u8,
     Token::Minus as u8,
     Token::Asterisk as u8,
+    Token::Exponentiation as u8,
     Token::Slash as u8,
     Token::Percent as u8,
     Token::Equal as u8,
@@ -1880,8 +1881,8 @@ fn prefix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
     use Associativity::*;
     use SyntaxKind::*;
     match token {
-        Token::Exclamation => (7, LogicalNotExprNode, Right),
-        Token::Minus => (7, NegationExprNode, Right),
+        Token::Exclamation => (8, LogicalNotExprNode, Right),
+        Token::Minus => (8, NegationExprNode, Right),
         // As paren expression is ambiguous with a pair literal expression,
         // this is handled in `atom_expr`
         // Token::OpenParen => 11,
@@ -1909,6 +1910,7 @@ fn infix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
         Token::Asterisk => (6, MultiplicationExprNode, Left),
         Token::Slash => (6, DivisionExprNode, Left),
         Token::Percent => (6, ModuloExprNode, Left),
+        Token::Exponentiation => (7, ExponentiationExprNode, Left),
         _ => panic!("unknown infix operator token"),
     }
 }
@@ -1919,9 +1921,9 @@ fn infix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
 fn postfix_precedence(token: Token) -> u8 {
     // All postfix operators are left-associative
     match token {
-        Token::OpenParen => 8,
-        Token::OpenBracket => 9,
-        Token::Dot => 10,
+        Token::OpenParen => 9,
+        Token::OpenBracket => 10,
+        Token::Dot => 11,
         _ => panic!("unknown postfix operator token"),
     }
 }

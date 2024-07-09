@@ -81,7 +81,7 @@ pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Ve
                     // version is supported by this implementation
                     let version: &str = &source[span.start()..span.end()];
                     match version {
-                        "1.0" | "1.1" => {
+                        "1.0" | "1.1" | "1.2" => {
                             let mut parser = parser.morph();
                             v1::items(&mut parser);
                             root.complete(&mut parser, SyntaxKind::RootNode);

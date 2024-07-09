@@ -154,6 +154,8 @@ pub enum SyntaxKind {
     LogicalAnd,
     /// The `*` symbol token.
     Asterisk,
+    /// The `**` symbol token.
+    Exponentiation,
     /// The `/` symbol token.
     Slash,
     /// The `%` symbol token.
@@ -302,6 +304,8 @@ pub enum SyntaxKind {
     DivisionExprNode,
     /// Represents a modulo expression node.
     ModuloExprNode,
+    /// Represents a exponentiation expr node.
+    ExponentiationExprNode,
     /// Represents a call expression node.'
     CallExprNode,
     /// Represents an index expression node.

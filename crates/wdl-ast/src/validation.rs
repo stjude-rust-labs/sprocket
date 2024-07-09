@@ -17,6 +17,7 @@ mod keys;
 mod names;
 mod numbers;
 mod strings;
+mod version;
 
 /// Represents a collection of validation diagnostics.
 ///
@@ -110,6 +111,7 @@ impl Default for Validator {
                 Box::<keys::UniqueKeysVisitor>::default(),
                 Box::<numbers::NumberVisitor>::default(),
                 Box::<names::UniqueNamesVisitor>::default(),
+                Box::<version::VersionVisitor>::default(),
             ],
         }
     }
