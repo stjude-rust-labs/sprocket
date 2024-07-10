@@ -5,7 +5,7 @@ use std::str::FromStr;
 use rowan::ast::support::token;
 use wdl_grammar::ToSpan;
 
-use crate::v1::Expr;
+use crate::v1;
 use crate::AstNode;
 use crate::AstToken;
 use crate::Diagnostic;
@@ -18,7 +18,13 @@ use crate::Visitor;
 
 /// Creates an "exponentiation requirement" diagnostic.
 fn exponentiation_requirement(span: Span) -> Diagnostic {
-    Diagnostic::error("usage of the exponentiation operator requires WDL version 1.2")
+    Diagnostic::error("use of the exponentiation operator requires WDL version 1.2")
+        .with_highlight(span)
+}
+
+/// Creates a "requirements section requirement" diagnostic.
+fn requirements_section(span: Span) -> Diagnostic {
+    Diagnostic::error("use of the `requirements` section requires WDL version 1.2")
         .with_highlight(span)
 }
 
@@ -76,14 +82,36 @@ impl Visitor for VersionVisitor {
             .and_then(|s| s.version().as_str().parse().ok());
     }
 
-    fn expr(&mut self, state: &mut Self::State, reason: VisitReason, expr: &Expr) {
+    fn requirements_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &v1::RequirementsSection,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(version) = self.version {
+            if version < Version::V1(V1::Two) {
+                state.add(requirements_section(
+                    token(section.syntax(), SyntaxKind::RequirementsKeyword)
+                        .expect("should have keyword")
+                        .text_range()
+                        .to_span(),
+                ));
+            }
+        }
+    }
+
+    fn expr(&mut self, state: &mut Self::State, reason: VisitReason, expr: &v1::Expr) {
         if reason == VisitReason::Exit {
             return;
         }
 
         if let Some(version) = self.version {
             match expr {
-                Expr::Exponentiation(e) if version < Version::V1(V1::Two) => {
+                v1::Expr::Exponentiation(e) if version < Version::V1(V1::Two) => {
                     state.add(exponentiation_requirement(
                         token(e.syntax(), SyntaxKind::Exponentiation)
                             .expect("should have operator")

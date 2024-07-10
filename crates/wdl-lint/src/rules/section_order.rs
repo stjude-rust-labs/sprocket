@@ -44,7 +44,7 @@ fn task_section_order(span: Span, name: &str, problem_span: Span) -> Diagnostic 
         .with_label("this section is out of order", problem_span)
         .with_fix(
             "order as `meta`, `parameter_meta`, `input`, private declarations, `command`, \
-             `output`, `runtime`",
+             `output`, `requirements`/`runtime`",
         )
 }
 
@@ -66,7 +66,7 @@ impl Rule for SectionOrderingRule {
          parameter_meta, input, (body), output. \"(body)\" represents all calls and declarations.
 
         For tasks, the following sections must be present and in this order: meta, parameter_meta, \
-         input, (private declarations), command, output, runtime"
+         input, (private declarations), command, output, requirements/runtime"
     }
 
     fn tags(&self) -> TagSet {
@@ -92,8 +92,8 @@ enum State {
     Command,
     /// The output section.
     Output,
-    /// The runtime section.
-    Runtime,
+    /// The requirements/runtime section.
+    Requirements,
 }
 
 impl Visitor for SectionOrderingRule {
@@ -139,8 +139,10 @@ impl Visitor for SectionOrderingRule {
                 TaskItem::Output(_) if encountered <= State::Output => {
                     encountered = State::Output;
                 }
-                TaskItem::Runtime(_) if encountered <= State::Runtime => {
-                    encountered = State::Runtime;
+                TaskItem::Requirements(_) | TaskItem::Runtime(_)
+                    if encountered <= State::Requirements =>
+                {
+                    encountered = State::Requirements;
                 }
                 _ => {
                     state.add(task_section_order(

@@ -80,11 +80,16 @@ const OUTPUT_ITEM_RECOVERY_SET: TokenSet =
 const RUNTIME_SECTION_RECOVERY_SET: TokenSet =
     ANY_IDENT.union(TokenSet::new(&[Token::CloseBrace as u8]));
 
+/// The recovery set for requirements items.
+const REQUIREMENTS_SECTION_RECOVERY_SET: TokenSet =
+    ANY_IDENT.union(TokenSet::new(&[Token::CloseBrace as u8]));
+
 /// The expected set of tokens in a task definition.
 const TASK_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
     Token::InputKeyword as u8,
     Token::CommandKeyword as u8,
     Token::OutputKeyword as u8,
+    Token::RequirementsKeyword as u8,
     Token::RuntimeKeyword as u8,
     Token::MetaKeyword as u8,
     Token::ParameterMetaKeyword as u8,
@@ -265,6 +270,7 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::Ident as u8,
     Token::ArrayTypeKeyword as u8,
     Token::BooleanTypeKeyword as u8,
+    Token::DirectoryTypeKeyword as u8,
     Token::FileTypeKeyword as u8,
     Token::FloatTypeKeyword as u8,
     Token::IntTypeKeyword as u8,
@@ -279,6 +285,7 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::CommandKeyword as u8,
     Token::ElseKeyword as u8,
     Token::FalseKeyword as u8,
+    Token::HintsKeyword as u8,
     Token::IfKeyword as u8,
     Token::InKeyword as u8,
     Token::ImportKeyword as u8,
@@ -289,6 +296,7 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::ObjectKeyword as u8,
     Token::OutputKeyword as u8,
     Token::ParameterMetaKeyword as u8,
+    Token::RequirementsKeyword as u8,
     Token::RuntimeKeyword as u8,
     Token::ScatterKeyword as u8,
     Token::StructKeyword as u8,
@@ -297,9 +305,6 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::TrueKeyword as u8,
     Token::VersionKeyword as u8,
     Token::WorkflowKeyword as u8,
-    Token::ReservedDirectoryTypeKeyword as u8,
-    Token::ReservedHintsKeyword as u8,
-    Token::ReservedRequirementsKeyword as u8,
 ]);
 
 /// A helper for parsing matching tokens.
@@ -599,6 +604,7 @@ fn task_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Dia
         Some((Token::CommandKeyword, _)) => command_section(parser, marker),
         Some((Token::OutputKeyword, _)) => output_section(parser, marker),
         Some((Token::RuntimeKeyword, _)) => runtime_section(parser, marker),
+        Some((Token::RequirementsKeyword, _)) => requirements_section(parser, marker),
         Some((Token::MetaKeyword, _)) => metadata_section(parser, marker),
         Some((Token::ParameterMetaKeyword, _)) => parameter_metadata_section(parser, marker),
         Some((t, _)) if TYPE_EXPECTED_SET.contains(t.into_raw()) => bound_decl(parser, marker),
@@ -911,13 +917,42 @@ fn runtime_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
     Ok(())
 }
 
-/// Parses a runtime item in a runtime section.
+/// Parses an item in a runtime section.
 fn runtime_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     expected_in!(parser, marker, ANY_IDENT, "runtime key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);
     marker.complete(parser, SyntaxKind::RuntimeItemNode);
+    Ok(())
+}
+
+/// Parses a requirements section in a task.
+fn requirements_section(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    parser.require(Token::RequirementsKeyword);
+    braced!(parser, marker, |parser| {
+        parser.delimited(
+            None,
+            UNTIL_CLOSE_BRACE,
+            REQUIREMENTS_SECTION_RECOVERY_SET,
+            requirements_item,
+        );
+        Ok(())
+    });
+    marker.complete(parser, SyntaxKind::RequirementsSectionNode);
+    Ok(())
+}
+
+/// Parses an item in a requirements section.
+fn requirements_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    expected_in!(parser, marker, ANY_IDENT, "requirements key");
+    parser.update_last_token_kind(SyntaxKind::Ident);
+    expected!(parser, marker, Token::Colon);
+    expected_fn!(parser, marker, expr);
+    marker.complete(parser, SyntaxKind::RequirementsItemNode);
     Ok(())
 }
 

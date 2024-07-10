@@ -2,12 +2,15 @@
 
 use std::fmt;
 
+use wdl_grammar::SyntaxToken;
+
 use crate::support;
 use crate::v1::CommandSection;
 use crate::v1::InputSection;
 use crate::v1::MetadataSection;
 use crate::v1::OutputSection;
 use crate::v1::ParameterMetadataSection;
+use crate::v1::RequirementsSection;
 use crate::v1::RuntimeSection;
 use crate::v1::StructDefinition;
 use crate::v1::TaskDefinition;
@@ -36,6 +39,8 @@ enum Section {
     Input,
     /// The error occurred in an output section.
     Output,
+    /// The error occurred in a requirements section.
+    Requirements,
     /// The error occurred in a task runtime section.
     Runtime,
     /// The error occurred in a metadata section.
@@ -50,6 +55,7 @@ impl fmt::Display for Section {
             Self::Command => write!(f, "command"),
             Self::Input => write!(f, "input"),
             Self::Output => write!(f, "output"),
+            Self::Requirements => write!(f, "requirements"),
             Self::Runtime => write!(f, "runtime"),
             Self::Metadata => write!(f, "metadata"),
             Self::ParameterMetadata => write!(f, "parameter metadata"),
@@ -73,6 +79,21 @@ fn missing_command_section(task: Ident) -> Diagnostic {
     .with_label("this task must have a command section", task.span())
 }
 
+/// Gets the keyword token for a given section node.
+fn keyword(node: &SyntaxNode, section: Section) -> SyntaxToken {
+    let kind = match section {
+        Section::Command => SyntaxKind::CommandKeyword,
+        Section::Input => SyntaxKind::InputKeyword,
+        Section::Output => SyntaxKind::OutputKeyword,
+        Section::Requirements => SyntaxKind::RequirementsKeyword,
+        Section::Runtime => SyntaxKind::RuntimeKeyword,
+        Section::Metadata => SyntaxKind::MetaKeyword,
+        Section::ParameterMetadata => SyntaxKind::ParameterMetaKeyword,
+    };
+
+    support::token(node, kind).expect("should have keyword token")
+}
+
 /// Creates a "duplicate section" diagnostic
 fn duplicate_section(
     parent: TaskOrWorkflow,
@@ -80,17 +101,7 @@ fn duplicate_section(
     first: Span,
     duplicate: &SyntaxNode,
 ) -> Diagnostic {
-    let kind = match section {
-        Section::Command => SyntaxKind::CommandKeyword,
-        Section::Input => SyntaxKind::InputKeyword,
-        Section::Output => SyntaxKind::OutputKeyword,
-        Section::Runtime => SyntaxKind::RuntimeKeyword,
-        Section::Metadata => SyntaxKind::MetaKeyword,
-        Section::ParameterMetadata => SyntaxKind::ParameterMetaKeyword,
-    };
-
-    let token = support::token(duplicate, kind).expect("should have keyword token");
-
+    let token = keyword(duplicate, section);
     let (context, name) = match parent {
         TaskOrWorkflow::Task(t) => ("task", t.name()),
         TaskOrWorkflow::Workflow(w) => ("workflow", w.name()),
@@ -105,6 +116,34 @@ fn duplicate_section(
         token.text_range(),
     )
     .with_label(format!("first {section} section is defined here"), first)
+}
+
+/// Creates the "conflicting section" diagnostic
+fn conflicting_section(
+    parent: TaskOrWorkflow,
+    section: Section,
+    conflicting: &SyntaxNode,
+    first_span: Span,
+    first_section: Section,
+) -> Diagnostic {
+    let token = keyword(conflicting, section);
+    let (context, name) = match parent {
+        TaskOrWorkflow::Task(t) => ("task", t.name()),
+        TaskOrWorkflow::Workflow(w) => ("workflow", w.name()),
+    };
+
+    Diagnostic::error(format!(
+        "{context} `{name}` contains a conflicting section",
+        name = name.as_str()
+    ))
+    .with_label(
+        format!("this {section} section conflicts with a {first_section} section"),
+        token.text_range(),
+    )
+    .with_label(
+        format!("the conflicting {first_section} section is defined here"),
+        first_span,
+    )
 }
 
 /// Creates an "empty struct" diagnostic
@@ -125,7 +164,7 @@ fn empty_struct(name: Ident) -> Diagnostic {
 /// * Contains exactly one command section in every task
 /// * Contains at most one input section in a task or workflow
 /// * Contains at most one output section in a task or workflow
-/// * Contains at most one runtime section in a task
+/// * Contains at most one requirements or runtime section in a task
 /// * Contains at most one meta section in a task or workflow
 /// * Contains at most one parameter meta section in a task or workflow
 /// * Contains non-empty structs
@@ -143,6 +182,8 @@ pub struct CountingVisitor {
     input: Option<Span>,
     /// The span of the first output section in the task or workflow.
     output: Option<Span>,
+    /// The span of the first requirements section in the task.
+    requirements: Option<Span>,
     /// The span of the first runtime section in the task.
     runtime: Option<Span>,
     /// The span of the first metadata section in the task or workflow.
@@ -158,6 +199,7 @@ impl CountingVisitor {
         self.command = None;
         self.input = None;
         self.output = None;
+        self.requirements = None;
         self.runtime = None;
         self.metadata = None;
         self.param_metadata = None;
@@ -308,6 +350,42 @@ impl Visitor for CountingVisitor {
         self.output = Some(token.text_range().to_span());
     }
 
+    fn requirements_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &RequirementsSection,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(requirements) = self.requirements {
+            state.add(duplicate_section(
+                TaskOrWorkflow::Task(section.parent()),
+                Section::Requirements,
+                requirements,
+                section.syntax(),
+            ));
+            return;
+        }
+
+        if let Some(runtime) = self.runtime {
+            state.add(conflicting_section(
+                TaskOrWorkflow::Task(section.parent()),
+                Section::Requirements,
+                section.syntax(),
+                runtime,
+                Section::Runtime,
+            ));
+            return;
+        }
+
+        let token = support::token(section.syntax(), SyntaxKind::RequirementsKeyword)
+            .expect("should have a requirements keyword token");
+        self.requirements = Some(token.text_range().to_span());
+    }
+
     fn runtime_section(
         &mut self,
         state: &mut Self::State,
@@ -324,6 +402,17 @@ impl Visitor for CountingVisitor {
                 Section::Runtime,
                 runtime,
                 section.syntax(),
+            ));
+            return;
+        }
+
+        if let Some(requirements) = self.requirements {
+            state.add(conflicting_section(
+                TaskOrWorkflow::Task(section.parent()),
+                Section::Runtime,
+                section.syntax(),
+                requirements,
+                Section::Requirements,
             ));
             return;
         }

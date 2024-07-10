@@ -308,6 +308,17 @@ impl Visitor for LintVisitor {
         }
     }
 
+    fn requirements_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &v1::RequirementsSection,
+    ) {
+        self.each_enabled_rule(state, reason, section.syntax(), |state, rule| {
+            rule.requirements_section(state, reason, section)
+        });
+    }
+
     fn runtime_section(
         &mut self,
         state: &mut Self::State,

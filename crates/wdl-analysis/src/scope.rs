@@ -920,6 +920,7 @@ impl DocumentScope {
                 v1::TaskItem::Input(_)
                 | v1::TaskItem::Output(_)
                 | v1::TaskItem::Command(_)
+                | v1::TaskItem::Requirements(_)
                 | v1::TaskItem::Runtime(_)
                 | v1::TaskItem::Metadata(_)
                 | v1::TaskItem::ParameterMetadata(_) => continue,

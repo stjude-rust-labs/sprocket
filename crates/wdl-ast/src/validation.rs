@@ -14,6 +14,7 @@ use crate::Visitor;
 mod counts;
 mod keys;
 mod numbers;
+mod requirements;
 mod strings;
 mod version;
 
@@ -108,6 +109,7 @@ impl Default for Validator {
                 Box::<keys::UniqueKeysVisitor>::default(),
                 Box::<numbers::NumberVisitor>::default(),
                 Box::<version::VersionVisitor>::default(),
+                Box::<requirements::RequirementsVisitor>::default(),
             ],
         }
     }
@@ -225,6 +227,17 @@ impl Visitor for Validator {
     fn command_text(&mut self, state: &mut Self::State, text: &v1::CommandText) {
         for visitor in self.visitors.iter_mut() {
             visitor.command_text(state, text);
+        }
+    }
+
+    fn requirements_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &v1::RequirementsSection,
+    ) {
+        for visitor in self.visitors.iter_mut() {
+            visitor.requirements_section(state, reason, section);
         }
     }
 

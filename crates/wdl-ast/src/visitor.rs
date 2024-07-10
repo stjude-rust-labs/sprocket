@@ -35,6 +35,7 @@ use crate::v1::MetadataObject;
 use crate::v1::MetadataSection;
 use crate::v1::OutputSection;
 use crate::v1::ParameterMetadataSection;
+use crate::v1::RequirementsSection;
 use crate::v1::RuntimeSection;
 use crate::v1::ScatterStatement;
 use crate::v1::StringText;
@@ -148,6 +149,15 @@ pub trait Visitor: Send + Sync {
 
     /// Visits a command text token in a command section node.
     fn command_text(&mut self, state: &mut Self::State, text: &CommandText) {}
+
+    /// Visits a requirements section node.
+    fn requirements_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &RequirementsSection,
+    ) {
+    }
 
     /// Visits a runtime section node.
     fn runtime_section(
@@ -291,6 +301,14 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
                 reason,
                 &CommandSection(element.into_node().unwrap()),
             ),
+            SyntaxKind::RequirementsSectionNode => visitor.requirements_section(
+                state,
+                reason,
+                &RequirementsSection(element.into_node().unwrap()),
+            ),
+            SyntaxKind::RequirementsItemNode => {
+                // Skip this node as it's part of a requirements section
+            }
             SyntaxKind::RuntimeSectionNode => visitor.runtime_section(
                 state,
                 reason,

@@ -411,15 +411,15 @@ pub enum Token {
     #[token("workflow")]
     WorkflowKeyword,
 
-    /// The reserved `Directory` type keyword.
+    /// The 1.2 `Directory` type keyword.
     #[token("Directory")]
-    ReservedDirectoryTypeKeyword,
-    /// The reserved `hints` keyword.
+    DirectoryTypeKeyword,
+    /// The 1.2 `hints` keyword.
     #[token("hints")]
-    ReservedHintsKeyword,
-    /// The reserved `requirements` keyword.
+    HintsKeyword,
+    /// The 1.2 `requirements` keyword.
     #[token("requirements")]
-    ReservedRequirementsKeyword,
+    RequirementsKeyword,
 
     /// The `{` symbol.
     #[token("{")]
@@ -554,9 +554,9 @@ impl<'a> ParserToken<'a> for Token {
             Self::TrueKeyword => SyntaxKind::TrueKeyword,
             Self::VersionKeyword => SyntaxKind::VersionKeyword,
             Self::WorkflowKeyword => SyntaxKind::WorkflowKeyword,
-            Self::ReservedDirectoryTypeKeyword => SyntaxKind::DirectoryTypeKeyword,
-            Self::ReservedHintsKeyword => SyntaxKind::HintsKeyword,
-            Self::ReservedRequirementsKeyword => SyntaxKind::RequirementsKeyword,
+            Self::DirectoryTypeKeyword => SyntaxKind::DirectoryTypeKeyword,
+            Self::HintsKeyword => SyntaxKind::HintsKeyword,
+            Self::RequirementsKeyword => SyntaxKind::RequirementsKeyword,
             Self::OpenBrace => SyntaxKind::OpenBrace,
             Self::CloseBrace => SyntaxKind::CloseBrace,
             Self::OpenBracket => SyntaxKind::OpenBracket,
@@ -640,9 +640,9 @@ impl<'a> ParserToken<'a> for Token {
             Self::TrueKeyword => "`true` keyword",
             Self::VersionKeyword => "`version` keyword",
             Self::WorkflowKeyword => "`workflow` keyword",
-            Self::ReservedDirectoryTypeKeyword => "reserved `Directory` keyword",
-            Self::ReservedHintsKeyword => "reserved `hints` keyword",
-            Self::ReservedRequirementsKeyword => "reserved `requirements` keyword",
+            Self::DirectoryTypeKeyword => "`Directory` keyword",
+            Self::HintsKeyword => "`hints` keyword",
+            Self::RequirementsKeyword => "`requirements` keyword",
             Self::OpenBrace => "`{`",
             Self::CloseBrace => "`}`",
             Self::OpenBracket => "`[`",
@@ -1355,6 +1355,7 @@ foo123_BAR"#,
             r#"
 Array
 Boolean
+Directory
 File
 Float
 Int
@@ -1371,6 +1372,7 @@ command
 else
 false
 if
+hints
 in
 import
 input
@@ -1379,6 +1381,7 @@ null
 object
 output
 parameter_meta
+requirements
 runtime
 scatter
 struct
@@ -1397,93 +1400,75 @@ workflow"#,
                 (Ok(Whitespace), 6..7),
                 (Ok(BooleanTypeKeyword), 7..14),
                 (Ok(Whitespace), 14..15),
-                (Ok(FileTypeKeyword), 15..19),
-                (Ok(Whitespace), 19..20),
-                (Ok(FloatTypeKeyword), 20..25),
-                (Ok(Whitespace), 25..26),
-                (Ok(IntTypeKeyword), 26..29),
+                (Ok(DirectoryTypeKeyword), 15..24),
+                (Ok(Whitespace), 24..25),
+                (Ok(FileTypeKeyword), 25..29),
                 (Ok(Whitespace), 29..30),
-                (Ok(MapTypeKeyword), 30..33),
-                (Ok(Whitespace), 33..34),
-                (Ok(NoneKeyword), 34..38),
-                (Ok(Whitespace), 38..39),
-                (Ok(ObjectTypeKeyword), 39..45),
-                (Ok(Whitespace), 45..46),
-                (Ok(PairTypeKeyword), 46..50),
-                (Ok(Whitespace), 50..51),
-                (Ok(StringTypeKeyword), 51..57),
-                (Ok(Whitespace), 57..58),
-                (Ok(AfterKeyword), 58..63),
-                (Ok(Whitespace), 63..64),
-                (Ok(AliasKeyword), 64..69),
-                (Ok(Whitespace), 69..70),
-                (Ok(AsKeyword), 70..72),
-                (Ok(Whitespace), 72..73),
-                (Ok(CallKeyword), 73..77),
-                (Ok(Whitespace), 77..78),
-                (Ok(CommandKeyword), 78..85),
-                (Ok(Whitespace), 85..86),
-                (Ok(ElseKeyword), 86..90),
-                (Ok(Whitespace), 90..91),
-                (Ok(FalseKeyword), 91..96),
-                (Ok(Whitespace), 96..97),
-                (Ok(IfKeyword), 97..99),
-                (Ok(Whitespace), 99..100),
-                (Ok(InKeyword), 100..102),
-                (Ok(Whitespace), 102..103),
-                (Ok(ImportKeyword), 103..109),
+                (Ok(FloatTypeKeyword), 30..35),
+                (Ok(Whitespace), 35..36),
+                (Ok(IntTypeKeyword), 36..39),
+                (Ok(Whitespace), 39..40),
+                (Ok(MapTypeKeyword), 40..43),
+                (Ok(Whitespace), 43..44),
+                (Ok(NoneKeyword), 44..48),
+                (Ok(Whitespace), 48..49),
+                (Ok(ObjectTypeKeyword), 49..55),
+                (Ok(Whitespace), 55..56),
+                (Ok(PairTypeKeyword), 56..60),
+                (Ok(Whitespace), 60..61),
+                (Ok(StringTypeKeyword), 61..67),
+                (Ok(Whitespace), 67..68),
+                (Ok(AfterKeyword), 68..73),
+                (Ok(Whitespace), 73..74),
+                (Ok(AliasKeyword), 74..79),
+                (Ok(Whitespace), 79..80),
+                (Ok(AsKeyword), 80..82),
+                (Ok(Whitespace), 82..83),
+                (Ok(CallKeyword), 83..87),
+                (Ok(Whitespace), 87..88),
+                (Ok(CommandKeyword), 88..95),
+                (Ok(Whitespace), 95..96),
+                (Ok(ElseKeyword), 96..100),
+                (Ok(Whitespace), 100..101),
+                (Ok(FalseKeyword), 101..106),
+                (Ok(Whitespace), 106..107),
+                (Ok(IfKeyword), 107..109),
                 (Ok(Whitespace), 109..110),
-                (Ok(InputKeyword), 110..115),
+                (Ok(HintsKeyword), 110..115),
                 (Ok(Whitespace), 115..116),
-                (Ok(MetaKeyword), 116..120),
-                (Ok(Whitespace), 120..121),
-                (Ok(NullKeyword), 121..125),
+                (Ok(InKeyword), 116..118),
+                (Ok(Whitespace), 118..119),
+                (Ok(ImportKeyword), 119..125),
                 (Ok(Whitespace), 125..126),
-                (Ok(ObjectKeyword), 126..132),
-                (Ok(Whitespace), 132..133),
-                (Ok(OutputKeyword), 133..139),
-                (Ok(Whitespace), 139..140),
-                (Ok(ParameterMetaKeyword), 140..154),
-                (Ok(Whitespace), 154..155),
-                (Ok(RuntimeKeyword), 155..162),
-                (Ok(Whitespace), 162..163),
-                (Ok(ScatterKeyword), 163..170),
+                (Ok(InputKeyword), 126..131),
+                (Ok(Whitespace), 131..132),
+                (Ok(MetaKeyword), 132..136),
+                (Ok(Whitespace), 136..137),
+                (Ok(NullKeyword), 137..141),
+                (Ok(Whitespace), 141..142),
+                (Ok(ObjectKeyword), 142..148),
+                (Ok(Whitespace), 148..149),
+                (Ok(OutputKeyword), 149..155),
+                (Ok(Whitespace), 155..156),
+                (Ok(ParameterMetaKeyword), 156..170),
                 (Ok(Whitespace), 170..171),
-                (Ok(StructKeyword), 171..177),
-                (Ok(Whitespace), 177..178),
-                (Ok(TaskKeyword), 178..182),
-                (Ok(Whitespace), 182..183),
-                (Ok(ThenKeyword), 183..187),
-                (Ok(Whitespace), 187..188),
-                (Ok(TrueKeyword), 188..192),
-                (Ok(Whitespace), 192..193),
-                (Ok(VersionKeyword), 193..200),
-                (Ok(Whitespace), 200..201),
-                (Ok(WorkflowKeyword), 201..209),
-            ],
-        );
-    }
-
-    #[test]
-    fn reserved_keywords() {
-        use Token::*;
-
-        let lexer = Lexer::<Token>::new(
-            r#"
-Directory
-hints
-requirements"#,
-        );
-        let tokens: Vec<_> = lexer.map(map).collect();
-        assert_eq!(
-            tokens,
-            &[
-                (Ok(Whitespace), 0..1),
-                (Ok(ReservedDirectoryTypeKeyword), 1..10),
-                (Ok(Whitespace), 10..11),
-                (Ok(ReservedHintsKeyword), 11..16),
-                (Ok(Whitespace), 16..17),
-                (Ok(ReservedRequirementsKeyword), 17..29),
+                (Ok(RequirementsKeyword), 171..183),
+                (Ok(Whitespace), 183..184),
+                (Ok(RuntimeKeyword), 184..191),
+                (Ok(Whitespace), 191..192),
+                (Ok(ScatterKeyword), 192..199),
+                (Ok(Whitespace), 199..200),
+                (Ok(StructKeyword), 200..206),
+                (Ok(Whitespace), 206..207),
+                (Ok(TaskKeyword), 207..211),
+                (Ok(Whitespace), 211..212),
+                (Ok(ThenKeyword), 212..216),
+                (Ok(Whitespace), 216..217),
+                (Ok(TrueKeyword), 217..221),
+                (Ok(Whitespace), 221..222),
+                (Ok(VersionKeyword), 222..229),
+                (Ok(Whitespace), 229..230),
+                (Ok(WorkflowKeyword), 230..238),
             ],
         );
     }
@@ -1492,7 +1477,7 @@ requirements"#,
     fn symbols() {
         use Token::*;
 
-        let lexer = Lexer::<Token>::new(r#"{}[]=:,()?!+-||&&*/%==!=<=>=<>."#);
+        let lexer = Lexer::<Token>::new(r#"{}[]=:,()?!+-||&&*/%==!=<=>=<>.**"#);
         let tokens: Vec<_> = lexer.map(map).collect();
         assert_eq!(
             tokens,
@@ -1522,6 +1507,7 @@ requirements"#,
                 (Ok(Less), 28..29),
                 (Ok(Greater), 29..30),
                 (Ok(Dot), 30..31),
+                (Ok(Exponentiation), 31..33),
             ],
         );
     }

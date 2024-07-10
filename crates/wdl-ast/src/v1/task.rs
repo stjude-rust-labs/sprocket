@@ -53,6 +53,11 @@ impl TaskDefinition {
         children(&self.0)
     }
 
+    /// Gets the requirements sections of the task.
+    pub fn requirements(&self) -> AstChildren<RequirementsSection> {
+        children(&self.0)
+    }
+
     /// Gets the runtime sections of the task.
     pub fn runtimes(&self) -> AstChildren<RuntimeSection> {
         children(&self.0)
@@ -108,6 +113,8 @@ pub enum TaskItem {
     Output(OutputSection),
     /// The item is a command section.
     Command(CommandSection),
+    /// The item is a requirements section.
+    Requirements(RequirementsSection),
     /// The item is a runtime section.
     Runtime(RuntimeSection),
     /// The item is a metadata section.
@@ -130,6 +137,7 @@ impl AstNode for TaskItem {
             SyntaxKind::InputSectionNode
                 | SyntaxKind::OutputSectionNode
                 | SyntaxKind::CommandSectionNode
+                | SyntaxKind::RequirementsSectionNode
                 | SyntaxKind::RuntimeSectionNode
                 | SyntaxKind::MetadataSectionNode
                 | SyntaxKind::ParameterMetadataSectionNode
@@ -145,6 +153,9 @@ impl AstNode for TaskItem {
             SyntaxKind::InputSectionNode => Some(Self::Input(InputSection(syntax))),
             SyntaxKind::OutputSectionNode => Some(Self::Output(OutputSection(syntax))),
             SyntaxKind::CommandSectionNode => Some(Self::Command(CommandSection(syntax))),
+            SyntaxKind::RequirementsSectionNode => {
+                Some(Self::Requirements(RequirementsSection(syntax)))
+            }
             SyntaxKind::RuntimeSectionNode => Some(Self::Runtime(RuntimeSection(syntax))),
             SyntaxKind::MetadataSectionNode => Some(Self::Metadata(MetadataSection(syntax))),
             SyntaxKind::ParameterMetadataSectionNode => {
@@ -160,6 +171,7 @@ impl AstNode for TaskItem {
             Self::Input(i) => &i.0,
             Self::Output(o) => &o.0,
             Self::Command(c) => &c.0,
+            Self::Requirements(r) => &r.0,
             Self::Runtime(r) => &r.0,
             Self::Metadata(m) => &m.0,
             Self::ParameterMetadata(m) => &m.0,
@@ -450,6 +462,89 @@ impl CommandPart {
             SyntaxElement::Node(n) => Some(Self::Placeholder(Placeholder::cast(n)?)),
             SyntaxElement::Token(t) => Some(Self::Text(CommandText::cast(t)?)),
         }
+    }
+}
+
+/// Represents a requirements section in a task definition.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RequirementsSection(pub(crate) SyntaxNode);
+
+impl RequirementsSection {
+    /// Gets the items in the requirements section.
+    pub fn items(&self) -> AstChildren<RequirementsItem> {
+        children(&self.0)
+    }
+
+    /// Gets the parent of the requirements section.
+    pub fn parent(&self) -> TaskDefinition {
+        TaskDefinition::cast(self.0.parent().expect("should have a parent"))
+            .expect("parent should cast")
+    }
+}
+
+impl AstNode for RequirementsSection {
+    type Language = WorkflowDescriptionLanguage;
+
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        kind == SyntaxKind::RequirementsSectionNode
+    }
+
+    fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::RequirementsSectionNode => Some(Self(syntax)),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        &self.0
+    }
+}
+
+/// Represents an item in a requirements section.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RequirementsItem(SyntaxNode);
+
+impl RequirementsItem {
+    /// Gets the name of the requirements item.
+    pub fn name(&self) -> Ident {
+        token(&self.0).expect("expected an item name")
+    }
+
+    /// Gets the expression of the requirements item.
+    pub fn expr(&self) -> Expr {
+        child(&self.0).expect("expected an item expression")
+    }
+}
+
+impl AstNode for RequirementsItem {
+    type Language = WorkflowDescriptionLanguage;
+
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        kind == SyntaxKind::RequirementsItemNode
+    }
+
+    fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::RequirementsItemNode => Some(Self(syntax)),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        &self.0
     }
 }
 
@@ -942,6 +1037,10 @@ task test {
         printf "hello, ~{name}!
     >>>
 
+    requirements {
+        container: "baz/qux"
+    }
+
     runtime {
         container: "foo/bar"
     }
@@ -1032,6 +1131,26 @@ task test {
         );
         assert_eq!(parts[2].clone().unwrap_text().as_str(), "!\n    ");
 
+        // Task requirements
+        let requirements: Vec<_> = tasks[0].requirements().collect();
+        assert_eq!(requirements.len(), 1);
+
+        // First task requirements
+        assert_eq!(requirements[0].parent().name().as_str(), "test");
+        let items: Vec<_> = requirements[0].items().collect();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].name().as_str(), "container");
+        assert_eq!(
+            items[0]
+                .expr()
+                .unwrap_literal()
+                .unwrap_string()
+                .text()
+                .unwrap()
+                .as_str(),
+            "baz/qux"
+        );
+
         // Task runtimes
         let runtimes: Vec<_> = tasks[0].runtimes().collect();
         assert_eq!(runtimes.len(), 1);
@@ -1112,6 +1231,7 @@ task test {
             inputs: usize,
             outputs: usize,
             commands: usize,
+            requirements: usize,
             runtimes: usize,
             metadata: usize,
             param_metadata: usize,
@@ -1168,6 +1288,17 @@ task test {
                 }
             }
 
+            fn requirements_section(
+                &mut self,
+                _: &mut Self::State,
+                reason: VisitReason,
+                _: &RequirementsSection,
+            ) {
+                if reason == VisitReason::Enter {
+                    self.requirements += 1;
+                }
+            }
+
             fn runtime_section(
                 &mut self,
                 _: &mut Self::State,
@@ -1220,6 +1351,7 @@ task test {
         assert_eq!(visitor.inputs, 1);
         assert_eq!(visitor.outputs, 1);
         assert_eq!(visitor.commands, 1);
+        assert_eq!(visitor.requirements, 1);
         assert_eq!(visitor.runtimes, 1);
         assert_eq!(visitor.metadata, 1);
         assert_eq!(visitor.param_metadata, 1);

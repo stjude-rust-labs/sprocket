@@ -8,6 +8,7 @@ use crate::v1::LiteralExpr;
 use crate::v1::MetadataObject;
 use crate::v1::MetadataSection;
 use crate::v1::ParameterMetadataSection;
+use crate::v1::RequirementsSection;
 use crate::v1::RuntimeSection;
 use crate::AstToken;
 use crate::Diagnostic;
@@ -21,6 +22,8 @@ use crate::Visitor;
 /// Represents context about a unique key validation error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Context {
+    /// The error is in the requirements section.
+    RequirementsSection,
     /// The error is in a runtime section.
     RuntimeSection,
     /// The error is in a metadata section.
@@ -38,6 +41,7 @@ enum Context {
 impl fmt::Display for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::RequirementsSection => write!(f, "requirements section"),
             Self::RuntimeSection => write!(f, "runtime section"),
             Self::MetadataSection => write!(f, "metadata section"),
             Self::ParameterMetadataSection => write!(f, "parameter metadata section"),
@@ -49,7 +53,7 @@ impl fmt::Display for Context {
 }
 
 /// Creates a "duplicate key" diagnostic
-fn duplicate_key(context: Context, name: Ident, first: Span) -> Diagnostic {
+fn duplicate_key(context: Context, name: &Ident, first: Span) -> Diagnostic {
     Diagnostic::error(format!(
         "duplicate key `{name}` in {context}",
         name = name.as_str(),
@@ -58,9 +62,20 @@ fn duplicate_key(context: Context, name: Ident, first: Span) -> Diagnostic {
     .with_label("first key with this name is here", first)
 }
 
+/// Creates a "conflicting key" diagnostic
+fn conflicting_key(context: Context, name: &Ident, first: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "conflicting key `{name}` in {context}",
+        name = name.as_str(),
+    ))
+    .with_label("this key conflicts with an alias", name.span())
+    .with_label("the conflicting alias is here", first)
+}
+
 /// Checks the given set of keys for duplicates
 fn check_duplicate_keys(
     keys: &mut HashMap<String, Span>,
+    aliases: &[(&str, &str)],
     names: impl Iterator<Item = Ident>,
     context: Context,
     diagnostics: &mut Diagnostics,
@@ -68,8 +83,23 @@ fn check_duplicate_keys(
     keys.clear();
     for name in names {
         if let Some(first) = keys.get(name.as_str()) {
-            diagnostics.add(duplicate_key(context, name, *first));
+            diagnostics.add(duplicate_key(context, &name, *first));
             continue;
+        }
+
+        for (first, second) in aliases {
+            let alias = if *first == name.as_str() {
+                second
+            } else if *second == name.as_str() {
+                first
+            } else {
+                continue;
+            };
+
+            if let Some(first) = keys.get(*alias) {
+                diagnostics.add(conflicting_key(context, &name, *first));
+                break;
+            }
         }
 
         keys.insert(name.as_str().to_string(), name.span());
@@ -101,6 +131,29 @@ impl Visitor for UniqueKeysVisitor {
         *self = Default::default();
     }
 
+    fn requirements_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &RequirementsSection,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        check_duplicate_keys(
+            &mut self.0,
+            &[
+                ("container", "docker"),
+                ("max_retries", "maxRetries"),
+                ("return_codes", "returnCodes"),
+            ],
+            section.items().map(|i| i.name()),
+            Context::RequirementsSection,
+            state,
+        );
+    }
+
     fn runtime_section(
         &mut self,
         state: &mut Self::State,
@@ -113,6 +166,7 @@ impl Visitor for UniqueKeysVisitor {
 
         check_duplicate_keys(
             &mut self.0,
+            &[],
             section.items().map(|i| i.name()),
             Context::RuntimeSection,
             state,
@@ -131,6 +185,7 @@ impl Visitor for UniqueKeysVisitor {
 
         check_duplicate_keys(
             &mut self.0,
+            &[],
             section.items().map(|i| i.name()),
             Context::MetadataSection,
             state,
@@ -149,6 +204,7 @@ impl Visitor for UniqueKeysVisitor {
 
         check_duplicate_keys(
             &mut self.0,
+            &[],
             section.items().map(|i| i.name()),
             Context::ParameterMetadataSection,
             state,
@@ -170,6 +226,7 @@ impl Visitor for UniqueKeysVisitor {
         let mut keys = HashMap::new();
         check_duplicate_keys(
             &mut keys,
+            &[],
             object.items().map(|i| i.name()),
             Context::MetadataObject,
             state,
@@ -185,6 +242,7 @@ impl Visitor for UniqueKeysVisitor {
             Expr::Literal(LiteralExpr::Object(o)) => {
                 check_duplicate_keys(
                     &mut self.0,
+                    &[],
                     o.items().map(|i| i.name_value().0),
                     Context::LiteralObject,
                     state,
@@ -193,6 +251,7 @@ impl Visitor for UniqueKeysVisitor {
             Expr::Literal(LiteralExpr::Struct(s)) => {
                 check_duplicate_keys(
                     &mut self.0,
+                    &[],
                     s.items().map(|i| i.name_value().0),
                     Context::LiteralStruct,
                     state,

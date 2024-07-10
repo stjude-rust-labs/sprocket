@@ -1,6 +1,6 @@
 #@ except: DescriptionMissing, MissingRuntime, MissingOutput
 
-version 1.1
+version 1.2
 
 workflow foo {
     meta {}
@@ -24,4 +24,11 @@ task baz {
     command <<< >>>
     output {}
 
+}
+
+task qux {
+    requirements {}
+    meta {}
+    command <<<>>>
+    output {}
 }
