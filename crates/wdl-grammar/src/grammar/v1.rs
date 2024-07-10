@@ -1514,7 +1514,7 @@ fn call_target(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, D
     expected_in!(parser, marker, ANY_IDENT, "call target name");
     parser.update_last_token_kind(SyntaxKind::Ident);
 
-    if parser.next_if(Token::Dot) {
+    while parser.next_if(Token::Dot) {
         expected_in!(parser, marker, ANY_IDENT, "call target name");
         parser.update_last_token_kind(SyntaxKind::Ident);
     }

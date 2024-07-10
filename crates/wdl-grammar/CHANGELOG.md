@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Made the call target grammar rule more permissible in accepting more than two
+  identifiers; this will still be treated as an error when resolving call
+  statements ([#118](https://github.com/stjude-rust-labs/wdl/pull/118)).
 * The diagnostic for missing a version statement in an empty file now points to
   the last position in the file so that the file that caused the error is
   attached to the diagnostic ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).

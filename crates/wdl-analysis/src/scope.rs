@@ -1129,10 +1129,12 @@ impl DocumentScope {
                 parent.children.push(scope);
             }
             WorkflowStatement::Call(stmt) => {
-                let name = stmt
-                    .alias()
-                    .map(|a| a.name())
-                    .unwrap_or_else(|| stmt.target().name().1);
+                let name = stmt.alias().map(|a| a.name()).unwrap_or_else(|| {
+                    stmt.target()
+                        .names()
+                        .last()
+                        .expect("expected a last call target name")
+                });
                 if let Some(prev) = find_name(name.as_str(), scopes) {
                     diagnostics.push(call_conflict(
                         &name,

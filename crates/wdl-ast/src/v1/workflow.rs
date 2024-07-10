@@ -412,21 +412,15 @@ impl AstNode for CallStatement {
 pub struct CallTarget(SyntaxNode);
 
 impl CallTarget {
-    /// Gets the name of the call target.
+    /// Gets an iterator of the names of the call target.
     ///
-    /// The first value is an optional namespace.
-    /// The second value is the call target name.
-    pub fn name(&self) -> (Option<Ident>, Ident) {
-        let mut children = self
-            .0
+    /// The last name in the iteration is considered to be the task or workflow
+    /// being called.
+    pub fn names(&self) -> impl Iterator<Item = Ident> {
+        self.0
             .children_with_tokens()
             .filter_map(SyntaxElement::into_token)
-            .filter_map(Ident::cast);
-        let first = children.next().expect("should be at least one identifier");
-        match children.next() {
-            Some(second) => (Some(first), second),
-            None => (None, first),
-        }
+            .filter_map(Ident::cast)
     }
 }
 
@@ -710,9 +704,10 @@ workflow test {
 
         // First inner statement
         let call = inner[0].clone().unwrap_call();
-        let (namespace, target) = call.target().name();
-        assert_eq!(namespace.unwrap().as_str(), "foo");
-        assert_eq!(target.as_str(), "my_task");
+        let names = call.target().names().collect::<Vec<_>>();
+        assert_eq!(names.len(), 2);
+        assert_eq!(names[0].as_str(), "foo");
+        assert_eq!(names[1].as_str(), "my_task");
         assert!(call.alias().is_none());
         assert_eq!(call.after().count(), 0);
         assert_eq!(call.inputs().count(), 0);
@@ -761,9 +756,9 @@ workflow test {
 
         // First inner statement
         let call = inner[0].clone().unwrap_call();
-        let (namespace, target) = call.target().name();
-        assert!(namespace.is_none());
-        assert_eq!(target.as_str(), "my_task");
+        let names = call.target().names().collect::<Vec<_>>();
+        assert_eq!(names.len(), 1);
+        assert_eq!(names[0].as_str(), "my_task");
         assert_eq!(call.alias().unwrap().name().as_str(), "my_task2");
         assert_eq!(call.after().count(), 0);
         let inputs: Vec<_> = call.inputs().collect();
@@ -773,9 +768,8 @@ workflow test {
 
         // Second workflow statement
         let call = statements[1].clone().unwrap_call();
-        let (namespace, target) = call.target().name();
-        assert!(namespace.is_none());
-        assert_eq!(target.as_str(), "my_task");
+        assert_eq!(names.len(), 1);
+        assert_eq!(names[0].as_str(), "my_task");
         assert_eq!(call.alias().unwrap().name().as_str(), "my_task3");
         let after: Vec<_> = call.after().collect();
         assert_eq!(after.len(), 2);
