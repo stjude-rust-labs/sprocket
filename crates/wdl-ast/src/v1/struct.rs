@@ -81,6 +81,8 @@ struct PrimitiveTypes {
     String? h
     File i
     File? j
+    Directory k
+    Directory? l
 }
 
 struct ComplexTypes {
@@ -94,6 +96,7 @@ struct ComplexTypes {
     Object? h
     MyType i
     MyType? j
+    Array[Directory] k
 }            
 "#,
         );
@@ -110,7 +113,7 @@ struct ComplexTypes {
         // Second struct definition
         assert_eq!(structs[1].name().as_str(), "PrimitiveTypes");
         let members: Vec<_> = structs[1].members().collect();
-        assert_eq!(members.len(), 10);
+        assert_eq!(members.len(), 12);
 
         // First member
         assert_eq!(members[0].name().as_str(), "a");
@@ -162,10 +165,20 @@ struct ComplexTypes {
         assert_eq!(members[9].ty().to_string(), "File?");
         assert!(members[9].ty().is_optional());
 
+        // Eleventh member
+        assert_eq!(members[10].name().as_str(), "k");
+        assert_eq!(members[10].ty().to_string(), "Directory");
+        assert!(!members[10].ty().is_optional());
+
+        // Twelfth member
+        assert_eq!(members[11].name().as_str(), "l");
+        assert_eq!(members[11].ty().to_string(), "Directory?");
+        assert!(members[11].ty().is_optional());
+
         // Third struct definition
         assert_eq!(structs[2].name().as_str(), "ComplexTypes");
         let members: Vec<_> = structs[2].members().collect();
-        assert_eq!(members.len(), 10);
+        assert_eq!(members.len(), 11);
 
         // First member
         assert_eq!(members[0].name().as_str(), "a");
@@ -219,6 +232,11 @@ struct ComplexTypes {
         assert_eq!(members[9].name().as_str(), "j");
         assert_eq!(members[9].ty().to_string(), "MyType?");
         assert!(members[9].ty().is_optional());
+
+        // Eleventh member
+        assert_eq!(members[10].name().as_str(), "k");
+        assert_eq!(members[10].ty().to_string(), "Array[Directory]");
+        assert!(!members[10].ty().is_optional());
 
         // Use a visitor to count the number of struct definitions in the tree
         struct MyVisitor(usize);

@@ -53,22 +53,23 @@ fn decl_index(decl: &v1::Decl) -> usize {
 /// Defines an ordering for types.
 fn type_index(ty: &v1::Type) -> usize {
     match ty {
-        v1::Type::Map(_) => 5,
+        v1::Type::Map(_) => 6,
         v1::Type::Array(a) => {
             if a.is_non_empty() {
-                1
-            } else {
                 2
+            } else {
+                3
             }
         }
-        v1::Type::Pair(_) => 6,
-        v1::Type::Object(_) => 4,
-        v1::Type::Ref(_) => 3,
+        v1::Type::Pair(_) => 7,
+        v1::Type::Object(_) => 5,
+        v1::Type::Ref(_) => 4,
         v1::Type::Primitive(p) => match p.kind() {
-            v1::PrimitiveTypeKind::Boolean => 8,
-            v1::PrimitiveTypeKind::Integer => 10,
-            v1::PrimitiveTypeKind::Float => 9,
-            v1::PrimitiveTypeKind::String => 7,
+            v1::PrimitiveTypeKind::Boolean => 9,
+            v1::PrimitiveTypeKind::Integer => 11,
+            v1::PrimitiveTypeKind::Float => 10,
+            v1::PrimitiveTypeKind::String => 8,
+            v1::PrimitiveTypeKind::Directory => 1,
             v1::PrimitiveTypeKind::File => 0,
         },
     }
@@ -77,11 +78,12 @@ fn type_index(ty: &v1::Type) -> usize {
 /// Defines an ordering for PrimitiveTypes
 fn primitive_type_index(ty: &PrimitiveType) -> usize {
     match ty.kind() {
-        v1::PrimitiveTypeKind::Boolean => 2,
-        v1::PrimitiveTypeKind::Integer => 4,
-        v1::PrimitiveTypeKind::Float => 3,
-        v1::PrimitiveTypeKind::String => 1,
+        v1::PrimitiveTypeKind::Boolean => 3,
+        v1::PrimitiveTypeKind::Integer => 5,
+        v1::PrimitiveTypeKind::Float => 4,
+        v1::PrimitiveTypeKind::String => 2,
         v1::PrimitiveTypeKind::File => 0,
+        v1::PrimitiveTypeKind::Directory => 1,
     }
 }
 

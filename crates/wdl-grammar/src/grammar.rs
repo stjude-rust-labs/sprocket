@@ -34,7 +34,7 @@ mod macros {
     ///
     /// Returns an error if the token is not the specified token.
     macro_rules! expected_in {
-        ($parser:ident, $marker:ident, $set:ident $(, $names:literal)+) => {
+        ($parser:ident, $marker:ident, $set:ident $(, $names:literal)+ $(,)?) => {
             if let Err(e) = $parser.expect_in($set, &[$($names),+]) {
                 return Err(($marker, e));
             }

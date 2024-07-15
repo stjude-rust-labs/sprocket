@@ -329,6 +329,9 @@ pub enum Token {
     /// The `Boolean` type keyword.
     #[token("Boolean")]
     BooleanTypeKeyword,
+    /// The 1.2 `Directory` type keyword.
+    #[token("Directory")]
+    DirectoryTypeKeyword,
     /// The `File` type keyword.
     #[token("File")]
     FileTypeKeyword,
@@ -371,6 +374,9 @@ pub enum Token {
     /// The `false` keyword.
     #[token("false")]
     FalseKeyword,
+    /// The 1.2 `hints` keyword.
+    #[token("hints")]
+    HintsKeyword,
     /// The `if` keyword.
     #[token("if")]
     IfKeyword,
@@ -401,6 +407,9 @@ pub enum Token {
     /// The `parameter_meta` keyword.
     #[token("parameter_meta")]
     ParameterMetaKeyword,
+    /// The 1.2 `requirements` keyword.
+    #[token("requirements")]
+    RequirementsKeyword,
     /// The `runtime` keyword.
     #[token("runtime")]
     RuntimeKeyword,
@@ -425,16 +434,6 @@ pub enum Token {
     /// The `workflow` keyword.
     #[token("workflow")]
     WorkflowKeyword,
-
-    /// The 1.2 `Directory` type keyword.
-    #[token("Directory")]
-    DirectoryTypeKeyword,
-    /// The 1.2 `hints` keyword.
-    #[token("hints")]
-    HintsKeyword,
-    /// The 1.2 `requirements` keyword.
-    #[token("requirements")]
-    RequirementsKeyword,
 
     /// The `{` symbol.
     #[token("{")]
@@ -537,6 +536,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::CloseHeredoc => SyntaxKind::CloseHeredoc,
             Self::ArrayTypeKeyword => SyntaxKind::ArrayTypeKeyword,
             Self::BooleanTypeKeyword => SyntaxKind::BooleanTypeKeyword,
+            Self::DirectoryTypeKeyword => SyntaxKind::DirectoryTypeKeyword,
             Self::FileTypeKeyword => SyntaxKind::FileTypeKeyword,
             Self::FloatTypeKeyword => SyntaxKind::FloatTypeKeyword,
             Self::IntTypeKeyword => SyntaxKind::IntTypeKeyword,
@@ -551,6 +551,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::CommandKeyword => SyntaxKind::CommandKeyword,
             Self::ElseKeyword => SyntaxKind::ElseKeyword,
             Self::FalseKeyword => SyntaxKind::FalseKeyword,
+            Self::HintsKeyword => SyntaxKind::HintsKeyword,
             Self::IfKeyword => SyntaxKind::IfKeyword,
             Self::InKeyword => SyntaxKind::InKeyword,
             Self::ImportKeyword => SyntaxKind::ImportKeyword,
@@ -561,6 +562,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::ObjectKeyword => SyntaxKind::ObjectKeyword,
             Self::OutputKeyword => SyntaxKind::OutputKeyword,
             Self::ParameterMetaKeyword => SyntaxKind::ParameterMetaKeyword,
+            Self::RequirementsKeyword => SyntaxKind::RequirementsKeyword,
             Self::RuntimeKeyword => SyntaxKind::RuntimeKeyword,
             Self::ScatterKeyword => SyntaxKind::ScatterKeyword,
             Self::StructKeyword => SyntaxKind::StructKeyword,
@@ -569,9 +571,6 @@ impl<'a> ParserToken<'a> for Token {
             Self::TrueKeyword => SyntaxKind::TrueKeyword,
             Self::VersionKeyword => SyntaxKind::VersionKeyword,
             Self::WorkflowKeyword => SyntaxKind::WorkflowKeyword,
-            Self::DirectoryTypeKeyword => SyntaxKind::DirectoryTypeKeyword,
-            Self::HintsKeyword => SyntaxKind::HintsKeyword,
-            Self::RequirementsKeyword => SyntaxKind::RequirementsKeyword,
             Self::OpenBrace => SyntaxKind::OpenBrace,
             Self::CloseBrace => SyntaxKind::CloseBrace,
             Self::OpenBracket => SyntaxKind::OpenBracket,
@@ -623,6 +622,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::CloseHeredoc => "`>>>`",
             Self::ArrayTypeKeyword => "`Array` keyword",
             Self::BooleanTypeKeyword => "`Boolean` keyword",
+            Self::DirectoryTypeKeyword => "`Directory` keyword",
             Self::FileTypeKeyword => "`File` keyword",
             Self::FloatTypeKeyword => "`Float` keyword",
             Self::IntTypeKeyword => "`Int` keyword",
@@ -637,6 +637,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::CommandKeyword => "`command` keyword",
             Self::ElseKeyword => "`else` keyword",
             Self::FalseKeyword => "`false` keyword",
+            Self::HintsKeyword => "`hints` keyword",
             Self::IfKeyword => "`if` keyword",
             Self::InKeyword => "`int` keyword",
             Self::ImportKeyword => "`import` keyword",
@@ -647,6 +648,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::ObjectKeyword => "`object` keyword",
             Self::OutputKeyword => "`output` keyword",
             Self::ParameterMetaKeyword => "`parameter_meta` keyword",
+            Self::RequirementsKeyword => "`requirements` keyword",
             Self::RuntimeKeyword => "`runtime` keyword",
             Self::ScatterKeyword => "`scatter` keyword",
             Self::StructKeyword => "`struct` keyword",
@@ -655,9 +657,6 @@ impl<'a> ParserToken<'a> for Token {
             Self::TrueKeyword => "`true` keyword",
             Self::VersionKeyword => "`version` keyword",
             Self::WorkflowKeyword => "`workflow` keyword",
-            Self::DirectoryTypeKeyword => "`Directory` keyword",
-            Self::HintsKeyword => "`hints` keyword",
-            Self::RequirementsKeyword => "`requirements` keyword",
             Self::OpenBrace => "`{`",
             Self::CloseBrace => "`}`",
             Self::OpenBracket => "`[`",

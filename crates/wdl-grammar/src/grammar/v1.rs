@@ -54,6 +54,7 @@ const PRIMITIVE_TYPE_SET: TokenSet = TokenSet::new(&[
     Token::FloatTypeKeyword as u8,
     Token::StringTypeKeyword as u8,
     Token::FileTypeKeyword as u8,
+    Token::DirectoryTypeKeyword as u8,
 ]);
 
 /// A set of tokens for all types.
@@ -603,10 +604,11 @@ fn primitive_type(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
         marker,
         PRIMITIVE_TYPE_SET,
         "Boolean",
-        "Int",
+        "Directory",
+        "File",
         "Float",
+        "Int",
         "String",
-        "File"
     );
     parser.next_if(Token::QuestionMark);
     marker.complete(parser, SyntaxKind::PrimitiveTypeNode);

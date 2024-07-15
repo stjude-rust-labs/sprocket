@@ -38,6 +38,11 @@ fn multiline_string_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("use of multi-line strings requires WDL version 1.2").with_highlight(span)
 }
 
+/// Creates a "directory type" requirement.
+fn directory_type_requirement(span: Span) -> Diagnostic {
+    Diagnostic::error("use of the `Directory` type requires WDL version 1.2").with_highlight(span)
+}
+
 /// An AST visitor that ensures the syntax present in the document matches the
 /// document's declared version.
 #[derive(Debug, Default)]
@@ -131,6 +136,47 @@ impl Visitor for VersionVisitor {
                     ));
                 }
                 _ => {}
+            }
+        }
+    }
+
+    fn bound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &v1::BoundDecl) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(version) = self.version {
+            if let v1::Type::Primitive(ty) = decl.ty() {
+                if version < SupportedVersion::V1(V1::Two)
+                    && ty.kind() == v1::PrimitiveTypeKind::Directory
+                {
+                    state.add(directory_type_requirement(
+                        ty.syntax().text_range().to_span(),
+                    ));
+                }
+            }
+        }
+    }
+
+    fn unbound_decl(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        decl: &v1::UnboundDecl,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(version) = self.version {
+            if let v1::Type::Primitive(ty) = decl.ty() {
+                if version < SupportedVersion::V1(V1::Two)
+                    && ty.kind() == v1::PrimitiveTypeKind::Directory
+                {
+                    state.add(directory_type_requirement(
+                        ty.syntax().text_range().to_span(),
+                    ));
+                }
             }
         }
     }

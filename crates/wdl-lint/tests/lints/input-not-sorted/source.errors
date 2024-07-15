@@ -1,18 +1,19 @@
 warning[InputSorting]: input not sorted
-   ┌─ tests/lints/input-not-sorted/source.wdl:36:5
+   ┌─ tests/lints/input-not-sorted/source.wdl:38:5
    │  
-36 │ ╭     input {
-37 │ │         String g = "hello"
-38 │ │         Int? f = 2
-39 │ │         Int? e
+38 │ ╭     input {
+39 │ │         String g = "hello"
+40 │ │         Int? f = 2
+41 │ │         Int? e
    · │
-58 │ │         mystruct u
-59 │ │     }
+62 │ │         mystruct u
+63 │ │     }
    │ ╰─────^ input section must be sorted
    │  
    = fix: sort input statements as: 
      File t
      File b
+     Directory w
      Array[String]+ p
      Array[String] q
      mystruct u
@@ -24,6 +25,7 @@ warning[InputSorting]: input not sorted
      Pair[Int, File] i
      String a
      Int c
+     Directory? x
      Array[String]? h
      Array[Int]? d
      Map[String, File]? r
@@ -35,20 +37,21 @@ warning[InputSorting]: input not sorted
      String g = "hello"
 
 warning[InputSorting]: input not sorted
-    ┌─ tests/lints/input-not-sorted/source.wdl:87:5
+    ┌─ tests/lints/input-not-sorted/source.wdl:93:5
     │  
- 87 │ ╭     input {
- 88 │ │         String g = "hello"
- 89 │ │         Int? f = 2
- 90 │ │         Int? e
+ 93 │ ╭     input {
+ 94 │ │         String g = "hello"
+ 95 │ │         Int? f = 2
+ 96 │ │         Int? e
     · │
-107 │ │         Array[String]+ p
-108 │ │     }
+115 │ │         Array[String]+ p
+116 │ │     }
     │ ╰─────^ input section must be sorted
     │  
     = fix: sort input statements as: 
       File t
       File b
+      Directory w
       Array[String]+ p
       Array[String] q
       Map[String, File] s
@@ -58,6 +61,7 @@ warning[InputSorting]: input not sorted
       Pair[Int, File] i
       String a
       Int c
+      Directory? x
       Array[String]? h
       Array[Int]? d
       Map[String, File]? r

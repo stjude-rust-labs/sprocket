@@ -342,6 +342,8 @@ pub enum PrimitiveTypeKind {
     String,
     /// The primitive is a `File`.
     File,
+    /// The primitive is a `Directory`
+    Directory,
 }
 
 /// Represents a primitive type.
@@ -359,6 +361,7 @@ impl PrimitiveType {
                 SyntaxKind::FloatTypeKeyword => Some(PrimitiveTypeKind::Float),
                 SyntaxKind::StringTypeKeyword => Some(PrimitiveTypeKind::String),
                 SyntaxKind::FileTypeKeyword => Some(PrimitiveTypeKind::File),
+                SyntaxKind::DirectoryTypeKeyword => Some(PrimitiveTypeKind::Directory),
                 _ => None,
             })
             .expect("type should have a kind")
@@ -412,6 +415,7 @@ impl fmt::Display for PrimitiveType {
             PrimitiveTypeKind::Float => write!(f, "Float")?,
             PrimitiveTypeKind::String => write!(f, "String")?,
             PrimitiveTypeKind::File => write!(f, "File")?,
+            PrimitiveTypeKind::Directory => write!(f, "Directory")?,
         }
 
         if self.is_optional() {
@@ -786,6 +790,7 @@ task test {
         Pair[Boolean, Int] h
         Object i = object {}
         MyStruct j
+        Directory k = "foo"
     }
 }
 "#,
@@ -802,7 +807,7 @@ task test {
         let inputs: Vec<_> = tasks[0].inputs().collect();
         assert_eq!(inputs.len(), 1);
         let decls: Vec<_> = inputs[0].declarations().collect();
-        assert_eq!(decls.len(), 10);
+        assert_eq!(decls.len(), 11);
 
         // First input declaration
         let decl = decls[0].clone().unwrap_unbound_decl();
@@ -884,6 +889,20 @@ task test {
         assert_eq!(decl.ty().to_string(), "MyStruct");
         assert_eq!(decl.name().as_str(), "j");
 
+        // Eleventh input declaration
+        let decl = decls[10].clone().unwrap_bound_decl();
+        assert_eq!(decl.ty().to_string(), "Directory");
+        assert_eq!(decl.name().as_str(), "k");
+        assert_eq!(
+            decl.expr()
+                .unwrap_literal()
+                .unwrap_string()
+                .text()
+                .unwrap()
+                .as_str(),
+            "foo"
+        );
+
         // Use a visitor to count the number of declarations
         #[derive(Default)]
         struct MyVisitor {
@@ -918,7 +937,7 @@ task test {
 
         let mut visitor = MyVisitor::default();
         document.visit(&mut (), &mut visitor);
-        assert_eq!(visitor.bound, 5);
+        assert_eq!(visitor.bound, 6);
         assert_eq!(visitor.unbound, 5);
     }
 }
