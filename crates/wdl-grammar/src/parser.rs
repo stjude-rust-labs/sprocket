@@ -112,9 +112,22 @@ pub(crate) fn unterminated_string(span: Span) -> Diagnostic {
         .with_label("this quote is not matched", span)
 }
 
-/// Creates an "unterminated command" diagnostic error.
-pub(crate) fn unterminated_command(opening: &str, span: Span) -> Diagnostic {
-    Diagnostic::error("an unterminated command was encountered")
+/// Creates an "unterminated heredoc" diagnostic error.
+pub(crate) fn unterminated_heredoc(opening: &str, span: Span, command: bool) -> Diagnostic {
+    Diagnostic::error(format!(
+        "an unterminated {kind} was encountered",
+        kind = if command {
+            "heredoc command"
+        } else {
+            "multi-line string"
+        }
+    ))
+    .with_label(format!("this {opening} is not matched"), span)
+}
+
+/// Creates an "unterminated braced command" diagnostic error.
+pub(crate) fn unterminated_braced_command(opening: &str, span: Span) -> Diagnostic {
+    Diagnostic::error("an unterminated braced command was encountered")
         .with_label(format!("this {opening} is not matched"), span)
 }
 

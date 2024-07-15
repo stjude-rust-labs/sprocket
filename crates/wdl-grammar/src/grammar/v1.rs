@@ -5,7 +5,7 @@ use super::macros::expected_fn;
 use crate::grammar::macros::expected_in;
 use crate::lexer::v1::BraceCommandToken;
 use crate::lexer::v1::DQStringToken;
-use crate::lexer::v1::HeredocCommandToken;
+use crate::lexer::v1::HeredocToken;
 use crate::lexer::v1::SQStringToken;
 use crate::lexer::v1::Token;
 use crate::lexer::TokenSet;
@@ -13,7 +13,8 @@ use crate::parser;
 use crate::parser::expected_found;
 use crate::parser::expected_one_of;
 use crate::parser::unmatched;
-use crate::parser::unterminated_command;
+use crate::parser::unterminated_braced_command;
+use crate::parser::unterminated_heredoc;
 use crate::parser::unterminated_string;
 use crate::parser::CompletedMarker;
 use crate::parser::Event;
@@ -171,8 +172,9 @@ const METADATA_VALUE_EXPECTED_SET: TokenSet = TokenSet::new(&[
     Token::Minus as u8,
     Token::Integer as u8,
     Token::Float as u8,
-    Token::SQStringStart as u8,
-    Token::DQStringStart as u8,
+    Token::SingleQuote as u8,
+    Token::DoubleQuote as u8,
+    Token::OpenHeredoc as u8,
     Token::TrueKeyword as u8,
     Token::FalseKeyword as u8,
     Token::OpenBrace as u8,
@@ -212,8 +214,9 @@ const ATOM_EXPECTED_SET: TokenSet = ANY_IDENT.union(TokenSet::new(&[
     Token::Float as u8,
     Token::TrueKeyword as u8,
     Token::FalseKeyword as u8,
-    Token::DQStringStart as u8,
-    Token::SQStringStart as u8,
+    Token::SingleQuote as u8,
+    Token::DoubleQuote as u8,
+    Token::OpenHeredoc as u8,
     Token::OpenBracket as u8,
     Token::OpenBrace as u8,
     Token::OpenParen as u8,
@@ -722,14 +725,14 @@ fn command_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
         }
     } else {
         // Not a "braced" command, so it should be a "heredoc" command.
-        let start = match parser.expect(Token::HeredocCommandStart) {
+        let start = match parser.expect(Token::OpenHeredoc) {
             Ok(span) => span,
             Err(e) => return Err((marker, e)),
         };
 
-        if let Err(e) =
-            parser.interpolate(|interpolator| interpolate_heredoc_command(start, interpolator))
-        {
+        if let Err(e) = parser.interpolate(|interpolator| {
+            interpolate_heredoc(start, HeredocContext::Command, interpolator)
+        }) {
             return Err((marker, e));
         }
     }
@@ -811,7 +814,7 @@ fn interpolate_brace_command(
             // Command wasn't terminated
             (
                 interpolator.into_parser(),
-                Err(unterminated_command(
+                Err(unterminated_braced_command(
                     Token::describe(Token::OpenBrace as u8),
                     start,
                 )),
@@ -820,56 +823,90 @@ fn interpolate_brace_command(
     }
 }
 
-/// Interpolates a heredoc command.
-pub(crate) fn interpolate_heredoc_command(
+/// Represents context for a heredoc interpolation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HeredocContext {
+    /// A heredoc command is being interpolated.
+    Command,
+    /// A multiline string is being interpolated.
+    String,
+    /// A multiline string in a metadata section is being interpolated.
+    MetadataString,
+}
+
+/// Interpolates a heredoc command or multi-line string.
+pub(crate) fn interpolate_heredoc(
     start: Span,
-    mut interpolator: Interpolator<'_, HeredocCommandToken>,
+    context: HeredocContext,
+    mut interpolator: Interpolator<'_, HeredocToken>,
 ) -> (Parser<'_>, Result<(), Diagnostic>) {
+    /// Helper function for parsing an interpolation
+    fn interpolate<'a>(
+        mut interpolator: Interpolator<'a, HeredocToken>,
+        open: Span,
+        text: &mut Option<Span>,
+        context: HeredocContext,
+    ) -> Interpolator<'a, HeredocToken> {
+        // Add any encountered literal text
+        if let Some(span) = text.take() {
+            interpolator.event(Event::Token {
+                kind: if context == HeredocContext::Command {
+                    SyntaxKind::LiteralCommandText
+                } else {
+                    SyntaxKind::LiteralStringText
+                },
+                span,
+            })
+        }
+
+        let marker = interpolator.start();
+        interpolator.event(Event::Token {
+            kind: SyntaxKind::PlaceholderOpen,
+            span: open,
+        });
+
+        // Parse the placeholder expression
+        let mut parser = interpolator.into_parser();
+        if let Err((marker, e)) = placeholder_expr(&mut parser, marker, open) {
+            marker.abandon(&mut parser);
+            parser.recover(
+                e,
+                TokenSet::new(&[Token::CloseBrace as u8, Token::CloseHeredoc as u8]),
+            );
+            parser.next_if(Token::CloseBrace);
+        }
+
+        parser.into_interpolator()
+    }
+
     let mut text = None;
     let mut end = None;
 
     while let Some((Ok(token), span)) = interpolator.next() {
         match token {
-            HeredocCommandToken::PlaceholderStart => {
-                // Add any encountered literal text
-                if let Some(span) = text.take() {
-                    interpolator.event(Event::Token {
-                        kind: SyntaxKind::LiteralCommandText,
-                        span,
-                    })
-                }
-
-                let marker = interpolator.start();
-                interpolator.event(Event::Token {
-                    kind: SyntaxKind::PlaceholderOpen,
-                    span,
-                });
-
-                // Parse the placeholder expression
-                let mut parser = interpolator.into_parser();
-                if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
-                    marker.abandon(&mut parser);
-                    parser.recover(
-                        e,
-                        TokenSet::new(&[Token::CloseBrace as u8, Token::HeredocCommandEnd as u8]),
-                    );
-                    parser.next_if(Token::CloseBrace);
-                }
-
-                interpolator = parser.into_interpolator();
+            HeredocToken::TildePlaceholderStart
+                if matches!(context, HeredocContext::Command | HeredocContext::String) =>
+            {
+                interpolator = interpolate(interpolator, span, &mut text, context);
             }
-            HeredocCommandToken::Escape
-            | HeredocCommandToken::Text
-            | HeredocCommandToken::SingleCloseAngle
-            | HeredocCommandToken::DoubleCloseAngle
-            | HeredocCommandToken::Tilde => {
+            HeredocToken::DollarPlaceholderStart if context == HeredocContext::String => {
+                interpolator = interpolate(interpolator, span, &mut text, context);
+            }
+            HeredocToken::Escape
+            | HeredocToken::Text
+            | HeredocToken::SingleCloseAngle
+            | HeredocToken::DoubleCloseAngle
+            | HeredocToken::Tilde
+            | HeredocToken::DollarSign
+            | HeredocToken::TildePlaceholderStart
+            | HeredocToken::DollarPlaceholderStart => {
                 // Update the span of the text to include this token
                 text = match text {
                     Some(prev) => Some(Span::new(prev.start(), prev.len() + span.len())),
                     None => Some(span),
                 };
             }
-            HeredocCommandToken::End => {
+            HeredocToken::End => {
                 end = Some(span);
                 break;
             }
@@ -878,14 +915,18 @@ pub(crate) fn interpolate_heredoc_command(
 
     if let Some(span) = text.take() {
         interpolator.event(Event::Token {
-            kind: SyntaxKind::LiteralCommandText,
+            kind: if context == HeredocContext::Command {
+                SyntaxKind::LiteralCommandText
+            } else {
+                SyntaxKind::LiteralStringText
+            },
             span,
         })
     }
 
     match end {
         Some(span) => {
-            // Push an end heredoc as we're done interpolating the command
+            // Push a close heredoc as we're done interpolating
             interpolator.event(Event::Token {
                 kind: SyntaxKind::CloseHeredoc,
                 span,
@@ -894,12 +935,13 @@ pub(crate) fn interpolate_heredoc_command(
             (interpolator.into_parser(), Ok(()))
         }
         None => {
-            // Command wasn't terminated
+            // Not terminated
             (
                 interpolator.into_parser(),
-                Err(unterminated_command(
-                    Token::describe(Token::HeredocCommandStart as u8),
+                Err(unterminated_heredoc(
+                    Token::describe(Token::OpenHeredoc as u8),
                     start,
+                    context == HeredocContext::Command,
                 )),
             )
         }
@@ -1034,12 +1076,16 @@ fn metadata_value(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
             number(parser, marker, true)?;
             Ok(())
         }
-        Some((Token::SQStringStart, _)) => {
+        Some((Token::SingleQuote, _)) => {
             single_quote_string(parser, marker, false)?;
             Ok(())
         }
-        Some((Token::DQStringStart, _)) => {
+        Some((Token::DoubleQuote, _)) => {
             double_quote_string(parser, marker, false)?;
+            Ok(())
+        }
+        Some((Token::OpenHeredoc, _)) => {
+            multiline_string(parser, marker, false)?;
             Ok(())
         }
         Some((Token::TrueKeyword, _)) | Some((Token::FalseKeyword, _)) => {
@@ -1184,9 +1230,9 @@ fn placeholder_expr(
 }
 
 /// Interpolates a single-quoted string.
-pub(crate) fn single_quote_interpolate(
+pub(crate) fn interpolate_sq_string(
     start: Span,
-    allow_interpolation: bool,
+    allow_placeholders: bool,
     mut interpolator: Interpolator<'_, SQStringToken>,
 ) -> (Parser<'_>, Result<(), Diagnostic>) {
     let mut text = None;
@@ -1194,7 +1240,7 @@ pub(crate) fn single_quote_interpolate(
 
     while let Some((Ok(token), span)) = interpolator.next() {
         match token {
-            SQStringToken::PlaceholderStart if allow_interpolation => {
+            SQStringToken::PlaceholderStart if allow_placeholders => {
                 // Add any encountered literal text
                 if let Some(span) = text.take() {
                     interpolator.event(Event::Token {
@@ -1215,7 +1261,7 @@ pub(crate) fn single_quote_interpolate(
                     marker.abandon(&mut parser);
                     parser.recover(
                         e,
-                        TokenSet::new(&[Token::CloseBrace as u8, Token::SQStringStart as u8]),
+                        TokenSet::new(&[Token::CloseBrace as u8, Token::SingleQuote as u8]),
                     );
                     parser.next_if(Token::CloseBrace);
                 }
@@ -1270,8 +1316,9 @@ fn string(
     marker: Marker,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
     match parser.peek() {
-        Some((Token::SQStringStart, _)) => single_quote_string(parser, marker, true),
-        Some((Token::DQStringStart, _)) => double_quote_string(parser, marker, true),
+        Some((Token::SingleQuote, _)) => single_quote_string(parser, marker, true),
+        Some((Token::DoubleQuote, _)) => double_quote_string(parser, marker, true),
+        Some((Token::OpenHeredoc, _)) => multiline_string(parser, marker, true),
         found => {
             let (found, span) = found
                 .map(|(t, s)| (Some(Token::describe(t.into_raw())), s))
@@ -1285,12 +1332,11 @@ fn string(
 fn single_quote_string(
     parser: &mut Parser<'_>,
     marker: Marker,
-    allow_interpolation: bool,
+    allow_placeholders: bool,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
-    let start = parser.require(Token::SQStringStart);
+    let start = parser.require(Token::SingleQuote);
 
-    if let Err(e) = parser.interpolate(|i| single_quote_interpolate(start, allow_interpolation, i))
-    {
+    if let Err(e) = parser.interpolate(|i| interpolate_sq_string(start, allow_placeholders, i)) {
         return Err((marker, e));
     }
 
@@ -1298,9 +1344,9 @@ fn single_quote_string(
 }
 
 /// Interpolates a double-quoted string.
-pub(crate) fn double_quote_interpolate(
+pub(crate) fn interpolate_dq_string(
     start: Span,
-    allow_interpolation: bool,
+    allow_placeholders: bool,
     mut interpolator: Interpolator<'_, DQStringToken>,
 ) -> (Parser<'_>, Result<(), Diagnostic>) {
     let mut text = None;
@@ -1308,7 +1354,7 @@ pub(crate) fn double_quote_interpolate(
 
     while let Some((Ok(token), span)) = interpolator.next() {
         match token {
-            DQStringToken::PlaceholderStart if allow_interpolation => {
+            DQStringToken::PlaceholderStart if allow_placeholders => {
                 // Add any encountered literal text
                 if let Some(span) = text.take() {
                     interpolator.event(Event::Token {
@@ -1329,7 +1375,7 @@ pub(crate) fn double_quote_interpolate(
                     marker.abandon(&mut parser);
                     parser.recover(
                         e,
-                        TokenSet::new(&[Token::CloseBrace as u8, Token::DQStringStart as u8]),
+                        TokenSet::new(&[Token::CloseBrace as u8, Token::DoubleQuote as u8]),
                     );
                     parser.next_if(Token::CloseBrace);
                 }
@@ -1382,12 +1428,36 @@ pub(crate) fn double_quote_interpolate(
 fn double_quote_string(
     parser: &mut Parser<'_>,
     marker: Marker,
-    allow_interpolation: bool,
+    allow_placeholders: bool,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
-    let start = parser.require(Token::DQStringStart);
+    let start = parser.require(Token::DoubleQuote);
 
-    if let Err(e) = parser.interpolate(|i| double_quote_interpolate(start, allow_interpolation, i))
-    {
+    if let Err(e) = parser.interpolate(|i| interpolate_dq_string(start, allow_placeholders, i)) {
+        return Err((marker, e));
+    }
+
+    Ok(marker.complete(parser, SyntaxKind::LiteralStringNode))
+}
+
+/// Parses a multi-line string.
+fn multiline_string(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+    allow_placeholders: bool,
+) -> Result<CompletedMarker, (Marker, Diagnostic)> {
+    let start = parser.require(Token::OpenHeredoc);
+
+    if let Err(e) = parser.interpolate(|i| {
+        interpolate_heredoc(
+            start,
+            if allow_placeholders {
+                HeredocContext::String
+            } else {
+                HeredocContext::MetadataString
+            },
+            i,
+        )
+    }) {
         return Err((marker, e));
     }
 
@@ -1735,8 +1805,9 @@ fn atom_expr(
         Token::NoneKeyword => none(parser, marker),
         Token::Float | Token::Integer => number(parser, marker, false),
         Token::TrueKeyword | Token::FalseKeyword => boolean(parser, marker),
-        Token::SQStringStart => single_quote_string(parser, marker, true),
-        Token::DQStringStart => double_quote_string(parser, marker, true),
+        Token::SingleQuote => single_quote_string(parser, marker, true),
+        Token::DoubleQuote => double_quote_string(parser, marker, true),
+        Token::OpenHeredoc => multiline_string(parser, marker, true),
         Token::OpenBracket => array(parser, marker),
         Token::OpenBrace => map(parser, marker),
         Token::OpenParen => pair_or_paren_expr(parser, marker),

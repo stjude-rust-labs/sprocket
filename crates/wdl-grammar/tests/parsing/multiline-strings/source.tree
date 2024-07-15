@@ -1,0 +1,42 @@
+RootNode@0..291
+  Comment@0..52 "## This is a test of  ..."
+  Whitespace@52..54 "\n\n"
+  VersionStatementNode@54..65
+    VersionKeyword@54..61 "version"
+    Whitespace@61..62 " "
+    Version@62..65 "1.2"
+  Whitespace@65..67 "\n\n"
+  WorkflowDefinitionNode@67..290
+    WorkflowKeyword@67..75 "workflow"
+    Whitespace@75..76 " "
+    Ident@76..80 "test"
+    Whitespace@80..81 " "
+    OpenBrace@81..82 "{"
+    Whitespace@82..87 "\n    "
+    BoundDeclNode@87..288
+      PrimitiveTypeNode@87..93
+        StringTypeKeyword@87..93 "String"
+      Whitespace@93..94 " "
+      Ident@94..95 "a"
+      Whitespace@95..96 " "
+      Assignment@96..97 "="
+      Whitespace@97..98 " "
+      LiteralStringNode@98..288
+        OpenHeredoc@98..101 "<<<"
+        LiteralStringText@101..241 "\n        Hello! This  ..."
+        PlaceholderNode@241..249
+          PlaceholderOpen@241..243 "${"
+          NameRefNode@243..248
+            Ident@243..248 "value"
+          CloseBrace@248..249 "}"
+        LiteralStringText@249..253 " or "
+        PlaceholderNode@253..261
+          PlaceholderOpen@253..255 "~{"
+          NameRefNode@255..260
+            Ident@255..260 "value"
+          CloseBrace@260..261 "}"
+        LiteralStringText@261..285 " for interpolations\n    "
+        CloseHeredoc@285..288 ">>>"
+    Whitespace@288..289 "\n"
+    CloseBrace@289..290 "}"
+  Whitespace@290..291 "\n"

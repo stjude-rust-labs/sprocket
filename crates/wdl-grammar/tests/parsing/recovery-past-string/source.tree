@@ -1,4 +1,4 @@
-RootNode@0..168
+RootNode@0..235
   Comment@0..67 "# This is a test of r ..."
   Whitespace@67..69 "\n\n"
   VersionStatementNode@69..80
@@ -6,14 +6,14 @@ RootNode@0..168
     Whitespace@76..77 " "
     Version@77..80 "1.1"
   Whitespace@80..82 "\n\n"
-  TaskDefinitionNode@82..167
+  TaskDefinitionNode@82..234
     TaskKeyword@82..86 "task"
     Whitespace@86..87 " "
     Ident@87..91 "test"
     Whitespace@91..92 " "
     OpenBrace@92..93 "{"
     Whitespace@93..98 "\n    "
-    MetadataSectionNode@98..165
+    MetadataSectionNode@98..232
       MetaKeyword@98..102 "meta"
       Whitespace@102..103 " "
       OpenBrace@103..104 "{"
@@ -39,8 +39,36 @@ RootNode@0..168
           DoubleQuote@152..153 "\""
           LiteralStringText@153..158 "value"
           DoubleQuote@158..159 "\""
-      Whitespace@159..164 "\n    "
-      CloseBrace@164..165 "}"
-    Whitespace@165..166 "\n"
-    CloseBrace@166..167 "}"
-  Whitespace@167..168 "\n"
+      Whitespace@159..168 "\n        "
+      OpenHeredoc@168..171 "<<<"
+      LiteralStringText@171..178 "invalid"
+      CloseHeredoc@178..181 ">>>"
+      Colon@181..182 ":"
+      Whitespace@182..183 " "
+      OpenHeredoc@183..186 "<<<"
+      PlaceholderNode@186..194
+        PlaceholderOpen@186..188 "~{"
+        NameRefNode@188..193
+          Ident@188..193 "value"
+        CloseBrace@193..194 "}"
+      LiteralStringText@194..195 " "
+      PlaceholderNode@195..203
+        PlaceholderOpen@195..197 "${"
+        NameRefNode@197..202
+          Ident@197..202 "value"
+        CloseBrace@202..203 "}"
+      CloseHeredoc@203..206 ">>>"
+      Whitespace@206..215 "\n        "
+      MetadataObjectItemNode@215..226
+        Ident@215..217 "ok"
+        Colon@217..218 ":"
+        Whitespace@218..219 " "
+        LiteralStringNode@219..226
+          DoubleQuote@219..220 "\""
+          LiteralStringText@220..225 "value"
+          DoubleQuote@225..226 "\""
+      Whitespace@226..231 "\n    "
+      CloseBrace@231..232 "}"
+    Whitespace@232..233 "\n"
+    CloseBrace@233..234 "}"
+  Whitespace@234..235 "\n"

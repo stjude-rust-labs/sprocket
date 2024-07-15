@@ -2,9 +2,10 @@
 
 pub use logos::Logos;
 
-use crate::grammar::v1::double_quote_interpolate;
-use crate::grammar::v1::interpolate_heredoc_command;
-use crate::grammar::v1::single_quote_interpolate;
+use crate::grammar::v1::interpolate_dq_string;
+use crate::grammar::v1::interpolate_heredoc;
+use crate::grammar::v1::interpolate_sq_string;
+use crate::grammar::v1::HeredocContext;
 use crate::parser::Parser;
 use crate::parser::ParserToken;
 use crate::tree::SyntaxKind;
@@ -150,15 +151,25 @@ pub enum DQStringToken {
     End,
 }
 
-/// Represents a token in a heredoc command (e.g. `<<< hello >>>`).
+/// Represents a token in a heredoc command or multiline string (e.g. `<<< hello
+/// >>>`).
 #[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
-pub enum HeredocCommandToken {
-    /// A start of a placeholder.
+pub enum HeredocToken {
+    /// A start of a placeholder using a dollar sign.
+    ///
+    /// When encountered in a multi-line string, [morph][super::Lexer::morph]
+    /// the lexer to use [Token].
+    ///
+    /// When encountered in a command, treat as literal text.
+    #[token("${")]
+    DollarPlaceholderStart,
+
+    /// A start of a placeholder using a tilde.
     ///
     /// When encountered, [morph][super::Lexer::morph] the lexer to use [Token].
     #[token("~{")]
-    PlaceholderStart,
+    TildePlaceholderStart,
 
     /// The start of an escape sequence.
     ///
@@ -169,8 +180,12 @@ pub enum HeredocCommandToken {
     Escape,
 
     /// A span of literal text.
-    #[regex(r"[^\\~>]+")]
+    #[regex(r"[^\\~$>]+")]
     Text,
+
+    /// A dollar sign that is part of the literal text.
+    #[token("$")]
+    DollarSign,
 
     /// A tilde that is part of the literal text.
     #[token("~")]
@@ -240,9 +255,9 @@ pub enum BraceCommandToken {
 ///
 /// | Token                                                                    | Sub-lexer token       |
 /// |--------------------------------------------------------------------------|-----------------------|
-/// | [SQStringStart][Token::SQStringStart]                                    | [SQStringToken]       |
-/// | [DQStringStart][Token::DQStringStart]                                    | [DQStringToken]       |
-/// | [HeredocCommandStart][Token::HeredocCommandStart]                        | [HeredocCommandToken] |
+/// | [SingleQuote][Token::SingleQuote]                                        | [SQStringToken]       |
+/// | [DoubleQuote][Token::DoubleQuote]                                        | [DQStringToken]       |
+/// | [OpenHeredoc][Token::OpenHeredoc]                                        | [HeredocToken]        |
 /// | [CommandKeyword][Token::CommandKeyword] ~> [OpenBrace][Token::OpenBrace] | [BraceCommandToken]   |
 ///
 /// After the start token is encountered, the [morph][super::Lexer::morph]
@@ -289,24 +304,24 @@ pub enum Token {
     /// When encountered, [morph][super::Lexer::morph] the lexer to use
     /// [SQStringToken].
     #[token("'")]
-    SQStringStart,
+    SingleQuote,
 
     /// A start of a double-quoted string.
     ///
     /// When encountered, [morph][super::Lexer::morph] the lexer to use
     /// [DQStringToken].
     #[token("\"")]
-    DQStringStart,
+    DoubleQuote,
 
-    /// A start of a heredoc command.
+    /// A start of a heredoc command or multiline string.
     ///
     /// When encountered, [morph][super::Lexer::morph] the lexer to use
-    /// [HeredocCommandToken].
+    /// [HeredocToken].
     #[token("<<<")]
-    HeredocCommandStart,
-    /// An end of a heredoc command.
+    OpenHeredoc,
+    /// An end of a heredoc command or multiline string.
     #[token(">>>")]
-    HeredocCommandEnd,
+    CloseHeredoc,
 
     /// The `Array` type keyword.
     #[token("Array")]
@@ -516,10 +531,10 @@ impl<'a> ParserToken<'a> for Token {
             Self::Float => SyntaxKind::Float,
             Self::Integer => SyntaxKind::Integer,
             Self::Ident => SyntaxKind::Ident,
-            Self::SQStringStart => SyntaxKind::SingleQuote,
-            Self::DQStringStart => SyntaxKind::DoubleQuote,
-            Self::HeredocCommandStart => SyntaxKind::OpenHeredoc,
-            Self::HeredocCommandEnd => SyntaxKind::CloseHeredoc,
+            Self::SingleQuote => SyntaxKind::SingleQuote,
+            Self::DoubleQuote => SyntaxKind::DoubleQuote,
+            Self::OpenHeredoc => SyntaxKind::OpenHeredoc,
+            Self::CloseHeredoc => SyntaxKind::CloseHeredoc,
             Self::ArrayTypeKeyword => SyntaxKind::ArrayTypeKeyword,
             Self::BooleanTypeKeyword => SyntaxKind::BooleanTypeKeyword,
             Self::FileTypeKeyword => SyntaxKind::FileTypeKeyword,
@@ -603,9 +618,9 @@ impl<'a> ParserToken<'a> for Token {
             Self::Float => "float",
             Self::Integer => "integer",
             Self::Ident => "identifier",
-            Self::SQStringStart | Self::DQStringStart => "string",
-            Self::HeredocCommandStart => "`<<<`",
-            Self::HeredocCommandEnd => "`>>>`",
+            Self::SingleQuote | Self::DoubleQuote => "string",
+            Self::OpenHeredoc => "multi-line string",
+            Self::CloseHeredoc => "`>>>`",
             Self::ArrayTypeKeyword => "`Array` keyword",
             Self::BooleanTypeKeyword => "`Boolean` keyword",
             Self::FileTypeKeyword => "`File` keyword",
@@ -679,20 +694,22 @@ impl<'a> ParserToken<'a> for Token {
 
     fn recover_interpolation(token: Self, start: Span, parser: &mut Parser<'a, Self>) -> bool {
         match token {
-            Self::SQStringStart => {
-                if let Err(e) = parser.interpolate(|i| single_quote_interpolate(start, true, i)) {
+            Self::SingleQuote => {
+                if let Err(e) = parser.interpolate(|i| interpolate_sq_string(start, true, i)) {
                     parser.diagnostic(e);
                 }
                 true
             }
-            Self::DQStringStart => {
-                if let Err(e) = parser.interpolate(|i| double_quote_interpolate(start, true, i)) {
+            Self::DoubleQuote => {
+                if let Err(e) = parser.interpolate(|i| interpolate_dq_string(start, true, i)) {
                     parser.diagnostic(e);
                 }
                 true
             }
-            Self::HeredocCommandStart => {
-                if let Err(e) = parser.interpolate(|i| interpolate_heredoc_command(start, i)) {
+            Self::OpenHeredoc => {
+                if let Err(e) =
+                    parser.interpolate(|i| interpolate_heredoc(start, HeredocContext::String, i))
+                {
                     parser.diagnostic(e);
                 }
                 true
@@ -942,10 +959,7 @@ foo123_BAR"#,
     #[test]
     fn single_quote_string() {
         let mut lexer = Lexer::<Token>::new(r#"'hello \'~{name}${'!'}\': not \~{a var~$}'"#);
-        assert_eq!(
-            lexer.next().map(map),
-            Some((Ok(Token::SQStringStart), 0..1))
-        );
+        assert_eq!(lexer.next().map(map), Some((Ok(Token::SingleQuote), 0..1)));
 
         let mut lexer = lexer.morph();
         assert_eq!(lexer.next().map(map), Some((Ok(SQStringToken::Text), 1..7)));
@@ -971,7 +985,7 @@ foo123_BAR"#,
         let mut lexer = lexer.morph();
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(Token::SQStringStart), 18..19))
+            Some((Ok(Token::SingleQuote), 18..19))
         );
 
         let mut lexer = lexer.morph();
@@ -1028,10 +1042,7 @@ foo123_BAR"#,
     #[test]
     fn double_quote_string() {
         let mut lexer = Lexer::<Token>::new(r#""hello \"~{name}${"!"}\": not \~{a var~$}""#);
-        assert_eq!(
-            lexer.next().map(map),
-            Some((Ok(Token::DQStringStart), 0..1))
-        );
+        assert_eq!(lexer.next().map(map), Some((Ok(Token::DoubleQuote), 0..1)));
 
         let mut lexer = lexer.morph();
         assert_eq!(lexer.next().map(map), Some((Ok(DQStringToken::Text), 1..7)));
@@ -1057,7 +1068,7 @@ foo123_BAR"#,
         let mut lexer = lexer.morph();
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(Token::DQStringStart), 18..19))
+            Some((Ok(Token::DoubleQuote), 18..19))
         );
 
         let mut lexer = lexer.morph();
@@ -1123,19 +1134,13 @@ foo123_BAR"#,
    still in heredoc~
 >>>"#,
         );
-        assert_eq!(
-            lexer.next().map(map),
-            Some((Ok(Token::HeredocCommandStart), 0..3))
-        );
+        assert_eq!(lexer.next().map(map), Some((Ok(Token::OpenHeredoc), 0..3)));
 
         let mut lexer = lexer.morph();
+        assert_eq!(lexer.next().map(map), Some((Ok(HeredocToken::Text), 3..15)));
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::Text), 3..15))
-        );
-        assert_eq!(
-            lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::PlaceholderStart), 15..17))
+            Some((Ok(HeredocToken::TildePlaceholderStart), 15..17))
         );
 
         let mut lexer = lexer.morph();
@@ -1145,17 +1150,31 @@ foo123_BAR"#,
         let mut lexer = lexer.morph();
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::Text), 25..56))
+            Some((Ok(HeredocToken::Text), 25..38))
         );
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::PlaceholderStart), 56..58))
+            Some((Ok(HeredocToken::DollarPlaceholderStart), 38..40))
+        );
+
+        let mut lexer = lexer.morph();
+        assert_eq!(lexer.next().map(map), Some((Ok(Token::Ident), 40..43)));
+        assert_eq!(lexer.next().map(map), Some((Ok(Token::CloseBrace), 43..44)));
+
+        let mut lexer = lexer.morph();
+        assert_eq!(
+            lexer.next().map(map),
+            Some((Ok(HeredocToken::Text), 44..56))
+        );
+        assert_eq!(
+            lexer.next().map(map),
+            Some((Ok(HeredocToken::TildePlaceholderStart), 56..58))
         );
 
         let mut lexer = lexer.morph();
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(Token::DQStringStart), 58..59))
+            Some((Ok(Token::DoubleQuote), 58..59))
         );
 
         let mut lexer = lexer.morph();
@@ -1174,39 +1193,39 @@ foo123_BAR"#,
         let mut lexer = lexer.morph();
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::Text), 86..98))
+            Some((Ok(HeredocToken::Text), 86..98))
         );
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::Escape), 98..100))
+            Some((Ok(HeredocToken::Escape), 98..100))
         );
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::Text), 100..114))
+            Some((Ok(HeredocToken::Text), 100..114))
         );
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::Escape), 114..116))
+            Some((Ok(HeredocToken::Escape), 114..116))
         );
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::DoubleCloseAngle), 116..118))
+            Some((Ok(HeredocToken::DoubleCloseAngle), 116..118))
         );
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::Text), 118..138))
+            Some((Ok(HeredocToken::Text), 118..138))
         );
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::Tilde), 138..139))
+            Some((Ok(HeredocToken::Tilde), 138..139))
         );
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::Text), 139..140))
+            Some((Ok(HeredocToken::Text), 139..140))
         );
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(HeredocCommandToken::End), 140..143))
+            Some((Ok(HeredocToken::End), 140..143))
         );
 
         let mut lexer = lexer.morph::<Token>();
@@ -1273,7 +1292,7 @@ foo123_BAR"#,
         let mut lexer = lexer.morph();
         assert_eq!(
             lexer.next().map(map),
-            Some((Ok(Token::DQStringStart), 64..65))
+            Some((Ok(Token::DoubleQuote), 64..65))
         );
 
         let mut lexer = lexer.morph();

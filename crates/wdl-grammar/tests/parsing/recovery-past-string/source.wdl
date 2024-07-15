@@ -6,5 +6,7 @@ task test {
     meta {
         "invalid": "~{value}"
         correct: "value"
+        <<<invalid>>>: <<<~{value} ${value}>>>
+        ok: "value"
     }
 }

@@ -1,9 +1,11 @@
 //! Validation of string literals in an AST.
 
+use rowan::ast::AstNode;
 use wdl_grammar::lexer::v1::EscapeToken;
 use wdl_grammar::lexer::v1::Logos;
 
-use crate::v1::StringText;
+use crate::v1;
+use crate::v1::LiteralStringKind;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
@@ -139,11 +141,26 @@ impl Visitor for LiteralTextVisitor {
         *self = Default::default();
     }
 
-    fn string_text(&mut self, state: &mut Self::State, text: &StringText) {
-        check_text(
-            state,
-            text.syntax().text_range().start().into(),
-            text.as_str(),
-        );
+    fn string_text(&mut self, state: &mut Self::State, text: &v1::StringText) {
+        let string = v1::LiteralString::cast(text.syntax().parent().expect("should have a parent"))
+            .expect("node should cast");
+        match string.kind() {
+            LiteralStringKind::SingleQuoted | LiteralStringKind::DoubleQuoted => {
+                // Check the text of a normal string to ensure escape sequences are correct and
+                // characters that are required to be escaped are actually escaped.
+                check_text(
+                    state,
+                    text.syntax().text_range().start().into(),
+                    text.as_str(),
+                );
+            }
+            LiteralStringKind::Multiline => {
+                // Don't check the text of multiline strings as they are treated
+                // like commands where almost all of the text is literal and the
+                // only escape is escaping the closing `>>>`; the only
+                // difference between a multiline string and a command is how
+                // line continuation whitespace is normalized.
+            }
+        }
     }
 }

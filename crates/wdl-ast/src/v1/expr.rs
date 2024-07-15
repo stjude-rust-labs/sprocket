@@ -983,21 +983,33 @@ impl AstNode for LiteralFloat {
     }
 }
 
+/// Represents the kind of a literal string.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LiteralStringKind {
+    /// The string is a single quoted string.
+    SingleQuoted,
+    /// The string is a double quoted string.
+    DoubleQuoted,
+    /// The string is a multi-line string.
+    Multiline,
+}
+
 /// Represents a literal string.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LiteralString(pub(super) SyntaxNode);
 
 impl LiteralString {
-    /// Gets the quote character of the literal string.
-    pub fn quote(&self) -> char {
+    /// Gets the kind of the string literal.
+    pub fn kind(&self) -> LiteralStringKind {
         self.0
             .children_with_tokens()
             .find_map(|c| match c.kind() {
-                SyntaxKind::SingleQuote => Some('\''),
-                SyntaxKind::DoubleQuote => Some('"'),
+                SyntaxKind::SingleQuote => Some(LiteralStringKind::SingleQuoted),
+                SyntaxKind::DoubleQuote => Some(LiteralStringKind::DoubleQuoted),
+                SyntaxKind::OpenHeredoc => Some(LiteralStringKind::Multiline),
                 _ => None,
             })
-            .expect("string is missing quote tokens")
+            .expect("string is missing opening token")
     }
 
     /// Gets the parts of the string.
@@ -2793,6 +2805,12 @@ task test {
     String b = 'world'
     String c = "Hello, ${name}!"
     String d = 'String~{'ception'}!'
+    String e = <<< this is
+    a multiline \
+    string!
+    ${first}
+    ${second}
+    >>>
 }
 "#,
         );
@@ -2806,27 +2824,27 @@ task test {
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
-        assert_eq!(decls.len(), 4);
+        assert_eq!(decls.len(), 5);
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "String");
         assert_eq!(decls[0].name().as_str(), "a");
         let s = decls[0].expr().unwrap_literal().unwrap_string();
-        assert_eq!(s.quote(), '"');
+        assert_eq!(s.kind(), LiteralStringKind::DoubleQuoted);
         assert_eq!(s.text().unwrap().as_str(), "hello");
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "String");
         assert_eq!(decls[1].name().as_str(), "b");
         let s = decls[1].expr().unwrap_literal().unwrap_string();
-        assert_eq!(s.quote(), '\'');
+        assert_eq!(s.kind(), LiteralStringKind::SingleQuoted);
         assert_eq!(s.text().unwrap().as_str(), "world");
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "String");
         assert_eq!(decls[2].name().as_str(), "c");
         let s = decls[2].expr().unwrap_literal().unwrap_string();
-        assert_eq!(s.quote(), '"');
+        assert_eq!(s.kind(), LiteralStringKind::DoubleQuoted);
         let parts: Vec<_> = s.parts().collect();
         assert_eq!(parts.len(), 3);
         assert_eq!(parts[0].clone().unwrap_text().as_str(), "Hello, ");
@@ -2839,7 +2857,7 @@ task test {
         assert_eq!(decls[3].ty().to_string(), "String");
         assert_eq!(decls[3].name().as_str(), "d");
         let s = decls[3].expr().unwrap_literal().unwrap_string();
-        assert_eq!(s.quote(), '\'');
+        assert_eq!(s.kind(), LiteralStringKind::SingleQuoted);
         let parts: Vec<_> = s.parts().collect();
         assert_eq!(parts.len(), 3);
         assert_eq!(parts[0].clone().unwrap_text().as_str(), "String");
@@ -2856,6 +2874,32 @@ task test {
             "ception"
         );
         assert_eq!(parts[2].clone().unwrap_text().as_str(), "!");
+
+        // Fifth declaration
+        assert_eq!(decls[4].ty().to_string(), "String");
+        assert_eq!(decls[4].name().as_str(), "e");
+        let s = decls[4].expr().unwrap_literal().unwrap_string();
+        assert_eq!(s.kind(), LiteralStringKind::Multiline);
+        let parts: Vec<_> = s.parts().collect();
+        assert_eq!(parts.len(), 5);
+        assert_eq!(
+            parts[0].clone().unwrap_text().as_str(),
+            " this is\n    a multiline \\\n    string!\n    "
+        );
+        let placeholder = parts[1].clone().unwrap_placeholder();
+        assert!(!placeholder.has_tilde());
+        assert_eq!(
+            placeholder.expr().unwrap_name_ref().name().as_str(),
+            "first"
+        );
+        assert_eq!(parts[2].clone().unwrap_text().as_str(), "\n    ");
+        let placeholder = parts[3].clone().unwrap_placeholder();
+        assert!(!placeholder.has_tilde());
+        assert_eq!(
+            placeholder.expr().unwrap_name_ref().name().as_str(),
+            "second"
+        );
+        assert_eq!(parts[4].clone().unwrap_text().as_str(), "\n    ");
 
         // Use a visitor to visit all the string literals without placeholders
         struct MyVisitor(Vec<String>);

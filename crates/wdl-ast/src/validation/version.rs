@@ -33,6 +33,11 @@ fn hints_section(span: Span) -> Diagnostic {
     Diagnostic::error("use of the `hints` section requires WDL version 1.2").with_highlight(span)
 }
 
+/// Creates a "multi-line string requirement" diagnostic.
+fn multiline_string_requirement(span: Span) -> Diagnostic {
+    Diagnostic::error("use of multi-line strings requires WDL version 1.2").with_highlight(span)
+}
+
 /// An AST visitor that ensures the syntax present in the document matches the
 /// document's declared version.
 #[derive(Debug, Default)]
@@ -115,6 +120,14 @@ impl Visitor for VersionVisitor {
                             .expect("should have operator")
                             .text_range()
                             .to_span(),
+                    ));
+                }
+                v1::Expr::Literal(v1::LiteralExpr::String(s))
+                    if version < SupportedVersion::V1(V1::Two)
+                        && s.kind() == v1::LiteralStringKind::Multiline =>
+                {
+                    state.add(multiline_string_requirement(
+                        s.syntax().text_range().to_span(),
                     ));
                 }
                 _ => {}

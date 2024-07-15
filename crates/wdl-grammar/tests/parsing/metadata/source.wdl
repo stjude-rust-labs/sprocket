@@ -34,6 +34,9 @@ task test {
                 x: [1.0, 2.0, 3.0]
             }
         ]
+        x: 'No ~{interpolation} in ${metadata} strings!'
+        y: "No ~{interpolation} in ${metadata} strings!"
+        z: <<<No ~{interpolation} in ${metadata} strings!>>> 
     }
     
     parameter_meta {
@@ -67,6 +70,9 @@ task test {
                 x: [1.0, 2.0, 3.0]
             }
         ]
+        x: 'No ~{interpolation} in ${metadata} strings!'
+        y: "No ~{interpolation} in ${metadata} strings!"
+        z: <<<No ~{interpolation} in ${metadata} strings!>>>
     }
 }
 
@@ -102,6 +108,9 @@ workflow w {
                 x: [1.0, 2.0, 3.0]
             }
         ]
+        x: 'No ~{interpolation} in ${metadata} strings!'
+        y: "No ~{interpolation} in ${metadata} strings!"
+        z: <<<No ~{interpolation} in ${metadata} strings!>>>
     }
     
     parameter_meta {
@@ -135,5 +144,8 @@ workflow w {
                 x: [1.0, 2.0, 3.0]
             }
         ]
+        x: 'No ~{interpolation} in ${metadata} strings!'
+        y: "No ~{interpolation} in ${metadata} strings!"
+        z: <<<No ~{interpolation} in ${metadata} strings!>>>
     }
 }

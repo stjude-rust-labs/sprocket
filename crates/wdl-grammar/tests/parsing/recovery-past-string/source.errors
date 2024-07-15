@@ -4,3 +4,9 @@ error: expected metadata key, but found string
 7 │         "invalid": "~{value}"
   │         ^^^^^^^^^ unexpected string
 
+error: expected metadata key, but found multi-line string
+  ┌─ tests/parsing/recovery-past-string/source.wdl:9:9
+  │
+9 │         <<<invalid>>>: <<<~{value} ${value}>>>
+  │         ^^^^^^^^^^^ unexpected multi-line string
+
