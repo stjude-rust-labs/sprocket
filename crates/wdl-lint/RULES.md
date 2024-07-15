@@ -33,5 +33,6 @@ be out of sync with released packages.
 | `RuntimeSectionKeys`             | Completeness, Deprecated      | Ensures that runtime sections have the appropriate keys.                              |
 | `SectionOrdering`                | Sorting, Style                | Ensures that sections within tasks and workflows are sorted.                          |
 | `SnakeCase`                      | Clarity, Naming, Style        | Ensures that tasks, workflows, and variables are defined with snake_case names.       |
+| `Todo`                           | Completeness                  | Ensures that `TODO` statements are flagged for followup.                              |
 | `Whitespace`                     | Spacing, Style                | Ensures that a document does not contain undesired whitespace.                        |
 

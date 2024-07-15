@@ -1227,8 +1227,28 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:108:14: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/bwa.wdl/#L108"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:16:56: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/bwa.wdl/#L16"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:206:85: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/bwa.wdl/#L206"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:242:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/bwa.wdl/#L242"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:5:3: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/bwa.wdl/#L5"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/cellranger.wdl"
@@ -1246,13 +1266,28 @@ message = "cellranger.wdl:78:1: note[LineWidth]: line exceeds maximum width of 9
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/cellranger.wdl/#L78"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/deeptools.wdl"
+message = "deeptools.wdl:6:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/deeptools.wdl/#L6"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/estimate.wdl"
 message = "estimate.wdl:39:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/estimate.wdl/#L39"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/estimate.wdl"
+message = "estimate.wdl:9:83: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/estimate.wdl/#L9"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/fastqc.wdl"
 message = "fastqc.wdl:59:1: note[LineWidth]: line exceeds maximum width of 90"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/fastqc.wdl/#L59"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fastqc.wdl"
+message = "fastqc.wdl:59:76: note[Todo]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/fastqc.wdl/#L59"
 
 [[diagnostics]]
@@ -1337,8 +1372,28 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:94:62: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/htseq.wdl/#L94"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:96:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/htseq.wdl/#L96"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:96:86: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/htseq.wdl/#L96"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:290:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/kraken2.wdl/#L290"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:306:75: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/kraken2.wdl/#L306"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/librarian.wdl"
@@ -1351,6 +1406,16 @@ message = "librarian.wdl:52:9: warning[RuntimeSectionKeys]: the `docker` runtime
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/librarian.wdl/#L52"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/md5sum.wdl"
+message = "md5sum.wdl:5:3: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/md5sum.wdl/#L5"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/mosdepth.wdl"
+message = "mosdepth.wdl:6:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/mosdepth.wdl/#L6"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:258:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/ngsderive.wdl/#L258"
@@ -1361,6 +1426,11 @@ message = "ngsderive.wdl:260:1: note[LineWidth]: line exceeds maximum width of 9
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/ngsderive.wdl/#L260"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:366:28: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/ngsderive.wdl/#L366"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:1032:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L1032"
@@ -1369,6 +1439,51 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:1042:5: warning[RuntimeSectionKeys]: the following runtime key is not reserved in the WDL v1.1 specification: `disk`; therefore, its inclusion in the `runtime` section is deprecated"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L1042"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:134:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L134"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:2:4: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L2"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:362:30: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L362"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:498:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L498"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:562:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L562"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:625:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L625"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:697:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L697"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:698:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L698"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:761:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L761"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -1427,8 +1542,43 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1230:11: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/samtools.wdl/#L1230"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1336:5: warning[RuntimeSectionKeys]: the following runtime key is not reserved in the WDL v1.1 specification: `disk`; therefore, its inclusion in the `runtime` section is deprecated"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/samtools.wdl/#L1336"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:186:11: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/samtools.wdl/#L186"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:281:15: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/samtools.wdl/#L281"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:425:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/samtools.wdl/#L425"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:930:28: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/samtools.wdl/#L930"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:138:95: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/star.wdl/#L138"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:481:48: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/star.wdl/#L481"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
@@ -1449,6 +1599,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 document = "stjudecloud/workflows:/tools/star.wdl"
 message = "star.wdl:743:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/star.wdl/#L743"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:285:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/util.wdl/#L285"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -1473,6 +1628,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:693:1: note[LineWidth]: line exceeds maximum width of 90"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/util.wdl/#L693"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:693:7: note[Todo]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/util.wdl/#L693"
 
 [[diagnostics]]
@@ -1547,6 +1707,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
+message = "chipseq-standard.wdl:14:3: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/chipseq/chipseq-standard.wdl/#L14"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
 message = "chipseq-standard.wdl:15:10: note[SectionOrdering]: sections are not in order for workflow `chipseq_standard`"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/chipseq/chipseq-standard.wdl/#L15"
 
@@ -1592,12 +1757,22 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/general/alignment-post.wdl"
+message = "alignment-post.wdl:78:7: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/general/alignment-post.wdl/#L78"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/general/alignment-post.wdl"
 message = "alignment-post.wdl:8:10: note[SectionOrdering]: sections are not in order for workflow `alignment_post`"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/general/alignment-post.wdl/#L8"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/general/samtools-merge.wdl"
 message = "samtools-merge.wdl:23:1: note[LineWidth]: line exceeds maximum width of 90"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/general/samtools-merge.wdl/#L23"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/general/samtools-merge.wdl"
+message = "samtools-merge.wdl:23:54: note[Todo]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/general/samtools-merge.wdl/#L23"
 
 [[diagnostics]]
@@ -1617,6 +1792,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
+message = "quality-check-standard.wdl:121:11: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L121"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
 message = "quality-check-standard.wdl:151:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L151"
 
@@ -1632,8 +1812,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
+message = "quality-check-standard.wdl:501:86: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L501"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
 message = "quality-check-standard.wdl:550:5: warning[RuntimeSectionKeys]: the following runtime key is not reserved in the WDL v1.1 specification: `disk`; therefore, its inclusion in the `runtime` section is deprecated"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L550"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
+message = "quality-check-standard.wdl:558:3: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L558"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
@@ -1646,14 +1836,34 @@ message = "make-qc-reference.wdl:6:10: note[SectionOrdering]: sections are not i
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/reference/make-qc-reference.wdl/#L6"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
+message = "rnaseq-core.wdl:38:48: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-core.wdl/#L38"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
+message = "rnaseq-core.wdl:87:34: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-core.wdl/#L87"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
 message = "rnaseq-standard-fastq.wdl:25:10: note[SectionOrdering]: sections are not in order for workflow `rnaseq_standard_fastq`"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L25"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
+message = "rnaseq-standard-fastq.wdl:47:533: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L47"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
 message = "rnaseq-standard.wdl:179:5: warning[RuntimeSectionKeys]: the following runtime key is not reserved in the WDL v1.1 specification: `disk`; therefore, its inclusion in the `runtime` section is deprecated"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-standard.wdl/#L179"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
+message = "rnaseq-standard.wdl:94:10: note[Todo]: remaining `TODO` item found"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-standard.wdl/#L94"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
