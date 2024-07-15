@@ -127,6 +127,7 @@ fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
     })?;
 
     let (document, diagnostics) = Document::parse(&source);
+
     if !diagnostics.is_empty() {
         compare_result(
             &path.with_extension("errors"),

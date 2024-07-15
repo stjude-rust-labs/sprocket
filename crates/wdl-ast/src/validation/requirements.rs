@@ -6,6 +6,7 @@ use crate::Diagnostic;
 use crate::Diagnostics;
 use crate::Document;
 use crate::Ident;
+use crate::SupportedVersion;
 use crate::VisitReason;
 use crate::Visitor;
 
@@ -26,7 +27,13 @@ pub struct RequirementsVisitor;
 impl Visitor for RequirementsVisitor {
     type State = Diagnostics;
 
-    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+    fn document(
+        &mut self,
+        _: &mut Self::State,
+        reason: VisitReason,
+        _: &Document,
+        _: SupportedVersion,
+    ) {
         if reason == VisitReason::Exit {
             return;
         }

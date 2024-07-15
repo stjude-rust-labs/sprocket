@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, SectionOrdering
+#@ except: DescriptionMissing, SectionOrdering, RuntimeSectionKeys
 ## This is a test of the `NoCurlyCommands` lint
 
 version 1.1

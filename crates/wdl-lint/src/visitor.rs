@@ -11,6 +11,7 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Direction;
 use wdl_ast::Document;
 use wdl_ast::Span;
+use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
@@ -163,7 +164,13 @@ impl Default for LintVisitor {
 impl Visitor for LintVisitor {
     type State = Diagnostics;
 
-    fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {
+    fn document(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        doc: &Document,
+        version: SupportedVersion,
+    ) {
         if reason == VisitReason::Enter {
             // Reset state for a new document
             self.global.clear();
@@ -184,7 +191,7 @@ impl Visitor for LintVisitor {
         // We don't need to check the exceptions here as the globally-disabled rules
         // were already removed.
         for (_, rule) in &mut self.rules {
-            rule.document(state, reason, doc);
+            rule.document(state, reason, doc, version);
         }
     }
 
@@ -330,6 +337,17 @@ impl Visitor for LintVisitor {
         });
     }
 
+    fn runtime_item(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        item: &v1::RuntimeItem,
+    ) {
+        self.each_enabled_rule(state, reason, item.syntax(), |state, rule| {
+            rule.runtime_item(state, reason, item)
+        });
+    }
+
     fn metadata_section(
         &mut self,
         state: &mut Self::State,
@@ -394,6 +412,17 @@ impl Visitor for LintVisitor {
 
             rule.string_text(state, text);
         }
+    }
+
+    fn placeholder(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        placeholder: &v1::Placeholder,
+    ) {
+        self.each_enabled_rule(state, reason, placeholder.syntax(), |state, rule| {
+            rule.placeholder(state, reason, placeholder)
+        });
     }
 
     fn conditional_statement(

@@ -1071,7 +1071,7 @@ impl AstToken for StringText {
 
 /// Represents a placeholder in a string or command.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Placeholder(SyntaxNode);
+pub struct Placeholder(pub(crate) SyntaxNode);
 
 impl Placeholder {
     /// Returns whether or not placeholder has a tilde (`~`) opening.
@@ -2077,6 +2077,7 @@ mod test {
 
     use super::*;
     use crate::Document;
+    use crate::SupportedVersion;
     use crate::VisitReason;
     use crate::Visitor;
 
@@ -2120,7 +2121,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
@@ -2276,7 +2284,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
@@ -2445,7 +2460,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
@@ -2549,7 +2571,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
@@ -2782,7 +2811,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
@@ -2980,7 +3016,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
@@ -3109,7 +3152,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
@@ -3240,7 +3290,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
@@ -3390,7 +3447,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
@@ -3491,7 +3555,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -3555,7 +3626,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Exit {
@@ -3636,7 +3714,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -3706,7 +3791,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -3783,7 +3875,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -3862,7 +3961,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -3926,7 +4032,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -3990,7 +4103,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4054,7 +4174,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4118,7 +4245,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4198,7 +4332,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4278,7 +4419,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4358,7 +4506,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4438,7 +4593,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4518,7 +4680,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4598,7 +4767,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4678,7 +4854,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4758,7 +4941,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4838,7 +5028,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -4918,7 +5115,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -5021,7 +5225,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -5112,7 +5323,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {
@@ -5187,7 +5405,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn expr(&mut self, _: &mut Self::State, reason: VisitReason, expr: &Expr) {
                 if reason == VisitReason::Enter {

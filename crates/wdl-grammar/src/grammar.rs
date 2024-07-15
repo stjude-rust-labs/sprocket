@@ -8,6 +8,7 @@ use super::tree::SyntaxKind;
 use super::Diagnostic;
 use super::Span;
 use crate::lexer::VersionStatementToken;
+use crate::SupportedVersion;
 
 pub mod v1;
 
@@ -79,9 +80,10 @@ pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Ve
                 Ok(span) => {
                     // A version statement was successfully parsed, check to see if the
                     // version is supported by this implementation
-                    let version: &str = &source[span.start()..span.end()];
-                    match version {
-                        "1.0" | "1.1" | "1.2" => {
+                    let version = &source[span.start()..span.end()];
+
+                    match version.parse::<SupportedVersion>() {
+                        Ok(_) => {
                             let mut parser = parser.morph();
                             v1::items(&mut parser);
                             root.complete(&mut parser, SyntaxKind::RootNode);

@@ -7,10 +7,11 @@ be out of sync with released packages.
 ## Lint Rules
 
 | Name                             | Tags                          | Description                                                                           |
-|:---------------------------------|:------------------------------|:--------------------------------------------------------------------------------------|
+| :------------------------------- | :---------------------------- | :------------------------------------------------------------------------------------ |
 | `CallInputSpacing`               | Style, Clarity, Spacing       | Ensures proper spacing for call inputs                                                |
 | `CommandSectionMixedIndentation` | Clarity, Correctness, Spacing | Ensures that lines within a command do not mix spaces and tabs.                       |
 | `DeprecatedObject`               | Deprecated                    | Ensures that the deprecated `Object` construct is not used.                           |
+| `DeprecatedPlaceholderOption`    | Deprecated                    | Ensures that the deprecated placeholder options construct is not used.                |
 | `DescriptionMissing`             | Completeness                  | Ensures that each meta section has a description key.                                 |
 | `DoubleQuotes`                   | Clarity, Style                | Ensures that strings are defined using double quotes.                                 |
 | `EndingNewline`                  | Spacing, Style                | Ensures that documents end with a single newline character.                           |
@@ -29,6 +30,7 @@ be out of sync with released packages.
 | `PascalCase`                     | Clarity, Naming, Style        | Ensures that structs are defined with PascalCase names.                               |
 | `PreambleComments`               | Clarity, Spacing, Style       | Ensures that documents have correct comments in the preamble.                         |
 | `PreambleWhitespace`             | Spacing, Style                | Ensures that documents have correct whitespace in the preamble.                       |
+| `RuntimeSectionKeys`             | Completeness, Deprecated      | Ensures that runtime sections have the appropriate keys.                              |
 | `SectionOrdering`                | Sorting, Style                | Ensures that sections within tasks and workflows are sorted.                          |
 | `SnakeCase`                      | Clarity, Naming, Style        | Ensures that tasks, workflows, and variables are defined with snake_case names.       |
 | `Whitespace`                     | Spacing, Style                | Ensures that a document does not contain undesired whitespace.                        |

@@ -6,6 +6,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
+use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 use wdl_ast::ToSpan;
@@ -63,7 +64,13 @@ impl Rule for ImportSortRule {
 impl Visitor for ImportSortRule {
     type State = Diagnostics;
 
-    fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {
+    fn document(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        doc: &Document,
+        _: SupportedVersion,
+    ) {
         if reason == VisitReason::Exit {
             return;
         }

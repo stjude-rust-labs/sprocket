@@ -550,9 +550,13 @@ impl AnalysisEngine {
     ) -> (GreenNode, Vec<Diagnostic>) {
         let start = Instant::now();
         let (document, mut diagnostics) = wdl_ast::Document::parse(source);
-        if let Some(validator) = validator {
-            diagnostics.extend(validator.validate(&document).err().unwrap_or_default());
+
+        if diagnostics.is_empty() {
+            if let Some(validator) = validator {
+                diagnostics.extend(validator.validate(&document).err().unwrap_or_default());
+            }
         }
+
         log::info!("parsing of `{id}` completed in {:?}", start.elapsed());
         (document.syntax().green().into(), diagnostics)
     }

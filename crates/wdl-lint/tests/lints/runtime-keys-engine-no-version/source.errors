@@ -1,0 +1,6 @@
+error: a WDL document must start with a version statement
+  ┌─ tests/lints/runtime-keys-engine-no-version/source.wdl:3:1
+  │
+3 │ task a_task_with_engine_hints {
+  │ ^ a version statement must come before this
+

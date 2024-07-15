@@ -1,5 +1,6 @@
 //! Definition of diagnostics displayed to users.
 
+use std::cmp::Ordering;
 use std::fmt;
 
 use rowan::TextRange;
@@ -56,7 +57,7 @@ impl From<logos::Span> for Span {
 }
 
 /// Represents the severity of a diagnostic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum Severity {
     /// The diagnostic is displayed as an error.
     Error,
@@ -67,7 +68,7 @@ pub enum Severity {
 }
 
 /// Represents a diagnostic to display to the user.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Diagnostic {
     /// The optional rule associated with the diagnostic.
     rule: Option<String>,
@@ -81,6 +82,38 @@ pub struct Diagnostic {
     ///
     /// The first label in the collection is considered the primary label.
     labels: Vec<Label>,
+}
+
+impl Ord for Diagnostic {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.labels.cmp(&other.labels) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        match self.rule.cmp(&other.rule) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        match self.severity.cmp(&other.severity) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        match self.message.cmp(&other.message) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        self.fix.cmp(&other.fix)
+    }
+}
+
+impl PartialOrd for Diagnostic {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl Diagnostic {
@@ -220,12 +253,29 @@ impl Diagnostic {
 }
 
 /// Represents a label that annotates the source code.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Label {
     /// The optional message of the label (may be empty).
     message: String,
     /// The span of the label.
     span: Span,
+}
+
+impl Ord for Label {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.span.cmp(&other.span) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        self.message.cmp(&other.message)
+    }
+}
+
+impl PartialOrd for Label {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl Label {

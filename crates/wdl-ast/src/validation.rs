@@ -1,13 +1,12 @@
 //! Validator for WDL documents.
 
-use std::cmp::Ordering;
-
 use super::v1;
 use super::Comment;
 use super::Diagnostic;
 use super::VisitReason;
 use super::Whitespace;
 use crate::Document;
+use crate::SupportedVersion;
 use crate::VersionStatement;
 use crate::Visitor;
 
@@ -85,15 +84,7 @@ impl Validator {
         if diagnostics.0.is_empty() {
             Ok(())
         } else {
-            // Sort the diagnostics by start of the primary label
-            diagnostics
-                .0
-                .sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
-                    (None, None) => Ordering::Equal,
-                    (None, Some(_)) => Ordering::Less,
-                    (Some(_), None) => Ordering::Greater,
-                    (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
-                });
+            diagnostics.0.sort();
             Err(diagnostics.0)
         }
     }
@@ -118,9 +109,15 @@ impl Default for Validator {
 impl Visitor for Validator {
     type State = Diagnostics;
 
-    fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {
+    fn document(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        doc: &Document,
+        version: SupportedVersion,
+    ) {
         for visitor in self.visitors.iter_mut() {
-            visitor.document(state, reason, doc);
+            visitor.document(state, reason, doc, version);
         }
     }
 
@@ -252,6 +249,17 @@ impl Visitor for Validator {
         }
     }
 
+    fn runtime_item(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        item: &v1::RuntimeItem,
+    ) {
+        for visitor in self.visitors.iter_mut() {
+            visitor.runtime_item(state, reason, item);
+        }
+    }
+
     fn metadata_section(
         &mut self,
         state: &mut Self::State,
@@ -311,6 +319,17 @@ impl Visitor for Validator {
     fn string_text(&mut self, state: &mut Self::State, text: &v1::StringText) {
         for visitor in self.visitors.iter_mut() {
             visitor.string_text(state, text);
+        }
+    }
+
+    fn placeholder(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        placeholder: &v1::Placeholder,
+    ) {
+        for visitor in self.visitors.iter_mut() {
+            visitor.placeholder(state, reason, placeholder);
         }
     }
 

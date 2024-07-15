@@ -764,6 +764,7 @@ impl AstNode for Decl {
 mod test {
     use super::*;
     use crate::Document;
+    use crate::SupportedVersion;
     use crate::VisitReason;
     use crate::Visitor;
 
@@ -893,7 +894,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn bound_decl(&mut self, _: &mut Self::State, reason: VisitReason, _: &BoundDecl) {
                 if reason == VisitReason::Enter {

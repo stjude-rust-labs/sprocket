@@ -1,4 +1,4 @@
-#@ except: SectionOrdering
+#@ except: RuntimeSectionKeys, SectionOrdering
 
 version 1.0
 

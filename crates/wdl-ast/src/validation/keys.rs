@@ -16,6 +16,7 @@ use crate::Diagnostics;
 use crate::Document;
 use crate::Ident;
 use crate::Span;
+use crate::SupportedVersion;
 use crate::VisitReason;
 use crate::Visitor;
 
@@ -122,7 +123,13 @@ pub struct UniqueKeysVisitor(HashMap<String, Span>);
 impl Visitor for UniqueKeysVisitor {
     type State = Diagnostics;
 
-    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+    fn document(
+        &mut self,
+        _: &mut Self::State,
+        reason: VisitReason,
+        _: &Document,
+        _: SupportedVersion,
+    ) {
         if reason == VisitReason::Exit {
             return;
         }

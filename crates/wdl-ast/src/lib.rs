@@ -42,10 +42,12 @@ pub use rowan::ast::support;
 pub use rowan::ast::AstChildren;
 pub use rowan::ast::AstNode;
 pub use rowan::Direction;
+pub use wdl_grammar::version;
 pub use wdl_grammar::Diagnostic;
 pub use wdl_grammar::Label;
 pub use wdl_grammar::Severity;
 pub use wdl_grammar::Span;
+pub use wdl_grammar::SupportedVersion;
 pub use wdl_grammar::SyntaxElement;
 pub use wdl_grammar::SyntaxKind;
 pub use wdl_grammar::SyntaxNode;
@@ -210,15 +212,8 @@ impl Document {
     pub fn ast(&self) -> Ast {
         self.version_statement()
             .as_ref()
-            .map(|s| {
-                let v = s.version();
-                match v.as_str() {
-                    "1.0" | "1.1" | "1.2" => {
-                        Ast::V1(v1::Ast::cast(self.0.clone()).expect("root should cast"))
-                    }
-                    _ => Ast::Unsupported,
-                }
-            })
+            .and_then(|s| s.version().as_str().parse::<SupportedVersion>().ok())
+            .map(|_| Ast::V1(v1::Ast::cast(self.0.clone()).expect("root should cast")))
             .unwrap_or(Ast::Unsupported)
     }
 

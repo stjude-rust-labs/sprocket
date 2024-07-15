@@ -1,4 +1,4 @@
-#@ except: DeprecatedObject, DescriptionMissing, SectionOrdering
+#@ except: DeprecatedObject, DescriptionMissing, SectionOrdering, RuntimeSectionKeys
 
 version 1.1
 

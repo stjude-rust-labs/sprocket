@@ -7,8 +7,8 @@ error: an unterminated string was encountered
 error: expected `}`, but found end of input
    ┌─ tests/parsing/unterminated-metadata-string/source.wdl:10:1
    │
- 6 │     meta {
-   │          - this `{` is not matched
+ 5 │ task test {
+   │           - this `{` is not matched
    ·
 10 │ 
    │ ^ unexpected end of input
@@ -16,8 +16,8 @@ error: expected `}`, but found end of input
 error: expected `}`, but found end of input
    ┌─ tests/parsing/unterminated-metadata-string/source.wdl:10:1
    │
- 5 │ task test {
-   │           - this `{` is not matched
+ 6 │     meta {
+   │          - this `{` is not matched
    ·
 10 │ 
    │ ^ unexpected end of input

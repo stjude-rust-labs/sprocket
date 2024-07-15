@@ -6,6 +6,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
+use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -66,7 +67,13 @@ impl Rule for EndingNewlineRule {
 impl Visitor for EndingNewlineRule {
     type State = Diagnostics;
 
-    fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {
+    fn document(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        doc: &Document,
+        _: SupportedVersion,
+    ) {
         if reason == VisitReason::Enter {
             // We only process on exit so that it's one of the last diagnostics emitted
             // Reset the visitor upon document entry

@@ -58,6 +58,7 @@ mod test {
     use crate::v1::StructDefinition;
     use crate::AstToken;
     use crate::Document;
+    use crate::SupportedVersion;
     use crate::VisitReason;
     use crate::Visitor;
 
@@ -225,7 +226,14 @@ struct ComplexTypes {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn struct_definition(
                 &mut self,

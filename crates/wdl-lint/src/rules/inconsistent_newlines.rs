@@ -4,6 +4,7 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Span;
+use wdl_ast::SupportedVersion;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::Whitespace;
@@ -56,7 +57,13 @@ impl Rule for InconsistentNewlinesRule {
 impl Visitor for InconsistentNewlinesRule {
     type State = Diagnostics;
 
-    fn document(&mut self, state: &mut Self::State, reason: VisitReason, _doc: &wdl_ast::Document) {
+    fn document(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        _doc: &wdl_ast::Document,
+        _: SupportedVersion,
+    ) {
         if reason == VisitReason::Enter {
             // We only process on exit so that it's one of the last diagnostics emitted
             // Reset the visitor upon document entry

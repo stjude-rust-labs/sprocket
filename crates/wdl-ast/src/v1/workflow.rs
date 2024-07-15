@@ -567,6 +567,7 @@ mod test {
     use super::*;
     use crate::v1::UnboundDecl;
     use crate::Document;
+    use crate::SupportedVersion;
     use crate::VisitReason;
     use crate::Visitor;
 
@@ -908,7 +909,14 @@ workflow test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn workflow_definition(
                 &mut self,

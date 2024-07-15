@@ -1,0 +1,48 @@
+warning[DeprecatedPlaceholderOption]: use of the deprecated `sep` placeholder option
+   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:10:32
+   │
+10 │     String bad_sep_option = "~{sep="," numbers}"
+   │                                ^^^^^^^
+   │
+   = fix: replace the `sep` placeholder option with a call to the `sep()` standard library function
+
+warning[DeprecatedPlaceholderOption]: use of the deprecated `true`/`false` placeholder option
+   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:11:39
+   │
+11 │     String bad_true_false_option = "~{true="--enable-foo" false="" allow_foo}"
+   │                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: replace the `true`/`false` placeholder option with an `if`/`else` expression
+
+warning[DeprecatedPlaceholderOption]: use of the deprecated `default` placeholder option
+   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:12:36
+   │
+12 │     String bad_default_option = "~{default="false" bar}"
+   │                                    ^^^^^^^^^^^^^^^
+   │
+   = fix: replace the `default` placeholder option with a call to the `select_first()` standard library function
+
+warning[DeprecatedPlaceholderOption]: use of the deprecated `sep` placeholder option
+   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:15:28
+   │
+15 │         python script.py ~{sep=" " numbers}
+   │                            ^^^^^^^
+   │
+   = fix: replace the `sep` placeholder option with a call to the `sep()` standard library function
+
+warning[DeprecatedPlaceholderOption]: use of the deprecated `true`/`false` placeholder option
+   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:16:27
+   │
+16 │         example-command ~{true="--enable-foo" false="" allow_foo}
+   │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: replace the `true`/`false` placeholder option with an `if`/`else` expression
+
+warning[DeprecatedPlaceholderOption]: use of the deprecated `default` placeholder option
+   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:17:27
+   │
+17 │         another-command ~{default="foobar" bar}
+   │                           ^^^^^^^^^^^^^^^^
+   │
+   = fix: replace the `default` placeholder option with a call to the `select_first()` standard library function
+

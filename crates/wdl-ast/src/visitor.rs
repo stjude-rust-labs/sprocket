@@ -35,7 +35,9 @@ use crate::v1::MetadataObject;
 use crate::v1::MetadataSection;
 use crate::v1::OutputSection;
 use crate::v1::ParameterMetadataSection;
+use crate::v1::Placeholder;
 use crate::v1::RequirementsSection;
+use crate::v1::RuntimeItem;
 use crate::v1::RuntimeSection;
 use crate::v1::ScatterStatement;
 use crate::v1::StringText;
@@ -44,8 +46,10 @@ use crate::v1::TaskDefinition;
 use crate::v1::UnboundDecl;
 use crate::v1::WorkflowDefinition;
 use crate::AstNode;
+use crate::AstToken as _;
 use crate::Comment;
 use crate::Document;
+use crate::SupportedVersion;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::VersionStatement;
@@ -67,7 +71,13 @@ pub trait Visitor: Send + Sync {
     /// A visitor must implement this method and response to
     /// `VisitReason::Enter` with resetting any internal state so that a visitor
     /// may be reused between documents.
-    fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document);
+    fn document(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        doc: &Document,
+        version: SupportedVersion,
+    );
 
     /// Visits a whitespace token.
     fn whitespace(&mut self, state: &mut Self::State, whitespace: &Whitespace) {}
@@ -168,6 +178,9 @@ pub trait Visitor: Send + Sync {
     ) {
     }
 
+    /// Visits a runtime item node.
+    fn runtime_item(&mut self, state: &mut Self::State, reason: VisitReason, item: &RuntimeItem) {}
+
     /// Visits a metadata section node.
     fn metadata_section(
         &mut self,
@@ -206,6 +219,15 @@ pub trait Visitor: Send + Sync {
 
     /// Visits a string text token in a literal string node.
     fn string_text(&mut self, state: &mut Self::State, text: &StringText) {}
+
+    /// Visits a placeholder node.
+    fn placeholder(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        placeholder: &Placeholder,
+    ) {
+    }
 
     /// Visits a conditional statement node in a workflow.
     fn conditional_statement(
@@ -246,7 +268,14 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
 
         match element.kind() {
             SyntaxKind::RootNode => {
-                visitor.document(state, reason, &Document(element.into_node().unwrap()))
+                let document = Document(element.into_node().unwrap());
+
+                let version = document
+                    .version_statement()
+                    .and_then(|s| s.version().as_str().parse::<SupportedVersion>().ok())
+                    .expect("only WDL documents with supported versions can be visited");
+
+                visitor.document(state, reason, &document, version)
             }
             SyntaxKind::VersionStatementNode => visitor.version_statement(
                 state,
@@ -315,7 +344,7 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
                 &RuntimeSection(element.into_node().unwrap()),
             ),
             SyntaxKind::RuntimeItemNode => {
-                // Skip this node as it's part of a runtime section
+                visitor.runtime_item(state, reason, &RuntimeItem(element.into_node().unwrap()))
             }
             SyntaxKind::MetadataSectionNode => visitor.metadata_section(
                 state,
@@ -380,8 +409,10 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
             | SyntaxKind::AccessExprNode) => {
                 unreachable!("`{k:?}` should be handled by `Expr::can_cast`")
             }
-            SyntaxKind::PlaceholderNode
-            | SyntaxKind::PlaceholderSepOptionNode
+            SyntaxKind::PlaceholderNode => {
+                visitor.placeholder(state, reason, &Placeholder(element.into_node().unwrap()))
+            }
+            SyntaxKind::PlaceholderSepOptionNode
             | SyntaxKind::PlaceholderDefaultOptionNode
             | SyntaxKind::PlaceholderTrueFalseOptionNode => {
                 // Skip these nodes as they're part of a placeholder

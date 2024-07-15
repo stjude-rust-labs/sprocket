@@ -110,7 +110,7 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
         // Attempt to strip the CWD from the result path
         let path: Cow<'_, str> = match &path {
             // Strip the CWD from the path
-            Some(path) => path.strip_prefix(&cwd).unwrap_or(&path).to_string_lossy(),
+            Some(path) => path.strip_prefix(&cwd).unwrap_or(path).to_string_lossy(),
             // Use the id itself if there is no path
             None => result.id().to_str(),
         };

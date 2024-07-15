@@ -24,6 +24,7 @@ use crate::Diagnostics;
 use crate::Document;
 use crate::Ident;
 use crate::Span;
+use crate::SupportedVersion;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::ToSpan;
@@ -209,7 +210,13 @@ impl CountingVisitor {
 impl Visitor for CountingVisitor {
     type State = Diagnostics;
 
-    fn document(&mut self, state: &mut Self::State, reason: VisitReason, doc: &Document) {
+    fn document(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        doc: &Document,
+        _: SupportedVersion,
+    ) {
         if reason == VisitReason::Enter {
             // Upon entry of of a document, reset the visitor entirely.
             *self = Default::default();

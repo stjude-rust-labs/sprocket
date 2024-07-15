@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, SectionOrdering
+#@ except: DescriptionMissing, SectionOrdering, RuntimeSectionKeys
 
 version 1.1
 

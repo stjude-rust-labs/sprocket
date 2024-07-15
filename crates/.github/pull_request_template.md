@@ -28,6 +28,11 @@ Rule specific checks:
 - [ ] You have added a test case in `wdl-lint/tests/lints` that covers every
       possible diagnostic emitted for the rule within the file where the rule
       is implemented.
+- [ ] If you have implemented a new `Visitor` callback, you have also
+      overridden that callback method for the special `Validator`
+      (`wdl-ast/src/validation.rs`) and `LintVisitor`
+      (`wdl-lint/src/visitor.rs`) visitors. These are required to ensure the new
+      visitor callback will execute.
 - [ ] You have run `wdl-gauntlet --refresh` to ensure that there are no 
       unintended changes to the baseline configuration file (`Gauntlet.toml`).
 - [ ] You have run `wdl-gauntlet --refresh --arena` to ensure that all of the 

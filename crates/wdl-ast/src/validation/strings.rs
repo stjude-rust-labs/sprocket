@@ -9,6 +9,7 @@ use crate::Diagnostic;
 use crate::Diagnostics;
 use crate::Document;
 use crate::Span;
+use crate::SupportedVersion;
 use crate::VisitReason;
 use crate::Visitor;
 
@@ -123,7 +124,13 @@ pub struct LiteralTextVisitor;
 impl Visitor for LiteralTextVisitor {
     type State = Diagnostics;
 
-    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+    fn document(
+        &mut self,
+        _: &mut Self::State,
+        reason: VisitReason,
+        _: &Document,
+        _: SupportedVersion,
+    ) {
         if reason == VisitReason::Exit {
             return;
         }

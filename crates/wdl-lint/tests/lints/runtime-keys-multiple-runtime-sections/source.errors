@@ -1,0 +1,33 @@
+note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL v1.1 specification: `container`
+   ┌─ tests/lints/runtime-keys-multiple-runtime-sections/source.wdl:11:5
+   │  
+11 │ ╭     runtime {
+12 │ │         foo: "bar" # these items should be processed and flagged.
+13 │ │         baz: "quux"
+14 │ │     }
+   │ ╰─────^
+   │  
+   = fix: include an entry for the `container` key in the `runtime` section
+
+warning[RuntimeSectionKeys]: the following runtime keys are not reserved in the WDL v1.1 specification: `baz` and `foo`; therefore, their inclusion in the `runtime` section is deprecated
+   ┌─ tests/lints/runtime-keys-multiple-runtime-sections/source.wdl:11:5
+   │  
+11 │ ╭     runtime {
+12 │ │         foo: "bar" # these items should be processed and flagged.
+   │ │         --- the `foo` key should be removed
+13 │ │         baz: "quux"
+   │ │         --- the `baz` key should be removed
+14 │ │     }
+   │ ╰─────^
+   │  
+   = fix: if reserved key names were intended, correct the spelling of each key; otherwise, remove the `baz` and `foo` keys
+
+error: task `a_task_with_multiple_runtimes` contains a duplicate runtime section
+   ┌─ tests/lints/runtime-keys-multiple-runtime-sections/source.wdl:18:5
+   │
+11 │     runtime {
+   │     ------- first runtime section is defined here
+   ·
+18 │     runtime {
+   │     ^^^^^^^ this runtime section is a duplicate
+

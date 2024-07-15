@@ -1,11 +1,3 @@
-note[PreambleWhitespace]: unnecessary whitespace in document preamble
-  ┌─ tests/lints/preamble-ws/source.wdl:3:1
-  │
-3 │         version 1.1
-  │ ^^^^^^^^
-  │
-  = fix: remove the unnecessary whitespace
-
 note[PreambleWhitespace]: expected a blank line before the version statement
   ┌─ tests/lints/preamble-ws/source.wdl:3:1
   │
@@ -13,4 +5,12 @@ note[PreambleWhitespace]: expected a blank line before the version statement
   │ ^
   │
   = fix: add a blank line between the last preamble comment and the version statement
+
+note[PreambleWhitespace]: unnecessary whitespace in document preamble
+  ┌─ tests/lints/preamble-ws/source.wdl:3:1
+  │
+3 │         version 1.1
+  │ ^^^^^^^^
+  │
+  = fix: remove the unnecessary whitespace
 

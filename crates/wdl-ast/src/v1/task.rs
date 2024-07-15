@@ -592,7 +592,7 @@ impl AstNode for RuntimeSection {
 
 /// Represents an item in a runtime section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RuntimeItem(SyntaxNode);
+pub struct RuntimeItem(pub(crate) SyntaxNode);
 
 impl RuntimeItem {
     /// Gets the name of the runtime item.
@@ -1015,6 +1015,7 @@ mod test {
     use super::*;
     use crate::v1::UnboundDecl;
     use crate::Document;
+    use crate::SupportedVersion;
     use crate::VisitReason;
     use crate::Visitor;
 
@@ -1242,7 +1243,14 @@ task test {
         impl Visitor for MyVisitor {
             type State = ();
 
-            fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+            fn document(
+                &mut self,
+                _: &mut Self::State,
+                _: VisitReason,
+                _: &Document,
+                _: SupportedVersion,
+            ) {
+            }
 
             fn task_definition(
                 &mut self,

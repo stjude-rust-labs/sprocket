@@ -163,6 +163,7 @@ mod test {
     use super::*;
     use crate::Ast;
     use crate::Document;
+    use crate::SupportedVersion;
     use crate::VisitReason;
     use crate::Visitor;
 
@@ -232,7 +233,14 @@ import "qux.wdl" as x alias A as B alias C as D
                 impl Visitor for MyVisitor {
                     type State = ();
 
-                    fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document) {}
+                    fn document(
+                        &mut self,
+                        _: &mut Self::State,
+                        _: VisitReason,
+                        _: &Document,
+                        _: SupportedVersion,
+                    ) {
+                    }
 
                     fn import_statement(
                         &mut self,

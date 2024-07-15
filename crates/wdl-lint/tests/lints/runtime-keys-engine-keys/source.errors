@@ -1,0 +1,17 @@
+warning[RuntimeSectionKeys]: the following runtime keys are not reserved in the WDL v1.1 specification: `cromwell` and `miniwdl`; therefore, their inclusion in the `runtime` section is deprecated
+   ┌─ tests/lints/runtime-keys-engine-keys/source.wdl:9:5
+   │  
+ 9 │ ╭     runtime {
+10 │ │         container: "ubuntu"
+11 │ │         cpu: 1
+12 │ │         disks: []
+   · │
+17 │ │         cromwell: {}
+   │ │         -------- the `cromwell` key should be removed
+18 │ │         miniwdl: {}
+   │ │         ------- the `miniwdl` key should be removed
+19 │ │     }
+   │ ╰─────^
+   │  
+   = fix: if reserved key names were intended, correct the spelling of each key; otherwise, remove the `cromwell` and `miniwdl` keys
+

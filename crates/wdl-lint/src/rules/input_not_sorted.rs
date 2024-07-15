@@ -11,6 +11,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
+use wdl_ast::SupportedVersion;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -214,7 +215,13 @@ impl Rule for InputNotSortedRule {
 impl Visitor for InputNotSortedRule {
     type State = Diagnostics;
 
-    fn document(&mut self, _: &mut Self::State, reason: VisitReason, _: &Document) {
+    fn document(
+        &mut self,
+        _: &mut Self::State,
+        reason: VisitReason,
+        _: &Document,
+        _: SupportedVersion,
+    ) {
         if reason == VisitReason::Exit {
             return;
         }
