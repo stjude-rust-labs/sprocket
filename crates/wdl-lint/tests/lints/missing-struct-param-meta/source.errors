@@ -1,0 +1,8 @@
+note[MissingMetas]: struct `Test` is missing a `parameter_meta` section
+  ┌─ tests/lints/missing-struct-param-meta/source.wdl:5:8
+  │
+5 │ struct Test {
+  │        ^^^^ this struct is missing a `parameter_meta` section
+  │
+  = fix: add a `parameter_meta` section to the struct
+

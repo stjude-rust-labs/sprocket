@@ -16,3 +16,12 @@ error: workflow `w` contains a duplicate metadata section
 22 │     meta {
    │     ^^^^ this metadata section is a duplicate
 
+error: struct `X` contains a duplicate metadata section
+   ┌─ tests/validation/duplicate-meta/source.wdl:34:5
+   │
+30 │     meta {
+   │     ---- first metadata section is defined here
+   ·
+34 │     meta {
+   │     ^^^^ this metadata section is a duplicate
+

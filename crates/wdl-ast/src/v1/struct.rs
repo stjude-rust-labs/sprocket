@@ -1,5 +1,7 @@
 //! V1 AST representation for struct definitions.
 
+use super::MetadataSection;
+use super::ParameterMetadataSection;
 use super::UnboundDecl;
 use crate::support::children;
 use crate::token;
@@ -20,8 +22,23 @@ impl StructDefinition {
         token(&self.0).expect("struct should have a name")
     }
 
-    /// Gets the members of the struct.
+    /// Gets the items in the struct definition.
+    pub fn items(&self) -> AstChildren<StructItem> {
+        children(&self.0)
+    }
+
+    /// Gets the member declarations of the struct.
     pub fn members(&self) -> AstChildren<UnboundDecl> {
+        children(&self.0)
+    }
+
+    /// Gets the metadata sections of the struct.
+    pub fn metadata(&self) -> AstChildren<MetadataSection> {
+        children(&self.0)
+    }
+
+    /// Gets the parameter metadata sections of the struct.
+    pub fn parameter_metadata(&self) -> AstChildren<ParameterMetadataSection> {
         children(&self.0)
     }
 }
@@ -48,6 +65,55 @@ impl AstNode for StructDefinition {
 
     fn syntax(&self) -> &SyntaxNode {
         &self.0
+    }
+}
+
+/// Represents an item in a struct definition.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum StructItem {
+    /// The item is a member declaration.
+    Member(UnboundDecl),
+    /// The item is a metadata section.
+    Metadata(MetadataSection),
+    /// The item is a parameter meta section.
+    ParameterMetadata(ParameterMetadataSection),
+}
+
+impl AstNode for StructItem {
+    type Language = WorkflowDescriptionLanguage;
+
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        matches!(
+            kind,
+            SyntaxKind::UnboundDeclNode
+                | SyntaxKind::MetadataSectionNode
+                | SyntaxKind::ParameterMetadataSectionNode
+        )
+    }
+
+    fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::UnboundDeclNode => Some(Self::Member(UnboundDecl(syntax))),
+            SyntaxKind::MetadataSectionNode => Some(Self::Metadata(MetadataSection(syntax))),
+            SyntaxKind::ParameterMetadataSectionNode => {
+                Some(Self::ParameterMetadata(ParameterMetadataSection(syntax)))
+            }
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        match self {
+            Self::Member(m) => &m.0,
+            Self::Metadata(m) => &m.0,
+            Self::ParameterMetadata(m) => &m.0,
+        }
     }
 }
 
@@ -83,6 +149,14 @@ struct PrimitiveTypes {
     File? j
     Directory k
     Directory? l
+
+    meta {
+        ok: "good"
+    }
+
+    parameter_meta {
+        a: "foo"
+    }
 }
 
 struct ComplexTypes {
@@ -97,6 +171,14 @@ struct ComplexTypes {
     MyType i
     MyType? j
     Array[Directory] k
+
+    meta {
+        ok: "good"
+    }
+
+    parameter_meta {
+        a: "foo"
+    }
 }            
 "#,
         );

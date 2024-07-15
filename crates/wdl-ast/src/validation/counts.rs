@@ -12,9 +12,9 @@ use crate::v1::OutputSection;
 use crate::v1::ParameterMetadataSection;
 use crate::v1::RequirementsSection;
 use crate::v1::RuntimeSection;
+use crate::v1::SectionParent;
 use crate::v1::StructDefinition;
 use crate::v1::TaskDefinition;
-use crate::v1::TaskOrWorkflow;
 use crate::v1::WorkflowDefinition;
 use crate::Ast;
 use crate::AstNode;
@@ -97,15 +97,16 @@ fn keyword(node: &SyntaxNode, section: Section) -> SyntaxToken {
 
 /// Creates a "duplicate section" diagnostic
 fn duplicate_section(
-    parent: TaskOrWorkflow,
+    parent: SectionParent,
     section: Section,
     first: Span,
     duplicate: &SyntaxNode,
 ) -> Diagnostic {
     let token = keyword(duplicate, section);
     let (context, name) = match parent {
-        TaskOrWorkflow::Task(t) => ("task", t.name()),
-        TaskOrWorkflow::Workflow(w) => ("workflow", w.name()),
+        SectionParent::Task(t) => ("task", t.name()),
+        SectionParent::Workflow(w) => ("workflow", w.name()),
+        SectionParent::Struct(w) => ("struct", w.name()),
     };
 
     Diagnostic::error(format!(
@@ -121,7 +122,7 @@ fn duplicate_section(
 
 /// Creates the "conflicting section" diagnostic
 fn conflicting_section(
-    parent: TaskOrWorkflow,
+    parent: SectionParent,
     section: Section,
     conflicting: &SyntaxNode,
     first_span: Span,
@@ -129,8 +130,9 @@ fn conflicting_section(
 ) -> Diagnostic {
     let token = keyword(conflicting, section);
     let (context, name) = match parent {
-        TaskOrWorkflow::Task(t) => ("task", t.name()),
-        TaskOrWorkflow::Workflow(w) => ("workflow", w.name()),
+        SectionParent::Task(t) => ("task", t.name()),
+        SectionParent::Workflow(w) => ("workflow", w.name()),
+        SectionParent::Struct(w) => ("struct", w.name()),
     };
 
     Diagnostic::error(format!(
@@ -187,10 +189,10 @@ pub struct CountingVisitor {
     requirements: Option<Span>,
     /// The span of the first runtime section in the task.
     runtime: Option<Span>,
-    /// The span of the first metadata section in the task or workflow.
+    /// The span of the first metadata section in the task, workflow, or struct.
     metadata: Option<Span>,
-    /// The span of the first parameter metadata section in the task or
-    /// workflow.
+    /// The span of the first parameter metadata section in the task, workflow,
+    /// or struct.
     param_metadata: Option<Span>,
 }
 
@@ -272,6 +274,7 @@ impl Visitor for CountingVisitor {
         def: &StructDefinition,
     ) {
         if reason == VisitReason::Exit {
+            self.reset();
             return;
         }
 
@@ -279,7 +282,7 @@ impl Visitor for CountingVisitor {
             state.add(empty_struct(def.name()));
         }
 
-        self.has_task = true;
+        self.has_struct = true;
     }
 
     fn command_section(
@@ -294,7 +297,7 @@ impl Visitor for CountingVisitor {
 
         if let Some(command) = self.command {
             state.add(duplicate_section(
-                TaskOrWorkflow::Task(section.parent()),
+                section.parent(),
                 Section::Command,
                 command,
                 section.syntax(),
@@ -369,7 +372,7 @@ impl Visitor for CountingVisitor {
 
         if let Some(requirements) = self.requirements {
             state.add(duplicate_section(
-                TaskOrWorkflow::Task(section.parent()),
+                section.parent(),
                 Section::Requirements,
                 requirements,
                 section.syntax(),
@@ -379,7 +382,7 @@ impl Visitor for CountingVisitor {
 
         if let Some(runtime) = self.runtime {
             state.add(conflicting_section(
-                TaskOrWorkflow::Task(section.parent()),
+                section.parent(),
                 Section::Requirements,
                 section.syntax(),
                 runtime,
@@ -405,7 +408,7 @@ impl Visitor for CountingVisitor {
 
         if let Some(runtime) = self.runtime {
             state.add(duplicate_section(
-                TaskOrWorkflow::Task(section.parent()),
+                section.parent(),
                 Section::Runtime,
                 runtime,
                 section.syntax(),
@@ -415,7 +418,7 @@ impl Visitor for CountingVisitor {
 
         if let Some(requirements) = self.requirements {
             state.add(conflicting_section(
-                TaskOrWorkflow::Task(section.parent()),
+                section.parent(),
                 Section::Runtime,
                 section.syntax(),
                 requirements,

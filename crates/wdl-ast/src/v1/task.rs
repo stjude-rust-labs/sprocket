@@ -8,6 +8,7 @@ use super::LiteralFloat;
 use super::LiteralInteger;
 use super::LiteralString;
 use super::Placeholder;
+use super::StructDefinition;
 use super::WorkflowDefinition;
 use crate::support;
 use crate::support::child;
@@ -190,16 +191,27 @@ impl AstNode for TaskItem {
     }
 }
 
-/// Represents either a task or a workflow.
+/// Represents the parent of a section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum TaskOrWorkflow {
-    /// The item is a task.
+pub enum SectionParent {
+    /// The parent is a task.
     Task(TaskDefinition),
-    /// The item is a workflow.
+    /// The parent is a workflow.
     Workflow(WorkflowDefinition),
+    /// The parent is a struct.
+    Struct(StructDefinition),
 }
 
-impl TaskOrWorkflow {
+impl SectionParent {
+    /// Gets the name of the section parent.
+    pub fn name(&self) -> Ident {
+        match self {
+            Self::Task(t) => t.name(),
+            Self::Workflow(w) => w.name(),
+            Self::Struct(s) => s.name(),
+        }
+    }
+
     /// Unwraps to a task definition.
     ///
     /// # Panics
@@ -223,9 +235,21 @@ impl TaskOrWorkflow {
             _ => panic!("not a workflow definition"),
         }
     }
+
+    /// Unwraps to a struct definition.
+    ///
+    /// # Panics
+    ///
+    /// Panics if it is not a struct definition.
+    pub fn unwrap_struct(self) -> StructDefinition {
+        match self {
+            Self::Struct(def) => def,
+            _ => panic!("not a struct definition"),
+        }
+    }
 }
 
-impl AstNode for TaskOrWorkflow {
+impl AstNode for SectionParent {
     type Language = WorkflowDescriptionLanguage;
 
     fn can_cast(kind: SyntaxKind) -> bool
@@ -234,7 +258,9 @@ impl AstNode for TaskOrWorkflow {
     {
         matches!(
             kind,
-            SyntaxKind::TaskDefinitionNode | SyntaxKind::WorkflowDefinitionNode
+            SyntaxKind::TaskDefinitionNode
+                | SyntaxKind::WorkflowDefinitionNode
+                | SyntaxKind::StructDefinitionNode
         )
     }
 
@@ -245,6 +271,7 @@ impl AstNode for TaskOrWorkflow {
         match node.kind() {
             SyntaxKind::TaskDefinitionNode => Some(Self::Task(TaskDefinition(node))),
             SyntaxKind::WorkflowDefinitionNode => Some(Self::Workflow(WorkflowDefinition(node))),
+            SyntaxKind::StructDefinitionNode => Some(Self::Struct(StructDefinition(node))),
             _ => None,
         }
     }
@@ -253,6 +280,7 @@ impl AstNode for TaskOrWorkflow {
         match self {
             Self::Task(t) => &t.0,
             Self::Workflow(w) => &w.0,
+            Self::Struct(s) => &s.0,
         }
     }
 }
@@ -268,8 +296,8 @@ impl InputSection {
     }
 
     /// Gets the parent of the input section.
-    pub fn parent(&self) -> TaskOrWorkflow {
-        TaskOrWorkflow::cast(self.0.parent().expect("should have a parent"))
+    pub fn parent(&self) -> SectionParent {
+        SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
 }
@@ -310,8 +338,8 @@ impl OutputSection {
     }
 
     /// Gets the parent of the output section.
-    pub fn parent(&self) -> TaskOrWorkflow {
-        TaskOrWorkflow::cast(self.0.parent().expect("should have a parent"))
+    pub fn parent(&self) -> SectionParent {
+        SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
 }
@@ -374,8 +402,8 @@ impl CommandSection {
     }
 
     /// Gets the parent of the command section.
-    pub fn parent(&self) -> TaskDefinition {
-        TaskDefinition::cast(self.0.parent().expect("should have a parent"))
+    pub fn parent(&self) -> SectionParent {
+        SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
 }
@@ -486,8 +514,8 @@ impl RequirementsSection {
     }
 
     /// Gets the parent of the requirements section.
-    pub fn parent(&self) -> TaskDefinition {
-        TaskDefinition::cast(self.0.parent().expect("should have a parent"))
+    pub fn parent(&self) -> SectionParent {
+        SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
 }
@@ -569,8 +597,8 @@ impl HintsSection {
     }
 
     /// Gets the parent of the hints section.
-    pub fn parent(&self) -> TaskOrWorkflow {
-        TaskOrWorkflow::cast(self.0.parent().expect("should have a parent"))
+    pub fn parent(&self) -> SectionParent {
+        SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
 }
@@ -652,8 +680,8 @@ impl RuntimeSection {
     }
 
     /// Gets the parent of the runtime section.
-    pub fn parent(&self) -> TaskDefinition {
-        TaskDefinition::cast(self.0.parent().expect("should have a parent"))
+    pub fn parent(&self) -> SectionParent {
+        SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
 }
@@ -735,8 +763,8 @@ impl MetadataSection {
     }
 
     /// Gets the parent of the metadata section.
-    pub fn parent(&self) -> TaskOrWorkflow {
-        TaskOrWorkflow::cast(self.0.parent().expect("should have a parent"))
+    pub fn parent(&self) -> SectionParent {
+        SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
 }
@@ -1072,8 +1100,8 @@ impl ParameterMetadataSection {
     }
 
     /// Gets the parent of the parameter metadata section.
-    pub fn parent(&self) -> TaskOrWorkflow {
-        TaskOrWorkflow::cast(self.0.parent().expect("should have a parent"))
+    pub fn parent(&self) -> SectionParent {
+        SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
 }

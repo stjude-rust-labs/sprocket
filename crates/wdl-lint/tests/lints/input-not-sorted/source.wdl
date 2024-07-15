@@ -2,6 +2,7 @@
 
 version 1.2
 
+#@ except: MissingMetas
 struct Mystruct {
     String a
     Int b

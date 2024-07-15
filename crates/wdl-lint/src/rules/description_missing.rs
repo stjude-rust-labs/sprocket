@@ -1,7 +1,8 @@
 //! A lint rule to ensure a description is included in `meta` sections.
 
 use wdl_ast::v1::MetadataSection;
-use wdl_ast::v1::TaskOrWorkflow;
+use wdl_ast::v1::SectionParent;
+use wdl_ast::version::V1;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -21,21 +22,30 @@ use crate::TagSet;
 const ID: &str = "DescriptionMissing";
 
 /// Creates a description missing diagnostic.
-fn description_missing(span: Span, context: TaskOrWorkflow) -> Diagnostic {
-    let (ty, name) = match context {
-        TaskOrWorkflow::Task(t) => ("task", t.name().as_str().to_string()),
-        TaskOrWorkflow::Workflow(w) => ("workflow", w.name().as_str().to_string()),
+fn description_missing(span: Span, parent: SectionParent) -> Diagnostic {
+    let (ty, name) = match parent {
+        SectionParent::Task(t) => ("task", t.name()),
+        SectionParent::Workflow(w) => ("workflow", w.name()),
+        SectionParent::Struct(s) => ("struct", s.name()),
     };
 
-    Diagnostic::note(format!("{ty} `{name}` is missing a description key"))
-        .with_rule(ID)
-        .with_highlight(span)
-        .with_fix("add a `description` key to this meta section")
+    Diagnostic::note(format!(
+        "{ty} `{name}` is missing a description key",
+        name = name.as_str()
+    ))
+    .with_rule(ID)
+    .with_highlight(span)
+    .with_fix("add a `description` key to this meta section")
 }
 
 /// Detects unsorted input declarations.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct DescriptionMissingRule;
+pub struct DescriptionMissingRule {
+    /// The version of the WDL document being linted.
+    version: Option<SupportedVersion>,
+    /// Whether or not we're currently in a struct definition.
+    in_struct: bool,
+}
 
 impl Rule for DescriptionMissingRule {
     fn id(&self) -> &'static str {
@@ -66,7 +76,7 @@ impl Visitor for DescriptionMissingRule {
         _: &mut Self::State,
         reason: VisitReason,
         _: &Document,
-        _: SupportedVersion,
+        version: SupportedVersion,
     ) {
         if reason == VisitReason::Exit {
             return;
@@ -74,6 +84,16 @@ impl Visitor for DescriptionMissingRule {
 
         // Reset the visitor upon document entry
         *self = Default::default();
+        self.version = Some(version);
+    }
+
+    fn struct_definition(
+        &mut self,
+        _: &mut Self::State,
+        reason: VisitReason,
+        _: &wdl_ast::v1::StructDefinition,
+    ) {
+        self.in_struct = reason == VisitReason::Enter;
     }
 
     fn metadata_section(
@@ -83,6 +103,13 @@ impl Visitor for DescriptionMissingRule {
         section: &MetadataSection,
     ) {
         if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Only check struct definitions for WDL >=1.2
+        if self.in_struct
+            && self.version.expect("should have version") < SupportedVersion::V1(V1::Two)
+        {
             return;
         }
 

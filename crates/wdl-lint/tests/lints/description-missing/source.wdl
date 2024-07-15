@@ -1,15 +1,41 @@
-#@ except: MissingRuntime, MissingOutput
+## This is a test for a missing description in a `meta` section.
 
-version 1.1
+version 1.2
 
 task foo {
-    meta {}
-    command <<< >>>
+    meta {
+
+    }
+
+    command <<<>>>
+
+    output {
+
+    }
+
+    runtime {
+
+    }
 }
 
-task bar {
+workflow bar {
     meta {
-        description: "this is a task"
+
     }
-    command <<< >>>
+
+    output {
+
+    }
+}
+
+struct Baz {
+    String x
+
+    meta {
+
+    }
+
+    parameter_meta {
+        x: "foo"
+    }
 }

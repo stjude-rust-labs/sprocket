@@ -4,11 +4,12 @@ use std::fmt;
 
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
+use wdl_ast::version::V1;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
-use wdl_ast::Span;
+use wdl_ast::Ident;
 use wdl_ast::SupportedVersion;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -40,6 +41,8 @@ enum Context {
     Task,
     /// A workflow.
     Workflow,
+    /// A struct.
+    Struct,
 }
 
 impl fmt::Display for Context {
@@ -47,6 +50,7 @@ impl fmt::Display for Context {
         match self {
             Self::Task => write!(f, "task"),
             Self::Workflow => write!(f, "workflow"),
+            Self::Struct => write!(f, "struct"),
         }
     }
 }
@@ -55,27 +59,29 @@ impl fmt::Display for Context {
 const ID: &str = "MissingMetas";
 
 /// Creates a "missing section" diagnostic.
-fn missing_section(name: &str, section: Section, context: Context, span: Span) -> Diagnostic {
+fn missing_section(name: Ident, section: Section, context: Context) -> Diagnostic {
     Diagnostic::note(format!(
-        "{context} `{name}` is missing a `{section}` section"
+        "{context} `{name}` is missing a `{section}` section",
+        name = name.as_str(),
     ))
     .with_rule(ID)
     .with_label(
         format!("this {context} is missing a `{section}` section"),
-        span,
+        name.span(),
     )
     .with_fix(format!("add a `{section}` section to the {context}"))
 }
 
 /// Creates a "missing sections" diagnostic.
-fn missing_sections(name: &str, context: Context, span: Span) -> Diagnostic {
+fn missing_sections(name: Ident, context: Context) -> Diagnostic {
     Diagnostic::note(format!(
-        "{context} `{name}` is missing both meta and parameter_meta sections"
+        "{context} `{name}` is missing both meta and parameter_meta sections",
+        name = name.as_str(),
     ))
     .with_rule(ID)
     .with_label(
         format!("this {context} is missing both meta and parameter_meta sections"),
-        span,
+        name.span(),
     )
     .with_fix(format!(
         "add meta and parameter_meta sections to the {context}"
@@ -84,7 +90,10 @@ fn missing_sections(name: &str, context: Context, span: Span) -> Diagnostic {
 
 /// A lint rule for missing meta and parameter_meta sections.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct MissingMetasRule;
+pub struct MissingMetasRule {
+    /// The version of the WDL document being linted.
+    version: Option<SupportedVersion>,
+}
 
 impl Rule for MissingMetasRule {
     fn id(&self) -> &'static str {
@@ -114,7 +123,7 @@ impl Visitor for MissingMetasRule {
         _: &mut Self::State,
         reason: VisitReason,
         _: &Document,
-        _: SupportedVersion,
+        version: SupportedVersion,
     ) {
         if reason == VisitReason::Exit {
             return;
@@ -122,6 +131,7 @@ impl Visitor for MissingMetasRule {
 
         // Reset the visitor upon document entry
         *self = Default::default();
+        self.version = Some(version);
     }
 
     fn task_definition(
@@ -140,24 +150,14 @@ impl Visitor for MissingMetasRule {
             && task.metadata().next().is_none()
             && task.parameter_metadata().next().is_none()
         {
-            state.add(missing_sections(
-                task.name().as_str(),
-                Context::Task,
-                task.name().span(),
-            ));
+            state.add(missing_sections(task.name(), Context::Task));
         } else if task.metadata().next().is_none() {
-            state.add(missing_section(
-                task.name().as_str(),
-                Section::Meta,
-                Context::Task,
-                task.name().span(),
-            ));
+            state.add(missing_section(task.name(), Section::Meta, Context::Task));
         } else if inputs_present && task.parameter_metadata().next().is_none() {
             state.add(missing_section(
-                task.name().as_str(),
+                task.name(),
                 Section::ParameterMeta,
                 Context::Task,
-                task.name().span(),
             ));
         }
     }
@@ -178,24 +178,46 @@ impl Visitor for MissingMetasRule {
             && workflow.metadata().next().is_none()
             && workflow.parameter_metadata().next().is_none()
         {
-            state.add(missing_sections(
-                workflow.name().as_str(),
-                Context::Workflow,
-                workflow.name().span(),
-            ));
+            state.add(missing_sections(workflow.name(), Context::Workflow));
         } else if workflow.metadata().next().is_none() {
             state.add(missing_section(
-                workflow.name().as_str(),
+                workflow.name(),
                 Section::Meta,
                 Context::Workflow,
-                workflow.name().span(),
             ));
         } else if inputs_present && workflow.parameter_metadata().next().is_none() {
             state.add(missing_section(
-                workflow.name().as_str(),
+                workflow.name(),
                 Section::ParameterMeta,
                 Context::Workflow,
-                workflow.name().span(),
+            ));
+        }
+    }
+
+    fn struct_definition(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        def: &wdl_ast::v1::StructDefinition,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Only check struct definitions for WDL >=1.2
+        if self.version.expect("should have version") < SupportedVersion::V1(V1::Two) {
+            return;
+        }
+
+        if def.metadata().next().is_none() && def.parameter_metadata().next().is_none() {
+            state.add(missing_sections(def.name(), Context::Struct));
+        } else if def.metadata().next().is_none() {
+            state.add(missing_section(def.name(), Section::Meta, Context::Struct));
+        } else if def.parameter_metadata().next().is_none() {
+            state.add(missing_section(
+                def.name(),
+                Section::ParameterMeta,
+                Context::Struct,
             ));
         }
     }

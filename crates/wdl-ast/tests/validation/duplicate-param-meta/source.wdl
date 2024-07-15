@@ -1,6 +1,6 @@
-# This is a test of too many param meta sections in a task and workflow.
+# This is a test of too many param meta sections in a task, workflow, and struct definition.
 
-version 1.1
+version 1.2
 
 task t {
     parameter_meta {
@@ -15,6 +15,18 @@ task t {
 }
 
 workflow w {
+    parameter_meta {
+
+    }
+
+    parameter_meta {
+
+    }
+}
+
+struct X {
+    String x
+    
     parameter_meta {
 
     }

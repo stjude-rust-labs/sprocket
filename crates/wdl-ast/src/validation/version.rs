@@ -50,6 +50,14 @@ fn input_keyword_requirement(span: Span) -> Diagnostic {
         .with_fix("add an `input` keyword followed by a colon before any call inputs")
 }
 
+/// Creates a "struct metadata requirement" diagnostic.
+fn struct_metadata_requirement(kind: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "use of a `{kind}` section in a struct definition requires WDL version 1.2"
+    ))
+    .with_highlight(span)
+}
+
 /// An AST visitor that ensures the syntax present in the document matches the
 /// document's declared version.
 #[derive(Debug, Default)]
@@ -208,6 +216,41 @@ impl Visitor for VersionVisitor {
                             input.syntax().text_range().to_span(),
                         ));
                     }
+                }
+            }
+        }
+    }
+
+    fn struct_definition(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        def: &v1::StructDefinition,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(version) = self.version {
+            if version < SupportedVersion::V1(V1::Two) {
+                if let Some(section) = def.metadata().next() {
+                    state.add(struct_metadata_requirement(
+                        "meta",
+                        token(section.syntax(), SyntaxKind::MetaKeyword)
+                            .expect("should have keyword")
+                            .text_range()
+                            .to_span(),
+                    ));
+                }
+
+                if let Some(section) = def.parameter_metadata().next() {
+                    state.add(struct_metadata_requirement(
+                        "parameter_meta",
+                        token(section.syntax(), SyntaxKind::ParameterMetaKeyword)
+                            .expect("should have keyword")
+                            .text_range()
+                            .to_span(),
+                    ));
                 }
             }
         }

@@ -2,15 +2,16 @@
 
 use std::collections::HashMap;
 
-use wdl_ast::v1::InputSection;
 use wdl_ast::v1::ParameterMetadataSection;
+use wdl_ast::v1::SectionParent;
 use wdl_ast::v1::TaskDefinition;
-use wdl_ast::v1::TaskOrWorkflow;
 use wdl_ast::v1::WorkflowDefinition;
+use wdl_ast::version::V1;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
+use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::VisitReason;
@@ -24,10 +25,11 @@ use crate::TagSet;
 const ID: &str = "MatchingParameterMeta";
 
 /// Creates a "missing param meta" diagnostic.
-fn missing_param_meta(parent: &TaskOrWorkflow, missing: &str, span: Span) -> Diagnostic {
+fn missing_param_meta(parent: &SectionParent, missing: &str, span: Span) -> Diagnostic {
     let (context, parent) = match parent {
-        TaskOrWorkflow::Task(t) => ("task", t.name()),
-        TaskOrWorkflow::Workflow(w) => ("workflow", w.name()),
+        SectionParent::Task(t) => ("task", t.name()),
+        SectionParent::Workflow(w) => ("workflow", w.name()),
+        SectionParent::Struct(s) => ("struct", s.name()),
     };
 
     Diagnostic::warning(format!(
@@ -46,10 +48,11 @@ fn missing_param_meta(parent: &TaskOrWorkflow, missing: &str, span: Span) -> Dia
 }
 
 /// Creates an "extra param meta" diagnostic.
-fn extra_param_meta(parent: &TaskOrWorkflow, extra: &str, span: Span) -> Diagnostic {
+fn extra_param_meta(parent: &SectionParent, extra: &str, span: Span) -> Diagnostic {
     let (context, parent) = match parent {
-        TaskOrWorkflow::Task(t) => ("task", t.name()),
-        TaskOrWorkflow::Workflow(w) => ("workflow", w.name()),
+        SectionParent::Task(t) => ("task", t.name()),
+        SectionParent::Workflow(w) => ("workflow", w.name()),
+        SectionParent::Struct(s) => ("struct", s.name()),
     };
 
     Diagnostic::note(format!(
@@ -66,7 +69,10 @@ fn extra_param_meta(parent: &TaskOrWorkflow, extra: &str, span: Span) -> Diagnos
 
 /// Detects missing or extraneous entries in a `parameter_meta` section.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct MatchingParameterMetaRule;
+pub struct MatchingParameterMetaRule {
+    /// The version of the WDL document being linted.
+    version: Option<SupportedVersion>,
+}
 
 impl Rule for MatchingParameterMetaRule {
     fn id(&self) -> &'static str {
@@ -90,20 +96,12 @@ impl Rule for MatchingParameterMetaRule {
 
 /// Checks for both missing and extra items in a `parameter_meta` section.
 fn check_parameter_meta(
-    parent: TaskOrWorkflow,
-    inputs: Option<InputSection>,
+    parent: &SectionParent,
+    expected: impl Iterator<Item = (Ident, Span)>,
     param_meta: ParameterMetadataSection,
     diagnostics: &mut Diagnostics,
 ) {
-    let expected: HashMap<_, _> = inputs
-        .iter()
-        .flat_map(|i| {
-            i.declarations().map(|d| {
-                let name = d.name();
-                (name.as_str().to_string(), name.span())
-            })
-        })
-        .collect();
+    let expected: HashMap<_, _> = expected.map(|(i, s)| (i.as_str().to_string(), s)).collect();
 
     let actual: HashMap<_, _> = param_meta
         .items()
@@ -115,13 +113,13 @@ fn check_parameter_meta(
 
     for (name, span) in &expected {
         if !actual.contains_key(name) {
-            diagnostics.add(missing_param_meta(&parent, name, *span));
+            diagnostics.add(missing_param_meta(parent, name, *span));
         }
     }
 
     for (name, span) in &actual {
         if !expected.contains_key(name) {
-            diagnostics.add(extra_param_meta(&parent, name, *span));
+            diagnostics.add(extra_param_meta(parent, name, *span));
         }
     }
 }
@@ -134,7 +132,7 @@ impl Visitor for MatchingParameterMetaRule {
         _: &mut Self::State,
         reason: VisitReason,
         _: &Document,
-        _: SupportedVersion,
+        version: SupportedVersion,
     ) {
         if reason == VisitReason::Exit {
             return;
@@ -142,6 +140,7 @@ impl Visitor for MatchingParameterMetaRule {
 
         // Reset the visitor upon document entry
         *self = Default::default();
+        self.version = Some(version);
     }
 
     fn task_definition(
@@ -159,8 +158,14 @@ impl Visitor for MatchingParameterMetaRule {
         match task.parameter_metadata().next() {
             Some(param_meta) => {
                 check_parameter_meta(
-                    TaskOrWorkflow::Task(task.clone()),
-                    task.inputs().next(),
+                    &SectionParent::Task(task.clone()),
+                    task.inputs().next().iter().flat_map(|i| {
+                        i.declarations().map(|d| {
+                            let name = d.name();
+                            let span = name.span();
+                            (name, span)
+                        })
+                    }),
                     param_meta,
                     state,
                 );
@@ -187,8 +192,51 @@ impl Visitor for MatchingParameterMetaRule {
         match workflow.parameter_metadata().next() {
             Some(param_meta) => {
                 check_parameter_meta(
-                    TaskOrWorkflow::Workflow(workflow.clone()),
-                    workflow.inputs().next(),
+                    &SectionParent::Workflow(workflow.clone()),
+                    workflow.inputs().next().iter().flat_map(|i| {
+                        i.declarations().map(|d| {
+                            let name = d.name();
+                            let span = name.span();
+                            (name, span)
+                        })
+                    }),
+                    param_meta,
+                    state,
+                );
+            }
+            None => {
+                // If there is no parameter_meta section, then let the
+                // MissingMetas rule handle it
+            }
+        }
+    }
+
+    fn struct_definition(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        def: &wdl_ast::v1::StructDefinition,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Only check struct definitions for WDL >=1.2
+        if self.version.expect("should have version") < SupportedVersion::V1(V1::Two) {
+            return;
+        }
+
+        // Note that only the first input and parameter_meta sections are checked as any
+        // additional sections is considered a validation error
+        match def.parameter_metadata().next() {
+            Some(param_meta) => {
+                check_parameter_meta(
+                    &SectionParent::Struct(def.clone()),
+                    def.members().map(|d| {
+                        let name = d.name();
+                        let span = name.span();
+                        (name, span)
+                    }),
                     param_meta,
                     state,
                 );

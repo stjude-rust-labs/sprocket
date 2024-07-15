@@ -1,6 +1,6 @@
-# This is a test of too many meta sections in a task and workflow.
+# This is a test of too many meta sections in a task, workflow, and struct definition.
 
-version 1.1
+version 1.2
 
 task t {
     meta {
@@ -15,6 +15,18 @@ task t {
 }
 
 workflow w {
+    meta {
+
+    }
+
+    meta {
+
+    }
+}
+
+struct X {
+    String x
+    
     meta {
 
     }

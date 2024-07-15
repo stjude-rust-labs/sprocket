@@ -67,8 +67,11 @@ const TYPE_EXPECTED_SET: TokenSet = PRIMITIVE_TYPE_SET.union(TokenSet::new(&[
 ]));
 
 /// The recovery set for struct items.
-const STRUCT_ITEM_RECOVERY_SET: TokenSet =
-    TYPE_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
+const STRUCT_ITEM_RECOVERY_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
+    Token::MetaKeyword as u8,
+    Token::ParameterMetaKeyword as u8,
+    Token::CloseBrace as u8,
+]));
 
 /// The recovery set for input items.
 const INPUT_ITEM_RECOVERY_SET: TokenSet =
@@ -97,6 +100,13 @@ const LITERAL_INPUT_ITEM_RECOVERY_SET: TokenSet =
 /// The recovery set for literal output items.
 const LITERAL_OUTPUT_ITEM_RECOVERY_SET: TokenSet =
     ANY_IDENT.union(TokenSet::new(&[Token::CloseBrace as u8]));
+
+/// The expected names of items in a struct definition.
+const STRUCT_ITEM_EXPECTED_NAMES: &[&str] = &[
+    "metadata section",
+    "parameter metadata section",
+    "struct member declaration",
+];
 
 /// The expected set of tokens in a task definition.
 const TASK_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
@@ -464,7 +474,7 @@ fn struct_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Mar
             None,
             UNTIL_CLOSE_BRACE,
             STRUCT_ITEM_RECOVERY_SET,
-            struct_member,
+            struct_item,
         );
         Ok(())
     });
@@ -472,8 +482,28 @@ fn struct_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Mar
     Ok(())
 }
 
-/// Parses a struct member.
-fn struct_member(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+/// Parses an item in a struct definition.
+fn struct_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    match parser.peek() {
+        Some((Token::MetaKeyword, _)) => metadata_section(parser, marker),
+        Some((Token::ParameterMetaKeyword, _)) => parameter_metadata_section(parser, marker),
+        Some((t, _)) if TYPE_EXPECTED_SET.contains(t.into_raw()) => {
+            struct_member_decl(parser, marker)
+        }
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(Token::describe(t.into_raw())), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            Err((
+                marker,
+                expected_one_of(STRUCT_ITEM_EXPECTED_NAMES, found, span),
+            ))
+        }
+    }
+}
+
+/// Parses a struct member declaration.
+fn struct_member_decl(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     expected_fn!(parser, marker, ty);
     expected_in!(parser, marker, ANY_IDENT, "struct member name");
     parser.update_last_token_kind(SyntaxKind::Ident);

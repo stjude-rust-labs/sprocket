@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Add support for `meta` and `parameter_meta` sections in struct definitions in
+  WDL 1.2 ([#127](https://github.com/stjude-rust-labs/wdl/pull/127)).
 * Add support for omitting `input` keyword in call statement bodies in WDL 1.2
   ([#125](https://github.com/stjude-rust-labs/wdl/pull/125)).
 * Add support for the `Directory` type in WDL 1.2 ([#124](https://github.com/stjude-rust-labs/wdl/pull/124)).

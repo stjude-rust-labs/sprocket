@@ -9,3 +9,8 @@ task test {
     parameter_meta {}
     output {}
 }
+
+# This should not have diagnostics for <= 1.2
+struct Test {
+    String x
+}

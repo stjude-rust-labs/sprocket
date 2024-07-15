@@ -4,13 +4,13 @@ error: an unknown token was encountered
 6 │     ; # Unknown token
   │     ^ this is not a supported WDL token
 
-error: expected type, but found `?`
+error: expected metadata section, parameter metadata section, or struct member declaration, but found `?`
   ┌─ tests/parsing/struct-recovery/source.wdl:8:5
   │
 8 │     ?  # Unexpected token
   │     ^ unexpected `?`
 
-error: expected type, but found `struct` keyword
+error: expected metadata section, parameter metadata section, or struct member declaration, but found `struct` keyword
    ┌─ tests/parsing/struct-recovery/source.wdl:10:5
    │
 10 │     struct   # Unexpected keyword

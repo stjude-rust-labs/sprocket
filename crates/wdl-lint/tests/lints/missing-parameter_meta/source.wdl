@@ -7,3 +7,8 @@ workflow test {
     output {}
     meta {}
 }
+
+# This should not have diagnostics for <= 1.2
+struct Test {
+    String x
+}
