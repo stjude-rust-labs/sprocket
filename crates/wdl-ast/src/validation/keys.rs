@@ -1,6 +1,6 @@
 //! Validation of unique keys in an AST.
 
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 
 use crate::v1::Expr;
@@ -18,6 +18,7 @@ use crate::Document;
 use crate::Ident;
 use crate::Span;
 use crate::SupportedVersion;
+use crate::TokenStrHash;
 use crate::VisitReason;
 use crate::Visitor;
 
@@ -79,7 +80,7 @@ fn conflicting_key(context: Context, name: &Ident, first: Span) -> Diagnostic {
 
 /// Checks the given set of keys for duplicates
 fn check_duplicate_keys(
-    keys: &mut HashMap<String, Span>,
+    keys: &mut HashSet<TokenStrHash<Ident>>,
     aliases: &[(&str, &str)],
     names: impl Iterator<Item = Ident>,
     context: Context,
@@ -88,7 +89,7 @@ fn check_duplicate_keys(
     keys.clear();
     for name in names {
         if let Some(first) = keys.get(name.as_str()) {
-            diagnostics.add(duplicate_key(context, &name, *first));
+            diagnostics.add(duplicate_key(context, &name, first.as_ref().span()));
             continue;
         }
 
@@ -102,12 +103,12 @@ fn check_duplicate_keys(
             };
 
             if let Some(first) = keys.get(*alias) {
-                diagnostics.add(conflicting_key(context, &name, *first));
+                diagnostics.add(conflicting_key(context, &name, first.as_ref().span()));
                 break;
             }
         }
 
-        keys.insert(name.as_str().to_string(), name.span());
+        keys.insert(TokenStrHash::new(name));
     }
 }
 
@@ -122,7 +123,7 @@ fn check_duplicate_keys(
 /// * object literals
 /// * struct literals
 #[derive(Default, Debug)]
-pub struct UniqueKeysVisitor(HashMap<String, Span>);
+pub struct UniqueKeysVisitor(HashSet<TokenStrHash<Ident>>);
 
 impl Visitor for UniqueKeysVisitor {
     type State = Diagnostics;
@@ -252,8 +253,8 @@ impl Visitor for UniqueKeysVisitor {
         }
 
         // As metadata objects are nested inside of metadata sections and objects,
-        // use a different map to check the keys
-        let mut keys = HashMap::new();
+        // use a different set to check the keys
+        let mut keys = HashSet::new();
         check_duplicate_keys(
             &mut keys,
             &[],

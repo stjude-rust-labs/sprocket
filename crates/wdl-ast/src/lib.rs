@@ -393,3 +393,44 @@ impl AstToken for Ident {
         &self.0
     }
 }
+
+/// Helper for hashing any AST token on string representation alone.
+///
+/// Normally an AST token's equality and hash implementation work by comparing
+/// the token's element in the AST; thus, two `Ident` tokens with the same name
+/// but different positions in the tree will compare and hash differently.
+#[derive(Debug, Clone)]
+pub struct TokenStrHash<T>(T);
+
+impl<T: AstToken> TokenStrHash<T> {
+    /// Constructs a new token hash for the given token.
+    pub fn new(token: T) -> Self {
+        Self(token)
+    }
+}
+
+impl<T: AstToken> PartialEq for TokenStrHash<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.as_str() == other.0.as_str()
+    }
+}
+
+impl<T: AstToken> Eq for TokenStrHash<T> {}
+
+impl<T: AstToken> std::hash::Hash for TokenStrHash<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.as_str().hash(state);
+    }
+}
+
+impl<T: AstToken> std::borrow::Borrow<str> for TokenStrHash<T> {
+    fn borrow(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl<T: AstToken> AsRef<T> for TokenStrHash<T> {
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
+}

@@ -63,7 +63,7 @@ use crate::Whitespace;
 /// that receives both a [VisitReason::Enter] call and a
 /// matching [VisitReason::Exit] call.
 #[allow(unused_variables)]
-pub trait Visitor: Send + Sync {
+pub trait Visitor {
     /// Represents the external visitation state.
     type State;
 

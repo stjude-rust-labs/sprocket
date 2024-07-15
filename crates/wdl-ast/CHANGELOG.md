@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Removed `Send` and `Sync` constraints from the `Visitor` trait
+  ([#128](https://github.com/stjude-rust-labs/wdl/pull/128)).
 * Changed the API for parsing documents; `Document::parse` now returns
   `(Document, Vec<Diagnostic>)` rather than a `Parse` type ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
 * The `Type` enumeration, and friends, in `wdl-ast` no longer implement

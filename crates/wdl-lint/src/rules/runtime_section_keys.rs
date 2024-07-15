@@ -5,6 +5,7 @@
 //! `runtime` section was deprecated in WDL v1.2.
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::OnceLock;
 
 use wdl_ast::span_of;
@@ -15,8 +16,10 @@ use wdl_ast::version::V1;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
+use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::TokenStrHash;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -138,28 +141,31 @@ fn serialize_oxford_comma<T: std::fmt::Display>(items: &[T]) -> Option<String> {
 }
 
 /// Creates a "deprecated runtime key" diagnostic.
-fn deprecated_runtime_key(key: &str, replacement: &str, span: Span) -> Diagnostic {
+fn deprecated_runtime_key(key: &Ident, replacement: &str) -> Diagnostic {
     Diagnostic::warning(format!(
-        "the `{}` runtime key has been deprecated in favor of `{}`",
-        key, replacement
+        "the `{key}` runtime key has been deprecated in favor of `{replacement}`",
+        key = key.as_str()
     ))
     .with_rule(ID)
-    .with_highlight(span)
+    .with_highlight(key.span())
     .with_fix(format!(
-        "change the name of the `{}` key to `{}`",
-        key, replacement
+        "change the name of the `{key}` key to `{replacement}`",
+        key = key.as_str()
     ))
 }
 
 /// Creates an "non-reserved runtime key" diagnostic.
 fn report_non_reserved_runtime_keys(
-    keys: &HashMap<String, Span>,
+    keys: &HashSet<TokenStrHash<Ident>>,
     runtime_span: Span,
     specification: &str,
 ) -> Diagnostic {
     assert!(!keys.is_empty());
 
-    let mut key_names = keys.keys().map(|key| key.as_str()).collect::<Vec<_>>();
+    let mut key_names = keys
+        .iter()
+        .map(|key| key.as_ref().as_str())
+        .collect::<Vec<_>>();
     key_names.sort();
 
     let (message, fix) = if key_names.len() == 1 {
@@ -206,8 +212,12 @@ fn report_non_reserved_runtime_keys(
         .with_highlight(runtime_span)
         .with_fix(fix);
 
-    for (key, span) in keys.iter() {
-        diagnostic = diagnostic.with_label(format!("the `{key}` key should be removed"), *span);
+    for key in keys.iter() {
+        let key = key.as_ref();
+        diagnostic = diagnostic.with_label(
+            format!("the `{key}` key should be removed", key = key.as_str()),
+            key.span(),
+        );
     }
 
     diagnostic
@@ -267,9 +277,9 @@ pub struct RuntimeSectionKeysRule {
     /// current task.
     runtime_processed_for_task: bool,
     /// All keys encountered in the current runtime section.
-    encountered_keys: Vec<String>,
+    encountered_keys: Vec<Ident>,
     /// All non-reserved keys encountered in the current runtime section.
-    non_reserved_keys: HashMap<String, Span>,
+    non_reserved_keys: HashSet<TokenStrHash<Ident>>,
 }
 
 impl Rule for RuntimeSectionKeysRule {
@@ -436,8 +446,7 @@ impl Visitor for RuntimeSectionKeysRule {
             return;
         }
 
-        let key_name = item.name().as_str().to_owned();
-        let key_span = item.name().span();
+        let key_name = item.name();
 
         // SAFETY: the version must always be set before we get to this point,
         // as document is the root node of the tree.
@@ -458,13 +467,14 @@ impl Visitor for RuntimeSectionKeysRule {
                         // problem that can be encountered is if the key is
                         // deprecated.
                         if let KeyKind::Deprecated(replacement) = kind {
-                            state.add(deprecated_runtime_key(&key_name, replacement, key_span));
+                            state.add(deprecated_runtime_key(&key_name, replacement));
                         }
                     }
                     None => {
                         // If the key was _not_ found in the map, that means the
                         // key was not one of the permitted values for WDL v1.1.
-                        self.non_reserved_keys.insert(key_name.clone(), key_span);
+                        self.non_reserved_keys
+                            .insert(TokenStrHash::new(key_name.clone()));
                     }
                 }
             }
