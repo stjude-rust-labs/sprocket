@@ -29,6 +29,7 @@ use crate::v1::CommandSection;
 use crate::v1::CommandText;
 use crate::v1::ConditionalStatement;
 use crate::v1::Expr;
+use crate::v1::HintsSection;
 use crate::v1::ImportStatement;
 use crate::v1::InputSection;
 use crate::v1::MetadataObject;
@@ -166,6 +167,15 @@ pub trait Visitor: Send + Sync {
         state: &mut Self::State,
         reason: VisitReason,
         section: &RequirementsSection,
+    ) {
+    }
+
+    /// Visits a hints section node.
+    fn hints_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &HintsSection,
     ) {
     }
 
@@ -335,6 +345,9 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
                 reason,
                 &RequirementsSection(element.into_node().unwrap()),
             ),
+            SyntaxKind::HintsSectionNode => {
+                visitor.hints_section(state, reason, &HintsSection(element.into_node().unwrap()))
+            }
             SyntaxKind::RequirementsItemNode => {
                 // Skip this node as it's part of a requirements section
             }
@@ -373,7 +386,10 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
             ),
             SyntaxKind::LiteralMapItemNode
             | SyntaxKind::LiteralObjectItemNode
-            | SyntaxKind::LiteralStructItemNode => {
+            | SyntaxKind::LiteralStructItemNode
+            | SyntaxKind::LiteralHintsItemNode
+            | SyntaxKind::LiteralInputItemNode
+            | SyntaxKind::LiteralOutputItemNode => {
                 // Skip these nodes as they're part of literal expressions
             }
             k @ (SyntaxKind::LiteralIntegerNode
@@ -386,6 +402,9 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
             | SyntaxKind::LiteralMapNode
             | SyntaxKind::LiteralObjectNode
             | SyntaxKind::LiteralStructNode
+            | SyntaxKind::LiteralHintsNode
+            | SyntaxKind::LiteralInputNode
+            | SyntaxKind::LiteralOutputNode
             | SyntaxKind::ParenthesizedExprNode
             | SyntaxKind::NameRefNode
             | SyntaxKind::IfExprNode

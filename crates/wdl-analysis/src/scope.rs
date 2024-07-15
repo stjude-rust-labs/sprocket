@@ -921,6 +921,7 @@ impl DocumentScope {
                 | v1::TaskItem::Output(_)
                 | v1::TaskItem::Command(_)
                 | v1::TaskItem::Requirements(_)
+                | v1::TaskItem::Hints(_)
                 | v1::TaskItem::Runtime(_)
                 | v1::TaskItem::Metadata(_)
                 | v1::TaskItem::ParameterMetadata(_) => continue,
@@ -1017,7 +1018,8 @@ impl DocumentScope {
                 v1::WorkflowItem::Input(_)
                 | v1::WorkflowItem::Output(_)
                 | v1::WorkflowItem::Metadata(_)
-                | v1::WorkflowItem::ParameterMetadata(_) => continue,
+                | v1::WorkflowItem::ParameterMetadata(_)
+                | v1::WorkflowItem::Hints(_) => continue,
             }
         }
 

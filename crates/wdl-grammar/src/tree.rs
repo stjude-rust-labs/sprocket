@@ -217,6 +217,10 @@ pub enum SyntaxKind {
     RequirementsSectionNode,
     /// Represents a requirements item node.
     RequirementsItemNode,
+    /// Represents a hints section node.
+    HintsSectionNode,
+    /// Represents a hints item node.
+    HintsItemNode,
     /// Represents a runtime section node.
     RuntimeSectionNode,
     /// Represents a runtime item node.
@@ -271,6 +275,18 @@ pub enum SyntaxKind {
     LiteralStructNode,
     /// Represents a literal struct item node.
     LiteralStructItemNode,
+    /// Represents a literal hints node.
+    LiteralHintsNode,
+    /// Represents a literal hints item node.
+    LiteralHintsItemNode,
+    /// Represents a literal input node.
+    LiteralInputNode,
+    /// Represents a literal input item node.
+    LiteralInputItemNode,
+    /// Represents a literal output node.
+    LiteralOutputNode,
+    /// Represents a literal output item node.
+    LiteralOutputItemNode,
     /// Represents a parenthesized expression node.
     ParenthesizedExprNode,
     /// Represents a name reference node.

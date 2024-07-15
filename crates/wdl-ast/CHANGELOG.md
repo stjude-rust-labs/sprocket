@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Add support for `hints` sections in WDL 1.2 ([#121](https://github.com/stjude-rust-labs/wdl/pull/121)).
 * Add support for `requirements` sections in WDL 1.2 ([#117](https://github.com/stjude-rust-labs/wdl/pull/117)).
 * Add support for the exponentiation operator in WDL 1.2 ([#111](https://github.com/stjude-rust-labs/wdl/pull/111)).
 
@@ -39,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Refactored the `Visitor` trait and validation visitors so that they are not 
+* Refactored the `Visitor` trait and validation visitors so that they are not
   in a `v1` module ([#95](https://github.com/stjude-rust-labs/wdl/pull/95)).
 
 ## 0.3.0 - 06-13-2024
@@ -59,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Removed the old AST implementation in favor of new new parser; this also 
+* Removed the old AST implementation in favor of new new parser; this also
   removes the `experimental` feature from the crate ([#79](https://github.com/stjude-rust-labs/wdl/pull/79)).
 * Removed dependency on `miette` and `thiserror` in the experimental parser,
   re-exported key items from `wdl-grammar`'s experimental parser implementation,

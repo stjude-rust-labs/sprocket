@@ -23,6 +23,11 @@ mod macros {
                 return Err(($marker, e));
             }
         };
+        ($parser:ident, $marker:ident, $token:expr, $name:literal) => {
+            if let Err(e) = $parser.expect_with_name($token, $name) {
+                return Err(($marker, e));
+            }
+        };
     }
 
     /// A macro for expecting the next token be in the given token set.

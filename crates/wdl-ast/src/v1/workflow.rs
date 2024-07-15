@@ -2,6 +2,7 @@
 
 use super::BoundDecl;
 use super::Expr;
+use super::HintsSection;
 use super::InputSection;
 use super::MetadataSection;
 use super::OutputSection;
@@ -58,6 +59,11 @@ impl WorkflowDefinition {
         children(&self.0)
     }
 
+    /// Gets the hints sections of the workflow.
+    pub fn hints(&self) -> AstChildren<HintsSection> {
+        children(&self.0)
+    }
+
     /// Gets the private declarations of the workflow.
     pub fn declarations(&self) -> AstChildren<BoundDecl> {
         children(&self.0)
@@ -106,6 +112,8 @@ pub enum WorkflowItem {
     Metadata(MetadataSection),
     /// The item is a parameter meta section.
     ParameterMetadata(ParameterMetadataSection),
+    /// The item is a hints section.
+    Hints(HintsSection),
     /// The item is a private bound declaration.
     Declaration(BoundDecl),
 }
@@ -126,6 +134,7 @@ impl AstNode for WorkflowItem {
                 | SyntaxKind::CallStatementNode
                 | SyntaxKind::MetadataSectionNode
                 | SyntaxKind::ParameterMetadataSectionNode
+                | SyntaxKind::HintsSectionNode
                 | SyntaxKind::BoundDeclNode
         )
     }
@@ -146,6 +155,7 @@ impl AstNode for WorkflowItem {
             SyntaxKind::ParameterMetadataSectionNode => {
                 Some(Self::ParameterMetadata(ParameterMetadataSection(syntax)))
             }
+            SyntaxKind::HintsSectionNode => Some(Self::Hints(HintsSection(syntax))),
             SyntaxKind::BoundDeclNode => Some(Self::Declaration(BoundDecl(syntax))),
             _ => None,
         }
@@ -160,6 +170,7 @@ impl AstNode for WorkflowItem {
             Self::Call(s) => &s.0,
             Self::Metadata(m) => &m.0,
             Self::ParameterMetadata(m) => &m.0,
+            Self::Hints(h) => &h.0,
             Self::Declaration(d) => &d.0,
         }
     }
@@ -612,6 +623,10 @@ workflow test {
         }
     }
 
+    hints {
+        foo: "bar"
+    }
+
     String x = "private"
 }
 "#,
@@ -872,6 +887,26 @@ workflow test {
         assert_eq!(
             items[0].value().unwrap_string().text().unwrap().as_str(),
             "a name to greet"
+        );
+
+        // Workflow hints
+        let hints: Vec<_> = workflows[0].hints().collect();
+        assert_eq!(hints.len(), 1);
+
+        // First workflow hints
+        assert_eq!(hints[0].parent().unwrap_workflow().name().as_str(), "test");
+        let items: Vec<_> = hints[0].items().collect();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].name().as_str(), "foo");
+        assert_eq!(
+            items[0]
+                .expr()
+                .unwrap_literal()
+                .unwrap_string()
+                .text()
+                .unwrap()
+                .as_str(),
+            "bar"
         );
 
         // Workflow declarations

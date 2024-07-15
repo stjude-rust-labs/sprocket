@@ -11,6 +11,7 @@ use crate::VersionStatement;
 use crate::Visitor;
 
 mod counts;
+mod exprs;
 mod keys;
 mod numbers;
 mod requirements;
@@ -101,6 +102,7 @@ impl Default for Validator {
                 Box::<numbers::NumberVisitor>::default(),
                 Box::<version::VersionVisitor>::default(),
                 Box::<requirements::RequirementsVisitor>::default(),
+                Box::<exprs::ScopedExprVisitor>::default(),
             ],
         }
     }
@@ -235,6 +237,17 @@ impl Visitor for Validator {
     ) {
         for visitor in self.visitors.iter_mut() {
             visitor.requirements_section(state, reason, section);
+        }
+    }
+
+    fn hints_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &v1::HintsSection,
+    ) {
+        for visitor in self.visitors.iter_mut() {
+            visitor.hints_section(state, reason, section);
         }
     }
 

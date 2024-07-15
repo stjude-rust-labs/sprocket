@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::v1::Expr;
+use crate::v1::HintsSection;
 use crate::v1::LiteralExpr;
 use crate::v1::MetadataObject;
 use crate::v1::MetadataSection;
@@ -25,6 +26,8 @@ use crate::Visitor;
 enum Context {
     /// The error is in the requirements section.
     RequirementsSection,
+    /// The error is in the hints section.
+    HintsSection,
     /// The error is in a runtime section.
     RuntimeSection,
     /// The error is in a metadata section.
@@ -43,6 +46,7 @@ impl fmt::Display for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::RequirementsSection => write!(f, "requirements section"),
+            Self::HintsSection => write!(f, "hints section"),
             Self::RuntimeSection => write!(f, "runtime section"),
             Self::MetadataSection => write!(f, "metadata section"),
             Self::ParameterMetadataSection => write!(f, "parameter metadata section"),
@@ -157,6 +161,25 @@ impl Visitor for UniqueKeysVisitor {
             ],
             section.items().map(|i| i.name()),
             Context::RequirementsSection,
+            state,
+        );
+    }
+
+    fn hints_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &HintsSection,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        check_duplicate_keys(
+            &mut self.0,
+            &[],
+            section.items().map(|i| i.name()),
+            Context::HintsSection,
             state,
         );
     }

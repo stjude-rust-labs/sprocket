@@ -28,6 +28,11 @@ fn requirements_section(span: Span) -> Diagnostic {
         .with_highlight(span)
 }
 
+/// Creates a "hints section requirement" diagnostic.
+fn hints_section(span: Span) -> Diagnostic {
+    Diagnostic::error("use of the `hints` section requires WDL version 1.2").with_highlight(span)
+}
+
 /// An AST visitor that ensures the syntax present in the document matches the
 /// document's declared version.
 #[derive(Debug, Default)]
@@ -67,6 +72,28 @@ impl Visitor for VersionVisitor {
             if version < SupportedVersion::V1(V1::Two) {
                 state.add(requirements_section(
                     token(section.syntax(), SyntaxKind::RequirementsKeyword)
+                        .expect("should have keyword")
+                        .text_range()
+                        .to_span(),
+                ));
+            }
+        }
+    }
+
+    fn hints_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &v1::HintsSection,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(version) = self.version {
+            if version < SupportedVersion::V1(V1::Two) {
+                state.add(hints_section(
+                    token(section.syntax(), SyntaxKind::HintsKeyword)
                         .expect("should have keyword")
                         .text_range()
                         .to_span(),
