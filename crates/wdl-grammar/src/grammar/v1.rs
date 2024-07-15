@@ -1616,8 +1616,10 @@ fn call_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
 
     if let Some((Token::OpenBrace, _)) = parser.peek() {
         braced!(parser, marker, |parser| {
-            parser.expect(Token::InputKeyword)?;
-            parser.expect(Token::Colon)?;
+            if parser.next_if(Token::InputKeyword) {
+                parser.expect(Token::Colon)?;
+            }
+
             parser.delimited(
                 Some(Token::Comma),
                 UNTIL_CLOSE_BRACE,

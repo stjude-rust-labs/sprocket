@@ -38,9 +38,16 @@ fn multiline_string_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("use of multi-line strings requires WDL version 1.2").with_highlight(span)
 }
 
-/// Creates a "directory type" requirement.
+/// Creates a "directory type" requirement diagnostic.
 fn directory_type_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("use of the `Directory` type requires WDL version 1.2").with_highlight(span)
+}
+
+/// Creates an "input keyword" requirement diagnostic.
+fn input_keyword_requirement(span: Span) -> Diagnostic {
+    Diagnostic::error("omitting the `input` keyword in a call statement requires WDL version 1.2")
+        .with_label("missing an `input` keyword before this input", span)
+        .with_fix("add an `input` keyword followed by a colon before any call inputs")
 }
 
 /// An AST visitor that ensures the syntax present in the document matches the
@@ -176,6 +183,31 @@ impl Visitor for VersionVisitor {
                     state.add(directory_type_requirement(
                         ty.syntax().text_range().to_span(),
                     ));
+                }
+            }
+        }
+    }
+
+    fn call_statement(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        stmt: &v1::CallStatement,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(version) = self.version {
+            if version < SupportedVersion::V1(V1::Two) {
+                // Ensure there is a input keyword child token if there are inputs
+                if let Some(input) = stmt.inputs().next() {
+                    if rowan::ast::support::token(stmt.syntax(), SyntaxKind::InputKeyword).is_none()
+                    {
+                        state.add(input_keyword_requirement(
+                            input.syntax().text_range().to_span(),
+                        ));
+                    }
                 }
             }
         }
