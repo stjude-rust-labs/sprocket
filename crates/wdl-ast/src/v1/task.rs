@@ -796,7 +796,7 @@ impl AstNode for MetadataSection {
 
 /// Represents a metadata object item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MetadataObjectItem(SyntaxNode);
+pub struct MetadataObjectItem(pub(crate) SyntaxNode);
 
 impl MetadataObjectItem {
     /// Gets the name of the item.

@@ -392,6 +392,17 @@ impl Visitor for LintVisitor {
         });
     }
 
+    fn metadata_object_item(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        item: &v1::MetadataObjectItem,
+    ) {
+        self.each_enabled_rule(state, reason, item.syntax(), |state, rule| {
+            rule.metadata_object_item(state, reason, item)
+        });
+    }
+
     fn unbound_decl(
         &mut self,
         state: &mut Self::State,

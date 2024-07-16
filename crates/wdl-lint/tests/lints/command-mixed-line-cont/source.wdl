@@ -1,4 +1,4 @@
-#@ except: NoCurlyCommands, DescriptionMissing, RuntimeSectionKeys
+#@ except: DescriptionMissing, NoCurlyCommands, NonmatchingOutput, RuntimeSectionKeys
 ## This is a test of having mixed indentation in a line continuation.
 
 version 1.1

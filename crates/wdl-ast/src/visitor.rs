@@ -33,6 +33,7 @@ use crate::v1::HintsSection;
 use crate::v1::ImportStatement;
 use crate::v1::InputSection;
 use crate::v1::MetadataObject;
+use crate::v1::MetadataObjectItem;
 use crate::v1::MetadataSection;
 use crate::v1::OutputSection;
 use crate::v1::ParameterMetadataSection;
@@ -218,6 +219,15 @@ pub trait Visitor {
     ) {
     }
 
+    /// Visits a metadata object item in a metadata object.
+    fn metadata_object_item(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        item: &MetadataObjectItem,
+    ) {
+    }
+
     /// Visits an unbound declaration node.
     fn unbound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &UnboundDecl) {}
 
@@ -374,9 +384,13 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
                 reason,
                 &MetadataObject(element.into_node().unwrap()),
             ),
-            SyntaxKind::MetadataObjectItemNode
-            | SyntaxKind::MetadataArrayNode
-            | SyntaxKind::LiteralNullNode => {
+            SyntaxKind::MetadataObjectItemNode => visitor.metadata_object_item(
+                state,
+                reason,
+                &MetadataObjectItem(element.into_node().unwrap()),
+            ),
+
+            SyntaxKind::MetadataArrayNode | SyntaxKind::LiteralNullNode => {
                 // Skip these nodes as they're part of a metadata section
             }
             k if Expr::can_cast(k) => visitor.expr(

@@ -306,6 +306,17 @@ impl Visitor for Validator {
         }
     }
 
+    fn metadata_object_item(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        item: &v1::MetadataObjectItem,
+    ) {
+        for visitor in self.visitors.iter_mut() {
+            visitor.metadata_object_item(state, reason, item);
+        }
+    }
+
     fn unbound_decl(
         &mut self,
         state: &mut Self::State,

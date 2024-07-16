@@ -1431,6 +1431,11 @@ message = "ngsderive.wdl:366:28: note[Todo]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/ngsderive.wdl/#L366"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:8:9: warning[NonmatchingOutput]: `outputs` section of `meta` for the task `strandedness` is out of order"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/ngsderive.wdl/#L8"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:1032:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L1032"
@@ -1487,11 +1492,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:820:12: note: unknown lint rule `NonmatchingOutput`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L820"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:914:5: warning[RuntimeSectionKeys]: the following runtime key is not reserved in the WDL v1.1 specification: `disk`; therefore, its inclusion in the `runtime` section is deprecated"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/picard.wdl/#L914"
 
@@ -1504,11 +1504,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
 message = "qualimap.wdl:81:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/qualimap.wdl/#L81"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:93:12: note: unknown lint rule `NonmatchingOutput`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/qualimap.wdl/#L93"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
@@ -1534,11 +1529,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:53:5: warning[RuntimeSectionKeys]: the following runtime key is not reserved in the WDL v1.1 specification: `disk`; therefore, its inclusion in the `runtime` section is deprecated"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/sambamba.wdl/#L53"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1178:12: note: unknown lint rule `NonmatchingOutput`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/tools/samtools.wdl/#L1178"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -1807,8 +1797,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
+message = "quality-check-standard.wdl:23:9: warning[NonmatchingOutput]: `outputs` section of `meta` for the workflow `quality_check` is out of order"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L23"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
 message = "quality-check-standard.wdl:436:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L436"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
+message = "quality-check-standard.wdl:501:13: warning[NonmatchingOutput]: `check` appears in `outputs` section of the task `parse_input` but is not a declared `output`"
+permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L501"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
