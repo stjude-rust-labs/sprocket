@@ -63,11 +63,11 @@ impl Rule for SectionOrderingRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "For workflows, the following sections must be present and in this order: meta, \
+        "For workflows, if present, the following sections must be in this order: meta, \
          parameter_meta, input, (body), output. \"(body)\" represents all calls and declarations.
 
-        For tasks, the following sections must be present and in this order: meta, parameter_meta, \
-         input, (private declarations), command, output, requirements/runtime"
+        For tasks, if present, the following sections must be in this order: meta, parameter_meta, \
+         input, (private declarations), command, output, runtime, requirements, hints."
     }
 
     fn tags(&self) -> TagSet {
@@ -86,15 +86,19 @@ enum State {
     ParameterMeta,
     /// The input section.
     Input,
-    /// The declaration section. Overloaded to include call and scatter
-    /// statements in workflows.
+    /// The declaration section. Overloaded to include call, scatter,
+    /// and conditional statements in workflows.
     Decl,
     /// The command section.
     Command,
     /// The output section.
     Output,
-    /// The requirements/runtime section.
+    /// The runtime section (only in tasks).
+    Runtime,
+    /// The requirements section (only in tasks).
     Requirements,
+    /// The hints section.
+    Hints,
 }
 
 impl Visitor for SectionOrderingRule {
@@ -146,10 +150,14 @@ impl Visitor for SectionOrderingRule {
                 TaskItem::Output(_) if encountered <= State::Output => {
                     encountered = State::Output;
                 }
-                TaskItem::Requirements(_) | TaskItem::Runtime(_)
-                    if encountered <= State::Requirements =>
-                {
+                TaskItem::Runtime(_) if encountered <= State::Runtime => {
+                    encountered = State::Runtime;
+                }
+                TaskItem::Requirements(_) if encountered <= State::Requirements => {
                     encountered = State::Requirements;
+                }
+                TaskItem::Hints(_) if encountered <= State::Hints => {
+                    encountered = State::Hints;
                 }
                 _ => {
                     state.add(task_section_order(
@@ -185,13 +193,19 @@ impl Visitor for SectionOrderingRule {
                 WorkflowItem::Input(_) if encountered <= State::Input => {
                     encountered = State::Input;
                 }
-                WorkflowItem::Declaration(_) | WorkflowItem::Call(_) | WorkflowItem::Scatter(_)
+                WorkflowItem::Declaration(_)
+                | WorkflowItem::Call(_)
+                | WorkflowItem::Scatter(_)
+                | WorkflowItem::Conditional(_)
                     if encountered <= State::Decl =>
                 {
                     encountered = State::Decl;
                 }
                 WorkflowItem::Output(_) if encountered <= State::Output => {
                     encountered = State::Output;
+                }
+                WorkflowItem::Hints(_) if encountered <= State::Hints => {
+                    encountered = State::Hints;
                 }
                 _ => {
                     state.add(workflow_section_order(

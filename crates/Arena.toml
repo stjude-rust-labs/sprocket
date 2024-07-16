@@ -1701,11 +1701,6 @@ message = "chipseq-standard.wdl:14:3: note[Todo]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/chipseq/chipseq-standard.wdl/#L14"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
-message = "chipseq-standard.wdl:15:10: note[SectionOrdering]: sections are not in order for workflow `chipseq_standard`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/chipseq/chipseq-standard.wdl/#L15"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
 message = "dnaseq-core.wdl:115:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/dnaseq/dnaseq-core.wdl/#L115"
@@ -1726,16 +1721,6 @@ message = "dnaseq-standard-fastq.wdl:51:1: note[LineWidth]: line exceeds maximum
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L51"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:9:10: note[SectionOrdering]: sections are not in order for workflow `dnaseq_standard_fastq_experimental`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L9"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
-message = "dnaseq-standard.wdl:11:10: note[SectionOrdering]: sections are not in order for workflow `dnaseq_standard_experimental`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/dnaseq/dnaseq-standard.wdl/#L11"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
 message = "dnaseq-standard.wdl:126:5: warning[RuntimeSectionKeys]: the following runtime key is not reserved in the WDL v1.1 specification: `disk`; therefore, its inclusion in the `runtime` section is deprecated"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/dnaseq/dnaseq-standard.wdl/#L126"
@@ -1749,11 +1734,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 document = "stjudecloud/workflows:/workflows/general/alignment-post.wdl"
 message = "alignment-post.wdl:78:7: note[Todo]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/general/alignment-post.wdl/#L78"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/general/alignment-post.wdl"
-message = "alignment-post.wdl:8:10: note[SectionOrdering]: sections are not in order for workflow `alignment_post`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/general/alignment-post.wdl/#L8"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/general/samtools-merge.wdl"
@@ -1771,11 +1751,6 @@ message = "samtools-merge.wdl:35:1: note[LineWidth]: line exceeds maximum width 
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/general/samtools-merge.wdl/#L35"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/general/samtools-merge.wdl"
-message = "samtools-merge.wdl:7:10: note[SectionOrdering]: sections are not in order for workflow `samtools_merge`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/general/samtools-merge.wdl/#L7"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
 message = "quality-check-standard.wdl:111:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L111"
@@ -1789,11 +1764,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
 message = "quality-check-standard.wdl:151:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L151"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:18:10: note[SectionOrdering]: sections are not in order for workflow `quality_check`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L18"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
@@ -1826,16 +1796,6 @@ message = "quality-check-standard.wdl:558:3: note[Todo]: remaining `TODO` item f
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/qc/quality-check-standard.wdl/#L558"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "gatk-reference.wdl:7:10: note[SectionOrdering]: sections are not in order for workflow `gatk_reference`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/reference/gatk-reference.wdl/#L7"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/reference/make-qc-reference.wdl"
-message = "make-qc-reference.wdl:6:10: note[SectionOrdering]: sections are not in order for workflow `make_qc_reference`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/reference/make-qc-reference.wdl/#L6"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
 message = "rnaseq-core.wdl:38:48: note[Todo]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-core.wdl/#L38"
@@ -1844,11 +1804,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
 message = "rnaseq-core.wdl:87:34: note[Todo]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-core.wdl/#L87"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
-message = "rnaseq-standard-fastq.wdl:25:10: note[SectionOrdering]: sections are not in order for workflow `rnaseq_standard_fastq`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L25"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
@@ -1864,16 +1819,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
 message = "rnaseq-standard.wdl:94:10: note[Todo]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-standard.wdl/#L94"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:9:10: note[SectionOrdering]: sections are not in order for workflow `rnaseq_standard`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-standard.wdl/#L9"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "rnaseq-variant-calling.wdl:6:10: note[SectionOrdering]: sections are not in order for workflow `rnaseq_variant_calling`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/rnaseq/rnaseq-variant-calling.wdl/#L6"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/scrnaseq/10x-bam-to-fastqs.wdl"
@@ -1949,11 +1894,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9
 document = "stjudecloud/workflows:/workflows/scrnaseq/scrnaseq-standard.wdl"
 message = "scrnaseq-standard.wdl:28:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/scrnaseq/scrnaseq-standard.wdl/#L28"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/scrnaseq/scrnaseq-standard.wdl"
-message = "scrnaseq-standard.wdl:40:10: note[SectionOrdering]: sections are not in order for workflow `scrnaseq_standard`"
-permalink = "https://github.com/stjudecloud/workflows/blob/833b97fb582fe7d4f6df9d29a645d0289f1fc92e/workflows/scrnaseq/scrnaseq-standard.wdl/#L40"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/scrnaseq/scrnaseq-standard.wdl"
