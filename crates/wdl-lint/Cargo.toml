@@ -11,7 +11,7 @@ documentation = "https://docs.rs/wdl-lint"
 readme = "../README.md"
 
 [dependencies]
-wdl-ast = { path = "../wdl-ast", version = "0.4.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.5.0" }
 convert_case = { workspace = true }
 indexmap = { workspace = true }
 
