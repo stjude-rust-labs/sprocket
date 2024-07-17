@@ -1,6 +1,6 @@
 [package]
 name = "wdl-lint"
-version = "0.3.0"
+version = "0.4.0"
 description = "Lint rules for Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
