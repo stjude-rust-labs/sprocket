@@ -6,6 +6,8 @@ use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::StandardStream;
 use codespan_reporting::term::Config;
 use indexmap::IndexMap;
+use wdl::ast::Document;
+use wdl::ast::Validator;
 use wdl::lint::LintVisitor;
 
 use crate::report::Reporter;
@@ -154,35 +156,33 @@ impl Repository {
 
         for (_path, handle) in self.handles.iter() {
             let file = self.sources.get(*handle).expect("Expected to find file");
-            match wdl::ast::Document::parse(file.source()).into_result() {
-                Ok(document) => {
-                    let validator = wdl::ast::Validator::default();
-                    if let Err(diagnostics) = validator.validate(&document) {
-                        reporter.emit_diagnostics(file, &diagnostics)?;
-                        syntax_failure = true;
-                        continue;
-                    }
+            let (document, diagnostics) = Document::parse(file.source());
+            if !diagnostics.is_empty() {
+                reporter.emit_diagnostics(file, &diagnostics)?;
+                syntax_failure = true;
+                continue;
+            }
 
-                    if lint {
-                        let mut linter = wdl::ast::Validator::empty();
-                        let visitor =
-                            LintVisitor::new(wdl::lint::rules().into_iter().filter_map(|rule| {
-                                if except_rules.contains(&rule.id().to_string()) {
-                                    None
-                                } else {
-                                    Some(rule)
-                                }
-                            }));
-                        linter.add_visitor(visitor);
-                        if let Err(diagnostics) = linter.validate(&document) {
-                            reporter.emit_diagnostics(file, &diagnostics)?;
-                            lint_failure = true;
-                        }
+            let mut validator = Validator::default();
+            if let Err(diagnostic) = validator.validate(&document) {
+                reporter.emit_diagnostics(file, &diagnostic)?;
+                syntax_failure = true;
+                continue;
+            }
+
+            if lint {
+                let mut linter = Validator::empty();
+                let visitor = LintVisitor::new(wdl::lint::rules().into_iter().filter_map(|rule| {
+                    if except_rules.contains(&rule.id().to_string()) {
+                        None
+                    } else {
+                        Some(rule)
                     }
-                }
-                Err(diagnostics) => {
-                    reporter.emit_diagnostics(file, &diagnostics)?;
-                    syntax_failure = true;
+                }));
+                linter.add_visitor(visitor);
+                if let Err(diagnostic) = linter.validate(&document) {
+                    reporter.emit_diagnostics(file, &diagnostic)?;
+                    lint_failure = true;
                 }
             }
         }

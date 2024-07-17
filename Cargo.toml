@@ -20,6 +20,6 @@ nonempty = "0.9.0"
 pest = { version = "2.7.5", features = ["pretty-print"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
-wdl = { version = "0.5.0", features = ["codespan"] }
+wdl = { version = "0.6.0", features = ["codespan"] }
 walkdir = "2.4.0"
 colored = "2.1.0"
