@@ -10,7 +10,7 @@ repository = "https://github.com/stjude-rust-labs/wdl"
 documentation = "https://docs.rs/wdl-ast"
 
 [dependencies]
-wdl-grammar = { path = "../wdl-grammar", version = "0.5.0" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.6.0" }
 rowan = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
