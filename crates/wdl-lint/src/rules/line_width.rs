@@ -27,14 +27,14 @@ fn line_too_long(span: Span, max_width: usize) -> Diagnostic {
 }
 
 /// Detects lines that exceed a certain width.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct LineWidthRule {
     /// The maximum width of a line.
     max_width: usize,
-    /// The offset of the previous newline.
-    prev_newline_offset: usize,
+    /// The offset of the last newline character seen (if it exists).
+    previous_newline_offset: Option<usize>,
     /// Whether we are in a section that should be ignored.
-    should_ignore: bool,
+    ignored_section: bool,
 }
 
 impl LineWidthRule {
@@ -48,27 +48,21 @@ impl LineWidthRule {
 
     /// Detects lines that exceed a certain width.
     fn detect_line_too_long(&mut self, state: &mut Diagnostics, text: &str, start: usize) {
-        let mut cur_newline_offset = start;
-        text.char_indices().for_each(|(i, c)| {
-            if c == '\n' {
-                cur_newline_offset = start + i;
-                if self.should_ignore {
-                    self.prev_newline_offset = cur_newline_offset + 1;
-                    return;
-                }
+        for offset in text
+            .char_indices()
+            .filter(|(_, c)| *c == '\n')
+            .map(|(offset, _)| offset)
+        {
+            let current_offset = start + offset;
+            let previous_offset = self.previous_newline_offset.unwrap_or_default();
 
-                if cur_newline_offset - self.prev_newline_offset > self.max_width {
-                    state.add(line_too_long(
-                        Span::new(
-                            self.prev_newline_offset,
-                            cur_newline_offset - self.prev_newline_offset,
-                        ),
-                        self.max_width,
-                    ));
-                }
-                self.prev_newline_offset = cur_newline_offset + 1;
+            if !self.ignored_section && current_offset - previous_offset > self.max_width {
+                let span = Span::new(previous_offset, current_offset - previous_offset);
+                state.add(line_too_long(span, self.max_width));
             }
-        });
+
+            self.previous_newline_offset = Some(current_offset + 1);
+        }
     }
 }
 
@@ -77,8 +71,8 @@ impl Default for LineWidthRule {
     fn default() -> Self {
         Self {
             max_width: 90,
-            prev_newline_offset: 0,
-            should_ignore: false,
+            previous_newline_offset: None,
+            ignored_section: false,
         }
     }
 }
@@ -89,8 +83,7 @@ impl Rule for LineWidthRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that lines do not exceed a certain width. That width is currently set to 90 \
-         characters."
+        "Ensures that lines do not exceed a certain width."
     }
 
     fn explanation(&self) -> &'static str {
@@ -139,7 +132,7 @@ impl Visitor for LineWidthRule {
         reason: VisitReason,
         _: &v1::MetadataSection,
     ) {
-        self.should_ignore = matches!(reason, VisitReason::Enter);
+        self.ignored_section = matches!(reason, VisitReason::Enter);
     }
 
     fn parameter_metadata_section(
@@ -148,6 +141,6 @@ impl Visitor for LineWidthRule {
         reason: VisitReason,
         _: &v1::ParameterMetadataSection,
     ) {
-        self.should_ignore = matches!(reason, VisitReason::Enter);
+        self.ignored_section = matches!(reason, VisitReason::Enter);
     }
 }
