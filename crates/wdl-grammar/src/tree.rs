@@ -1,8 +1,12 @@
 //! Module for the concrete syntax tree (CST) representation.
 
+pub mod dive;
+
+use std::borrow::Cow;
 use std::fmt;
 
 use rowan::GreenNodeBuilder;
+use rowan::GreenNodeData;
 
 use super::grammar;
 use super::lexer::Lexer;
@@ -477,6 +481,11 @@ impl SyntaxTree {
     /// Gets the root syntax node of the tree.
     pub fn root(&self) -> &SyntaxNode {
         &self.0
+    }
+
+    /// Gets a copy of the underlying root green node for the tree.
+    pub fn green(&self) -> Cow<'_, GreenNodeData> {
+        self.0.green()
     }
 
     /// Converts the tree into a syntax node.

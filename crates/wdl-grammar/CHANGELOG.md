@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+* Add facilities for diving on `SyntaxNode`s ([#138](https://github.com/stjude-rust-labs/wdl/pull/138)).
+
 ## 0.6.0 - 07-17-2024
 
 ### Added
