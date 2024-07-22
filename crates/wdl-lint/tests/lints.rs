@@ -153,46 +153,56 @@ fn main() {
     println!("\nrunning {} tests\n", tests.len());
 
     let ntests = AtomicUsize::new(0);
-    let errors = tests
-        .par_iter()
-        .filter_map(|test| {
-            let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
-            match std::panic::catch_unwind(|| {
-                match run_test(test, &ntests)
-                    .map_err(|e| format!("failed to run test `{path}`: {e}", path = test.display()))
-                    .err()
-                {
-                    Some(e) => {
-                        println!("test {test_name} ... {failed}", failed = "failed".red());
-                        Some((test_name, e))
-                    }
-                    None => {
-                        println!("test {test_name} ... {ok}", ok = "ok".green());
-                        None
-                    }
+
+    fn inner<'a>(test: &'a PathBuf, ntests: &AtomicUsize) -> Option<(&'a str, String)> {
+        let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
+        match std::panic::catch_unwind(|| {
+            match run_test(test, &ntests)
+                .map_err(|e| format!("failed to run test `{path}`: {e}", path = test.display()))
+                .err()
+            {
+                Some(e) => {
+                    println!("test {test_name} ... {failed}", failed = "failed".red());
+                    Some((test_name, e))
                 }
-            }) {
-                Ok(result) => result,
-                Err(e) => {
-                    println!(
-                        "test {test_name} ... {panicked}",
-                        panicked = "panicked".red()
-                    );
-                    Some((
-                        test_name,
-                        format!(
-                            "test panicked: {e:?}",
-                            e = e
-                                .downcast_ref::<String>()
-                                .map(|s| s.as_str())
-                                .or_else(|| e.downcast_ref::<&str>().copied())
-                                .unwrap_or("no panic message")
-                        ),
-                    ))
+                None => {
+                    println!("test {test_name} ... {ok}", ok = "ok".green());
+                    None
                 }
             }
-        })
-        .collect::<Vec<_>>();
+        }) {
+            Ok(result) => result,
+            Err(e) => {
+                println!(
+                    "test {test_name} ... {panicked}",
+                    panicked = "panicked".red()
+                );
+                Some((
+                    test_name,
+                    format!(
+                        "test panicked: {e:?}",
+                        e = e
+                            .downcast_ref::<String>()
+                            .map(|s| s.as_str())
+                            .or_else(|| e.downcast_ref::<&str>().copied())
+                            .unwrap_or("no panic message")
+                    ),
+                ))
+            }
+        }
+    }
+
+    let errors: Vec<(&str, String)> = if std::env::args().any(|arg| arg == "--serial") {
+        tests
+            .iter()
+            .filter_map(|test| inner(test, &ntests))
+            .collect::<Vec<_>>()
+    } else {
+        tests
+            .par_iter()
+            .filter_map(|test| inner(test, &ntests))
+            .collect::<Vec<_>>()
+    };
 
     if !errors.is_empty() {
         eprintln!(
