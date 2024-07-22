@@ -72,6 +72,9 @@
 
 #![warn(missing_docs)]
 
+#[cfg(feature = "analysis")]
+#[doc(inline)]
+pub use wdl_analysis as analysis;
 #[cfg(feature = "ast")]
 #[doc(inline)]
 pub use wdl_ast as ast;

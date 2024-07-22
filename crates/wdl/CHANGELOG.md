@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+* Promoted `wdl-analysis` to `wdl::analysis` (available behind the `analysis` feature,
+  [#140](https://github.com/stjude-rust-labs/wdl/pull/140)).
+
 ## 0.6.0 - 07-17-2024
 
 ### Changed
@@ -13,8 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added an `analysis` command to perform full analysis and to also print the 
-  result of the analysis; currently it just outputs a debug representation of 
+* Added an `analysis` command to perform full analysis and to also print the
+  result of the analysis; currently it just outputs a debug representation of
   the analysis results, but that will change in the future ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
 
 ## 0.5.0 - 06-28-2024

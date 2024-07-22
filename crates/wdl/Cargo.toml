@@ -29,12 +29,23 @@ anyhow = { workspace = true }
 codespan-reporting = { workspace = true }
 
 [features]
-default = ["ast", "grammar", "lint"]
+default = ["analysis", "ast", "grammar", "lint"]
+analysis = ["dep:wdl-analysis"]
 ast = ["dep:wdl-ast"]
 grammar = ["dep:wdl-grammar"]
 lint = ["dep:wdl-lint"]
 codespan = ["ast", "wdl-ast/codespan", "dep:codespan-reporting"]
-cli = ["codespan", "lint", "dep:wdl-analysis", "dep:clap", "dep:anyhow", "dep:colored", "dep:env_logger", "dep:indicatif", "dep:tokio"]
+cli = [
+    "analysis",
+    "codespan",
+    "lint",
+    "dep:clap",
+    "dep:anyhow",
+    "dep:colored",
+    "dep:env_logger",
+    "dep:indicatif",
+    "dep:tokio",
+]
 
 [[example]]
 name = "explore"
