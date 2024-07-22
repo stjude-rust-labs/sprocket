@@ -233,6 +233,14 @@ impl AnalyzeCommand {
 }
 
 /// A tool for parsing, validating, and linting WDL source code.
+///
+/// This command line tool is intended as an entrypoint to work with and develop
+/// the `wdl` family of crates. It is not intended to be used by the broader
+/// community. If you are interested in a command line tool designed to work
+/// with WDL documents more generally, have a look at the `sprocket` command
+/// line tool.
+///
+/// Link: https://github.com/stjude-rust-labs/sprocket
 #[derive(Parser)]
 #[clap(
     bin_name = "wdl",
