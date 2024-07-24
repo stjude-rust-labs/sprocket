@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing
+#@ except: CommentWhitespace, DescriptionMissing
 
 version 1.0
 

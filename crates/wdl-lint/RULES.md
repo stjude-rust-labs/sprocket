@@ -10,6 +10,7 @@ be out of sync with released packages.
 | :------------------------------- | :---------------------------- | :------------------------------------------------------------------------------------ |
 | `CallInputSpacing`               | Style, Clarity, Spacing       | Ensures proper spacing for call inputs                                                |
 | `CommandSectionMixedIndentation` | Clarity, Correctness, Spacing | Ensures that lines within a command do not mix spaces and tabs.                       |
+| `CommentWhitespace`              | Spacing                       | Ensures that comments are properly spaced.                                            |
 | `DeprecatedObject`               | Deprecated                    | Ensures that the deprecated `Object` construct is not used.                           |
 | `DeprecatedPlaceholderOption`    | Deprecated                    | Ensures that the deprecated placeholder options construct is not used.                |
 | `DescriptionMissing`             | Completeness                  | Ensures that each meta section has a description key.                                 |

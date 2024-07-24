@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing
+#@ except: CommentWhitespace, DescriptionMissing
 ## This is a test of the `DoubleQuotes` lint
 
 version 1.1

@@ -2,6 +2,7 @@
 
 mod call_input_spacing;
 mod command_mixed_indentation;
+mod comment_whitespace;
 mod deprecated_object;
 mod deprecated_placeholder_option;
 mod description_missing;
@@ -30,6 +31,7 @@ mod whitespace;
 
 pub use call_input_spacing::*;
 pub use command_mixed_indentation::*;
+pub use comment_whitespace::*;
 pub use deprecated_object::*;
 pub use deprecated_placeholder_option::*;
 pub use description_missing::*;

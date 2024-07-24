@@ -24,7 +24,7 @@ commit_hash = "efb0eadd70fe21fe9484a310f12a6c54b752db43"
 
 [repositories."broadinstitute/warp"]
 identifier = "broadinstitute/warp"
-commit_hash = "16d9ae6fc19071acd3541ac2950908d2cc2d03bd"
+commit_hash = "6ed34275e1403cb70d46067b88db6a3dd7563692"
 
 [repositories."chanzuckerberg/czid-workflows"]
 identifier = "chanzuckerberg/czid-workflows"
@@ -49,7 +49,7 @@ filters = ["/template/task-templates.wdl"]
 
 [repositories."theiagen/public_health_bioinformatics"]
 identifier = "theiagen/public_health_bioinformatics"
-commit_hash = "6d406b65a1cfa0b7e1042da2e750cbbf91531c92"
+commit_hash = "cd07ffaa70d59921900ac12aa4212a358c1ef3aa"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
@@ -384,32 +384,32 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/efb0eadd7
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/scATAC/scATAC.wdl"
 message = "scATAC.wdl:203:9: error: duplicate key `cpu` in runtime section"
-permalink = "https://github.com/broadinstitute/warp/blob/16d9ae6fc19071acd3541ac2950908d2cc2d03bd/pipelines/skylab/scATAC/scATAC.wdl/#L203"
+permalink = "https://github.com/broadinstitute/warp/blob/6ed34275e1403cb70d46067b88db6a3dd7563692/pipelines/skylab/scATAC/scATAC.wdl/#L203"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:140:32: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/16d9ae6fc19071acd3541ac2950908d2cc2d03bd/tasks/broad/GermlineVariantDiscovery.wdl/#L140"
+permalink = "https://github.com/broadinstitute/warp/blob/6ed34275e1403cb70d46067b88db6a3dd7563692/tasks/broad/GermlineVariantDiscovery.wdl/#L140"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:67:32: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/16d9ae6fc19071acd3541ac2950908d2cc2d03bd/tasks/broad/GermlineVariantDiscovery.wdl/#L67"
+permalink = "https://github.com/broadinstitute/warp/blob/6ed34275e1403cb70d46067b88db6a3dd7563692/tasks/broad/GermlineVariantDiscovery.wdl/#L67"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
 message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:814:27: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/16d9ae6fc19071acd3541ac2950908d2cc2d03bd/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L814"
+permalink = "https://github.com/broadinstitute/warp/blob/6ed34275e1403cb70d46067b88db6a3dd7563692/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L814"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
 message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:866:27: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/16d9ae6fc19071acd3541ac2950908d2cc2d03bd/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L866"
+permalink = "https://github.com/broadinstitute/warp/blob/6ed34275e1403cb70d46067b88db6a3dd7563692/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L866"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tests/cemba/pr/CheckCembaOutputs.wdl"
 message = "CheckCembaOutputs.wdl:1:1: error: a WDL document must start with a version statement"
-permalink = "https://github.com/broadinstitute/warp/blob/16d9ae6fc19071acd3541ac2950908d2cc2d03bd/tests/cemba/pr/CheckCembaOutputs.wdl/#L1"
+permalink = "https://github.com/broadinstitute/warp/blob/6ed34275e1403cb70d46067b88db6a3dd7563692/tests/cemba/pr/CheckCembaOutputs.wdl/#L1"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/index-generation/index-generation.wdl"

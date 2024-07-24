@@ -1,4 +1,4 @@
-#@ except: Whitespace, EndingNewline, Unknown
+#@ except: CommentWhitespace, Whitespace, EndingNewline, Unknown
 ## This is a test of the `#@ except` comments.
 ## The above exceptions apply to the whole file.
 
