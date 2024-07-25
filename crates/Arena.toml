@@ -302,6 +302,11 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:110:13: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L110"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:117:92: note[BlankLinesBetweenElements]: extra blank line(s) found"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L117"
 
@@ -347,6 +352,11 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:143:13: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L143"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:151:61: note[BlankLinesBetweenElements]: extra blank line(s) found"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L151"
 
@@ -389,6 +399,11 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:196:10: warning[SnakeCase]: output name `SJout` is not snake_case"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L196"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:200:13: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L200"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
@@ -454,6 +469,11 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:23:22: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L23"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:244:13: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L244"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
@@ -1681,14 +1701,34 @@ message = "ww-vc-trio.wdl:98:29: note[CallInputSpacing]: call input not properly
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L98"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
+message = "flag_filter.wdl:119:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/data_structures/flag_filter.wdl/#L119"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:107:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/data_structures/read_group.wdl/#L107"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:134:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/data_structures/read_group.wdl/#L134"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:159:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/data_structures/read_group.wdl/#L159"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:192:47: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/data_structures/read_group.wdl/#L192"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:444:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/data_structures/read_group.wdl/#L444"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -1717,8 +1757,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:245:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/arriba.wdl/#L245"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:26:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/arriba.wdl/#L26"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:298:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/arriba.wdl/#L298"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -1732,6 +1782,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:347:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/arriba.wdl/#L347"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:34:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/arriba.wdl/#L34"
 
@@ -1739,6 +1794,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:38:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/arriba.wdl/#L38"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:397:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/arriba.wdl/#L397"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -1802,6 +1862,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:190:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/bwa.wdl/#L190"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:19:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/bwa.wdl/#L19"
 
@@ -1852,8 +1917,28 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:286:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/bwa.wdl/#L286"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:303:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/bwa.wdl/#L303"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:337:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/bwa.wdl/#L337"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:89:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/bwa.wdl/#L89"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/cellranger.wdl"
+message = "cellranger.wdl:113:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/cellranger.wdl/#L113"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/cellranger.wdl"
@@ -1902,6 +1987,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/cellranger.wdl"
+message = "cellranger.wdl:184:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/cellranger.wdl/#L184"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/cellranger.wdl"
 message = "cellranger.wdl:43:16: note[DisallowedInputName]: declaration identifier must be at least 3 characters"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/cellranger.wdl/#L43"
 
@@ -1921,9 +2011,19 @@ message = "deeptools.wdl:23:13: note[TrailingComma]: item missing trailing comma
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/deeptools.wdl/#L23"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/deeptools.wdl"
+message = "deeptools.wdl:70:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/deeptools.wdl/#L70"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/estimate.wdl"
 message = "estimate.wdl:39:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/estimate.wdl/#L39"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/estimate.wdl"
+message = "estimate.wdl:53:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/estimate.wdl/#L53"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fastqc.wdl"
@@ -1939,6 +2039,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/fastqc.wdl"
 message = "fastqc.wdl:23:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/fastqc.wdl/#L23"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fastqc.wdl"
+message = "fastqc.wdl:67:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/fastqc.wdl/#L67"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
@@ -1982,6 +2087,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:172:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/fq.wdl/#L172"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:20:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/fq.wdl/#L20"
 
@@ -2021,6 +2131,11 @@ message = "fq.wdl:53:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/fq.wdl/#L53"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:96:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/fq.wdl/#L96"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:127:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L127"
@@ -2029,6 +2144,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:12:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L12"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:152:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L152"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -2044,6 +2164,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:194:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L194"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:216:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L216"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -2067,6 +2192,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:302:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L302"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:313:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L313"
 
@@ -2079,6 +2209,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:330:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L330"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:375:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L375"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -2111,6 +2246,21 @@ message = "gatk4.wdl:425:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L425"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:488:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L488"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:71:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L71"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:135:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/htseq.wdl/#L135"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:163:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/htseq.wdl/#L163"
@@ -2119,6 +2269,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:19:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/htseq.wdl/#L19"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:206:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/htseq.wdl/#L206"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
@@ -2177,6 +2332,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:118:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/kraken2.wdl/#L118"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:175:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/kraken2.wdl/#L175"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:192:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/kraken2.wdl/#L192"
 
@@ -2199,6 +2364,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:261:17: note[ExpressionSpacing]: multi-line if...then...else must have a following newline and parenthesis"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/kraken2.wdl/#L261"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:284:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/kraken2.wdl/#L284"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
@@ -2244,6 +2414,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:353:9: note[ExpressionSpacing]: multi-line if...then...else must have a following newline and parenthesis"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/kraken2.wdl/#L353"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:398:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/kraken2.wdl/#L398"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:44:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/kraken2.wdl/#L44"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
@@ -2321,6 +2501,16 @@ message = "librarian.wdl:20:5: note[BlankLinesBetweenElements]: missing blank li
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/librarian.wdl/#L20"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/librarian.wdl"
+message = "librarian.wdl:52:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/librarian.wdl/#L52"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/md5sum.wdl"
+message = "md5sum.wdl:39:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/md5sum.wdl/#L39"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/mosdepth.wdl"
 message = "mosdepth.wdl:11:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/mosdepth.wdl/#L11"
@@ -2331,14 +2521,29 @@ message = "mosdepth.wdl:23:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/mosdepth.wdl/#L23"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/mosdepth.wdl"
+message = "mosdepth.wdl:69:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/mosdepth.wdl/#L69"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/multiqc.wdl"
 message = "multiqc.wdl:21:21: note[DisallowedInputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/multiqc.wdl/#L21"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/multiqc.wdl"
+message = "multiqc.wdl:68:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/multiqc.wdl/#L68"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:106:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L106"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:140:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L140"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -2349,6 +2554,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:163:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L163"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:204:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L204"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -2369,6 +2579,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:25:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L25"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:281:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L281"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -2399,6 +2614,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:33:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L33"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:369:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L369"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -2449,6 +2669,26 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:429:7: note[ExpressionSpacing]: multi-line if...then...else must have a preceding space"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L429"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:451:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L451"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:87:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L87"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:1037:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L1037"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:125:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L125"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -2502,6 +2742,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:247:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L247"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:259:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L259"
 
@@ -2532,6 +2777,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:330:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L330"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:342:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L342"
 
@@ -2557,6 +2807,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:417:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L417"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:429:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L429"
 
@@ -2569,6 +2824,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:46:17: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L46"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:485:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L485"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -2587,6 +2847,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:548:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L548"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:560:17: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L560"
 
@@ -2599,6 +2864,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:574:17: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L574"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:610:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L610"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -2622,6 +2892,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:681:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L681"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:693:17: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L693"
 
@@ -2637,6 +2912,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:743:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L743"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:754:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L754"
 
@@ -2644,6 +2924,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:766:17: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L766"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:802:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L802"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -2667,6 +2952,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:858:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L858"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:869:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L869"
 
@@ -2679,6 +2969,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:898:14: note[DisallowedOutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L898"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:904:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L904"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -2696,9 +2991,19 @@ message = "picard.wdl:926:17: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L926"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:976:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/picard.wdl/#L976"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
 message = "qualimap.wdl:11:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/qualimap.wdl/#L11"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:157:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/qualimap.wdl/#L157"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
@@ -2711,9 +3016,24 @@ message = "qualimap.wdl:26:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/qualimap.wdl/#L26"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:89:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/qualimap.wdl/#L89"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:117:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/sambamba.wdl/#L117"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:135:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/sambamba.wdl/#L135"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:172:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/sambamba.wdl/#L172"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
@@ -2737,6 +3057,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:228:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/sambamba.wdl/#L228"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:246:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/sambamba.wdl/#L246"
 
@@ -2744,6 +3069,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:250:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/sambamba.wdl/#L250"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:285:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/sambamba.wdl/#L285"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:57:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/sambamba.wdl/#L57"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
@@ -2759,6 +3094,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1003:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L1003"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1054:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L1054"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1158:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L1158"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -2782,6 +3127,21 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1278:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L1278"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1324:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L1324"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:153:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L153"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:171:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L171"
 
@@ -2792,6 +3152,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:211:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L211"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:228:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L228"
 
@@ -2799,6 +3164,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:232:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L232"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:270:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L270"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -2817,6 +3187,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:39:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L39"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:416:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L416"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:436:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L436"
 
@@ -2824,6 +3204,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:440:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L440"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:503:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L503"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -2859,6 +3244,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:55:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L55"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:605:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L605"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -2902,6 +3292,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:690:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L690"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:708:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L708"
 
@@ -2919,6 +3314,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:72:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L72"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:763:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L763"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -3037,6 +3437,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:956:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L956"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:973:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L973"
 
@@ -3054,6 +3459,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:999:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/samtools.wdl/#L999"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:130:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/star.wdl/#L130"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
@@ -3471,6 +3881,16 @@ message = "star.wdl:728:17: note[ExpressionSpacing]: multi-line if...then...else
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/star.wdl/#L728"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:823:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/star.wdl/#L823"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:101:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L101"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:120:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L120"
@@ -3482,8 +3902,33 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:142:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L142"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:161:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L161"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:242:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L242"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:279:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L279"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:324:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L324"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:366:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L366"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -3497,8 +3942,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:425:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L425"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:458:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L458"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:45:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L45"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -3512,13 +3967,28 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:686:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L686"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:713:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L713"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:764:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L764"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:780:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L780"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:825:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L825"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
@@ -3612,6 +4082,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
+message = "dnaseq-standard-fastq.wdl:151:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L151"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
 message = "dnaseq-standard-fastq.wdl:18:5: note[BlankLinesBetweenElements]: missing blank line"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L18"
 
@@ -3664,6 +4139,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
 message = "dnaseq-standard.wdl:104:22: note[KeyValuePairs]: all items in an array or object should be on separate lines"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/dnaseq/dnaseq-standard.wdl/#L104"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
+message = "dnaseq-standard.wdl:129:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/dnaseq/dnaseq-standard.wdl/#L129"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
@@ -3794,6 +4274,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
 message = "quality-check-standard.wdl:47:17: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/qc/quality-check-standard.wdl/#L47"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
+message = "quality-check-standard.wdl:556:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/qc/quality-check-standard.wdl/#L556"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
@@ -4047,6 +4532,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
+message = "rnaseq-standard.wdl:182:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/rnaseq/rnaseq-standard.wdl/#L182"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
 message = "rnaseq-standard.wdl:20:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/rnaseq/rnaseq-standard.wdl/#L20"
 
@@ -4139,6 +4629,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/workflows/scrnaseq/10x-bam-to-fastqs.wdl"
 message = "10x-bam-to-fastqs.wdl:69:5: note[BlankLinesBetweenElements]: missing blank line"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/scrnaseq/10x-bam-to-fastqs.wdl/#L69"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/scrnaseq/10x-bam-to-fastqs.wdl"
+message = "10x-bam-to-fastqs.wdl:93:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/scrnaseq/10x-bam-to-fastqs.wdl/#L93"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/scrnaseq/scrnaseq-standard.wdl"

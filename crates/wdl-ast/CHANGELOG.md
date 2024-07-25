@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
+* Add `as_*()` and `into_*()` methods for each enum item in `Expr` and `LiteralExpr`
+  ([#142](https://github.com/stjude-rust-labs/wdl/pull/142)).
+* Add parsing of `container` elements within `runtime` and `requirements` blocks
+  according to the [current version of the WDL
+  specification](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#container)
+  ([#142](https://github.com/stjude-rust-labs/wdl/pull/142)).
 
 ## 0.5.0 - 07-17-2024
 

@@ -1,4 +1,5 @@
 #@ except: BlankLinesBetweenElements, CommentWhitespace, DescriptionMissing
+#@ except: MissingRequirements
 
 version 1.2
 

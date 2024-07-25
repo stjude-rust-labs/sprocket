@@ -20,11 +20,11 @@ commit_hash = "4536dd2c6719b86f4c50348f0ce354818260cadb"
 
 [repositories."broadinstitute/palantir-workflows"]
 identifier = "broadinstitute/palantir-workflows"
-commit_hash = "efb0eadd70fe21fe9484a310f12a6c54b752db43"
+commit_hash = "ae5b3026ea0102ab4164d30d552cabfc16076b44"
 
 [repositories."broadinstitute/warp"]
 identifier = "broadinstitute/warp"
-commit_hash = "7245d1411a31a6b7d1c6adcca02baaa6a5b4fe58"
+commit_hash = "a899f970f62404623dd42ec63d48346e74e86ea7"
 
 [repositories."chanzuckerberg/czid-workflows"]
 identifier = "chanzuckerberg/czid-workflows"
@@ -379,37 +379,37 @@ permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/HaplotypeMap/BuildHaplotypeMap.wdl"
 message = "BuildHaplotypeMap.wdl:17:1: error: a WDL document must start with a version statement"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/efb0eadd70fe21fe9484a310f12a6c54b752db43/HaplotypeMap/BuildHaplotypeMap.wdl/#L17"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/HaplotypeMap/BuildHaplotypeMap.wdl/#L17"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/scATAC/scATAC.wdl"
 message = "scATAC.wdl:203:9: error: duplicate key `cpu` in runtime section"
-permalink = "https://github.com/broadinstitute/warp/blob/7245d1411a31a6b7d1c6adcca02baaa6a5b4fe58/pipelines/skylab/scATAC/scATAC.wdl/#L203"
+permalink = "https://github.com/broadinstitute/warp/blob/a899f970f62404623dd42ec63d48346e74e86ea7/pipelines/skylab/scATAC/scATAC.wdl/#L203"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:140:32: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/7245d1411a31a6b7d1c6adcca02baaa6a5b4fe58/tasks/broad/GermlineVariantDiscovery.wdl/#L140"
+permalink = "https://github.com/broadinstitute/warp/blob/a899f970f62404623dd42ec63d48346e74e86ea7/tasks/broad/GermlineVariantDiscovery.wdl/#L140"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:67:32: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/7245d1411a31a6b7d1c6adcca02baaa6a5b4fe58/tasks/broad/GermlineVariantDiscovery.wdl/#L67"
+permalink = "https://github.com/broadinstitute/warp/blob/a899f970f62404623dd42ec63d48346e74e86ea7/tasks/broad/GermlineVariantDiscovery.wdl/#L67"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
 message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:814:27: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/7245d1411a31a6b7d1c6adcca02baaa6a5b4fe58/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L814"
+permalink = "https://github.com/broadinstitute/warp/blob/a899f970f62404623dd42ec63d48346e74e86ea7/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L814"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
 message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:866:27: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/7245d1411a31a6b7d1c6adcca02baaa6a5b4fe58/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L866"
+permalink = "https://github.com/broadinstitute/warp/blob/a899f970f62404623dd42ec63d48346e74e86ea7/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L866"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tests/cemba/pr/CheckCembaOutputs.wdl"
 message = "CheckCembaOutputs.wdl:1:1: error: a WDL document must start with a version statement"
-permalink = "https://github.com/broadinstitute/warp/blob/7245d1411a31a6b7d1c6adcca02baaa6a5b4fe58/tests/cemba/pr/CheckCembaOutputs.wdl/#L1"
+permalink = "https://github.com/broadinstitute/warp/blob/a899f970f62404623dd42ec63d48346e74e86ea7/tests/cemba/pr/CheckCembaOutputs.wdl/#L1"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/index-generation/index-generation.wdl"

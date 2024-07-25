@@ -1,4 +1,5 @@
-#@ except: DescriptionMissing, DisallowedInputName, DisallowedOutputName, InputSorting, LineWidth, MissingMetas, MissingOutput, MissingRuntime
+#@ except: ContainerValue, DescriptionMissing, DisallowedInputName, DisallowedOutputName
+#@ except: InputSorting, LineWidth, MissingMetas, MissingOutput, MissingRuntime
 ## CommentWhitespace, ImportWhitespace, and Whitespace are left enabled to understand all whitespace diagnostics.
 
 version 1.1

@@ -1,13 +1,13 @@
 warning[InputSorting]: input not sorted
-   ┌─ tests/lints/input-not-sorted/source.wdl:39:5
+   ┌─ tests/lints/input-not-sorted/source.wdl:40:5
    │  
-39 │ ╭     input {
-40 │ │         String g = "hello"
-41 │ │         Int? f = 2
-42 │ │         Int? e
+40 │ ╭     input {
+41 │ │         String g = "hello"
+42 │ │         Int? f = 2
+43 │ │         Int? e
    · │
-63 │ │         mystruct u
-64 │ │     }
+64 │ │         mystruct u
+65 │ │     }
    │ ╰─────^ input section must be sorted
    │  
    = fix: sort input statements as: 
@@ -37,15 +37,15 @@ warning[InputSorting]: input not sorted
      String g = "hello"
 
 warning[InputSorting]: input not sorted
-    ┌─ tests/lints/input-not-sorted/source.wdl:94:5
+    ┌─ tests/lints/input-not-sorted/source.wdl:95:5
     │  
- 94 │ ╭     input {
- 95 │ │         String g = "hello"
- 96 │ │         Int? f = 2
- 97 │ │         Int? e
+ 95 │ ╭     input {
+ 96 │ │         String g = "hello"
+ 97 │ │         Int? f = 2
+ 98 │ │         Int? e
     · │
-116 │ │         Array[String]+ p
-117 │ │     }
+117 │ │         Array[String]+ p
+118 │ │     }
     │ ╰─────^ input section must be sorted
     │  
     = fix: sort input statements as: 

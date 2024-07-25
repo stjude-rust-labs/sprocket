@@ -15,10 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added the `KeyValuePairs` lint rule ([#141](https://github.com/stjude-rust-labs/wdl/pull/141)).
 * Added the `ExpressionSpacing` lint rule ([#134](https://github.com/stjude-rust-labs/wdl/pull/134))
 * Added the `DisallowedInputName` and `DisallowedOutputName` lint rules ([#148](https://github.com/stjude-rust-labs/wdl/pull/148)).
+* Added the `ContainerValue` lint rule ([#142](https://github.com/stjude-rust-labs/wdl/pull/142)).
+* Added the `MissingRequirements` lint rule ([#142](https://github.com/stjude-rust-labs/wdl/pull/142)).
 
 ### Fixed
 
 * Fixed `LintVisitor` to support reuse ([#147](https://github.com/stjude-rust-labs/wdl/pull/147)).
+* Fixed a bug in `MissingRuntime` that caused false positives to fire for WDL v1.2 and
+  greater ([#142](https://github.com/stjude-rust-labs/wdl/pull/142)).
 
 ## 0.4.0 - 07-17-2024
 
@@ -43,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* All lint rule visitations now reset their states upon document entry, 
+* All lint rule visitations now reset their states upon document entry,
   allowing a validator to be reused between documents ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
 * Moved the `PartialOrd` implementation for types into the `InputSorting` rule.
 
@@ -65,8 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fixed the preamble whitespace rule to check for a blank line following the
   version statement ([#89](https://github.com/stjude-rust-labs/wdl/pull/89)).
-* Fixed the preamble whitespace and preamble comment rules to look for the 
-  version statement trivia based on it now being children of the version 
+* Fixed the preamble whitespace and preamble comment rules to look for the
+  version statement trivia based on it now being children of the version
   statement ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).
 
 ### Changed

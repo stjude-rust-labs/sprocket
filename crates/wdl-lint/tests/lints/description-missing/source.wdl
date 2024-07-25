@@ -1,4 +1,4 @@
-#@ except: BlankLinesBetweenElements, MissingRuntime, MissingOutput
+#@ except: BlankLinesBetweenElements, MissingRuntime, MissingOutput, MissingRequirements
 ## This is a test for a missing description in a `meta` section.
 
 version 1.2

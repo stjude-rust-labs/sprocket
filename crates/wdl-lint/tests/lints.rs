@@ -154,10 +154,10 @@ fn main() {
 
     let ntests = AtomicUsize::new(0);
 
-    fn inner<'a>(test: &'a PathBuf, ntests: &AtomicUsize) -> Option<(&'a str, String)> {
+    fn inner<'a>(test: &'a Path, ntests: &AtomicUsize) -> Option<(&'a str, String)> {
         let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
         match std::panic::catch_unwind(|| {
-            match run_test(test, &ntests)
+            match run_test(test, ntests)
                 .map_err(|e| format!("failed to run test `{path}`: {e}", path = test.display()))
                 .err()
             {

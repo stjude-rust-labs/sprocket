@@ -1,4 +1,4 @@
-#@ except: SnakeCase
+#@ except: MissingRequirements, SnakeCase
 
 version 1.2
 

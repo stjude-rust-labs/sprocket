@@ -24,6 +24,10 @@ use crate::SyntaxNode;
 use crate::SyntaxToken;
 use crate::WorkflowDescriptionLanguage;
 
+pub mod common;
+pub mod requirements;
+pub mod runtime;
+
 /// Represents a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TaskDefinition(pub(crate) SyntaxNode);
@@ -518,6 +522,14 @@ impl RequirementsSection {
         SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
+
+    /// Gets the `container` item as a
+    /// [`Container`](requirements::item::Container) (if it exists).
+    pub fn container(&self) -> Option<requirements::item::Container> {
+        // NOTE: validation should ensure that, at most, one `container` item exists in
+        // the `requirements` section.
+        child::<requirements::item::Container>(&self.0)
+    }
 }
 
 impl AstNode for RequirementsSection {
@@ -558,6 +570,12 @@ impl RequirementsItem {
     /// Gets the expression of the requirements item.
     pub fn expr(&self) -> Expr {
         child(&self.0).expect("expected an item expression")
+    }
+
+    /// Consumes `self` and attempts to cast the requirements item to a
+    /// [`Container`](requirements::item::Container).
+    pub fn into_container(self) -> Option<requirements::item::Container> {
+        requirements::item::Container::try_from(self).ok()
     }
 }
 
@@ -684,6 +702,14 @@ impl RuntimeSection {
         SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
+
+    /// Gets the `container` item as a [`Container`](runtime::item::Container)
+    /// (if it exists).
+    pub fn container(&self) -> Option<runtime::item::Container> {
+        // NOTE: validation should ensure that, at most, one `container`/`docker` item
+        // exists in the `runtime` section.
+        child::<runtime::item::Container>(&self.0)
+    }
 }
 
 impl AstNode for RuntimeSection {
@@ -724,6 +750,12 @@ impl RuntimeItem {
     /// Gets the expression of the runtime item.
     pub fn expr(&self) -> Expr {
         child(&self.0).expect("expected an item expression")
+    }
+
+    /// Consumes `self` and attempts to cast the runtime item to a
+    /// [`Container`](runtime::item::Container).
+    pub fn into_container(self) -> Option<runtime::item::Container> {
+        runtime::item::Container::try_from(self).ok()
     }
 }
 

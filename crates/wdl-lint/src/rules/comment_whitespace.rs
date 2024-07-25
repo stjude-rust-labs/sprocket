@@ -306,7 +306,7 @@ task foo {
         let ancestors = comment
             .syntax()
             .parent_ancestors()
-            .filter(|a| super::filter_parent_ancestors(a))
+            .filter(super::filter_parent_ancestors)
             .count();
 
         assert_eq!(ancestors, 2);
@@ -317,7 +317,7 @@ task foo {
         let ancestors = comment
             .syntax()
             .parent_ancestors()
-            .filter(|a| super::filter_parent_ancestors(a))
+            .filter(super::filter_parent_ancestors)
             .count();
 
         assert_eq!(ancestors, 3);
@@ -328,7 +328,7 @@ task foo {
         let ancestors = comment
             .syntax()
             .parent_ancestors()
-            .filter(|a| super::filter_parent_ancestors(a))
+            .filter(super::filter_parent_ancestors)
             .count();
 
         assert_eq!(ancestors, 4);
@@ -339,7 +339,7 @@ task foo {
         let ancestors = comment
             .syntax()
             .parent_ancestors()
-            .filter(|a| super::filter_parent_ancestors(a))
+            .filter(super::filter_parent_ancestors)
             .count();
 
         assert_eq!(ancestors, 2);
@@ -350,7 +350,7 @@ task foo {
         let ancestors = comment
             .syntax()
             .parent_ancestors()
-            .filter(|a| super::filter_parent_ancestors(a))
+            .filter(super::filter_parent_ancestors)
             .count();
 
         assert_eq!(ancestors, 3);

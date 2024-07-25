@@ -66,6 +66,28 @@ pub enum Expr {
 }
 
 impl Expr {
+    /// Attempts to reference a literal expression.
+    ///
+    /// - If the value is a literal expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_literal(&self) -> Option<&LiteralExpr> {
+        match self {
+            Self::Literal(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a literal expression.
+    ///
+    /// - If the value is a literal expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_literal(self) -> Option<LiteralExpr> {
+        match self {
+            Self::Literal(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a literal expression.
     ///
     /// # Panics
@@ -75,6 +97,28 @@ impl Expr {
         match self {
             Self::Literal(expr) => expr,
             _ => panic!("not a literal expression"),
+        }
+    }
+
+    /// Attempts to reference a name reference.
+    ///
+    /// - If the value is a name reference, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_name_ref(&self) -> Option<&NameRef> {
+        match self {
+            Self::Name(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a name reference.
+    ///
+    /// - If the value is a name reference, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_name_ref(self) -> Option<NameRef> {
+        match self {
+            Self::Name(expr) => Some(expr),
+            _ => None,
         }
     }
 
@@ -90,6 +134,28 @@ impl Expr {
         }
     }
 
+    /// Attempts to reference a parenthesized expression.
+    ///
+    /// - If the value is a parenthesized expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_parenthesized(&self) -> Option<&ParenthesizedExpr> {
+        match self {
+            Self::Parenthesized(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a parenthesized expression.
+    ///
+    /// - If the value is a parenthesized expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_parenthesized(self) -> Option<ParenthesizedExpr> {
+        match self {
+            Self::Parenthesized(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a parenthesized expression.
     ///
     /// # Panics
@@ -99,6 +165,28 @@ impl Expr {
         match self {
             Self::Parenthesized(expr) => expr,
             _ => panic!("not a parenthesized expression"),
+        }
+    }
+
+    /// Attempts to reference an `if` expression.
+    ///
+    /// - If the value is an `if` expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_if(&self) -> Option<&IfExpr> {
+        match self {
+            Self::If(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return an `if` expression.
+    ///
+    /// - If the value is an `if` expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_if(self) -> Option<IfExpr> {
+        match self {
+            Self::If(expr) => Some(expr),
+            _ => None,
         }
     }
 
@@ -114,6 +202,28 @@ impl Expr {
         }
     }
 
+    /// Attempts to reference a logical `not` expression.
+    ///
+    /// - If the value is a logical `not` expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_logical_not(&self) -> Option<&LogicalNotExpr> {
+        match self {
+            Self::LogicalNot(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a logical `not` expression.
+    ///
+    /// - If the value is a logical `not` expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_logical_not(self) -> Option<LogicalNotExpr> {
+        match self {
+            Self::LogicalNot(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a logical `not` expression.
     ///
     /// # Panics
@@ -123,6 +233,28 @@ impl Expr {
         match self {
             Self::LogicalNot(expr) => expr,
             _ => panic!("not a logical `not` expression"),
+        }
+    }
+
+    /// Attempts to reference a negation expression.
+    ///
+    /// - If the value is a negation expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_negation(&self) -> Option<&NegationExpr> {
+        match self {
+            Self::Negation(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a negation expression.
+    ///
+    /// - If the value is a negation expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_negation(self) -> Option<NegationExpr> {
+        match self {
+            Self::Negation(expr) => Some(expr),
+            _ => None,
         }
     }
 
@@ -138,6 +270,28 @@ impl Expr {
         }
     }
 
+    /// Attempts to reference a logical `or` expression.
+    ///
+    /// - If the value is a logical `or` expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_logical_or(&self) -> Option<&LogicalOrExpr> {
+        match self {
+            Self::LogicalOr(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a logical `or` expression.
+    ///
+    /// - If the value is a logical `or` expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_logical_or(self) -> Option<LogicalOrExpr> {
+        match self {
+            Self::LogicalOr(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a logical `or` expression.
     ///
     /// # Panics
@@ -147,6 +301,28 @@ impl Expr {
         match self {
             Self::LogicalOr(expr) => expr,
             _ => panic!("not a logical `or` expression"),
+        }
+    }
+
+    /// Attempts to reference a logical `and` expression.
+    ///
+    /// - If the value is a logical `and` expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_logical_and(&self) -> Option<&LogicalAndExpr> {
+        match self {
+            Self::LogicalAnd(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a logical `and` expression.
+    ///
+    /// - If the value is a logical `and` expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_logical_and(self) -> Option<LogicalAndExpr> {
+        match self {
+            Self::LogicalAnd(expr) => Some(expr),
+            _ => None,
         }
     }
 
@@ -162,6 +338,28 @@ impl Expr {
         }
     }
 
+    /// Attempts to reference an equality expression.
+    ///
+    /// - If the value is an equality expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_equality(&self) -> Option<&EqualityExpr> {
+        match self {
+            Self::Equality(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return an equality expression.
+    ///
+    /// - If the value is an equality expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_equality(self) -> Option<EqualityExpr> {
+        match self {
+            Self::Equality(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into an equality expression.
     ///
     /// # Panics
@@ -171,6 +369,28 @@ impl Expr {
         match self {
             Self::Equality(expr) => expr,
             _ => panic!("not an equality expression"),
+        }
+    }
+
+    /// Attempts to reference an inequality expression.
+    ///
+    /// - If the value is an inequality expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_inequality(&self) -> Option<&InequalityExpr> {
+        match self {
+            Self::Inequality(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return an inequality expression.
+    ///
+    /// - If the value is an inequality expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_inequality(self) -> Option<InequalityExpr> {
+        match self {
+            Self::Inequality(expr) => Some(expr),
+            _ => None,
         }
     }
 
@@ -186,6 +406,28 @@ impl Expr {
         }
     }
 
+    /// Attempts to reference a "less than" expression.
+    ///
+    /// - If the value is a "less than" expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_less(&self) -> Option<&LessExpr> {
+        match self {
+            Self::Less(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a "less than" expression.
+    ///
+    /// - If the value is a "less than" expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_less(self) -> Option<LessExpr> {
+        match self {
+            Self::Less(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a "less than" expression.
     ///
     /// # Panics
@@ -195,6 +437,31 @@ impl Expr {
         match self {
             Self::Less(expr) => expr,
             _ => panic!("not a \"less than\" expression"),
+        }
+    }
+
+    /// Attempts to reference a "less than or equal to" expression.
+    ///
+    /// - If the value is a "less than or equal to" expression, `Some()` is
+    ///   returned.
+    /// - Else, `None` is returned.
+    pub fn as_less_equal(&self) -> Option<&LessEqualExpr> {
+        match self {
+            Self::LessEqual(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a "less than or equal to"
+    /// expression.
+    ///
+    /// - If the value is a "less than or equal to" expression, `Some()` is
+    ///   returned.
+    /// - Else, `None` is returned.
+    pub fn into_less_equal(self) -> Option<LessEqualExpr> {
+        match self {
+            Self::LessEqual(expr) => Some(expr),
+            _ => None,
         }
     }
 
@@ -210,6 +477,28 @@ impl Expr {
         }
     }
 
+    /// Attempts to reference a "greater than" expression.
+    ///
+    /// - If the value is a "greater than" expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_greater(&self) -> Option<&GreaterExpr> {
+        match self {
+            Self::Greater(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a "greater than" expression.
+    ///
+    /// - If the value is a "greater than" expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_greater(self) -> Option<GreaterExpr> {
+        match self {
+            Self::Greater(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a "greater than" expression.
     ///
     /// # Panics
@@ -219,6 +508,31 @@ impl Expr {
         match self {
             Self::Greater(expr) => expr,
             _ => panic!("not a \"greater than\" expression"),
+        }
+    }
+
+    /// Attempts to reference a "greater than or equal to" expression.
+    ///
+    /// - If the value is a "greater than or equal to" expression, `Some()` is
+    ///   returned.
+    /// - Else, `None` is returned.
+    pub fn as_greater_equal(&self) -> Option<&GreaterEqualExpr> {
+        match self {
+            Self::GreaterEqual(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a "greater than or equal to"
+    /// expression.
+    ///
+    /// - If the value is a "greater than or equal to" expression, `Some()` is
+    ///   returned.
+    /// - Else, `None` is returned.
+    pub fn into_greater_equal(self) -> Option<GreaterEqualExpr> {
+        match self {
+            Self::GreaterEqual(expr) => Some(expr),
+            _ => None,
         }
     }
 
@@ -234,6 +548,28 @@ impl Expr {
         }
     }
 
+    /// Attempts to reference an addition expression.
+    ///
+    /// - If the value is an addition expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_addition(&self) -> Option<&AdditionExpr> {
+        match self {
+            Self::Addition(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return an addition expression.
+    ///
+    /// - If the value is an addition expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_addition(self) -> Option<AdditionExpr> {
+        match self {
+            Self::Addition(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into an addition expression.
     ///
     /// # Panics
@@ -243,6 +579,28 @@ impl Expr {
         match self {
             Self::Addition(expr) => expr,
             _ => panic!("not an addition expression"),
+        }
+    }
+
+    /// Attempts to reference a subtraction expression.
+    ///
+    /// - If the value is a subtraction expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_subtraction(&self) -> Option<&SubtractionExpr> {
+        match self {
+            Self::Subtraction(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a subtraction expression.
+    ///
+    /// - If the value is a subtraction expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_subtraction(self) -> Option<SubtractionExpr> {
+        match self {
+            Self::Subtraction(expr) => Some(expr),
+            _ => None,
         }
     }
 
@@ -258,6 +616,28 @@ impl Expr {
         }
     }
 
+    /// Attempts to reference a multiplication expression.
+    ///
+    /// - If the value is a multiplication expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_multiplication(&self) -> Option<&MultiplicationExpr> {
+        match self {
+            Self::Multiplication(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a multiplication expression.
+    ///
+    /// - If the value is a multiplication expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_multiplication(self) -> Option<MultiplicationExpr> {
+        match self {
+            Self::Multiplication(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a multiplication expression.
     ///
     /// # Panics
@@ -267,6 +647,28 @@ impl Expr {
         match self {
             Self::Multiplication(expr) => expr,
             _ => panic!("not a multiplication expression"),
+        }
+    }
+
+    /// Attempts to reference a division expression.
+    ///
+    /// - If the value is a division expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_division(&self) -> Option<&DivisionExpr> {
+        match self {
+            Self::Division(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a division expression.
+    ///
+    /// - If the value is a division expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_division(self) -> Option<DivisionExpr> {
+        match self {
+            Self::Division(expr) => Some(expr),
+            _ => None,
         }
     }
 
@@ -282,6 +684,28 @@ impl Expr {
         }
     }
 
+    /// Attempts to reference a modulo expression.
+    ///
+    /// - If the value is a modulo expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_modulo(&self) -> Option<&ModuloExpr> {
+        match self {
+            Self::Modulo(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a modulo expression.
+    ///
+    /// - If the value is a modulo expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_modulo(self) -> Option<ModuloExpr> {
+        match self {
+            Self::Modulo(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a modulo expression.
     ///
     /// # Panics
@@ -291,6 +715,28 @@ impl Expr {
         match self {
             Self::Modulo(expr) => expr,
             _ => panic!("not a modulo expression"),
+        }
+    }
+
+    /// Attempts to reference an exponentiation expression.
+    ///
+    /// - If the value is an exponentiation expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_exponentiation(&self) -> Option<&ExponentiationExpr> {
+        match self {
+            Self::Exponentiation(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return an exponentiation expression.
+    ///
+    /// - If the value is an exponentiation expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_exponentiation(self) -> Option<ExponentiationExpr> {
+        match self {
+            Self::Exponentiation(expr) => Some(expr),
+            _ => None,
         }
     }
 
@@ -306,6 +752,28 @@ impl Expr {
         }
     }
 
+    /// Attempts to reference a call expression.
+    ///
+    /// - If the value is a call expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_call(&self) -> Option<&CallExpr> {
+        match self {
+            Self::Call(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return a call expression.
+    ///
+    /// - If the value is a call expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_call(self) -> Option<CallExpr> {
+        match self {
+            Self::Call(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a call expression.
     ///
     /// # Panics
@@ -318,6 +786,28 @@ impl Expr {
         }
     }
 
+    /// Attempts to reference an index expression.
+    ///
+    /// - If the value is an index expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_index(&self) -> Option<&IndexExpr> {
+        match self {
+            Self::Index(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return an index expression.
+    ///
+    /// - If the value is an index expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_index(self) -> Option<IndexExpr> {
+        match self {
+            Self::Index(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into an index expression.
     ///
     /// # Panics
@@ -327,6 +817,28 @@ impl Expr {
         match self {
             Self::Index(expr) => expr,
             _ => panic!("not an index expression"),
+        }
+    }
+
+    /// Attempts to reference an access expression.
+    ///
+    /// - If the value is an access expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_access(&self) -> Option<&AccessExpr> {
+        match self {
+            Self::Access(expr) => Some(expr),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return an access expression.
+    ///
+    /// - If the value is an access expression, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_access(self) -> Option<AccessExpr> {
+        match self {
+            Self::Access(expr) => Some(expr),
+            _ => None,
         }
     }
 
@@ -483,6 +995,29 @@ pub enum LiteralExpr {
 }
 
 impl LiteralExpr {
+    /// Attempts to reference the expression as a literal boolean.
+    ///
+    /// - If the value is a literal boolean, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_boolean(&self) -> Option<&LiteralBoolean> {
+        match self {
+            Self::Boolean(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal
+    /// boolean.
+    ///
+    /// - If the value is a literal boolean, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_boolean(self) -> Option<LiteralBoolean> {
+        match self {
+            Self::Boolean(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a literal boolean.
     ///
     /// # Panics
@@ -492,6 +1027,29 @@ impl LiteralExpr {
         match self {
             Self::Boolean(literal) => literal,
             _ => panic!("not a literal boolean"),
+        }
+    }
+
+    /// Attempts to reference the expression as a literal integer.
+    ///
+    /// - If the value is a literal integer, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_integer(&self) -> Option<&LiteralInteger> {
+        match self {
+            Self::Integer(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal
+    /// integer.
+    ///
+    /// - If the value is a literal integer, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_integer(self) -> Option<LiteralInteger> {
+        match self {
+            Self::Integer(literal) => Some(literal),
+            _ => None,
         }
     }
 
@@ -507,6 +1065,29 @@ impl LiteralExpr {
         }
     }
 
+    /// Attempts to reference the expression as a literal float.
+    ///
+    /// - If the value is a literal float, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_float(&self) -> Option<&LiteralFloat> {
+        match self {
+            Self::Float(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal
+    /// float.
+    ///
+    /// - If the value is a literal float, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_float(self) -> Option<LiteralFloat> {
+        match self {
+            Self::Float(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a literal float.
     ///
     /// # Panics
@@ -516,6 +1097,29 @@ impl LiteralExpr {
         match self {
             Self::Float(literal) => literal,
             _ => panic!("not a literal float"),
+        }
+    }
+
+    /// Attempts to reference the expression as a literal string.
+    ///
+    /// - If the value is a literal string, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_string(&self) -> Option<&LiteralString> {
+        match self {
+            Self::String(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal
+    /// string.
+    ///
+    /// - If the value is a literal string, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_string(self) -> Option<LiteralString> {
+        match self {
+            Self::String(literal) => Some(literal),
+            _ => None,
         }
     }
 
@@ -531,6 +1135,29 @@ impl LiteralExpr {
         }
     }
 
+    /// Attempts to reference the expression as a literal array.
+    ///
+    /// - If the value is a literal array, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_array(&self) -> Option<&LiteralArray> {
+        match self {
+            Self::Array(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal
+    /// array.
+    ///
+    /// - If the value is a literal array, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_array(self) -> Option<LiteralArray> {
+        match self {
+            Self::Array(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a literal array.
     ///
     /// # Panics
@@ -540,6 +1167,28 @@ impl LiteralExpr {
         match self {
             Self::Array(literal) => literal,
             _ => panic!("not a literal array"),
+        }
+    }
+
+    /// Attempts to reference the expression as a literal pair.
+    ///
+    /// - If the value is a literal pair, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_pair(&self) -> Option<&LiteralPair> {
+        match self {
+            Self::Pair(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal pair.
+    ///
+    /// - If the value is a literal pair, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_pair(self) -> Option<LiteralPair> {
+        match self {
+            Self::Pair(literal) => Some(literal),
+            _ => None,
         }
     }
 
@@ -555,6 +1204,28 @@ impl LiteralExpr {
         }
     }
 
+    /// Attempts to reference the expression as a literal map.
+    ///
+    /// - If the value is a literal map, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_map(&self) -> Option<&LiteralMap> {
+        match self {
+            Self::Map(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal map.
+    ///
+    /// - If the value is a literal map, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_map(self) -> Option<LiteralMap> {
+        match self {
+            Self::Map(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a literal map.
     ///
     /// # Panics
@@ -564,6 +1235,29 @@ impl LiteralExpr {
         match self {
             Self::Map(literal) => literal,
             _ => panic!("not a literal map"),
+        }
+    }
+
+    /// Attempts to reference the expression as a literal object.
+    ///
+    /// - If the value is a literal object, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_object(&self) -> Option<&LiteralObject> {
+        match self {
+            Self::Object(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal
+    /// object.
+    ///
+    /// - If the value is a literal object, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_object(self) -> Option<LiteralObject> {
+        match self {
+            Self::Object(literal) => Some(literal),
+            _ => None,
         }
     }
 
@@ -579,6 +1273,29 @@ impl LiteralExpr {
         }
     }
 
+    /// Attempts to reference the expression as a literal struct.
+    ///
+    /// - If the value is a literal struct, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_struct(&self) -> Option<&LiteralStruct> {
+        match self {
+            Self::Struct(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal
+    /// struct.
+    ///
+    /// - If the value is a literal struct, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_struct(self) -> Option<LiteralStruct> {
+        match self {
+            Self::Struct(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a literal struct.
     ///
     /// # Panics
@@ -588,6 +1305,29 @@ impl LiteralExpr {
         match self {
             Self::Struct(literal) => literal,
             _ => panic!("not a literal struct"),
+        }
+    }
+
+    /// Attempts to reference the expression as a literal `None`.
+    ///
+    /// - If the value is a literal `None`, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_none(&self) -> Option<&LiteralNone> {
+        match self {
+            Self::None(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal
+    /// `None`.
+    ///
+    /// - If the value is a literal `None`, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_none(self) -> Option<LiteralNone> {
+        match self {
+            Self::None(literal) => Some(literal),
+            _ => None,
         }
     }
 
@@ -603,6 +1343,29 @@ impl LiteralExpr {
         }
     }
 
+    /// Attempts to reference the expression as a literal `hints`.
+    ///
+    /// - If the value is a literal `hints`, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_hints(&self) -> Option<&LiteralHints> {
+        match self {
+            Self::Hints(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal
+    /// `hints`.
+    ///
+    /// - If the value is a literal `hints`, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_hints(self) -> Option<LiteralHints> {
+        match self {
+            Self::Hints(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a literal `hints`.
     ///
     /// # Panics
@@ -615,6 +1378,29 @@ impl LiteralExpr {
         }
     }
 
+    /// Attempts to reference the expression as a literal `input`.
+
+    /// - If the value is a literal `input`, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_input(&self) -> Option<&LiteralInput> {
+        match self {
+            Self::Input(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal
+    /// `input`.
+
+    /// - If the value is a literal `input`, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_input(self) -> Option<LiteralInput> {
+        match self {
+            Self::Input(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
     /// Unwraps the expression into a literal `input`.
     ///
     /// # Panics
@@ -624,6 +1410,29 @@ impl LiteralExpr {
         match self {
             Self::Input(literal) => literal,
             _ => panic!("not a literal `input`"),
+        }
+    }
+
+    /// Attempts to reference the expression as a literal `output`.
+
+    /// - If the value is a literal `output`, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn as_output(&self) -> Option<&LiteralOutput> {
+        match self {
+            Self::Output(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the expression as a literal
+    /// `output`.
+
+    /// - If the value is a literal `output`, `Some()` is returned.
+    /// - Else, `None` is returned.
+    pub fn into_output(self) -> Option<LiteralOutput> {
+        match self {
+            Self::Output(literal) => Some(literal),
+            _ => None,
         }
     }
 
@@ -3707,7 +4516,7 @@ task test {
             r#"
 version 1.1
 
-task test { 
+task test {
     Foo a = Foo { foo: "bar" }
     Bar b = Bar { bar: 1, baz: [1, 2, 3] }
 }

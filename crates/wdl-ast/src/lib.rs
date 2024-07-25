@@ -153,6 +153,23 @@ impl Ast {
             _ => None,
         }
     }
+
+    /// Consumes `self` and attempts to return the V1 AST.
+    pub fn into_v1(self) -> Option<v1::Ast> {
+        match self {
+            Self::V1(ast) => Some(ast),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the V1 AST.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the AST is not a V1 AST.
+    pub fn unwrap_v1(self) -> v1::Ast {
+        self.into_v1().expect("the AST is not a V1 AST")
+    }
 }
 
 /// Represents a single WDL document.
