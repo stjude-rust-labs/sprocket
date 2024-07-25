@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, MissingMetas, NonmatchingOutput, Whitespace
+#@ except: DescriptionMissing, MissingMetas, NonmatchingOutput, TrailingComma, Whitespace
 ## some comment
 
 version 1.2

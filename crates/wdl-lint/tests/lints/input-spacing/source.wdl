@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, SectionOrdering, RuntimeSectionKeys
+#@ except: DescriptionMissing, SectionOrdering, RuntimeSectionKeys, TrailingComma
 
 version 1.1
 

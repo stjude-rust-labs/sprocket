@@ -403,6 +403,17 @@ impl Visitor for LintVisitor {
         });
     }
 
+    fn metadata_array(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        item: &v1::MetadataArray,
+    ) {
+        self.each_enabled_rule(state, reason, item.syntax(), |state, rule| {
+            rule.metadata_array(state, reason, item)
+        });
+    }
+
     fn unbound_decl(
         &mut self,
         state: &mut Self::State,

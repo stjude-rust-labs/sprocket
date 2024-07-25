@@ -1,0 +1,97 @@
+note[TrailingComma]: extraneous whitespace and/or comments before trailing comma
+   ┌─ tests/lints/trailing-comma/source.wdl:11:29
+   │  
+11 │           modify_memory_gb = 2  # some other junk
+   │ ╭─────────────────────────────^
+12 │ │         ,
+   │ ╰────────^
+   │  
+   = fix: remove this extraneous content
+
+note[TrailingComma]: item missing trailing comma
+   ┌─ tests/lints/trailing-comma/source.wdl:24:9
+   │
+24 │         not_an_option = "test"
+   │         ^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: add a comma after this element
+
+note[TrailingComma]: item missing trailing comma
+   ┌─ tests/lints/trailing-comma/source.wdl:35:13
+   │
+35 │             other: "another"  # missing comma
+   │             ^^^^^^^^^^^^^^^^
+   │
+   = fix: add a comma after this element
+
+note[TrailingComma]: extraneous whitespace and/or comments before trailing comma
+   ┌─ tests/lints/trailing-comma/source.wdl:39:24
+   │
+39 │             baz: "quux" ,  # misplaced comma
+   │                        ^
+   │
+   = fix: remove this extraneous content
+
+note[TrailingComma]: extraneous whitespace and/or comments before trailing comma
+   ┌─ tests/lints/trailing-comma/source.wdl:47:24
+   │  
+47 │               baz: "quux"  # wow this is ugly
+   │ ╭────────────────────────^
+48 │ │             # technically legal!
+49 │ │             ,  # comments are horrible!
+   │ ╰────────────^
+   │  
+   = fix: remove this extraneous content
+
+note[TrailingComma]: item missing trailing comma
+   ┌─ tests/lints/trailing-comma/source.wdl:59:13
+   │  
+59 │ ╭             choices: [
+60 │ │                 "yes",
+61 │ │                 "reverse",
+62 │ │                 "no"  # missing comma
+63 │ │             ]  # missing comma
+   │ ╰─────────────^
+   │  
+   = fix: add a comma after this element
+
+note[TrailingComma]: item missing trailing comma
+   ┌─ tests/lints/trailing-comma/source.wdl:62:17
+   │
+62 │                 "no"  # missing comma
+   │                 ^^^^
+   │
+   = fix: add a comma after this element
+
+note[TrailingComma]: item missing trailing comma
+   ┌─ tests/lints/trailing-comma/source.wdl:67:13
+   │
+67 │             common: true  # missing comma
+   │             ^^^^^^^^^^^^
+   │
+   = fix: add a comma after this element
+
+note[TrailingComma]: item missing trailing comma
+   ┌─ tests/lints/trailing-comma/source.wdl:88:13
+   │
+88 │             3
+   │             ^
+   │
+   = fix: add a comma after this element
+
+note[TrailingComma]: item missing trailing comma
+   ┌─ tests/lints/trailing-comma/source.wdl:94:9
+   │
+94 │         "c": "d"
+   │         ^^^^^^^^
+   │
+   = fix: add a comma after this element
+
+note[TrailingComma]: item missing trailing comma
+   ┌─ tests/lints/trailing-comma/source.wdl:99:9
+   │
+99 │         "c": "d"
+   │         ^^^^^^^^
+   │
+   = fix: add a comma after this element
+

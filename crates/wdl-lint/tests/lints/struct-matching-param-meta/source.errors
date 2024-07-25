@@ -1,15 +1,15 @@
 warning[MatchingParameterMeta]: struct `Text` is missing a parameter metadata key for input `does_not_exist`
-  ┌─ tests/lints/struct-matching-param-meta/source.wdl:8:12
+  ┌─ tests/lints/struct-matching-param-meta/source.wdl:9:12
   │
-8 │     String does_not_exist
+9 │     String does_not_exist
   │            ^^^^^^^^^^^^^^ this input does not have an entry in the parameter metadata section
   │
   = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
 
 note[MatchingParameterMeta]: struct `Text` has an extraneous parameter metadata key named `extra`
-   ┌─ tests/lints/struct-matching-param-meta/source.wdl:23:9
+   ┌─ tests/lints/struct-matching-param-meta/source.wdl:24:9
    │
-23 │         extra: "this should not be here"
+24 │         extra: "this should not be here"
    │         ^^^^^ this key does not correspond to any input declaration
    │
    = fix: remove the extraneous parameter metadata entry

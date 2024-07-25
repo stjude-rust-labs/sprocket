@@ -1055,7 +1055,7 @@ impl AstNode for MetadataObject {
 
 /// Represents a metadata array.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MetadataArray(SyntaxNode);
+pub struct MetadataArray(pub(crate) SyntaxNode);
 
 impl MetadataArray {
     /// Gets the elements of the metadata array.

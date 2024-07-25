@@ -1,3 +1,4 @@
+#@ except: TrailingComma
 ## This is a test for checking for missing and extraneous entries
 ## in a `parameter_meta` section for a struct.
 
