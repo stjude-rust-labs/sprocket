@@ -1,0 +1,26 @@
+[package]
+name = "wdl-lsp"
+version = "0.1.0"
+license.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Language Server Protocol implementation for WDL"
+documentation = "https://docs.rs/wdl-lsp"
+
+[dependencies]
+wdl-ast = { path = "../wdl-ast", version = "0.5.0" }
+wdl-lint = { path = "../wdl-lint", version = "0.4.0" }
+wdl-analysis = { path = "../wdl-analysis", version = "0.1.0" }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tower-lsp = { workspace = true }
+log = { workspace = true }
+url = { workspace = true }
+parking_lot = { workspace = true }
+line-index = { workspace = true }
+serde_json = { workspace = true }
+indexmap = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }

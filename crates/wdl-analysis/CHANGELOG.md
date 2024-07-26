@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 
+### Changed
+
+* Replaced `AnalysisEngine` with `Analyzer` ([#143](https://github.com/stjude-rust-labs/wdl/pull/143)).
+
 ## 0.1.0 - 07-17-2024
 
 ### Added

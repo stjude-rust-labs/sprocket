@@ -9,11 +9,11 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-mod engine;
+mod analyzer;
 mod graph;
+mod queue;
 mod rayon;
 mod scope;
 
-pub use engine::*;
-pub use graph::*;
+pub use analyzer::*;
 pub use scope::*;

@@ -6,6 +6,7 @@ members = [
     "wdl-gauntlet",
     "wdl-grammar",
     "wdl-lint",
+    "wdl-lsp",
 ]
 resolver = "2"
 
@@ -49,3 +50,7 @@ futures = "0.3.30"
 glob = "0.3.1"
 path-clean = "1.0.1"
 indicatif = "0.17.8"
+tower-lsp = "0.20.0"
+line-index = "0.1.1"
+serde_json = "1.0.120"
+uuid = "1.10.0"

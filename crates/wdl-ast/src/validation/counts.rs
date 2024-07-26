@@ -67,8 +67,6 @@ impl fmt::Display for Section {
 /// Creates a "at least one definition" diagnostic
 fn at_least_one_definition() -> Diagnostic {
     Diagnostic::error("there must be at least one task, workflow, or struct definition in the file")
-        // This highlight will show the last position in the file
-        .with_highlight(Span::new(usize::MAX - 1, 1))
 }
 
 /// Creates a "missing command section" diagnostic

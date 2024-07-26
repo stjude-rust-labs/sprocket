@@ -1012,6 +1012,15 @@ impl LiteralString {
             .expect("string is missing opening token")
     }
 
+    /// Determines if the literal is the empty string.
+    pub fn is_empty(&self) -> bool {
+        self.0
+            .children_with_tokens()
+            .filter_map(StringPart::cast)
+            .next()
+            .is_none()
+    }
+
     /// Gets the parts of the string.
     ///
     /// A part may be literal text or an interpolated expression.

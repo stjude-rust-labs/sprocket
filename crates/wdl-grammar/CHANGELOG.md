@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 * Add facilities for diving on `SyntaxNode`s ([#138](https://github.com/stjude-rust-labs/wdl/pull/138)).
 
+### Fixed
+
+* Fixed the display of the `in` keyword in the CST ([#143](https://github.com/stjude-rust-labs/wdl/pull/143)).
+
 ## 0.6.0 - 07-17-2024
 
 ### Added

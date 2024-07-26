@@ -29,12 +29,10 @@ use codespan_reporting::term;
 use codespan_reporting::term::termcolor::Buffer;
 use codespan_reporting::term::Config;
 use colored::Colorize;
-use futures::stream::FuturesOrdered;
-use futures::StreamExt;
-use futures::TryStreamExt;
 use pretty_assertions::StrComparison;
-use wdl_analysis::AnalysisEngine;
+use wdl_analysis::path_to_uri;
 use wdl_analysis::AnalysisResult;
+use wdl_analysis::Analyzer;
 use wdl_ast::Diagnostic;
 use wdl_ast::SyntaxNode;
 
@@ -105,23 +103,23 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
     let mut buffer = Buffer::no_color();
     let cwd = std::env::current_dir().expect("must have a CWD");
     for result in results {
-        let path = result.id().path();
-
         // Attempt to strip the CWD from the result path
+        let path = result.uri().to_file_path();
         let path: Cow<'_, str> = match &path {
             // Strip the CWD from the path
-            Some(path) => path.strip_prefix(&cwd).unwrap_or(path).to_string_lossy(),
+            Ok(path) => path.strip_prefix(&cwd).unwrap_or(path).to_string_lossy(),
             // Use the id itself if there is no path
-            None => result.id().to_str(),
+            Err(_) => result.uri().as_str().into(),
         };
 
-        let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
+        let diagnostics: Cow<'_, [Diagnostic]> = match result.parse_result().error() {
             Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
             None => result.diagnostics().into(),
         };
 
         if !diagnostics.is_empty() {
             let source = result
+                .parse_result()
                 .root()
                 .map(|n| SyntaxNode::new_root(n.clone()).text().to_string())
                 .unwrap_or(String::new());
@@ -151,47 +149,34 @@ async fn main() {
     let tests = find_tests();
     println!("\nrunning {} tests\n", tests.len());
 
-    let engine = Arc::new(AnalysisEngine::new().expect("failed to create analysis engine"));
-
-    let tests_engine = engine.clone();
-    let mut tasks = tests
-        .iter()
-        .map(move |test| {
-            let engine = tests_engine.clone();
-            let source = test.join("source.wdl");
-            tokio::spawn(async move { engine.analyze(&source).await })
-        })
-        .collect::<FuturesOrdered<_>>()
-        .into_stream()
-        .enumerate();
-
+    // We use the same analyzer for all the tests
+    // Note that this isn't parallelizable because we want the result for each
+    // individual test document and the analyzer would serialize the calls to
+    // `analyze` anyway.
+    let analyzer = Analyzer::new(|_, _, _, _| async {});
     let mut errors = Vec::new();
-    while let Some((index, result)) = tasks.next().await {
-        let test_name = tests[index].file_stem().and_then(OsStr::to_str).unwrap();
-        match result {
-            Ok(results) => match compare_results(&tests[index], results) {
-                Ok(_) => {
-                    println!("test {test_name} ... {ok}", ok = "ok".green());
-                }
-                Err(e) => {
-                    println!("test {test_name} ... {failed}", failed = "failed".red());
-                    errors.push((test_name, e.to_string()));
-                }
-            },
+    for test in &tests {
+        let source = test.join("source.wdl");
+        let results = analyzer
+            .analyze(
+                vec![Arc::new(
+                    path_to_uri(&source).expect("should convert to URI"),
+                )],
+                None,
+            )
+            .await;
+
+        let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
+        match compare_results(test, results) {
+            Ok(_) => {
+                println!("test {test_name} ... {ok}", ok = "ok".green());
+            }
             Err(e) => {
-                println!(
-                    "test {test_name} ... {panicked}",
-                    panicked = "panicked".red()
-                );
+                println!("test {test_name} ... {failed}", failed = "failed".red());
                 errors.push((test_name, e.to_string()));
             }
         }
     }
-
-    Arc::into_inner(engine)
-        .expect("should be last engine reference")
-        .shutdown()
-        .await;
 
     if !errors.is_empty() {
         eprintln!(

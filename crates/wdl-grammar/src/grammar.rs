@@ -115,9 +115,6 @@ pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Ve
             if let Some((_, span)) = found {
                 diagnostic =
                     diagnostic.with_label("a version statement must come before this", span);
-            } else {
-                // This highlight will show the last position in the file
-                diagnostic = diagnostic.with_highlight(Span::new(usize::MAX - 1, 1));
             }
 
             (parser, diagnostic)

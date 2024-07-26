@@ -233,19 +233,30 @@ impl Diagnostic {
             diagnostic.notes.push(format!("fix: {fix}"));
         }
 
-        for (i, secondary) in self.labels.iter().enumerate() {
-            diagnostic.labels.push(
-                codespan::Label::new(
-                    if i == 0 {
-                        codespan::LabelStyle::Primary
-                    } else {
-                        codespan::LabelStyle::Secondary
-                    },
-                    (),
-                    secondary.span.start..secondary.span.end,
-                )
-                .with_message(&secondary.message),
-            );
+        if self.labels.is_empty() {
+            // Codespan will treat this as a label at the end of the file
+            // We add this so that every diagnostic has at least one label with the file
+            // printed.
+            diagnostic.labels.push(codespan::Label::new(
+                codespan::LabelStyle::Primary,
+                (),
+                usize::MAX - 1..usize::MAX,
+            ))
+        } else {
+            for (i, label) in self.labels.iter().enumerate() {
+                diagnostic.labels.push(
+                    codespan::Label::new(
+                        if i == 0 {
+                            codespan::LabelStyle::Primary
+                        } else {
+                            codespan::LabelStyle::Secondary
+                        },
+                        (),
+                        label.span.start..label.span.end,
+                    )
+                    .with_message(&label.message),
+                );
+            }
         }
 
         diagnostic

@@ -26,6 +26,7 @@ futures = { workspace = true }
 glob = { workspace = true }
 path-clean = { workspace = true }
 indexmap = { workspace = true }
+line-index = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

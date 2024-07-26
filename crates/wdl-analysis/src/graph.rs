@@ -1,383 +1,538 @@
 //! Representation of the analysis document graph.
 
-use std::borrow::Cow;
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::fmt;
-use std::mem;
-use std::path::absolute;
-use std::path::Path;
-use std::path::PathBuf;
+use std::collections::HashSet;
+use std::fs;
 use std::sync::Arc;
+use std::time::Duration;
+use std::time::Instant;
 
+use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use path_clean::clean;
+use indexmap::IndexMap;
+use indexmap::IndexSet;
+use line_index::LineIndex;
+use petgraph::algo::has_path_connecting;
+use petgraph::algo::DfsSpace;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
+use petgraph::visit::Bfs;
 use petgraph::visit::EdgeRef;
+use petgraph::visit::Visitable;
 use petgraph::Direction;
+use reqwest::Client;
 use rowan::GreenNode;
+use tokio::runtime::Handle;
 use url::Url;
+use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
+use wdl_ast::SyntaxNode;
+use wdl_ast::Validator;
 
-use crate::AnalysisResult;
+use crate::DocumentChange;
 use crate::DocumentScope;
 
-/// Represents the identifier of an analyzed document.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum DocumentId {
-    /// The identifier is by absolute file path.
-    Path(PathBuf),
-    /// The identifier is by URI.
-    Uri(Url),
+/// Represents diagnostics for a document node.
+#[derive(Debug, Clone)]
+pub enum Diagnostics {
+    /// The diagnostics are from the parse.
+    Parse(Arc<[Diagnostic]>),
+    /// The diagnostics are from validation.
+    ///
+    /// This implies there were no parse diagnostics.
+    Validation(Arc<[Diagnostic]>),
 }
 
-impl DocumentId {
-    /// Makes a document identifier relative to another.
-    pub(crate) fn relative_to(base: &DocumentId, id: &str) -> Result<Self> {
-        if let Ok(uri) = id.parse() {
-            return Ok(Self::Uri(uri));
-        }
-
-        match base {
-            Self::Path(base) => Ok(Self::Path(clean(
-                base.parent().expect("expected a parent").join(id),
-            ))),
-            Self::Uri(base) => Ok(Self::Uri(base.join(id)?)),
-        }
-    }
-
-    /// Gets the path of the document.
-    ///
-    /// Returns `None` if the document does not have a local path.
-    pub fn path(&self) -> Option<Cow<'_, Path>> {
+impl AsRef<Arc<[Diagnostic]>> for Diagnostics {
+    fn as_ref(&self) -> &Arc<[Diagnostic]> {
         match self {
-            Self::Path(path) => Some(path.into()),
-            Self::Uri(uri) => uri.to_file_path().ok().map(Into::into),
-        }
-    }
-
-    /// Gets the document identifier as a string.
-    pub fn to_str(&self) -> Cow<'_, str> {
-        match self {
-            DocumentId::Path(p) => p.to_string_lossy(),
-            DocumentId::Uri(u) => u.as_str().into(),
+            Self::Parse(d) => d,
+            Self::Validation(d) => d,
         }
     }
 }
 
-impl fmt::Display for DocumentId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DocumentId::Path(path) => write!(f, "{}", path.display()),
-            DocumentId::Uri(uri) => write!(f, "{}", uri),
-        }
-    }
-}
-
-impl TryFrom<&Path> for DocumentId {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &Path) -> Result<Self> {
-        Ok(Self::Path(clean(absolute(value).with_context(|| {
-            format!(
-                "failed to determine the absolute path of `{path}`",
-                path = value.display()
-            )
-        })?)))
-    }
-}
-
-impl TryFrom<&str> for DocumentId {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &str) -> Result<Self> {
-        match Url::parse(value) {
-            Ok(uri) => Ok(Self::Uri(uri)),
-            Err(_) => Self::try_from(Path::new(value)),
-        }
-    }
-}
-
-impl From<Url> for DocumentId {
-    fn from(value: Url) -> Self {
-        Self::Uri(value)
-    }
-}
-
-/// Represents the in-progress analysis state for a document.
-#[derive(Debug, Default)]
-pub(crate) struct InProgressAnalysisState {
-    /// The diagnostics of the document.
-    pub diagnostics: Vec<Diagnostic>,
-    /// The document's scope.
-    pub scope: DocumentScope,
-}
-
-/// Represents the completed analysis state of a document.
-#[derive(Debug)]
-pub(crate) struct CompletedAnalysisState {
-    /// The diagnostics of the document.
-    pub diagnostics: Arc<[Diagnostic]>,
-    /// The document's scope.
-    pub scope: Arc<DocumentScope>,
-}
-
-impl From<InProgressAnalysisState> for CompletedAnalysisState {
-    fn from(value: InProgressAnalysisState) -> Self {
-        let mut diagnostics = value.diagnostics;
-        diagnostics.sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
-            (None, None) => Ordering::Equal,
-            (None, Some(_)) => Ordering::Less,
-            (Some(_), None) => Ordering::Greater,
-            (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
-        });
-        Self {
-            diagnostics: diagnostics.into(),
-            scope: value.scope.into(),
-        }
-    }
-}
-
-/// Represents the state of a document's analysis.
-#[derive(Debug)]
-pub(crate) enum AnalysisState {
-    /// The analysis is in-progress and the data is mutable.
-    InProgress(InProgressAnalysisState),
-    /// The analysis has completed and the data is immutable.
-    Completed(CompletedAnalysisState),
-}
-
-impl AnalysisState {
-    /// Gets the mutable in-progress analysis state.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the analysis has completed.
-    pub(crate) fn in_progress(&mut self) -> &mut InProgressAnalysisState {
-        match self {
-            Self::InProgress(state) => state,
-            Self::Completed(_) => panic!("analysis has completed"),
-        }
-    }
-
-    /// Gets the immutable completed analysis state.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the analysis has not completed.
-    pub(crate) fn completed(&self) -> &CompletedAnalysisState {
-        match self {
-            Self::InProgress(_) => panic!("analysis has not completed"),
-            Self::Completed(state) => state,
-        }
-    }
-
-    /// Completes the analysis state.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the analysis has already completed.
-    fn complete(&mut self) {
-        match self {
-            Self::InProgress(state) => {
-                *self = Self::Completed(mem::take(state).into());
-            }
-            Self::Completed(_) => panic!("analysis has completed"),
-        }
-    }
-}
-
-impl Default for AnalysisState {
-    fn default() -> Self {
-        Self::InProgress(Default::default())
-    }
-}
-
-/// Represents an analyzed document.
-#[derive(Debug)]
-pub(crate) struct Document {
-    /// The identifier of the analyzed document.
-    pub id: Arc<DocumentId>,
-    /// The root node of the document.
-    ///
-    /// If `None`, it means we failed to read the document's source.
-    pub root: Option<GreenNode>,
-    /// The error when attempting to read the document's source.
-    ///
-    /// This is `Some` if we failed to read the document's source.
-    pub error: Option<Arc<anyhow::Error>>,
-    /// The analysis state of the document.
-    pub state: AnalysisState,
-    /// Whether or not this document is a GC root in the document graph.
-    ///
-    /// A GC root won't be removed from the document graph even if there are no
-    /// outgoing edges.
-    pub gc_root: bool,
-}
-
-impl Document {
-    /// Creates a new empty document.
-    pub fn new(id: Arc<DocumentId>, gc_root: bool) -> Self {
-        Self {
-            id,
-            root: None,
-            error: None,
-            state: Default::default(),
-            gc_root,
-        }
-    }
-
-    /// Creates a new document from the result of a parse.
-    pub fn from_parse(
-        id: Arc<DocumentId>,
+/// Represents the parse state of a document graph node.
+#[derive(Debug, Clone)]
+pub enum ParseState {
+    /// The document is not parsed.
+    NotParsed,
+    /// There was an error parsing the document.
+    Error(Arc<anyhow::Error>),
+    /// The document was parsed.
+    Parsed {
+        /// The root CST node of.
         root: GreenNode,
-        diagnostics: Vec<Diagnostic>,
-        gc_root: bool,
-    ) -> Self {
+        /// The line index of the document.
+        lines: Arc<LineIndex>,
+        /// The diagnostics.
+        diagnostics: Diagnostics,
+    },
+}
+
+/// Represents the analysis state of a document graph node.
+#[derive(Debug)]
+pub struct Analysis {
+    /// The document's scope.
+    scope: Arc<DocumentScope>,
+    /// The analysis diagnostics.
+    diagnostics: Arc<[Diagnostic]>,
+}
+
+impl Analysis {
+    /// Constructs a new analysis.
+    pub fn new(scope: DocumentScope, diagnostics: impl Into<Arc<[Diagnostic]>>) -> Self {
         Self {
-            id,
-            root: Some(root),
-            error: None,
-            state: AnalysisState::InProgress(InProgressAnalysisState {
-                diagnostics,
-                ..Default::default()
-            }),
-            gc_root,
+            scope: Arc::new(scope),
+            diagnostics: diagnostics.into(),
         }
     }
 
-    /// Creates a new document from an error attempting to read the document.
-    pub fn from_error(id: Arc<DocumentId>, error: anyhow::Error, gc_root: bool) -> Self {
+    /// Gets the document scope from the analysis.
+    pub fn scope(&self) -> &Arc<DocumentScope> {
+        &self.scope
+    }
+
+    /// Gets the diagnostics from the analysis.
+    pub fn diagnostics(&self) -> &Arc<[Diagnostic]> {
+        &self.diagnostics
+    }
+}
+
+/// Represents a node in a document graph.
+#[derive(Debug)]
+pub struct DocumentGraphNode {
+    /// The URI of the document.
+    uri: Arc<Url>,
+    /// The parse state of the document.
+    parse_state: ParseState,
+    /// The analysis of the document.
+    analysis: Option<Analysis>,
+}
+
+impl DocumentGraphNode {
+    /// Constructs a new unparsed document graph node.
+    pub fn new(uri: Arc<Url>) -> Self {
         Self {
-            id,
-            root: None,
-            error: Some(Arc::new(error)),
-            state: Default::default(),
-            gc_root,
+            uri,
+            parse_state: ParseState::NotParsed,
+            analysis: None,
         }
     }
 
-    /// Called to complete the analysis on the document.
-    pub fn complete(&mut self) {
-        self.state.complete();
+    /// Gets the URI of the document node.
+    pub fn uri(&self) -> &Arc<Url> {
+        &self.uri
+    }
+
+    /// Gets the parse state of the document node.
+    pub fn parse_state(&self) -> &ParseState {
+        &self.parse_state
+    }
+
+    /// Sets the parse state on the document node.
+    pub fn set_parse_state(&mut self, state: ParseState) {
+        self.parse_state = state;
+    }
+
+    /// Gets the analysis of the document node.
+    pub fn analysis(&self) -> Option<&Analysis> {
+        self.analysis.as_ref()
+    }
+
+    /// Sets the analysis on the document node.
+    pub fn set_analysis(&mut self, analysis: Option<Analysis>) {
+        self.analysis = analysis;
+    }
+
+    /// Gets the AST document of the node.
+    ///
+    /// Returns `None` if the document was not parsed.
+    pub fn document(&self) -> Option<wdl_ast::Document> {
+        if let ParseState::Parsed { root, .. } = &self.parse_state {
+            return Some(
+                wdl_ast::Document::cast(SyntaxNode::new_root(root.clone()))
+                    .expect("node should cast"),
+            );
+        }
+
+        None
+    }
+
+    /// Determines if the document needs to be parsed.
+    pub fn needs_parse(&self, change: &Option<DocumentChange>) -> bool {
+        !change.is_none() || !matches!(self.parse_state, ParseState::Parsed { .. })
+    }
+
+    /// Parses the document.
+    ///
+    /// If a parse is not necessary, the current parse state is returned.
+    ///
+    /// Otherwise, the new parse state is returned.
+    pub fn parse(
+        &self,
+        tokio: &Handle,
+        client: &Client,
+        change: Option<DocumentChange>,
+        validator: &mut Validator,
+    ) -> ParseState {
+        if !self.needs_parse(&change) {
+            return self.parse_state.clone();
+        }
+
+        self.incremental_parse(change)
+            .unwrap_or_else(|change| self.full_parse(tokio, client, change, validator))
+    }
+
+    /// Performs an incremental parse of the document.
+    ///
+    /// Returns an error with the given change if the document needs a full
+    /// parse.
+    fn incremental_parse(
+        &self,
+        change: Option<DocumentChange>,
+    ) -> Result<ParseState, Option<DocumentChange>> {
+        match change {
+            None
+            | Some(DocumentChange::Refetch)
+            | Some(DocumentChange::Incremental { start: Some(_), .. }) => Err(change),
+            Some(DocumentChange::Incremental { start: None, .. }) => {
+                // TODO: implement incremental parsing
+                // For each edit:
+                //   * determine if the edit is to a token; if so, replace it in the tree
+                //   * otherwise, find a reparsable ancestor for the covering element and ask it
+                //     to reparse; if one is found, reparse and replace the node
+                //   * if a reparsable node can't be found, return an error to trigger a full
+                //     reparse
+                //   * incrementally update the parse diagnostics depending on the result
+                Err(change)
+            }
+        }
+    }
+
+    /// Performs a full parse of the node.
+    fn full_parse(
+        &self,
+        tokio: &Handle,
+        client: &Client,
+        change: Option<DocumentChange>,
+        validator: &mut Validator,
+    ) -> ParseState {
+        let (source, lines) = match change {
+            None | Some(DocumentChange::Refetch) => {
+                // Fetch the source
+                let result = match self.uri.to_file_path() {
+                    Ok(path) => fs::read_to_string(path).map_err(Into::into),
+                    Err(_) => match self.uri.scheme() {
+                        "https" | "http" => Self::download_source(tokio, client, &self.uri),
+                        scheme => Err(anyhow!("unsupported URI scheme `{scheme}`")),
+                    },
+                };
+
+                match result {
+                    Ok(source) => {
+                        let lines = Arc::new(LineIndex::new(&source));
+                        (source, lines)
+                    }
+                    Err(e) => return ParseState::Error(e.into()),
+                }
+            }
+            Some(DocumentChange::Incremental { start, edits }) => {
+                // The document has been edited; if there is start source, apply the edits to it
+                let (mut source, mut lines) = if let Some(start) = start {
+                    let source = start.as_ref().clone();
+                    let lines = Arc::new(LineIndex::new(&source));
+                    (source, lines)
+                } else {
+                    // Otherwise, apply the edits to the last parse
+                    match &self.parse_state {
+                        ParseState::Parsed { root, lines, .. } => (
+                            SyntaxNode::new_root(root.clone()).text().to_string(),
+                            lines.clone(),
+                        ),
+                        _ => panic!(
+                            "cannot apply edits to a document that was not previously parsed"
+                        ),
+                    }
+                };
+
+                // We keep track of the last line we've processed so we only rebuild the line
+                // index when there is a change that crosses a line
+                let mut last_line = !0u32;
+
+                for edit in &edits {
+                    let range = edit.range();
+                    if last_line <= range.end.line {
+                        // Only rebuild the line index if the edit has changed lines
+                        lines = Arc::new(LineIndex::new(&source));
+                    }
+
+                    last_line = range.start.line;
+                    edit.apply(&mut source, &lines);
+                }
+
+                if !edits.is_empty() {
+                    // Rebuild the line index after all edits have been applied
+                    lines = Arc::new(LineIndex::new(&source));
+                }
+
+                (source, lines)
+            }
+        };
+
+        // Reparse from the source
+        let start = Instant::now();
+        let (document, diagnostics) = wdl_ast::Document::parse(&source);
+        log::info!(
+            "parsing of `{uri}` completed in {elapsed:?}",
+            uri = self.uri,
+            elapsed = start.elapsed()
+        );
+
+        let diagnostics = if diagnostics.is_empty() {
+            Diagnostics::Validation(
+                validator
+                    .validate(&document)
+                    .err()
+                    .unwrap_or_default()
+                    .into(),
+            )
+        } else {
+            Diagnostics::Parse(diagnostics.into())
+        };
+
+        ParseState::Parsed {
+            root: document.syntax().green().into(),
+            lines,
+            diagnostics,
+        }
+    }
+
+    /// Downloads the source of a `http` or `https` scheme URI.
+    ///
+    /// This makes a request on the provided tokio runtime to download the
+    /// source.
+    fn download_source(tokio: &Handle, client: &Client, uri: &Url) -> Result<String> {
+        /// The timeout for downloading the source, in seconds.
+        const TIMEOUT_IN_SECS: u64 = 30;
+
+        log::info!("downloading source from `{uri}`");
+
+        tokio.block_on(async {
+            let resp = client
+                .get(uri.as_str())
+                .timeout(Duration::from_secs(TIMEOUT_IN_SECS))
+                .send()
+                .await?;
+
+            let code = resp.status();
+            if !code.is_success() {
+                bail!("server returned HTTP status {code}");
+            }
+
+            resp.text().await.context("failed to read response body")
+        })
     }
 }
 
 /// Represents a document graph.
 #[derive(Debug, Default)]
-pub(crate) struct DocumentGraph {
-    /// The inner graph.
+pub struct DocumentGraph {
+    /// The inner directional graph.
     ///
-    /// Each node in the graph represents an analyzed file and edges denote
-    /// import dependency relationships.
-    pub inner: StableDiGraph<Document, ()>,
-    /// Map from document identifier to graph node index.
-    pub indexes: HashMap<Arc<DocumentId>, NodeIndex>,
+    /// Edges in the graph denote inverse dependency relationships (i.e. "is
+    /// depended upon by").
+    inner: StableDiGraph<DocumentGraphNode, ()>,
+    /// Map from document URI to graph node index.
+    indexes: IndexMap<Arc<Url>, NodeIndex>,
+    /// The current set of rooted nodes in the graph.
+    ///
+    /// A rooted node is one that will not be collected even if the node has no
+    /// outgoing edges (i.e. is not depended upon by any other file).
+    roots: HashSet<NodeIndex>,
+    /// Represents dependency edges that, if they were added to the document
+    /// graph, would form a cycle.
+    ///
+    /// The first in the pair is the dependant node and the second is the
+    /// depended node.
+    ///
+    /// This is used to break import cycles; when analyzing the document, if the
+    /// import relationship exists in this set, a diagnostic will be added and
+    /// the import otherwise ignored.
+    cycles: HashSet<(NodeIndex, NodeIndex)>,
+    /// Space for DFS traversals.
+    space: DfsSpace<NodeIndex, <StableDiGraph<DocumentGraphNode, ()> as Visitable>::Map>,
 }
 
 impl DocumentGraph {
-    /// Gets a document from the graph.
-    pub fn document(&self, id: &DocumentId) -> Option<(NodeIndex, &Document)> {
-        self.indexes
-            .get(id)
-            .map(|index| (*index, &self.inner[*index]))
-    }
+    /// Add a node to the document graph.
+    pub fn add_node(&mut self, uri: Arc<Url>, rooted: bool) -> NodeIndex {
+        let index = if let Some(index) = self.indexes.get(&uri) {
+            *index
+        } else {
+            log::debug!("inserting `{uri}` into the document graph");
+            let index = self.inner.add_node(DocumentGraphNode::new(uri.clone()));
+            self.indexes.insert(uri, index);
+            index
+        };
 
-    /// Adds a document to the graph.
-    ///
-    /// If the document with the same identifier exists in the graph, it is
-    /// replaced.
-    pub fn add_document(&mut self, document: Document) -> NodeIndex {
-        if let Some(index) = self.indexes.get(&document.id) {
-            self.inner[*index] = document;
-            return *index;
+        if rooted {
+            self.roots.insert(index);
+
+            // Mark the node for analysis as it's considered a root
+            self.inner[index].analysis = None;
         }
 
-        let id = document.id.clone();
-        let index = self.inner.add_node(document);
-        let prev = self.indexes.insert(id, index);
-        assert!(prev.is_none());
         index
     }
 
-    /// Merges this document graph with the provided one.
+    /// Removes a root from the document graph.
     ///
-    /// Returns the result of the analysis.
+    /// Note that this does not remove any nodes, only removes the document from
+    /// the set of rooted nodes.
     ///
-    /// This also performs a GC on the graph to remove non-rooted nodes that
-    /// have no outgoing edges.
-    pub fn merge(&mut self, mut other: Self) -> Vec<AnalysisResult> {
-        let mut remapped = HashMap::new();
-        let mut results = Vec::new();
-        for (id, other_index) in other.indexes {
-            let Document {
-                id: _,
-                root,
-                error,
-                state,
-                gc_root,
-            } = &mut other.inner[other_index];
-            match self.indexes.get(&id) {
-                Some(index) => {
-                    remapped.insert(other_index, *index);
+    /// If the node has no outgoing edges, it will be removed on the next
+    /// garbage collection.
+    pub fn remove_root(&mut self, uri: &Url) {
+        let base = match uri.to_file_path() {
+            Ok(base) => base,
+            Err(_) => return,
+        };
 
-                    // Existing node, so replace the document contents
-                    let existing = &mut self.inner[*index];
-                    *existing = Document {
-                        id,
-                        root: mem::take(root),
-                        error: mem::take(error),
-                        state: mem::take(state),
-                        gc_root: existing.gc_root | *gc_root,
-                    };
+        // As the URI might be a directory containing WDL files, look for prefixed files
+        let mut removed = Vec::new();
+        for (uri, index) in &self.indexes {
+            let path = match uri.to_file_path() {
+                Ok(path) => path,
+                Err(_) => continue,
+            };
 
-                    // Add a result for root documents or non-root documents that parsed
-                    if *gc_root || existing.root.is_some() {
-                        results.push(AnalysisResult::new(existing));
-                    }
-
-                    // Remove all edges to this node in self; we'll add the latest edges below.
-                    for edge in self.inner.edges(*index).map(|e| e.id()).collect::<Vec<_>>() {
-                        self.inner.remove_edge(edge);
-                    }
-                }
-                None => {
-                    let document = Document {
-                        id: id.clone(),
-                        root: mem::take(root),
-                        error: mem::take(error),
-                        state: mem::take(state),
-                        gc_root: *gc_root,
-                    };
-
-                    // Add a result for root documents or non-root documents that parsed
-                    if *gc_root || document.root.is_some() {
-                        results.push(AnalysisResult::new(&document));
-                    }
-
-                    // New node, insert it into the graph
-                    let index = self.inner.add_node(document);
-
-                    remapped.insert(other_index, index);
-                    self.indexes.insert(id, index);
-                }
+            if path.starts_with(&base) {
+                removed.push(*index);
             }
         }
 
-        // Now add the edges for the remapped nodes
-        for edge in other.inner.edge_indices() {
-            let (from, to) = other.inner.edge_endpoints(edge).expect("edge should exist");
-            let from = remapped[&from];
-            let to = remapped[&to];
-            self.inner.add_edge(from, to, ());
-        }
+        for index in removed {
+            let node = &mut self.inner[index];
 
-        // Finally, GC any non-gc-root nodes that have no outgoing edges
-        let mut gc = Vec::new();
+            // We don't actually remove nodes from the graph, just remove it as a root.
+            // If the node has no outgoing edges, it will be collected in the next GC.
+            if !self.roots.remove(&index) {
+                log::debug!(
+                    "document `{uri}` is no longer rooted in the graph",
+                    uri = node.uri
+                );
+            }
+
+            node.parse_state = ParseState::NotParsed;
+            node.analysis = None;
+
+            // Do a BFS traversal to trigger re-analysis in dependent documents
+            self.bfs_mut(index, |graph, dependent: NodeIndex| {
+                let node = graph.get_mut(dependent);
+                log::debug!("document `{uri}` needs to be reanalyzed", uri = node.uri);
+                node.analysis = None;
+            });
+        }
+    }
+
+    /// Determines if the given node is rooted.
+    pub fn is_rooted(&self, index: NodeIndex) -> bool {
+        self.roots.contains(&index)
+    }
+
+    /// Gets a node from the graph.
+    pub fn get(&self, index: NodeIndex) -> &DocumentGraphNode {
+        &self.inner[index]
+    }
+
+    /// Gets a mutable node from the graph.
+    pub fn get_mut(&mut self, index: NodeIndex) -> &mut DocumentGraphNode {
+        &mut self.inner[index]
+    }
+
+    /// Gets the node index for the given document URI.
+    ///
+    /// Returns `None` if the document is not in the graph.
+    pub fn get_index(&self, uri: &Url) -> Option<NodeIndex> {
+        self.indexes.get(uri).copied()
+    }
+
+    /// Performs a breadth-first traversal of the graph starting at the given
+    /// node.
+    ///
+    /// Mutations to the document nodes are permitted.
+    pub fn bfs_mut(&mut self, index: NodeIndex, mut cb: impl FnMut(&mut Self, NodeIndex)) {
+        let mut bfs = Bfs::new(&self.inner, index);
+        while let Some(node) = bfs.next(&self.inner) {
+            cb(self, node);
+        }
+    }
+
+    /// Gets the direct dependencies of a node.
+    pub fn dependencies(&self, index: NodeIndex) -> impl Iterator<Item = NodeIndex> + '_ {
+        self.inner
+            .edges_directed(index, Direction::Incoming)
+            .map(|e| e.source())
+    }
+
+    /// Removes all dependency edges from the given node.
+    pub fn remove_dependency_edges(&mut self, index: NodeIndex) {
+        // Retain all edges where the target isn't the given node (i.e. an incoming
+        // edge)
+        self.inner.retain_edges(|g, e| {
+            let (_, target) = g.edge_endpoints(e).expect("edge should be valid");
+            target != index
+        });
+    }
+
+    /// Adds a dependency edge from one document to another.
+    ///
+    /// If a dependency edge already exists, this is a no-op.
+    pub fn add_dependency_edge(&mut self, from: NodeIndex, to: NodeIndex) {
+        // Check to see if there is already a path between the nodes; if so, there's a
+        // cycle
+        if has_path_connecting(&self.inner, from, to, Some(&mut self.space)) {
+            // Adding the edge would cause a cycle, so record the cycle instead
+            log::debug!(
+                "an import cycle was detected between `{from}` and `{to}`",
+                from = self.inner[from].uri,
+                to = self.inner[to].uri
+            );
+            self.cycles.insert((from, to));
+        } else if !self.inner.contains_edge(to, from) {
+            log::debug!(
+                "adding dependency edge from `{from}` to `{to}`",
+                from = self.inner[from].uri,
+                to = self.inner[to].uri
+            );
+
+            // Note that we store inverse dependency edges in the graph, so the relationship
+            // is reversed
+            self.inner.add_edge(to, from, ());
+        }
+    }
+
+    /// Determines if there is a cycle between the given nodes.
+    pub fn contains_cycle(&self, from: NodeIndex, to: NodeIndex) -> bool {
+        self.cycles.contains(&(from, to))
+    }
+
+    /// Creates a subgraph of this graph for the given nodes to include.
+    pub fn subgraph(&self, nodes: &IndexSet<NodeIndex>) -> StableDiGraph<NodeIndex, ()> {
+        self.inner
+            .filter_map(|i, _| nodes.contains(&i).then_some(i), |_, _| Some(()))
+    }
+
+    /// Performs a garbage collection on the graph.
+    ///
+    /// This removes any non-rooted nodes that have no outgoing edges (i.e. are
+    /// not depended upon by another document).
+    pub fn gc(&mut self) {
+        let mut collected = HashSet::new();
         for node in self.inner.node_indices() {
-            if self.inner[node].gc_root {
+            if self.roots.contains(&node) {
                 continue;
             }
 
@@ -387,15 +542,25 @@ impl DocumentGraph {
                 .next()
                 .is_none()
             {
-                gc.push(node);
+                log::debug!(
+                    "removing document `{uri}` from the graph",
+                    uri = self.inner[node].uri
+                );
+                collected.insert(node);
             }
         }
 
-        for node in gc {
-            self.inner.remove_node(node);
+        if collected.is_empty() {
+            return;
         }
 
-        results.sort_by(|a, b| a.id().cmp(b.id()));
-        results
+        for node in &collected {
+            self.inner.remove_node(*node);
+        }
+
+        self.indexes.retain(|_, index| !collected.contains(index));
+
+        self.cycles
+            .retain(|(from, to)| !collected.contains(from) && !collected.contains(to));
     }
 }

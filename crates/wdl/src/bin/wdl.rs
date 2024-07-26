@@ -23,8 +23,8 @@ use wdl::ast::Document;
 use wdl::ast::SyntaxNode;
 use wdl::ast::Validator;
 use wdl::lint::LintVisitor;
-use wdl_analysis::AnalysisEngine;
 use wdl_analysis::AnalysisResult;
+use wdl_analysis::Analyzer;
 
 /// Emits the given diagnostics to the output stream.
 ///
@@ -47,47 +47,52 @@ fn emit_diagnostics(path: &str, source: &str, diagnostics: &[Diagnostic]) -> Res
     Ok(())
 }
 
-async fn analyze(path: &Path, lint: bool) -> Result<Vec<AnalysisResult>> {
+async fn analyze(path: PathBuf, lint: bool) -> Result<Vec<AnalysisResult>> {
     let bar = ProgressBar::new(0);
     bar.set_style(
         ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {msg} {pos}/{len}")
             .unwrap(),
     );
 
-    let engine = AnalysisEngine::new_with_validator(move || {
-        let mut validator = Validator::default();
-        if lint {
-            validator.add_visitor(LintVisitor::default());
-        }
-        validator
-    })?;
-
-    let results = engine
-        .analyze_with_progress(path, move |kind, completed, total| {
-            if completed == 0 {
-                bar.set_length(total.try_into().unwrap());
-                bar.set_message(format!("{kind}"));
+    let analyzer = Analyzer::new_with_validator(
+        move |kind, completed, total, _| {
+            let bar = bar.clone();
+            async move {
+                if completed == 0 {
+                    bar.set_length(total.try_into().unwrap());
+                    bar.set_message(format!("{kind}"));
+                }
+                bar.set_position(completed.try_into().unwrap());
             }
-            bar.set_position(completed.try_into().unwrap());
-        })
-        .await;
+        },
+        move || {
+            let mut validator = Validator::default();
+            if lint {
+                validator.add_visitor(LintVisitor::default());
+            }
+            validator
+        },
+    );
+
+    let documents = Analyzer::find_documents(vec![path]).await;
+    let results = analyzer.analyze(documents, None).await;
 
     let mut count = 0;
     let cwd = std::env::current_dir().ok();
     for result in &results {
-        let path = result.id().path();
+        let path = result.uri().to_file_path().ok();
 
         // Attempt to strip the CWD from the result path
         let path = match (&cwd, &path) {
             // Use the id itself if there is no path
-            (_, None) => result.id().to_str(),
+            (_, None) => result.uri().as_str().into(),
             // Use just the path if there's no CWD
             (None, Some(path)) => path.to_string_lossy(),
             // Strip the CWD from the path
             (Some(cwd), Some(path)) => path.strip_prefix(cwd).unwrap_or(path).to_string_lossy(),
         };
 
-        let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
+        let diagnostics: Cow<'_, [Diagnostic]> = match result.parse_result().error() {
             Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
             None => result.diagnostics().into(),
         };
@@ -96,6 +101,7 @@ async fn analyze(path: &Path, lint: bool) -> Result<Vec<AnalysisResult>> {
             emit_diagnostics(
                 &path,
                 &result
+                    .parse_result()
                     .root()
                     .map(|n| SyntaxNode::new_root(n.clone()).text().to_string())
                     .unwrap_or(String::new()),
@@ -104,8 +110,6 @@ async fn analyze(path: &Path, lint: bool) -> Result<Vec<AnalysisResult>> {
             count += diagnostics.len();
         }
     }
-
-    engine.shutdown().await;
 
     if count > 0 {
         bail!(
@@ -167,7 +171,7 @@ pub struct CheckCommand {
 
 impl CheckCommand {
     async fn exec(self) -> Result<()> {
-        analyze(&self.path, false).await?;
+        analyze(self.path, false).await?;
         Ok(())
     }
 }
@@ -226,7 +230,7 @@ pub struct AnalyzeCommand {
 
 impl AnalyzeCommand {
     async fn exec(self) -> Result<()> {
-        let results = analyze(&self.path, self.lint).await?;
+        let results = analyze(self.path, self.lint).await?;
         println!("{:#?}", results);
         Ok(())
     }

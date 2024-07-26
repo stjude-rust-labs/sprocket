@@ -639,7 +639,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::FalseKeyword => "`false` keyword",
             Self::HintsKeyword => "`hints` keyword",
             Self::IfKeyword => "`if` keyword",
-            Self::InKeyword => "`int` keyword",
+            Self::InKeyword => "`in` keyword",
             Self::ImportKeyword => "`import` keyword",
             Self::InputKeyword => "`input` keyword",
             Self::MetaKeyword => "`meta` keyword",

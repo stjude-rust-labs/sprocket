@@ -30,7 +30,9 @@ where
     pub fn spawn<F: FnOnce() -> T + Send + 'static>(func: F) -> Self {
         let (tx, rx) = oneshot::channel();
         rayon::spawn(move || {
-            tx.send(func()).ok();
+            if !tx.is_closed() {
+                tx.send(func()).ok();
+            }
         });
 
         Self { rx }

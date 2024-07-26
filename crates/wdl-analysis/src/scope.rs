@@ -4,7 +4,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use petgraph::graph::NodeIndex;
 use rowan::GreenNode;
+use url::Url;
 use wdl_ast::support::token;
 use wdl_ast::v1;
 use wdl_ast::v1::ImportStatement;
@@ -22,8 +24,8 @@ use wdl_ast::SyntaxNode;
 use wdl_ast::ToSpan;
 use wdl_ast::Version;
 
-use crate::DocumentId;
-use crate::State;
+use crate::graph::DocumentGraph;
+use crate::graph::ParseState;
 
 /// Represents the context of a name for diagnostic reporting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,6 +65,11 @@ impl fmt::Display for NameContext {
             Self::Scoped(n) => n.fmt(f),
         }
     }
+}
+
+/// Creates an "empty import" diagnostic
+fn empty_import(span: Span) -> Diagnostic {
+    Diagnostic::error("import URI cannot be empty").with_highlight(span)
 }
 
 /// Creates a "placeholder in import" diagnostic
@@ -144,7 +151,7 @@ fn import_missing_version(span: Span) -> Diagnostic {
 }
 
 /// Creates an "invalid relative import" diagnostic
-fn invalid_relative_import(error: &anyhow::Error, span: Span) -> Diagnostic {
+fn invalid_relative_import(error: &url::ParseError, span: Span) -> Diagnostic {
     Diagnostic::error(format!("{error:?}")).with_highlight(span)
 }
 
@@ -319,8 +326,8 @@ pub struct Namespace {
     span: Span,
     /// The CST node of the import that introduced the namespace.
     node: GreenNode,
-    /// The identifier of the imported document that introduced the namespace.
-    source: Arc<DocumentId>,
+    /// The URI of the imported document that introduced the namespace.
+    source: Arc<Url>,
     /// The namespace's document scope.
     scope: Arc<DocumentScope>,
 }
@@ -333,9 +340,8 @@ impl Namespace {
         &self.node
     }
 
-    /// Gets the identifier of the imported document that introduced the
-    /// namespace.
-    pub fn source(&self) -> &DocumentId {
+    /// Gets the URI of the imported document that introduced the namespace.
+    pub fn source(&self) -> &Arc<Url> {
         &self.source
     }
 
@@ -356,7 +362,7 @@ pub struct Struct {
     /// The source document that defines the struct.
     ///
     /// This is `Some` only for imported structs.
-    source: Option<Arc<DocumentId>>,
+    source: Option<Arc<Url>>,
     /// The CST node of the struct definition.
     node: GreenNode,
     /// The members of the struct.
@@ -373,8 +379,8 @@ impl Struct {
     ///
     /// Returns `None` for structs defined in the containing scope or `Some` for
     /// a struct introduced by an import.
-    pub fn source(&self) -> Option<&DocumentId> {
-        self.source.as_deref()
+    pub fn source(&self) -> Option<&Arc<Url>> {
+        self.source.as_ref()
     }
 
     /// Gets the members of the struct.
@@ -536,13 +542,20 @@ pub struct DocumentScope {
 
 impl DocumentScope {
     /// Creates a new document scope for a given document.
-    pub(crate) fn new(
-        state: &State,
-        id: &DocumentId,
-        document: &wdl_ast::Document,
-    ) -> (Self, Vec<Diagnostic>) {
+    pub(crate) fn new(graph: &DocumentGraph, index: NodeIndex) -> (Self, Vec<Diagnostic>) {
         let mut scope = Self::default();
-        let mut diagnostics = Vec::new();
+        let node = graph.get(index);
+
+        let mut diagnostics = match node.parse_state() {
+            ParseState::NotParsed => panic!("node should have been parsed"),
+            ParseState::Error(_) => return (Default::default(), Default::default()),
+            ParseState::Parsed { diagnostics, .. } => {
+                Vec::from_iter(diagnostics.as_ref().iter().cloned())
+            }
+        };
+
+        let document = node.document().expect("node should have been parsed");
+
         let version = match document.version_statement() {
             Some(stmt) => stmt.version(),
             None => {
@@ -557,7 +570,7 @@ impl DocumentScope {
                 for item in ast.items() {
                     match item {
                         v1::DocumentItem::Import(import) => {
-                            scope.add_namespace(state, &import, id, &version, &mut diagnostics);
+                            scope.add_namespace(graph, &import, index, &version, &mut diagnostics);
                         }
                         v1::DocumentItem::Struct(s) => {
                             scope.add_struct(&s, &mut diagnostics);
@@ -653,20 +666,21 @@ impl DocumentScope {
     /// Adds a namespace to the document scope.
     fn add_namespace(
         &mut self,
-        state: &State,
+        graph: &DocumentGraph,
         import: &ImportStatement,
-        importer_id: &DocumentId,
+        importer_index: NodeIndex,
         importer_version: &Version,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         // Start by resolving the import to its document scope
-        let (id, scope) = match Self::resolve_import(state, import, importer_id, importer_version) {
-            Ok(scope) => scope,
-            Err(diagnostic) => {
-                diagnostics.push(diagnostic);
-                return;
-            }
-        };
+        let (uri, scope) =
+            match Self::resolve_import(graph, import, importer_index, importer_version) {
+                Ok(scope) => scope,
+                Err(diagnostic) => {
+                    diagnostics.push(diagnostic);
+                    return;
+                }
+            };
 
         // Check for conflicting namespaces
         let span = import.uri().syntax().text_range().to_span();
@@ -686,7 +700,7 @@ impl DocumentScope {
                         Namespace {
                             span,
                             node: import.syntax().green().into(),
-                            source: id.clone(),
+                            source: uri.clone(),
                             scope: scope.clone(),
                         },
                     );
@@ -745,7 +759,7 @@ impl DocumentScope {
                         aliased_name.to_string(),
                         Struct {
                             span,
-                            source: Some(scope.source.clone().unwrap_or(id.clone())),
+                            source: Some(scope.source.clone().unwrap_or(uri.clone())),
                             node: scope.node.clone(),
                             members: scope.members.clone(),
                         },
@@ -1189,16 +1203,20 @@ impl DocumentScope {
 
     /// Resolves an import to its document scope.
     fn resolve_import(
-        state: &State,
+        graph: &DocumentGraph,
         stmt: &v1::ImportStatement,
-        importer_id: &DocumentId,
+        importer_index: NodeIndex,
         importer_version: &Version,
-    ) -> Result<(Arc<DocumentId>, Arc<DocumentScope>), Diagnostic> {
+    ) -> Result<(Arc<Url>, Arc<DocumentScope>), Diagnostic> {
         let uri = stmt.uri();
         let span = uri.syntax().text_range().to_span();
         let text = match uri.text() {
             Some(text) => text,
             None => {
+                if uri.is_empty() {
+                    return Err(empty_import(span));
+                }
+
                 let span = uri
                     .parts()
                     .find_map(|p| match p {
@@ -1213,38 +1231,33 @@ impl DocumentScope {
             }
         };
 
-        let id = match DocumentId::relative_to(importer_id, text.as_str()) {
-            Ok(id) => Arc::new(id),
+        let uri = match graph.get(importer_index).uri().join(text.as_str()) {
+            Ok(uri) => uri,
             Err(e) => return Err(invalid_relative_import(&e, span)),
         };
 
-        let (index, document) = state
-            .graph
-            .document(&id)
-            .expect("missing import node in graph");
+        let import_index = graph.get_index(&uri).expect("missing import node in graph");
+        let import_node = graph.get(import_index);
 
         // Check for an import cycle to report
-        if state
-            .cycles
-            .contains(&(state.graph.indexes[importer_id], index))
-        {
-            // There was a cycle for this import
+        if graph.contains_cycle(importer_index, import_index) {
             return Err(import_cycle(span));
         }
 
         // Check for a failure to load the import
-        if let Some(e) = &document.error {
+        if let ParseState::Error(e) = import_node.parse_state() {
             return Err(import_failure(text.as_str(), e, span));
         }
 
         // Ensure the import has a matching WDL version
-        let root = wdl_ast::Document::cast(SyntaxNode::new_root(
-            document.root.clone().expect("document should have a root"),
-        ))
-        .expect("root should cast");
+        let import_document = import_node.document().expect("import should have parsed");
+        let import_scope = import_node
+            .analysis()
+            .map(|a| a.scope().clone())
+            .expect("import should have been analyzed");
 
         // Check for compatible imports
-        match root.version_statement() {
+        match import_document.version_statement() {
             Some(stmt) => {
                 let our_version = stmt.version();
                 if matches!((our_version.as_str().split('.').next(), importer_version.as_str().split('.').next()), (Some(our_major), Some(their_major)) if our_major != their_major)
@@ -1261,7 +1274,7 @@ impl DocumentScope {
             }
         }
 
-        Ok((id, state.graph.inner[index].state.completed().scope.clone()))
+        Ok((import_node.uri().clone(), import_scope))
     }
 
     /// Calculates the span of a scope given a node which uses braces to
