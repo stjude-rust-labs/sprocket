@@ -37,6 +37,7 @@
 * **`sprocket check`** Checks the syntactic validity of Workflow Description Language files.
 * **`sprocket lint`** Lint Workflow Description Language files.
 * **`sprocket explain`** Explain lint rules.
+* **`sprocket analyzer`** Run Sprocket as a LSP server for IDE integration.
 
 ## Guiding Principles
 
