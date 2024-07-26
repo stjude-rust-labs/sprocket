@@ -15,6 +15,7 @@ edition = "2021"
 authors = ["The Rust WDL project developers"]
 homepage = "https://github.com/stjude-rust-labs/wdl"
 repository = "https://github.com/stjude-rust-labs/wdl"
+rust-version = "1.79.0"
 
 [workspace.dependencies]
 clap = { version = "4.5.7", features = ["derive"] }

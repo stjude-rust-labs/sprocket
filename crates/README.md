@@ -82,6 +82,35 @@ is not simple to derive which crate versions are compatible, and you'll need to
 manually sync those. We _highly_ recommend using the convenience crate if you
 intend to use more than one component crate in conjunction.
 
+### Minimum Supported Rust Version
+
+The minimum supported Rust version is currently `1.79.0`.
+
+There is a CI job that verifies the declared minimum supported version.
+
+If a contributor submits a PR that uses a feature from a newer version of Rust,
+the contributor is responsible for updating the minimum supported version in
+the `Cargo.toml`.
+
+Contributors may update the minimum supported version as-needed to the latest
+stable release of Rust.
+
+To facilitate the discovery of what the minimum supported version should be,
+install the `cargo-msrv` tool:
+
+```bash
+cargo install cargo-msrv
+```
+
+And run the following command:
+
+```bash
+cargo msrv --min 1.79.0
+```
+
+If the reported version is newer than the crate's current minimum supported
+version, an update is required.
+
 ## ✨ The `wdl` CLI tool
 
 The `wdl` CLI tool provides commands to assist in the development of

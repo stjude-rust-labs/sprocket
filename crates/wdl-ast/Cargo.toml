@@ -2,6 +2,7 @@
 name = "wdl-ast"
 version = "0.5.0"
 authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
+rust-version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "An abstract syntax tree for Workflow Description Language (WDL) documents"

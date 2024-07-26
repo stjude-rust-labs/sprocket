@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 * Promoted `wdl-analysis` to `wdl::analysis` (available behind the `analysis` feature,
   [#140](https://github.com/stjude-rust-labs/wdl/pull/140)).
+
 
 ## 0.6.0 - 07-17-2024
 

@@ -2,6 +2,7 @@
 name = "wdl-gauntlet"
 version = "0.4.0"
 description = "Testing of parse trees and ASTs within the `wdl` family of crates"
+rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
 

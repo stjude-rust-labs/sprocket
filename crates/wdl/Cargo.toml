@@ -2,6 +2,7 @@
 name = "wdl"
 version = "0.6.0"
 authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
+rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
 description = "Lexing, parsing, validation, and linting for Workflow Description Language (WDL) documents"

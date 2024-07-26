@@ -1,6 +1,7 @@
 [package]
 name = "wdl-analysis"
 version = "0.1.0"
+rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
 authors.workspace = true

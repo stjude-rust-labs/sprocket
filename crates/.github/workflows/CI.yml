@@ -1,6 +1,6 @@
 name: CI
 
-on: 
+on:
   push:
     branches:
       - main
@@ -66,3 +66,17 @@ jobs:
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - run: cargo run --release --bin wdl-gauntlet -- --arena
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update Rust
+      run: rustup update stable && rustup default stable
+    - name: Install cargo-binstall
+      run: curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+    - name: Install cargo-msrv
+      run: cargo binstall -y --version 0.16.0-beta.23 cargo-msrv
+    - name: Verify the MSRV
+      working-directory: ./wdl
+      run: cargo msrv verify --output-format minimal --all-features

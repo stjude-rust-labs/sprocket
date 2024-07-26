@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 * Added the `CommentWhitespace` lint rule ([#136](https://github.com/stjude-rust-labs/wdl/pull/136)).
 * Added the `TrailingComma` lint rule ([#137](https://github.com/stjude-rust-labs/wdl/pull/137)).
 
