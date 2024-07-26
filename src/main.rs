@@ -1,5 +1,8 @@
 //! The Sprocket command line tool.
 
+use std::io::stderr;
+use std::io::IsTerminal;
+
 use clap::Parser;
 use clap::Subcommand;
 use git_testament::git_testament;
@@ -20,6 +23,9 @@ enum Commands {
 
     /// Explains a lint warning.
     Explain(commands::explain::Args),
+
+    /// Runs the analyzer LSP server.
+    Analyzer(commands::analyzer::AnalyzerArgs),
 }
 
 #[derive(Parser)]
@@ -38,7 +44,7 @@ struct Cli {
     pub verbose: bool,
 }
 
-pub fn inner() -> anyhow::Result<()> {
+pub async fn inner() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     let level = if cli.verbose {
@@ -49,9 +55,12 @@ pub fn inner() -> anyhow::Result<()> {
         tracing::Level::INFO
     };
 
+    tracing_log::LogTracer::init()?;
+
     let subscriber = tracing_subscriber::fmt::Subscriber::builder()
         .with_max_level(level)
         .with_writer(std::io::stderr)
+        .with_ansi(stderr().is_terminal())
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
@@ -59,11 +68,13 @@ pub fn inner() -> anyhow::Result<()> {
         Commands::Check(args) => commands::check::check(args),
         Commands::Lint(args) => commands::check::lint(args),
         Commands::Explain(args) => commands::explain::explain(args),
+        Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
     }
 }
 
-pub fn main() {
-    if let Err(err) = inner() {
+#[tokio::main]
+pub async fn main() {
+    if let Err(err) = inner().await {
         eprintln!("error: {}", err);
     }
 }
