@@ -51,9 +51,6 @@ fn unknown_rule(id: &str, span: Span) -> Diagnostic {
 pub struct LintVisitor {
     /// The map of rule name to rule.
     rules: IndexMap<&'static str, Box<dyn Rule>>,
-    /// The set of globally disabled rules; these rules no longer appear in the
-    /// `visitors` map.
-    global: HashSet<String>,
     /// A stack of exceptions; the first is the offset of the syntax element
     /// with the comment and the second is the set of exceptions.
     exceptions: Vec<(usize, HashSet<String>)>,
@@ -64,7 +61,6 @@ impl LintVisitor {
     pub fn new(rules: impl IntoIterator<Item = Box<dyn Rule>>) -> Self {
         Self {
             rules: rules.into_iter().map(|r| (r.id(), r)).collect(),
-            global: Default::default(),
             exceptions: Default::default(),
         }
     }
@@ -129,7 +125,7 @@ impl LintVisitor {
                     // Next trim the end
                     let trimmed: &str = trimmed_start.trim_end();
 
-                    if !self.rules.contains_key(trimmed) && !self.global.contains(trimmed) {
+                    if !self.rules.contains_key(trimmed) {
                         // Calculate the span based off the current offset and how much whitespace
                         // was trimmed
                         let span = Span::new(
@@ -155,7 +151,6 @@ impl Default for LintVisitor {
     fn default() -> Self {
         Self {
             rules: rules().into_iter().map(|r| (r.id(), r)).collect(),
-            global: Default::default(),
             exceptions: Default::default(),
         }
     }
@@ -173,26 +168,19 @@ impl Visitor for LintVisitor {
     ) {
         if reason == VisitReason::Enter {
             // Reset state for a new document
-            self.global.clear();
             self.exceptions.clear();
-
-            // Set the global exceptions
-            if let Some(stmt) = doc.version_statement() {
-                self.global = self.exceptions_for(state, stmt.syntax());
-                for id in &self.global {
-                    // This is a shift remove to maintain the original order provided at
-                    // construction time; this is O(N), but both the set of rules and exceptions
-                    // is consistently small.
-                    self.rules.shift_remove(id.as_str());
-                }
-            }
         }
 
-        // We don't need to check the exceptions here as the globally-disabled rules
-        // were already removed.
-        for (_, rule) in &mut self.rules {
-            rule.document(state, reason, doc, version);
-        }
+        self.each_enabled_rule(
+            state,
+            reason,
+            doc.version_statement()
+                .expect("should have version")
+                .syntax(),
+            |state, rule| {
+                rule.document(state, reason, doc, version);
+            },
+        );
     }
 
     fn whitespace(&mut self, state: &mut Self::State, whitespace: &Whitespace) {
@@ -489,5 +477,39 @@ impl Visitor for LintVisitor {
         self.each_enabled_rule(state, reason, stmt.syntax(), |state, rule| {
             rule.call_statement(state, reason, stmt)
         });
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use wdl_ast::Validator;
+
+    use super::*;
+
+    #[test]
+    fn it_supports_reuse() {
+        let source = r#"## Test source
+#@ except: MissingMetas, MissingOutput
+
+version 1.1
+
+workflow test {
+}
+"#;
+
+        let (document, diagnostics) = wdl_ast::Document::parse(source);
+        assert!(diagnostics.is_empty());
+
+        let mut validator = Validator::default();
+        validator.add_visitor(LintVisitor::default());
+
+        // Validate the document twice to ensure that reusing the lint visitor generates
+        // no new diagnostics
+        validator
+            .validate(&document)
+            .expect("should not have any diagnostics");
+        validator
+            .validate(&document)
+            .expect("should not have any diagnostics");
     }
 }
