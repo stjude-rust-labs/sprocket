@@ -1,4 +1,4 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing, LineWidth, MissingMetas, NonmatchingOutput, TrailingComma, Whitespace
+#@ except: BlankLinesBetweenElements, DescriptionMissing, ExpressionSpacing, LineWidth, MissingMetas, NonmatchingOutput, TrailingComma, Whitespace
 ## some comment
 
 version 1.2
@@ -44,7 +44,7 @@ workflow foo {# test in-line comment without preceding whitespace
                 2 * 5
             )
         )
-        Int c = 5 / ( (  # more comment
+        Int c = 5 / ((  # more comment
                 # even more comment
                 2 * 5
             )

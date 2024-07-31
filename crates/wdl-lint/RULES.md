@@ -17,6 +17,7 @@ be out of sync with released packages.
 | `DescriptionMissing`             | Completeness                  | Ensures that each meta section has a description key.                                 |
 | `DoubleQuotes`                   | Clarity, Style                | Ensures that strings are defined using double quotes.                                 |
 | `EndingNewline`                  | Spacing, Style                | Ensures that documents end with a single newline character.                           |
+| `ExpressionSpacing`              | Spacing                       | Ensures that expressions are properly spaced.                                         |
 | `ImportPlacement`                | Clarity, Sorting              | Ensures that imports are placed between the version statement and any document items. |
 | `ImportSort`                     | Clarity, Style                | Ensures that imports are sorted lexicographically.                                    |
 | `ImportWhitespace`               | Clarity, Style, Spacing       | Ensures that there is no extraneous whitespace between or within imports.             |
