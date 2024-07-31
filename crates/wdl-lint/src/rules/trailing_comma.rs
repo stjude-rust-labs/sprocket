@@ -230,7 +230,7 @@ impl Visitor for TrailingCommaRule {
 }
 
 /// Find the next comma by consuming until we find a comma or a node.
-fn find_next_comma(node: &wdl_ast::SyntaxNode) -> (Option<wdl_ast::SyntaxToken>, bool) {
+pub(crate) fn find_next_comma(node: &wdl_ast::SyntaxNode) -> (Option<wdl_ast::SyntaxToken>, bool) {
     let mut next = node.next_sibling_or_token();
     let mut comma_is_next = true;
     while let Some(next_node) = next {

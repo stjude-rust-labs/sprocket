@@ -23,6 +23,7 @@ be out of sync with released packages.
 | `InconsistentNewlines`           | Clarity, Style                | Ensures that newlines are used consistently within the file.                          |
 | `InputNotSorted`                 | Style                         | Ensures that input declarations are sorted                                            |
 | `InputSpacing`                   | Style, Clarity, Spacing       | Ensures proper spacing for call inputs                                                |
+| `KeyValuePairs`                  | Style                         | Ensures that metadata objects and arrays are properly spaced.                           |
 | `LineWidth`                      | Clarity, Spacing, Style       | Ensures that lines do not exceed a certain width.                                     |
 | `MatchingParameterMeta`          | Completeness                  | Ensures that inputs have a matching entry in a `parameter_meta` section.              |
 | `MissingRuntime`                 | Completeness, Portability     | Ensures that tasks have a runtime section.                                            |
