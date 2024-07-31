@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, NoCurlyCommands, RuntimeSectionKeys
+#@ except: BlankLinesBetweenElements, DescriptionMissing, LineWidth, NoCurlyCommands, RuntimeSectionKeys
 ## This is a test of having spaces before tabs in command sections.
 
 version 1.1

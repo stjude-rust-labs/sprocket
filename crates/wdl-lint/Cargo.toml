@@ -15,6 +15,7 @@ readme = "../README.md"
 wdl-ast = { path = "../wdl-ast", version = "0.5.0" }
 convert_case = { workspace = true }
 indexmap = { workspace = true }
+rowan = { workspace = true }
 
 [dev-dependencies]
 codespan-reporting = { workspace = true }

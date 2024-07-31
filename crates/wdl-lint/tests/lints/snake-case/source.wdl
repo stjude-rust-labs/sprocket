@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, NonmatchingOutput, SectionOrdering, RuntimeSectionKeys
+#@ except: BlankLinesBetweenElements, DescriptionMissing, LineWidth, NonmatchingOutput, SectionOrdering, RuntimeSectionKeys
 ## Test SnakeCase rule
 
 version 1.0

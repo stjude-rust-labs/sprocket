@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, RuntimeSectionKeys
+#@ except: BlankLinesBetweenElements, DescriptionMissing, RuntimeSectionKeys
 
 version 1.1
 

@@ -1,4 +1,4 @@
-#@ except: CommentWhitespace, DescriptionMissing
+#@ except: BlankLinesBetweenElements, CommentWhitespace, DescriptionMissing
 
 version 1.1
 

@@ -1,5 +1,6 @@
 //! Module for the lint rules.
 
+mod blank_lines_between_elements;
 mod call_input_spacing;
 mod command_mixed_indentation;
 mod comment_whitespace;
@@ -30,6 +31,7 @@ mod todo;
 mod trailing_comma;
 mod whitespace;
 
+pub use blank_lines_between_elements::*;
 pub use call_input_spacing::*;
 pub use command_mixed_indentation::*;
 pub use comment_whitespace::*;

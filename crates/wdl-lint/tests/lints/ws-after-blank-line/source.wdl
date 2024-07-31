@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing
+#@ except: BlankLinesBetweenElements, DescriptionMissing
 ## This is a test of whitespace after a blank line.
 
      

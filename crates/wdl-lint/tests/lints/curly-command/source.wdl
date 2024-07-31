@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, SectionOrdering, RuntimeSectionKeys
+#@ except: BlankLinesBetweenElements, DescriptionMissing, LineWidth, SectionOrdering, RuntimeSectionKeys
 ## This is a test of the `NoCurlyCommands` lint
 
 version 1.1

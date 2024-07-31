@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, SectionOrdering
+#@ except: BlankLinesBetweenElements, DescriptionMissing, SectionOrdering
 
 version 1.0
 

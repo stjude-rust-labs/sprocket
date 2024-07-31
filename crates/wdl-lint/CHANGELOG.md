@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added the `DeprecatedPlaceholderOption` lint rule ([#120](https://github.com/stjude-rust-labs/wdl/pull/120)).
 * Added the `RuntimeSectionKeys` lint rule ([#120](https://github.com/stjude-rust-labs/wdl/pull/120)).
 * Added the `Todo` lint rule ([#120](https://github.com/stjude-rust-labs/wdl/pull/126)).
+* Added the `BlankLinesBetweenElements` lint rule ([#131](https://github.com/stjude-rust-labs/wdl/pull/131)).
 
 ### Fixed
 

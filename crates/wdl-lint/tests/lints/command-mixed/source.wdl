@@ -1,4 +1,4 @@
-#@ except: NoCurlyCommands, DescriptionMissing, RuntimeSectionKeys
+#@ except: BlankLinesBetweenElements, LineWidth, NoCurlyCommands, DescriptionMissing, RuntimeSectionKeys
 ## This is a test of having mixed indentation on the same line in command sections.
 
 version 1.1

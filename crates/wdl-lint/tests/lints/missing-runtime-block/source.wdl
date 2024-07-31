@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, RuntimeSectionKeys, SectionOrdering
+#@ except: BlankLinesBetweenElements, DescriptionMissing, LineWidth, RuntimeSectionKeys, SectionOrdering
 ## This is a test of the `missing_runtime_block` lint
 
 version 1.1
