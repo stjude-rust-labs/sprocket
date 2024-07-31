@@ -15,6 +15,8 @@ be out of sync with released packages.
 | `DeprecatedObject`               | Deprecated                    | Ensures that the deprecated `Object` construct is not used.                           |
 | `DeprecatedPlaceholderOption`    | Deprecated                    | Ensures that the deprecated placeholder options construct is not used.                |
 | `DescriptionMissing`             | Completeness                  | Ensures that each meta section has a description key.                                 |
+| `DisallowedInputName`            | Naming                        | Ensures that input names are meaningful.                                              |
+| `DisallowedOutputName`           | Naming                        | Ensures that output names are meaningful.                                             |
 | `DoubleQuotes`                   | Clarity, Style                | Ensures that strings are defined using double quotes.                                 |
 | `EndingNewline`                  | Spacing, Style                | Ensures that documents end with a single newline character.                           |
 | `ExpressionSpacing`              | Spacing                       | Ensures that expressions are properly spaced.                                         |

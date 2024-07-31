@@ -1,4 +1,4 @@
-#@ except: BlankLinesBetweenElements, CommentWhitespace, DescriptionMissing, LineWidth, MissingRuntime, TrailingComma
+#@ except: BlankLinesBetweenElements, CommentWhitespace, DescriptionMissing, DisallowedOutputName, LineWidth, MissingRuntime, TrailingComma
 
 version 1.1
 

@@ -1,4 +1,4 @@
-#@ except: CommentWhitespace, DescriptionMissing, InputSorting, LineWidth, MatchingParameterMeta, NonmatchingOutput, RuntimeSectionKeys, TrailingComma, Whitespace
+#@ except: CommentWhitespace, DescriptionMissing, DisallowedInputName, DisallowedOutputName, InputSorting, LineWidth, MatchingParameterMeta, NonmatchingOutput, RuntimeSectionKeys, TrailingComma, Whitespace
 
 version 1.1
 
