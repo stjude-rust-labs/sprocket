@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use indexmap::IndexMap;
-use temp_dir::TempDir;
+use tempfile::TempDir;
 
 use crate::repository::identifier::Identifier;
 use crate::repository::Repository;

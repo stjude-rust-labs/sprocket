@@ -7,6 +7,8 @@ use std::ops::Range;
 use std::sync::Arc;
 use std::time::Instant;
 
+use anyhow::Context;
+use anyhow::Result;
 use futures::stream::FuturesUnordered;
 use futures::Future;
 use futures::StreamExt;
@@ -21,48 +23,87 @@ use tokio::sync::oneshot;
 use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::AstToken;
-use wdl_ast::Validator;
 
 use crate::graph::Analysis;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::rayon::RayonHandle;
 use crate::AnalysisResult;
-use crate::DocumentChange;
 use crate::DocumentScope;
+use crate::IncrementalChange;
 use crate::ProgressKind;
 
 /// The minimum number of milliseconds between analysis progress reports.
 const MINIMUM_PROGRESS_MILLIS: u128 = 50;
 
 /// Represents a request to the analysis queue.
-pub enum Request {
+pub enum Request<Context> {
+    /// A request to add documents to the graph.
+    Add(AddRequest),
     /// A request to analyze documents.
-    Analyze(AnalyzeRequest),
-    /// A request to remove documents.
+    Analyze(AnalyzeRequest<Context>),
+    /// A request to remove documents from the graph.
     Remove(RemoveRequest),
+    /// A request to process a document's incremental change.
+    NotifyIncrementalChange(NotifyIncrementalChangeRequest),
+    /// A request to process a document's change.
+    NotifyChange(NotifyChangeRequest),
 }
 
-/// Represents a request to the analyze documents.
-pub struct AnalyzeRequest {
-    /// The documents to analyze.
-    pub documents: Vec<Arc<Url>>,
-    /// The context to provide to the progress callback.
-    pub context: Option<String>,
-    /// The sender for completing the request.
-    pub completed: oneshot::Sender<Vec<AnalysisResult>>,
-}
-
-/// Represents a request to remove documents from the document graph.
-pub struct RemoveRequest {
-    /// The URIs to remove.
-    pub uris: Vec<Url>,
+/// Represents a request to add documents to the graph.
+pub struct AddRequest {
+    /// The documents to add to the graph.
+    pub documents: IndexSet<Url>,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<()>,
 }
 
+/// Represents a request to analyze documents.
+pub struct AnalyzeRequest<Context> {
+    /// The specific document to analyze.
+    ///
+    /// If this is `None`, all rooted documents will be analyzed.
+    pub document: Option<Url>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Result<Vec<AnalysisResult>>>,
+}
+
+/// Represents a request to remove documents from the document graph.
+pub struct RemoveRequest {
+    /// The documents to remove.
+    pub documents: Vec<Url>,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<()>,
+}
+
+/// Represents a request to process an incremental change to a document.
+pub struct NotifyIncrementalChangeRequest {
+    /// The document that has changed.
+    pub document: Url,
+    /// The incremental change to the document.
+    pub change: IncrementalChange,
+}
+
+/// Represents a request to process a change to a document.
+pub struct NotifyChangeRequest {
+    /// The document that has changed.
+    pub document: Url,
+    /// Whether or not any existing incremental change should be discarded.
+    pub discard_pending: bool,
+}
+
+/// A simple enumeration to signal a cancellation to the caller.
+enum Cancelable<T> {
+    /// The operation completed and yielded a value.
+    Completed(T),
+    /// The operation was canceled.
+    Canceled,
+}
+
 /// Represents the analysis queue.
-pub struct AnalysisQueue<P, R, V, C> {
+pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     /// The document graph maintained by the analysis queue.
     graph: Arc<RwLock<DocumentGraph>>,
     /// The handle to the tokio runtime for blocking on async tasks.
@@ -70,24 +111,22 @@ pub struct AnalysisQueue<P, R, V, C> {
     /// The HTTP client to use for fetching documents.
     client: Client,
     /// The progress callback to use.
-    progress: Arc<P>,
-    /// A marker for the `R` type.
-    marker: PhantomData<R>,
+    progress: Arc<Progress>,
     /// The validator callback to use.
-    validator: Arc<V>,
-    /// The changes callback to use.
-    changes: C,
+    validator: Arc<Validator>,
+    /// A marker for the `Context` and `Return` types.
+    marker: PhantomData<(Context, Return)>,
 }
 
-impl<P, R, V, C> AnalysisQueue<P, R, V, C>
+impl<Progress, Context, Return, Validator> AnalysisQueue<Progress, Context, Return, Validator>
 where
-    P: Fn(ProgressKind, usize, usize, Option<String>) -> R + Send + Sync + 'static,
-    R: Future<Output = ()>,
-    V: Fn() -> Validator + Send + Sync + 'static,
-    C: Fn(&Url) -> Option<DocumentChange>,
+    Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
+    Context: Send + Clone,
+    Return: Future<Output = ()>,
+    Validator: Fn() -> wdl_ast::Validator + Send + Sync + 'static,
 {
     /// Constructs a new analysis queue.
-    pub fn new(tokio: Handle, progress: P, validator: V, changes: C) -> Self {
+    pub fn new(tokio: Handle, progress: Progress, validator: Validator) -> Self {
         Self {
             graph: Default::default(),
             tokio,
@@ -95,47 +134,99 @@ where
             marker: PhantomData,
             client: Default::default(),
             validator: Arc::new(validator),
-            changes,
         }
     }
 
     /// Runs the analysis queue.
-    pub fn run(&self, mut receiver: UnboundedReceiver<Request>) {
+    pub fn run(&self, mut receiver: UnboundedReceiver<Request<Context>>) {
         log::info!("analysis queue has started");
 
         while let Some(request) = self.tokio.block_on(receiver.recv()) {
             match request {
-                Request::Analyze(AnalyzeRequest {
+                Request::Add(AddRequest {
                     documents,
-                    context,
                     completed,
                 }) => {
                     let start = Instant::now();
                     log::info!(
-                        "received request to analyze {count} document(s)",
+                        "received request to add {count} document(s) to the graph",
                         count = documents.len()
                     );
 
-                    self.analyze(documents, context, completed);
+                    self.add_documents(documents);
 
                     log::info!(
-                        "analysis request completed in {elapsed:?}",
+                        "request to add documents completed in {elapsed:?}",
                         elapsed = start.elapsed()
                     );
+
+                    completed.send(()).ok();
                 }
-                Request::Remove(RemoveRequest { uris, completed }) => {
+                Request::Analyze(AnalyzeRequest {
+                    document,
+                    context,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    if let Some(document) = &document {
+                        log::info!("received request to document `{document}`");
+                    } else {
+                        log::info!("received request to analyze all documents");
+                    }
+
+                    match self.analyze(document, context, &completed) {
+                        Cancelable::Completed(results) => {
+                            log::info!(
+                                "request to analyze documents completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            completed.send(results).ok();
+                        }
+                        Cancelable::Canceled => {
+                            log::info!(
+                                "request to analyze documents was canceled after {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+                        }
+                    }
+                }
+                Request::Remove(RemoveRequest {
+                    documents,
+                    completed,
+                }) => {
                     let start = Instant::now();
                     log::info!(
-                        "received request to remove {count} URI(s)",
-                        count = uris.len()
+                        "received request to remove {count} documents(s)",
+                        count = documents.len()
                     );
 
-                    self.remove_documents(uris, completed);
+                    self.remove_documents(documents);
 
                     log::info!(
-                        "removal request completed in {elapsed:?}",
+                        "request to remove documents completed in {elapsed:?}",
                         elapsed = start.elapsed()
                     );
+
+                    completed.send(()).ok();
+                }
+                Request::NotifyIncrementalChange(NotifyIncrementalChangeRequest {
+                    document,
+                    change,
+                }) => {
+                    let mut graph = self.graph.write();
+                    if let Some(node) = graph.get_index(&document) {
+                        graph.get_mut(node).notify_incremental_change(change);
+                    }
+                }
+                Request::NotifyChange(NotifyChangeRequest {
+                    document,
+                    discard_pending,
+                }) => {
+                    let mut graph = self.graph.write();
+                    if let Some(node) = graph.get_index(&document) {
+                        graph.get_mut(node).notify_change(discard_pending);
+                    }
                 }
             }
         }
@@ -143,24 +234,43 @@ where
         log::info!("analysis queue has shut down");
     }
 
+    /// Adds a set of documents to the document graph.
+    fn add_documents(&self, documents: IndexSet<Url>) {
+        let mut graph = self.graph.write();
+        for document in documents {
+            graph.add_node(document, true);
+        }
+    }
+
     /// Analyzes the requested documents.
     fn analyze(
         &self,
-        documents: Vec<Arc<Url>>,
-        context: Option<String>,
-        completed: oneshot::Sender<Vec<AnalysisResult>>,
-    ) {
+        document: Option<Url>,
+        context: Context,
+        completed: &oneshot::Sender<Result<Vec<AnalysisResult>>>,
+    ) -> Cancelable<Result<Vec<AnalysisResult>>> {
         // Analysis works by building a subgraph of what needs to be analyzed.
-        // We start with the requested documents, adding them as roots to the graph if
-        // not already present. We then perform a breadth-first traversal maintaining
-        // the set of nodes that compromises the subgraph. At each step of the
-        // traversal, we reparse what has changed. The traversal is complete when no new
-        // nodes are added to the subgraph node set.
+        // We start with the requested node or all roots. We then perform a
+        // breadth-first traversal maintaining the set of nodes that compromises the
+        // subgraph. At each step of the traversal, we reparse what has changed. The
+        // traversal is complete when no new nodes are added to the subgraph node set.
 
-        // The subgraph being built, populated initially with the requested nodes
-        let mut subgraph: IndexSet<NodeIndex> = {
-            let mut graph = self.graph.write();
-            IndexSet::from_iter(documents.into_iter().map(|uri| graph.add_node(uri, true)))
+        let mut subgraph = {
+            let graph = self.graph.read();
+            match document {
+                Some(document) => {
+                    // Check to see if the document is a rooted node
+                    let index = match graph.get_index(&document) {
+                        Some(index) if graph.is_rooted(index) => index,
+                        _ => return Cancelable::Completed(Ok(Vec::new())),
+                    };
+
+                    let mut nodes = IndexSet::new();
+                    nodes.insert(index);
+                    nodes
+                }
+                None => graph.roots().clone(),
+            }
         };
 
         // The current starting offset into the subgraph slice to process
@@ -169,7 +279,7 @@ where
         loop {
             if completed.is_closed() {
                 log::info!("analysis request has been canceled");
-                return;
+                return Cancelable::Canceled;
             }
 
             let slice = subgraph
@@ -183,26 +293,33 @@ where
             }
 
             // Spawn parse tasks for nodes that need to be reparsed
-            let tasks = slice
-                .iter()
-                .filter_map(|index: &NodeIndex| {
-                    let graph = self.graph.read();
-                    let node = graph.get(*index);
-                    let change = (self.changes)(node.uri());
-                    if node.needs_parse(&change) {
-                        Some(self.spawn_parse_task(*index, change))
-                    } else {
-                        None
-                    }
-                })
-                .collect::<FuturesUnordered<_>>();
+            let tasks = {
+                let graph = self.graph.read();
+                slice
+                    .iter()
+                    .filter_map(|index| {
+                        let node = graph.get(*index);
+                        if node.needs_parse() {
+                            Some(self.spawn_parse_task(*index))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<FuturesUnordered<_>>()
+            };
 
             let parsed =
-                self.await_with_progress(ProgressKind::Parsing, tasks, &completed, &context);
+                match self.await_with_progress(ProgressKind::Parsing, tasks, completed, &context) {
+                    Cancelable::Completed(parsed) => parsed,
+                    Cancelable::Canceled => return Cancelable::Canceled,
+                };
 
             // Update the graph, potentially adding more nodes to the subgraph
             let len = slice.len();
-            self.update_graphs(parsed, &mut subgraph, offset..offset + len);
+            if let Err(e) = self.update_graphs(parsed, &mut subgraph, offset..offset + len) {
+                return Cancelable::Completed(Err(e));
+            }
+
             offset += len;
         }
 
@@ -210,11 +327,11 @@ where
         // Nodes in the subgraph will be removed once analyzed
         let mut subgraph = self.graph.read().subgraph(&subgraph);
         let mut set = Vec::new();
-        let mut results = Vec::new();
+        let mut results: Vec<AnalysisResult> = Vec::new();
         while subgraph.node_count() > 0 {
             if completed.is_closed() {
                 log::info!("analysis request has been canceled");
-                return;
+                return Cancelable::Canceled;
             }
 
             // Build a set of nodes with no incoming edges (i.e. no unanalyzed dependencies)
@@ -237,29 +354,39 @@ where
                 subgraph.remove_node(*index);
             }
 
-            let tasks = set
-                .iter()
-                .filter_map(|index| {
-                    let index = *index;
-                    let graph = self.graph.clone();
-                    if graph.read().get(index).analysis().is_some() {
-                        return None;
-                    }
+            let tasks = {
+                let graph = self.graph.read();
+                set.iter()
+                    .filter_map(|index| {
+                        let index = *index;
+                        let node = graph.get(index);
+                        if node.analysis().is_some() {
+                            if graph.include_result(index) {
+                                results.push(AnalysisResult::new(node));
+                            }
+                            return None;
+                        }
 
-                    Some(RayonHandle::spawn(move || Self::analyze_node(graph, index)))
-                })
-                .collect::<FuturesUnordered<_>>();
+                        let graph = self.graph.clone();
+                        Some(RayonHandle::spawn(move || Self::analyze_node(graph, index)))
+                    })
+                    .collect::<FuturesUnordered<_>>()
+            };
 
             let analyzed =
-                self.await_with_progress(ProgressKind::Analyzing, tasks, &completed, &context);
-
-            let graph = self.graph.read();
-            results.extend(analyzed.into_iter().filter_map(|index| {
-                // Filter out results from files that either aren't rooted or failed to parse
-                let node = graph.get(index);
-                if graph.is_rooted(index) || matches!(node.parse_state(), ParseState::Parsed { .. })
+                match self.await_with_progress(ProgressKind::Analyzing, tasks, completed, &context)
                 {
-                    Some(AnalysisResult::new(node))
+                    Cancelable::Completed(analyzed) => analyzed,
+                    Cancelable::Canceled => return Cancelable::Canceled,
+                };
+
+            let mut graph = self.graph.write();
+            results.extend(analyzed.into_iter().filter_map(|(index, analysis)| {
+                let node = graph.get_mut(index);
+                node.analysis_completed(analysis);
+
+                if graph.include_result(index) {
+                    Some(AnalysisResult::new(graph.get(index)))
                 } else {
                     None
                 }
@@ -267,14 +394,14 @@ where
         }
 
         results.sort_by(|a, b| a.uri().cmp(b.uri()));
-        completed.send(results).ok();
+        Cancelable::Completed(Ok(results))
     }
 
     /// Removes documents from the graph.
     ///
     /// If any of the removed documents are roots that have no outgoing edges,
     /// the nodes will be removed from the graph.
-    fn remove_documents(&self, uris: Vec<Url>, completed: oneshot::Sender<()>) {
+    fn remove_documents(&self, uris: Vec<Url>) {
         let mut graph = self.graph.write();
 
         for uri in uris {
@@ -282,31 +409,29 @@ where
         }
 
         graph.gc();
-
-        completed.send(()).ok();
     }
 
     /// Awaits the given set of futures while providing progress to the given
     /// callback.
-    fn await_with_progress<T, O>(
+    fn await_with_progress<Fut, Output>(
         &self,
         kind: ProgressKind,
-        mut tasks: FuturesUnordered<T>,
-        completed: &oneshot::Sender<Vec<AnalysisResult>>,
-        context: &Option<String>,
-    ) -> Vec<O>
+        mut tasks: FuturesUnordered<Fut>,
+        completed: &oneshot::Sender<Result<Vec<AnalysisResult>>>,
+        context: &Context,
+    ) -> Cancelable<Vec<Output>>
     where
-        T: Future<Output = O>,
+        Fut: Future<Output = Output>,
     {
         if tasks.is_empty() {
-            return Default::default();
+            return Cancelable::Completed(Vec::new());
         }
 
         let total = tasks.len();
         self.tokio
-            .block_on((self.progress)(kind, 0, total, context.clone()));
+            .block_on((self.progress)(context.clone(), kind, 0, total));
 
-        let update_progress: Arc<P> = self.progress.clone();
+        let update_progress = self.progress.clone();
         let results = self.tokio.block_on(async move {
             let mut count = 0;
             let mut results = Vec::new();
@@ -323,7 +448,7 @@ where
                 if count < total && (now - last_progress).as_millis() > MINIMUM_PROGRESS_MILLIS {
                     log::info!("{count} out of {total} {kind} task(s) have completed");
                     last_progress = now;
-                    update_progress(kind, count, total, context.clone()).await;
+                    update_progress(context.clone(), kind, count, total).await;
                 }
             }
 
@@ -345,30 +470,31 @@ where
 
         // Report all have completed even if there are cancellations
         self.tokio
-            .block_on((self.progress)(kind, total, total, context.clone()));
-        results
+            .block_on((self.progress)(context.clone(), kind, total, total));
+
+        if completed.is_closed() {
+            Cancelable::Canceled
+        } else {
+            Cancelable::Completed(results)
+        }
     }
 
     /// Spawns a parse task on a rayon thread.
-    fn spawn_parse_task(
-        &self,
-        index: NodeIndex,
-        change: Option<DocumentChange>,
-    ) -> RayonHandle<(NodeIndex, ParseState)> {
+    fn spawn_parse_task(&self, index: NodeIndex) -> RayonHandle<(NodeIndex, Result<ParseState>)> {
         let graph = self.graph.clone();
         let tokio = self.tokio.clone();
         let client = self.client.clone();
         let validator = self.validator.clone();
         RayonHandle::spawn(move || {
             thread_local! {
-                static VALIDATOR: RefCell<Option<Validator>> = const { RefCell::new(None) };
+                static VALIDATOR: RefCell<Option<wdl_ast::Validator>> = const { RefCell::new(None) };
             }
 
             VALIDATOR.with_borrow_mut(|v| {
                 let validator = v.get_or_insert_with(|| validator());
                 let graph = graph.read();
                 let node = graph.get(index);
-                let state = node.parse(&tokio, &client, change, validator);
+                let state = node.parse(&tokio, &client, validator);
                 (index, state)
             })
         })
@@ -380,17 +506,18 @@ where
     /// nodes added to the subgraph.
     fn update_graphs(
         &self,
-        parsed: Vec<(NodeIndex, ParseState)>,
+        parsed: Vec<(NodeIndex, Result<ParseState>)>,
         subgraph: &mut IndexSet<NodeIndex>,
         range: Range<usize>,
-    ) {
+    ) -> Result<()> {
         let mut graph = self.graph.write();
 
         // Start by updating the parsed nodes
         for (index, state) in parsed {
             let node = graph.get_mut(index);
-            node.set_parse_state(state);
-            node.set_analysis(None);
+            let state = state
+                .with_context(|| format!("failed to parse document `{uri}`", uri = node.uri()))?;
+            node.parse_completed(state);
 
             // Remove all dependency edges from the node as the imports might have changed
             graph.remove_dependency_edges(index);
@@ -406,7 +533,7 @@ where
                         };
 
                         let import_uri = match graph.get(index).uri().join(text.as_str()) {
-                            Ok(uri) => Arc::new(uri),
+                            Ok(uri) => uri,
                             Err(_) => continue,
                         };
 
@@ -440,7 +567,7 @@ where
                     subgraph.insert(dependent);
                 }
 
-                node.set_analysis(None);
+                node.reanalyze();
             });
         }
 
@@ -451,12 +578,14 @@ where
         }
 
         subgraph.extend(dependencies);
+        Ok(())
     }
 
     /// Analyzes a node in the document graph.
-    fn analyze_node(graph: Arc<RwLock<DocumentGraph>>, index: NodeIndex) -> NodeIndex {
+    fn analyze_node(graph: Arc<RwLock<DocumentGraph>>, index: NodeIndex) -> (NodeIndex, Analysis) {
         let start = Instant::now();
-        let (scope, mut diagnostics) = DocumentScope::new(&graph.read(), index);
+        let graph = graph.read();
+        let (scope, mut diagnostics) = DocumentScope::new(&graph, index);
 
         diagnostics.sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
             (None, None) => Ordering::Equal,
@@ -465,16 +594,12 @@ where
             (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
         });
 
-        let mut graph = graph.write();
-
         log::info!(
             "analysis of `{uri}` completed in {elapsed:?}",
             uri = graph.get(index).uri(),
             elapsed = start.elapsed()
         );
 
-        let node = graph.get_mut(index);
-        node.set_analysis(Some(Analysis::new(scope, diagnostics)));
-        index
+        (index, Analysis::new(scope, diagnostics))
     }
 }

@@ -16,10 +16,10 @@ use std::collections::HashSet;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
+use std::path::absolute;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::exit;
-use std::sync::Arc;
 
 use anyhow::bail;
 use anyhow::Context;
@@ -29,6 +29,7 @@ use codespan_reporting::term;
 use codespan_reporting::term::termcolor::Buffer;
 use codespan_reporting::term::Config;
 use colored::Colorize;
+use path_clean::clean;
 use pretty_assertions::StrComparison;
 use wdl_analysis::path_to_uri;
 use wdl_analysis::AnalysisResult;
@@ -146,28 +147,71 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
 
 #[tokio::main]
 async fn main() {
+    // These are the tests that require single document analysis as they are
+    // sensitive to parse order
+    const SINGLE_DOCUMENT_TESTS: &[&str] = &["import-dependency-cycle"];
+
     let tests = find_tests();
     println!("\nrunning {} tests\n", tests.len());
 
-    // We use the same analyzer for all the tests
-    // Note that this isn't parallelizable because we want the result for each
-    // individual test document and the analyzer would serialize the calls to
-    // `analyze` anyway.
+    // Start with a single analysis pass over all the test files
     let analyzer = Analyzer::new(|_, _, _, _| async {});
+    analyzer
+        .add_documents(tests.clone())
+        .await
+        .expect("should add documents");
+    let results = analyzer
+        .analyze(())
+        .await
+        .expect("failed to analyze documents");
+
     let mut errors = Vec::new();
     for test in &tests {
-        let source = test.join("source.wdl");
-        let results = analyzer
-            .analyze(
-                vec![Arc::new(
-                    path_to_uri(&source).expect("should convert to URI"),
-                )],
-                None,
-            )
-            .await;
-
         let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
+        if SINGLE_DOCUMENT_TESTS.contains(&test_name) {
+            continue;
+        }
+
+        // Discover the results that are relevant only to this test
+        let base = clean(absolute(test).expect("should be made absolute"));
+        let results = results
+            .iter()
+            .filter_map(|r| {
+                r.uri()
+                    .to_file_path()
+                    .ok()?
+                    .starts_with(&base)
+                    .then(|| r.clone())
+            })
+            .collect();
         match compare_results(test, results) {
+            Ok(_) => {
+                println!("test {test_name} ... {ok}", ok = "ok".green());
+            }
+            Err(e) => {
+                println!("test {test_name} ... {failed}", failed = "failed".red());
+                errors.push((test_name, e.to_string()));
+            }
+        }
+    }
+
+    // Some tests are sensitive to the order in which files are parsed (e.g.
+    // detecting cycles) For those, use a new analyzer and analyze the
+    // `source.wdl` directly
+    let analyzer = Analyzer::new(|_, _, _, _| async {});
+    for test_name in SINGLE_DOCUMENT_TESTS {
+        let test = Path::new("tests/analysis").join(test_name);
+        let document = test.join("source.wdl");
+        let uri = path_to_uri(&document).expect("should be valid URI");
+        analyzer
+            .add_documents(vec![document])
+            .await
+            .expect("should add documents");
+        let results = analyzer
+            .analyze_document((), uri)
+            .await
+            .expect("failed to analyze document");
+        match compare_results(&test, results) {
             Ok(_) => {
                 println!("test {test_name} ... {ok}", ok = "ok".green());
             }

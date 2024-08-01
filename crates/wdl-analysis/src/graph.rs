@@ -25,13 +25,14 @@ use reqwest::Client;
 use rowan::GreenNode;
 use tokio::runtime::Handle;
 use url::Url;
+use uuid::Uuid;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::SyntaxNode;
 use wdl_ast::Validator;
 
-use crate::DocumentChange;
 use crate::DocumentScope;
+use crate::IncrementalChange;
 
 /// Represents diagnostics for a document node.
 #[derive(Debug, Clone)]
@@ -62,6 +63,12 @@ pub enum ParseState {
     Error(Arc<anyhow::Error>),
     /// The document was parsed.
     Parsed {
+        /// The monotonic version of the document that was parsed.
+        ///
+        /// This value comes from incremental changes to the file.
+        ///
+        /// If `None`, the parsed version had no incremental changes.
+        version: Option<i32>,
         /// The root CST node of.
         root: GreenNode,
         /// The line index of the document.
@@ -74,6 +81,8 @@ pub enum ParseState {
 /// Represents the analysis state of a document graph node.
 #[derive(Debug)]
 pub struct Analysis {
+    /// The unique identifier of the analysis.
+    id: Arc<String>,
     /// The document's scope.
     scope: Arc<DocumentScope>,
     /// The analysis diagnostics.
@@ -84,9 +93,17 @@ impl Analysis {
     /// Constructs a new analysis.
     pub fn new(scope: DocumentScope, diagnostics: impl Into<Arc<[Diagnostic]>>) -> Self {
         Self {
+            id: Arc::new(Uuid::new_v4().to_string()),
             scope: Arc::new(scope),
             diagnostics: diagnostics.into(),
         }
+    }
+
+    /// Gets the analysis result id.
+    ///
+    /// The identifier changes every time the document is analyzed.
+    pub fn id(&self) -> &Arc<String> {
+        &self.id
     }
 
     /// Gets the document scope from the analysis.
@@ -105,9 +122,15 @@ impl Analysis {
 pub struct DocumentGraphNode {
     /// The URI of the document.
     uri: Arc<Url>,
+    /// The current incremental change to the document.
+    ///
+    /// If `None`, there is no pending incremental change applied to the node.
+    change: Option<IncrementalChange>,
     /// The parse state of the document.
     parse_state: ParseState,
     /// The analysis of the document.
+    ///
+    /// If `None`, an analysis does not exist for the current state of the node.
     analysis: Option<Analysis>,
 }
 
@@ -116,6 +139,7 @@ impl DocumentGraphNode {
     pub fn new(uri: Arc<Url>) -> Self {
         Self {
             uri,
+            change: None,
             parse_state: ParseState::NotParsed,
             analysis: None,
         }
@@ -126,14 +150,69 @@ impl DocumentGraphNode {
         &self.uri
     }
 
+    /// Notifies the document node that there's been an incremental change.
+    pub fn notify_incremental_change(&mut self, change: IncrementalChange) {
+        log::info!("document `{uri}` has incrementally changed", uri = self.uri);
+
+        // Clear the analysis as there has been a change
+        self.analysis = None;
+
+        // Attempt to merge the edits of the change
+        if let Some(IncrementalChange {
+            version: existing_version,
+            start: existing_start,
+            edits: existing_edits,
+        }) = &mut self.change
+        {
+            let IncrementalChange {
+                version,
+                start,
+                edits,
+            } = change;
+            *existing_version = version;
+            if start.is_some() {
+                *existing_start = start;
+                *existing_edits = edits;
+            } else {
+                existing_edits.extend(edits);
+            }
+        } else {
+            self.change = Some(change)
+        }
+    }
+
+    /// Notifies the document node that the document has fully changed.
+    pub fn notify_change(&mut self, discard_pending: bool) {
+        log::info!("document `{uri}` has changed", uri = self.uri);
+
+        // Clear the analysis as there has been a change
+        self.analysis = None;
+
+        if !matches!(
+            self.parse_state,
+            ParseState::Parsed {
+                version: Some(_),
+                ..
+            }
+        ) || discard_pending
+        {
+            self.parse_state = ParseState::NotParsed;
+            self.change = None;
+        }
+    }
+
     /// Gets the parse state of the document node.
     pub fn parse_state(&self) -> &ParseState {
         &self.parse_state
     }
 
-    /// Sets the parse state on the document node.
-    pub fn set_parse_state(&mut self, state: ParseState) {
+    /// Marks the parse as completed.
+    pub fn parse_completed(&mut self, state: ParseState) {
+        assert!(!matches!(state, ParseState::NotParsed));
         self.parse_state = state;
+
+        // Clear any document change
+        self.change = None;
     }
 
     /// Gets the analysis of the document node.
@@ -141,9 +220,16 @@ impl DocumentGraphNode {
         self.analysis.as_ref()
     }
 
-    /// Sets the analysis on the document node.
-    pub fn set_analysis(&mut self, analysis: Option<Analysis>) {
-        self.analysis = analysis;
+    /// Marks the analysis as completed.
+    pub fn analysis_completed(&mut self, analysis: Analysis) {
+        self.analysis = Some(analysis);
+    }
+
+    /// Marks the document node for reanalysis.
+    ///
+    /// This may occur when a dependency has changed.
+    pub fn reanalyze(&mut self) {
+        self.analysis = None;
     }
 
     /// Gets the AST document of the node.
@@ -161,8 +247,8 @@ impl DocumentGraphNode {
     }
 
     /// Determines if the document needs to be parsed.
-    pub fn needs_parse(&self, change: &Option<DocumentChange>) -> bool {
-        !change.is_none() || !matches!(self.parse_state, ParseState::Parsed { .. })
+    pub fn needs_parse(&self) -> bool {
+        self.change.is_some() || matches!(self.parse_state, ParseState::NotParsed)
     }
 
     /// Parses the document.
@@ -174,30 +260,29 @@ impl DocumentGraphNode {
         &self,
         tokio: &Handle,
         client: &Client,
-        change: Option<DocumentChange>,
         validator: &mut Validator,
-    ) -> ParseState {
-        if !self.needs_parse(&change) {
-            return self.parse_state.clone();
+    ) -> Result<ParseState> {
+        if !self.needs_parse() {
+            return Ok(self.parse_state.clone());
         }
 
-        self.incremental_parse(change)
-            .unwrap_or_else(|change| self.full_parse(tokio, client, change, validator))
+        // First attempt an incremental parse
+        if let Some(state) = self.incremental_parse() {
+            return Ok(state);
+        }
+
+        // Otherwise, fall back to a full parse.
+        self.full_parse(tokio, client, validator)
     }
 
     /// Performs an incremental parse of the document.
     ///
     /// Returns an error with the given change if the document needs a full
     /// parse.
-    fn incremental_parse(
-        &self,
-        change: Option<DocumentChange>,
-    ) -> Result<ParseState, Option<DocumentChange>> {
-        match change {
-            None
-            | Some(DocumentChange::Refetch)
-            | Some(DocumentChange::Incremental { start: Some(_), .. }) => Err(change),
-            Some(DocumentChange::Incremental { start: None, .. }) => {
+    fn incremental_parse(&self) -> Option<ParseState> {
+        match &self.change {
+            None | Some(IncrementalChange { start: Some(_), .. }) => None,
+            Some(IncrementalChange { start: None, .. }) => {
                 // TODO: implement incremental parsing
                 // For each edit:
                 //   * determine if the edit is to a token; if so, replace it in the tree
@@ -206,7 +291,7 @@ impl DocumentGraphNode {
                 //   * if a reparsable node can't be found, return an error to trigger a full
                 //     reparse
                 //   * incrementally update the parse diagnostics depending on the result
-                Err(change)
+                None
             }
         }
     }
@@ -216,11 +301,10 @@ impl DocumentGraphNode {
         &self,
         tokio: &Handle,
         client: &Client,
-        change: Option<DocumentChange>,
         validator: &mut Validator,
-    ) -> ParseState {
-        let (source, lines) = match change {
-            None | Some(DocumentChange::Refetch) => {
+    ) -> Result<ParseState> {
+        let (version, source, lines) = match &self.change {
+            None => {
                 // Fetch the source
                 let result = match self.uri.to_file_path() {
                     Ok(path) => fs::read_to_string(path).map_err(Into::into),
@@ -233,15 +317,19 @@ impl DocumentGraphNode {
                 match result {
                     Ok(source) => {
                         let lines = Arc::new(LineIndex::new(&source));
-                        (source, lines)
+                        (None, source, lines)
                     }
-                    Err(e) => return ParseState::Error(e.into()),
+                    Err(e) => return Ok(ParseState::Error(e.into())),
                 }
             }
-            Some(DocumentChange::Incremental { start, edits }) => {
+            Some(IncrementalChange {
+                version,
+                start,
+                edits,
+            }) => {
                 // The document has been edited; if there is start source, apply the edits to it
                 let (mut source, mut lines) = if let Some(start) = start {
-                    let source = start.as_ref().clone();
+                    let source = start.clone();
                     let lines = Arc::new(LineIndex::new(&source));
                     (source, lines)
                 } else {
@@ -260,8 +348,7 @@ impl DocumentGraphNode {
                 // We keep track of the last line we've processed so we only rebuild the line
                 // index when there is a change that crosses a line
                 let mut last_line = !0u32;
-
-                for edit in &edits {
+                for edit in edits {
                     let range = edit.range();
                     if last_line <= range.end.line {
                         // Only rebuild the line index if the edit has changed lines
@@ -269,7 +356,7 @@ impl DocumentGraphNode {
                     }
 
                     last_line = range.start.line;
-                    edit.apply(&mut source, &lines);
+                    edit.apply(&mut source, &lines)?;
                 }
 
                 if !edits.is_empty() {
@@ -277,7 +364,7 @@ impl DocumentGraphNode {
                     lines = Arc::new(LineIndex::new(&source));
                 }
 
-                (source, lines)
+                (Some(*version), source, lines)
             }
         };
 
@@ -302,11 +389,12 @@ impl DocumentGraphNode {
             Diagnostics::Parse(diagnostics.into())
         };
 
-        ParseState::Parsed {
+        Ok(ParseState::Parsed {
+            version,
             root: document.syntax().green().into(),
             lines,
             diagnostics,
-        }
+        })
     }
 
     /// Downloads the source of a `http` or `https` scheme URI.
@@ -348,9 +436,11 @@ pub struct DocumentGraph {
     indexes: IndexMap<Arc<Url>, NodeIndex>,
     /// The current set of rooted nodes in the graph.
     ///
+    /// Rooted nodes are those that were explicitly added to the analyzer.
+    ///
     /// A rooted node is one that will not be collected even if the node has no
     /// outgoing edges (i.e. is not depended upon by any other file).
-    roots: HashSet<NodeIndex>,
+    roots: IndexSet<NodeIndex>,
     /// Represents dependency edges that, if they were added to the document
     /// graph, would form a cycle.
     ///
@@ -367,11 +457,12 @@ pub struct DocumentGraph {
 
 impl DocumentGraph {
     /// Add a node to the document graph.
-    pub fn add_node(&mut self, uri: Arc<Url>, rooted: bool) -> NodeIndex {
+    pub fn add_node(&mut self, uri: Url, rooted: bool) -> NodeIndex {
         let index = if let Some(index) = self.indexes.get(&uri) {
             *index
         } else {
             log::debug!("inserting `{uri}` into the document graph");
+            let uri = Arc::new(uri);
             let index = self.inner.add_node(DocumentGraphNode::new(uri.clone()));
             self.indexes.insert(uri, index);
             index
@@ -379,9 +470,6 @@ impl DocumentGraph {
 
         if rooted {
             self.roots.insert(index);
-
-            // Mark the node for analysis as it's considered a root
-            self.inner[index].analysis = None;
         }
 
         index
@@ -418,7 +506,7 @@ impl DocumentGraph {
 
             // We don't actually remove nodes from the graph, just remove it as a root.
             // If the node has no outgoing edges, it will be collected in the next GC.
-            if !self.roots.remove(&index) {
+            if !self.roots.swap_remove(&index) {
                 log::debug!(
                     "document `{uri}` is no longer rooted in the graph",
                     uri = node.uri
@@ -427,6 +515,7 @@ impl DocumentGraph {
 
             node.parse_state = ParseState::NotParsed;
             node.analysis = None;
+            node.change = None;
 
             // Do a BFS traversal to trigger re-analysis in dependent documents
             self.bfs_mut(index, |graph, dependent: NodeIndex| {
@@ -440,6 +529,21 @@ impl DocumentGraph {
     /// Determines if the given node is rooted.
     pub fn is_rooted(&self, index: NodeIndex) -> bool {
         self.roots.contains(&index)
+    }
+
+    /// Gets the rooted nodes in the graph.
+    pub fn roots(&self) -> &IndexSet<NodeIndex> {
+        &self.roots
+    }
+
+    /// Determines if the given document node should be included in analysis
+    /// results.
+    pub fn include_result(&self, index: NodeIndex) -> bool {
+        // Only consider rooted or parsed nodes that have been analyzed
+        let node = self.get(index);
+        node.analysis().is_some()
+            && (self.roots.contains(&index)
+                || matches!(node.parse_state(), ParseState::Parsed { .. }))
     }
 
     /// Gets a node from the graph.

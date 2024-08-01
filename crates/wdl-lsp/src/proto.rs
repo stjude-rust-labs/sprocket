@@ -1,5 +1,7 @@
 //! Helper functions from converting to and from LSP structures
 
+use std::collections::HashMap;
+
 use anyhow::Context;
 use anyhow::Result;
 use line_index::LineIndex;
@@ -7,11 +9,25 @@ use line_index::WideEncoding;
 use tower_lsp::lsp_types::Diagnostic;
 use tower_lsp::lsp_types::DiagnosticRelatedInformation;
 use tower_lsp::lsp_types::DiagnosticSeverity;
+use tower_lsp::lsp_types::DocumentDiagnosticParams;
+use tower_lsp::lsp_types::DocumentDiagnosticReport;
+use tower_lsp::lsp_types::DocumentDiagnosticReportResult;
+use tower_lsp::lsp_types::FullDocumentDiagnosticReport;
 use tower_lsp::lsp_types::Location;
 use tower_lsp::lsp_types::NumberOrString;
 use tower_lsp::lsp_types::Position;
 use tower_lsp::lsp_types::Range;
+use tower_lsp::lsp_types::RelatedFullDocumentDiagnosticReport;
+use tower_lsp::lsp_types::RelatedUnchangedDocumentDiagnosticReport;
+use tower_lsp::lsp_types::UnchangedDocumentDiagnosticReport;
+use tower_lsp::lsp_types::WorkspaceDiagnosticParams;
+use tower_lsp::lsp_types::WorkspaceDiagnosticReport;
+use tower_lsp::lsp_types::WorkspaceDiagnosticReportResult;
+use tower_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
+use tower_lsp::lsp_types::WorkspaceFullDocumentDiagnosticReport;
+use tower_lsp::lsp_types::WorkspaceUnchangedDocumentDiagnosticReport;
 use url::Url;
+use wdl_analysis::AnalysisResult;
 use wdl_ast::Severity;
 use wdl_ast::Span;
 
@@ -83,4 +99,140 @@ pub fn diagnostic(
         Some(related),
         None,
     ))
+}
+
+/// Converts analysis results into an LSP document diagnostic report.
+pub fn document_diagnostic_report(
+    params: DocumentDiagnosticParams,
+    results: Vec<AnalysisResult>,
+    source: &str,
+) -> Option<DocumentDiagnosticReportResult> {
+    let result = results
+        .iter()
+        .find(|r| r.uri().as_ref() == &params.text_document.uri)?;
+
+    if let Some(previous) = params.previous_result_id {
+        if &previous == result.id().as_ref() {
+            log::debug!(
+                "diagnostics for document `{uri}` have not changed (client has latest)",
+                uri = params.text_document.uri,
+            );
+            return Some(DocumentDiagnosticReportResult::Report(
+                DocumentDiagnosticReport::Unchanged(RelatedUnchangedDocumentDiagnosticReport {
+                    related_documents: None,
+                    unchanged_document_diagnostic_report: UnchangedDocumentDiagnosticReport {
+                        result_id: previous,
+                    },
+                }),
+            ));
+        }
+
+        log::debug!(
+            "diagnostics for document `{uri}` have changed since last client request",
+            uri = params.text_document.uri
+        );
+    }
+
+    let items = result
+        .diagnostics()
+        .iter()
+        .map(|d| {
+            diagnostic(
+                result.uri(),
+                result
+                    .parse_result()
+                    .lines()
+                    .expect("should have line index"),
+                source,
+                d,
+            )
+        })
+        .collect::<Result<Vec<_>>>()
+        .ok()?;
+
+    Some(DocumentDiagnosticReportResult::Report(
+        DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport {
+            related_documents: None,
+            full_document_diagnostic_report: FullDocumentDiagnosticReport {
+                result_id: Some(result.id().as_ref().clone()),
+                items,
+            },
+        }),
+    ))
+}
+
+/// Converts analysis results into an LSP workspace diagnostic report.
+pub fn workspace_diagnostic_report(
+    params: WorkspaceDiagnosticParams,
+    results: Vec<AnalysisResult>,
+    source: &str,
+) -> WorkspaceDiagnosticReportResult {
+    let ids = params
+        .previous_result_ids
+        .into_iter()
+        .map(|id| (id.uri, id.value))
+        .collect::<HashMap<_, _>>();
+
+    let mut items = Vec::new();
+    for result in results {
+        // Only store local file results
+        if result.uri().scheme() != "file" {
+            continue;
+        }
+
+        if let Some(previous) = ids.get(result.uri()) {
+            if previous == result.id().as_ref() {
+                log::debug!(
+                    "diagnostics for document `{uri}` have not changed (client has latest)",
+                    uri = result.uri(),
+                );
+
+                items.push(WorkspaceDocumentDiagnosticReport::Unchanged(
+                    WorkspaceUnchangedDocumentDiagnosticReport {
+                        uri: result.uri().as_ref().clone(),
+                        version: result.parse_result().version().map(|v| v as i64),
+                        unchanged_document_diagnostic_report: UnchangedDocumentDiagnosticReport {
+                            result_id: result.id().as_ref().clone(),
+                        },
+                    },
+                ));
+                continue;
+            }
+        }
+
+        log::debug!(
+            "diagnostics for document `{uri}` have changed since last client request",
+            uri = result.uri()
+        );
+
+        let diagnostics = result
+            .diagnostics()
+            .iter()
+            .filter_map(|d| {
+                diagnostic(
+                    result.uri(),
+                    result
+                        .parse_result()
+                        .lines()
+                        .expect("should have line index"),
+                    source,
+                    d,
+                )
+                .ok()
+            })
+            .collect();
+
+        items.push(WorkspaceDocumentDiagnosticReport::Full(
+            WorkspaceFullDocumentDiagnosticReport {
+                uri: result.uri().as_ref().clone(),
+                version: result.parse_result().version().map(|v| v as i64),
+                full_document_diagnostic_report: FullDocumentDiagnosticReport {
+                    result_id: Some(result.id().as_ref().clone()),
+                    items: diagnostics,
+                },
+            },
+        ))
+    }
+
+    WorkspaceDiagnosticReportResult::Report(WorkspaceDiagnosticReport { items })
 }

@@ -1,5 +1,6 @@
 //! Implementation of the analyzer.
 
+use std::ffi::OsStr;
 use std::fmt;
 use std::future::Future;
 use std::mem::ManuallyDrop;
@@ -10,6 +11,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
+use anyhow::anyhow;
+use anyhow::bail;
+use anyhow::Context;
+use anyhow::Result;
+use indexmap::IndexSet;
 use line_index::LineCol;
 use line_index::LineIndex;
 use line_index::WideEncoding;
@@ -20,6 +26,7 @@ use tokio::runtime::Handle;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use url::Url;
+use walkdir::WalkDir;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::SyntaxNode;
@@ -27,8 +34,11 @@ use wdl_ast::Validator;
 
 use crate::graph::DocumentGraphNode;
 use crate::graph::ParseState;
+use crate::queue::AddRequest;
 use crate::queue::AnalysisQueue;
 use crate::queue::AnalyzeRequest;
+use crate::queue::NotifyChangeRequest;
+use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::RemoveRequest;
 use crate::queue::Request;
 use crate::rayon::RayonHandle;
@@ -64,6 +74,12 @@ pub enum ParseResult {
     Error(Arc<anyhow::Error>),
     /// The document was parsed.
     Parsed {
+        /// The monotonic version of the document that was parsed.
+        ///
+        /// This value comes from incremental changes to the file.
+        ///
+        /// If `None`, the parsed version had no incremental changes.
+        version: Option<i32>,
         /// The root node of the document.
         root: GreenNode,
         /// The line index used to map line/column offsets to byte offsets and
@@ -73,6 +89,17 @@ pub enum ParseResult {
 }
 
 impl ParseResult {
+    /// Gets the version of the parsed document.
+    ///
+    /// Returns `None` if there was an error parsing the document or the parsed
+    /// document had no incremental changes.
+    pub fn version(&self) -> Option<i32> {
+        match self {
+            Self::Error(_) => None,
+            Self::Parsed { version, .. } => *version,
+        }
+    }
+
     /// Gets the root from the parse result.
     ///
     /// Returns `None` if there was an error parsing the document.
@@ -124,7 +151,13 @@ impl From<&ParseState> for ParseResult {
                 panic!("cannot create a result for an file that hasn't been parsed")
             }
             ParseState::Error(e) => Self::Error(e.clone()),
-            ParseState::Parsed { root, lines, .. } => Self::Parsed {
+            ParseState::Parsed {
+                version,
+                root,
+                lines,
+                diagnostics: _,
+            } => Self::Parsed {
+                version: *version,
                 root: root.clone(),
                 lines: lines.clone(),
             },
@@ -137,6 +170,10 @@ impl From<&ParseState> for ParseResult {
 /// Analysis results are cheap to clone.
 #[derive(Debug, Clone)]
 pub struct AnalysisResult {
+    /// The analysis result id.
+    ///
+    /// The identifier changes every time the document is analyzed.
+    id: Arc<String>,
     /// The URI of the analyzed document.
     uri: Arc<Url>,
     /// The result from parsing the file.
@@ -153,11 +190,19 @@ impl AnalysisResult {
         let analysis = node.analysis().expect("analysis not completed");
 
         Self {
+            id: analysis.id().clone(),
             uri: node.uri().clone(),
             parse_result: node.parse_state().into(),
             diagnostics: analysis.diagnostics().clone(),
             scope: analysis.scope().clone(),
         }
+    }
+
+    /// Gets the identifier of the analysis result.
+    ///
+    /// This value changes when a document is reanalyzed.
+    pub fn id(&self) -> &Arc<String> {
+        &self.id
     }
 
     /// Gets the URI of the document that was analyzed.
@@ -216,6 +261,8 @@ pub enum SourcePositionEncoding {
 #[derive(Debug, Clone)]
 pub struct SourceEdit {
     /// The range of the edit.
+    ///
+    /// Note that invalid ranges will cause the edit to be ignored.
     range: Range<SourcePosition>,
     /// The encoding of the edit positions.
     encoding: SourcePositionEncoding,
@@ -242,8 +289,8 @@ impl SourceEdit {
         self.range.start..self.range.end
     }
 
-    /// Applies the edit to the given string.
-    pub(crate) fn apply(&self, source: &mut String, lines: &LineIndex) {
+    /// Applies the edit to the given string if it's in range.
+    pub(crate) fn apply(&self, source: &mut String, lines: &LineIndex) -> Result<()> {
         let (start, end) = match self.encoding {
             SourcePositionEncoding::UTF8 => (
                 LineCol {
@@ -264,7 +311,7 @@ impl SourceEdit {
                             col: self.range.start.character,
                         },
                     )
-                    .expect("expected a valid start position"),
+                    .context("invalid edit start position")?,
                 lines
                     .to_utf8(
                         WideEncoding::Utf16,
@@ -273,40 +320,49 @@ impl SourceEdit {
                             col: self.range.end.character,
                         },
                     )
-                    .expect("expected a valid end position"),
+                    .context("invalid edit end position")?,
             ),
         };
 
         let range: Range<usize> = lines
             .offset(start)
-            .expect("expected a valid start position")
+            .context("invalid edit start position")?
             .into()
             ..lines
                 .offset(end)
-                .expect("expected a valid end position")
+                .context("invalid edit end position")?
                 .into();
+
+        if !source.is_char_boundary(range.start) {
+            bail!("edit start position is not at a character boundary");
+        }
+
+        if !source.is_char_boundary(range.end) {
+            bail!("edit end position is not at a character boundary");
+        }
+
         source.replace_range(range, &self.text);
+        Ok(())
     }
 }
 
-/// Represents a change to a document.
+/// Represents an incremental change to a document.
 #[derive(Clone, Debug)]
-pub enum DocumentChange {
-    /// The document has changed and should be fetched again from its URI.
-    Refetch,
-    /// The document has incrementally changed and the specified edits should be
-    /// applied.
-    Incremental {
-        /// The source to start from for applying edits.
-        ///
-        /// If this is `Some`, a full reparse will occur after applying edits to
-        /// this string.
-        ///
-        /// If this is `None`, edits will be applied to the existing CST.
-        start: Option<Arc<String>>,
-        /// The source edits to apply.
-        edits: Vec<SourceEdit>,
-    },
+pub struct IncrementalChange {
+    /// The monotonic version of the document.
+    ///
+    /// This is expected to increase for each incremental change.
+    pub version: i32,
+    /// The source to start from for applying edits.
+    ///
+    /// If this is `Some`, a full reparse will occur after applying edits to
+    /// this string.
+    ///
+    /// If this is `None`, edits will be applied to the existing CST and an
+    /// attempt will be made to incrementally parse the file.
+    pub start: Option<String>,
+    /// The source edits to apply.
+    pub edits: Vec<SourceEdit>,
 }
 
 /// Represents a Workflow Description Language (WDL) document analyzer.
@@ -320,15 +376,20 @@ pub enum DocumentChange {
 ///
 /// Note that dropping the analyzer is a blocking operation as it will wait for
 /// the queue thread to join.
+///
+/// The type parameter is the context type passed to the progress callback.
 #[derive(Debug)]
-pub struct Analyzer {
+pub struct Analyzer<Context> {
     /// The sender for sending analysis requests to the queue.
-    sender: ManuallyDrop<mpsc::UnboundedSender<Request>>,
+    sender: ManuallyDrop<mpsc::UnboundedSender<Request<Context>>>,
     /// The join handle for the queue task.
     handle: Option<JoinHandle<()>>,
 }
 
-impl Analyzer {
+impl<Context> Analyzer<Context>
+where
+    Context: Send + Clone + 'static,
+{
     /// Constructs a new analyzer.
     ///
     /// The provided progress callback will be invoked during analysis.
@@ -336,10 +397,10 @@ impl Analyzer {
     /// The analyzer will use a default validator for validation.
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
-    pub fn new<P, R>(progress: P) -> Self
+    pub fn new<Progress, Return>(progress: Progress) -> Self
     where
-        P: Fn(ProgressKind, usize, usize, Option<String>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()>,
+        Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
+        Return: Future<Output = ()>,
     {
         Self::new_with_validator(progress, Validator::default)
     }
@@ -352,38 +413,19 @@ impl Analyzer {
     /// initialize a thread-local validator.
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
-    pub fn new_with_validator<P, R, V>(progress: P, validator: V) -> Self
+    pub fn new_with_validator<Progress, Return, Validator>(
+        progress: Progress,
+        validator: Validator,
+    ) -> Self
     where
-        P: Fn(ProgressKind, usize, usize, Option<String>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()>,
-        V: Fn() -> Validator + Send + Sync + 'static,
-    {
-        Self::new_with_changes(progress, validator, |_| None)
-    }
-
-    /// Constructs a new analyzer with the given validator function and changes
-    /// function.
-    ///
-    /// The provided progress callback will be invoked during analysis.
-    ///
-    /// This validator function will be called once per worker thread to
-    /// initialize a thread-local validator.
-    ///
-    /// The change function will be called when the analyzer needs to take the
-    /// changes for the provided document.
-    ///
-    /// The analyzer must be constructed from the context of a Tokio runtime.
-    pub fn new_with_changes<P, R, V, C>(progress: P, validator: V, changes: C) -> Self
-    where
-        P: Fn(ProgressKind, usize, usize, Option<String>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()>,
-        V: Fn() -> Validator + Send + Sync + 'static,
-        C: Fn(&Url) -> Option<DocumentChange> + Send + Sync + 'static,
+        Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
+        Return: Future<Output = ()>,
+        Validator: Fn() -> wdl_ast::Validator + Send + Sync + 'static,
     {
         let (tx, rx) = mpsc::unbounded_channel();
         let tokio = Handle::current();
         let handle = std::thread::spawn(move || {
-            let queue = AnalysisQueue::new(tokio, progress, validator, changes);
+            let queue = AnalysisQueue::new(tokio, progress, validator);
             queue.run(rx);
         });
 
@@ -393,52 +435,78 @@ impl Analyzer {
         }
     }
 
-    /// Finds documents to analyze.
+    /// Adds documents to the analyzer.
     ///
     /// If a specified path is a directory, it is recursively searched for WDL
     /// documents.
     ///
-    /// Returns the URIs of the discovered documents.
-    pub async fn find_documents(paths: Vec<PathBuf>) -> Vec<Arc<Url>> {
-        RayonHandle::spawn(move || {
-            let mut documents = Vec::new();
+    /// Returns an error if there was a problem discovering documents for the
+    /// specified paths.
+    pub async fn add_documents(&self, paths: Vec<PathBuf>) -> Result<()> {
+        // Start by searching for documents
+        let documents = RayonHandle::spawn(move || -> Result<IndexSet<Url>> {
+            let mut documents = IndexSet::new();
             for path in paths {
-                if path.is_file() {
-                    if let Some(uri) = path_to_uri(&path) {
-                        documents.push(uri.into());
-                    }
+                let metadata = path.metadata().with_context(|| {
+                    format!(
+                        "failed to read metadata for `{path}`",
+                        path = path.display()
+                    )
+                })?;
 
+                if metadata.is_file() {
+                    documents.insert(path_to_uri(&path).with_context(|| {
+                        format!(
+                            "failed to convert path `{path}` to a URI",
+                            path = path.display()
+                        )
+                    })?);
                     continue;
                 }
 
-                let pattern = format!("{path}/**/*.wdl", path = path.display());
-                let options = glob::MatchOptions {
-                    case_sensitive: true,
-                    require_literal_separator: false,
-                    require_literal_leading_dot: true,
-                };
+                for result in WalkDir::new(&path).follow_links(true) {
+                    let entry = result.with_context(|| {
+                        format!("failed to read directory `{path}`", path = path.display())
+                    })?;
+                    if !entry.file_type().is_file()
+                        || entry.path().extension().and_then(OsStr::to_str) != Some("wdl")
+                    {
+                        continue;
+                    }
 
-                match glob::glob_with(&pattern, options) {
-                    Ok(paths) => {
-                        for uri in paths.filter_map(|p| match p {
-                            Ok(path) => path_to_uri(&path),
-                            Err(e) => {
-                                log::error!("error while searching for WDL documents: {e}");
-                                None
-                            }
-                        }) {
-                            documents.push(uri.into());
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("error while searching for WDL documents: {e}");
-                    }
+                    documents.insert(path_to_uri(entry.path()).with_context(|| {
+                        format!(
+                            "failed to convert path `{path}` to a URI",
+                            path = entry.path().display()
+                        )
+                    })?);
                 }
             }
 
-            documents
+            Ok(documents)
         })
-        .await
+        .await?;
+
+        if documents.is_empty() {
+            return Ok(());
+        }
+
+        // Send the add request to the queue
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::Add(AddRequest {
+                documents,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!("failed to send request to analysis queue because the channel has closed")
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!("failed to receive response from analysis queue because the channel has closed")
+        })?;
+
+        Ok(())
     }
 
     /// Removes the specified documents from the analyzer.
@@ -447,47 +515,119 @@ impl Analyzer {
     /// the analyzer, those documents will be removed.
     ///
     /// Documents are only removed when not referenced from importing documents.
-    pub async fn remove_documents<'a>(&self, uris: Vec<Url>) {
+    pub async fn remove_documents<'a>(&self, documents: Vec<Url>) -> Result<()> {
+        // Send the remove request to the queue
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Request::Remove(RemoveRequest {
-                uris,
+                documents,
                 completed: tx,
             }))
-            .expect("failed to send remove request");
+            .map_err(|_| {
+                anyhow!("failed to send request to analysis queue because the channel has closed")
+            })?;
 
-        rx.await.unwrap_or_default()
+        rx.await.map_err(|_| {
+            anyhow!("failed to receive response from analysis queue because the channel has closed")
+        })?;
+
+        Ok(())
     }
 
-    /// Analyzes the given set of documents.
+    /// Notifies the analyzer that a document has an incremental change.
+    ///
+    /// Changes to documents that aren't known to the analyzer are ignored.
+    pub fn notify_incremental_change(
+        &self,
+        document: Url,
+        change: IncrementalChange,
+    ) -> Result<()> {
+        self.sender
+            .send(Request::NotifyIncrementalChange(
+                NotifyIncrementalChangeRequest { document, change },
+            ))
+            .map_err(|_| {
+                anyhow!("failed to send request to analysis queue because the channel has closed")
+            })
+    }
+
+    /// Notifies the analyzer that a document has fully changed and should be
+    /// fetched again.
+    ///
+    /// Changes to documents that aren't known to the analyzer are ignored.
+    ///
+    /// If `discard_pending` is true, then any pending incremental changes are
+    /// discarded; otherwise, the full change is ignored if there are pending
+    /// incremental changes.
+    pub fn notify_change(&self, document: Url, discard_pending: bool) -> Result<()> {
+        self.sender
+            .send(Request::NotifyChange(NotifyChangeRequest {
+                document,
+                discard_pending,
+            }))
+            .map_err(|_| {
+                anyhow!("failed to send request to analysis queue because the channel has closed")
+            })
+    }
+
+    /// Analyzes a specific document.
     ///
     /// The provided context is passed to the progress callback.
     ///
-    /// Returns a set of analysis results for each file that was analyzed; note
-    /// that the set may contain related files that were analyzed.
-    pub async fn analyze(
+    /// If the document is up-to-date and was previously analyzed, the current
+    /// analysis result is returned.
+    ///
+    /// Returns an analysis result for each document that was analyzed.
+    pub async fn analyze_document(
         &self,
-        documents: Vec<Arc<Url>>,
-        context: Option<String>,
-    ) -> Vec<AnalysisResult> {
-        if documents.is_empty() {
-            return Default::default();
-        }
-
+        context: Context,
+        document: Url,
+    ) -> Result<Vec<AnalysisResult>> {
+        // Send the analyze request to the queue
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Request::Analyze(AnalyzeRequest {
-                documents,
+                document: Some(document),
                 context,
                 completed: tx,
             }))
-            .expect("failed to send analyze request");
+            .map_err(|_| {
+                anyhow!("failed to send request to analysis queue because the channel has closed")
+            })?;
 
-        rx.await.unwrap_or_default()
+        rx.await.map_err(|_| {
+            anyhow!("failed to receive response from analysis queue because the channel has closed")
+        })?
+    }
+
+    /// Performs analysis of all documents.
+    ///
+    /// The provided context is passed to the progress callback.
+    ///
+    /// If a document is up-to-date and was previously analyzed, the current
+    /// analysis result is returned.
+    ///
+    /// Returns an analysis result for each document that was analyzed.
+    pub async fn analyze(&self, context: Context) -> Result<Vec<AnalysisResult>> {
+        // Send the analyze request to the queue
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::Analyze(AnalyzeRequest {
+                document: None,
+                context,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!("failed to send request to analysis queue because the channel has closed")
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!("failed to receive response from analysis queue because the channel has closed")
+        })?
     }
 }
 
-impl Drop for Analyzer {
+impl<C> Drop for Analyzer<C> {
     fn drop(&mut self) {
         unsafe { ManuallyDrop::drop(&mut self.sender) };
         if let Some(handle) = self.handle.take() {
@@ -501,5 +641,263 @@ impl Drop for Analyzer {
 const _: () = {
     /// Helper that will fail to compile if T is not `Send + Sync`.
     const fn _assert<T: Send + Sync>() {}
-    _assert::<Analyzer>();
+    _assert::<Analyzer<()>>();
 };
+
+#[cfg(test)]
+mod test {
+    use std::fs;
+
+    use tempfile::TempDir;
+    use wdl_ast::Severity;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn it_returns_empty_results() {
+        let analyzer = Analyzer::new(|_: (), _, _, _| async {});
+        let results = analyzer.analyze(()).await.unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn it_analyzes_a_document() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        let path = dir.path().join("foo.wdl");
+        fs::write(
+            &path,
+            r#"version 1.1
+
+task test {
+    command <<<>>>
+}
+
+workflow test {
+}
+"#,
+        )
+        .expect("failed to create test file");
+
+        // Analyze the file and check the resulting diagnostic
+        let analyzer = Analyzer::new(|_: (), _, _, _| async {});
+        analyzer
+            .add_documents(vec![path])
+            .await
+            .expect("should add document");
+
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].diagnostics().len(), 1);
+        assert_eq!(results[0].diagnostics()[0].rule(), None);
+        assert_eq!(results[0].diagnostics()[0].severity(), Severity::Error);
+        assert_eq!(
+            results[0].diagnostics()[0].message(),
+            "conflicting workflow name `test`"
+        );
+
+        // Analyze again and ensure the analysis result id is unchanged
+        let id = results[0].id().clone();
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id().as_ref(), id.as_ref());
+        assert_eq!(results[0].diagnostics().len(), 1);
+        assert_eq!(results[0].diagnostics()[0].rule(), None);
+        assert_eq!(results[0].diagnostics()[0].severity(), Severity::Error);
+        assert_eq!(
+            results[0].diagnostics()[0].message(),
+            "conflicting workflow name `test`"
+        );
+    }
+
+    #[tokio::test]
+    async fn it_reanalyzes_a_document_on_change() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        let path = dir.path().join("foo.wdl");
+        fs::write(
+            &path,
+            r#"version 1.1
+
+task test {
+    command <<<>>>
+}
+
+workflow test {
+}
+"#,
+        )
+        .expect("failed to create test file");
+
+        // Analyze the file and check the resulting diagnostic
+        let analyzer = Analyzer::new(|_: (), _, _, _| async {});
+        analyzer
+            .add_documents(vec![path.clone()])
+            .await
+            .expect("should add document");
+
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].diagnostics().len(), 1);
+        assert_eq!(results[0].diagnostics()[0].rule(), None);
+        assert_eq!(results[0].diagnostics()[0].severity(), Severity::Error);
+        assert_eq!(
+            results[0].diagnostics()[0].message(),
+            "conflicting workflow name `test`"
+        );
+
+        // Rewrite the file to correct the issue
+        fs::write(
+            &path,
+            r#"version 1.1
+
+task test {
+    command <<<>>>
+}
+
+workflow something_else {
+}
+"#,
+        )
+        .expect("failed to create test file");
+
+        let uri = path_to_uri(&path).expect("should convert to URI");
+        analyzer.notify_change(uri.clone(), false).unwrap();
+
+        // Analyze again and ensure the analysis result id is changed and the issue
+        // fixed
+        let id = results[0].id().clone();
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].id().as_ref() != id.as_ref());
+        assert_eq!(results[0].diagnostics().len(), 0);
+
+        // Analyze again and ensure the analysis result id is unchanged
+        let id = results[0].id().clone();
+        let results = analyzer.analyze_document((), uri).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].id().as_ref() == id.as_ref());
+        assert_eq!(results[0].diagnostics().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn it_reanalyzes_a_document_on_incremental_change() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        let path = dir.path().join("foo.wdl");
+        fs::write(
+            &path,
+            r#"version 1.1
+
+task test {
+    command <<<>>>
+}
+
+workflow test {
+}
+"#,
+        )
+        .expect("failed to create test file");
+
+        // Analyze the file and check the resulting diagnostic
+        let analyzer = Analyzer::new(|_: (), _, _, _| async {});
+        analyzer
+            .add_documents(vec![path.clone()])
+            .await
+            .expect("should add document");
+
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].diagnostics().len(), 1);
+        assert_eq!(results[0].diagnostics()[0].rule(), None);
+        assert_eq!(results[0].diagnostics()[0].severity(), Severity::Error);
+        assert_eq!(
+            results[0].diagnostics()[0].message(),
+            "conflicting workflow name `test`"
+        );
+
+        // Edit the file to correct the issue
+        let uri = path_to_uri(&path).expect("should convert to URI");
+        analyzer
+            .notify_incremental_change(
+                uri.clone(),
+                IncrementalChange {
+                    version: 2,
+                    start: None,
+                    edits: vec![SourceEdit {
+                        range: SourcePosition::new(6, 9)..SourcePosition::new(6, 13),
+                        encoding: SourcePositionEncoding::UTF8,
+                        text: "something_else".to_string(),
+                    }],
+                },
+            )
+            .unwrap();
+
+        // Analyze again and ensure the analysis result id is changed and the issue was
+        // fixed
+        let id = results[0].id().clone();
+        let results = analyzer.analyze_document((), uri).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].id().as_ref() != id.as_ref());
+        assert_eq!(results[0].diagnostics().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn it_removes_documents() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        let foo = dir.path().join("foo.wdl");
+        fs::write(
+            &foo,
+            r#"version 1.1
+workflow test {
+}
+"#,
+        )
+        .expect("failed to create test file");
+
+        let bar = dir.path().join("bar.wdl");
+        fs::write(
+            &bar,
+            r#"version 1.1
+workflow test {
+}
+"#,
+        )
+        .expect("failed to create test file");
+
+        let baz = dir.path().join("baz.wdl");
+        fs::write(
+            &baz,
+            r#"version 1.1
+workflow test {
+}
+"#,
+        )
+        .expect("failed to create test file");
+
+        // Add all three documents to the analyzer
+        let analyzer = Analyzer::new(|_: (), _, _, _| async {});
+        analyzer
+            .add_documents(vec![dir.path().to_path_buf()])
+            .await
+            .expect("should add documents");
+
+        // Analyze the documents
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 3);
+        assert!(results[0].diagnostics().is_empty());
+        assert!(results[1].diagnostics().is_empty());
+        assert!(results[2].diagnostics().is_empty());
+
+        // Analyze the documents again
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 3);
+
+        // Remove the documents by directory
+        analyzer
+            .remove_documents(vec![
+                path_to_uri(dir.path()).expect("should convert to URI"),
+            ])
+            .await
+            .unwrap();
+        let results = analyzer.analyze(()).await.unwrap();
+        assert!(results.is_empty());
+    }
+}
