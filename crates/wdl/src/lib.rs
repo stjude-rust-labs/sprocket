@@ -84,3 +84,6 @@ pub use wdl_grammar as grammar;
 #[cfg(feature = "lint")]
 #[doc(inline)]
 pub use wdl_lint as lint;
+#[cfg(feature = "lsp")]
+#[doc(inline)]
+pub use wdl_lsp as lsp;

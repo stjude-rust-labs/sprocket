@@ -16,6 +16,7 @@ wdl-grammar = { path = "../wdl-grammar", version = "0.6.0", optional = true }
 wdl-ast = { path = "../wdl-ast", version = "0.5.0", optional = true }
 wdl-lint = { path = "../wdl-lint", version = "0.4.0", optional = true }
 wdl-analysis = { path = "../wdl-analysis", version = "0.1.0", optional = true }
+wdl-lsp = { path = "../wdl-lsp", version = "0.1.0", optional = true }
 clap = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 colored = { workspace = true, optional = true }
@@ -35,6 +36,7 @@ analysis = ["dep:wdl-analysis"]
 ast = ["dep:wdl-ast"]
 grammar = ["dep:wdl-grammar"]
 lint = ["dep:wdl-lint"]
+lsp = ["dep:wdl-lsp"]
 codespan = ["ast", "wdl-ast/codespan", "dep:codespan-reporting"]
 cli = [
     "analysis",

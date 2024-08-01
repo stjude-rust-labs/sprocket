@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* `wdl-lsp`: introduced at v0.1.0 ([release](https://github.com/stjude-rust-labs/wdl/releases/tag/wdl-lsp-v0.1.0))
 * Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 * Promoted `wdl-analysis` to `wdl::analysis` (available behind the `analysis` feature,
   [#140](https://github.com/stjude-rust-labs/wdl/pull/140)).
