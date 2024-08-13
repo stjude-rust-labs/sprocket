@@ -34,14 +34,14 @@ impl WorkflowDefinition {
         children(&self.0)
     }
 
-    /// Gets the input sections of the workflow.
-    pub fn inputs(&self) -> AstChildren<InputSection> {
-        children(&self.0)
+    /// Gets the input section of the workflow.
+    pub fn input(&self) -> Option<InputSection> {
+        child(&self.0)
     }
 
-    /// Gets the output sections of the workflow.
-    pub fn outputs(&self) -> AstChildren<OutputSection> {
-        children(&self.0)
+    /// Gets the output section of the workflow.
+    pub fn output(&self) -> Option<OutputSection> {
+        child(&self.0)
     }
 
     /// Gets the statements of the workflow.
@@ -49,19 +49,19 @@ impl WorkflowDefinition {
         children(&self.0)
     }
 
-    /// Gets the metadata sections of the workflow.
-    pub fn metadata(&self) -> AstChildren<MetadataSection> {
-        children(&self.0)
+    /// Gets the metadata section of the workflow.
+    pub fn metadata(&self) -> Option<MetadataSection> {
+        child(&self.0)
     }
 
-    /// Gets the parameter sections of the workflow.
-    pub fn parameter_metadata(&self) -> AstChildren<ParameterMetadataSection> {
-        children(&self.0)
+    /// Gets the parameter section of the workflow.
+    pub fn parameter_metadata(&self) -> Option<ParameterMetadataSection> {
+        child(&self.0)
     }
 
-    /// Gets the hints sections of the workflow.
-    pub fn hints(&self) -> AstChildren<HintsSection> {
-        children(&self.0)
+    /// Gets the hints section of the workflow.
+    pub fn hints(&self) -> Option<HintsSection> {
+        child(&self.0)
     }
 
     /// Gets the private declarations of the workflow.
@@ -640,12 +640,11 @@ workflow test {
         assert_eq!(workflows[0].name().as_str(), "test");
 
         // Workflow inputs
-        let inputs: Vec<_> = workflows[0].inputs().collect();
-        assert_eq!(inputs.len(), 1);
-
-        // First input declarations
-        assert_eq!(inputs[0].parent().unwrap_workflow().name().as_str(), "test");
-        let decls: Vec<_> = inputs[0].declarations().collect();
+        let input = workflows[0]
+            .input()
+            .expect("workflow should have an input section");
+        assert_eq!(input.parent().unwrap_workflow().name().as_str(), "test");
+        let decls: Vec<_> = input.declarations().collect();
         assert_eq!(decls.len(), 2);
 
         // First declaration
@@ -669,15 +668,11 @@ workflow test {
         );
 
         // Workflow outputs
-        let outputs: Vec<_> = workflows[0].outputs().collect();
-        assert_eq!(outputs.len(), 1);
-
-        // First output declarations
-        assert_eq!(
-            outputs[0].parent().unwrap_workflow().name().as_str(),
-            "test"
-        );
-        let decls: Vec<_> = outputs[0].declarations().collect();
+        let output = workflows[0]
+            .output()
+            .expect("workflow should have an output section");
+        assert_eq!(output.parent().unwrap_workflow().name().as_str(), "test");
+        let decls: Vec<_> = output.declarations().collect();
         assert_eq!(decls.len(), 1);
 
         // First declaration
@@ -851,15 +846,11 @@ workflow test {
         assert_eq!(inner.len(), 0);
 
         // Workflow metadata
-        let metadata: Vec<_> = workflows[0].metadata().collect();
-        assert_eq!(metadata.len(), 1);
-
-        // First metadata
-        assert_eq!(
-            metadata[0].parent().unwrap_workflow().name().as_str(),
-            "test"
-        );
-        let items: Vec<_> = metadata[0].items().collect();
+        let metadata = workflows[0]
+            .metadata()
+            .expect("workflow should have a metadata section");
+        assert_eq!(metadata.parent().unwrap_workflow().name().as_str(), "test");
+        let items: Vec<_> = metadata.items().collect();
         assert_eq!(items.len(), 2);
         assert_eq!(items[0].name().as_str(), "description");
         assert_eq!(
@@ -870,15 +861,14 @@ workflow test {
         items[1].value().unwrap_null();
 
         // Workflow parameter metadata
-        let param_meta: Vec<_> = workflows[0].parameter_metadata().collect();
-        assert_eq!(param_meta.len(), 1);
-
-        // First parameter metadata
+        let param_meta = workflows[0]
+            .parameter_metadata()
+            .expect("workflow should have a parameter metadata section");
         assert_eq!(
-            param_meta[0].parent().unwrap_workflow().name().as_str(),
+            param_meta.parent().unwrap_workflow().name().as_str(),
             "test"
         );
-        let items: Vec<_> = param_meta[0].items().collect();
+        let items: Vec<_> = param_meta.items().collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].name().as_str(), "name");
         let items: Vec<_> = items[0].value().unwrap_object().items().collect();
@@ -890,12 +880,11 @@ workflow test {
         );
 
         // Workflow hints
-        let hints: Vec<_> = workflows[0].hints().collect();
-        assert_eq!(hints.len(), 1);
-
-        // First workflow hints
-        assert_eq!(hints[0].parent().unwrap_workflow().name().as_str(), "test");
-        let items: Vec<_> = hints[0].items().collect();
+        let hints = workflows[0]
+            .hints()
+            .expect("workflow should have a hints section");
+        assert_eq!(hints.parent().unwrap_workflow().name().as_str(), "test");
+        let items: Vec<_> = hints.items().collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].name().as_str(), "foo");
         assert_eq!(

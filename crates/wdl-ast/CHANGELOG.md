@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Moved validation of import statements to `wdl-ast` ([#158](https://github.com/stjude-rust-labs/wdl/pull/158)).
 
+### Changed
+
+* Section methods on `TaskDefinition` and `WorkflowDefinition` now return
+  `Option` instead of iterator. ([#157](https://github.com/stjude-rust-labs/wdl/pull/157)).
+
 ## 0.5.0 - 07-17-2024
 
 ### Added

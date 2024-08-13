@@ -79,7 +79,7 @@ impl Visitor for MissingRuntimeRule {
         // This rule should only be present for WDL v1.1 or earlier, as the
         // `requirements` section replaces it in WDL v1.2.
         if let SupportedVersion::V1(minor_version) = self.0.expect("version should exist here") {
-            if minor_version <= V1::One && task.runtimes().next().is_none() {
+            if minor_version <= V1::One && task.runtime().is_none() {
                 let name = task.name();
                 state.add(missing_runtime_section(name.as_str(), name.span()));
             }

@@ -82,7 +82,6 @@ task hello {
             .next()
             .expect("the 'hello' task to exist")
             .requirements()
-            .next()
             .expect("the 'requirements' block to exist")
             .items()
             .filter_map(|p| p.into_container());
@@ -112,7 +111,6 @@ task hello {
             .next()
             .expect("the 'hello' task to exist")
             .requirements()
-            .next()
             .expect("the 'requirements' block to exist")
             .items()
             .filter_map(|p| p.into_container());
@@ -144,7 +142,6 @@ task hello {
             .next()
             .expect("the 'hello' task to exist")
             .requirements()
-            .next()
             .expect("the 'requirements' block to exist")
             .items()
             .filter_map(|p| p.into_container());

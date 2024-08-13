@@ -144,16 +144,13 @@ impl Visitor for MissingMetasRule {
             return;
         }
 
-        let inputs_present = task.inputs().next().is_some();
+        let inputs_present = task.input().is_some();
 
-        if inputs_present
-            && task.metadata().next().is_none()
-            && task.parameter_metadata().next().is_none()
-        {
+        if inputs_present && task.metadata().is_none() && task.parameter_metadata().is_none() {
             state.add(missing_sections(task.name(), Context::Task));
-        } else if task.metadata().next().is_none() {
+        } else if task.metadata().is_none() {
             state.add(missing_section(task.name(), Section::Meta, Context::Task));
-        } else if inputs_present && task.parameter_metadata().next().is_none() {
+        } else if inputs_present && task.parameter_metadata().is_none() {
             state.add(missing_section(
                 task.name(),
                 Section::ParameterMeta,
@@ -172,20 +169,20 @@ impl Visitor for MissingMetasRule {
             return;
         }
 
-        let inputs_present = workflow.inputs().next().is_some();
+        let inputs_present = workflow.input().is_some();
 
         if inputs_present
-            && workflow.metadata().next().is_none()
-            && workflow.parameter_metadata().next().is_none()
+            && workflow.metadata().is_none()
+            && workflow.parameter_metadata().is_none()
         {
             state.add(missing_sections(workflow.name(), Context::Workflow));
-        } else if workflow.metadata().next().is_none() {
+        } else if workflow.metadata().is_none() {
             state.add(missing_section(
                 workflow.name(),
                 Section::Meta,
                 Context::Workflow,
             ));
-        } else if inputs_present && workflow.parameter_metadata().next().is_none() {
+        } else if inputs_present && workflow.parameter_metadata().is_none() {
             state.add(missing_section(
                 workflow.name(),
                 Section::ParameterMeta,

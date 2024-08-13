@@ -4765,9 +4765,8 @@ task test {
         assert_eq!(tasks[0].name().as_str(), "test");
 
         // Task hints
-        let hints: Vec<_> = tasks[0].hints().collect();
-        assert_eq!(hints.len(), 1);
-        let items: Vec<_> = hints[0].items().collect();
+        let hints = tasks[0].hints().expect("should have a hints section");
+        let items: Vec<_> = hints.items().collect();
         assert_eq!(items.len(), 3);
 
         // First hints item
@@ -4920,9 +4919,8 @@ task test {
         assert_eq!(tasks[0].name().as_str(), "test");
 
         // Task hints
-        let hints: Vec<_> = tasks[0].hints().collect();
-        assert_eq!(hints.len(), 1);
-        let items: Vec<_> = hints[0].items().collect();
+        let hints = tasks[0].hints().expect("task should have hints section");
+        let items: Vec<_> = hints.items().collect();
         assert_eq!(items.len(), 1);
 
         // First hints item
@@ -5043,9 +5041,8 @@ task test {
         assert_eq!(tasks[0].name().as_str(), "test");
 
         // Task hints
-        let hints: Vec<_> = tasks[0].hints().collect();
-        assert_eq!(hints.len(), 1);
-        let items: Vec<_> = hints[0].items().collect();
+        let hints = tasks[0].hints().expect("task should have a hints section");
+        let items: Vec<_> = hints.items().collect();
         assert_eq!(items.len(), 1);
 
         // First hints item

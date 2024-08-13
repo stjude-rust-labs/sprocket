@@ -804,9 +804,8 @@ task test {
         assert_eq!(tasks[0].name().as_str(), "test");
 
         // Inputs
-        let inputs: Vec<_> = tasks[0].inputs().collect();
-        assert_eq!(inputs.len(), 1);
-        let decls: Vec<_> = inputs[0].declarations().collect();
+        let input = tasks[0].input().expect("task should have an input section");
+        let decls: Vec<_> = input.declarations().collect();
         assert_eq!(decls.len(), 11);
 
         // First input declaration

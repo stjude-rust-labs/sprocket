@@ -97,7 +97,7 @@ impl Visitor for MissingOutputRule {
             return;
         }
 
-        if task.outputs().next().is_none() {
+        if task.output().is_none() {
             let name = task.name();
             state.add(missing_output_section(
                 name.as_str(),
@@ -117,7 +117,7 @@ impl Visitor for MissingOutputRule {
             return;
         }
 
-        if workflow.outputs().next().is_none() {
+        if workflow.output().is_none() {
             let name = workflow.name();
             state.add(missing_output_section(
                 name.as_str(),

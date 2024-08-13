@@ -43,44 +43,44 @@ impl TaskDefinition {
         children(&self.0)
     }
 
-    /// Gets the input sections of the task.
-    pub fn inputs(&self) -> AstChildren<InputSection> {
-        children(&self.0)
+    /// Gets the input section of the task.
+    pub fn input(&self) -> Option<InputSection> {
+        child(&self.0)
     }
 
-    /// Gets the output sections of the task.
-    pub fn outputs(&self) -> AstChildren<OutputSection> {
-        children(&self.0)
+    /// Gets the output section of the task.
+    pub fn output(&self) -> Option<OutputSection> {
+        child(&self.0)
     }
 
-    /// Gets the command sections of the task.
-    pub fn commands(&self) -> AstChildren<CommandSection> {
-        children(&self.0)
+    /// Gets the command section of the task.
+    pub fn command(&self) -> Option<CommandSection> {
+        child(&self.0)
     }
 
     /// Gets the requirements sections of the task.
-    pub fn requirements(&self) -> AstChildren<RequirementsSection> {
-        children(&self.0)
+    pub fn requirements(&self) -> Option<RequirementsSection> {
+        child(&self.0)
     }
 
-    /// Gets the hints sections of the task.
-    pub fn hints(&self) -> AstChildren<HintsSection> {
-        children(&self.0)
+    /// Gets the hints section of the task.
+    pub fn hints(&self) -> Option<HintsSection> {
+        child(&self.0)
     }
 
-    /// Gets the runtime sections of the task.
-    pub fn runtimes(&self) -> AstChildren<RuntimeSection> {
-        children(&self.0)
+    /// Gets the runtime section of the task.
+    pub fn runtime(&self) -> Option<RuntimeSection> {
+        child(&self.0)
     }
 
-    /// Gets the metadata sections of the task.
-    pub fn metadata(&self) -> AstChildren<MetadataSection> {
-        children(&self.0)
+    /// Gets the metadata section of the task.
+    pub fn metadata(&self) -> Option<MetadataSection> {
+        child(&self.0)
     }
 
-    /// Gets the parameter sections of the task.
-    pub fn parameter_metadata(&self) -> AstChildren<ParameterMetadataSection> {
-        children(&self.0)
+    /// Gets the parameter section of the task.
+    pub fn parameter_metadata(&self) -> Option<ParameterMetadataSection> {
+        child(&self.0)
     }
 
     /// Gets the private declarations of the task.
@@ -1226,13 +1226,10 @@ task test {
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].name().as_str(), "test");
 
-        // Task inputs
-        let inputs: Vec<_> = tasks[0].inputs().collect();
-        assert_eq!(inputs.len(), 1);
-
-        // First task input
-        assert_eq!(inputs[0].parent().unwrap_task().name().as_str(), "test");
-        let decls: Vec<_> = inputs[0].declarations().collect();
+        // Task input
+        let input = tasks[0].input().expect("should have an input section");
+        assert_eq!(input.parent().unwrap_task().name().as_str(), "test");
+        let decls: Vec<_> = input.declarations().collect();
         assert_eq!(decls.len(), 1);
         assert_eq!(
             decls[0].clone().unwrap_unbound_decl().ty().to_string(),
@@ -1243,13 +1240,10 @@ task test {
             "name"
         );
 
-        // Task outputs
-        let outputs: Vec<_> = tasks[0].outputs().collect();
-        assert_eq!(outputs.len(), 1);
-
-        // First task output
-        assert_eq!(outputs[0].parent().unwrap_task().name().as_str(), "test");
-        let decls: Vec<_> = outputs[0].declarations().collect();
+        // Task output
+        let output = tasks[0].output().expect("should have an output section");
+        assert_eq!(output.parent().unwrap_task().name().as_str(), "test");
+        let decls: Vec<_> = output.declarations().collect();
         assert_eq!(decls.len(), 1);
         assert_eq!(decls[0].ty().to_string(), "String");
         assert_eq!(decls[0].name().as_str(), "output");
@@ -1264,14 +1258,11 @@ task test {
             "stdout"
         );
 
-        // Task commands
-        let commands: Vec<_> = tasks[0].commands().collect();
-        assert_eq!(commands.len(), 1);
-
-        // First task command
-        assert_eq!(commands[0].parent().name().as_str(), "test");
-        assert!(commands[0].is_heredoc());
-        let parts: Vec<_> = commands[0].parts().collect();
+        // Task command
+        let command = tasks[0].command().expect("should have a command section");
+        assert_eq!(command.parent().name().as_str(), "test");
+        assert!(command.is_heredoc());
+        let parts: Vec<_> = command.parts().collect();
         assert_eq!(parts.len(), 3);
         assert_eq!(
             parts[0].clone().unwrap_text().as_str(),
@@ -1290,12 +1281,11 @@ task test {
         assert_eq!(parts[2].clone().unwrap_text().as_str(), "!\n    ");
 
         // Task requirements
-        let requirements: Vec<_> = tasks[0].requirements().collect();
-        assert_eq!(requirements.len(), 1);
-
-        // First task requirements
-        assert_eq!(requirements[0].parent().name().as_str(), "test");
-        let items: Vec<_> = requirements[0].items().collect();
+        let requirements = tasks[0]
+            .requirements()
+            .expect("should have a requirements section");
+        assert_eq!(requirements.parent().name().as_str(), "test");
+        let items: Vec<_> = requirements.items().collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].name().as_str(), "container");
         assert_eq!(
@@ -1310,12 +1300,9 @@ task test {
         );
 
         // Task hints
-        let hints: Vec<_> = tasks[0].hints().collect();
-        assert_eq!(hints.len(), 1);
-
-        // First task hints
-        assert_eq!(hints[0].parent().unwrap_task().name().as_str(), "test");
-        let items: Vec<_> = hints[0].items().collect();
+        let hints = tasks[0].hints().expect("should have a hints section");
+        assert_eq!(hints.parent().unwrap_task().name().as_str(), "test");
+        let items: Vec<_> = hints.items().collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].name().as_str(), "foo");
         assert_eq!(
@@ -1330,12 +1317,9 @@ task test {
         );
 
         // Task runtimes
-        let runtimes: Vec<_> = tasks[0].runtimes().collect();
-        assert_eq!(runtimes.len(), 1);
-
-        // First task runtime
-        assert_eq!(runtimes[0].parent().name().as_str(), "test");
-        let items: Vec<_> = runtimes[0].items().collect();
+        let runtime = tasks[0].runtime().expect("should have a runtime section");
+        assert_eq!(runtime.parent().name().as_str(), "test");
+        let items: Vec<_> = runtime.items().collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].name().as_str(), "container");
         assert_eq!(
@@ -1350,12 +1334,9 @@ task test {
         );
 
         // Task metadata
-        let metadata: Vec<_> = tasks[0].metadata().collect();
-        assert_eq!(metadata.len(), 1);
-
-        // First metadata
-        assert_eq!(metadata[0].parent().unwrap_task().name().as_str(), "test");
-        let items: Vec<_> = metadata[0].items().collect();
+        let metadata = tasks[0].metadata().expect("should have a metadata section");
+        assert_eq!(metadata.parent().unwrap_task().name().as_str(), "test");
+        let items: Vec<_> = metadata.items().collect();
         assert_eq!(items.len(), 2);
         assert_eq!(items[0].name().as_str(), "description");
         assert_eq!(
@@ -1368,12 +1349,11 @@ task test {
         items[1].value().unwrap_null();
 
         // Task parameter metadata
-        let param_meta: Vec<_> = tasks[0].parameter_metadata().collect();
-        assert_eq!(param_meta.len(), 1);
-
-        // First task parameter metadata
-        assert_eq!(param_meta[0].parent().unwrap_task().name().as_str(), "test");
-        let items: Vec<_> = param_meta[0].items().collect();
+        let param_meta = tasks[0]
+            .parameter_metadata()
+            .expect("should have a parameter metadata section");
+        assert_eq!(param_meta.parent().unwrap_task().name().as_str(), "test");
+        let items: Vec<_> = param_meta.items().collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].name().as_str(), "name");
         let items: Vec<_> = items[0].value().unwrap_object().items().collect();

@@ -155,11 +155,11 @@ impl Visitor for MatchingParameterMetaRule {
 
         // Note that only the first input and parameter_meta sections are checked as any
         // additional sections is considered a validation error
-        match task.parameter_metadata().next() {
+        match task.parameter_metadata() {
             Some(param_meta) => {
                 check_parameter_meta(
                     &SectionParent::Task(task.clone()),
-                    task.inputs().next().iter().flat_map(|i| {
+                    task.input().iter().flat_map(|i| {
                         i.declarations().map(|d| {
                             let name = d.name();
                             let span = name.span();
@@ -189,11 +189,11 @@ impl Visitor for MatchingParameterMetaRule {
 
         // Note that only the first input and parameter_meta sections are checked as any
         // additional sections is considered a validation error
-        match workflow.parameter_metadata().next() {
+        match workflow.parameter_metadata() {
             Some(param_meta) => {
                 check_parameter_meta(
                     &SectionParent::Workflow(workflow.clone()),
-                    workflow.inputs().next().iter().flat_map(|i| {
+                    workflow.input().iter().flat_map(|i| {
                         i.declarations().map(|d| {
                             let name = d.name();
                             let span = name.span();

@@ -84,8 +84,7 @@ task hello {
             .tasks()
             .next()
             .expect("the 'hello' task to exist")
-            .runtimes()
-            .next()
+            .runtime()
             .expect("the 'runtime' block to exist")
             .items()
             .filter_map(|p| p.into_container());
@@ -114,8 +113,7 @@ task hello {
             .tasks()
             .next()
             .expect("the 'hello' task to exist")
-            .runtimes()
-            .next()
+            .runtime()
             .expect("the 'runtime' block to exist")
             .items()
             .filter_map(|p| p.into_container());
@@ -144,8 +142,7 @@ task hello {
             .tasks()
             .next()
             .expect("the 'hello' task to exist")
-            .runtimes()
-            .next()
+            .runtime()
             .expect("the 'runtime' block to exist")
             .items()
             .filter_map(|p| p.into_container());

@@ -309,7 +309,6 @@ mod tests {
             .next()
             .expect("the 'hello' task to exist")
             .requirements()
-            .next()
             .expect("the 'requirements' block to exist")
             .items()
             .find_map(|p| p.into_container())

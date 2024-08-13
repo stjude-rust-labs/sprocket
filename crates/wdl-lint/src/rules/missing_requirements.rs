@@ -94,12 +94,12 @@ impl Visitor for MissingRequirementsRule {
         // version, the `runtime` section was recommended.
         if let SupportedVersion::V1(minor_version) = self.0.expect("version should exist here") {
             if minor_version >= V1::Two {
-                if task.requirements().next().is_none() {
+                if task.requirements().is_none() {
                     let name = task.name();
                     state.add(missing_requirements_section(name.as_str(), name.span()));
                 }
 
-                if let Some(runtime) = task.runtimes().next() {
+                if let Some(runtime) = task.runtime() {
                     let name = task.name();
                     state.add(deprecated_runtime_section(name.as_str(), span_of(&runtime)))
                 }

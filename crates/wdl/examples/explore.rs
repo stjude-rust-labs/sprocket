@@ -142,27 +142,18 @@ fn explore_output(output: &OutputSection) {
 fn explore_task(task: &TaskDefinition) {
     println!("## Task `{name}`", name = task.name().as_str());
 
-    for (i, metadata) in task.metadata().enumerate() {
-        if i == 0 {
-            println!("\n### Metadata");
-        }
-
+    if let Some(metadata) = task.metadata() {
+        println!("\n### Metadata");
         explore_metadata(&metadata);
     }
 
-    for (i, input) in task.inputs().enumerate() {
-        if i == 0 {
-            println!("\n### Inputs");
-        }
-
+    if let Some(input) = task.input() {
+        println!("\n### Inputs");
         explore_input(&input);
     }
 
-    for (i, output) in task.outputs().enumerate() {
-        if i == 0 {
-            println!("\n### Outputs");
-        }
-
+    if let Some(output) = task.output() {
+        println!("\n### Outputs");
         explore_output(&output);
     }
 }
@@ -171,27 +162,18 @@ fn explore_task(task: &TaskDefinition) {
 fn explore_workflow(workflow: &WorkflowDefinition) {
     println!("## Workflow `{name}`", name = workflow.name().as_str());
 
-    for (i, metadata) in workflow.metadata().enumerate() {
-        if i == 0 {
-            println!("\n### Metadata");
-        }
-
+    if let Some(metadata) = workflow.metadata() {
+        println!("\n### Metadata");
         explore_metadata(&metadata);
     }
 
-    for (i, input) in workflow.inputs().enumerate() {
-        if i == 0 {
-            println!("\n### Inputs");
-        }
-
+    if let Some(input) = workflow.input() {
+        println!("\n### Inputs");
         explore_input(&input);
     }
 
-    for (i, output) in workflow.outputs().enumerate() {
-        if i == 0 {
-            println!("\n### Outputs");
-        }
-
+    if let Some(output) = workflow.output() {
+        println!("\n### Outputs");
         explore_output(&output);
     }
 }
