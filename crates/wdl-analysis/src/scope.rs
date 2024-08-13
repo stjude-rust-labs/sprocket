@@ -10,7 +10,6 @@ use url::Url;
 use wdl_ast::support::token;
 use wdl_ast::v1;
 use wdl_ast::v1::ImportStatement;
-use wdl_ast::v1::StringPart;
 use wdl_ast::v1::WorkflowStatement;
 use wdl_ast::Ast;
 use wdl_ast::AstNode;
@@ -67,17 +66,6 @@ impl fmt::Display for NameContext {
     }
 }
 
-/// Creates an "empty import" diagnostic
-fn empty_import(span: Span) -> Diagnostic {
-    Diagnostic::error("import URI cannot be empty").with_highlight(span)
-}
-
-/// Creates a "placeholder in import" diagnostic
-fn placeholder_in_import(span: Span) -> Diagnostic {
-    Diagnostic::error("import URI cannot contain placeholders")
-        .with_label("remove this placeholder", span)
-}
-
 /// Creates a "name conflict" diagnostic
 fn name_conflict(name: &str, conflicting: NameContext, first: NameContext) -> Diagnostic {
     Diagnostic::error(format!("conflicting {conflicting} name `{name}`"))
@@ -105,13 +93,6 @@ fn namespace_conflict(name: &str, conflicting: Span, first: Span, suggest_fix: b
     } else {
         diagnostic
     }
-}
-
-/// Creates an "invalid import namespace" diagnostic
-fn invalid_import_namespace(span: Span) -> Diagnostic {
-    Diagnostic::error("import namespace is not a valid WDL identifier")
-        .with_label("a namespace cannot be derived from this import path", span)
-        .with_fix("add an `as` clause to the import to specify a namespace")
 }
 
 /// Creates an "import cycle" diagnostic
@@ -676,10 +657,11 @@ impl DocumentScope {
         let (uri, scope) =
             match Self::resolve_import(graph, import, importer_index, importer_version) {
                 Ok(scope) => scope,
-                Err(diagnostic) => {
+                Err(Some(diagnostic)) => {
                     diagnostics.push(diagnostic);
                     return;
                 }
+                Err(None) => return,
             };
 
         // Check for conflicting namespaces
@@ -707,7 +689,7 @@ impl DocumentScope {
                 }
             }
             None => {
-                diagnostics.push(invalid_import_namespace(span));
+                // Invalid import, ignore it
                 return;
             }
         }
@@ -1207,33 +1189,19 @@ impl DocumentScope {
         stmt: &v1::ImportStatement,
         importer_index: NodeIndex,
         importer_version: &Version,
-    ) -> Result<(Arc<Url>, Arc<DocumentScope>), Diagnostic> {
+    ) -> Result<(Arc<Url>, Arc<DocumentScope>), Option<Diagnostic>> {
         let uri = stmt.uri();
         let span = uri.syntax().text_range().to_span();
         let text = match uri.text() {
             Some(text) => text,
             None => {
-                if uri.is_empty() {
-                    return Err(empty_import(span));
-                }
-
-                let span = uri
-                    .parts()
-                    .find_map(|p| match p {
-                        StringPart::Text(_) => None,
-                        StringPart::Placeholder(p) => Some(p),
-                    })
-                    .expect("should contain a placeholder")
-                    .syntax()
-                    .text_range()
-                    .to_span();
-                return Err(placeholder_in_import(span));
+                return Err(None);
             }
         };
 
         let uri = match graph.get(importer_index).uri().join(text.as_str()) {
             Ok(uri) => uri,
-            Err(e) => return Err(invalid_relative_import(&e, span)),
+            Err(e) => return Err(Some(invalid_relative_import(&e, span))),
         };
 
         let import_index = graph.get_index(&uri).expect("missing import node in graph");
@@ -1241,12 +1209,12 @@ impl DocumentScope {
 
         // Check for an import cycle to report
         if graph.contains_cycle(importer_index, import_index) {
-            return Err(import_cycle(span));
+            return Err(Some(import_cycle(span)));
         }
 
         // Check for a failure to load the import
         if let ParseState::Error(e) = import_node.parse_state() {
-            return Err(import_failure(text.as_str(), e, span));
+            return Err(Some(import_failure(text.as_str(), e, span)));
         }
 
         // Ensure the import has a matching WDL version
@@ -1262,15 +1230,15 @@ impl DocumentScope {
                 let our_version = stmt.version();
                 if matches!((our_version.as_str().split('.').next(), importer_version.as_str().split('.').next()), (Some(our_major), Some(their_major)) if our_major != their_major)
                 {
-                    return Err(incompatible_import(
+                    return Err(Some(incompatible_import(
                         our_version.as_str(),
                         span,
                         importer_version,
-                    ));
+                    )));
                 }
             }
             None => {
-                return Err(import_missing_version(span));
+                return Err(Some(import_missing_version(span)));
             }
         }
 

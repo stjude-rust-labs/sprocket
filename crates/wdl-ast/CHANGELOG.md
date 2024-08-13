@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   specification](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#container)
   ([#142](https://github.com/stjude-rust-labs/wdl/pull/142)).
 
+### Fixed
+
+* Moved validation of import statements to `wdl-ast` ([#158](https://github.com/stjude-rust-labs/wdl/pull/158)).
+
 ## 0.5.0 - 07-17-2024
 
 ### Added
