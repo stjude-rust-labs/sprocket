@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Added validation to ensure there is at most one placeholder option on a
+  placeholder ([#159](https://github.com/stjude-rust-labs/wdl/pull/159)).
 * Moved validation of import statements to `wdl-ast` ([#158](https://github.com/stjude-rust-labs/wdl/pull/158)).
 
 ### Changed

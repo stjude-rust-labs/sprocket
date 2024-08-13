@@ -1,11 +1,15 @@
 //! Validation of string literals in an AST.
 
+use rowan::ast::support::children;
+use rowan::ast::AstChildren;
 use rowan::ast::AstNode;
 use wdl_grammar::lexer::v1::EscapeToken;
 use wdl_grammar::lexer::v1::Logos;
+use wdl_grammar::ToSpan;
 
 use crate::v1;
 use crate::v1::LiteralStringKind;
+use crate::v1::PlaceholderOption;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
@@ -71,6 +75,13 @@ fn must_escape_tab(span: Span) -> Diagnostic {
         .with_label("escape this tab with `\\t`", span)
 }
 
+/// Creates a "multiple placeholder options" diagnostic.
+fn multiple_placeholder_options(first: Span, additional: Span) -> Diagnostic {
+    Diagnostic::error("a placeholder cannot have more than one option")
+        .with_label("duplicate placeholder option is here", additional)
+        .with_label("first placeholder option is here", first)
+}
+
 /// Used to check literal text in a string.
 fn check_text(diagnostics: &mut Diagnostics, start: usize, text: &str) {
     let lexer = EscapeToken::lexer(text).spanned();
@@ -120,6 +131,7 @@ fn check_text(diagnostics: &mut Diagnostics, start: usize, text: &str) {
 ///
 /// * Does not contain characters that must be escaped.
 /// * Does not contain invalid escape sequences.
+/// * Strings and command placeholders do not contain more than one option.
 #[derive(Default, Debug)]
 pub struct LiteralTextVisitor;
 
@@ -160,6 +172,27 @@ impl Visitor for LiteralTextVisitor {
                 // only escape is escaping the closing `>>>`; the only
                 // difference between a multiline string and a command is how
                 // line continuation whitespace is normalized.
+            }
+        }
+    }
+
+    fn placeholder(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        placeholder: &v1::Placeholder,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let mut placeholders: AstChildren<PlaceholderOption> = children(placeholder.syntax());
+        if let Some(first) = placeholders.next() {
+            for additional in placeholders {
+                state.add(multiple_placeholder_options(
+                    first.syntax().text_range().to_span(),
+                    additional.syntax().text_range().to_span(),
+                ));
             }
         }
     }

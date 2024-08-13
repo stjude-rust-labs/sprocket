@@ -1,0 +1,48 @@
+error: a placeholder cannot have more than one option
+  ┌─ tests/validation/duplicate-placeholder-options/source.wdl:7:31
+  │
+7 │   String b = "${default="foo" sep="," foo}"
+  │                 ------------- ^^^^^^^ duplicate placeholder option is here
+  │                 │              
+  │                 first placeholder option is here
+
+error: a placeholder cannot have more than one option
+  ┌─ tests/validation/duplicate-placeholder-options/source.wdl:8:31
+  │
+8 │   String b = "${default="foo" sep="," true="a" false="b" foo}"
+  │                 ------------- ^^^^^^^ duplicate placeholder option is here
+  │                 │              
+  │                 first placeholder option is here
+
+error: a placeholder cannot have more than one option
+  ┌─ tests/validation/duplicate-placeholder-options/source.wdl:8:39
+  │
+8 │   String b = "${default="foo" sep="," true="a" false="b" foo}"
+  │                 -------------         ^^^^^^^^^^^^^^^^^^ duplicate placeholder option is here
+  │                 │                      
+  │                 first placeholder option is here
+
+error: a placeholder cannot have more than one option
+   ┌─ tests/validation/duplicate-placeholder-options/source.wdl:12:21
+   │
+12 │     ~{default="foo" sep="," foo}
+   │       ------------- ^^^^^^^ duplicate placeholder option is here
+   │       │              
+   │       first placeholder option is here
+
+error: a placeholder cannot have more than one option
+   ┌─ tests/validation/duplicate-placeholder-options/source.wdl:13:21
+   │
+13 │     ~{default="foo" sep="," true="a" false="b" foo}
+   │       ------------- ^^^^^^^ duplicate placeholder option is here
+   │       │              
+   │       first placeholder option is here
+
+error: a placeholder cannot have more than one option
+   ┌─ tests/validation/duplicate-placeholder-options/source.wdl:13:29
+   │
+13 │     ~{default="foo" sep="," true="a" false="b" foo}
+   │       -------------         ^^^^^^^^^^^^^^^^^^ duplicate placeholder option is here
+   │       │                      
+   │       first placeholder option is here
+
