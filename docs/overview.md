@@ -101,7 +101,7 @@ when they do not otherwise inhibit the primary goals.
 
 The following are non-goals of the project.
 
-* **Supporting multiple workflow languages or standards.** Ironically, workflow
+* **Supporting multiple workflow languages or standards.** Workflow
   languages are ideally a simple means to an end: to run large-scale
   bioinformatics analyses with as little development and operational friction as
   possible. We stand unconvinced that there is a strong technical argument for
