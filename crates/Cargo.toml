@@ -16,7 +16,7 @@ edition = "2021"
 authors = ["The Rust WDL project developers"]
 homepage = "https://github.com/stjude-rust-labs/wdl"
 repository = "https://github.com/stjude-rust-labs/wdl"
-rust-version = "1.79.0"
+rust-version = "1.80.0"
 
 [workspace.dependencies]
 clap = { version = "4.5.7", features = ["derive"] }
@@ -54,3 +54,4 @@ tower-lsp = "0.20.0"
 line-index = "0.1.1"
 serde_json = "1.0.120"
 uuid = "1.10.0"
+id-arena = "2.2.1"

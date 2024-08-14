@@ -333,7 +333,7 @@ impl Namespace {
 }
 
 /// Represents a struct in a document.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Struct {
     /// The span that introduced the struct.
     ///
@@ -500,7 +500,7 @@ struct WorkflowScope {
     name_span: Span,
     /// The name of the workflow.
     name: String,
-    /// The scope of the task.
+    /// The scope of the workflow.
     scope: Scope,
 }
 
