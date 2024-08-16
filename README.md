@@ -44,14 +44,14 @@
 * Provide a **high-performance** workflow execution engine capable of
   orchestrating massive bioinformatics workloads (the stated target is 20,000+
   concurrent jobs).
-* Remain **simple and accessible user experience** when complexity isn't
-  warranted.
 * Develop a suite of **modern development tools** that brings bioinformatics
   development on par with other modern languages.
 * Maintain an **community-focused codebase** that enables a diverse set of
   contributors from academic, non-profit, and commercial organizations.
 * Build on an **open, domain-tailored standard** to ensure the toolset remains
   singularly focused on unencumbered innovation within bioinformatics.
+* Retain a **simple and accessible user experience** when complexity isn't
+  warranted.
 
 ## 📚 Getting Started
 

@@ -36,7 +36,7 @@ code that drives Sprocket is split across the [`wdl`] family of crates, the
 
 Fundamentally, the Sprocket project was created to address the lack of
 bioinformatics workflow execution engines that can reliably handle tens of
-thousands to hundreds of thousands of concurrently executing workflows across a
+thousands of concurrently executing workflows across a
 variety of execution environments.
 
 The execution engine for Sprocket is comprised of two major components:
