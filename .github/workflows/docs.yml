@@ -1,0 +1,47 @@
+name: Project Docs
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  project-documentation-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "latest"
+      - run: cd docs && npm install && npm run docs:build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          name: "Project Documentation"
+          path: "docs/.vitepress/dist"
+  project-documentation-deploy:
+    needs: project-documentation-build
+    if: success() && github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: "Project Documentation"
