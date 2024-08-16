@@ -1,7 +1,7 @@
 # Introduction
 
 ::: tip Note
-**Sprocket** is current an alpha-phase project. To that effect,
+**Sprocket** is current an alpha-phase project. To that end,
 this page serves the purpose of describing what we hope Sprocket _will_ become
 rather than what it actually is today. If you're using Sprocket, we encourage
 you to follow the project on
@@ -9,13 +9,11 @@ you to follow the project on
 progress.
 :::
 
-**Sprocket** is an bioinformatics workflow orchestration engine and package
-manager built on top of the [Workflow Description Language](https://openwdl.org). The project has multiple high-level goals, including to:
+**Sprocket** is an bioinformatics workflow execution engine built on top of the [Workflow Description Language](https://openwdl.org). The project has multiple high-level goals, including to:
 
 * Provide a **high-performance** workflow execution engine capable of
   orchestrating massive bioinformatics workloads (the stated target is 20,000+
   concurrent jobs).
-* Remain **simple and accessible user experience** when complexity isn't warranted.
 * Develop a suite of **modern development tools** that brings bioinformatics
   development on par with other modern languages (e.g.,
   [`wdl-lsp`](https://github.com/stjude-rust-labs/wdl/tree/main/wdl-lsp)).
@@ -23,6 +21,7 @@ manager built on top of the [Workflow Description Language](https://openwdl.org)
   contributors from academic, non-profit, and commercial organizations.
 * Build on an **open, domain-tailored standard** to ensure the toolset remains
   singularly focused on unencumbered innovation within bioinformatics.
+* Retain a **simple and accessible user experience** when complexity isn't warranted.
 
 Sprocket is written in [Rust](https://www.rust-lang.org/) and enjoys all of the
 benefits that come with that choice. It also takes heavy inspiration from Rust
@@ -33,29 +32,41 @@ code that drives Sprocket is split across the [`wdl`] family of crates, the
 
 ## Project Goals
 
-### High-Performance Orchestration Engine
+### High-Performance Workflow Execution Engine
 
-Most fundamentally, the Sprocket project was created due to the lack of workflow
-engines that were powerful enough to orchestrate tens of thousands or hundreds
-of thousands of concurrent jobs. Enabling the next generation of large-scale,
-open science will always remain the top-level objective for the project.
+Fundamentally, the Sprocket project was created to address the lack of
+bioinformatics workflow execution engines that can reliably handle tens of
+thousands to hundreds of thousands of concurrently executing workflows across a
+variety of execution environments.
 
-### Simple and Accessible
+The execution engine for Sprocket is comprised of two major components:
 
-Sprocket aims to provide a user experience that works from workflow development,
-through local testing, and into production with fairly low overhead between
-these environments. Our target audience is individuals who endeavor to develop
-and deploy bioinformatics workflows with excellence. Generally speaking, this
-means **bioinformaticians** and **bioinformatics software engineers** working at
-a moderate to large scale, but Sprocket should work reasonably well for many
-other users too. In particular, we aim to keep Sprocket as simple as we possibly
-can—only introducing complexity when needed to achieve the project's other
-stated goals.
+* The **orchestration engine**, which handles the scheduling and monitoring of
+  units of execution within a workflow, and
+* **Execution runtimes**, which carry out the work associated with a unit of
+  compute within a particular environment (e.g., local compute, a high-performance compute
+  cluster, or the cloud).
+
+Briefly, the orchestration engine is generally responsible for staging anything
+needed to run a job within a particular environment (localizing data, hooking up
+inputs and outputs, deciding which execution runtime to dispatch jobs to)
+whereas execution runtimes receive these jobs and are responsible only for
+carrying them out in an independent manner.
+
+Collectively, we consider the combination of an orchestration engine with one or
+more configured execution runtimes to comprise an **execution engine**. We
+envision the orchestration engine being provided by Sprocket alongside two
+official execution runtimes: (a) a local runtime and a (b) Kubernetes runtime.
+Beyond that, we plan to make it easy for vendors to build and maintain their own
+runtimes that are available within Sprocket.
+
+Enabling the next generation of large-scale, open science by providing a robust
+and performant execution engine will always remain the top-level objective for
+the project.
 
 ### Modern Development Tools
 
-A suite of development tools are included alongside the execution engine and
-package manager. We believe that, when you _do_ need to dust off your code
+A suite of development tools are included alongside the execution engine. We believe that, when you _do_ need to dust off your code
 editor and write an analysis workflow, that activity should as enjoyable as it
 can be. Supporting tools, such as
 [linters](https://github.com/stjude-rust-labs/wdl/tree/main/wdl-lint),
@@ -70,11 +81,11 @@ critical to making that vision a reality.
 Since the beginning, Sprocket has been architected to maximize the potential for
 any interested party to effectively contribute to the codebase. This means that
 (a) every part of the code is designed to be read and modified by anyone [there
-are no "owners" of any code—only "experts" in that code], (b) strict practices,
-such as required documentation for public members, a common commit message
-style, and `CHANGELOG.md` entries, are enforced for each contribution, and (c) a
-comprehensive testing suite and CI/CD integration mean you can tinker with
-confidence.
+are no "owners" of any part of the code base—only "experts" in a particular area
+of the code], (b) strict practices, such as required documentation for public
+members, a common commit message style, and `CHANGELOG.md` entries, are enforced
+for each contribution, and (c) a comprehensive testing suite and CI/CD
+integration mean you can tinker with confidence.
 
 ### Open, Tailored Standard
 
@@ -83,7 +94,21 @@ to uphold. Given that the project is ultimately limited by the upstream workflow
 language in these regards, an open standard is critical to justify such a
 significant amount of community effort. Though many such standards exist,
 generality is, in some respects, at odds with creating a tailored experience
-within bioinformatics specifically.
+within bioinformatics specifically. We've selected the [Workflow Description
+Language] as the underlying standard for Sprocket, as it meets all of the above
+criteria while also being relatively easy to learn and reason about.
+
+### Simple and Accessible User Experience
+
+Sprocket aims to provide a user experience that works from workflow development,
+through local testing, and into production with fairly low overhead between
+these environments. Our target audience is individuals who endeavor to develop
+and deploy bioinformatics workflows with excellence. Generally speaking, this
+means **bioinformaticians** and **bioinformatics software engineers** working at
+a moderate to large scale, but Sprocket should work reasonably well for many
+other users too. In particular, we aim to keep Sprocket as simple as we possibly
+can—only introducing complexity when needed to achieve the project's other
+stated goals.
 
 ## Goal-Adjacent
 
@@ -133,3 +158,4 @@ used.
 [`sprocket`]: https://github.com/stjude-rust-labs/sprocket
 [Visual Studio Code extension]:
     https://marketplace.visualstudio.com/items?itemName=stjude-rust-labs.sprocket-vscode
+[Workflow Description Language]: https://openwdl.org
