@@ -20,7 +20,7 @@
   </p>
 
   <p align="center">
-    A package manager for Workflow Description Language files.
+    A bioinformatics workflow orchestration engine and package manager built on top of the Workflow Description Language (WDL).
     <br />
     <br />
     <a href="https://github.com/stjude-rust-labs/sprocket/issues/new?assignees=&title=Descriptive%20Title&labels=enhancement">Request Feature</a>
@@ -41,18 +41,25 @@
 
 ## Guiding Principles
 
-* **Modern, reliable foundation for everyday bioinformatics analysis—written in Rust.** `sprocket` aims to package together a fairly comprehensive set of tools and for developing bioinformatics tasks and workflows using the [Workflow Description Language](http://openwdl.org/). It is built with modern, multi-core systems in mind and written in Rust.
-* **WDL specification focused.** We aim to implement the various versions of the [OpenWDL specification](https://github.com/openwdl/wdl) to the letter. In other words, `sprocket` aims to be workflow engine independent. In the future, we plan to make `sprocket` extendable for workflow engine teams.
+* Provide a **high-performance** workflow execution engine capable of
+  orchestrating massive bioinformatics workloads (the stated target is 20,000+
+  concurrent jobs).
+* Develop a suite of **modern development tools** that brings bioinformatics
+  development on par with other modern languages (e.g.,
+  [`wdl-lsp`](https://github.com/stjude-rust-labs/wdl/tree/main/wdl-lsp)).
+* Maintain an **community-focused codebase** that enables a diverse set of
+  contributors from academic, non-profit, and commercial organizations.
+* Build on an **open, domain-tailored standard** to ensure the toolset remains
+  singularly focused on unencumbered innovation within bioinformatics.
+* Retain a **simple and accessible user experience** when complexity isn't warranted.
+  warranted.
 
 ## 📚 Getting Started
 
 ### Installation
 
 Before you can install `sprocket`, you'll need to install
-[Rust](https://www.rust-lang.org/). We recommend using
-[rustup](https://rustup.rs/) to accomplish this.
-
-Once Rust is installed, you can install the latest version of `sprocket` by
+[Rust](https://www.rust-lang.org/). We recommend using [rustup](https://rustup.rs/) to accomplish this. Once Rust is installed, you can install the latest version of `sprocket` by
 running the following command.
 
 ```bash
