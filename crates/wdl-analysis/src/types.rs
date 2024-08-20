@@ -7,8 +7,18 @@ use id_arena::ArenaBehavior;
 use id_arena::DefaultArenaBehavior;
 use id_arena::Id;
 use indexmap::IndexMap;
+use wdl_ast::v1;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::Ident;
 
 use crate::STDLIB;
+
+/// Creates an "unknown type" diagnostic.
+fn unknown_type(name: &Ident) -> Diagnostic {
+    Diagnostic::error(format!("unknown type name `{name}`", name = name.as_str()))
+        .with_highlight(name.span())
+}
 
 /// A trait implemented on types that may be optional.
 pub trait Optional: Copy {
@@ -70,6 +80,19 @@ impl Coercible for PrimitiveTypeKind {
 
             // Not coercible
             _ => false
+        }
+    }
+}
+
+impl From<v1::PrimitiveTypeKind> for PrimitiveTypeKind {
+    fn from(value: v1::PrimitiveTypeKind) -> Self {
+        match value {
+            v1::PrimitiveTypeKind::Boolean => Self::Boolean,
+            v1::PrimitiveTypeKind::Integer => Self::Integer,
+            v1::PrimitiveTypeKind::Float => Self::Float,
+            v1::PrimitiveTypeKind::String => Self::String,
+            v1::PrimitiveTypeKind::File => Self::File,
+            v1::PrimitiveTypeKind::Directory => Self::Directory,
         }
     }
 }
@@ -171,6 +194,15 @@ impl From<PrimitiveTypeKind> for PrimitiveType {
     }
 }
 
+impl From<v1::PrimitiveType> for PrimitiveType {
+    fn from(ty: v1::PrimitiveType) -> Self {
+        Self {
+            kind: ty.kind().into(),
+            optional: ty.is_optional(),
+        }
+    }
+}
+
 /// Represents an identifier of a defined compound type.
 pub type CompoundTypeDefId = Id<CompoundTypeDef>;
 
@@ -196,6 +228,42 @@ pub enum Type {
 }
 
 impl Type {
+    /// Creates a new type from an V1 AST representation of a type.
+    ///
+    /// The provided callback is used to look up type name references.
+    ///
+    /// If a type could not created, an error with the relevant diagnostic is
+    /// returned.
+    pub fn from_ast_v1<F>(types: &mut Types, ty: v1::Type, lookup: &F) -> Result<Self, Diagnostic>
+    where
+        F: Fn(&str) -> Option<Type>,
+    {
+        let optional = ty.is_optional();
+
+        let ty = match ty {
+            v1::Type::Map(ty) => {
+                let ty = MapType::from_ast_v1(types, ty, lookup)?;
+                types.add_map(ty)
+            }
+            v1::Type::Array(ty) => {
+                let ty = ArrayType::from_ast_v1(types, ty, lookup)?;
+                types.add_array(ty)
+            }
+            v1::Type::Pair(ty) => {
+                let ty = PairType::from_ast_v1(types, ty, lookup)?;
+                types.add_pair(ty)
+            }
+            v1::Type::Object(_) => Type::Object,
+            v1::Type::Ref(r) => {
+                let name = r.name();
+                lookup(name.as_str()).ok_or_else(|| unknown_type(&name))?
+            }
+            v1::Type::Primitive(ty) => Self::Primitive(ty.into()),
+        };
+
+        if optional { Ok(ty.optional()) } else { Ok(ty) }
+    }
+
     /// Returns an object that implements `Display` for formatting the type.
     pub fn display<'a>(&self, types: &'a Types) -> impl fmt::Display + 'a {
         #[allow(clippy::missing_docs_in_private_items)]
@@ -625,6 +693,24 @@ impl ArrayType {
         }
     }
 
+    /// Creates a new array type from an V1 AST representation of an array type.
+    ///
+    /// If a type could not created, an error with the relevant diagnostic is
+    /// returned.
+    pub fn from_ast_v1<F>(
+        types: &mut Types,
+        ty: v1::ArrayType,
+        lookup: &F,
+    ) -> Result<Self, Diagnostic>
+    where
+        F: Fn(&str) -> Option<Type>,
+    {
+        Ok(Self {
+            element_type: Type::from_ast_v1(types, ty.element_type(), lookup)?,
+            non_empty: ty.is_non_empty(),
+        })
+    }
+
     /// Gets the array's element type.
     pub fn element_type(&self) -> Type {
         self.element_type
@@ -701,6 +787,26 @@ impl PairType {
         }
     }
 
+    /// Creates a new pair type from an V1 AST representation of a pair type.
+    ///
+    /// If a type could not created, an error with the relevant diagnostic is
+    /// returned.
+    pub fn from_ast_v1<F>(
+        types: &mut Types,
+        ty: v1::PairType,
+        lookup: &F,
+    ) -> Result<Self, Diagnostic>
+    where
+        F: Fn(&str) -> Option<Type>,
+    {
+        let (first_type, second_type) = ty.types();
+
+        Ok(Self {
+            first_type: Type::from_ast_v1(types, first_type, lookup)?,
+            second_type: Type::from_ast_v1(types, second_type, lookup)?,
+        })
+    }
+
     /// Gets the pairs's first type.
     pub fn first_type(&self) -> Type {
         self.first_type
@@ -769,6 +875,26 @@ impl MapType {
             key_type: key_type.into(),
             value_type: value_type.into(),
         }
+    }
+
+    /// Creates a new map type from an V1 AST representation of a map type.
+    ///
+    /// If a type could not created, an error with the relevant diagnostic is
+    /// returned.
+    pub fn from_ast_v1<F>(
+        types: &mut Types,
+        ty: v1::MapType,
+        lookup: &F,
+    ) -> Result<Self, Diagnostic>
+    where
+        F: Fn(&str) -> Option<Type>,
+    {
+        let (key_type, value_type) = ty.types();
+
+        Ok(Self {
+            key_type: key_type.into(),
+            value_type: Type::from_ast_v1(types, value_type, lookup)?,
+        })
     }
 
     /// Gets the maps's key type.
@@ -845,6 +971,35 @@ impl StructType {
                 .map(|(n, ty)| (n.into(), ty.into()))
                 .collect(),
         }
+    }
+
+    /// Creates a new struct type from an V1 AST representation of a struct
+    /// definition.
+    ///
+    /// The provided callback is used to look up type name references.
+    ///
+    /// If the type could not created, an error with the relevant diagnostic is
+    /// returned.
+    pub fn from_ast_v1<F>(
+        types: &mut Types,
+        definition: &v1::StructDefinition,
+        lookup: &F,
+    ) -> Result<Self, Diagnostic>
+    where
+        F: Fn(&str) -> Option<Type>,
+    {
+        Ok(Self {
+            name: definition.name().as_str().into(),
+            members: definition
+                .members()
+                .map(|d| {
+                    Ok((
+                        d.name().as_str().to_string(),
+                        Type::from_ast_v1(types, d.ty(), lookup)?,
+                    ))
+                })
+                .collect::<Result<_, _>>()?,
+        })
     }
 
     /// Gets the name of the struct.
@@ -964,6 +1119,55 @@ impl Types {
             // Fall back to types defined by the standard library
             .or_else(|| STDLIB.types().0.get(id))
             .expect("invalid type identifier")
+    }
+
+    /// Imports a type from a foreign type collection.
+    ///
+    /// Returns the new type that is local to this type collection.
+    pub fn import(&mut self, types: &Self, ty: Type) -> Type {
+        match ty {
+            Type::Primitive(ty) => Type::Primitive(ty),
+            Type::Compound(ty) => match &types.0[ty.definition] {
+                CompoundTypeDef::Array(ty) => {
+                    let element_type = self.import(types, ty.element_type);
+                    self.add_array(ArrayType {
+                        element_type,
+                        non_empty: ty.non_empty,
+                    })
+                }
+                CompoundTypeDef::Pair(ty) => {
+                    let first_type = self.import(types, ty.first_type);
+                    let second_type = self.import(types, ty.second_type);
+                    self.add_pair(PairType {
+                        first_type,
+                        second_type,
+                    })
+                }
+                CompoundTypeDef::Map(ty) => {
+                    let value_type = self.import(types, ty.value_type);
+                    self.add_map(MapType {
+                        key_type: ty.key_type,
+                        value_type,
+                    })
+                }
+                CompoundTypeDef::Struct(ty) => {
+                    let members = ty
+                        .members
+                        .iter()
+                        .map(|(k, v)| (k.clone(), self.import(types, *v)))
+                        .collect();
+
+                    self.add_struct(StructType {
+                        name: ty.name.clone(),
+                        members,
+                    })
+                }
+            },
+            Type::Object => Type::Object,
+            Type::OptionalObject => Type::OptionalObject,
+            Type::Union => Type::Union,
+            Type::None => Type::None,
+        }
     }
 }
 

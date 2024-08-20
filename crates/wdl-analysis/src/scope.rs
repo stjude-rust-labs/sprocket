@@ -8,23 +8,23 @@ use petgraph::graph::NodeIndex;
 use rowan::GreenNode;
 use url::Url;
 use wdl_ast::support::token;
-use wdl_ast::v1;
-use wdl_ast::v1::ImportStatement;
-use wdl_ast::v1::WorkflowStatement;
+use wdl_ast::v1::StructDefinition;
 use wdl_ast::Ast;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 use wdl_ast::ToSpan;
-use wdl_ast::Version;
 
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
+use crate::Type;
+use crate::Types;
+
+mod v1;
 
 /// Represents the context of a name for diagnostic reporting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,148 +63,6 @@ impl fmt::Display for NameContext {
             Self::StructMember(_) => write!(f, "struct member"),
             Self::Scoped(n) => n.fmt(f),
         }
-    }
-}
-
-/// Creates a "name conflict" diagnostic
-fn name_conflict(name: &str, conflicting: NameContext, first: NameContext) -> Diagnostic {
-    Diagnostic::error(format!("conflicting {conflicting} name `{name}`"))
-        .with_label(
-            format!("this conflicts with a {first} of the same name"),
-            conflicting.span(),
-        )
-        .with_label(
-            format!("the {first} with the conflicting name is here"),
-            first.span(),
-        )
-}
-
-/// Creates a "namespace conflict" diagnostic
-fn namespace_conflict(name: &str, conflicting: Span, first: Span, suggest_fix: bool) -> Diagnostic {
-    let diagnostic = Diagnostic::error(format!("conflicting import namespace `{name}`"))
-        .with_label("this conflicts with another import namespace", conflicting)
-        .with_label(
-            "the conflicting import namespace was introduced here",
-            first,
-        );
-
-    if suggest_fix {
-        diagnostic.with_fix("add an `as` clause to the import to specify a namespace")
-    } else {
-        diagnostic
-    }
-}
-
-/// Creates an "import cycle" diagnostic
-fn import_cycle(span: Span) -> Diagnostic {
-    Diagnostic::error("import introduces a dependency cycle")
-        .with_label("this import has been skipped to break the cycle", span)
-}
-
-/// Creates an "import failure" diagnostic
-fn import_failure(uri: &str, error: &anyhow::Error, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("failed to import `{uri}`: {error:?}")).with_highlight(span)
-}
-
-/// Creates an "incompatible import" diagnostic
-fn incompatible_import(
-    import_version: &str,
-    import_span: Span,
-    importer_version: &Version,
-) -> Diagnostic {
-    Diagnostic::error("imported document has incompatible version")
-        .with_label(
-            format!("the imported document is version `{import_version}`"),
-            import_span,
-        )
-        .with_label(
-            format!(
-                "the importing document is version `{version}`",
-                version = importer_version.as_str()
-            ),
-            importer_version.span(),
-        )
-}
-
-/// Creates an "import missing version" diagnostic
-fn import_missing_version(span: Span) -> Diagnostic {
-    Diagnostic::error("imported document is missing a version statement").with_highlight(span)
-}
-
-/// Creates an "invalid relative import" diagnostic
-fn invalid_relative_import(error: &url::ParseError, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("{error:?}")).with_highlight(span)
-}
-
-/// Creates a "struct not in scope" diagnostic
-fn struct_not_in_scope(name: &Ident) -> Diagnostic {
-    Diagnostic::error(format!(
-        "a struct named `{name}` does not exist in the imported document",
-        name = name.as_str()
-    ))
-    .with_label("this struct does not exist", name.span())
-}
-
-/// Creates an "imported struct conflict" diagnostic
-fn imported_struct_conflict(
-    name: &str,
-    conflicting: Span,
-    first: Span,
-    suggest_fix: bool,
-) -> Diagnostic {
-    let diagnostic = Diagnostic::error(format!("conflicting struct name `{name}`"))
-        .with_label(
-            "this import introduces a conflicting definition",
-            conflicting,
-        )
-        .with_label("the first definition was introduced by this import", first);
-
-    if suggest_fix {
-        diagnostic.with_fix("add an `alias` clause to the import to specify a different name")
-    } else {
-        diagnostic
-    }
-}
-
-/// Creates a "struct conflicts with import" diagnostic
-fn struct_conflicts_with_import(name: &str, conflicting: Span, import: Span) -> Diagnostic {
-    Diagnostic::error(format!("conflicting struct name `{name}`"))
-        .with_label("this name conflicts with an imported struct", conflicting)
-        .with_label("the import that introduced the struct is here", import)
-        .with_fix(
-            "either rename the struct or use an `alias` clause on the import with a different name",
-        )
-}
-
-/// Creates a "duplicate workflow" diagnostic
-fn duplicate_workflow(name: &Ident, first: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "cannot define workflow `{name}` as only one workflow is allowed per source file",
-        name = name.as_str(),
-    ))
-    .with_label("consider moving this workflow to a new file", name.span())
-    .with_label("first workflow is defined here", first)
-}
-
-/// Creates a "call conflict" diagnostic
-fn call_conflict(name: &Ident, first: NameContext, suggest_fix: bool) -> Diagnostic {
-    let diagnostic = Diagnostic::error(format!(
-        "conflicting call name `{name}`",
-        name = name.as_str()
-    ))
-    .with_label(
-        format!("this conflicts with a {first} of the same name"),
-        name.span(),
-    )
-    .with_label(
-        format!("the {first} with the conflicting name is here"),
-        first.span(),
-    );
-
-    if suggest_fix {
-        diagnostic.with_fix("add an `as` clause to the call to specify a different name")
-    } else {
-        diagnostic
     }
 }
 
@@ -261,6 +119,10 @@ pub struct ScopedName {
     context: ScopedNameContext,
     /// The CST node that introduced the name.
     node: GreenNode,
+    /// The type of the name.
+    ///
+    /// Initially this is `None` until a type check occurs.
+    ty: Option<Type>,
     /// Whether or not the name was implicitly introduced.
     ///
     /// This is true for names introduced in outer scopes from workflow scatter
@@ -269,6 +131,16 @@ pub struct ScopedName {
 }
 
 impl ScopedName {
+    /// Constructs a new scoped name.
+    pub(crate) fn new(context: ScopedNameContext, node: GreenNode, implicit: bool) -> Self {
+        Self {
+            context,
+            node,
+            ty: None,
+            implicit,
+        }
+    }
+
     /// Gets the context of the scoped name.
     pub fn context(&self) -> ScopedNameContext {
         self.context
@@ -280,6 +152,15 @@ impl ScopedName {
     /// statement, or a workflow scatter statement.
     pub fn node(&self) -> &GreenNode {
         &self.node
+    }
+
+    /// Gets the type of the name.
+    ///
+    /// A value of `None` indicates that the type could not be determined; this
+    /// may occur if the type is a name reference to a struct that does not
+    /// exist.
+    pub fn ty(&self) -> Option<Type> {
+        self.ty
     }
 
     /// Whether or not the name was introduced implicitly into the scope.
@@ -340,14 +221,20 @@ pub struct Struct {
     /// This is either the name of a struct definition (local) or an import's
     /// URI or alias (imported).
     span: Span,
-    /// The source document that defines the struct.
+    /// The namespace that defines the struct.
     ///
     /// This is `Some` only for imported structs.
-    source: Option<Arc<Url>>,
+    namespace: Option<String>,
     /// The CST node of the struct definition.
     node: GreenNode,
-    /// The members of the struct.
-    members: Arc<IndexMap<String, (Span, GreenNode)>>,
+    /// The type of the struct.
+    ///
+    /// Initially this is `None` until a type check occurs.
+    ty: Option<Type>,
+    /// The index into the locally defined structs.
+    ///
+    /// This is `None` for imported structs.
+    index: Option<usize>,
 }
 
 impl Struct {
@@ -356,36 +243,34 @@ impl Struct {
         &self.node
     }
 
-    /// Gets the source document that defines this struct.
+    /// Gets the namespace that defines this struct.
     ///
     /// Returns `None` for structs defined in the containing scope or `Some` for
     /// a struct introduced by an import.
-    pub fn source(&self) -> Option<&Arc<Url>> {
-        self.source.as_ref()
+    pub fn namespace(&self) -> Option<&str> {
+        self.namespace.as_deref()
     }
 
-    /// Gets the members of the struct.
-    pub fn members(&self) -> impl Iterator<Item = (&String, &GreenNode)> {
-        self.members.iter().map(|(name, (_, node))| (name, node))
-    }
-
-    /// Gets a member of the struct by name.
-    pub fn get_member(&self, name: &str) -> Option<&GreenNode> {
-        self.members.get(name).map(|(_, n)| n)
+    /// Gets the type of the struct.
+    ///
+    /// A value of `None` indicates that the type could not be determined for
+    /// the struct; this may happen if the struct definition is recursive.
+    pub fn ty(&self) -> Option<Type> {
+        self.ty
     }
 
     /// Compares two structs for structural equality.
     fn is_equal(&self, other: &Self) -> bool {
-        for ((a_name, a_node), (b_name, b_node)) in self.members().zip(other.members()) {
-            if a_name != b_name {
+        let a = StructDefinition::cast(SyntaxNode::new_root(self.node.clone()))
+            .expect("node should cast");
+        let b = StructDefinition::cast(SyntaxNode::new_root(other.node.clone()))
+            .expect("node should cast");
+        for (a, b) in a.members().zip(b.members()) {
+            if a.name().as_str() != b.name().as_str() {
                 return false;
             }
 
-            let adecl = v1::UnboundDecl::cast(SyntaxNode::new_root(a_node.clone()))
-                .expect("node should cast");
-            let bdecl = v1::UnboundDecl::cast(SyntaxNode::new_root(b_node.clone()))
-                .expect("node should cast");
-            if adecl.ty() != bdecl.ty() {
+            if a.ty() != b.ty() {
                 return false;
             }
         }
@@ -432,7 +317,7 @@ impl Scope {
     }
 
     /// Gets a name within the scope.
-    pub fn get_name(&self, name: &str) -> Option<&ScopedName> {
+    pub fn get(&self, name: &str) -> Option<&ScopedName> {
         self.names.get(name)
     }
 
@@ -519,12 +404,13 @@ pub struct DocumentScope {
     ///
     /// This can be used to quickly search for a scope by span.
     scopes: Vec<(Span, ScopeContext)>,
+    /// The collection of types for the document.
+    types: Types,
 }
 
 impl DocumentScope {
     /// Creates a new document scope for a given document.
     pub(crate) fn new(graph: &DocumentGraph, index: NodeIndex) -> (Self, Vec<Diagnostic>) {
-        let mut scope = Self::default();
         let node = graph.get(index);
 
         let mut diagnostics = match node.parse_state() {
@@ -541,31 +427,14 @@ impl DocumentScope {
             Some(stmt) => stmt.version(),
             None => {
                 // Don't process a document with a missing version
-                return (scope, diagnostics);
+                return (Default::default(), diagnostics);
             }
         };
 
-        match document.ast() {
-            Ast::Unsupported => {}
-            Ast::V1(ast) => {
-                for item in ast.items() {
-                    match item {
-                        v1::DocumentItem::Import(import) => {
-                            scope.add_namespace(graph, &import, index, &version, &mut diagnostics);
-                        }
-                        v1::DocumentItem::Struct(s) => {
-                            scope.add_struct(&s, &mut diagnostics);
-                        }
-                        v1::DocumentItem::Task(task) => {
-                            scope.add_task_scope(&task, &mut diagnostics);
-                        }
-                        v1::DocumentItem::Workflow(workflow) => {
-                            scope.add_workflow_scope(&workflow, &mut diagnostics);
-                        }
-                    }
-                }
-            }
-        }
+        let scope = match document.ast() {
+            Ast::Unsupported => Default::default(),
+            Ast::V1(ast) => Self::from_ast_v1(graph, index, &ast, &version, &mut diagnostics),
+        };
 
         (scope, diagnostics)
     }
@@ -576,7 +445,7 @@ impl DocumentScope {
     }
 
     /// Gets a namespace in the document scope by name.
-    pub fn get_namespace(&self, name: &str) -> Option<&Namespace> {
+    pub fn namespace(&self, name: &str) -> Option<&Namespace> {
         self.namespaces.get(name)
     }
 
@@ -586,12 +455,12 @@ impl DocumentScope {
     }
 
     /// Gets a task scope in the document scope by name.
-    pub fn get_task_scope(&self, name: &str) -> Option<&Scope> {
+    pub fn task_scope(&self, name: &str) -> Option<&Scope> {
         self.tasks.get(name).map(|s| &s.scope)
     }
 
     /// Gets the workflow scope in the document scope.
-    pub fn get_workflow_scope(&self) -> Option<&Scope> {
+    pub fn workflow_scope(&self) -> Option<&Scope> {
         self.workflow.as_ref().map(|s| &s.scope)
     }
 
@@ -601,8 +470,13 @@ impl DocumentScope {
     }
 
     /// Gets a struct in the document scope by name.
-    pub fn get_struct(&self, name: &str) -> Option<&Struct> {
+    pub fn struct_(&self, name: &str) -> Option<&Struct> {
         self.structs.get(name)
+    }
+
+    /// Gets the types of the document.
+    pub fn types(&self) -> &Types {
+        &self.types
     }
 
     /// Finds the deepest scope based on a position within the document.
@@ -642,607 +516,6 @@ impl DocumentScope {
         };
 
         Some(scope.find_child_scope(position).unwrap_or(scope))
-    }
-
-    /// Adds a namespace to the document scope.
-    fn add_namespace(
-        &mut self,
-        graph: &DocumentGraph,
-        import: &ImportStatement,
-        importer_index: NodeIndex,
-        importer_version: &Version,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) {
-        // Start by resolving the import to its document scope
-        let (uri, scope) =
-            match Self::resolve_import(graph, import, importer_index, importer_version) {
-                Ok(scope) => scope,
-                Err(Some(diagnostic)) => {
-                    diagnostics.push(diagnostic);
-                    return;
-                }
-                Err(None) => return,
-            };
-
-        // Check for conflicting namespaces
-        let span = import.uri().syntax().text_range().to_span();
-        match import.namespace() {
-            Some((ns, span)) => {
-                if let Some(prev) = self.namespaces.get(&ns) {
-                    diagnostics.push(namespace_conflict(
-                        &ns,
-                        span,
-                        prev.span,
-                        import.explicit_namespace().is_none(),
-                    ));
-                    return;
-                } else {
-                    self.namespaces.insert(
-                        ns,
-                        Namespace {
-                            span,
-                            node: import.syntax().green().into(),
-                            source: uri.clone(),
-                            scope: scope.clone(),
-                        },
-                    );
-                }
-            }
-            None => {
-                // Invalid import, ignore it
-                return;
-            }
-        }
-
-        // Get the alias map for the structs in the document
-        let aliases = import
-            .aliases()
-            .filter_map(|a| {
-                let (from, to) = a.names();
-                if !scope.structs.contains_key(from.as_str()) {
-                    diagnostics.push(struct_not_in_scope(&from));
-                    return None;
-                }
-
-                Some((from.as_str().to_string(), to))
-            })
-            .collect::<IndexMap<_, _>>();
-
-        // Insert the scope's struct definitions
-        for (name, scope) in &scope.structs {
-            let (aliased_name, span, aliased) = aliases
-                .get(name)
-                .map(|a| (a.as_str(), a.span(), true))
-                .unwrap_or_else(|| (name, span, false));
-            match self.structs.get(aliased_name) {
-                Some(prev) => {
-                    // Import conflicts with a struct defined in this document
-                    if prev.source.is_none() {
-                        diagnostics.push(struct_conflicts_with_import(
-                            aliased_name,
-                            prev.span,
-                            span,
-                        ));
-                        continue;
-                    }
-
-                    if !prev.is_equal(scope) {
-                        diagnostics.push(imported_struct_conflict(
-                            aliased_name,
-                            span,
-                            prev.span,
-                            !aliased,
-                        ));
-                        continue;
-                    }
-                }
-                None => {
-                    self.structs.insert(
-                        aliased_name.to_string(),
-                        Struct {
-                            span,
-                            source: Some(scope.source.clone().unwrap_or(uri.clone())),
-                            node: scope.node.clone(),
-                            members: scope.members.clone(),
-                        },
-                    );
-                }
-            }
-        }
-    }
-
-    /// Adds a struct to the document scope.
-    fn add_struct(&mut self, definition: &v1::StructDefinition, diagnostics: &mut Vec<Diagnostic>) {
-        let name = definition.name();
-        if let Some(prev) = self.structs.get(name.as_str()) {
-            if prev.source.is_some() {
-                diagnostics.push(struct_conflicts_with_import(
-                    name.as_str(),
-                    name.span(),
-                    prev.span,
-                ))
-            } else {
-                diagnostics.push(name_conflict(
-                    name.as_str(),
-                    NameContext::Struct(name.span()),
-                    NameContext::Struct(prev.span),
-                ));
-            }
-        } else {
-            let mut members = IndexMap::new();
-            for decl in definition.members() {
-                let name = decl.name();
-                if let Some((prev_span, _)) = members.get(name.as_str()) {
-                    diagnostics.push(name_conflict(
-                        name.as_str(),
-                        NameContext::StructMember(name.span()),
-                        NameContext::StructMember(*prev_span),
-                    ));
-                } else {
-                    members.insert(
-                        name.as_str().to_string(),
-                        (name.span(), decl.syntax().green().into()),
-                    );
-                }
-            }
-
-            self.structs.insert(
-                name.as_str().to_string(),
-                Struct {
-                    span: name.span(),
-                    source: None,
-                    node: definition.syntax().green().into(),
-                    members: Arc::new(members),
-                },
-            );
-        }
-    }
-
-    /// Adds inputs to a names collection.
-    fn add_inputs(
-        names: &mut IndexMap<String, ScopedName>,
-        section: &v1::InputSection,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) {
-        for decl in section.declarations() {
-            let name = decl.name();
-            let context = ScopedNameContext::Input(name.span());
-            if let Some(prev) = names.get(name.as_str()) {
-                diagnostics.push(name_conflict(
-                    name.as_str(),
-                    context.into(),
-                    prev.context().into(),
-                ));
-                continue;
-            }
-
-            names.insert(
-                name.as_str().to_string(),
-                ScopedName {
-                    context,
-                    node: decl.syntax().green().into(),
-                    implicit: false,
-                },
-            );
-        }
-    }
-
-    /// Adds outputs to a names collection.
-    fn add_outputs(
-        names: &mut IndexMap<String, ScopedName>,
-        section: &v1::OutputSection,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) {
-        for decl in section.declarations() {
-            let name = decl.name();
-            let context = ScopedNameContext::Output(name.span());
-            if let Some(prev) = names.get(name.as_str()) {
-                diagnostics.push(name_conflict(
-                    name.as_str(),
-                    context.into(),
-                    prev.context().into(),
-                ));
-                continue;
-            }
-
-            names.insert(
-                name.as_str().to_string(),
-                ScopedName {
-                    context,
-                    node: decl.syntax().green().into(),
-                    implicit: false,
-                },
-            );
-        }
-    }
-
-    /// Adds a task scope to the document's scope.
-    fn add_task_scope(&mut self, task: &v1::TaskDefinition, diagnostics: &mut Vec<Diagnostic>) {
-        // Check for a conflict with another task or workflow
-        let name = task.name();
-        if let Some(s) = self.tasks.get(name.as_str()) {
-            diagnostics.push(name_conflict(
-                name.as_str(),
-                NameContext::Task(name.span()),
-                NameContext::Task(s.name_span),
-            ));
-            return;
-        } else if let Some(s) = &self.workflow {
-            if s.name == name.as_str() {
-                diagnostics.push(name_conflict(
-                    name.as_str(),
-                    NameContext::Task(name.span()),
-                    NameContext::Workflow(s.name_span),
-                ));
-                return;
-            }
-        }
-
-        // Populate the scope's names
-        let mut names: IndexMap<_, ScopedName> = IndexMap::new();
-        let mut saw_input = false;
-        let mut saw_output = false;
-        for item in task.items() {
-            match item {
-                v1::TaskItem::Input(section) if !saw_input => {
-                    saw_input = true;
-                    Self::add_inputs(&mut names, &section, diagnostics);
-                }
-                v1::TaskItem::Output(section) if !saw_output => {
-                    saw_output = true;
-                    Self::add_outputs(&mut names, &section, diagnostics);
-                }
-                v1::TaskItem::Declaration(decl) => {
-                    let name = decl.name();
-                    let context = ScopedNameContext::Decl(name.span());
-                    if let Some(prev) = names.get(name.as_str()) {
-                        diagnostics.push(name_conflict(
-                            name.as_str(),
-                            context.into(),
-                            prev.context().into(),
-                        ));
-                        continue;
-                    }
-
-                    names.insert(
-                        name.as_str().to_string(),
-                        ScopedName {
-                            context,
-                            node: decl.syntax().green().into(),
-                            implicit: false,
-                        },
-                    );
-                }
-                v1::TaskItem::Input(_)
-                | v1::TaskItem::Output(_)
-                | v1::TaskItem::Command(_)
-                | v1::TaskItem::Requirements(_)
-                | v1::TaskItem::Hints(_)
-                | v1::TaskItem::Runtime(_)
-                | v1::TaskItem::Metadata(_)
-                | v1::TaskItem::ParameterMetadata(_) => continue,
-            }
-        }
-
-        let span = Self::scope_span(task.syntax());
-        let (index, _) = self.tasks.insert_full(
-            name.as_str().to_string(),
-            TaskScope {
-                name_span: name.span(),
-                scope: Scope {
-                    span,
-                    node: task.syntax().green().into(),
-                    names,
-                    children: Default::default(),
-                },
-            },
-        );
-
-        self.scopes.push((span, ScopeContext::Task(index)));
-    }
-
-    /// Adds a workflow scope to the document scope.
-    fn add_workflow_scope(
-        &mut self,
-        workflow: &v1::WorkflowDefinition,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) {
-        // Check for conflicts with task names or an existing workspace
-        let name = workflow.name();
-        if let Some(s) = self.tasks.get(name.as_str()) {
-            diagnostics.push(name_conflict(
-                name.as_str(),
-                NameContext::Workflow(name.span()),
-                NameContext::Task(s.name_span),
-            ));
-            return;
-        } else if let Some(s) = &self.workflow {
-            diagnostics.push(duplicate_workflow(&name, s.name_span));
-            return;
-        }
-
-        // First populate the "root" scope
-        let mut scopes = vec![Scope {
-            span: Self::scope_span(workflow.syntax()),
-            node: workflow.syntax().green().into(),
-            names: Default::default(),
-            children: Default::default(),
-        }];
-
-        let mut saw_input = false;
-        let mut saw_output = false;
-        for item in workflow.items() {
-            match item {
-                v1::WorkflowItem::Input(section) if !saw_input => {
-                    saw_input = true;
-                    let scope = scopes.last_mut().unwrap();
-                    Self::add_inputs(&mut scope.names, &section, diagnostics);
-                }
-                v1::WorkflowItem::Output(section) if !saw_output => {
-                    saw_output = true;
-                    let scope = scopes.last_mut().unwrap();
-                    Self::add_outputs(&mut scope.names, &section, diagnostics);
-                }
-                v1::WorkflowItem::Declaration(decl) => {
-                    Self::add_workflow_statement_decls(
-                        &WorkflowStatement::Declaration(decl),
-                        &mut scopes,
-                        diagnostics,
-                    );
-                }
-                v1::WorkflowItem::Conditional(stmt) => {
-                    Self::add_workflow_statement_decls(
-                        &WorkflowStatement::Conditional(stmt),
-                        &mut scopes,
-                        diagnostics,
-                    );
-                }
-                v1::WorkflowItem::Scatter(stmt) => {
-                    Self::add_workflow_statement_decls(
-                        &WorkflowStatement::Scatter(stmt),
-                        &mut scopes,
-                        diagnostics,
-                    );
-                }
-                v1::WorkflowItem::Call(stmt) => {
-                    Self::add_workflow_statement_decls(
-                        &WorkflowStatement::Call(stmt),
-                        &mut scopes,
-                        diagnostics,
-                    );
-                }
-                v1::WorkflowItem::Input(_)
-                | v1::WorkflowItem::Output(_)
-                | v1::WorkflowItem::Metadata(_)
-                | v1::WorkflowItem::ParameterMetadata(_)
-                | v1::WorkflowItem::Hints(_) => continue,
-            }
-        }
-
-        let scope = scopes.pop().unwrap();
-        let span = scope.span;
-        self.workflow = Some(WorkflowScope {
-            name_span: name.span(),
-            name: name.as_str().to_string(),
-            scope,
-        });
-        self.scopes.push((span, ScopeContext::Workflow));
-    }
-
-    /// Adds declarations from workflow statements.
-    fn add_workflow_statement_decls(
-        stmt: &v1::WorkflowStatement,
-        scopes: &mut Vec<Scope>,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) {
-        /// Finds a name by walking up the scope stack
-        fn find_name<'a>(name: &str, scopes: &'a [Scope]) -> Option<&'a ScopedName> {
-            for scope in scopes.iter().rev() {
-                if let Some(name) = scope.names.get(name) {
-                    return Some(name);
-                }
-            }
-
-            None
-        }
-
-        match stmt {
-            WorkflowStatement::Conditional(stmt) => {
-                scopes.push(Scope {
-                    span: Self::scope_span(stmt.syntax()),
-                    node: stmt.syntax().green().into(),
-                    names: Default::default(),
-                    children: Default::default(),
-                });
-
-                for stmt in stmt.statements() {
-                    Self::add_workflow_statement_decls(&stmt, scopes, diagnostics);
-                }
-
-                let scope = scopes.pop().unwrap();
-                let parent = scopes.last_mut().unwrap();
-                for (name, descendant) in &scope.names {
-                    parent.names.insert(
-                        name.clone(),
-                        ScopedName {
-                            context: descendant.context,
-                            node: descendant.node.clone(),
-                            implicit: true,
-                        },
-                    );
-                }
-
-                parent.children.push(scope);
-            }
-            WorkflowStatement::Scatter(stmt) => {
-                let variable = stmt.variable();
-                let context = ScopedNameContext::ScatterVariable(variable.span());
-                let mut names = IndexMap::new();
-                if let Some(prev) = find_name(variable.as_str(), scopes) {
-                    diagnostics.push(name_conflict(
-                        variable.as_str(),
-                        context.into(),
-                        prev.context().into(),
-                    ));
-                } else {
-                    names.insert(
-                        variable.as_str().to_string(),
-                        ScopedName {
-                            context,
-                            node: stmt.syntax().green().into(),
-                            implicit: false,
-                        },
-                    );
-                }
-
-                scopes.push(Scope {
-                    span: Self::scope_span(stmt.syntax()),
-                    node: stmt.syntax().green().into(),
-                    names,
-                    children: Default::default(),
-                });
-
-                for stmt in stmt.statements() {
-                    Self::add_workflow_statement_decls(&stmt, scopes, diagnostics);
-                }
-
-                let scope = scopes.pop().unwrap();
-                let parent = scopes.last_mut().unwrap();
-                for (name, descendant) in &scope.names {
-                    // Don't add an implicit name to the parent for the scatter variable
-                    if descendant.is_scatter_variable() {
-                        continue;
-                    }
-
-                    parent.names.insert(
-                        name.clone(),
-                        ScopedName {
-                            context: descendant.context,
-                            node: descendant.node.clone(),
-                            implicit: true,
-                        },
-                    );
-                }
-
-                parent.children.push(scope);
-            }
-            WorkflowStatement::Call(stmt) => {
-                let name = stmt.alias().map(|a| a.name()).unwrap_or_else(|| {
-                    stmt.target()
-                        .names()
-                        .last()
-                        .expect("expected a last call target name")
-                });
-                if let Some(prev) = find_name(name.as_str(), scopes) {
-                    diagnostics.push(call_conflict(
-                        &name,
-                        prev.context().into(),
-                        stmt.alias().is_none(),
-                    ));
-
-                    // Define the name in this scope if it conflicted with a scatter variable
-                    if !prev.is_scatter_variable() {
-                        return;
-                    }
-                }
-
-                scopes.last_mut().unwrap().names.insert(
-                    name.as_str().to_string(),
-                    ScopedName {
-                        context: ScopedNameContext::Call(name.span()),
-                        node: stmt.syntax().green().into(),
-                        implicit: false,
-                    },
-                );
-            }
-            WorkflowStatement::Declaration(decl) => {
-                let name = decl.name();
-                let context = ScopedNameContext::Decl(name.span());
-                if let Some(prev) = find_name(name.as_str(), scopes) {
-                    diagnostics.push(name_conflict(
-                        name.as_str(),
-                        context.into(),
-                        prev.context().into(),
-                    ));
-
-                    // Define the name in this scope if it conflicted with a scatter variable
-                    if !prev.is_scatter_variable() {
-                        return;
-                    }
-                }
-
-                scopes.last_mut().unwrap().names.insert(
-                    name.as_str().to_string(),
-                    ScopedName {
-                        context,
-                        node: decl.syntax().green().into(),
-                        implicit: false,
-                    },
-                );
-            }
-        }
-    }
-
-    /// Resolves an import to its document scope.
-    fn resolve_import(
-        graph: &DocumentGraph,
-        stmt: &v1::ImportStatement,
-        importer_index: NodeIndex,
-        importer_version: &Version,
-    ) -> Result<(Arc<Url>, Arc<DocumentScope>), Option<Diagnostic>> {
-        let uri = stmt.uri();
-        let span = uri.syntax().text_range().to_span();
-        let text = match uri.text() {
-            Some(text) => text,
-            None => {
-                return Err(None);
-            }
-        };
-
-        let uri = match graph.get(importer_index).uri().join(text.as_str()) {
-            Ok(uri) => uri,
-            Err(e) => return Err(Some(invalid_relative_import(&e, span))),
-        };
-
-        let import_index = graph.get_index(&uri).expect("missing import node in graph");
-        let import_node = graph.get(import_index);
-
-        // Check for an import cycle to report
-        if graph.contains_cycle(importer_index, import_index) {
-            return Err(Some(import_cycle(span)));
-        }
-
-        // Check for a failure to load the import
-        if let ParseState::Error(e) = import_node.parse_state() {
-            return Err(Some(import_failure(text.as_str(), e, span)));
-        }
-
-        // Ensure the import has a matching WDL version
-        let import_document = import_node.document().expect("import should have parsed");
-        let import_scope = import_node
-            .analysis()
-            .map(|a| a.scope().clone())
-            .expect("import should have been analyzed");
-
-        // Check for compatible imports
-        match import_document.version_statement() {
-            Some(stmt) => {
-                let our_version = stmt.version();
-                if matches!((our_version.as_str().split('.').next(), importer_version.as_str().split('.').next()), (Some(our_major), Some(their_major)) if our_major != their_major)
-                {
-                    return Err(Some(incompatible_import(
-                        our_version.as_str(),
-                        span,
-                        importer_version,
-                    )));
-                }
-            }
-            None => {
-                return Err(Some(import_missing_version(span)));
-            }
-        }
-
-        Ok((import_node.uri().clone(), import_scope))
     }
 
     /// Calculates the span of a scope given a node which uses braces to

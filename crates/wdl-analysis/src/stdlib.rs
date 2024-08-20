@@ -1936,7 +1936,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .type_parameter("X", JsonSerializableConstraint)
                         .parameter(GenericType::Parameter("X"))
-                        .ret(Type::Union)
+                        .ret(PrimitiveTypeKind::File)
                         .build(),
                 )
                 .into(),
@@ -2649,7 +2649,7 @@ mod test {
                 "read_map(File) -> Map[String, String]",
                 "write_map(Map[String, String]) -> File",
                 "read_json(File) -> Union",
-                "write_json(X) -> Union where `X`: any JSON-serializable type",
+                "write_json(X) -> File where `X`: any JSON-serializable type",
                 "read_object(File) -> Object",
                 "read_objects(File) -> Array[Object]",
                 "write_object(Object) -> File",
