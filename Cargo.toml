@@ -20,10 +20,8 @@ nonempty = "0.10.0"
 pest = { version = "2.7.11", features = ["pretty-print"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
-wdl = { version = "0.6.0", features = ["codespan"] }
+wdl = { version = "0.7.0", features = ["codespan", "lsp"] }
 walkdir = "2.5.0"
 colored = "2.1.0"
-# TODO: update this when `wdl-lsp` is published
-wdl-lsp = { git = "https://github.com/stjude-rust-labs/wdl" }
 tokio = { version = "1.39.1", features = ["full"] }
 tracing-log = "0.2.0"
