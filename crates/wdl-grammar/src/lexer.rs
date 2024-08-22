@@ -126,8 +126,8 @@ impl<'a> ParserToken<'a> for PreambleToken {
         unsafe { std::mem::transmute(token) }
     }
 
-    fn describe(token: u8) -> &'static str {
-        match Self::from_raw(token) {
+    fn describe(self) -> &'static str {
+        match self {
             Self::Whitespace => "whitespace",
             Self::Comment => "comment",
             Self::VersionKeyword => "`version` keyword",
@@ -189,8 +189,8 @@ impl<'a> ParserToken<'a> for VersionStatementToken {
         unsafe { std::mem::transmute(token) }
     }
 
-    fn describe(token: u8) -> &'static str {
-        match Self::from_raw(token) {
+    fn describe(self) -> &'static str {
+        match self {
             Self::Whitespace => "whitespace",
             Self::Comment => "comment",
             Self::Version => "version",

@@ -287,16 +287,6 @@ const MAP_RECOVERY_SET: TokenSet = TokenSet::new(&[Token::Comma as u8, Token::Cl
 const LITERAL_OBJECT_RECOVERY_SET: TokenSet =
     TokenSet::new(&[Token::Comma as u8, Token::CloseBrace as u8]);
 
-/// A token set used to parse a delimited set of things until a closing brace.
-const UNTIL_CLOSE_BRACE: TokenSet = TokenSet::new(&[Token::CloseBrace as u8]);
-
-/// A token set used to parse a delimited set of things until a closing bracket.
-const UNTIL_CLOSE_BRACKET: TokenSet = TokenSet::new(&[Token::CloseBracket as u8]);
-
-/// A token set used to parse a delimited set of things until a closing
-/// parenthesis.
-const UNTIL_CLOSE_PAREN: TokenSet = TokenSet::new(&[Token::CloseParen as u8]);
-
 /// Represents *any* identifier, including reserved keywords.
 const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::Ident as u8,
@@ -340,49 +330,49 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::WorkflowKeyword as u8,
 ]);
 
-/// A helper for parsing matching tokens.
-fn matched<F>(parser: &mut Parser<'_>, open: Token, close: Token, cb: F) -> Result<(), Diagnostic>
-where
-    F: FnOnce(&mut Parser<'_>) -> Result<(), Diagnostic>,
-{
-    let open_span = match parser.expect(open) {
-        Ok(span) => span,
-        Err(e) => return Err(e),
+/// Parses matching braces given a callback to parse the interior delimited
+/// items.
+macro_rules! braced_items {
+    ($parser:ident, $marker:ident, $delimiter:expr, $recovery:expr, $cb:expr) => {
+        if let Err(e) = $parser.matching_delimited(
+            Token::OpenBrace,
+            Token::CloseBrace,
+            $delimiter,
+            $recovery,
+            $cb,
+        ) {
+            return Err(($marker, e));
+        }
     };
-
-    // Check to see if the close token is immediately following the opening
-    match parser.peek() {
-        Some((t, _)) if t == close => {
-            parser.next();
-            return Ok(());
-        }
-        _ => {}
-    }
-
-    cb(parser)?;
-
-    match parser.next() {
-        Some((token, _)) if token == close => Ok(()),
-        found => {
-            let (found, span) = found
-                .map(|(t, s)| (Token::describe(t.into_raw()), s))
-                .unwrap_or_else(|| ("end of input", parser.span()));
-
-            Err(unmatched(
-                Token::describe(open.into_raw()),
-                open_span,
-                Token::describe(close.into_raw()),
-                found,
-                span,
-            ))
-        }
-    }
 }
 
-/// Parses matching braces given a callback to parse the interior.
-macro_rules! braced {
-    ($parser:ident, $marker:ident, $cb:expr) => {
-        if let Err(e) = matched($parser, Token::OpenBrace, Token::CloseBrace, $cb) {
+/// Parses matching brackets given a callback to parse the interior delimited
+/// items.
+macro_rules! bracketed_items {
+    ($parser:ident, $marker:ident, $delimiter:expr, $recovery:expr, $cb:expr) => {
+        if let Err(e) = $parser.matching_delimited(
+            Token::OpenBracket,
+            Token::CloseBracket,
+            $delimiter,
+            $recovery,
+            $cb,
+        ) {
+            return Err(($marker, e));
+        }
+    };
+}
+
+/// Parses matching parens given a callback to parse the interior delimited
+/// items.
+macro_rules! paren_items {
+    ($parser:ident, $marker:ident, $delimiter:expr, $recovery:expr, $cb:expr) => {
+        if let Err(e) = $parser.matching_delimited(
+            Token::OpenParen,
+            Token::CloseParen,
+            $delimiter,
+            $recovery,
+            $cb,
+        ) {
             return Err(($marker, e));
         }
     };
@@ -391,7 +381,7 @@ macro_rules! braced {
 /// Parses matching brackets given a callback to parse the interior.
 macro_rules! bracketed {
     ($parser:ident, $marker:ident, $cb:expr) => {
-        if let Err(e) = matched($parser, Token::OpenBracket, Token::CloseBracket, $cb) {
+        if let Err(e) = $parser.matching(Token::OpenBracket, Token::CloseBracket, $cb) {
             return Err(($marker, e));
         }
     };
@@ -400,7 +390,7 @@ macro_rules! bracketed {
 /// Parses matching parenthesis given a callback to parse the interior.
 macro_rules! paren {
     ($parser:ident, $marker:ident, $cb:expr) => {
-        if let Err(e) = matched($parser, Token::OpenParen, Token::CloseParen, $cb) {
+        if let Err(e) = $parser.matching(Token::OpenParen, Token::CloseParen, $cb) {
             return Err(($marker, e));
         }
     };
@@ -410,13 +400,17 @@ macro_rules! paren {
 ///
 /// It is expected that the version statement has already been parsed.
 pub fn items(parser: &mut Parser<'_>) {
+    parser.push_recovery_set(TOP_RECOVERY_SET);
+
     while parser.peek().is_some() {
         let marker = parser.start();
         if let Err((marker, e)) = item(parser, marker) {
-            parser.recover(e, TOP_RECOVERY_SET);
+            parser.recover(e);
             marker.abandon(parser);
         }
     }
+
+    parser.pop_recovery_set();
 
     // This call to `next` is important as `next` adds any remaining buffered events
     assert!(parser.next().is_none(), "parser is not finished");
@@ -431,7 +425,7 @@ fn item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnost
         Some((Token::WorkflowKeyword, _)) => workflow_definition(parser, marker),
         found => {
             let (found, span) = found
-                .map(|(t, s)| (Some(Token::describe(t.into_raw())), s))
+                .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
             Err((marker, expected_one_of(TOP_EXPECTED_NAMES, found, span)))
         }
@@ -469,15 +463,7 @@ fn import_alias(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, 
 fn struct_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::StructKeyword);
     expected!(parser, marker, Token::Ident, "struct name");
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            STRUCT_ITEM_RECOVERY_SET,
-            struct_item,
-        );
-        Ok(())
-    });
+    braced_items!(parser, marker, None, STRUCT_ITEM_RECOVERY_SET, struct_item);
     marker.complete(parser, SyntaxKind::StructDefinitionNode);
     Ok(())
 }
@@ -492,7 +478,7 @@ fn struct_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, D
         }
         found => {
             let (found, span) = found
-                .map(|(t, s)| (Some(Token::describe(t.into_raw())), s))
+                .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
             Err((
                 marker,
@@ -515,10 +501,7 @@ fn struct_member_decl(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Ma
 fn task_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::TaskKeyword);
     expected!(parser, marker, Token::Ident, "task name");
-    braced!(parser, marker, |parser| {
-        parser.delimited(None, UNTIL_CLOSE_BRACE, TASK_ITEM_RECOVERY_SET, task_item);
-        Ok(())
-    });
+    braced_items!(parser, marker, None, TASK_ITEM_RECOVERY_SET, task_item);
     marker.complete(parser, SyntaxKind::TaskDefinitionNode);
     Ok(())
 }
@@ -530,15 +513,13 @@ fn workflow_definition(
 ) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::WorkflowKeyword);
     expected!(parser, marker, Token::Ident, "workflow name");
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            WORKFLOW_ITEM_RECOVERY_SET,
-            workflow_item,
-        );
-        Ok(())
-    });
+    braced_items!(
+        parser,
+        marker,
+        None,
+        WORKFLOW_ITEM_RECOVERY_SET,
+        workflow_item
+    );
     marker.complete(parser, SyntaxKind::WorkflowDefinitionNode);
     Ok(())
 }
@@ -554,7 +535,7 @@ fn ty(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic
         Some((t, _)) if PRIMITIVE_TYPE_SET.contains(t.into_raw()) => primitive_type(parser, marker),
         found => {
             let (found, span) = found
-                .map(|(t, s)| (Some(Token::describe(t.into_raw())), s))
+                .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
             Err((marker, expected_found("type", found, span)))
         }
@@ -564,7 +545,7 @@ fn ty(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic
 /// Parses a map type used in a declaration.
 fn map_type(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     /// Parses the inner part of the brackets
-    fn parse(parser: &mut Parser<'_>) -> Result<(), Diagnostic> {
+    fn parse(parser: &mut Parser<'_>, _: Span) -> Result<(), Diagnostic> {
         expected_fn!(parser, primitive_type);
         parser.expect(Token::Comma)?;
         expected_fn!(parser, ty);
@@ -581,7 +562,7 @@ fn map_type(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diag
 /// Parses a array type used in a declaration.
 fn array_type(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     /// Parses the inner part of the brackets
-    fn parse(parser: &mut Parser<'_>) -> Result<(), Diagnostic> {
+    fn parse(parser: &mut Parser<'_>, _: Span) -> Result<(), Diagnostic> {
         expected_fn!(parser, ty);
         Ok(())
     }
@@ -597,7 +578,7 @@ fn array_type(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Di
 /// Parses a pair type used in a declaration.
 fn pair_type(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     /// Parses the inner part of the brackets
-    fn parse(parser: &mut Parser<'_>) -> Result<(), Diagnostic> {
+    fn parse(parser: &mut Parser<'_>, _: Span) -> Result<(), Diagnostic> {
         expected_fn!(parser, ty);
         parser.expect(Token::Comma)?;
         expected_fn!(parser, ty);
@@ -661,7 +642,7 @@ fn task_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Dia
         }
         found => {
             let (found, span) = found
-                .map(|(t, s)| (Some(Token::describe(t.into_raw())), s))
+                .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
             Err((
                 marker,
@@ -687,7 +668,7 @@ fn workflow_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker,
         }
         found => {
             let (found, span) = found
-                .map(|(t, s)| (Some(Token::describe(t.into_raw())), s))
+                .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
             Err((
                 marker,
@@ -708,7 +689,7 @@ fn workflow_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Ma
         }
         found => {
             let (found, span) = found
-                .map(|(t, s)| (Some(Token::describe(t.into_raw())), s))
+                .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
             Err((marker, expected_found("workflow statement", found, span)))
         }
@@ -718,10 +699,7 @@ fn workflow_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Ma
 /// Parses an input section in a task or workflow.
 fn input_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::InputKeyword);
-    braced!(parser, marker, |parser| {
-        parser.delimited(None, UNTIL_CLOSE_BRACE, INPUT_ITEM_RECOVERY_SET, input_item);
-        Ok(())
-    });
+    braced_items!(parser, marker, None, INPUT_ITEM_RECOVERY_SET, input_item);
     marker.complete(parser, SyntaxKind::InputSectionNode);
     Ok(())
 }
@@ -802,7 +780,7 @@ fn interpolate_brace_command(
                 let mut parser = interpolator.into_parser();
                 if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
                     marker.abandon(&mut parser);
-                    parser.recover(e, TokenSet::new(&[Token::CloseBrace as u8]));
+                    parser.recover_with_set(e, TokenSet::new(&[Token::CloseBrace as u8]));
                     parser.next_if(Token::CloseBrace);
                 }
 
@@ -847,7 +825,7 @@ fn interpolate_brace_command(
             (
                 interpolator.into_parser(),
                 Err(unterminated_braced_command(
-                    Token::describe(Token::OpenBrace as u8),
+                    Token::OpenBrace.describe(),
                     start,
                 )),
             )
@@ -901,7 +879,7 @@ pub(crate) fn interpolate_heredoc(
         let mut parser = interpolator.into_parser();
         if let Err((marker, e)) = placeholder_expr(&mut parser, marker, open) {
             marker.abandon(&mut parser);
-            parser.recover(
+            parser.recover_with_set(
                 e,
                 TokenSet::new(&[Token::CloseBrace as u8, Token::CloseHeredoc as u8]),
             );
@@ -967,11 +945,19 @@ pub(crate) fn interpolate_heredoc(
             (interpolator.into_parser(), Ok(()))
         }
         None => {
+            let span = Span::new(interpolator.span().start(), 0);
+
+            // Synthesize a close token
+            interpolator.event(Event::Token {
+                kind: SyntaxKind::CloseHeredoc,
+                span,
+            });
+
             // Not terminated
             (
                 interpolator.into_parser(),
                 Err(unterminated_heredoc(
-                    Token::describe(Token::OpenHeredoc as u8),
+                    Token::OpenHeredoc.describe(),
                     start,
                     context == HeredocContext::Command,
                 )),
@@ -983,15 +969,13 @@ pub(crate) fn interpolate_heredoc(
 /// Parses an output section in a task or workflow.
 fn output_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::OutputKeyword);
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            OUTPUT_ITEM_RECOVERY_SET,
-            |parser, marker| bound_decl(parser, marker, true),
-        );
-        Ok(())
-    });
+    braced_items!(
+        parser,
+        marker,
+        None,
+        OUTPUT_ITEM_RECOVERY_SET,
+        |parser, marker| bound_decl(parser, marker, true)
+    );
     marker.complete(parser, SyntaxKind::OutputSectionNode);
     Ok(())
 }
@@ -999,15 +983,13 @@ fn output_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
 /// Parses a runtime section in a task.
 fn runtime_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::RuntimeKeyword);
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            RUNTIME_ITEM_RECOVERY_SET,
-            runtime_item,
-        );
-        Ok(())
-    });
+    braced_items!(
+        parser,
+        marker,
+        None,
+        RUNTIME_ITEM_RECOVERY_SET,
+        runtime_item
+    );
     marker.complete(parser, SyntaxKind::RuntimeSectionNode);
     Ok(())
 }
@@ -1028,15 +1010,13 @@ fn requirements_section(
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::RequirementsKeyword);
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            REQUIREMENTS_ITEM_RECOVERY_SET,
-            requirements_item,
-        );
-        Ok(())
-    });
+    braced_items!(
+        parser,
+        marker,
+        None,
+        REQUIREMENTS_ITEM_RECOVERY_SET,
+        requirements_item
+    );
     marker.complete(parser, SyntaxKind::RequirementsSectionNode);
     Ok(())
 }
@@ -1054,10 +1034,7 @@ fn requirements_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Mar
 /// Parses a hints section in a task.
 fn hints_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::HintsKeyword);
-    braced!(parser, marker, |parser| {
-        parser.delimited(None, UNTIL_CLOSE_BRACE, HINTS_ITEM_RECOVERY_SET, hints_item);
-        Ok(())
-    });
+    braced_items!(parser, marker, None, HINTS_ITEM_RECOVERY_SET, hints_item);
     marker.complete(parser, SyntaxKind::HintsSectionNode);
     Ok(())
 }
@@ -1075,15 +1052,13 @@ fn hints_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Di
 /// Parses a metadata section in a task or workflow.
 fn metadata_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::MetaKeyword);
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            METADATA_SECTION_RECOVERY_SET,
-            metadata_object_item,
-        );
-        Ok(())
-    });
+    braced_items!(
+        parser,
+        marker,
+        None,
+        METADATA_SECTION_RECOVERY_SET,
+        metadata_object_item
+    );
     marker.complete(parser, SyntaxKind::MetadataSectionNode);
     Ok(())
 }
@@ -1129,7 +1104,7 @@ fn metadata_value(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
         Some((Token::OpenBracket, _)) => metadata_array(parser, marker),
         found => {
             let (found, span) = found
-                .map(|(t, s)| (Some(Token::describe(t.into_raw())), s))
+                .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
             Err((
                 marker,
@@ -1245,14 +1220,14 @@ fn placeholder_expr(
         }
         found => {
             let (found, span) = found
-                .map(|(t, s)| (Token::describe(t.into_raw()), s))
+                .map(|(t, s)| (t.describe(), s))
                 .unwrap_or_else(|| ("end of input", parser.span()));
             Err((
                 marker,
                 unmatched(
                     "placeholder start",
                     open_span,
-                    Token::describe(Token::CloseBrace.into_raw()),
+                    Token::CloseBrace.describe(),
                     found,
                     span,
                 ),
@@ -1291,7 +1266,7 @@ pub(crate) fn interpolate_sq_string(
                 let mut parser = interpolator.into_parser();
                 if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
                     marker.abandon(&mut parser);
-                    parser.recover(
+                    parser.recover_with_set(
                         e,
                         TokenSet::new(&[Token::CloseBrace as u8, Token::SingleQuote as u8]),
                     );
@@ -1336,6 +1311,14 @@ pub(crate) fn interpolate_sq_string(
             (interpolator.into_parser(), Ok(()))
         }
         None => {
+            let span = Span::new(interpolator.span().start(), 0);
+
+            // Synthesize a close token
+            interpolator.event(Event::Token {
+                kind: SyntaxKind::SingleQuote,
+                span,
+            });
+
             // String wasn't terminated
             (interpolator.into_parser(), Err(unterminated_string(start)))
         }
@@ -1353,7 +1336,7 @@ fn string(
         Some((Token::OpenHeredoc, _)) => multiline_string(parser, marker, true),
         found => {
             let (found, span) = found
-                .map(|(t, s)| (Some(Token::describe(t.into_raw())), s))
+                .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
             Err((marker, expected_found("string", found, span)))
         }
@@ -1405,7 +1388,7 @@ pub(crate) fn interpolate_dq_string(
                 let mut parser = interpolator.into_parser();
                 if let Err((marker, e)) = placeholder_expr(&mut parser, marker, span) {
                     marker.abandon(&mut parser);
-                    parser.recover(
+                    parser.recover_with_set(
                         e,
                         TokenSet::new(&[Token::CloseBrace as u8, Token::DoubleQuote as u8]),
                     );
@@ -1450,6 +1433,14 @@ pub(crate) fn interpolate_dq_string(
             (interpolator.into_parser(), Ok(()))
         }
         None => {
+            let span = Span::new(interpolator.span().start(), 0);
+
+            // Synthesize a close token
+            interpolator.event(Event::Token {
+                kind: SyntaxKind::DoubleQuote,
+                span,
+            });
+
             // String wasn't terminated
             (interpolator.into_parser(), Err(unterminated_string(start)))
         }
@@ -1518,30 +1509,26 @@ fn null(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnost
 
 /// Parses a metadata object.
 fn metadata_object(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            Some(Token::Comma),
-            UNTIL_CLOSE_BRACE,
-            METADATA_OBJECT_RECOVERY_SET,
-            metadata_object_item,
-        );
-        Ok(())
-    });
+    braced_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        METADATA_OBJECT_RECOVERY_SET,
+        metadata_object_item
+    );
     marker.complete(parser, SyntaxKind::MetadataObjectNode);
     Ok(())
 }
 
 /// Parses a metadata array.
 fn metadata_array(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    bracketed!(parser, marker, |parser| {
-        parser.delimited(
-            Some(Token::Comma),
-            UNTIL_CLOSE_BRACKET,
-            METADATA_ARRAY_RECOVERY_SET,
-            metadata_value,
-        );
-        Ok(())
-    });
+    bracketed_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        METADATA_ARRAY_RECOVERY_SET,
+        metadata_value
+    );
     marker.complete(parser, SyntaxKind::MetadataArrayNode);
     Ok(())
 }
@@ -1552,15 +1539,13 @@ fn parameter_metadata_section(
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::ParameterMetaKeyword);
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            METADATA_SECTION_RECOVERY_SET,
-            metadata_object_item,
-        );
-        Ok(())
-    });
+    braced_items!(
+        parser,
+        marker,
+        None,
+        METADATA_SECTION_RECOVERY_SET,
+        metadata_object_item
+    );
     marker.complete(parser, SyntaxKind::ParameterMetadataSectionNode);
     Ok(())
 }
@@ -1592,19 +1577,17 @@ fn conditional_statement(
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::IfKeyword);
-    paren!(parser, marker, |parser| {
+    paren!(parser, marker, |parser, _| {
         expected_fn!(parser, expr);
         Ok(())
     });
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            WORKFLOW_STATEMENT_RECOVERY_SET,
-            workflow_statement,
-        );
-        Ok(())
-    });
+    braced_items!(
+        parser,
+        marker,
+        None,
+        WORKFLOW_STATEMENT_RECOVERY_SET,
+        workflow_statement
+    );
     marker.complete(parser, SyntaxKind::ConditionalStatementNode);
     Ok(())
 }
@@ -1612,21 +1595,19 @@ fn conditional_statement(
 /// Parses a scatter statement in a workflow.
 fn scatter_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::ScatterKeyword);
-    paren!(parser, marker, |parser| {
+    paren!(parser, marker, |parser, _| {
         parser.expect_with_name(Token::Ident, "scatter variable name")?;
         parser.expect(Token::InKeyword)?;
         expected_fn!(parser, expr);
         Ok(())
     });
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            WORKFLOW_STATEMENT_RECOVERY_SET,
-            workflow_statement,
-        );
-        Ok(())
-    });
+    braced_items!(
+        parser,
+        marker,
+        None,
+        WORKFLOW_STATEMENT_RECOVERY_SET,
+        workflow_statement
+    );
     marker.complete(parser, SyntaxKind::ScatterStatementNode);
     Ok(())
 }
@@ -1645,19 +1626,22 @@ fn call_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
     }
 
     if let Some((Token::OpenBrace, _)) = parser.peek() {
-        braced!(parser, marker, |parser| {
-            if parser.next_if(Token::InputKeyword) {
-                parser.expect(Token::Colon)?;
-            }
+        // Given the optional `input:` that we need to parse after the open brace, we
+        // unfortunately can't use `Parser::matching_delimited` here
+        let open_span = parser.require(Token::OpenBrace);
 
-            parser.delimited(
-                Some(Token::Comma),
-                UNTIL_CLOSE_BRACE,
-                CALL_INPUT_ITEM_RECOVERY_SET,
-                call_input_item,
-            );
-            Ok(())
-        });
+        if parser.next_if(Token::InputKeyword) {
+            expected!(parser, marker, Token::Colon);
+        }
+
+        parser.delimited(
+            Token::CloseBrace,
+            Some(Token::Comma),
+            CALL_INPUT_ITEM_RECOVERY_SET,
+            call_input_item,
+        );
+
+        parser.consume_close_token(Token::OpenBrace, open_span, Token::CloseBrace);
     }
 
     marker.complete(parser, SyntaxKind::CallStatementNode);
@@ -1756,7 +1740,7 @@ fn expr_with_precedence(
         }
         found => {
             let (found, span) = found
-                .map(|(t, s)| (Some(Token::describe(t.into_raw())), s))
+                .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
             return Err((marker, expected_found("expression", found, span)));
         }
@@ -1857,29 +1841,19 @@ fn atom_expr(
 
 /// Parses an array literal expression.
 fn array(parser: &mut Parser<'_>, marker: Marker) -> Result<CompletedMarker, (Marker, Diagnostic)> {
-    bracketed!(parser, marker, |parser| {
-        parser.delimited(
-            Some(Token::Comma),
-            UNTIL_CLOSE_BRACKET,
-            EXPR_RECOVERY_SET,
-            expr,
-        );
-        Ok(())
-    });
+    bracketed_items!(parser, marker, Some(Token::Comma), EXPR_RECOVERY_SET, expr);
     Ok(marker.complete(parser, SyntaxKind::LiteralArrayNode))
 }
 
 /// Parses a map literal expression.
 fn map(parser: &mut Parser<'_>, marker: Marker) -> Result<CompletedMarker, (Marker, Diagnostic)> {
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            Some(Token::Comma),
-            UNTIL_CLOSE_BRACE,
-            MAP_RECOVERY_SET,
-            map_item,
-        );
-        Ok(())
-    });
+    braced_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        MAP_RECOVERY_SET,
+        map_item
+    );
     Ok(marker.complete(parser, SyntaxKind::LiteralMapNode))
 }
 
@@ -1917,15 +1891,15 @@ fn pair_or_paren_expr(
         Some((Token::CloseParen, _)) => Ok(marker.complete(parser, SyntaxKind::LiteralPairNode)),
         found => {
             let (found, span) = found
-                .map(|(t, s)| (Token::describe(t.into_raw()), s))
+                .map(|(t, s)| (t.describe(), s))
                 .unwrap_or_else(|| ("end of input", parser.span()));
 
             Err((
                 marker,
                 unmatched(
-                    Token::describe(Token::OpenParen.into_raw()),
+                    Token::OpenParen.describe(),
                     open_span,
-                    Token::describe(Token::CloseParen.into_raw()),
+                    Token::CloseParen.describe(),
                     found,
                     span,
                 ),
@@ -1940,15 +1914,13 @@ fn object(
     marker: Marker,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
     parser.require(Token::ObjectKeyword);
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            Some(Token::Comma),
-            UNTIL_CLOSE_BRACE,
-            LITERAL_OBJECT_RECOVERY_SET,
-            object_item,
-        );
-        Ok(())
-    });
+    braced_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        LITERAL_OBJECT_RECOVERY_SET,
+        object_item
+    );
     Ok(marker.complete(parser, SyntaxKind::LiteralObjectNode))
 }
 
@@ -1973,15 +1945,13 @@ fn literal_struct_or_name_ref(
     // To disambiguate between a name reference and a struct literal,
     // peek ahead for `{`.
     if let Some((Token::OpenBrace, _)) = parser.peek() {
-        braced!(parser, marker, |parser| {
-            parser.delimited(
-                Some(Token::Comma),
-                UNTIL_CLOSE_BRACE,
-                LITERAL_OBJECT_RECOVERY_SET, // same as literal objects
-                literal_struct_item,
-            );
-            Ok(())
-        });
+        braced_items!(
+            parser,
+            marker,
+            Some(Token::Comma),
+            LITERAL_OBJECT_RECOVERY_SET, // same as literal objects
+            literal_struct_item
+        );
         return Ok(marker.complete(parser, SyntaxKind::LiteralStructNode));
     }
 
@@ -2022,16 +1992,13 @@ fn literal_hints(
     marker: Marker,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
     parser.require(Token::HintsKeyword);
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            HINTS_ITEM_RECOVERY_SET,
-            literal_hints_item,
-        );
-        Ok(())
-    });
-
+    braced_items!(
+        parser,
+        marker,
+        None,
+        HINTS_ITEM_RECOVERY_SET,
+        literal_hints_item
+    );
     Ok(marker.complete(parser, SyntaxKind::LiteralHintsNode))
 }
 
@@ -2051,16 +2018,13 @@ fn literal_input(
     marker: Marker,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
     parser.require(Token::InputKeyword);
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            LITERAL_INPUT_ITEM_RECOVERY_SET,
-            literal_input_item,
-        );
-        Ok(())
-    });
-
+    braced_items!(
+        parser,
+        marker,
+        None,
+        LITERAL_INPUT_ITEM_RECOVERY_SET,
+        literal_input_item
+    );
     Ok(marker.complete(parser, SyntaxKind::LiteralInputNode))
 }
 
@@ -2086,16 +2050,13 @@ fn literal_output(
     marker: Marker,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
     parser.require(Token::OutputKeyword);
-    braced!(parser, marker, |parser| {
-        parser.delimited(
-            None,
-            UNTIL_CLOSE_BRACE,
-            LITERAL_OUTPUT_ITEM_RECOVERY_SET,
-            literal_output_item,
-        );
-        Ok(())
-    });
-
+    braced_items!(
+        parser,
+        marker,
+        None,
+        LITERAL_OUTPUT_ITEM_RECOVERY_SET,
+        literal_output_item
+    );
     Ok(marker.complete(parser, SyntaxKind::LiteralOutputNode))
 }
 
@@ -2123,15 +2084,7 @@ fn call_expr(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
-    paren!(parser, marker, |parser| {
-        parser.delimited(
-            Some(Token::Comma),
-            UNTIL_CLOSE_PAREN,
-            EXPR_RECOVERY_SET,
-            expr,
-        );
-        Ok(())
-    });
+    paren_items!(parser, marker, Some(Token::Comma), EXPR_RECOVERY_SET, expr);
     Ok(marker.complete(parser, SyntaxKind::CallExprNode))
 }
 
@@ -2140,7 +2093,7 @@ fn index_expr(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
-    bracketed!(parser, marker, |parser| {
+    bracketed!(parser, marker, |parser, _| {
         expected_fn!(parser, expr);
         Ok(())
     });

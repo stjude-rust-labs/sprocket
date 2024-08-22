@@ -10,9 +10,12 @@ error: expected metadata section, parameter metadata section, or struct member d
 8 │     ?  # Unexpected token
   │     ^ unexpected `?`
 
-error: expected metadata section, parameter metadata section, or struct member declaration, but found `struct` keyword
-   ┌─ tests/parsing/struct-recovery/source.wdl:10:5
+error: expected `}`, but found `struct` keyword
+   ┌─ tests/parsing/struct-recovery/source.wdl:12:1
    │
-10 │     struct   # Unexpected keyword
-   │     ^^^^^^ unexpected `struct` keyword
+ 5 │ struct MyStruct {
+   │                 - this `{` is not matched
+   ·
+12 │ struct Foo {
+   │ ^^^^^^ unexpected `struct` keyword
 

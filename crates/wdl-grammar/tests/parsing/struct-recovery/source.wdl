@@ -7,6 +7,8 @@ struct MyStruct {
     String a
     ?  # Unexpected token
     Float b
-    struct   # Unexpected keyword
+
+
+struct Foo {
     Int c
 }

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Improved recovery around missing closing braces/brackets/parens ([#161](https://github.com/stjude-rust-labs/wdl/pull/161)).
 * Fixed the display of the `in` keyword in the CST ([#143](https://github.com/stjude-rust-labs/wdl/pull/143)).
 
 ## 0.6.0 - 07-17-2024

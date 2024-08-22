@@ -1,4 +1,4 @@
-RootNode@0..223
+RootNode@0..204
   Comment@0..71 "# This test ensures t ..."
   Whitespace@71..73 "\n\n"
   VersionStatementNode@73..84
@@ -6,7 +6,7 @@ RootNode@0..223
     Whitespace@80..81 " "
     Version@81..84 "1.1"
   Whitespace@84..86 "\n\n"
-  StructDefinitionNode@86..222
+  StructDefinitionNode@86..179
     StructKeyword@86..92 "struct"
     Whitespace@92..93 " "
     Ident@93..101 "MyStruct"
@@ -32,16 +32,20 @@ RootNode@0..223
         FloatTypeKeyword@169..174 "Float"
       Whitespace@174..175 " "
       Ident@175..176 "b"
-    Whitespace@176..181 "\n    "
-    StructKeyword@181..187 "struct"
-    Whitespace@187..190 "   "
-    Comment@190..210 "# Unexpected keyword"
-    Whitespace@210..215 "\n    "
-    UnboundDeclNode@215..220
-      PrimitiveTypeNode@215..218
-        IntTypeKeyword@215..218 "Int"
-      Whitespace@218..219 " "
-      Ident@219..220 "c"
-    Whitespace@220..221 "\n"
-    CloseBrace@221..222 "}"
-  Whitespace@222..223 "\n"
+    Whitespace@176..179 "\n\n\n"
+    CloseBrace@179..179 ""
+  StructDefinitionNode@179..203
+    StructKeyword@179..185 "struct"
+    Whitespace@185..186 " "
+    Ident@186..189 "Foo"
+    Whitespace@189..190 " "
+    OpenBrace@190..191 "{"
+    Whitespace@191..196 "\n    "
+    UnboundDeclNode@196..201
+      PrimitiveTypeNode@196..199
+        IntTypeKeyword@196..199 "Int"
+      Whitespace@199..200 " "
+      Ident@200..201 "c"
+    Whitespace@201..202 "\n"
+    CloseBrace@202..203 "}"
+  Whitespace@203..204 "\n"

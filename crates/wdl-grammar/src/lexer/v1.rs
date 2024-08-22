@@ -610,8 +610,8 @@ impl<'a> ParserToken<'a> for Token {
         unsafe { std::mem::transmute(token) }
     }
 
-    fn describe(token: u8) -> &'static str {
-        match Self::from_raw(token) {
+    fn describe(self) -> &'static str {
+        match self {
             Self::Whitespace => "whitespace",
             Self::Comment => "comment",
             Self::Float => "float",
@@ -691,8 +691,8 @@ impl<'a> ParserToken<'a> for Token {
         matches!(self, Self::Whitespace | Self::Comment)
     }
 
-    fn recover_interpolation(token: Self, start: Span, parser: &mut Parser<'a, Self>) -> bool {
-        match token {
+    fn recover_interpolation(self, start: Span, parser: &mut Parser<'a, Self>) -> bool {
+        match self {
             Self::SingleQuote => {
                 if let Err(e) = parser.interpolate(|i| interpolate_sq_string(start, true, i)) {
                     parser.diagnostic(e);

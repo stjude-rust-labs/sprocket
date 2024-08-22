@@ -77,7 +77,6 @@ async fn analyze(path: PathBuf, lint: bool) -> Result<Vec<AnalysisResult>> {
         .await
         .context("failed to analyze documents")?;
 
-    let mut count = 0;
     let cwd = std::env::current_dir().ok();
     for result in &results {
         let path = result.uri().to_file_path().ok();
@@ -107,15 +106,7 @@ async fn analyze(path: PathBuf, lint: bool) -> Result<Vec<AnalysisResult>> {
                     .unwrap_or(String::new()),
                 &diagnostics,
             )?;
-            count += diagnostics.len();
         }
-    }
-
-    if count > 0 {
-        bail!(
-            "aborting due to previous {count} diagnostic{s}",
-            s = if count == 1 { "" } else { "s" }
-        );
     }
 
     Ok(results)

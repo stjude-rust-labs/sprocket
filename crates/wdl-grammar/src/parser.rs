@@ -139,8 +139,7 @@ pub(crate) fn unmatched(
     found: &str,
     span: Span,
 ) -> Diagnostic {
-    Diagnostic::error(format!("expected {close}, but found {found}"))
-        .with_label(format!("unexpected {found}"), span)
+    expected_found(close, Some(found), span)
         .with_label(format!("this {open} is not matched"), open_span)
 }
 
@@ -156,7 +155,7 @@ pub trait ParserToken<'a>: Eq + Copy + Logos<'a, Source = str, Error = (), Extra
     fn from_raw(token: u8) -> Self;
 
     /// Describes a raw token.
-    fn describe(token: u8) -> &'static str;
+    fn describe(self) -> &'static str;
 
     /// Determines if the token is trivia that should be skipped over
     /// by the parser.
@@ -166,7 +165,7 @@ pub trait ParserToken<'a>: Eq + Copy + Logos<'a, Source = str, Error = (), Extra
 
     /// A helper for recovering at an interpolation point.
     #[allow(unused_variables)]
-    fn recover_interpolation(token: Self, start: Span, parser: &mut Parser<'a, Self>) -> bool {
+    fn recover_interpolation(self, start: Span, parser: &mut Parser<'a, Self>) -> bool {
         false
     }
 }
@@ -298,6 +297,8 @@ where
     lexer: Lexer<'a, T>,
     /// The parser events.
     events: Vec<Event>,
+    /// The recovery token set stack.
+    recovery: Vec<TokenSet>,
     /// The parser diagnostics.
     diagnostics: Vec<Diagnostic>,
     /// The buffered events from a peek operation.
@@ -333,6 +334,11 @@ where
         Marker::new(pos)
     }
 
+    /// Gets the current span of the interpolator.
+    pub fn span(&self) -> Span {
+        self.lexer.span()
+    }
+
     /// Consumes the interpolator and returns a parser.
     pub fn into_parser<T2>(self) -> Parser<'a, T2>
     where
@@ -342,6 +348,7 @@ where
         Parser {
             lexer: Some(self.lexer.morph()),
             events: self.events,
+            recovery: self.recovery,
             diagnostics: self.diagnostics,
             buffered: Default::default(),
         }
@@ -401,6 +408,8 @@ where
     lexer: Option<Lexer<'a, T>>,
     /// The events produced by the parser.
     events: Vec<Event>,
+    /// The recovery token set stack.
+    recovery: Vec<TokenSet>,
     /// The diagnostics encountered so far.
     diagnostics: Vec<Diagnostic>,
     /// The buffered events from a peek operation.
@@ -416,17 +425,10 @@ where
         Self {
             lexer: Some(lexer),
             events: Default::default(),
+            recovery: Default::default(),
             diagnostics: Default::default(),
             buffered: Default::default(),
         }
-    }
-
-    /// Creates a new parser at the same location in the source as the given
-    /// parser.
-    ///
-    /// The new parser will have an empty event and diagnostic lists.
-    pub fn new_at(other: &Self) -> Self {
-        Self::new(other.lexer.as_ref().expect("should have lexer").clone())
     }
 
     /// Gets the current span of the parser.
@@ -509,35 +511,153 @@ where
         }
     }
 
-    /// Parses a delimited list of nodes via a callback.
+    /// Parses a matching token pair that surrounds an item.
     ///
-    /// The parsing stops when it encounters the `until` token.
-    pub fn delimited<F>(
+    /// This method parses the open token, calls the callback to parse the item,
+    /// and then parses the close token.
+    pub fn matching<F>(&mut self, open: T, close: T, cb: F) -> Result<(), Diagnostic>
+    where
+        F: FnOnce(&mut Self, Span) -> Result<(), Diagnostic>,
+    {
+        let open_span = match self.expect(open) {
+            Ok(span) => span,
+            Err(e) => return Err(e),
+        };
+
+        // Check to see if the close token is immediately following the opening
+        match self.peek() {
+            Some((t, _)) if t == close => {
+                self.next();
+                return Ok(());
+            }
+            _ => {}
+        }
+
+        cb(self, open_span)?;
+
+        match self.next() {
+            Some((token, _)) if token == close => Ok(()),
+            found => {
+                let (found, span) = found
+                    .map(|(t, s)| (t.describe(), s))
+                    .unwrap_or_else(|| ("end of input", self.span()));
+
+                Err(unmatched(
+                    open.describe(),
+                    open_span,
+                    close.describe(),
+                    found,
+                    span,
+                ))
+            }
+        }
+    }
+
+    /// Parses a matching token pair that surround a delimited list of items.
+    ///
+    /// This method parses the open token, calls the callback for each delimited
+    /// item, and then parses the close token.
+    ///
+    /// The provided recovery token set is used to recover within the delimited
+    /// item list.
+    pub fn matching_delimited<F>(
         &mut self,
+        open: T,
+        close: T,
         delimiter: Option<T>,
-        until: TokenSet,
         recovery: TokenSet,
-        mut cb: F,
-    ) where
+        cb: F,
+    ) -> Result<(), Diagnostic>
+    where
+        F: FnMut(&mut Self, Marker) -> Result<(), (Marker, Diagnostic)>,
+    {
+        let open_span = match self.expect(open) {
+            Ok(span) => span,
+            Err(e) => return Err(e),
+        };
+
+        self.delimited(close, delimiter, recovery, cb);
+        self.consume_close_token(open, open_span, close);
+        Ok(())
+    }
+
+    /// Consumes a close token if it is the next token to be parsed.
+    ///
+    /// Otherwise, emits an "unmatched" diagnostic and synthesizes the close
+    /// token into the parser's list of events.
+    pub fn consume_close_token(&mut self, open: T, open_span: Span, close: T) {
+        if self.next_if(close) {
+            return;
+        }
+
+        let (found, span) = self
+            .peek()
+            .map(|(t, s)| (t.describe(), s))
+            .unwrap_or_else(|| ("end of input", self.span()));
+
+        self.diagnostic(unmatched(
+            open.describe(),
+            open_span,
+            close.describe(),
+            found,
+            span,
+        ));
+
+        // Synthesize a close token event of zero width
+        self.events.push(Event::Token {
+            kind: close.into_syntax(),
+            span: Span::new(span.start(), 0),
+        });
+    }
+
+    /// Parses a delimited list of items until the given token.
+    ///
+    /// The provided recovery token set is used to recover within the delimited
+    /// item list.
+    ///
+    /// The `until` token is not consumed.
+    pub fn delimited<F>(&mut self, until: T, delimiter: Option<T>, recovery: TokenSet, mut cb: F)
+    where
         F: FnMut(&mut Self, Marker) -> Result<(), (Marker, Diagnostic)>,
     {
         let recovery = if let Some(delimiter) = delimiter {
-            recovery
-                .union(until)
-                .union(TokenSet::new(&[delimiter.into_raw()]))
+            recovery.union(TokenSet::new(&[until.into_raw(), delimiter.into_raw()]))
         } else {
-            recovery.union(until)
+            recovery.union(TokenSet::new(&[until.into_raw()]))
         };
+
+        let parent = self.recovery.last().copied();
+        self.recovery.push(recovery);
 
         let mut next: Option<(T, Span)> = self.peek();
         while let Some((token, _)) = next {
-            if until.contains(token.into_raw()) {
+            if token == until {
                 break;
             }
 
+            let mut lexer = self.lexer.clone();
             let marker = self.start();
             if let Err((marker, e)) = cb(self, marker) {
-                self.recover(e, recovery);
+                if let Some((Ok(token), _)) = lexer.as_mut().expect("should have a lexer").peek() {
+                    if !recovery.contains(token.into_raw()) {
+                        // Determine if the token is recoverable in the parent recovery set
+                        // If so, we'll restart where we first attempted to parse this item
+                        if let Some(parent) = &parent {
+                            if parent.contains(token.into_raw()) {
+                                // Truncate the event list and abandon the marker
+                                self.events.truncate(marker.0);
+                                marker.abandon(self);
+
+                                // Clear any buffered events and reset the lexer
+                                self.buffered.clear();
+                                self.lexer = lexer;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                self.recover(e);
                 marker.abandon(self);
             }
 
@@ -545,7 +665,7 @@ where
 
             if let Some(delimiter) = delimiter {
                 if let Some((token, _)) = next {
-                    if until.contains(token.into_raw()) {
+                    if token == until {
                         break;
                     }
 
@@ -565,7 +685,7 @@ where
                             e.with_label(
                                 format!(
                                     "consider adding a {desc} after this",
-                                    desc = T::describe(delimiter.into_raw())
+                                    desc = delimiter.describe()
                                 ),
                                 Span::new(span.end() - 1, 1),
                             )
@@ -573,7 +693,7 @@ where
                             e
                         };
 
-                        self.recover(e, recovery);
+                        self.recover(e);
                         self.next_if(delimiter);
                     }
 
@@ -581,6 +701,8 @@ where
                 }
             }
         }
+
+        self.recovery.pop();
     }
 
     /// Adds a diagnostic to the parser output.
@@ -588,9 +710,29 @@ where
         self.diagnostics.push(diagnostic);
     }
 
-    /// Recovers from an error by consuming all tokens not
-    /// in the given token set.
-    pub fn recover(&mut self, mut diagnostic: Diagnostic, tokens: TokenSet) {
+    /// Pushes a token set to the parser's recovery token set stack.
+    pub fn push_recovery_set(&mut self, tokens: TokenSet) {
+        self.recovery.push(tokens);
+    }
+
+    /// Pops a token set from the parser's recovery token set stack.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the parser's recovery set is empty.
+    pub fn pop_recovery_set(&mut self) {
+        self.recovery.pop().expect("should pop");
+    }
+
+    /// Recovers from an error by consuming all tokens not in the top-most
+    /// recovery set.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a recovery set was not pushed with [Self::push_recovery_set].
+    pub fn recover(&mut self, mut diagnostic: Diagnostic) {
+        let tokens = *self.recovery.last().expect("expected a top recovery set");
+
         while let Some((token, span)) = self.peek() {
             if tokens.contains(token.into_raw()) {
                 break;
@@ -628,6 +770,13 @@ where
         self.diagnostics.push(diagnostic);
     }
 
+    /// Performs recovery with the given recovery token set.
+    pub fn recover_with_set(&mut self, diagnostic: Diagnostic, recovery: TokenSet) {
+        self.recovery.push(recovery);
+        self.recover(diagnostic);
+        self.recovery.pop();
+    }
+
     /// Starts a new node event.
     pub fn start(&mut self) -> Marker {
         // Peek before starting the node so that any trivia appears as siblings to this
@@ -657,7 +806,7 @@ where
             Some((t, span)) if t == token => span,
             _ => panic!(
                 "lexer not at required token {token}",
-                token = T::describe(token.into_raw())
+                token = token.describe()
             ),
         }
     }
@@ -671,7 +820,7 @@ where
         match self.next() {
             Some((t, _)) if tokens.contains(t.into_raw()) => {}
             found => {
-                let found = found.map(|(t, _)| T::describe(t.into_raw()));
+                let found = found.map(|(t, _)| t.describe());
                 panic!(
                     "unexpected token {found}",
                     found = found.unwrap_or("end of input")
@@ -691,9 +840,9 @@ where
             }
             found => {
                 let (found, span) = found
-                    .map(|(t, s)| (Some(T::describe(t.into_raw())), s))
+                    .map(|(t, s)| (Some(t.describe()), s))
                     .unwrap_or_else(|| (None, self.span()));
-                Err(expected_found(T::describe(token.into_raw()), found, span))
+                Err(expected_found(token.describe(), found, span))
             }
         }
     }
@@ -710,7 +859,7 @@ where
             }
             found => {
                 let (found, span) = found
-                    .map(|(t, s)| (Some(T::describe(t.into_raw())), s))
+                    .map(|(t, s)| (Some(t.describe()), s))
                     .unwrap_or_else(|| (None, self.span()));
                 Err(expected_found(name, found, span))
             }
@@ -732,7 +881,7 @@ where
             }
             found => {
                 let (found, span) = found
-                    .map(|(t, s)| (Some(T::describe(t.into_raw())), s))
+                    .map(|(t, s)| (Some(t.describe()), s))
                     .unwrap_or_else(|| (None, self.span()));
 
                 Err(expected_one_of(expected, found, span))
@@ -755,6 +904,7 @@ where
             lexer: std::mem::take(&mut self.lexer)
                 .expect("lexer should exist")
                 .morph(),
+            recovery: std::mem::take(&mut self.recovery),
             events: std::mem::take(&mut self.events),
             diagnostics: std::mem::take(&mut self.diagnostics),
             buffered: std::mem::take(&mut self.buffered),
@@ -776,6 +926,7 @@ where
         Parser {
             lexer: self.lexer.map(|l| l.morph()),
             events: self.events,
+            recovery: self.recovery,
             diagnostics: self.diagnostics,
             buffered: self.buffered,
         }
@@ -789,6 +940,7 @@ where
         Interpolator {
             lexer: self.lexer.expect("lexer should be present").morph(),
             events: self.events,
+            recovery: self.recovery,
             diagnostics: self.diagnostics,
             buffered: self.buffered,
         }
