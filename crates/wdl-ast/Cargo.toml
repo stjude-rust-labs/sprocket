@@ -1,6 +1,6 @@
 [package]
 name = "wdl-ast"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
 rust-version.workspace = true
 edition.workspace = true
@@ -11,7 +11,7 @@ repository = "https://github.com/stjude-rust-labs/wdl"
 documentation = "https://docs.rs/wdl-ast"
 
 [dependencies]
-wdl-grammar = { path = "../wdl-grammar", version = "0.6.0" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.7.0" }
 rowan = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
