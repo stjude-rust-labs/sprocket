@@ -515,12 +515,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "glob"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
-
-[[package]]
 name = "h2"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -669,6 +663,12 @@ dependencies = [
  "tower-service",
  "tracing",
 ]
+
+[[package]]
+name = "id-arena"
+version = "2.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25a2bc672d1148e28034f176e01fffebb08b35768468cc954630da77a1449005"
 
 [[package]]
 name = "idna"
@@ -1425,7 +1425,6 @@ dependencies = [
  "tracing-subscriber",
  "walkdir",
  "wdl",
- "wdl-lsp",
 ]
 
 [[package]]
@@ -1951,24 +1950,27 @@ checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
 
 [[package]]
 name = "wdl"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "befe891a2ad6b45d3eb7459f4d216eef3c79b10dcf3f12b9b7bade1de124ff42"
+checksum = "677309012b1236dfc2872c236285d48df965d32f6e21d803d4bd6897a2bada83"
 dependencies = [
  "codespan-reporting",
- "wdl-ast 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wdl-grammar 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wdl-lint 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wdl-analysis",
+ "wdl-ast",
+ "wdl-grammar",
+ "wdl-lint",
+ "wdl-lsp",
 ]
 
 [[package]]
 name = "wdl-analysis"
-version = "0.1.0"
-source = "git+https://github.com/stjude-rust-labs/wdl#ec5d4d76a7ead6aff350733bba0bd1894403c863"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa8f2069b70bc7e6bf1e8031262ddb75851674cdbe23024ac09bf6e890b20efc"
 dependencies = [
  "anyhow",
  "futures",
- "glob",
+ "id-arena",
  "indexmap",
  "line-index",
  "log",
@@ -1980,37 +1982,28 @@ dependencies = [
  "rowan",
  "tokio",
  "url",
- "wdl-ast 0.5.0 (git+https://github.com/stjude-rust-labs/wdl)",
+ "uuid",
+ "walkdir",
+ "wdl-ast",
 ]
 
 [[package]]
 name = "wdl-ast"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1eff1326c1baffefb2d85161526953b85f08ab23ace336f4aa48deae970bb4cc"
+checksum = "2dda7032435f00b74a065af248eca33e36e925c62aea0e659a5daa9b3327f1b0"
 dependencies = [
  "rowan",
  "url",
  "urlencoding",
- "wdl-grammar 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "wdl-ast"
-version = "0.5.0"
-source = "git+https://github.com/stjude-rust-labs/wdl#ec5d4d76a7ead6aff350733bba0bd1894403c863"
-dependencies = [
- "rowan",
- "url",
- "urlencoding",
- "wdl-grammar 0.6.0 (git+https://github.com/stjude-rust-labs/wdl)",
+ "wdl-grammar",
 ]
 
 [[package]]
 name = "wdl-grammar"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4f93b5cf09cdfe1c678c1a087e37d6789708efcea5d043b29a71ff668be3204"
+checksum = "5c8a9a8b82246bfe01709ae9bca86e15b2b83ffbed34e320fe4c37eeb1a1b977"
 dependencies = [
  "codespan-reporting",
  "logos",
@@ -2018,39 +2011,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "wdl-grammar"
-version = "0.6.0"
-source = "git+https://github.com/stjude-rust-labs/wdl#ec5d4d76a7ead6aff350733bba0bd1894403c863"
-dependencies = [
- "logos",
- "rowan",
-]
-
-[[package]]
 name = "wdl-lint"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8355d4f07c38887c5d00ff617568c933e76ca6f6b0219221deeb3354d275dac9"
+checksum = "2c7ce451f8976cedfece1a756d70e45115d6bc857254b8263399de5210399c21"
 dependencies = [
  "convert_case",
  "indexmap",
- "wdl-ast 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "wdl-lint"
-version = "0.4.0"
-source = "git+https://github.com/stjude-rust-labs/wdl#ec5d4d76a7ead6aff350733bba0bd1894403c863"
-dependencies = [
- "convert_case",
- "indexmap",
- "wdl-ast 0.5.0 (git+https://github.com/stjude-rust-labs/wdl)",
+ "rowan",
+ "wdl-ast",
 ]
 
 [[package]]
 name = "wdl-lsp"
-version = "0.1.0"
-source = "git+https://github.com/stjude-rust-labs/wdl#ec5d4d76a7ead6aff350733bba0bd1894403c863"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5b60822c0a53cfaaf3b916e48063a027e3cf66f94910274e3c861cfad46ae2f"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -2063,8 +2039,8 @@ dependencies = [
  "url",
  "uuid",
  "wdl-analysis",
- "wdl-ast 0.5.0 (git+https://github.com/stjude-rust-labs/wdl)",
- "wdl-lint 0.4.0 (git+https://github.com/stjude-rust-labs/wdl)",
+ "wdl-ast",
+ "wdl-lint",
 ]
 
 [[package]]

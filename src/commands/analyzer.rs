@@ -1,6 +1,6 @@
 use clap::Parser;
-use wdl_lsp::Server;
-use wdl_lsp::ServerOptions;
+use wdl::lsp::Server;
+use wdl::lsp::ServerOptions;
 
 /// Arguments for the `analyzer` subcommand.
 #[derive(Parser, Debug)]

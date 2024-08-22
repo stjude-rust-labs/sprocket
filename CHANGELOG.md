@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `analyzer` subcommand to sprocket ([#9](https://github.com/stjude-rust-labs/sprocket/pull/9)).
 - Updated dependencies to latest ([#9](https://github.com/stjude-rust-labs/sprocket/pull/9)).
 
+### Changed
+
+- Update to version 0.7.0 of `wdl` crate.
+
 ## 0.5.0 - 07-17-2024
 
 ### Changed
