@@ -1,6 +1,6 @@
 [package]
 name = "wdl-gauntlet"
-version = "0.4.0"
+version = "0.5.0"
 description = "Testing of parse trees and ASTs within the `wdl` family of crates"
 rust-version.workspace = true
 license.workspace = true
@@ -9,7 +9,7 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wdl-lint = { path = "../wdl-lint", version = "0.4.0", features = ["codespan"] }
+wdl-lint = { path = "../wdl-lint", version = "0.5.0", features = ["codespan"] }
 clap.workspace = true
 colored.workspace = true
 dirs.workspace = true
