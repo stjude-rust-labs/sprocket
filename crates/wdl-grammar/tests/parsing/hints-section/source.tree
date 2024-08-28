@@ -1,4 +1,4 @@
-RootNode@0..1493
+RootNode@0..1531
   Comment@0..49 "## This is a test of  ..."
   Whitespace@49..51 "\n\n"
   VersionStatementNode@51..62
@@ -6,23 +6,23 @@ RootNode@0..1493
     Whitespace@58..59 " "
     Version@59..62 "1.2"
   Whitespace@62..64 "\n\n"
-  TaskDefinitionNode@64..775
+  TaskDefinitionNode@64..795
     TaskKeyword@64..68 "task"
     Whitespace@68..69 " "
     Ident@69..72 "foo"
     Whitespace@72..73 " "
     OpenBrace@73..74 "{"
     Whitespace@74..79 "\n    "
-    HintsSectionNode@79..773
+    HintsSectionNode@79..793
       HintsKeyword@79..84 "hints"
       Whitespace@84..85 " "
       OpenBrace@85..86 "{"
       Whitespace@86..95 "\n        "
-      HintsItemNode@95..195
+      HintsItemNode@95..199
         Ident@95..96 "a"
         Colon@96..97 ":"
         Whitespace@97..98 " "
-        LiteralHintsNode@98..195
+        LiteralHintsNode@98..199
           HintsKeyword@98..103 "hints"
           Whitespace@103..104 " "
           OpenBrace@104..105 "{"
@@ -35,506 +35,544 @@ RootNode@0..1493
               DoubleQuote@121..122 "\""
               LiteralStringText@122..123 "a"
               DoubleQuote@123..124 "\""
-          Whitespace@124..137 "\n            "
-          LiteralHintsItemNode@137..141
-            Ident@137..138 "b"
-            Colon@138..139 ":"
-            Whitespace@139..140 " "
-            LiteralIntegerNode@140..141
-              Integer@140..141 "1"
-          Whitespace@141..154 "\n            "
-          LiteralHintsItemNode@154..160
-            Ident@154..155 "c"
-            Colon@155..156 ":"
-            Whitespace@156..157 " "
-            LiteralFloatNode@157..160
-              Float@157..160 "1.0"
-          Whitespace@160..173 "\n            "
-          LiteralHintsItemNode@173..185
-            Ident@173..174 "d"
-            Colon@174..175 ":"
-            Whitespace@175..176 " "
-            LiteralArrayNode@176..185
-              OpenBracket@176..177 "["
-              LiteralIntegerNode@177..178
-                Integer@177..178 "1"
-              Comma@178..179 ","
-              Whitespace@179..180 " "
+          Comma@124..125 ","
+          Whitespace@125..138 "\n            "
+          LiteralHintsItemNode@138..142
+            Ident@138..139 "b"
+            Colon@139..140 ":"
+            Whitespace@140..141 " "
+            LiteralIntegerNode@141..142
+              Integer@141..142 "1"
+          Comma@142..143 ","
+          Whitespace@143..156 "\n            "
+          LiteralHintsItemNode@156..162
+            Ident@156..157 "c"
+            Colon@157..158 ":"
+            Whitespace@158..159 " "
+            LiteralFloatNode@159..162
+              Float@159..162 "1.0"
+          Comma@162..163 ","
+          Whitespace@163..176 "\n            "
+          LiteralHintsItemNode@176..188
+            Ident@176..177 "d"
+            Colon@177..178 ":"
+            Whitespace@178..179 " "
+            LiteralArrayNode@179..188
+              OpenBracket@179..180 "["
               LiteralIntegerNode@180..181
-                Integer@180..181 "2"
+                Integer@180..181 "1"
               Comma@181..182 ","
               Whitespace@182..183 " "
               LiteralIntegerNode@183..184
-                Integer@183..184 "3"
-              CloseBracket@184..185 "]"
-          Whitespace@185..194 "\n        "
-          CloseBrace@194..195 "}"
-      Whitespace@195..204 "\n        "
-      HintsItemNode@204..465
-        Ident@204..210 "inputs"
-        Colon@210..211 ":"
-        Whitespace@211..212 " "
-        LiteralInputNode@212..465
-          InputKeyword@212..217 "input"
-          Whitespace@217..218 " "
-          OpenBrace@218..219 "{"
-          Whitespace@219..232 "\n            "
-          LiteralInputItemNode@232..327
-            Ident@232..235 "foo"
-            Colon@235..236 ":"
-            Whitespace@236..237 " "
-            LiteralHintsNode@237..327
-              HintsKeyword@237..242 "hints"
-              Whitespace@242..243 " "
-              OpenBrace@243..244 "{"
-              Whitespace@244..261 "\n                "
-              LiteralHintsItemNode@261..267
-                Ident@261..262 "a"
-                Colon@262..263 ":"
-                Whitespace@263..264 " "
-                LiteralStringNode@264..267
-                  DoubleQuote@264..265 "\""
-                  LiteralStringText@265..266 "a"
-                  DoubleQuote@266..267 "\""
-              Whitespace@267..284 "\n                "
-              LiteralHintsItemNode@284..290
-                Ident@284..285 "b"
-                Colon@285..286 ":"
-                Whitespace@286..287 " "
-                LiteralStringNode@287..290
-                  DoubleQuote@287..288 "\""
-                  LiteralStringText@288..289 "b"
-                  DoubleQuote@289..290 "\""
-              Whitespace@290..307 "\n                "
-              LiteralHintsItemNode@307..313
-                Ident@307..308 "c"
-                Colon@308..309 ":"
-                Whitespace@309..310 " "
-                LiteralStringNode@310..313
-                  DoubleQuote@310..311 "\""
-                  LiteralStringText@311..312 "c"
-                  DoubleQuote@312..313 "\""
-              Whitespace@313..326 "\n            "
-              CloseBrace@326..327 "}"
-          Whitespace@327..340 "\n            "
-          LiteralInputItemNode@340..455
-            Ident@340..343 "baz"
-            Dot@343..344 "."
-            Ident@344..347 "bar"
-            Dot@347..348 "."
-            Ident@348..351 "qux"
-            Colon@351..352 ":"
-            Whitespace@352..353 " "
-            LiteralHintsNode@353..455
-              HintsKeyword@353..358 "hints"
-              Whitespace@358..359 " "
-              OpenBrace@359..360 "{"
-              Whitespace@360..377 "\n                "
-              LiteralHintsItemNode@377..387
-                Ident@377..380 "foo"
-                Colon@380..381 ":"
-                Whitespace@381..382 " "
-                LiteralStringNode@382..387
-                  DoubleQuote@382..383 "\""
-                  LiteralStringText@383..386 "foo"
-                  DoubleQuote@386..387 "\""
-              Whitespace@387..404 "\n                "
-              LiteralHintsItemNode@404..414
-                Ident@404..407 "bar"
-                Colon@407..408 ":"
-                Whitespace@408..409 " "
-                LiteralStringNode@409..414
-                  DoubleQuote@409..410 "\""
-                  LiteralStringText@410..413 "bar"
-                  DoubleQuote@413..414 "\""
-              Whitespace@414..431 "\n                "
-              LiteralHintsItemNode@431..441
-                Ident@431..434 "baz"
-                Colon@434..435 ":"
-                Whitespace@435..436 " "
-                LiteralStringNode@436..441
-                  DoubleQuote@436..437 "\""
-                  LiteralStringText@437..440 "baz"
-                  DoubleQuote@440..441 "\""
-              Whitespace@441..454 "\n            "
-              CloseBrace@454..455 "}"
-          Whitespace@455..464 "\n        "
-          CloseBrace@464..465 "}"
-      Whitespace@465..474 "\n        "
-      HintsItemNode@474..482
-        Ident@474..475 "c"
-        Colon@475..476 ":"
-        Whitespace@476..477 " "
-        LiteralStringNode@477..482
-          DoubleQuote@477..478 "\""
-          LiteralStringText@478..481 "foo"
-          DoubleQuote@481..482 "\""
-      Whitespace@482..491 "\n        "
-      HintsItemNode@491..495
-        Ident@491..492 "d"
-        Colon@492..493 ":"
-        Whitespace@493..494 " "
-        LiteralIntegerNode@494..495
-          Integer@494..495 "1"
-      Whitespace@495..504 "\n        "
-      HintsItemNode@504..767
-        Ident@504..511 "outputs"
-        Colon@511..512 ":"
-        Whitespace@512..513 " "
-        LiteralOutputNode@513..767
-          OutputKeyword@513..519 "output"
-          Whitespace@519..520 " "
-          OpenBrace@520..521 "{"
-          Whitespace@521..534 "\n            "
-          LiteralOutputItemNode@534..629
-            Ident@534..537 "foo"
-            Colon@537..538 ":"
-            Whitespace@538..539 " "
-            LiteralHintsNode@539..629
-              HintsKeyword@539..544 "hints"
-              Whitespace@544..545 " "
-              OpenBrace@545..546 "{"
-              Whitespace@546..563 "\n                "
-              LiteralHintsItemNode@563..569
-                Ident@563..564 "a"
-                Colon@564..565 ":"
-                Whitespace@565..566 " "
-                LiteralStringNode@566..569
-                  DoubleQuote@566..567 "\""
-                  LiteralStringText@567..568 "a"
-                  DoubleQuote@568..569 "\""
-              Whitespace@569..586 "\n                "
-              LiteralHintsItemNode@586..592
-                Ident@586..587 "b"
-                Colon@587..588 ":"
-                Whitespace@588..589 " "
-                LiteralStringNode@589..592
-                  DoubleQuote@589..590 "\""
-                  LiteralStringText@590..591 "b"
-                  DoubleQuote@591..592 "\""
-              Whitespace@592..609 "\n                "
-              LiteralHintsItemNode@609..615
-                Ident@609..610 "c"
-                Colon@610..611 ":"
-                Whitespace@611..612 " "
-                LiteralStringNode@612..615
-                  DoubleQuote@612..613 "\""
-                  LiteralStringText@613..614 "c"
-                  DoubleQuote@614..615 "\""
-              Whitespace@615..628 "\n            "
-              CloseBrace@628..629 "}"
-          Whitespace@629..642 "\n            "
-          LiteralOutputItemNode@642..757
-            Ident@642..645 "baz"
-            Dot@645..646 "."
-            Ident@646..649 "bar"
-            Dot@649..650 "."
-            Ident@650..653 "qux"
-            Colon@653..654 ":"
-            Whitespace@654..655 " "
-            LiteralHintsNode@655..757
-              HintsKeyword@655..660 "hints"
-              Whitespace@660..661 " "
-              OpenBrace@661..662 "{"
-              Whitespace@662..679 "\n                "
-              LiteralHintsItemNode@679..689
-                Ident@679..682 "foo"
-                Colon@682..683 ":"
-                Whitespace@683..684 " "
-                LiteralStringNode@684..689
-                  DoubleQuote@684..685 "\""
-                  LiteralStringText@685..688 "foo"
-                  DoubleQuote@688..689 "\""
-              Whitespace@689..706 "\n                "
-              LiteralHintsItemNode@706..716
-                Ident@706..709 "bar"
-                Colon@709..710 ":"
-                Whitespace@710..711 " "
-                LiteralStringNode@711..716
-                  DoubleQuote@711..712 "\""
-                  LiteralStringText@712..715 "bar"
-                  DoubleQuote@715..716 "\""
-              Whitespace@716..733 "\n                "
-              LiteralHintsItemNode@733..743
-                Ident@733..736 "baz"
-                Colon@736..737 ":"
-                Whitespace@737..738 " "
-                LiteralStringNode@738..743
-                  DoubleQuote@738..739 "\""
-                  LiteralStringText@739..742 "baz"
-                  DoubleQuote@742..743 "\""
-              Whitespace@743..756 "\n            "
-              CloseBrace@756..757 "}"
-          Whitespace@757..766 "\n        "
-          CloseBrace@766..767 "}"
-      Whitespace@767..772 "\n    "
-      CloseBrace@772..773 "}"
-    Whitespace@773..774 "\n"
-    CloseBrace@774..775 "}"
-  Whitespace@775..777 "\n\n"
-  WorkflowDefinitionNode@777..1492
-    WorkflowKeyword@777..785 "workflow"
-    Whitespace@785..786 " "
-    Ident@786..789 "bar"
-    Whitespace@789..790 " "
-    OpenBrace@790..791 "{"
-    Whitespace@791..796 "\n    "
-    HintsSectionNode@796..1490
-      HintsKeyword@796..801 "hints"
-      Whitespace@801..802 " "
-      OpenBrace@802..803 "{"
-      Whitespace@803..812 "\n        "
-      HintsItemNode@812..912
-        Ident@812..813 "a"
-        Colon@813..814 ":"
-        Whitespace@814..815 " "
-        LiteralHintsNode@815..912
-          HintsKeyword@815..820 "hints"
-          Whitespace@820..821 " "
-          OpenBrace@821..822 "{"
-          Whitespace@822..835 "\n            "
-          LiteralHintsItemNode@835..841
-            Ident@835..836 "a"
-            Colon@836..837 ":"
-            Whitespace@837..838 " "
-            LiteralStringNode@838..841
-              DoubleQuote@838..839 "\""
-              LiteralStringText@839..840 "a"
-              DoubleQuote@840..841 "\""
-          Whitespace@841..854 "\n            "
-          LiteralHintsItemNode@854..858
-            Ident@854..855 "b"
-            Colon@855..856 ":"
-            Whitespace@856..857 " "
-            LiteralIntegerNode@857..858
-              Integer@857..858 "1"
-          Whitespace@858..871 "\n            "
-          LiteralHintsItemNode@871..877
-            Ident@871..872 "c"
-            Colon@872..873 ":"
-            Whitespace@873..874 " "
-            LiteralFloatNode@874..877
-              Float@874..877 "1.0"
-          Whitespace@877..890 "\n            "
-          LiteralHintsItemNode@890..902
-            Ident@890..891 "d"
-            Colon@891..892 ":"
-            Whitespace@892..893 " "
-            LiteralArrayNode@893..902
-              OpenBracket@893..894 "["
-              LiteralIntegerNode@894..895
-                Integer@894..895 "1"
-              Comma@895..896 ","
-              Whitespace@896..897 " "
-              LiteralIntegerNode@897..898
-                Integer@897..898 "2"
-              Comma@898..899 ","
-              Whitespace@899..900 " "
-              LiteralIntegerNode@900..901
-                Integer@900..901 "3"
-              CloseBracket@901..902 "]"
-          Whitespace@902..911 "\n        "
-          CloseBrace@911..912 "}"
-      Whitespace@912..921 "\n        "
-      HintsItemNode@921..1182
-        Ident@921..927 "inputs"
-        Colon@927..928 ":"
-        Whitespace@928..929 " "
-        LiteralInputNode@929..1182
-          InputKeyword@929..934 "input"
-          Whitespace@934..935 " "
-          OpenBrace@935..936 "{"
-          Whitespace@936..949 "\n            "
-          LiteralInputItemNode@949..1044
-            Ident@949..952 "foo"
-            Colon@952..953 ":"
-            Whitespace@953..954 " "
-            LiteralHintsNode@954..1044
-              HintsKeyword@954..959 "hints"
-              Whitespace@959..960 " "
-              OpenBrace@960..961 "{"
-              Whitespace@961..978 "\n                "
-              LiteralHintsItemNode@978..984
-                Ident@978..979 "a"
-                Colon@979..980 ":"
-                Whitespace@980..981 " "
-                LiteralStringNode@981..984
-                  DoubleQuote@981..982 "\""
-                  LiteralStringText@982..983 "a"
-                  DoubleQuote@983..984 "\""
-              Whitespace@984..1001 "\n                "
-              LiteralHintsItemNode@1001..1007
-                Ident@1001..1002 "b"
-                Colon@1002..1003 ":"
-                Whitespace@1003..1004 " "
-                LiteralStringNode@1004..1007
-                  DoubleQuote@1004..1005 "\""
-                  LiteralStringText@1005..1006 "b"
-                  DoubleQuote@1006..1007 "\""
-              Whitespace@1007..1024 "\n                "
-              LiteralHintsItemNode@1024..1030
-                Ident@1024..1025 "c"
-                Colon@1025..1026 ":"
-                Whitespace@1026..1027 " "
-                LiteralStringNode@1027..1030
-                  DoubleQuote@1027..1028 "\""
-                  LiteralStringText@1028..1029 "c"
+                Integer@183..184 "2"
+              Comma@184..185 ","
+              Whitespace@185..186 " "
+              LiteralIntegerNode@186..187
+                Integer@186..187 "3"
+              CloseBracket@187..188 "]"
+          Comma@188..189 ","
+          Whitespace@189..198 "\n        "
+          CloseBrace@198..199 "}"
+      Whitespace@199..208 "\n        "
+      HintsItemNode@208..477
+        Ident@208..214 "inputs"
+        Colon@214..215 ":"
+        Whitespace@215..216 " "
+        LiteralInputNode@216..477
+          InputKeyword@216..221 "input"
+          Whitespace@221..222 " "
+          OpenBrace@222..223 "{"
+          Whitespace@223..236 "\n            "
+          LiteralInputItemNode@236..334
+            Ident@236..239 "foo"
+            Colon@239..240 ":"
+            Whitespace@240..241 " "
+            LiteralHintsNode@241..334
+              HintsKeyword@241..246 "hints"
+              Whitespace@246..247 " "
+              OpenBrace@247..248 "{"
+              Whitespace@248..265 "\n                "
+              LiteralHintsItemNode@265..271
+                Ident@265..266 "a"
+                Colon@266..267 ":"
+                Whitespace@267..268 " "
+                LiteralStringNode@268..271
+                  DoubleQuote@268..269 "\""
+                  LiteralStringText@269..270 "a"
+                  DoubleQuote@270..271 "\""
+              Comma@271..272 ","
+              Whitespace@272..289 "\n                "
+              LiteralHintsItemNode@289..295
+                Ident@289..290 "b"
+                Colon@290..291 ":"
+                Whitespace@291..292 " "
+                LiteralStringNode@292..295
+                  DoubleQuote@292..293 "\""
+                  LiteralStringText@293..294 "b"
+                  DoubleQuote@294..295 "\""
+              Comma@295..296 ","
+              Whitespace@296..313 "\n                "
+              LiteralHintsItemNode@313..319
+                Ident@313..314 "c"
+                Colon@314..315 ":"
+                Whitespace@315..316 " "
+                LiteralStringNode@316..319
+                  DoubleQuote@316..317 "\""
+                  LiteralStringText@317..318 "c"
+                  DoubleQuote@318..319 "\""
+              Comma@319..320 ","
+              Whitespace@320..333 "\n            "
+              CloseBrace@333..334 "}"
+          Comma@334..335 ","
+          Whitespace@335..348 "\n            "
+          LiteralInputItemNode@348..466
+            Ident@348..351 "baz"
+            Dot@351..352 "."
+            Ident@352..355 "bar"
+            Dot@355..356 "."
+            Ident@356..359 "qux"
+            Colon@359..360 ":"
+            Whitespace@360..361 " "
+            LiteralHintsNode@361..466
+              HintsKeyword@361..366 "hints"
+              Whitespace@366..367 " "
+              OpenBrace@367..368 "{"
+              Whitespace@368..385 "\n                "
+              LiteralHintsItemNode@385..395
+                Ident@385..388 "foo"
+                Colon@388..389 ":"
+                Whitespace@389..390 " "
+                LiteralStringNode@390..395
+                  DoubleQuote@390..391 "\""
+                  LiteralStringText@391..394 "foo"
+                  DoubleQuote@394..395 "\""
+              Comma@395..396 ","
+              Whitespace@396..413 "\n                "
+              LiteralHintsItemNode@413..423
+                Ident@413..416 "bar"
+                Colon@416..417 ":"
+                Whitespace@417..418 " "
+                LiteralStringNode@418..423
+                  DoubleQuote@418..419 "\""
+                  LiteralStringText@419..422 "bar"
+                  DoubleQuote@422..423 "\""
+              Comma@423..424 ","
+              Whitespace@424..441 "\n                "
+              LiteralHintsItemNode@441..451
+                Ident@441..444 "baz"
+                Colon@444..445 ":"
+                Whitespace@445..446 " "
+                LiteralStringNode@446..451
+                  DoubleQuote@446..447 "\""
+                  LiteralStringText@447..450 "baz"
+                  DoubleQuote@450..451 "\""
+              Comma@451..452 ","
+              Whitespace@452..465 "\n            "
+              CloseBrace@465..466 "}"
+          Comma@466..467 ","
+          Whitespace@467..476 "\n        "
+          CloseBrace@476..477 "}"
+      Whitespace@477..486 "\n        "
+      HintsItemNode@486..494
+        Ident@486..487 "c"
+        Colon@487..488 ":"
+        Whitespace@488..489 " "
+        LiteralStringNode@489..494
+          DoubleQuote@489..490 "\""
+          LiteralStringText@490..493 "foo"
+          DoubleQuote@493..494 "\""
+      Whitespace@494..503 "\n        "
+      HintsItemNode@503..507
+        Ident@503..504 "d"
+        Colon@504..505 ":"
+        Whitespace@505..506 " "
+        LiteralIntegerNode@506..507
+          Integer@506..507 "1"
+      Whitespace@507..516 "\n        "
+      HintsItemNode@516..787
+        Ident@516..523 "outputs"
+        Colon@523..524 ":"
+        Whitespace@524..525 " "
+        LiteralOutputNode@525..787
+          OutputKeyword@525..531 "output"
+          Whitespace@531..532 " "
+          OpenBrace@532..533 "{"
+          Whitespace@533..546 "\n            "
+          LiteralOutputItemNode@546..644
+            Ident@546..549 "foo"
+            Colon@549..550 ":"
+            Whitespace@550..551 " "
+            LiteralHintsNode@551..644
+              HintsKeyword@551..556 "hints"
+              Whitespace@556..557 " "
+              OpenBrace@557..558 "{"
+              Whitespace@558..575 "\n                "
+              LiteralHintsItemNode@575..581
+                Ident@575..576 "a"
+                Colon@576..577 ":"
+                Whitespace@577..578 " "
+                LiteralStringNode@578..581
+                  DoubleQuote@578..579 "\""
+                  LiteralStringText@579..580 "a"
+                  DoubleQuote@580..581 "\""
+              Comma@581..582 ","
+              Whitespace@582..599 "\n                "
+              LiteralHintsItemNode@599..605
+                Ident@599..600 "b"
+                Colon@600..601 ":"
+                Whitespace@601..602 " "
+                LiteralStringNode@602..605
+                  DoubleQuote@602..603 "\""
+                  LiteralStringText@603..604 "b"
+                  DoubleQuote@604..605 "\""
+              Comma@605..606 ","
+              Whitespace@606..623 "\n                "
+              LiteralHintsItemNode@623..629
+                Ident@623..624 "c"
+                Colon@624..625 ":"
+                Whitespace@625..626 " "
+                LiteralStringNode@626..629
+                  DoubleQuote@626..627 "\""
+                  LiteralStringText@627..628 "c"
+                  DoubleQuote@628..629 "\""
+              Comma@629..630 ","
+              Whitespace@630..643 "\n            "
+              CloseBrace@643..644 "}"
+          Comma@644..645 ","
+          Whitespace@645..658 "\n            "
+          LiteralOutputItemNode@658..776
+            Ident@658..661 "baz"
+            Dot@661..662 "."
+            Ident@662..665 "bar"
+            Dot@665..666 "."
+            Ident@666..669 "qux"
+            Colon@669..670 ":"
+            Whitespace@670..671 " "
+            LiteralHintsNode@671..776
+              HintsKeyword@671..676 "hints"
+              Whitespace@676..677 " "
+              OpenBrace@677..678 "{"
+              Whitespace@678..695 "\n                "
+              LiteralHintsItemNode@695..705
+                Ident@695..698 "foo"
+                Colon@698..699 ":"
+                Whitespace@699..700 " "
+                LiteralStringNode@700..705
+                  DoubleQuote@700..701 "\""
+                  LiteralStringText@701..704 "foo"
+                  DoubleQuote@704..705 "\""
+              Comma@705..706 ","
+              Whitespace@706..723 "\n                "
+              LiteralHintsItemNode@723..733
+                Ident@723..726 "bar"
+                Colon@726..727 ":"
+                Whitespace@727..728 " "
+                LiteralStringNode@728..733
+                  DoubleQuote@728..729 "\""
+                  LiteralStringText@729..732 "bar"
+                  DoubleQuote@732..733 "\""
+              Comma@733..734 ","
+              Whitespace@734..751 "\n                "
+              LiteralHintsItemNode@751..761
+                Ident@751..754 "baz"
+                Colon@754..755 ":"
+                Whitespace@755..756 " "
+                LiteralStringNode@756..761
+                  DoubleQuote@756..757 "\""
+                  LiteralStringText@757..760 "baz"
+                  DoubleQuote@760..761 "\""
+              Comma@761..762 ","
+              Whitespace@762..775 "\n            "
+              CloseBrace@775..776 "}"
+          Comma@776..777 ","
+          Whitespace@777..786 "\n        "
+          CloseBrace@786..787 "}"
+      Whitespace@787..792 "\n    "
+      CloseBrace@792..793 "}"
+    Whitespace@793..794 "\n"
+    CloseBrace@794..795 "}"
+  Whitespace@795..797 "\n\n"
+  WorkflowDefinitionNode@797..1530
+    WorkflowKeyword@797..805 "workflow"
+    Whitespace@805..806 " "
+    Ident@806..809 "bar"
+    Whitespace@809..810 " "
+    OpenBrace@810..811 "{"
+    Whitespace@811..816 "\n    "
+    HintsSectionNode@816..1528
+      HintsKeyword@816..821 "hints"
+      Whitespace@821..822 " "
+      OpenBrace@822..823 "{"
+      Whitespace@823..832 "\n        "
+      HintsItemNode@832..936
+        Ident@832..833 "a"
+        Colon@833..834 ":"
+        Whitespace@834..835 " "
+        LiteralHintsNode@835..936
+          HintsKeyword@835..840 "hints"
+          Whitespace@840..841 " "
+          OpenBrace@841..842 "{"
+          Whitespace@842..855 "\n            "
+          LiteralHintsItemNode@855..861
+            Ident@855..856 "a"
+            Colon@856..857 ":"
+            Whitespace@857..858 " "
+            LiteralStringNode@858..861
+              DoubleQuote@858..859 "\""
+              LiteralStringText@859..860 "a"
+              DoubleQuote@860..861 "\""
+          Comma@861..862 ","
+          Whitespace@862..875 "\n            "
+          LiteralHintsItemNode@875..879
+            Ident@875..876 "b"
+            Colon@876..877 ":"
+            Whitespace@877..878 " "
+            LiteralIntegerNode@878..879
+              Integer@878..879 "1"
+          Comma@879..880 ","
+          Whitespace@880..893 "\n            "
+          LiteralHintsItemNode@893..899
+            Ident@893..894 "c"
+            Colon@894..895 ":"
+            Whitespace@895..896 " "
+            LiteralFloatNode@896..899
+              Float@896..899 "1.0"
+          Comma@899..900 ","
+          Whitespace@900..913 "\n            "
+          LiteralHintsItemNode@913..925
+            Ident@913..914 "d"
+            Colon@914..915 ":"
+            Whitespace@915..916 " "
+            LiteralArrayNode@916..925
+              OpenBracket@916..917 "["
+              LiteralIntegerNode@917..918
+                Integer@917..918 "1"
+              Comma@918..919 ","
+              Whitespace@919..920 " "
+              LiteralIntegerNode@920..921
+                Integer@920..921 "2"
+              Comma@921..922 ","
+              Whitespace@922..923 " "
+              LiteralIntegerNode@923..924
+                Integer@923..924 "3"
+              CloseBracket@924..925 "]"
+          Comma@925..926 ","
+          Whitespace@926..935 "\n        "
+          CloseBrace@935..936 "}"
+      Whitespace@936..945 "\n        "
+      HintsItemNode@945..1213
+        Ident@945..951 "inputs"
+        Colon@951..952 ":"
+        Whitespace@952..953 " "
+        LiteralInputNode@953..1213
+          InputKeyword@953..958 "input"
+          Whitespace@958..959 " "
+          OpenBrace@959..960 "{"
+          Whitespace@960..973 "\n            "
+          LiteralInputItemNode@973..1071
+            Ident@973..976 "foo"
+            Colon@976..977 ":"
+            Whitespace@977..978 " "
+            LiteralHintsNode@978..1071
+              HintsKeyword@978..983 "hints"
+              Whitespace@983..984 " "
+              OpenBrace@984..985 "{"
+              Whitespace@985..1002 "\n                "
+              LiteralHintsItemNode@1002..1008
+                Ident@1002..1003 "a"
+                Colon@1003..1004 ":"
+                Whitespace@1004..1005 " "
+                LiteralStringNode@1005..1008
+                  DoubleQuote@1005..1006 "\""
+                  LiteralStringText@1006..1007 "a"
+                  DoubleQuote@1007..1008 "\""
+              Comma@1008..1009 ","
+              Whitespace@1009..1026 "\n                "
+              LiteralHintsItemNode@1026..1032
+                Ident@1026..1027 "b"
+                Colon@1027..1028 ":"
+                Whitespace@1028..1029 " "
+                LiteralStringNode@1029..1032
                   DoubleQuote@1029..1030 "\""
-              Whitespace@1030..1043 "\n            "
-              CloseBrace@1043..1044 "}"
-          Whitespace@1044..1057 "\n            "
-          LiteralInputItemNode@1057..1172
-            Ident@1057..1060 "baz"
-            Dot@1060..1061 "."
-            Ident@1061..1064 "bar"
-            Dot@1064..1065 "."
-            Ident@1065..1068 "qux"
-            Colon@1068..1069 ":"
-            Whitespace@1069..1070 " "
-            LiteralHintsNode@1070..1172
-              HintsKeyword@1070..1075 "hints"
-              Whitespace@1075..1076 " "
-              OpenBrace@1076..1077 "{"
-              Whitespace@1077..1094 "\n                "
-              LiteralHintsItemNode@1094..1104
-                Ident@1094..1097 "foo"
-                Colon@1097..1098 ":"
-                Whitespace@1098..1099 " "
-                LiteralStringNode@1099..1104
-                  DoubleQuote@1099..1100 "\""
-                  LiteralStringText@1100..1103 "foo"
-                  DoubleQuote@1103..1104 "\""
-              Whitespace@1104..1121 "\n                "
-              LiteralHintsItemNode@1121..1131
-                Ident@1121..1124 "bar"
-                Colon@1124..1125 ":"
-                Whitespace@1125..1126 " "
-                LiteralStringNode@1126..1131
-                  DoubleQuote@1126..1127 "\""
-                  LiteralStringText@1127..1130 "bar"
-                  DoubleQuote@1130..1131 "\""
-              Whitespace@1131..1148 "\n                "
-              LiteralHintsItemNode@1148..1158
-                Ident@1148..1151 "baz"
-                Colon@1151..1152 ":"
-                Whitespace@1152..1153 " "
-                LiteralStringNode@1153..1158
-                  DoubleQuote@1153..1154 "\""
-                  LiteralStringText@1154..1157 "baz"
-                  DoubleQuote@1157..1158 "\""
-              Whitespace@1158..1171 "\n            "
-              CloseBrace@1171..1172 "}"
-          Whitespace@1172..1181 "\n        "
-          CloseBrace@1181..1182 "}"
-      Whitespace@1182..1191 "\n        "
-      HintsItemNode@1191..1199
-        Ident@1191..1192 "c"
-        Colon@1192..1193 ":"
-        Whitespace@1193..1194 " "
-        LiteralStringNode@1194..1199
-          DoubleQuote@1194..1195 "\""
-          LiteralStringText@1195..1198 "foo"
-          DoubleQuote@1198..1199 "\""
-      Whitespace@1199..1208 "\n        "
-      HintsItemNode@1208..1212
-        Ident@1208..1209 "d"
-        Colon@1209..1210 ":"
-        Whitespace@1210..1211 " "
-        LiteralIntegerNode@1211..1212
-          Integer@1211..1212 "1"
-      Whitespace@1212..1221 "\n        "
-      HintsItemNode@1221..1484
-        Ident@1221..1228 "outputs"
-        Colon@1228..1229 ":"
-        Whitespace@1229..1230 " "
-        LiteralOutputNode@1230..1484
-          OutputKeyword@1230..1236 "output"
-          Whitespace@1236..1237 " "
-          OpenBrace@1237..1238 "{"
-          Whitespace@1238..1251 "\n            "
-          LiteralOutputItemNode@1251..1346
-            Ident@1251..1254 "foo"
-            Colon@1254..1255 ":"
-            Whitespace@1255..1256 " "
-            LiteralHintsNode@1256..1346
-              HintsKeyword@1256..1261 "hints"
-              Whitespace@1261..1262 " "
-              OpenBrace@1262..1263 "{"
-              Whitespace@1263..1280 "\n                "
-              LiteralHintsItemNode@1280..1286
-                Ident@1280..1281 "a"
-                Colon@1281..1282 ":"
-                Whitespace@1282..1283 " "
-                LiteralStringNode@1283..1286
-                  DoubleQuote@1283..1284 "\""
-                  LiteralStringText@1284..1285 "a"
-                  DoubleQuote@1285..1286 "\""
-              Whitespace@1286..1303 "\n                "
-              LiteralHintsItemNode@1303..1309
-                Ident@1303..1304 "b"
-                Colon@1304..1305 ":"
-                Whitespace@1305..1306 " "
-                LiteralStringNode@1306..1309
-                  DoubleQuote@1306..1307 "\""
-                  LiteralStringText@1307..1308 "b"
-                  DoubleQuote@1308..1309 "\""
-              Whitespace@1309..1326 "\n                "
-              LiteralHintsItemNode@1326..1332
-                Ident@1326..1327 "c"
-                Colon@1327..1328 ":"
-                Whitespace@1328..1329 " "
-                LiteralStringNode@1329..1332
-                  DoubleQuote@1329..1330 "\""
-                  LiteralStringText@1330..1331 "c"
-                  DoubleQuote@1331..1332 "\""
-              Whitespace@1332..1345 "\n            "
-              CloseBrace@1345..1346 "}"
-          Whitespace@1346..1359 "\n            "
-          LiteralOutputItemNode@1359..1474
-            Ident@1359..1362 "baz"
-            Dot@1362..1363 "."
-            Ident@1363..1366 "bar"
-            Dot@1366..1367 "."
-            Ident@1367..1370 "qux"
-            Colon@1370..1371 ":"
-            Whitespace@1371..1372 " "
-            LiteralHintsNode@1372..1474
-              HintsKeyword@1372..1377 "hints"
-              Whitespace@1377..1378 " "
-              OpenBrace@1378..1379 "{"
-              Whitespace@1379..1396 "\n                "
-              LiteralHintsItemNode@1396..1406
-                Ident@1396..1399 "foo"
-                Colon@1399..1400 ":"
-                Whitespace@1400..1401 " "
-                LiteralStringNode@1401..1406
-                  DoubleQuote@1401..1402 "\""
-                  LiteralStringText@1402..1405 "foo"
-                  DoubleQuote@1405..1406 "\""
-              Whitespace@1406..1423 "\n                "
-              LiteralHintsItemNode@1423..1433
-                Ident@1423..1426 "bar"
-                Colon@1426..1427 ":"
-                Whitespace@1427..1428 " "
-                LiteralStringNode@1428..1433
-                  DoubleQuote@1428..1429 "\""
-                  LiteralStringText@1429..1432 "bar"
-                  DoubleQuote@1432..1433 "\""
-              Whitespace@1433..1450 "\n                "
-              LiteralHintsItemNode@1450..1460
-                Ident@1450..1453 "baz"
-                Colon@1453..1454 ":"
-                Whitespace@1454..1455 " "
-                LiteralStringNode@1455..1460
-                  DoubleQuote@1455..1456 "\""
-                  LiteralStringText@1456..1459 "baz"
-                  DoubleQuote@1459..1460 "\""
-              Whitespace@1460..1473 "\n            "
-              CloseBrace@1473..1474 "}"
-          Whitespace@1474..1483 "\n        "
-          CloseBrace@1483..1484 "}"
-      Whitespace@1484..1489 "\n    "
-      CloseBrace@1489..1490 "}"
-    Whitespace@1490..1491 "\n"
-    CloseBrace@1491..1492 "}"
-  Whitespace@1492..1493 "\n"
+                  LiteralStringText@1030..1031 "b"
+                  DoubleQuote@1031..1032 "\""
+              Comma@1032..1033 ","
+              Whitespace@1033..1050 "\n                "
+              LiteralHintsItemNode@1050..1056
+                Ident@1050..1051 "c"
+                Colon@1051..1052 ":"
+                Whitespace@1052..1053 " "
+                LiteralStringNode@1053..1056
+                  DoubleQuote@1053..1054 "\""
+                  LiteralStringText@1054..1055 "c"
+                  DoubleQuote@1055..1056 "\""
+              Comma@1056..1057 ","
+              Whitespace@1057..1070 "\n            "
+              CloseBrace@1070..1071 "}"
+          Comma@1071..1072 ","
+          Whitespace@1072..1085 "\n            "
+          LiteralInputItemNode@1085..1203
+            Ident@1085..1088 "baz"
+            Dot@1088..1089 "."
+            Ident@1089..1092 "bar"
+            Dot@1092..1093 "."
+            Ident@1093..1096 "qux"
+            Colon@1096..1097 ":"
+            Whitespace@1097..1098 " "
+            LiteralHintsNode@1098..1203
+              HintsKeyword@1098..1103 "hints"
+              Whitespace@1103..1104 " "
+              OpenBrace@1104..1105 "{"
+              Whitespace@1105..1122 "\n                "
+              LiteralHintsItemNode@1122..1132
+                Ident@1122..1125 "foo"
+                Colon@1125..1126 ":"
+                Whitespace@1126..1127 " "
+                LiteralStringNode@1127..1132
+                  DoubleQuote@1127..1128 "\""
+                  LiteralStringText@1128..1131 "foo"
+                  DoubleQuote@1131..1132 "\""
+              Comma@1132..1133 ","
+              Whitespace@1133..1150 "\n                "
+              LiteralHintsItemNode@1150..1160
+                Ident@1150..1153 "bar"
+                Colon@1153..1154 ":"
+                Whitespace@1154..1155 " "
+                LiteralStringNode@1155..1160
+                  DoubleQuote@1155..1156 "\""
+                  LiteralStringText@1156..1159 "bar"
+                  DoubleQuote@1159..1160 "\""
+              Comma@1160..1161 ","
+              Whitespace@1161..1178 "\n                "
+              LiteralHintsItemNode@1178..1188
+                Ident@1178..1181 "baz"
+                Colon@1181..1182 ":"
+                Whitespace@1182..1183 " "
+                LiteralStringNode@1183..1188
+                  DoubleQuote@1183..1184 "\""
+                  LiteralStringText@1184..1187 "baz"
+                  DoubleQuote@1187..1188 "\""
+              Comma@1188..1189 ","
+              Whitespace@1189..1202 "\n            "
+              CloseBrace@1202..1203 "}"
+          Whitespace@1203..1212 "\n        "
+          CloseBrace@1212..1213 "}"
+      Whitespace@1213..1222 "\n        "
+      HintsItemNode@1222..1230
+        Ident@1222..1223 "c"
+        Colon@1223..1224 ":"
+        Whitespace@1224..1225 " "
+        LiteralStringNode@1225..1230
+          DoubleQuote@1225..1226 "\""
+          LiteralStringText@1226..1229 "foo"
+          DoubleQuote@1229..1230 "\""
+      Whitespace@1230..1239 "\n        "
+      HintsItemNode@1239..1243
+        Ident@1239..1240 "d"
+        Colon@1240..1241 ":"
+        Whitespace@1241..1242 " "
+        LiteralIntegerNode@1242..1243
+          Integer@1242..1243 "1"
+      Whitespace@1243..1252 "\n        "
+      HintsItemNode@1252..1522
+        Ident@1252..1259 "outputs"
+        Colon@1259..1260 ":"
+        Whitespace@1260..1261 " "
+        LiteralOutputNode@1261..1522
+          OutputKeyword@1261..1267 "output"
+          Whitespace@1267..1268 " "
+          OpenBrace@1268..1269 "{"
+          Whitespace@1269..1282 "\n            "
+          LiteralOutputItemNode@1282..1380
+            Ident@1282..1285 "foo"
+            Colon@1285..1286 ":"
+            Whitespace@1286..1287 " "
+            LiteralHintsNode@1287..1380
+              HintsKeyword@1287..1292 "hints"
+              Whitespace@1292..1293 " "
+              OpenBrace@1293..1294 "{"
+              Whitespace@1294..1311 "\n                "
+              LiteralHintsItemNode@1311..1317
+                Ident@1311..1312 "a"
+                Colon@1312..1313 ":"
+                Whitespace@1313..1314 " "
+                LiteralStringNode@1314..1317
+                  DoubleQuote@1314..1315 "\""
+                  LiteralStringText@1315..1316 "a"
+                  DoubleQuote@1316..1317 "\""
+              Comma@1317..1318 ","
+              Whitespace@1318..1335 "\n                "
+              LiteralHintsItemNode@1335..1341
+                Ident@1335..1336 "b"
+                Colon@1336..1337 ":"
+                Whitespace@1337..1338 " "
+                LiteralStringNode@1338..1341
+                  DoubleQuote@1338..1339 "\""
+                  LiteralStringText@1339..1340 "b"
+                  DoubleQuote@1340..1341 "\""
+              Comma@1341..1342 ","
+              Whitespace@1342..1359 "\n                "
+              LiteralHintsItemNode@1359..1365
+                Ident@1359..1360 "c"
+                Colon@1360..1361 ":"
+                Whitespace@1361..1362 " "
+                LiteralStringNode@1362..1365
+                  DoubleQuote@1362..1363 "\""
+                  LiteralStringText@1363..1364 "c"
+                  DoubleQuote@1364..1365 "\""
+              Comma@1365..1366 ","
+              Whitespace@1366..1379 "\n            "
+              CloseBrace@1379..1380 "}"
+          Comma@1380..1381 ","
+          Whitespace@1381..1394 "\n            "
+          LiteralOutputItemNode@1394..1512
+            Ident@1394..1397 "baz"
+            Dot@1397..1398 "."
+            Ident@1398..1401 "bar"
+            Dot@1401..1402 "."
+            Ident@1402..1405 "qux"
+            Colon@1405..1406 ":"
+            Whitespace@1406..1407 " "
+            LiteralHintsNode@1407..1512
+              HintsKeyword@1407..1412 "hints"
+              Whitespace@1412..1413 " "
+              OpenBrace@1413..1414 "{"
+              Whitespace@1414..1431 "\n                "
+              LiteralHintsItemNode@1431..1441
+                Ident@1431..1434 "foo"
+                Colon@1434..1435 ":"
+                Whitespace@1435..1436 " "
+                LiteralStringNode@1436..1441
+                  DoubleQuote@1436..1437 "\""
+                  LiteralStringText@1437..1440 "foo"
+                  DoubleQuote@1440..1441 "\""
+              Comma@1441..1442 ","
+              Whitespace@1442..1459 "\n                "
+              LiteralHintsItemNode@1459..1469
+                Ident@1459..1462 "bar"
+                Colon@1462..1463 ":"
+                Whitespace@1463..1464 " "
+                LiteralStringNode@1464..1469
+                  DoubleQuote@1464..1465 "\""
+                  LiteralStringText@1465..1468 "bar"
+                  DoubleQuote@1468..1469 "\""
+              Comma@1469..1470 ","
+              Whitespace@1470..1487 "\n                "
+              LiteralHintsItemNode@1487..1497
+                Ident@1487..1490 "baz"
+                Colon@1490..1491 ":"
+                Whitespace@1491..1492 " "
+                LiteralStringNode@1492..1497
+                  DoubleQuote@1492..1493 "\""
+                  LiteralStringText@1493..1496 "baz"
+                  DoubleQuote@1496..1497 "\""
+              Comma@1497..1498 ","
+              Whitespace@1498..1511 "\n            "
+              CloseBrace@1511..1512 "}"
+          Whitespace@1512..1521 "\n        "
+          CloseBrace@1521..1522 "}"
+      Whitespace@1522..1527 "\n    "
+      CloseBrace@1527..1528 "}"
+    Whitespace@1528..1529 "\n"
+    CloseBrace@1529..1530 "}"
+  Whitespace@1530..1531 "\n"

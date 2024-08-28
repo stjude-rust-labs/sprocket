@@ -4741,15 +4741,15 @@ version 1.2
 task test {
     hints {
         foo: hints {
-            bar: "bar"
+            bar: "bar",
             baz: "baz"
         }
         bar: "bar"
         baz: hints {
-            a: 1
-            b: 10.0
+            a: 1,
+            b: 10.0,
             c: {
-                "foo": "bar"
+                "foo": "bar",
             }
         }
     }
@@ -4901,7 +4901,7 @@ task test {
         inputs: input {
             a: hints {
                 foo: "bar"
-            }
+            },
             b.c.d: hints {
                 bar: "baz"
             }
@@ -5023,7 +5023,7 @@ task test {
         outputs: output {
             a: hints {
                 foo: "bar"
-            }
+            },
             b.c.d: hints {
                 bar: "baz"
             }

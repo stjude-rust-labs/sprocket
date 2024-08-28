@@ -1995,7 +1995,7 @@ fn literal_hints(
     braced_items!(
         parser,
         marker,
-        None,
+        Some(Token::Comma),
         HINTS_ITEM_RECOVERY_SET,
         literal_hints_item
     );
@@ -2021,7 +2021,7 @@ fn literal_input(
     braced_items!(
         parser,
         marker,
-        None,
+        Some(Token::Comma),
         LITERAL_INPUT_ITEM_RECOVERY_SET,
         literal_input_item
     );
@@ -2053,7 +2053,7 @@ fn literal_output(
     braced_items!(
         parser,
         marker,
-        None,
+        Some(Token::Comma),
         LITERAL_OUTPUT_ITEM_RECOVERY_SET,
         literal_output_item
     );

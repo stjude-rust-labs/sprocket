@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed requiring comma delimiter for `input`, `object` and `hints` literal
+  items in WDL 1.2 ([#164](https://github.com/stjude-rust-labs/wdl/pull/164)).
+
 ## 0.7.0 - 08-22-2024
 
 ### Added
