@@ -6,6 +6,7 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::io::IsTerminal;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process;
@@ -149,7 +150,11 @@ pub async fn gauntlet(args: Args) -> Result<()> {
         .inner_mut()
         .extend_repositories(work_dir.repositories().clone());
 
-    let mut report = Report::from(StandardStream::stdout(ColorChoice::Auto));
+    let mut report = Report::from(StandardStream::stdout(if std::io::stdout().is_terminal() {
+        ColorChoice::Auto
+    } else {
+        ColorChoice::Never
+    }));
     let mut total_time = Duration::ZERO;
     for (index, (repository_identifier, repo)) in config.inner().repositories().iter().enumerate() {
         let files = repo.wdl_files(work_dir.root());

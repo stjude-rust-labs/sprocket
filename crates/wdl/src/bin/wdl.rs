@@ -33,7 +33,11 @@ use wdl_analysis::Analyzer;
 /// In the future, we might want the color choice to be a CLI argument.
 fn emit_diagnostics(path: &str, source: &str, diagnostics: &[Diagnostic]) -> Result<()> {
     let file = SimpleFile::new(path, source);
-    let mut stream = StandardStream::stdout(ColorChoice::Auto);
+    let mut stream = StandardStream::stdout(if std::io::stdout().is_terminal() {
+        ColorChoice::Auto
+    } else {
+        ColorChoice::Never
+    });
     for diagnostic in diagnostics.iter() {
         emit(
             &mut stream,

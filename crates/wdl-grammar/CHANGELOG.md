@@ -10,7 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Fixed requiring comma delimiter for `input`, `object` and `hints` literal
-  items in WDL 1.2 ([#164](https://github.com/stjude-rust-labs/wdl/pull/164)).
+  items in WDL 1.2 ([#165](https://github.com/stjude-rust-labs/wdl/pull/165)).
+* Fixed parsing of some matching opening/closing tokens where a rule should
+  parse before the closing token ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
+* Fixed parsing of call statements such that the target is parsed as an
+  identifier and not an expression ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 
 ## 0.7.0 - 08-22-2024
 

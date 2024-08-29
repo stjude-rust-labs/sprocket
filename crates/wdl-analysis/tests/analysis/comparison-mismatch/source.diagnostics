@@ -1,0 +1,144 @@
+error: type mismatch: operator `==` cannot compare type `Int` to type `String`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:13:18
+   │
+13 │     Boolean e2 = a == c
+   │                  ^^^^^^
+   │                  │    │
+   │                  │    this is type `String`
+   │                  this is type `Int`
+
+error: type mismatch: operator `==` cannot compare type `String` to type `Int`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:14:18
+   │
+14 │     Boolean e3 = c == a
+   │                  ^^^^^^
+   │                  │    │
+   │                  │    this is type `Int`
+   │                  this is type `String`
+
+error: type mismatch: operator `!=` cannot compare type `Int` to type `String`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:22:19
+   │
+22 │     Boolean ne2 = a != c
+   │                   ^^^^^^
+   │                   │    │
+   │                   │    this is type `String`
+   │                   this is type `Int`
+
+error: type mismatch: operator `!=` cannot compare type `String` to type `Int`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:23:19
+   │
+23 │     Boolean ne3 = c != a
+   │                   ^^^^^^
+   │                   │    │
+   │                   │    this is type `Int`
+   │                   this is type `String`
+
+error: type mismatch: operator `<` cannot compare type `Int` to type `String`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:31:18
+   │
+31 │     Boolean l2 = a < c
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `String`
+   │                  this is type `Int`
+
+error: type mismatch: operator `<` cannot compare type `String` to type `Int`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:32:18
+   │
+32 │     Boolean l3 = c < a
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `Int`
+   │                  this is type `String`
+
+error: type mismatch: operator `<` cannot compare type `File` to type `File`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:34:18
+   │
+34 │     Boolean l5 = d < d
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `File`
+   │                  this is type `File`
+
+error: type mismatch: operator `<=` cannot compare type `Int` to type `String`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:40:19
+   │
+40 │     Boolean le2 = a <= c
+   │                   ^^^^^^
+   │                   │    │
+   │                   │    this is type `String`
+   │                   this is type `Int`
+
+error: type mismatch: operator `<=` cannot compare type `String` to type `Int`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:41:19
+   │
+41 │     Boolean le3 = c <= a
+   │                   ^^^^^^
+   │                   │    │
+   │                   │    this is type `Int`
+   │                   this is type `String`
+
+error: type mismatch: operator `<=` cannot compare type `File` to type `File`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:43:19
+   │
+43 │     Boolean le5 = d <= d
+   │                   ^^^^^^
+   │                   │    │
+   │                   │    this is type `File`
+   │                   this is type `File`
+
+error: type mismatch: operator `>` cannot compare type `Int` to type `String`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:49:18
+   │
+49 │     Boolean g2 = a > c
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `String`
+   │                  this is type `Int`
+
+error: type mismatch: operator `>` cannot compare type `String` to type `Int`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:50:18
+   │
+50 │     Boolean g3 = c > a
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `Int`
+   │                  this is type `String`
+
+error: type mismatch: operator `>` cannot compare type `File` to type `File`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:52:18
+   │
+52 │     Boolean g5 = d > d
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `File`
+   │                  this is type `File`
+
+error: type mismatch: operator `>=` cannot compare type `Int` to type `String`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:58:19
+   │
+58 │     Boolean ge2 = a >= c
+   │                   ^^^^^^
+   │                   │    │
+   │                   │    this is type `String`
+   │                   this is type `Int`
+
+error: type mismatch: operator `>=` cannot compare type `String` to type `Int`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:59:19
+   │
+59 │     Boolean ge3 = c >= a
+   │                   ^^^^^^
+   │                   │    │
+   │                   │    this is type `Int`
+   │                   this is type `String`
+
+error: type mismatch: operator `>=` cannot compare type `File` to type `File`
+   ┌─ tests/analysis/comparison-mismatch/source.wdl:61:19
+   │
+61 │     Boolean ge5 = d >= d
+   │                   ^^^^^^
+   │                   │    │
+   │                   │    this is type `File`
+   │                   this is type `File`
+

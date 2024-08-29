@@ -72,25 +72,6 @@ fn token<T: AstToken>(parent: &SyntaxNode) -> Option<T> {
         .find_map(T::cast)
 }
 
-/// Gets the source span of the given node.
-///
-/// This differs from `SyntaxNode::text_range` in that it will exclude
-/// leading trivia child tokens of the node.
-pub fn span_of<N: AstNode<Language = WorkflowDescriptionLanguage>>(node: &N) -> Span {
-    let start = node
-        .syntax()
-        .children_with_tokens()
-        .find(|c| !matches!(c.kind(), SyntaxKind::Whitespace | SyntaxKind::Comment))
-        .expect("should have a non-trivia first child");
-    let end = node
-        .syntax()
-        .last_child_or_token()
-        .expect("should have last child");
-
-    let start = start.text_range().start().into();
-    Span::new(start, usize::from(end.text_range().end()) - start)
-}
-
 /// Represents the reason an AST node has been visited.
 ///
 /// Each node is visited exactly once, but the visitor will receive
@@ -101,6 +82,18 @@ pub enum VisitReason {
     Enter,
     /// The visit has exited the node.
     Exit,
+}
+
+/// An extension trait for AST nodes.
+pub trait AstNodeExt {
+    /// Gets the source span of the node.
+    fn span(&self) -> Span;
+}
+
+impl<T: AstNode> AstNodeExt for T {
+    fn span(&self) -> Span {
+        self.syntax().text_range().to_span()
+    }
 }
 
 /// The trait implemented on AST tokens to go from untyped `SyntaxToken`

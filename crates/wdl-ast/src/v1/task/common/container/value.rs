@@ -96,7 +96,7 @@ pub enum Kind {
 }
 
 impl Kind {
-    /// Gets the [`Uri`](s) present in this [`Value`] through an iterator.
+    /// Gets the [`Uri`] present in this [`Value`] through an iterator.
     pub fn uris(&self) -> Box<dyn Iterator<Item = &Uri> + '_> {
         match self {
             Kind::String(uri) => Box::new(std::iter::once(uri)),

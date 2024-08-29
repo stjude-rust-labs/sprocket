@@ -14,7 +14,6 @@ use indexmap::IndexMap;
 use indexmap::IndexSet;
 use line_index::LineIndex;
 use petgraph::algo::has_path_connecting;
-use petgraph::algo::DfsSpace;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
 use petgraph::visit::Bfs;
@@ -31,8 +30,12 @@ use wdl_ast::Diagnostic;
 use wdl_ast::SyntaxNode;
 use wdl_ast::Validator;
 
-use crate::DocumentScope;
+use crate::scope::DocumentScope;
 use crate::IncrementalChange;
+
+/// Represents space for a DFS search of a document graph.
+pub type DfsSpace =
+    petgraph::algo::DfsSpace<NodeIndex, <StableDiGraph<DocumentGraphNode, ()> as Visitable>::Map>;
 
 /// Represents diagnostics for a document node.
 #[derive(Debug, Clone)]
@@ -451,8 +454,6 @@ pub struct DocumentGraph {
     /// import relationship exists in this set, a diagnostic will be added and
     /// the import otherwise ignored.
     cycles: HashSet<(NodeIndex, NodeIndex)>,
-    /// Space for DFS traversals.
-    space: DfsSpace<NodeIndex, <StableDiGraph<DocumentGraphNode, ()> as Visitable>::Map>,
 }
 
 impl DocumentGraph {
@@ -594,10 +595,10 @@ impl DocumentGraph {
     /// Adds a dependency edge from one document to another.
     ///
     /// If a dependency edge already exists, this is a no-op.
-    pub fn add_dependency_edge(&mut self, from: NodeIndex, to: NodeIndex) {
+    pub fn add_dependency_edge(&mut self, from: NodeIndex, to: NodeIndex, space: &mut DfsSpace) {
         // Check to see if there is already a path between the nodes; if so, there's a
         // cycle
-        if has_path_connecting(&self.inner, from, to, Some(&mut self.space)) {
+        if has_path_connecting(&self.inner, from, to, Some(space)) {
             // Adding the edge would cause a cycle, so record the cycle instead
             log::debug!(
                 "an import cycle was detected between `{from}` and `{to}`",

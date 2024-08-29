@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Full type checking support in task definitions ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
+
+### Changed
+
+* Refactored crate layout ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
+
+### Fixed
+
+* Fixed definition of `basename` and `size` functions to accept `String` ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
+
 ## 0.2.0 - 08-22-2024
 
 ### Added

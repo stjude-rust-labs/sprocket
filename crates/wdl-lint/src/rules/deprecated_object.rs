@@ -1,7 +1,7 @@
 //! A lint rule for flagging `Object`s as deprecated.
 
-use wdl_ast::span_of;
 use wdl_ast::v1::Type;
+use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
@@ -83,7 +83,7 @@ impl Visitor for DeprecatedObjectRule {
         }
 
         if let Type::Object(ty) = decl.ty() {
-            state.add(deprecated_object_use(span_of(&ty)))
+            state.add(deprecated_object_use(ty.span()));
         }
     }
 
@@ -98,7 +98,7 @@ impl Visitor for DeprecatedObjectRule {
         }
 
         if let Type::Object(ty) = decl.ty() {
-            state.add(deprecated_object_use(span_of(&ty)))
+            state.add(deprecated_object_use(ty.span()));
         }
     }
 }

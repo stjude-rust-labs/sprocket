@@ -7,18 +7,10 @@ use id_arena::ArenaBehavior;
 use id_arena::DefaultArenaBehavior;
 use id_arena::Id;
 use indexmap::IndexMap;
-use wdl_ast::v1;
-use wdl_ast::AstToken;
-use wdl_ast::Diagnostic;
-use wdl_ast::Ident;
 
-use crate::STDLIB;
+use crate::stdlib::STDLIB;
 
-/// Creates an "unknown type" diagnostic.
-fn unknown_type(name: &Ident) -> Diagnostic {
-    Diagnostic::error(format!("unknown type name `{name}`", name = name.as_str()))
-        .with_highlight(name.span())
-}
+pub mod v1;
 
 /// A trait implemented on types that may be optional.
 pub trait Optional: Copy {
@@ -80,19 +72,6 @@ impl Coercible for PrimitiveTypeKind {
 
             // Not coercible
             _ => false
-        }
-    }
-}
-
-impl From<v1::PrimitiveTypeKind> for PrimitiveTypeKind {
-    fn from(value: v1::PrimitiveTypeKind) -> Self {
-        match value {
-            v1::PrimitiveTypeKind::Boolean => Self::Boolean,
-            v1::PrimitiveTypeKind::Integer => Self::Integer,
-            v1::PrimitiveTypeKind::Float => Self::Float,
-            v1::PrimitiveTypeKind::String => Self::String,
-            v1::PrimitiveTypeKind::File => Self::File,
-            v1::PrimitiveTypeKind::Directory => Self::Directory,
         }
     }
 }
@@ -194,15 +173,6 @@ impl From<PrimitiveTypeKind> for PrimitiveType {
     }
 }
 
-impl From<v1::PrimitiveType> for PrimitiveType {
-    fn from(ty: v1::PrimitiveType) -> Self {
-        Self {
-            kind: ty.kind().into(),
-            optional: ty.is_optional(),
-        }
-    }
-}
-
 /// Represents an identifier of a defined compound type.
 pub type CompoundTypeDefId = Id<CompoundTypeDef>;
 
@@ -228,40 +198,24 @@ pub enum Type {
 }
 
 impl Type {
-    /// Creates a new type from an V1 AST representation of a type.
+    /// Casts the type to a primitive type.
     ///
-    /// The provided callback is used to look up type name references.
-    ///
-    /// If a type could not created, an error with the relevant diagnostic is
-    /// returned.
-    pub fn from_ast_v1<F>(types: &mut Types, ty: v1::Type, lookup: &F) -> Result<Self, Diagnostic>
-    where
-        F: Fn(&str) -> Option<Type>,
-    {
-        let optional = ty.is_optional();
+    /// Returns `None` if the type is not primitive.
+    pub fn as_primitive(&self) -> Option<PrimitiveType> {
+        match self {
+            Self::Primitive(ty) => Some(*ty),
+            _ => None,
+        }
+    }
 
-        let ty = match ty {
-            v1::Type::Map(ty) => {
-                let ty = MapType::from_ast_v1(types, ty, lookup)?;
-                types.add_map(ty)
-            }
-            v1::Type::Array(ty) => {
-                let ty = ArrayType::from_ast_v1(types, ty, lookup)?;
-                types.add_array(ty)
-            }
-            v1::Type::Pair(ty) => {
-                let ty = PairType::from_ast_v1(types, ty, lookup)?;
-                types.add_pair(ty)
-            }
-            v1::Type::Object(_) => Type::Object,
-            v1::Type::Ref(r) => {
-                let name = r.name();
-                lookup(name.as_str()).ok_or_else(|| unknown_type(&name))?
-            }
-            v1::Type::Primitive(ty) => Self::Primitive(ty.into()),
-        };
+    /// Determines if the type is `Union`.
+    pub fn is_union(&self) -> bool {
+        matches!(self, Type::Union)
+    }
 
-        if optional { Ok(ty.optional()) } else { Ok(ty) }
+    /// Determines if the type is `None`.
+    pub fn is_none(&self) -> bool {
+        matches!(self, Type::None)
     }
 
     /// Returns an object that implements `Display` for formatting the type.
@@ -359,7 +313,8 @@ impl Coercible for Type {
 
                 match types.type_definition(src.definition) {
                     CompoundTypeDef::Map(src) => {
-                        if src.key_type.kind() != PrimitiveTypeKind::String {
+                        if !matches!(src.key_type, Type::Primitive(ty) if ty.kind() == PrimitiveTypeKind::String)
+                        {
                             return false;
                         }
 
@@ -382,7 +337,8 @@ impl Coercible for Type {
 
                 match types.type_definition(target.definition) {
                     CompoundTypeDef::Map(target) => {
-                        if target.key_type.kind() != PrimitiveTypeKind::String {
+                        if !matches!(target.key_type, Type::Primitive(ty) if ty.kind() == PrimitiveTypeKind::String)
+                        {
                             return false;
                         }
 
@@ -578,6 +534,46 @@ impl CompoundTypeDef {
             }
         }
     }
+
+    /// Converts the compound type to an array type.
+    ///
+    /// Returns `None` if the compound type is not an array type.
+    pub fn as_array(&self) -> Option<&ArrayType> {
+        match self {
+            Self::Array(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    /// Converts the compound type to a pair type.
+    ///
+    /// Returns `None` if the compound type is not a pair type.
+    pub fn as_pair(&self) -> Option<&PairType> {
+        match self {
+            Self::Pair(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    /// Converts the compound type to a map type.
+    ///
+    /// Returns `None` if the compound type is not a map type.
+    pub fn as_map(&self) -> Option<&MapType> {
+        match self {
+            Self::Map(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    /// Converts the compound type to a struct type.
+    ///
+    /// Returns `None` if the compound type is not a struct type.
+    pub fn as_struct(&self) -> Option<&StructType> {
+        match self {
+            Self::Struct(ty) => Some(ty),
+            _ => None,
+        }
+    }
 }
 
 impl Coercible for CompoundTypeDef {
@@ -602,7 +598,8 @@ impl Coercible for CompoundTypeDef {
             // Map[String, X] -> Struct, Map[String, X] -> Struct?, Map[String, X]? -> Struct? (if
             // `Map` keys match struct member name and all struct member types are coercible from X)
             (Self::Map(src), Self::Struct(target)) => {
-                if src.key_type.kind() != PrimitiveTypeKind::String {
+                if !matches!(src.key_type, Type::Primitive(ty) if ty.kind() == PrimitiveTypeKind::String)
+                {
                     return false;
                 }
 
@@ -622,7 +619,8 @@ impl Coercible for CompoundTypeDef {
             // Struct -> Map[String, X], Struct -> Map[String, X]?, Struct? -> Map[String, X]? (if
             // all struct members are coercible to X)
             (Self::Struct(src), Self::Map(target)) => {
-                if target.key_type.kind() != PrimitiveTypeKind::String {
+                if !matches!(target.key_type, Type::Primitive(ty) if ty.kind() == PrimitiveTypeKind::String)
+                {
                     return false;
                 }
 
@@ -691,24 +689,6 @@ impl ArrayType {
             element_type: element_type.into(),
             non_empty: true,
         }
-    }
-
-    /// Creates a new array type from an V1 AST representation of an array type.
-    ///
-    /// If a type could not created, an error with the relevant diagnostic is
-    /// returned.
-    pub fn from_ast_v1<F>(
-        types: &mut Types,
-        ty: v1::ArrayType,
-        lookup: &F,
-    ) -> Result<Self, Diagnostic>
-    where
-        F: Fn(&str) -> Option<Type>,
-    {
-        Ok(Self {
-            element_type: Type::from_ast_v1(types, ty.element_type(), lookup)?,
-            non_empty: ty.is_non_empty(),
-        })
     }
 
     /// Gets the array's element type.
@@ -787,26 +767,6 @@ impl PairType {
         }
     }
 
-    /// Creates a new pair type from an V1 AST representation of a pair type.
-    ///
-    /// If a type could not created, an error with the relevant diagnostic is
-    /// returned.
-    pub fn from_ast_v1<F>(
-        types: &mut Types,
-        ty: v1::PairType,
-        lookup: &F,
-    ) -> Result<Self, Diagnostic>
-    where
-        F: Fn(&str) -> Option<Type>,
-    {
-        let (first_type, second_type) = ty.types();
-
-        Ok(Self {
-            first_type: Type::from_ast_v1(types, first_type, lookup)?,
-            second_type: Type::from_ast_v1(types, second_type, lookup)?,
-        })
-    }
-
     /// Gets the pairs's first type.
     pub fn first_type(&self) -> Type {
         self.first_type
@@ -863,42 +823,22 @@ impl TypeEq for PairType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MapType {
     /// The key type of the map.
-    key_type: PrimitiveType,
+    key_type: Type,
     /// The value type of the map.
     value_type: Type,
 }
 
 impl MapType {
     /// Constructs a new map type.
-    pub fn new(key_type: impl Into<PrimitiveType>, value_type: impl Into<Type>) -> Self {
+    pub fn new(key_type: impl Into<Type>, value_type: impl Into<Type>) -> Self {
         Self {
             key_type: key_type.into(),
             value_type: value_type.into(),
         }
     }
 
-    /// Creates a new map type from an V1 AST representation of a map type.
-    ///
-    /// If a type could not created, an error with the relevant diagnostic is
-    /// returned.
-    pub fn from_ast_v1<F>(
-        types: &mut Types,
-        ty: v1::MapType,
-        lookup: &F,
-    ) -> Result<Self, Diagnostic>
-    where
-        F: Fn(&str) -> Option<Type>,
-    {
-        let (key_type, value_type) = ty.types();
-
-        Ok(Self {
-            key_type: key_type.into(),
-            value_type: Type::from_ast_v1(types, value_type, lookup)?,
-        })
-    }
-
     /// Gets the maps's key type.
-    pub fn key_type(&self) -> PrimitiveType {
+    pub fn key_type(&self) -> Type {
         self.key_type
     }
 
@@ -918,7 +858,7 @@ impl MapType {
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(f, "Map[")?;
-                self.ty.key_type.fmt(f)?;
+                self.ty.key_type.display(self.types).fmt(f)?;
                 write!(f, ", ")?;
                 self.ty.value_type.display(self.types).fmt(f)?;
                 write!(f, "]")
@@ -952,9 +892,9 @@ impl TypeEq for MapType {
 #[derive(Debug)]
 pub struct StructType {
     /// The name of the struct.
-    name: String,
+    pub(crate) name: String,
     /// The members of the struct.
-    members: IndexMap<String, Type>,
+    pub(crate) members: IndexMap<String, Type>,
 }
 
 impl StructType {
@@ -971,35 +911,6 @@ impl StructType {
                 .map(|(n, ty)| (n.into(), ty.into()))
                 .collect(),
         }
-    }
-
-    /// Creates a new struct type from an V1 AST representation of a struct
-    /// definition.
-    ///
-    /// The provided callback is used to look up type name references.
-    ///
-    /// If the type could not created, an error with the relevant diagnostic is
-    /// returned.
-    pub fn from_ast_v1<F>(
-        types: &mut Types,
-        definition: &v1::StructDefinition,
-        lookup: &F,
-    ) -> Result<Self, Diagnostic>
-    where
-        F: Fn(&str) -> Option<Type>,
-    {
-        Ok(Self {
-            name: definition.name().as_str().into(),
-            members: definition
-                .members()
-                .map(|d| {
-                    Ok((
-                        d.name().as_str().to_string(),
-                        Type::from_ast_v1(types, d.ty(), lookup)?,
-                    ))
-                })
-                .collect::<Result<_, _>>()?,
-        })
     }
 
     /// Gets the name of the struct.
@@ -1119,6 +1030,19 @@ impl Types {
             // Fall back to types defined by the standard library
             .or_else(|| STDLIB.types().0.get(id))
             .expect("invalid type identifier")
+    }
+
+    /// Gets a struct type from the type collection.
+    ///
+    /// Returns `None` if the type is not a struct.
+    pub fn struct_type(&self, ty: Type) -> Option<&StructType> {
+        if let Type::Compound(ty) = ty {
+            if let CompoundTypeDef::Struct(s) = &self.0[ty.definition()] {
+                return Some(s);
+            }
+        }
+
+        None
     }
 
     /// Imports a type from a foreign type collection.

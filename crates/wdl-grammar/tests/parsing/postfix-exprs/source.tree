@@ -22,8 +22,7 @@ RootNode@0..324
       Assignment@76..77 "="
       Whitespace@77..78 " "
       CallExprNode@78..87
-        NameRefNode@78..81
-          Ident@78..81 "min"
+        Ident@78..81 "min"
         OpenParen@81..82 "("
         LiteralIntegerNode@82..83
           Integer@82..83 "0"
@@ -42,12 +41,10 @@ RootNode@0..324
       Assignment@98..99 "="
       Whitespace@99..100 " "
       CallExprNode@100..120
-        NameRefNode@100..103
-          Ident@100..103 "min"
+        Ident@100..103 "min"
         OpenParen@103..104 "("
         CallExprNode@104..115
-          NameRefNode@104..107
-            Ident@104..107 "max"
+          Ident@104..107 "max"
           OpenParen@107..108 "("
           LiteralIntegerNode@108..111
             Integer@108..111 "100"

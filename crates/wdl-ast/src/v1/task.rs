@@ -1247,16 +1247,7 @@ task test {
         assert_eq!(decls.len(), 1);
         assert_eq!(decls[0].ty().to_string(), "String");
         assert_eq!(decls[0].name().as_str(), "output");
-        assert_eq!(
-            decls[0]
-                .expr()
-                .unwrap_call()
-                .target()
-                .unwrap_name_ref()
-                .name()
-                .as_str(),
-            "stdout"
-        );
+        assert_eq!(decls[0].expr().unwrap_call().target().as_str(), "stdout");
 
         // Task command
         let command = tasks[0].command().expect("should have a command section");

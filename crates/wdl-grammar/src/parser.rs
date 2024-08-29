@@ -515,7 +515,13 @@ where
     ///
     /// This method parses the open token, calls the callback to parse the item,
     /// and then parses the close token.
-    pub fn matching<F>(&mut self, open: T, close: T, cb: F) -> Result<(), Diagnostic>
+    pub fn matching<F>(
+        &mut self,
+        open: T,
+        close: T,
+        allow_empty: bool,
+        cb: F,
+    ) -> Result<(), Diagnostic>
     where
         F: FnOnce(&mut Self, Span) -> Result<(), Diagnostic>,
     {
@@ -525,12 +531,14 @@ where
         };
 
         // Check to see if the close token is immediately following the opening
-        match self.peek() {
-            Some((t, _)) if t == close => {
-                self.next();
-                return Ok(());
+        if allow_empty {
+            match self.peek() {
+                Some((t, _)) if t == close => {
+                    self.next();
+                    return Ok(());
+                }
+                _ => {}
             }
-            _ => {}
         }
 
         cb(self, open_span)?;

@@ -1,0 +1,6 @@
+error: unknown function `unknown`
+  ┌─ tests/analysis/unknown-function/source.wdl:6:16
+  │
+6 │     String x = unknown()
+  │                ^^^^^^^ the WDL standard library does not have a function with this name
+

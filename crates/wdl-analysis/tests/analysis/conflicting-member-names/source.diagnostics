@@ -5,7 +5,7 @@ error: conflicting struct member name `x`
   │         - the struct member with the conflicting name is here
 7 │     Int y
 8 │     Int x
-  │         ^ this conflicts with a struct member of the same name
+  │         ^ this struct member conflicts with a previously used name
 
 error: conflicting struct member name `y`
   ┌─ tests/analysis/conflicting-member-names/source.wdl:9:9
@@ -14,5 +14,5 @@ error: conflicting struct member name `y`
   │         - the struct member with the conflicting name is here
 8 │     Int x
 9 │     Int y
-  │         ^ this conflicts with a struct member of the same name
+  │         ^ this struct member conflicts with a previously used name
 

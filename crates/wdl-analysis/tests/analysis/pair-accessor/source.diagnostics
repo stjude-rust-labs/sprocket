@@ -1,0 +1,8 @@
+error: cannot access a pair with name `nope`
+  ┌─ tests/analysis/pair-accessor/source.wdl:9:15
+  │
+9 │     Int c = p.nope
+  │               ^^^^
+  │
+  = fix: use `left` or `right` to access a pair
+

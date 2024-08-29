@@ -1,0 +1,6 @@
+error: type mismatch: expected `logical or` operand to be type `Boolean`, but found type `String`
+  ┌─ tests/analysis/logical-or-mismatch/source.wdl:9:22
+  │
+9 │     Boolean d = a || c || b
+  │                      ^ this is type `String`
+

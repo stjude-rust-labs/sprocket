@@ -6,6 +6,7 @@
 //! handling!)
 
 use std::fs::read_to_string;
+use std::io::IsTerminal;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -40,7 +41,11 @@ struct Args {
 
 fn emit_diagnostics(path: &Path, source: &str, diagnostics: &[Diagnostic]) -> Result<()> {
     let file = SimpleFile::new(path.to_str().context("path should be UTF-8")?, source);
-    let mut stream = StandardStream::stdout(ColorChoice::Auto);
+    let mut stream = StandardStream::stdout(if std::io::stdout().is_terminal() {
+        ColorChoice::Auto
+    } else {
+        ColorChoice::Never
+    });
     for diagnostic in diagnostics.iter() {
         emit(
             &mut stream,

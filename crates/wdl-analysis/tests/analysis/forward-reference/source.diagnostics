@@ -1,0 +1,8 @@
+error: type mismatch: expected type `Int`, but found type `String`
+   ┌─ tests/analysis/forward-reference/source.wdl:13:17
+   │
+13 │         Int y = z
+   │             -   ^ this is type `String`
+   │             │    
+   │             this is type `Int`
+

@@ -5,7 +5,7 @@ error: conflicting output name `x`
    │             - the input with the conflicting name is here
    ·
 13 │         String x = "x"
-   │                ^ this conflicts with a input of the same name
+   │                ^ this output conflicts with a previously used name
 
 error: conflicting output name `y`
    ┌─ tests/analysis/conflicting-decl-names/source.wdl:14:16
@@ -14,7 +14,7 @@ error: conflicting output name `y`
    │             - the input with the conflicting name is here
    ·
 14 │         String y = "y"
-   │                ^ this conflicts with a input of the same name
+   │                ^ this output conflicts with a previously used name
 
 error: conflicting declaration name `x`
    ┌─ tests/analysis/conflicting-decl-names/source.wdl:19:9
@@ -23,7 +23,7 @@ error: conflicting declaration name `x`
    │             - the input with the conflicting name is here
    ·
 19 │     Int x = y
-   │         ^ this conflicts with a input of the same name
+   │         ^ this declaration conflicts with a previously used name
 
 error: conflicting output name `x`
    ┌─ tests/analysis/conflicting-decl-names/source.wdl:32:16
@@ -32,7 +32,7 @@ error: conflicting output name `x`
    │             - the input with the conflicting name is here
    ·
 32 │         String x = "x"
-   │                ^ this conflicts with a input of the same name
+   │                ^ this output conflicts with a previously used name
 
 error: conflicting output name `y`
    ┌─ tests/analysis/conflicting-decl-names/source.wdl:33:16
@@ -41,7 +41,7 @@ error: conflicting output name `y`
    │             - the input with the conflicting name is here
    ·
 33 │         String y = "y"
-   │                ^ this conflicts with a input of the same name
+   │                ^ this output conflicts with a previously used name
 
 error: conflicting declaration name `x`
    ┌─ tests/analysis/conflicting-decl-names/source.wdl:38:9
@@ -50,7 +50,7 @@ error: conflicting declaration name `x`
    │             - the input with the conflicting name is here
    ·
 38 │     Int x = y
-   │         ^ this conflicts with a input of the same name
+   │         ^ this declaration conflicts with a previously used name
 
 error: conflicting declaration name `b`
    ┌─ tests/analysis/conflicting-decl-names/source.wdl:45:17
@@ -59,7 +59,7 @@ error: conflicting declaration name `b`
    │                - the input with the conflicting name is here
    ·
 45 │             Int b = 0
-   │                 ^ this conflicts with a input of the same name
+   │                 ^ this declaration conflicts with a previously used name
 
 error: conflicting declaration name `x2`
    ┌─ tests/analysis/conflicting-decl-names/source.wdl:46:17
@@ -68,7 +68,7 @@ error: conflicting declaration name `x2`
    │             -- the declaration with the conflicting name is here
    ·
 46 │             Int x2 = 0
-   │                 ^^ this conflicts with a declaration of the same name
+   │                 ^^ this declaration conflicts with a previously used name
 
 error: conflicting scatter variable name `x`
    ┌─ tests/analysis/conflicting-decl-names/source.wdl:51:14
@@ -77,7 +77,7 @@ error: conflicting scatter variable name `x`
    │             - the input with the conflicting name is here
    ·
 51 │     scatter (x in [1, 2, 3]) {
-   │              ^ this conflicts with a input of the same name
+   │              ^ this scatter variable conflicts with a previously used name
 
 error: conflicting declaration name `z`
    ┌─ tests/analysis/conflicting-decl-names/source.wdl:52:13
@@ -86,7 +86,7 @@ error: conflicting declaration name `z`
    │         - the declaration with the conflicting name is here
    ·
 52 │         Int z = x
-   │             ^ this conflicts with a declaration of the same name
+   │             ^ this declaration conflicts with a previously used name
 
 error: conflicting declaration name `nested`
    ┌─ tests/analysis/conflicting-decl-names/source.wdl:57:21
@@ -95,7 +95,7 @@ error: conflicting declaration name `nested`
    │                  ------ the scatter variable with the conflicting name is here
 56 │             scatter (baz in [1, 2, 3]) {
 57 │                 Int nested = 0
-   │                     ^^^^^^ this conflicts with a scatter variable of the same name
+   │                     ^^^^^^ this declaration conflicts with a previously used name
 
 error: conflicting declaration name `nested`
    ┌─ tests/analysis/conflicting-decl-names/source.wdl:64:13
@@ -104,5 +104,5 @@ error: conflicting declaration name `nested`
    │                     ------ the declaration with the conflicting name is here
    ·
 64 │         Int nested = 0
-   │             ^^^^^^ this conflicts with a declaration of the same name
+   │             ^^^^^^ this declaration conflicts with a previously used name
 

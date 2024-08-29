@@ -2,10 +2,10 @@
 
 use std::cmp::Ordering;
 
-use wdl_ast::span_of;
 use wdl_ast::v1;
 use wdl_ast::v1::PrimitiveType;
 use wdl_ast::AstNode;
+use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
@@ -263,7 +263,7 @@ impl Visitor for InputNotSortedRule {
                 }
             });
         if errors > 0 {
-            state.add(input_not_sorted(span_of(input), input_string));
+            state.add(input_not_sorted(input.span(), input_string));
         }
     }
 }

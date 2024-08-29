@@ -253,8 +253,7 @@ RootNode@0..472
         PlaceholderNode@424..447
           PlaceholderOpen@424..426 "~{"
           CallExprNode@426..446
-            NameRefNode@426..429
-              Ident@426..429 "sep"
+            Ident@426..429 "sep"
             OpenParen@429..430 "("
             LiteralStringNode@430..434
               SingleQuote@430..431 "'"

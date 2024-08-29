@@ -1,0 +1,9 @@
+error: a name reference cycle was detected
+  ┌─ tests/analysis/name-reference-cycle/source.wdl:6:13
+  │
+6 │     Int a = b
+  │             ^ ensure this expression does not directly or indirectly refer to `c`
+7 │     Int b = c
+8 │     Int c = a
+  │             - a reference back to `a` is here
+

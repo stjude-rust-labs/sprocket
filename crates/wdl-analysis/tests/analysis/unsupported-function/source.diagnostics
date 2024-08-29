@@ -1,0 +1,6 @@
+error: function `contains` requires a minimum WDL version of WDL v1.2
+  ┌─ tests/analysis/unsupported-function/source.wdl:6:17
+  │
+6 │     Boolean x = contains(["foo"], "foo")
+  │                 ^^^^^^^^
+

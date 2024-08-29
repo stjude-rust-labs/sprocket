@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 use std::fmt;
+use std::num::TryFromIntError;
 
 use rowan::TextRange;
 
@@ -28,7 +29,7 @@ impl Span {
         self.start
     }
 
-    /// Gets the end of the span.
+    /// Gets the noninclusive end of the span.
     pub fn end(&self) -> usize {
         self.end
     }
@@ -53,6 +54,17 @@ impl fmt::Display for Span {
 impl From<logos::Span> for Span {
     fn from(value: logos::Span) -> Self {
         Self::new(value.start, value.len())
+    }
+}
+
+impl TryFrom<Span> for TextRange {
+    type Error = TryFromIntError;
+
+    fn try_from(value: Span) -> Result<Self, Self::Error> {
+        Ok(TextRange::new(
+            value.start.try_into()?,
+            value.end.try_into()?,
+        ))
     }
 }
 

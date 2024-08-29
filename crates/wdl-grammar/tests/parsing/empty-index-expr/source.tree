@@ -1,0 +1,29 @@
+RootNode@0..101
+  Comment@0..54 "# This is a test of p ..."
+  Whitespace@54..56 "\n\n"
+  VersionStatementNode@56..67
+    VersionKeyword@56..63 "version"
+    Whitespace@63..64 " "
+    Version@64..67 "1.1"
+  Whitespace@67..69 "\n\n"
+  TaskDefinitionNode@69..100
+    TaskKeyword@69..73 "task"
+    Whitespace@73..74 " "
+    Ident@74..77 "foo"
+    Whitespace@77..78 " "
+    OpenBrace@78..79 "{"
+    Whitespace@79..84 "\n    "
+    PrimitiveTypeNode@84..90
+      StringTypeKeyword@84..90 "String"
+    Whitespace@90..91 " "
+    Ident@91..92 "a"
+    Whitespace@92..93 " "
+    Assignment@93..94 "="
+    Whitespace@94..95 " "
+    NameRefNode@95..96
+      Ident@95..96 "x"
+    OpenBracket@96..97 "["
+    CloseBracket@97..98 "]"
+    Whitespace@98..99 "\n"
+    CloseBrace@99..100 "}"
+  Whitespace@100..101 "\n"

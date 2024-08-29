@@ -166,9 +166,11 @@ async fn main() {
         .expect("failed to analyze documents");
 
     let mut errors = Vec::new();
+    let mut single_file = Vec::new();
     for test in &tests {
         let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
         if SINGLE_DOCUMENT_TESTS.contains(&test_name) {
+            single_file.push(test_name);
             continue;
         }
 
@@ -199,7 +201,7 @@ async fn main() {
     // detecting cycles) For those, use a new analyzer and analyze the
     // `source.wdl` directly
     let analyzer = Analyzer::new(|_, _, _, _| async {});
-    for test_name in SINGLE_DOCUMENT_TESTS {
+    for test_name in single_file {
         let test = Path::new("tests/analysis").join(test_name);
         let document = test.join("source.wdl");
         let uri = path_to_uri(&document).expect("should be valid URI");

@@ -1,8 +1,8 @@
 //! A lint rule for missing `requirements` sections.
 
-use wdl_ast::span_of;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::version::V1;
+use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
@@ -101,7 +101,7 @@ impl Visitor for MissingRequirementsRule {
 
                 if let Some(runtime) = task.runtime() {
                     let name = task.name();
-                    state.add(deprecated_runtime_section(name.as_str(), span_of(&runtime)))
+                    state.add(deprecated_runtime_section(name.as_str(), runtime.span()));
                 }
             }
         }

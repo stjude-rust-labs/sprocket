@@ -1,0 +1,8 @@
+error: expected map literal to use primitive type keys
+   ┌─ tests/analysis/map-key-not-primitive/source.wdl:11:28
+   │
+11 │     Map[Int, String] a = { f: "foo" }
+   │                            ^
+   │                            │
+   │                            this is type `Foo`
+

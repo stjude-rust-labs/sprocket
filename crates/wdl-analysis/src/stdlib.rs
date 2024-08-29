@@ -1,4 +1,4 @@
-//! Represents type information about WDL standard library functions.
+//! Representation of WDL standard library functions.
 
 use std::cell::Cell;
 use std::fmt;
@@ -10,17 +10,17 @@ use indexmap::IndexSet;
 use wdl_ast::version::V1;
 use wdl_ast::SupportedVersion;
 
-use crate::ArrayType;
-use crate::Coercible;
-use crate::CompoundTypeDef;
-use crate::MapType;
-use crate::Optional;
-use crate::PairType;
-use crate::PrimitiveType;
-use crate::PrimitiveTypeKind;
-use crate::Type;
-use crate::TypeEq;
-use crate::Types;
+use crate::types::ArrayType;
+use crate::types::Coercible;
+use crate::types::CompoundTypeDef;
+use crate::types::MapType;
+use crate::types::Optional;
+use crate::types::PairType;
+use crate::types::PrimitiveType;
+use crate::types::PrimitiveTypeKind;
+use crate::types::Type;
+use crate::types::TypeEq;
+use crate::types::Types;
 
 mod constraints;
 
@@ -503,7 +503,7 @@ impl GenericMapType {
             if !ty.is_optional() {
                 if let CompoundTypeDef::Map(ty) = types.type_definition(ty.definition()) {
                     self.key_type
-                        .infer_type_parameters(types, ty.key_type().into(), params);
+                        .infer_type_parameters(types, ty.key_type(), params);
                     self.value_type
                         .infer_type_parameters(types, ty.value_type(), params);
                 }
@@ -514,13 +514,8 @@ impl GenericMapType {
     /// Realizes the generic type to a `Map`.
     fn realize(&self, types: &mut Types, params: &TypeParameters<'_>) -> Option<Type> {
         let key_type = self.key_type.realize(types, params)?;
-        match key_type {
-            Type::Primitive(key_type) => {
-                let value_type = self.value_type.realize(types, params)?;
-                Some(types.add_map(MapType::new(key_type, value_type)))
-            }
-            _ => None,
-        }
+        let value_type = self.value_type.realize(types, params)?;
+        Some(types.add_map(MapType::new(key_type, value_type)))
     }
 
     /// Asserts that the type parameters referenced by the type are valid.
@@ -634,6 +629,16 @@ impl FunctionalType {
     /// Determines if the type is generic.
     pub fn is_generic(&self) -> bool {
         matches!(self, Self::Generic(_))
+    }
+
+    /// Returns the concrete type.
+    ///
+    /// Returns `None` if the type is not concrete.
+    pub fn concrete_type(&self) -> Option<Type> {
+        match self {
+            Self::Concrete(ty) => Some(*ty),
+            Self::Generic(_) => None,
+        }
     }
 
     /// Returns an object that implements `Display` for formatting the type.
@@ -1112,6 +1117,30 @@ impl Function {
             Self::Polymorphic(f) => f.bind(types, arguments),
         }
     }
+
+    /// Gets the return type of the function.
+    ///
+    /// Returns `None` if the function return type cannot be statically
+    /// determined.
+    ///
+    /// This may occur for functions with a generic return type or if the
+    /// function is polymorphic and not every overload of the function has the
+    /// same return type.
+    pub fn ret(&self, types: &Types) -> Option<Type> {
+        match self {
+            Self::Monomorphic(f) => f.signature.ret.concrete_type(),
+            Self::Polymorphic(f) => {
+                let ty = f.signatures[0].ret.concrete_type()?;
+                for signature in f.signatures.iter().skip(1) {
+                    if signature.ret.concrete_type()?.type_eq(types, &ty) {
+                        return None;
+                    }
+                }
+
+                Some(ty)
+            }
+        }
+    }
 }
 
 /// Represents a monomorphic function.
@@ -1239,7 +1268,7 @@ impl PolymorphicFunction {
             {
                 match signature.bind(types, arguments) {
                     Ok(Binding::Equivalence(ty)) => {
-                        // We cannot have more than one exact match ever
+                        // We cannot have more than one exact match
                         if let Some((previous, _)) = exact {
                             return Err(FunctionBindError::Ambiguous {
                                 first: self.signatures[previous]
@@ -1359,7 +1388,7 @@ pub struct StandardLibrary {
 
 impl StandardLibrary {
     /// Gets the types used to define the standard library.
-    pub(crate) fn types(&self) -> &Types {
+    pub fn types(&self) -> &Types {
         &self.types
     }
 
@@ -1581,6 +1610,16 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             .parameter(PrimitiveTypeKind::String)
                             .ret(PrimitiveTypeKind::String)
                             .build(),
+                        // This overload isn't explicitly specified in the spec, but the spec
+                        // allows for `String` where file/directory are accepted; an explicit
+                        // `String` overload is required as `String` may coerce to either `File` or
+                        // `Directory`, which is ambiguous.
+                        FunctionSignature::builder()
+                            .required(1)
+                            .parameter(PrimitiveTypeKind::String)
+                            .parameter(PrimitiveTypeKind::String)
+                            .ret(PrimitiveTypeKind::String)
+                            .build(),
                         FunctionSignature::builder()
                             .required(1)
                             .parameter(PrimitiveTypeKind::Directory)
@@ -1651,6 +1690,16 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         FunctionSignature::builder()
                             .required(1)
                             .parameter(PrimitiveType::optional(PrimitiveTypeKind::File))
+                            .parameter(PrimitiveTypeKind::String)
+                            .ret(PrimitiveTypeKind::Float)
+                            .build(),
+                        // This overload isn't explicitly specified in the spec, but the spec
+                        // allows for `String` where file/directory are accepted; an explicit
+                        // `String` overload is required as `String` may coerce to either `File` or
+                        // `Directory`, which is ambiguous.
+                        FunctionSignature::builder()
+                            .required(1)
+                            .parameter(PrimitiveType::optional(PrimitiveTypeKind::String))
                             .parameter(PrimitiveTypeKind::String)
                             .ret(PrimitiveTypeKind::Float)
                             .build(),
@@ -2622,12 +2671,14 @@ mod test {
                 "matches(String, String) -> Boolean",
                 "sub(String, String, String) -> String",
                 "basename(File, <String>) -> String",
+                "basename(String, <String>) -> String",
                 "basename(Directory, <String>) -> String",
                 "join_paths(File, String) -> File",
                 "join_paths(File, Array[String]+) -> File",
                 "join_paths(Array[String]+) -> File",
                 "glob(String) -> Array[File]",
                 "size(File?, <String>) -> Float",
+                "size(String?, <String>) -> Float",
                 "size(Directory?, <String>) -> Float",
                 "size(X, <String>) -> Float where `X`: any compound type that recursively \
                  contains a `File` or `Directory`",

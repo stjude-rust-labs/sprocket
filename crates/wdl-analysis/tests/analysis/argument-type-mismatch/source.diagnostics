@@ -1,0 +1,6 @@
+error: argument type mismatch: expected type `String`, but found type `Int`
+  ┌─ tests/analysis/argument-type-mismatch/source.wdl:6:27
+  │
+6 │     String x = sub("foo", 1, "bar")
+  │                           ^ this is type `Int`
+

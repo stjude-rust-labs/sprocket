@@ -25,11 +25,12 @@ use wdl_ast::Ast;
 use wdl_ast::AstToken;
 
 use crate::graph::Analysis;
+use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::rayon::RayonHandle;
+use crate::scope::DocumentScope;
 use crate::AnalysisResult;
-use crate::DocumentScope;
 use crate::IncrementalChange;
 use crate::ProgressKind;
 
@@ -275,6 +276,7 @@ where
 
         // The current starting offset into the subgraph slice to process
         let mut offset = 0;
+        let mut space = Default::default();
 
         loop {
             if completed.is_closed() {
@@ -316,7 +318,9 @@ where
 
             // Update the graph, potentially adding more nodes to the subgraph
             let len = slice.len();
-            if let Err(e) = self.update_graphs(parsed, &mut subgraph, offset..offset + len) {
+            if let Err(e) =
+                self.update_graphs(parsed, &mut subgraph, offset..offset + len, &mut space)
+            {
                 return Cancelable::Completed(Err(e));
             }
 
@@ -509,6 +513,7 @@ where
         parsed: Vec<(NodeIndex, Result<ParseState>)>,
         subgraph: &mut IndexSet<NodeIndex>,
         range: Range<usize>,
+        space: &mut DfsSpace,
     ) -> Result<()> {
         let mut graph = self.graph.write();
 
@@ -541,7 +546,7 @@ where
                         let import_index = graph
                             .get_index(&import_uri)
                             .unwrap_or_else(|| graph.add_node(import_uri, false));
-                        graph.add_dependency_edge(index, import_index);
+                        graph.add_dependency_edge(index, import_index, space);
 
                         // Add the import to the subgraph
                         subgraph.insert(import_index);

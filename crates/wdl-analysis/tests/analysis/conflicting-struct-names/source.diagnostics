@@ -16,7 +16,7 @@ error: conflicting struct name `Foo`
    │        --- the struct with the conflicting name is here
    ·
 15 │ struct Foo {
-   │        ^^^ this conflicts with a struct of the same name
+   │        ^^^ this struct conflicts with a previously used name
 
 error: conflicting struct name `Bar`
    ┌─ tests/analysis/conflicting-struct-names/source.wdl:19:8
@@ -25,7 +25,7 @@ error: conflicting struct name `Bar`
    │        --- the struct with the conflicting name is here
    ·
 19 │ struct Bar {
-   │        ^^^ this conflicts with a struct of the same name
+   │        ^^^ this struct conflicts with a previously used name
 
 error: conflicting struct name `Baz`
    ┌─ tests/analysis/conflicting-struct-names/source.wdl:23:8

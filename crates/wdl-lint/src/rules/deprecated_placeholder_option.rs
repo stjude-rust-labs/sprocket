@@ -1,9 +1,9 @@
 //! A lint rule for flagging placeholder options as deprecated.
 
-use wdl_ast::span_of;
 use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::version::V1;
+use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
@@ -133,13 +133,13 @@ impl Visitor for DeprecatedPlaceholderOptionRule {
         if let Some(option) = placeholder.option() {
             match option {
                 PlaceholderOption::Sep(option) => {
-                    state.add(deprecated_sep_placeholder_option(span_of(&option)));
+                    state.add(deprecated_sep_placeholder_option(option.span()));
                 }
                 PlaceholderOption::Default(option) => {
-                    state.add(deprecated_default_placeholder_option(span_of(&option)));
+                    state.add(deprecated_default_placeholder_option(option.span()));
                 }
                 PlaceholderOption::TrueFalse(option) => {
-                    state.add(deprecated_true_false_placeholder_option(span_of(&option)))
+                    state.add(deprecated_true_false_placeholder_option(option.span()));
                 }
             }
         }

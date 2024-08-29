@@ -381,7 +381,7 @@ macro_rules! paren_items {
 /// Parses matching brackets given a callback to parse the interior.
 macro_rules! bracketed {
     ($parser:ident, $marker:ident, $cb:expr) => {
-        if let Err(e) = $parser.matching(Token::OpenBracket, Token::CloseBracket, $cb) {
+        if let Err(e) = $parser.matching(Token::OpenBracket, Token::CloseBracket, false, $cb) {
             return Err(($marker, e));
         }
     };
@@ -390,7 +390,7 @@ macro_rules! bracketed {
 /// Parses matching parenthesis given a callback to parse the interior.
 macro_rules! paren {
     ($parser:ident, $marker:ident, $cb:expr) => {
-        if let Err(e) = $parser.matching(Token::OpenParen, Token::CloseParen, $cb) {
+        if let Err(e) = $parser.matching(Token::OpenParen, Token::CloseParen, false, $cb) {
             return Err(($marker, e));
         }
     };
@@ -1786,10 +1786,14 @@ fn expr_with_precedence(
                     break;
                 }
 
+                if token == Token::OpenParen {
+                    // We've already handled call expressions as an atom
+                    break;
+                }
+
                 // Call the operation-specific parse function
                 let postfix = lhs.precede(parser);
                 let res = match token {
-                    Token::OpenParen => call_expr(parser, postfix),
                     Token::OpenBracket => index_expr(parser, postfix),
                     Token::Dot => access_expr(parser, postfix),
                     _ => panic!("unexpected postfix operator"),
@@ -1814,6 +1818,8 @@ fn expr_with_precedence(
 /// Due to the WDL grammar having an ambiguity between parenthesized expressions
 /// and pair literals, this function handles the former in addition to pair
 /// literals.
+///
+/// Additionally, this handles call expressions.
 fn atom_expr(
     parser: &mut Parser<'_>,
     marker: Marker,
@@ -1834,7 +1840,7 @@ fn atom_expr(
         Token::HintsKeyword => literal_hints(parser, marker),
         Token::InputKeyword => literal_input(parser, marker),
         Token::OutputKeyword => literal_output(parser, marker),
-        t if ANY_IDENT.contains(t.into_raw()) => literal_struct_or_name_ref(parser, marker),
+        t if ANY_IDENT.contains(t.into_raw()) => name_ref(parser, marker),
         _ => unreachable!(),
     }
 }
@@ -1934,13 +1940,18 @@ fn object_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, D
     Ok(())
 }
 
-/// Parses a literal struct or a name reference.
-fn literal_struct_or_name_ref(
+/// Parses a name reference, literal struct expression, or call expression.
+fn name_ref(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
     expected_in!(parser, marker, ANY_IDENT, "identifier");
     parser.update_last_token_kind(SyntaxKind::Ident);
+
+    // Check for call expression
+    if let Some((Token::OpenParen, _)) = parser.peek() {
+        return call_expr(parser, marker);
+    }
 
     // To disambiguate between a name reference and a struct literal,
     // peek ahead for `{`.

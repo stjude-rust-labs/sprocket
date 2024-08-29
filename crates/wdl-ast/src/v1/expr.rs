@@ -3070,13 +3070,13 @@ pub struct CallExpr(SyntaxNode);
 
 impl CallExpr {
     /// Gets the call target expression.
-    pub fn target(&self) -> Expr {
-        child(&self.0).expect("expected a target expression")
+    pub fn target(&self) -> Ident {
+        token(&self.0).expect("expected a target identifier")
     }
 
     /// Gets the call arguments.
     pub fn arguments(&self) -> impl Iterator<Item = Expr> {
-        children(&self.0).skip(1)
+        children(&self.0)
     }
 }
 
@@ -6760,7 +6760,7 @@ task test {
         assert_eq!(decls[1].ty().to_string(), "String");
         assert_eq!(decls[1].name().as_str(), "b");
         let call = decls[1].expr().unwrap_call();
-        assert_eq!(call.target().unwrap_name_ref().name().as_str(), "sep");
+        assert_eq!(call.target().as_str(), "sep");
         let args: Vec<_> = call.arguments().collect();
         assert_eq!(args.len(), 2);
         assert_eq!(
