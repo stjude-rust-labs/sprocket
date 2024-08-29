@@ -195,6 +195,9 @@ pub enum Type {
     Union,
     /// A special type that behaves like an optional `Union`.
     None,
+    /// A special hidden type for `task` that is available in command and task
+    /// output sections in WDL 1.2.
+    Task,
 }
 
 impl Type {
@@ -235,6 +238,7 @@ impl Type {
                     Type::OptionalObject => write!(f, "Object?"),
                     Type::Union => write!(f, "Union"),
                     Type::None => write!(f, "None"),
+                    Type::Task => write!(f, "Task"),
                 }
             }
         }
@@ -254,8 +258,12 @@ impl Type {
                 );
                 ty.assert_valid(types);
             }
-            Self::Primitive(_) | Self::Object | Self::OptionalObject | Self::Union | Self::None => {
-            }
+            Self::Primitive(_)
+            | Self::Object
+            | Self::OptionalObject
+            | Self::Union
+            | Self::None
+            | Self::Task => {}
         }
     }
 }
@@ -266,7 +274,7 @@ impl Optional for Type {
             Self::Primitive(ty) => ty.is_optional(),
             Self::Compound(ty) => ty.is_optional(),
             Self::OptionalObject | Self::None => true,
-            Self::Object | Self::Union => false,
+            Self::Object | Self::Union | Self::Task => false,
         }
     }
 
@@ -275,7 +283,7 @@ impl Optional for Type {
             Self::Primitive(ty) => Self::Primitive(ty.optional()),
             Self::Compound(ty) => Self::Compound(ty.optional()),
             Self::Object | Self::OptionalObject => Self::OptionalObject,
-            Self::Union | Self::None => Self::None,
+            Self::Union | Self::None | Self::Task => Self::None,
         }
     }
 
@@ -285,6 +293,7 @@ impl Optional for Type {
             Self::Compound(ty) => Self::Compound(ty.require()),
             Self::Object | Self::OptionalObject => Self::Object,
             Self::Union | Self::None => Self::Union,
+            Self::Task => Self::Task,
         }
     }
 }
@@ -1091,6 +1100,7 @@ impl Types {
             Type::OptionalObject => Type::OptionalObject,
             Type::Union => Type::Union,
             Type::None => Type::None,
+            Type::Task => Type::Task,
         }
     }
 }

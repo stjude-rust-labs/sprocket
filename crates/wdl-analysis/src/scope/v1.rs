@@ -25,6 +25,7 @@ use wdl_ast::v1::TaskItem;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::v1::WorkflowItem;
 use wdl_ast::v1::WorkflowStatement;
+use wdl_ast::version::V1;
 use wdl_ast::AstNode;
 use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
@@ -37,7 +38,8 @@ use wdl_ast::ToSpan;
 use wdl_ast::TokenStrHash;
 use wdl_ast::Version;
 
-use super::scope_span;
+use super::braced_scope_span;
+use super::heredoc_scope_span;
 use super::Context;
 use super::DocumentScope;
 use super::Name;
@@ -57,6 +59,10 @@ use crate::types::v1::AstTypeConverter;
 use crate::types::v1::ExprTypeEvaluator;
 use crate::types::Coercible;
 use crate::types::Type;
+
+/// The `task` variable name available in task command sections and outputs in
+/// WDL 1.2.
+const TASK_VAR_NAME: &str = "task";
 
 /// Creates a "name conflict" diagnostic
 fn name_conflict(name: &str, conflicting: Context, first: Context) -> Diagnostic {
@@ -214,7 +220,15 @@ fn unknown_type(name: &str, span: Span) -> Diagnostic {
 
 /// Creates an "unknown name" diagnostic.
 fn unknown_name(name: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("unknown name `{name}`")).with_highlight(span)
+    // Handle special case names here
+    let message = match name {
+        "task" => "the `task` variable may only be used within a task command section or task \
+                   output section using WDL 1.2 or later"
+            .to_string(),
+        _ => format!("unknown name `{name}`"),
+    };
+
+    Diagnostic::error(message).with_highlight(span)
 }
 
 /// Creates a "self-referential" diagnostic.
@@ -529,10 +543,10 @@ fn add_task(
     }
 
     // Populate the task's scope and evaluation graph
-    let scope = document.add_scope(Scope::new(None, scope_span(task)));
+    let scope = document.add_scope(Scope::new(None, braced_scope_span(task)));
     let mut saw_input = false;
-    let mut saw_output = false;
-
+    let mut outputs = None;
+    let mut command = None;
     for item in task.items() {
         match item {
             TaskItem::Input(section) if !saw_input => {
@@ -541,16 +555,46 @@ fn add_task(
                     add_input(document.scope_mut(scope), decl, diagnostics)
                 }
             }
-            TaskItem::Output(section) if !saw_output => {
-                saw_output = true;
-                let outputs = document.add_scope(Scope::new(Some(scope), scope_span(&section)));
-                document.scope_mut(scope).add_child(outputs);
-                for decl in section.declarations() {
-                    add_output(document.scope_mut(outputs), decl, diagnostics);
+            TaskItem::Output(section) if outputs.is_none() => {
+                let child =
+                    document.add_scope(Scope::new(Some(scope), braced_scope_span(&section)));
+                document.scope_mut(scope).add_child(child);
+
+                if document.version >= Some(SupportedVersion::V1(V1::Two)) {
+                    document.scopes[child.0].names.insert(
+                        TASK_VAR_NAME.to_string(),
+                        Name {
+                            context: NameContext::Task(name.span()),
+                            ty: Some(Type::Task),
+                        },
+                    );
                 }
+
+                for decl in section.declarations() {
+                    add_output(document.scope_mut(child), decl, diagnostics);
+                }
+
+                outputs = Some(child);
             }
             TaskItem::Declaration(decl) => {
                 add_decl(document.scope_mut(scope), decl, diagnostics);
+            }
+            TaskItem::Command(section) if command.is_none() => {
+                let child =
+                    document.add_scope(Scope::new(Some(scope), heredoc_scope_span(&section)));
+                document.scope_mut(scope).add_child(child);
+
+                if document.version >= Some(SupportedVersion::V1(V1::Two)) {
+                    document.scopes[child.0].names.insert(
+                        TASK_VAR_NAME.to_string(),
+                        Name {
+                            context: NameContext::Task(name.span()),
+                            ty: Some(Type::Task),
+                        },
+                    );
+                }
+
+                command = Some(child);
             }
             TaskItem::Input(_)
             | TaskItem::Output(_)
@@ -568,6 +612,8 @@ fn add_task(
         Task {
             name_span: name.span(),
             scope,
+            outputs,
+            command,
         },
     );
 }
@@ -592,7 +638,7 @@ fn add_workflow(
         return;
     }
 
-    let scope = document.add_scope(Scope::new(None, scope_span(workflow)));
+    let scope = document.add_scope(Scope::new(None, braced_scope_span(workflow)));
     let mut saw_input = false;
     let mut saw_output = false;
     for item in workflow.items() {
@@ -605,7 +651,8 @@ fn add_workflow(
             }
             WorkflowItem::Output(section) if !saw_output => {
                 saw_output = true;
-                let outputs = document.add_scope(Scope::new(Some(scope), scope_span(&section)));
+                let outputs =
+                    document.add_scope(Scope::new(Some(scope), braced_scope_span(&section)));
                 document.scope_mut(scope).add_child(outputs);
                 for decl in section.declarations() {
                     add_output(document.scope_mut(outputs), decl, diagnostics);
@@ -667,7 +714,7 @@ fn add_workflow_statement_decls(
 ) {
     match stmt {
         WorkflowStatement::Conditional(stmt) => {
-            let scope = document.add_scope(Scope::new(Some(parent), scope_span(stmt)));
+            let scope = document.add_scope(Scope::new(Some(parent), braced_scope_span(stmt)));
             document.scope_mut(parent).add_child(scope);
 
             for stmt in stmt.statements() {
@@ -686,7 +733,7 @@ fn add_workflow_statement_decls(
             }
         }
         WorkflowStatement::Scatter(stmt) => {
-            let scope = document.add_scope(Scope::new(Some(parent), scope_span(stmt)));
+            let scope = document.add_scope(Scope::new(Some(parent), braced_scope_span(stmt)));
             document.scope_mut(parent).add_child(scope);
 
             // Introduce the scatter variable into the scope
@@ -919,8 +966,8 @@ fn type_check(document: &mut DocumentScope, ast: &Ast, diagnostics: &mut Vec<Dia
         match item {
             DocumentItem::Import(_) | DocumentItem::Struct(_) => continue,
             DocumentItem::Task(definition) => {
-                if let Some(task) = document.tasks.get(definition.name().as_str()) {
-                    type_check_task(document, &definition, task.scope, diagnostics);
+                if let Some(task) = document.tasks.get_index_of(definition.name().as_str()) {
+                    type_check_task(document, &definition, task, diagnostics);
                 }
             }
             DocumentItem::Workflow(_) => {
@@ -933,8 +980,8 @@ fn type_check(document: &mut DocumentScope, ast: &Ast, diagnostics: &mut Vec<Dia
 /// Performs a type check on a task.
 fn type_check_task(
     document: &mut DocumentScope,
-    task: &TaskDefinition,
-    scope: ScopeIndex,
+    definition: &TaskDefinition,
+    task_index: usize,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     /// Represents a node in the name reference graph.
@@ -1043,6 +1090,11 @@ fn type_check_task(
 
                             // Look up the name, checking for cycles
                             if document.scope(scope).lookup(name.as_str()).is_some() {
+                                // Ignore task variables
+                                if name.as_str() == TASK_VAR_NAME {
+                                    continue;
+                                }
+
                                 let to = names[name.as_str()];
 
                                 // Check to see if the node is self-referential
@@ -1092,6 +1144,11 @@ fn type_check_task(
                                 // Look up the name; we don't check for cycles here as decls can't
                                 // reference the command
                                 if document.scope(scope).lookup(name.as_str()).is_some() {
+                                    // Ignore task variables
+                                    if name.as_str() == TASK_VAR_NAME {
+                                        continue;
+                                    }
+
                                     let to = names[name.as_str()];
                                     graph.update_edge(to, from, ());
                                 } else {
@@ -1111,21 +1168,26 @@ fn type_check_task(
     let mut command = None;
     let mut graph = DiGraph::new();
     let mut names = IndexMap::new();
-    for item in task.items() {
+    for item in definition.items() {
         match item {
             TaskItem::Input(section) if !saw_inputs => {
                 saw_inputs = true;
                 for decl in section.declarations() {
-                    add_decl_node(document, &mut graph, &mut names, scope, decl, diagnostics);
+                    add_decl_node(
+                        document,
+                        &mut graph,
+                        &mut names,
+                        document.tasks[task_index].scope,
+                        decl,
+                        diagnostics,
+                    );
                 }
             }
             TaskItem::Output(section) if !saw_outputs => {
                 saw_outputs = true;
-                let scope = document.scopes[scope.0]
-                    .children
-                    .first()
-                    .copied()
-                    .expect("expected output scope");
+                let scope = document.tasks[task_index]
+                    .outputs
+                    .expect("should have output scope");
                 for decl in section.declarations() {
                     add_decl_node(
                         document,
@@ -1142,13 +1204,20 @@ fn type_check_task(
                     document,
                     &mut graph,
                     &mut names,
-                    scope,
+                    document.tasks[task_index].scope,
                     Decl::Bound(decl),
                     diagnostics,
                 );
             }
             TaskItem::Command(section) if command.is_none() => {
-                command = Some(graph.add_node(GraphNode::Command { scope, section }));
+                command = Some(
+                    graph.add_node(GraphNode::Command {
+                        scope: document.tasks[task_index]
+                            .command
+                            .expect("should have command scope"),
+                        section,
+                    }),
+                );
             }
             _ => continue,
         }

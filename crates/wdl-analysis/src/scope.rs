@@ -12,7 +12,6 @@ use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::WorkflowDescriptionLanguage;
@@ -24,23 +23,39 @@ use crate::types::Types;
 
 mod v1;
 
-/// Calculates the span of a scope given a node which uses braces to
-/// delineate the scope.
-fn scope_span(parent: &impl AstNode<Language = WorkflowDescriptionLanguage>) -> Span {
-    let open =
-        token(parent.syntax(), SyntaxKind::OpenBrace).expect("task must have an opening brace");
+/// Calculates the span of a scope given a braced node.
+fn braced_scope_span(parent: &impl AstNode<Language = WorkflowDescriptionLanguage>) -> Span {
+    scope_span(parent, SyntaxKind::OpenBrace, SyntaxKind::CloseBrace)
+}
+
+/// Calculates the span of a scope given a heredoc node.
+fn heredoc_scope_span(parent: &impl AstNode<Language = WorkflowDescriptionLanguage>) -> Span {
+    scope_span(parent, SyntaxKind::OpenHeredoc, SyntaxKind::CloseHeredoc)
+}
+
+/// Calculates the span of a scope given the node where the scope is visible.
+fn scope_span(
+    parent: &impl AstNode<Language = WorkflowDescriptionLanguage>,
+    open: SyntaxKind,
+    close: SyntaxKind,
+) -> Span {
+    let open = token(parent.syntax(), open)
+        .expect("missing open token")
+        .text_range()
+        .to_span();
     let close = parent
         .syntax()
         .last_child_or_token()
-        .and_then(SyntaxElement::into_token)
-        .expect("task must have a last token");
-    assert_eq!(
-        close.kind(),
-        SyntaxKind::CloseBrace,
-        "the last token of a task should be a close brace"
-    );
-    let open = open.text_range().to_span();
-    let close = close.text_range().to_span();
+        .and_then(|c| {
+            if c.kind() == close {
+                c.into_token()
+            } else {
+                None
+            }
+        })
+        .expect("missing close token")
+        .text_range()
+        .to_span();
 
     // The span starts after the opening brace and before the closing brace
     Span::new(open.end(), close.start() - open.end())
@@ -99,6 +114,9 @@ pub(crate) enum NameContext {
     Call(Span),
     /// The name was introduced by a variable in workflow scatter statement.
     ScatterVariable(Span),
+    /// The name was introduced for the special `task` name in task command and
+    /// outputs sections for WDL 1.2.
+    Task(Span),
 }
 
 impl NameContext {
@@ -110,6 +128,7 @@ impl NameContext {
             Self::Decl(s) => *s,
             Self::Call(s) => *s,
             Self::ScatterVariable(s) => *s,
+            Self::Task(s) => *s,
         }
     }
 }
@@ -122,6 +141,7 @@ impl fmt::Display for NameContext {
             Self::Decl(_) => write!(f, "declaration"),
             Self::Call(_) => write!(f, "call"),
             Self::ScatterVariable(_) => write!(f, "scatter variable"),
+            Self::Task(_) => write!(f, "task"),
         }
     }
 }
@@ -362,8 +382,12 @@ impl<'a> ScopeRefMut<'a> {
 struct Task {
     /// The span of the task name.
     name_span: Span,
-    /// The scope index for the task.
+    /// The root scope index for the task.
     scope: ScopeIndex,
+    /// The scope index for the outputs.
+    outputs: Option<ScopeIndex>,
+    /// The scope index for the command.
+    command: Option<ScopeIndex>,
 }
 
 /// Represents a workflow in a document.

@@ -1384,6 +1384,10 @@ pub struct StandardLibrary {
     types: Types,
     /// A map of function name to function definition.
     functions: IndexMap<&'static str, Function>,
+    /// The type for `Array[String]`.
+    pub(crate) array_string: Type,
+    /// The type for `Map[String, Int]`.
+    pub(crate) map_string_int: Type,
 }
 
 impl StandardLibrary {
@@ -1406,7 +1410,6 @@ impl StandardLibrary {
 /// Represents the WDL standard library.
 pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
     let mut types = Types::new();
-
     let array_int = types.add_array(ArrayType::new(PrimitiveTypeKind::Integer));
     let array_string = types.add_array(ArrayType::new(PrimitiveTypeKind::String));
     let array_file = types.add_array(ArrayType::new(PrimitiveTypeKind::File));
@@ -1416,6 +1419,10 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
     let map_string_string = types.add_map(MapType::new(
         PrimitiveTypeKind::String,
         PrimitiveTypeKind::String,
+    ));
+    let map_string_int = types.add_map(MapType::new(
+        PrimitiveTypeKind::String,
+        PrimitiveTypeKind::Integer,
     ));
 
     let mut functions = IndexMap::new();
@@ -2620,7 +2627,12 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
             .is_none()
     );
 
-    StandardLibrary { types, functions }
+    StandardLibrary {
+        types,
+        functions,
+        array_string,
+        map_string_int,
+    }
 });
 
 #[cfg(test)]

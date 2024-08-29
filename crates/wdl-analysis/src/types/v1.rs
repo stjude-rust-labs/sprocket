@@ -71,6 +71,15 @@ pub(crate) fn type_mismatch(
     )
 }
 
+/// Creates a "not a task member" diagnostic.
+fn not_a_task_member(member: &Ident) -> Diagnostic {
+    Diagnostic::error(format!(
+        "the `task` variable does not have a member named `{member}`",
+        member = member.as_str()
+    ))
+    .with_highlight(member.span())
+}
+
 /// Creates a "not a struct member" diagnostic.
 fn not_a_struct_member(name: &str, member: &Ident) -> Diagnostic {
     Diagnostic::error(format!(
@@ -353,6 +362,24 @@ fn cannot_coerce_to_string(types: &Types, actual: Type, span: Span) -> Diagnosti
         format!("this is type `{actual}`", actual = actual.display(types)),
         span,
     )
+}
+
+/// Gets the type of a `task` variable member type.
+///
+/// `task` variables are supported in command and output sections in WDL 1.2.
+///
+/// Returns `None` if the given member name is unknown.
+pub fn task_member_type(name: &str) -> Option<Type> {
+    match name {
+        "name" | "id" | "container" => Some(PrimitiveTypeKind::String.into()),
+        "cpu" => Some(PrimitiveTypeKind::Float.into()),
+        "memory" | "attempt" => Some(PrimitiveTypeKind::Integer.into()),
+        "gpu" | "fpga" => Some(STDLIB.array_string),
+        "disks" => Some(STDLIB.map_string_int),
+        "end_time" | "return_code" => Some(Type::from(PrimitiveTypeKind::Integer).optional()),
+        "meta" | "parameter_meta" | "ext" => Some(Type::Object),
+        _ => None,
+    }
 }
 
 /// Represents a comparison operator.
@@ -1406,6 +1433,16 @@ where
     fn evaluate_access_expr(&mut self, scope: &ScopeRef<'_>, expr: &AccessExpr) -> Option<Type> {
         let (target, name) = expr.operands();
         let ty = self.evaluate_expr(scope, &target)?;
+
+        if Type::Task == ty {
+            return match task_member_type(name.as_str()) {
+                Some(ty) => Some(ty),
+                None => {
+                    self.diagnostics.push(not_a_task_member(&name));
+                    return None;
+                }
+            };
+        }
 
         // Check to see if it's a compound type
         if let Type::Compound(ty) = &ty {

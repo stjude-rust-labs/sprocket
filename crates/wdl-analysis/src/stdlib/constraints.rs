@@ -85,6 +85,7 @@ impl Constraint for SizeableConstraint {
                 }
                 // Treat unions as sizable as they can only be checked at runtime
                 Type::Union | Type::None => true,
+                Type::Task => false,
             }
         }
 
@@ -147,7 +148,8 @@ impl Constraint for JsonSerializableConstraint {
                 | Type::Object
                 | Type::OptionalObject
                 | Type::Union
-                | Type::None => true,
+                | Type::None
+                | Type::Task => true,
                 Type::Compound(ty) => compound_type_is_serializable(types, ty),
             }
         }
@@ -170,7 +172,9 @@ impl Constraint for RequiredPrimitiveTypeConstraint {
             Type::Primitive(ty) => !ty.is_optional(),
             // Treat unions as primitive as they can only be checked at runtime
             Type::Union => true,
-            Type::Compound(_) | Type::Object | Type::OptionalObject | Type::None => false,
+            Type::Compound(_) | Type::Object | Type::OptionalObject | Type::None | Type::Task => {
+                false
+            }
         }
     }
 }
@@ -189,7 +193,7 @@ impl Constraint for AnyPrimitiveTypeConstraint {
             Type::Primitive(_) => true,
             // Treat unions as primitive as they can only be checked at runtime
             Type::Union | Type::None => true,
-            Type::Compound(_) | Type::Object | Type::OptionalObject => false,
+            Type::Compound(_) | Type::Object | Type::OptionalObject | Type::Task => false,
         }
     }
 }
