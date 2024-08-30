@@ -1,5 +1,3 @@
-# Introduction
-
 ::: tip Note
 **Sprocket** is current an alpha-phase project. To that end,
 this page serves the purpose of describing what we hope Sprocket _will_ become
@@ -9,19 +7,25 @@ you to follow the project on
 progress.
 :::
 
-**Sprocket** is an bioinformatics workflow execution engine built on top of the [Workflow Description Language](https://openwdl.org). The project has multiple high-level goals, including to:
+# Introduction
 
-* Provide a **high-performance** workflow execution engine capable of
+![Sprocket Repository Header](/public/repo-header.png)
+
+**Sprocket** is an bioinformatics workflow execution engine built on top of the
+[Workflow Description Language](https://openwdl.org). The project has multiple
+high-level goals, including to:
+
+- Provide a **high-performance** workflow execution engine capable of
   orchestrating massive bioinformatics workloads (the stated target is 20,000+
   concurrent jobs).
-* Develop a suite of **modern development tools** that brings bioinformatics
+- Develop a suite of **modern development tools** that brings bioinformatics
   development on par with other modern languages (e.g.,
   [`wdl-lsp`](https://github.com/stjude-rust-labs/wdl/tree/main/wdl-lsp)).
-* Maintain an **community-focused codebase** that enables a diverse set of
+- Maintain an **community-focused codebase** that enables a diverse set of
   contributors from academic, non-profit, and commercial organizations.
-* Build on an **open, domain-tailored standard** to ensure the toolset remains
+- Build on an **open, domain-tailored standard** to ensure the toolset remains
   singularly focused on unencumbered innovation within bioinformatics.
-* Retain a **simple and accessible user experience** when complexity isn't warranted.
+- Retain a **simple and accessible user experience** when complexity isn't warranted.
 
 Sprocket is written in [Rust](https://www.rust-lang.org/) and enjoys all of the
 benefits that come with that choice. It also takes heavy inspiration from Rust
@@ -41,9 +45,9 @@ variety of execution environments.
 
 The execution engine for Sprocket is comprised of two major components:
 
-* The **orchestration engine**, which handles the scheduling and monitoring of
+- The **orchestration engine**, which handles the scheduling and monitoring of
   units of execution within a workflow, and
-* **Execution runtimes**, which carry out the work associated with a unit of
+- **Execution runtimes**, which carry out the work associated with a unit of
   compute within a particular environment (e.g., local compute, a high-performance compute
   cluster, or the cloud).
 
@@ -115,7 +119,7 @@ stated goals.
 The following are "goal adjacent", meaning that the project values these things
 when they do not otherwise inhibit the primary goals.
 
-* **Providing robust implementations natively for a handful of reference
+- **Providing robust implementations natively for a handful of reference
   backends.** Outside of a few core backends that are used to drive the
   development of the project, backends are intended to be developed and
   maintained by the backend providers themselves. When that isn't possible,
@@ -126,20 +130,20 @@ when they do not otherwise inhibit the primary goals.
 
 The following are non-goals of the project.
 
-* **Supporting multiple workflow languages or standards.** Workflow
+- **Supporting multiple workflow languages or standards.** Workflow
   languages are ideally a simple means to an end: to run large-scale
   bioinformatics analyses with as little development and operational friction as
   possible. We stand unconvinced that there is a strong technical argument for
   multiple workflow languages existing within bioinformatics.
-* **Supporting a comprehensive list of backends.** As stated above, we aim to
+- **Supporting a comprehensive list of backends.** As stated above, we aim to
   spur a thriving community of independent backend development that is
   compatible with Sprocket. More explicitly, comprehensive support for the quirks of
   each backend (not to mention the day-to-day maintenance of these backends) represents a
   _significant_ time investment that takes away from core development time.
-* **Simplicity at all costs.** Though we aim to make things simple when
+- **Simplicity at all costs.** Though we aim to make things simple when
   possible, complexity will be introduced when deemed necessary (this is
   particularly true when it comes to internal implementation details).
-* **Native Windows compatibility.** For now, Sprocket is intended to be used on
+- **Native Windows compatibility.** For now, Sprocket is intended to be used on
   UNIX-like machines. If you're on Windows, we recommend you [install
   WSL](https://learn.microsoft.com/en-us/windows/wsl/install) if you haven't
   already.
@@ -156,6 +160,5 @@ used.
 
 [`wdl`]: https://github.com/stjude-rust-labs/wdl
 [`sprocket`]: https://github.com/stjude-rust-labs/sprocket
-[Visual Studio Code extension]:
-    https://marketplace.visualstudio.com/items?itemName=stjude-rust-labs.sprocket-vscode
+[Visual Studio Code extension]: https://marketplace.visualstudio.com/items?itemName=stjude-rust-labs.sprocket-vscode
 [Workflow Description Language]: https://openwdl.org
