@@ -20,8 +20,10 @@ nonempty = "0.10.0"
 pest = { version = "2.7.11", features = ["pretty-print"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
-wdl = { version = "0.7.0", features = ["codespan", "lsp"] }
+wdl = { version = "0.7.0", features = ["codespan", "lsp", "analysis"] }
 walkdir = "2.5.0"
 colored = "2.1.0"
 tokio = { version = "1.39.1", features = ["full"] }
 tracing-log = "0.2.0"
+indicatif = "0.17.8"
+clap-verbosity-flag = "2.2.1"
