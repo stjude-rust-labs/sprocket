@@ -114,7 +114,7 @@ other users too. In particular, we aim to keep Sprocket as simple as we possibly
 can—only introducing complexity when needed to achieve the project's other
 stated goals.
 
-## Goal-Adjacent
+## Goal-adjacent
 
 The following are "goal adjacent", meaning that the project values these things
 when they do not otherwise inhibit the primary goals.
@@ -126,7 +126,7 @@ when they do not otherwise inhibit the primary goals.
   custom backends should be able to be configured by end-users with a moderate
   amount of effort.
 
-### Non-goals
+## Non-goals
 
 The following are non-goals of the project.
 
