@@ -11,7 +11,7 @@ pub fn lines_with_offset(s: &str) -> impl Iterator<Item = (&str, usize, usize)> 
 
         let start = offset;
         loop {
-            match s[offset..].find(|c| c == '\r' || c == '\n') {
+            match s[offset..].find(|c| ['\r', '\n'].contains(&c)) {
                 Some(i) => {
                     let end = offset + i;
                     offset = end + 1;

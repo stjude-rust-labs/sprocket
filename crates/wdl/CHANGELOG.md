@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fixed CLI tool to not output colors when stdio is not a terminal ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 
+### Changed
+* Use `tracing-subscriber` to configure tracing env ([#172](https://github.com/stjude-rust-labs/wdl/pull/172))
+
 ## 0.7.0 - 08-22-2024
 
 ### Added

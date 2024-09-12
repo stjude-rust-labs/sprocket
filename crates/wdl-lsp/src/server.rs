@@ -17,6 +17,9 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::Client;
 use tower_lsp::LanguageServer;
 use tower_lsp::LspService;
+use tracing::debug;
+use tracing::error;
+use tracing::info;
 use uuid::Uuid;
 use wdl_analysis::Analyzer;
 use wdl_analysis::IncrementalChange;
@@ -192,7 +195,7 @@ pub struct Server {
 impl Server {
     /// Runs the server until a request is received to shut down.
     pub async fn run(options: ServerOptions) -> Result<()> {
-        log::debug!("running LSP server: {options:#?}");
+        debug!("running LSP server: {options:#?}");
 
         let (service, socket) = LspService::new(|client| {
             let lint = options.lint;
@@ -278,7 +281,7 @@ impl Server {
 #[tower_lsp::async_trait]
 impl LanguageServer for Server {
     async fn initialize(&self, params: InitializeParams) -> RpcResult<InitializeResult> {
-        log::debug!("received `initialize` request: {params:#?}");
+        debug!("received `initialize` request: {params:#?}");
 
         {
             let mut folders = self.folders.write();
@@ -361,7 +364,7 @@ impl LanguageServer for Server {
             .await;
         }
 
-        log::info!(
+        info!(
             "{name} (v{version}) server initialized",
             name = self
                 .options
@@ -381,11 +384,11 @@ impl LanguageServer for Server {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        log::debug!("received `textDocument/didOpen` request: {params:#?}");
+        debug!("received `textDocument/didOpen` request: {params:#?}");
 
         if let Ok(path) = params.text_document.uri.to_file_path() {
             if let Err(e) = self.analyzer.add_documents(vec![path]).await {
-                log::error!(
+                error!(
                     "failed to add document {uri}: {e}",
                     uri = params.text_document.uri
                 );
@@ -400,15 +403,15 @@ impl LanguageServer for Server {
                     edits: Vec::new(),
                 },
             ) {
-                log::error!("failed to notify incremental change: {e}");
+                error!("failed to notify incremental change: {e}");
             }
         }
     }
 
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
-        log::debug!("received `textDocument/didChange` request: {params:#?}");
+        debug!("received `textDocument/didChange` request: {params:#?}");
 
-        log::debug!(
+        debug!(
             "document `{uri}` is now client version {version}",
             uri = params.text_document.uri,
             version = params.text_document.version
@@ -447,14 +450,14 @@ impl LanguageServer for Server {
                     .collect(),
             },
         ) {
-            log::error!("failed to notify incremental change: {e}");
+            error!("failed to notify incremental change: {e}");
         }
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        log::debug!("received `textDocument/didClose` request: {params:#?}");
+        debug!("received `textDocument/didClose` request: {params:#?}");
         if let Err(e) = self.analyzer.notify_change(params.text_document.uri, true) {
-            log::error!("failed to notify change: {e}");
+            error!("failed to notify change: {e}");
         }
     }
 
@@ -462,7 +465,7 @@ impl LanguageServer for Server {
         &self,
         params: DocumentDiagnosticParams,
     ) -> RpcResult<DocumentDiagnosticReportResult> {
-        log::debug!("received `textDocument/diagnostic` request: {params:#?}");
+        debug!("received `textDocument/diagnostic` request: {params:#?}");
 
         let results: Vec<wdl_analysis::AnalysisResult> = self
             .analyzer
@@ -482,7 +485,7 @@ impl LanguageServer for Server {
         &self,
         params: WorkspaceDiagnosticParams,
     ) -> RpcResult<WorkspaceDiagnosticReportResult> {
-        log::debug!("received `workspace/diagnostic` request: {params:#?}");
+        debug!("received `workspace/diagnostic` request: {params:#?}");
 
         let work_done_progress = self.client_support.read().work_done_progress;
         let progress = ProgressToken::new(&self.client, work_done_progress).await;
@@ -508,7 +511,7 @@ impl LanguageServer for Server {
     }
 
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
-        log::debug!("received `workspace/didChangeWorkspaceFolders` request: {params:#?}");
+        debug!("received `workspace/didChangeWorkspaceFolders` request: {params:#?}");
 
         // Process the removed folders
         if !params.event.removed.is_empty() {
@@ -517,7 +520,7 @@ impl LanguageServer for Server {
                 .remove_documents(params.event.removed.into_iter().map(|f| f.uri).collect())
                 .await
             {
-                log::error!("failed to remove documents from analyzer: {e}");
+                error!("failed to remove documents from analyzer: {e}");
             }
         }
 
@@ -535,13 +538,13 @@ impl LanguageServer for Server {
                 )
                 .await
             {
-                log::error!("failed to add documents to analyzer: {e}");
+                error!("failed to add documents to analyzer: {e}");
             }
         }
     }
 
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
-        log::debug!("received `workspace/didChangeWatchedFiles` request: {params:#?}");
+        debug!("received `workspace/didChangeWatchedFiles` request: {params:#?}");
 
         /// Converts a URI into a WDL file path.
         fn to_wdl_file_path(uri: &Url) -> Option<PathBuf> {
@@ -561,21 +564,21 @@ impl LanguageServer for Server {
             match event.typ {
                 FileChangeType::CREATED => {
                     if let Some(path) = to_wdl_file_path(&event.uri) {
-                        log::debug!("document `{uri}` has been created", uri = event.uri);
+                        debug!("document `{uri}` has been created", uri = event.uri);
                         added.push(path);
                     }
                 }
                 FileChangeType::CHANGED => {
                     if to_wdl_file_path(&event.uri).is_some() {
-                        log::debug!("document `{uri}` has been changed", uri = event.uri);
+                        debug!("document `{uri}` has been changed", uri = event.uri);
                         if let Err(e) = self.analyzer.notify_change(event.uri, false) {
-                            log::error!("failed to notify change: {e}");
+                            error!("failed to notify change: {e}");
                         }
                     }
                 }
                 FileChangeType::DELETED => {
                     if to_wdl_file_path(&event.uri).is_some() {
-                        log::debug!("document `{uri}` has been deleted", uri = event.uri);
+                        debug!("document `{uri}` has been deleted", uri = event.uri);
                         deleted.push(event.uri);
                     }
                 }
@@ -586,14 +589,14 @@ impl LanguageServer for Server {
         // Add any documents to the analyzer
         if !added.is_empty() {
             if let Err(e) = self.analyzer.add_documents(added).await {
-                log::error!("failed to add documents to analyzer: {e}");
+                error!("failed to add documents to analyzer: {e}");
             }
         }
 
         // Remove any documents from the analyzer
         if !deleted.is_empty() {
             if let Err(e) = self.analyzer.remove_documents(deleted).await {
-                log::error!("failed to remove documents from analyzer: {e}");
+                error!("failed to remove documents from analyzer: {e}");
             }
         }
     }

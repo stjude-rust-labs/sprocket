@@ -20,6 +20,8 @@ use reqwest::Client;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::oneshot;
+use tracing::debug;
+use tracing::info;
 use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::AstToken;
@@ -140,7 +142,7 @@ where
 
     /// Runs the analysis queue.
     pub fn run(&self, mut receiver: UnboundedReceiver<Request<Context>>) {
-        log::info!("analysis queue has started");
+        info!("analysis queue has started");
 
         while let Some(request) = self.tokio.block_on(receiver.recv()) {
             match request {
@@ -149,14 +151,14 @@ where
                     completed,
                 }) => {
                     let start = Instant::now();
-                    log::info!(
+                    info!(
                         "received request to add {count} document(s) to the graph",
                         count = documents.len()
                     );
 
                     self.add_documents(documents);
 
-                    log::info!(
+                    info!(
                         "request to add documents completed in {elapsed:?}",
                         elapsed = start.elapsed()
                     );
@@ -170,14 +172,14 @@ where
                 }) => {
                     let start = Instant::now();
                     if let Some(document) = &document {
-                        log::info!("received request to document `{document}`");
+                        info!("received request to document `{document}`");
                     } else {
-                        log::info!("received request to analyze all documents");
+                        info!("received request to analyze all documents");
                     }
 
                     match self.analyze(document, context, &completed) {
                         Cancelable::Completed(results) => {
-                            log::info!(
+                            info!(
                                 "request to analyze documents completed in {elapsed:?}",
                                 elapsed = start.elapsed()
                             );
@@ -185,7 +187,7 @@ where
                             completed.send(results).ok();
                         }
                         Cancelable::Canceled => {
-                            log::info!(
+                            info!(
                                 "request to analyze documents was canceled after {elapsed:?}",
                                 elapsed = start.elapsed()
                             );
@@ -197,14 +199,14 @@ where
                     completed,
                 }) => {
                     let start = Instant::now();
-                    log::info!(
+                    info!(
                         "received request to remove {count} documents(s)",
                         count = documents.len()
                     );
 
                     self.remove_documents(documents);
 
-                    log::info!(
+                    info!(
                         "request to remove documents completed in {elapsed:?}",
                         elapsed = start.elapsed()
                     );
@@ -232,7 +234,7 @@ where
             }
         }
 
-        log::info!("analysis queue has shut down");
+        info!("analysis queue has shut down");
     }
 
     /// Adds a set of documents to the document graph.
@@ -280,7 +282,7 @@ where
 
         loop {
             if completed.is_closed() {
-                log::info!("analysis request has been canceled");
+                info!("analysis request has been canceled");
                 return Cancelable::Canceled;
             }
 
@@ -334,7 +336,7 @@ where
         let mut results: Vec<AnalysisResult> = Vec::new();
         while subgraph.node_count() > 0 {
             if completed.is_closed() {
-                log::info!("analysis request has been canceled");
+                info!("analysis request has been canceled");
                 return Cancelable::Canceled;
             }
 
@@ -450,7 +452,7 @@ where
 
                 let now = Instant::now();
                 if count < total && (now - last_progress).as_millis() > MINIMUM_PROGRESS_MILLIS {
-                    log::info!("{count} out of {total} {kind} task(s) have completed");
+                    info!("{count} out of {total} {kind} task(s) have completed");
                     last_progress = now;
                     update_progress(context.clone(), kind, count, total).await;
                 }
@@ -460,13 +462,13 @@ where
         });
 
         if results.len() < total {
-            log::info!(
+            info!(
                 "{count} out of {total} {kind} task(s) have completed; canceled {canceled} tasks",
                 count = results.len(),
                 canceled = total - results.len()
             );
         } else {
-            log::info!(
+            info!(
                 "{count} out of {total} {kind} task(s) have completed",
                 count = results.len()
             );
@@ -565,7 +567,7 @@ where
 
                 let node = graph.get_mut(dependent);
                 if !subgraph.contains(&dependent) {
-                    log::debug!(
+                    debug!(
                         "adding dependent document `{uri}` for analysis",
                         uri = node.uri()
                     );
@@ -599,7 +601,7 @@ where
             (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
         });
 
-        log::info!(
+        info!(
             "analysis of `{uri}` completed in {elapsed:?}",
             uri = graph.get(index).uri(),
             elapsed = start.elapsed()

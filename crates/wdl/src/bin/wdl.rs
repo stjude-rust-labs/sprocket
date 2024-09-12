@@ -256,10 +256,7 @@ enum App {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::builder()
-        .format_module_path(false)
-        .format_target(false)
-        .init();
+    tracing_subscriber::fmt().with_target(false).init();
 
     if let Err(e) = match App::parse() {
         App::Parse(cmd) => cmd.exec().await,

@@ -18,7 +18,6 @@ rowan = { workspace = true }
 url = { workspace = true }
 tokio = { workspace = true }
 parking_lot = { workspace = true }
-log = { workspace = true }
 rayon = { workspace = true }
 reqwest = { workspace = true }
 petgraph = { workspace = true }
@@ -29,6 +28,7 @@ line-index = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 walkdir = { workspace = true }
 id-arena = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

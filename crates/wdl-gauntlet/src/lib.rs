@@ -25,9 +25,9 @@ use codespan_reporting::term::termcolor::StandardStream;
 use codespan_reporting::term::DisplayStyle;
 use colored::Colorize;
 use indexmap::IndexSet;
-use log::debug;
-use log::info;
-use log::trace;
+use tracing::debug;
+use tracing::info;
+use tracing::trace;
 
 pub mod config;
 pub mod document;

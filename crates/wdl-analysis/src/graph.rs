@@ -23,6 +23,8 @@ use petgraph::Direction;
 use reqwest::Client;
 use rowan::GreenNode;
 use tokio::runtime::Handle;
+use tracing::debug;
+use tracing::info;
 use url::Url;
 use uuid::Uuid;
 use wdl_ast::AstNode;
@@ -155,7 +157,7 @@ impl DocumentGraphNode {
 
     /// Notifies the document node that there's been an incremental change.
     pub fn notify_incremental_change(&mut self, change: IncrementalChange) {
-        log::info!("document `{uri}` has incrementally changed", uri = self.uri);
+        info!("document `{uri}` has incrementally changed", uri = self.uri);
 
         // Clear the analysis as there has been a change
         self.analysis = None;
@@ -186,7 +188,7 @@ impl DocumentGraphNode {
 
     /// Notifies the document node that the document has fully changed.
     pub fn notify_change(&mut self, discard_pending: bool) {
-        log::info!("document `{uri}` has changed", uri = self.uri);
+        info!("document `{uri}` has changed", uri = self.uri);
 
         // Clear the analysis as there has been a change
         self.analysis = None;
@@ -374,7 +376,7 @@ impl DocumentGraphNode {
         // Reparse from the source
         let start = Instant::now();
         let (document, diagnostics) = wdl_ast::Document::parse(&source);
-        log::info!(
+        info!(
             "parsing of `{uri}` completed in {elapsed:?}",
             uri = self.uri,
             elapsed = start.elapsed()
@@ -408,7 +410,7 @@ impl DocumentGraphNode {
         /// The timeout for downloading the source, in seconds.
         const TIMEOUT_IN_SECS: u64 = 30;
 
-        log::info!("downloading source from `{uri}`");
+        info!("downloading source from `{uri}`");
 
         tokio.block_on(async {
             let resp = client
@@ -462,7 +464,7 @@ impl DocumentGraph {
         let index = if let Some(index) = self.indexes.get(&uri) {
             *index
         } else {
-            log::debug!("inserting `{uri}` into the document graph");
+            debug!("inserting `{uri}` into the document graph");
             let uri = Arc::new(uri);
             let index = self.inner.add_node(DocumentGraphNode::new(uri.clone()));
             self.indexes.insert(uri, index);
@@ -508,7 +510,7 @@ impl DocumentGraph {
             // We don't actually remove nodes from the graph, just remove it as a root.
             // If the node has no outgoing edges, it will be collected in the next GC.
             if !self.roots.swap_remove(&index) {
-                log::debug!(
+                debug!(
                     "document `{uri}` is no longer rooted in the graph",
                     uri = node.uri
                 );
@@ -521,7 +523,7 @@ impl DocumentGraph {
             // Do a BFS traversal to trigger re-analysis in dependent documents
             self.bfs_mut(index, |graph, dependent: NodeIndex| {
                 let node = graph.get_mut(dependent);
-                log::debug!("document `{uri}` needs to be reanalyzed", uri = node.uri);
+                debug!("document `{uri}` needs to be reanalyzed", uri = node.uri);
                 node.analysis = None;
             });
         }
@@ -600,14 +602,14 @@ impl DocumentGraph {
         // cycle
         if has_path_connecting(&self.inner, from, to, Some(space)) {
             // Adding the edge would cause a cycle, so record the cycle instead
-            log::debug!(
+            debug!(
                 "an import cycle was detected between `{from}` and `{to}`",
                 from = self.inner[from].uri,
                 to = self.inner[to].uri
             );
             self.cycles.insert((from, to));
         } else if !self.inner.contains_edge(to, from) {
-            log::debug!(
+            debug!(
                 "adding dependency edge from `{from}` to `{to}`",
                 from = self.inner[from].uri,
                 to = self.inner[to].uri
@@ -647,7 +649,7 @@ impl DocumentGraph {
                 .next()
                 .is_none()
             {
-                log::debug!(
+                debug!(
                     "removing document `{uri}` from the graph",
                     uri = self.inner[node].uri
                 );

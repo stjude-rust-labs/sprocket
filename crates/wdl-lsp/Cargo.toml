@@ -17,7 +17,7 @@ wdl-analysis = { path = "../wdl-analysis", version = "0.2.0" }
 anyhow = { workspace = true }
 tokio = { workspace = true }
 tower-lsp = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
 url = { workspace = true }
 parking_lot = { workspace = true }
 line-index = { workspace = true }

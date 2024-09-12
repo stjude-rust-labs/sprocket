@@ -4,9 +4,8 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use log::debug;
-use log::log_enabled;
-use log::trace;
+use tracing::debug;
+use tracing::trace;
 
 pub mod inner;
 
@@ -137,14 +136,12 @@ impl Config {
             inner,
         };
 
-        if log_enabled!(log::Level::Trace) {
-            trace!("Loaded configuration file with the following:");
-            trace!("  -> {} repositories.", result.inner().repositories().len());
-            trace!(
-                "  -> {} ignored diagnostics.",
-                result.inner().diagnostics().len()
-            );
-        }
+        trace!("Loaded configuration file with the following:");
+        trace!("  -> {} repositories.", result.inner().repositories().len());
+        trace!(
+            "  -> {} ignored diagnostics.",
+            result.inner().diagnostics().len()
+        );
 
         Ok(result)
     }
@@ -164,12 +161,10 @@ impl Config {
     /// [`Config`].
     pub fn save(&self) -> Result<()> {
         if let Some(ref path) = self.path {
-            if log_enabled!(log::Level::Debug) {
-                if path.exists() {
-                    debug!("overwriting configuration at {}", path.display());
-                } else {
-                    debug!("saving configuration to {}", path.display());
-                }
+            if path.exists() {
+                debug!("overwriting configuration at {}", path.display());
+            } else {
+                debug!("saving configuration to {}", path.display());
             }
 
             let mut file = File::create(path).map_err(Error::InputOutput)?;

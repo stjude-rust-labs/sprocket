@@ -26,6 +26,7 @@ use tower_lsp::lsp_types::WorkspaceDiagnosticReportResult;
 use tower_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
 use tower_lsp::lsp_types::WorkspaceFullDocumentDiagnosticReport;
 use tower_lsp::lsp_types::WorkspaceUnchangedDocumentDiagnosticReport;
+use tracing::debug;
 use url::Url;
 use wdl_analysis::AnalysisResult;
 use wdl_ast::Severity;
@@ -113,7 +114,7 @@ pub fn document_diagnostic_report(
 
     if let Some(previous) = params.previous_result_id {
         if &previous == result.id().as_ref() {
-            log::debug!(
+            debug!(
                 "diagnostics for document `{uri}` have not changed (client has latest)",
                 uri = params.text_document.uri,
             );
@@ -127,7 +128,7 @@ pub fn document_diagnostic_report(
             ));
         }
 
-        log::debug!(
+        debug!(
             "diagnostics for document `{uri}` have changed since last client request",
             uri = params.text_document.uri
         );
@@ -182,7 +183,7 @@ pub fn workspace_diagnostic_report(
 
         if let Some(previous) = ids.get(result.uri()) {
             if previous == result.id().as_ref() {
-                log::debug!(
+                debug!(
                     "diagnostics for document `{uri}` have not changed (client has latest)",
                     uri = result.uri(),
                 );
@@ -200,7 +201,7 @@ pub fn workspace_diagnostic_report(
             }
         }
 
-        log::debug!(
+        debug!(
             "diagnostics for document `{uri}` have changed since last client request",
             uri = result.uri()
         );
