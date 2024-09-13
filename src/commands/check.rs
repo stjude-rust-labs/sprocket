@@ -74,6 +74,10 @@ pub struct CheckArgs {
     /// Causes the command to fail if warnings were reported.
     #[clap(long)]
     deny_warnings: bool,
+
+    /// Causes the command to fail if notes were reported.
+    #[clap(long)]
+    deny_notes: bool,
 }
 
 /// Arguments for the `lint` subcommand.
@@ -137,6 +141,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let cwd = std::env::current_dir().ok();
     let mut error_count = 0;
     let mut warning_count = 0;
+    let mut note_count = 0;
     for result in &results {
         let path = result.uri().to_file_path().ok();
 
@@ -166,7 +171,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                 match diagnostic.severity() {
                     Severity::Error => error_count += 1,
                     Severity::Warning => warning_count += 1,
-                    Severity::Note => {}
+                    Severity::Note => note_count += 1,
                 }
 
                 emit(&mut stream, &config, &file, &diagnostic.to_codespan())
@@ -184,6 +189,11 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         bail!(
             "aborting due to previous {warning_count} warning{s} (`--deny-warnings` was specified)",
             s = if warning_count == 1 { "" } else { "s" }
+        );
+    } else if args.deny_notes && note_count > 0 {
+        bail!(
+            "aborting due to previous {note_count} note{s} (`--deny-notes` was specified)",
+            s = if note_count == 1 { "" } else { "s" }
         );
     }
 
