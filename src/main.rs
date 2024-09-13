@@ -56,7 +56,7 @@ pub async fn inner() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Check(args) => commands::check::check(args).await,
-        Commands::Lint(args) => commands::check::lint(args),
+        Commands::Lint(args) => commands::check::lint(args).await,
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
     }

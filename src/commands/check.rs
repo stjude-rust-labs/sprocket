@@ -86,6 +86,14 @@ pub struct CheckArgs {
 pub struct LintArgs {
     #[command(flatten)]
     common: Common,
+
+    /// Causes the command to fail if warnings were reported.
+    #[clap(long)]
+    deny_warnings: bool,
+
+    /// Causes the command to fail if notes were reported.
+    #[clap(long)]
+    deny_notes: bool,
 }
 
 pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
@@ -200,21 +208,14 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn lint(args: LintArgs) -> anyhow::Result<()> {
-    let (config, writer) = get_display_config(&args.common);
-
-    match sprocket::file::Repository::try_new(args.common.paths, vec!["wdl".to_string()])?
-        .report_diagnostics(config, writer, true, args.common.except)?
-    {
-        // There are syntax errors.
-        (true, _) => std::process::exit(1),
-        // There are lint failures.
-        (false, true) => std::process::exit(2),
-        // There are no diagnostics.
-        (false, false) => {}
-    }
-
-    Ok(())
+pub async fn lint(args: LintArgs) -> anyhow::Result<()> {
+    check(CheckArgs {
+        common: args.common,
+        lint: true,
+        deny_warnings: args.deny_warnings,
+        deny_notes: args.deny_notes,
+    })
+    .await
 }
 
 fn get_display_config(args: &Common) -> (Config, StandardStream) {
