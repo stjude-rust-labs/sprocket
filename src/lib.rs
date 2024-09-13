@@ -7,5 +7,4 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-pub mod file;
-pub mod report;
+pub mod commands;

@@ -1,3 +1,5 @@
+//! Implementation of the explain command.
+
 use clap::Parser;
 use colored::Colorize;
 use wdl::lint;
@@ -11,6 +13,7 @@ pub struct Args {
     pub rule_name: String,
 }
 
+/// Lists all rules as a string for displaying after CLI help.
 pub fn list_all_rules() -> String {
     let mut result = "Available rules:".to_owned();
     for rule in lint::rules() {
@@ -19,6 +22,7 @@ pub fn list_all_rules() -> String {
     result
 }
 
+/// Pretty prints a rule to a string.
 pub fn pretty_print_rule(rule: &dyn lint::Rule) -> String {
     let mut result = format!("{}", rule.id().bold().underline());
     result = format!("{}\n{}", result, rule.description());
@@ -30,6 +34,7 @@ pub fn pretty_print_rule(rule: &dyn lint::Rule) -> String {
     }
 }
 
+/// Explains a lint rule.
 pub fn explain(args: Args) -> anyhow::Result<()> {
     let name = args.rule_name;
     let lowercase_name = name.to_lowercase();
