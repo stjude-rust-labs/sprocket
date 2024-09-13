@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Implemented type checking in task runtime, requirements, and hints sections
+  ([#170](https://github.com/stjude-rust-labs/wdl/pull/170)).
 * Add support for the `task` variable in WDL 1.2 ([#168](https://github.com/stjude-rust-labs/wdl/pull/168)).
 * Full type checking support in task definitions ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 

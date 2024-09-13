@@ -285,6 +285,19 @@ impl Scope {
     }
 }
 
+/// Represents information about a scope for task outputs.
+///
+/// This is used in evaluation of a task `hints` section.
+#[derive(Debug, Clone, Copy)]
+enum TaskOutputScope {
+    /// A task `output` section was not present.
+    NotPresent,
+    /// A task `output` section was present.
+    ///
+    /// Stores the scope index for the outputs.
+    Present(ScopeIndex),
+}
+
 /// Represents a reference to a scope.
 #[derive(Debug, Clone, Copy)]
 pub struct ScopeRef<'a> {
@@ -292,9 +305,35 @@ pub struct ScopeRef<'a> {
     scopes: &'a [Scope],
     /// The index of the scope.
     scope: ScopeIndex,
+    /// The index to the scope that might contain input declarations.
+    ///
+    /// Unlike outputs, inputs don't have a dedicated scope; instead, they are
+    /// accessible from the root scope of a task.
+    ///
+    /// This is `None` when `input` hidden types are not supported.
+    inputs: Option<ScopeIndex>,
+    /// The task output scope that's accessible from this scope.
+    ///
+    /// This is `None` when `output` hidden types are not supported.
+    outputs: Option<TaskOutputScope>,
+    /// Whether or not `hints` hidden types are supported in this scope.
+    ///
+    /// This is `true` only when evaluating the `hints` section in a task.
+    hints: bool,
 }
 
 impl<'a> ScopeRef<'a> {
+    /// Creates a new scope reference given the scope index.
+    fn new(scopes: &'a [Scope], scope: ScopeIndex) -> Self {
+        Self {
+            scopes,
+            scope,
+            inputs: None,
+            outputs: None,
+            hints: false,
+        }
+    }
+
     /// Gets the parent scope.
     ///
     /// Returns `None` if there is no parent scope.
@@ -302,6 +341,9 @@ impl<'a> ScopeRef<'a> {
         self.scopes[self.scope.0].parent.map(|p| Self {
             scopes: self.scopes,
             scope: p,
+            inputs: self.inputs,
+            outputs: self.outputs,
+            hints: self.hints,
         })
     }
 
@@ -310,6 +352,9 @@ impl<'a> ScopeRef<'a> {
         self.scopes[self.scope.0].children.iter().map(|c| Self {
             scopes: self.scopes,
             scope: *c,
+            inputs: self.inputs,
+            outputs: self.outputs,
+            hints: self.hints,
         })
     }
 
@@ -319,6 +364,13 @@ impl<'a> ScopeRef<'a> {
             .names
             .iter()
             .map(|(s, name)| (s.as_str(), *name))
+    }
+
+    /// Gets a name local to this scope.
+    ///
+    /// Returns `None` if a name local to this scope was not found.
+    pub fn local(&self, name: &str) -> Option<Name> {
+        self.scopes[self.scope.0].names.get(name).copied()
     }
 
     /// Lookups a name in the scope.
@@ -336,6 +388,63 @@ impl<'a> ScopeRef<'a> {
         }
 
         None
+    }
+
+    /// Gets an input for the given name.
+    ///
+    /// Returns `Err(())` if input hidden types are not supported by this scope.
+    ///
+    /// Returns `Ok(None)` if input hidden types are supported, but the name is
+    /// unknown.
+    ///
+    /// Returns `Ok(Some)` if input hidden types are supported and the name is
+    /// known.
+    pub(crate) fn input(&self, name: &str) -> Result<Option<Name>, ()> {
+        match self.inputs {
+            Some(scope) => Ok(self.scopes[scope.0]
+                .names
+                .get(name)
+                .copied()
+                .filter(|n| matches!(n.context, NameContext::Input(_)))),
+            None => Err(()),
+        }
+    }
+
+    /// Gets an output for the given name.
+    ///
+    /// Returns `Err(())` if output hidden types are not supported by this
+    /// scope.
+    ///
+    /// Returns `Ok(None)` if output hidden types are supported, but the name is
+    /// unknown.
+    ///
+    /// Returns `Ok(Some)` if output hidden types are supported and the name is
+    /// known.
+    pub(crate) fn output(&self, name: &str) -> Result<Option<Name>, ()> {
+        match self.outputs {
+            Some(TaskOutputScope::NotPresent) => Ok(None),
+            Some(TaskOutputScope::Present(scope)) => Ok(self.scopes[scope.0]
+                .names
+                .get(name)
+                .copied()
+                .filter(|n| matches!(n.context, NameContext::Output(_)))),
+            None => Err(()),
+        }
+    }
+
+    /// Whether or not `hints` hidden types are supported by this scope.
+    pub(crate) fn supports_hints(&self) -> bool {
+        self.hints
+    }
+
+    /// Whether or not `input` hidden types are supported by this scope.
+    pub(crate) fn supports_inputs(&self) -> bool {
+        self.inputs.is_some()
+    }
+
+    /// Whether or not `output` hidden types are supported by this scope.
+    pub(crate) fn supports_outputs(&self) -> bool {
+        self.outputs.is_some()
     }
 }
 
@@ -474,23 +583,16 @@ impl DocumentScope {
 
     /// Gets the task scopes in the document scope.
     pub fn tasks(&self) -> impl Iterator<Item = (&str, ScopeRef<'_>)> {
-        self.tasks.iter().map(|(n, t)| {
-            (
-                n.as_str(),
-                ScopeRef {
-                    scopes: &self.scopes,
-                    scope: t.scope,
-                },
-            )
-        })
+        self.tasks
+            .iter()
+            .map(|(n, t)| (n.as_str(), ScopeRef::new(&self.scopes, t.scope)))
     }
 
     /// Gets a task's scope in the document scope by name.
     pub fn task_by_name(&self, name: &str) -> Option<ScopeRef<'_>> {
-        self.tasks.get(name).map(|t| ScopeRef {
-            scopes: &self.scopes,
-            scope: t.scope,
-        })
+        self.tasks
+            .get(name)
+            .map(|t| ScopeRef::new(&self.scopes, t.scope))
     }
 
     /// Gets the workflow scope in the document scope.
@@ -500,15 +602,9 @@ impl DocumentScope {
     ///
     /// Returns `None` if the document did not contain a workflow.
     pub fn workflow(&self) -> Option<(&str, ScopeRef<'_>)> {
-        self.workflow.as_ref().map(|w| {
-            (
-                w.name.as_str(),
-                ScopeRef {
-                    scopes: &self.scopes,
-                    scope: w.scope,
-                },
-            )
-        })
+        self.workflow
+            .as_ref()
+            .map(|w| (w.name.as_str(), ScopeRef::new(&self.scopes, w.scope)))
     }
 
     /// Gets the structs in the document scope.
@@ -549,10 +645,7 @@ impl DocumentScope {
         loop {
             let scope = &self.scopes[index];
             if position >= scope.span.start() && position < scope.span.end() {
-                return Some(ScopeRef {
-                    scopes: &self.scopes,
-                    scope: ScopeIndex(index),
-                });
+                return Some(ScopeRef::new(&self.scopes, ScopeIndex(index)));
             }
 
             if index == 0 {
@@ -582,10 +675,7 @@ impl DocumentScope {
 
     /// Gets a reference to a scope.
     pub(crate) fn scope(&self, scope: ScopeIndex) -> ScopeRef<'_> {
-        ScopeRef {
-            scopes: &self.scopes,
-            scope,
-        }
+        ScopeRef::new(&self.scopes, scope)
     }
 
     /// Gets a mutable reference to a scope.

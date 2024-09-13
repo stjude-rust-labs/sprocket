@@ -198,6 +198,15 @@ pub enum Type {
     /// A special hidden type for `task` that is available in command and task
     /// output sections in WDL 1.2.
     Task,
+    /// A special hidden type for `hints` that is available in task hints
+    /// sections.
+    Hints,
+    /// A special hidden type for `input` that is available in task hints
+    /// sections.
+    Input,
+    /// A special hidden type for `output` that is available in task hints
+    /// sections.
+    Output,
 }
 
 impl Type {
@@ -238,7 +247,10 @@ impl Type {
                     Type::OptionalObject => write!(f, "Object?"),
                     Type::Union => write!(f, "Union"),
                     Type::None => write!(f, "None"),
-                    Type::Task => write!(f, "Task"),
+                    Type::Task => write!(f, "task"),
+                    Type::Hints => write!(f, "hints"),
+                    Type::Input => write!(f, "input"),
+                    Type::Output => write!(f, "output"),
                 }
             }
         }
@@ -263,7 +275,10 @@ impl Type {
             | Self::OptionalObject
             | Self::Union
             | Self::None
-            | Self::Task => {}
+            | Self::Task
+            | Self::Hints
+            | Self::Input
+            | Self::Output => {}
         }
     }
 }
@@ -274,7 +289,9 @@ impl Optional for Type {
             Self::Primitive(ty) => ty.is_optional(),
             Self::Compound(ty) => ty.is_optional(),
             Self::OptionalObject | Self::None => true,
-            Self::Object | Self::Union | Self::Task => false,
+            Self::Object | Self::Union | Self::Task | Self::Hints | Self::Input | Self::Output => {
+                false
+            }
         }
     }
 
@@ -283,7 +300,9 @@ impl Optional for Type {
             Self::Primitive(ty) => Self::Primitive(ty.optional()),
             Self::Compound(ty) => Self::Compound(ty.optional()),
             Self::Object | Self::OptionalObject => Self::OptionalObject,
-            Self::Union | Self::None | Self::Task => Self::None,
+            Self::Union | Self::None | Self::Task | Self::Hints | Self::Input | Self::Output => {
+                Self::None
+            }
         }
     }
 
@@ -294,6 +313,9 @@ impl Optional for Type {
             Self::Object | Self::OptionalObject => Self::Object,
             Self::Union | Self::None => Self::Union,
             Self::Task => Self::Task,
+            Self::Hints => Self::Hints,
+            Self::Input => Self::Input,
+            Self::Output => Self::Output,
         }
     }
 }
@@ -376,13 +398,13 @@ impl Coercible for Type {
 
 impl TypeEq for Type {
     fn type_eq(&self, types: &Types, other: &Self) -> bool {
+        if self == other {
+            return true;
+        }
+
         match (self, other) {
             (Self::Primitive(a), Self::Primitive(b)) => a.type_eq(types, b),
             (Self::Compound(a), Self::Compound(b)) => a.type_eq(types, b),
-            (Self::Object, Self::Object) => true,
-            (Self::OptionalObject, Self::OptionalObject) => true,
-            (Self::Union, Self::Union) => true,
-            (Self::None, Self::None) => true,
             _ => false,
         }
     }
@@ -1101,6 +1123,9 @@ impl Types {
             Type::Union => Type::Union,
             Type::None => Type::None,
             Type::Task => Type::Task,
+            Type::Hints => Type::Hints,
+            Type::Input => Type::Input,
+            Type::Output => Type::Output,
         }
     }
 }

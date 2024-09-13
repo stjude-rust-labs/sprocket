@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Removed `span_of` function in favor of `AstNode` extension trait ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 
+### Fixed
+
+* Fixed detection of duplicate aliased keys in a task `hints` section ([#170](https://github.com/stjude-rust-labs/wdl/pull/170)).
+* Fixed ignoring duplicate task definitions for the "counts" validation ([#170](https://github.com/stjude-rust-labs/wdl/pull/170)).
+
 ## 0.6.0 - 08-22-2024
 
 ### Added

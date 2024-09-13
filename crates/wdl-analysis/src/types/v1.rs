@@ -11,8 +11,11 @@ use wdl_ast::v1::IfExpr;
 use wdl_ast::v1::IndexExpr;
 use wdl_ast::v1::LiteralArray;
 use wdl_ast::v1::LiteralExpr;
+use wdl_ast::v1::LiteralHints;
+use wdl_ast::v1::LiteralInput;
 use wdl_ast::v1::LiteralMap;
 use wdl_ast::v1::LiteralMapItem;
+use wdl_ast::v1::LiteralOutput;
 use wdl_ast::v1::LiteralPair;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LogicalAndExpr;
@@ -22,6 +25,7 @@ use wdl_ast::v1::NegationExpr;
 use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::v1::StringPart;
+use wdl_ast::version::V1;
 use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -64,17 +68,82 @@ pub(crate) fn type_mismatch(
     )
     .with_label(
         format!(
-            "this is type `{expected}`",
+            "this expects type `{expected}`",
             expected = expected.display(types)
         ),
         expected_span,
     )
 }
 
+/// Creates a "element type mismatch" diagnostic.
+pub(crate) fn element_type_mismatch(
+    types: &Types,
+    expected: Type,
+    expected_span: Span,
+    actual: Type,
+    actual_span: Span,
+) -> Diagnostic {
+    Diagnostic::error(format!(
+        "type mismatch: expected all elements to be type `{expected}`, but found type `{actual}`",
+        expected = expected.display(types),
+        actual = actual.display(types)
+    ))
+    .with_label(
+        format!("this is type `{actual}`", actual = actual.display(types)),
+        actual_span,
+    )
+    .with_label(
+        format!(
+            "the first element is type `{expected}`",
+            expected = expected.display(types)
+        ),
+        expected_span,
+    )
+}
+
+/// Creates a custom "type mismatch" diagnostic.
+fn type_mismatch_custom(
+    types: &Types,
+    expected: &str,
+    expected_span: Span,
+    actual: Type,
+    actual_span: Span,
+) -> Diagnostic {
+    Diagnostic::error(format!(
+        "type mismatch: expected {expected}, but found type `{actual}`",
+        actual = actual.display(types)
+    ))
+    .with_label(
+        format!("this is type `{actual}`", actual = actual.display(types)),
+        actual_span,
+    )
+    .with_label(format!("this expects {expected}"), expected_span)
+}
+
 /// Creates a "not a task member" diagnostic.
 fn not_a_task_member(member: &Ident) -> Diagnostic {
     Diagnostic::error(format!(
         "the `task` variable does not have a member named `{member}`",
+        member = member.as_str()
+    ))
+    .with_highlight(member.span())
+}
+
+/// Creates a "not an I/O name" diagnostic.
+fn not_io_name(name: &Ident, input: bool) -> Diagnostic {
+    Diagnostic::error(format!(
+        "an {kind} with name `{name}` does not exist",
+        kind = if input { "input" } else { "output" },
+        name = name.as_str(),
+    ))
+    .with_highlight(name.span())
+}
+
+/// Creates a "not a struct" diagnostic.
+fn not_a_struct(member: &Ident, input: bool) -> Diagnostic {
+    Diagnostic::error(format!(
+        "{kind} `{member}` is not a struct",
+        kind = if input { "input" } else { "struct member" },
         member = member.as_str()
     ))
     .with_highlight(member.span())
@@ -741,10 +810,9 @@ where
             LiteralExpr::Object(_) => Some(Type::Object),
             LiteralExpr::Struct(expr) => self.evaluate_literal_struct(scope, expr),
             LiteralExpr::None(_) => Some(Type::None),
-            LiteralExpr::Input(_) | LiteralExpr::Output(_) | LiteralExpr::Hints(_) => {
-                // TODO: implement for full 1.2 support
-                None
-            }
+            LiteralExpr::Hints(expr) => self.evaluate_literal_hints(scope, expr),
+            LiteralExpr::Input(expr) => self.evaluate_literal_inputs(scope, expr),
+            LiteralExpr::Output(expr) => self.evaluate_literal_outputs(scope, expr),
         }
     }
 
@@ -804,7 +872,7 @@ where
                 for expr in elements {
                     if let Some(actual) = self.evaluate_expr(scope, &expr) {
                         if !actual.is_coercible_to(self.types, &expected) {
-                            self.diagnostics.push(type_mismatch(
+                            self.diagnostics.push(element_type_mismatch(
                                 self.types,
                                 expected,
                                 expected_span,
@@ -877,7 +945,7 @@ where
                             }
 
                             if !actual_value.is_coercible_to(self.types, &expected_value) {
-                                self.diagnostics.push(type_mismatch(
+                                self.diagnostics.push(element_type_mismatch(
                                     self.types,
                                     expected_value,
                                     expected_value_span,
@@ -1001,6 +1069,472 @@ where
                 self.diagnostics.push(diagnostic);
                 None
             }
+        }
+    }
+
+    /// Evaluates a `runtime` section item.
+    pub(crate) fn evaluate_runtime_item(
+        &mut self,
+        scope: &ScopeRef<'_>,
+        name: &Ident,
+        expr: &Expr,
+    ) {
+        let expr_ty = self.evaluate_expr(scope, expr).unwrap_or(Type::Union);
+        if !self.evaluate_requirement(name, expr, expr_ty) {
+            // Always use object types for `runtime` section `inputs` and `outputs` keys as
+            // only `hints` sections can use input/output hidden types
+            self.evaluate_hint(name, expr, expr_ty, true);
+        }
+    }
+
+    /// Evaluates a `requirements` section item.
+    pub(crate) fn evaluate_requirements_item(
+        &mut self,
+        scope: &ScopeRef<'_>,
+        name: &Ident,
+        expr: &Expr,
+    ) {
+        let expr_ty = self.evaluate_expr(scope, expr).unwrap_or(Type::Union);
+        self.evaluate_requirement(name, expr, expr_ty);
+    }
+
+    /// Evaluates a requirement in either a `requirements` section or a legacy
+    /// `runtime` section.
+    ///
+    /// Returns `true` if the name matched a requirement or `false` if it did
+    /// not.
+    fn evaluate_requirement(&mut self, name: &Ident, expr: &Expr, expr_ty: Type) -> bool {
+        match name.as_str() {
+            "container" | "docker" => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
+                    && !expr_ty.is_coercible_to(self.types, &STDLIB.array_string)
+                {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        "type `String` or type `Array[String]`",
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+
+                true
+            }
+            "cpu" => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Float.into()) {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        "type `Int` or type `Float`",
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+
+                true
+            }
+            "memory" => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
+                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
+                {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        "type `Int` or type `String`",
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+
+                true
+            }
+            "gpu" => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
+                    self.diagnostics.push(type_mismatch(
+                        self.types,
+                        PrimitiveTypeKind::Boolean.into(),
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+
+                true
+            }
+            "fpga" if self.version >= SupportedVersion::V1(V1::Two) => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
+                    self.diagnostics.push(type_mismatch(
+                        self.types,
+                        PrimitiveTypeKind::Boolean.into(),
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+
+                true
+            }
+            "disks" => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
+                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
+                    && !expr_ty.is_coercible_to(self.types, &STDLIB.array_string)
+                {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        "type `Int`, type `String`, or type `Array[String]`",
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+
+                true
+            }
+            "max_retries" if self.version >= SupportedVersion::V1(V1::Two) => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into()) {
+                    self.diagnostics.push(type_mismatch(
+                        self.types,
+                        PrimitiveTypeKind::Integer.into(),
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+
+                true
+            }
+            "maxRetries" => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into()) {
+                    self.diagnostics.push(type_mismatch(
+                        self.types,
+                        PrimitiveTypeKind::Integer.into(),
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+
+                true
+            }
+            "return_codes" if self.version >= SupportedVersion::V1(V1::Two) => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
+                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
+                    && !expr_ty.is_coercible_to(self.types, &STDLIB.array_int)
+                {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        "type `Int`, type `String`, or type `Array[Int]`",
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+
+                true
+            }
+            "returnCodes" => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
+                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
+                    && !expr_ty.is_coercible_to(self.types, &STDLIB.array_int)
+                {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        "type `Int`, type `String`, or type `Array[Int]`",
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+
+                true
+            }
+            _ => {
+                // Invalid requirements key; we report on this during validation
+                false
+            }
+        }
+    }
+
+    /// Evaluates the type of a literal hints expression.
+    fn evaluate_literal_hints(
+        &mut self,
+        scope: &ScopeRef<'_>,
+        expr: &LiteralHints,
+    ) -> Option<Type> {
+        if !scope.supports_hints() {
+            return None;
+        }
+
+        for item in expr.items() {
+            self.evaluate_hints_item(scope, &item.name(), &item.expr())
+        }
+
+        Some(Type::Hints)
+    }
+
+    /// Evaluates a hints item, whether in task `hints` section or a `hints`
+    /// literal expression.
+    pub(crate) fn evaluate_hints_item(&mut self, scope: &ScopeRef<'_>, name: &Ident, expr: &Expr) {
+        let expr_ty = self.evaluate_expr(scope, expr).unwrap_or(Type::Union);
+        // For an item in a hints section or literal, the expected types of `inputs` and
+        // `outputs` is `input` and `output` respectively
+        self.evaluate_hint(name, expr, expr_ty, false);
+    }
+
+    /// Evaluates a hint in either a `hints` section or a legacy `runtime`
+    /// section.
+    fn evaluate_hint(&mut self, name: &Ident, expr: &Expr, expr_ty: Type, io_object_type: bool) {
+        match name.as_str() {
+            "max_cpu" if self.version >= SupportedVersion::V1(V1::Two) => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Float.into()) {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        "type `Int` or type `Float`",
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+            }
+            "maxCpu" => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Float.into()) {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        "type `Int` or type `Float`",
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+            }
+            "max_memory" | "fpga" if self.version >= SupportedVersion::V1(V1::Two) => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
+                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
+                {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        "type `Int` or type `String`",
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+            }
+            "maxMemory" | "gpu" => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
+                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
+                {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        "type `Int` or type `String`",
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+            }
+            "disks" => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
+                    && !expr_ty.is_coercible_to(self.types, &STDLIB.map_string_string)
+                {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        "type `String` or type `Map[String, String]`",
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+            }
+            "short_task" | "localization_optional"
+                if self.version >= SupportedVersion::V1(V1::Two) =>
+            {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
+                    self.diagnostics.push(type_mismatch(
+                        self.types,
+                        PrimitiveTypeKind::Boolean.into(),
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+            }
+            "shortTask" | "localizationOptional" => {
+                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
+                    self.diagnostics.push(type_mismatch(
+                        self.types,
+                        PrimitiveTypeKind::Boolean.into(),
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+            }
+            "inputs" => {
+                let expected = if io_object_type {
+                    Type::Object
+                } else {
+                    Type::Input
+                };
+
+                if !expr_ty.is_coercible_to(self.types, &expected) {
+                    self.diagnostics.push(type_mismatch(
+                        self.types,
+                        expected,
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+            }
+            "outputs" => {
+                let expected = if io_object_type {
+                    Type::Object
+                } else {
+                    Type::Output
+                };
+
+                if !expr_ty.is_coercible_to(self.types, &expected) {
+                    self.diagnostics.push(type_mismatch(
+                        self.types,
+                        expected,
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+            }
+            _ => {
+                // Accept non-reserved names
+            }
+        }
+    }
+
+    /// Evaluates the type of a literal inputs expression.
+    fn evaluate_literal_inputs(
+        &mut self,
+        scope: &ScopeRef<'_>,
+        expr: &LiteralInput,
+    ) -> Option<Type> {
+        // Check to see if inputs literals are supported in the evaluation scope
+        if !scope.supports_inputs() {
+            return None;
+        }
+
+        // Evaluate the items of the literal
+        for item in expr.items() {
+            self.evaluate_literal_io_item(scope, item.names(), item.expr(), true);
+        }
+
+        Some(Type::Input)
+    }
+
+    /// Evaluates the type of a literal outputs expression.
+    fn evaluate_literal_outputs(
+        &mut self,
+        scope: &ScopeRef<'_>,
+        expr: &LiteralOutput,
+    ) -> Option<Type> {
+        // Check to see if output literals are supported in the evaluation scope
+        if !scope.supports_outputs() {
+            return None;
+        }
+
+        // Evaluate the items of the literal
+        for item in expr.items() {
+            self.evaluate_literal_io_item(scope, item.names(), item.expr(), false);
+        }
+
+        Some(Type::Output)
+    }
+
+    /// Evaluates a literal input/output item.
+    fn evaluate_literal_io_item(
+        &mut self,
+        scope: &ScopeRef<'_>,
+        names: impl Iterator<Item = Ident>,
+        expr: Expr,
+        input: bool,
+    ) {
+        let mut names = names.enumerate().peekable();
+        let expr_ty = self.evaluate_expr(scope, &expr).unwrap_or(Type::Union);
+
+        // The first name should be an input/output and then the remainder should be a
+        // struct member
+        let mut span = None;
+        let mut s: Option<&StructType> = None;
+        while let Some((i, name)) = names.next() {
+            // The first name is an input or an output
+            let ty = if i == 0 {
+                span = Some(name.span());
+
+                match if input {
+                    scope.input(name.as_str()).unwrap()
+                } else {
+                    scope.output(name.as_str()).unwrap()
+                } {
+                    Some(n) => match n.ty() {
+                        Some(ty) => ty,
+                        None => break,
+                    },
+                    None => {
+                        self.diagnostics.push(not_io_name(&name, input));
+                        break;
+                    }
+                }
+            } else {
+                // Every other name is a struct member
+                let start = span.unwrap().start();
+                span = Some(Span::new(start, name.span().end() - start));
+                let s = s.unwrap();
+                match s.members.get(name.as_str()) {
+                    Some(ty) => *ty,
+                    None => {
+                        self.diagnostics.push(not_a_struct_member(&s.name, &name));
+                        break;
+                    }
+                }
+            };
+
+            match ty {
+                Type::Compound(ty)
+                    if matches!(
+                        self.types.type_definition(ty.definition()),
+                        CompoundTypeDef::Struct(_)
+                    ) =>
+                {
+                    s = Some(
+                        self.types
+                            .type_definition(ty.definition())
+                            .as_struct()
+                            .unwrap(),
+                    );
+                }
+                _ if names.peek().is_some() => {
+                    self.diagnostics.push(not_a_struct(&name, i == 0));
+                    break;
+                }
+                _ => {
+                    // It's ok for the last one to not name a struct
+                }
+            }
+        }
+
+        // If we bailed out early above, calculate the entire span of the name
+        if let Some((_, last)) = names.last() {
+            let start = span.unwrap().start();
+            span = Some(Span::new(start, last.span().end() - start));
+        }
+
+        // The type of every item should be `hints`
+        if !expr_ty.is_coercible_to(self.types, &Type::Hints) {
+            self.diagnostics.push(type_mismatch(
+                self.types,
+                Type::Hints,
+                span.expect("should have span"),
+                expr_ty,
+                expr.span(),
+            ));
         }
     }
 

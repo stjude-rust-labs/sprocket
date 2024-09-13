@@ -1,5 +1,6 @@
 //! Validation of various counts in an AST.
 
+use std::collections::HashSet;
 use std::fmt;
 
 use wdl_grammar::SyntaxToken;
@@ -28,6 +29,7 @@ use crate::SupportedVersion;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::ToSpan;
+use crate::TokenStrHash;
 use crate::VisitReason;
 use crate::Visitor;
 
@@ -171,10 +173,12 @@ fn empty_struct(name: Ident) -> Diagnostic {
 /// * Contains non-empty structs
 #[derive(Default, Debug)]
 pub struct CountingVisitor {
+    /// Keeps track of what task names we've seen.
+    tasks_seen: HashSet<TokenStrHash<Ident>>,
+    /// Whether or not we should ignore the task or workflow.
+    ignore_current: bool,
     /// Whether or not the document has at least one workflow.
     has_workflow: bool,
-    /// Whether or not the document has at least one task.
-    has_task: bool,
     /// Whether or not the document has at least one struct.
     has_struct: bool,
     /// The span of the first command section in the task.
@@ -197,6 +201,7 @@ pub struct CountingVisitor {
 impl CountingVisitor {
     /// Resets the task/workflow count state.
     fn reset(&mut self) {
+        self.ignore_current = false;
         self.command = None;
         self.input = None;
         self.output = None;
@@ -228,7 +233,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        if !self.has_workflow && !self.has_task && !self.has_struct {
+        if !self.has_workflow && self.tasks_seen.is_empty() && !self.has_struct {
             state.add(at_least_one_definition());
         }
     }
@@ -244,6 +249,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
+        self.ignore_current = self.has_workflow;
         self.has_workflow = true;
     }
 
@@ -254,7 +260,7 @@ impl Visitor for CountingVisitor {
         task: &TaskDefinition,
     ) {
         if reason == VisitReason::Exit {
-            if self.command.is_none() {
+            if !self.ignore_current && self.command.is_none() {
                 state.add(missing_command_section(task.name()));
             }
 
@@ -262,7 +268,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        self.has_task = true;
+        self.ignore_current = !self.tasks_seen.insert(TokenStrHash::new(task.name()));
     }
 
     fn struct_definition(
@@ -289,7 +295,7 @@ impl Visitor for CountingVisitor {
         reason: VisitReason,
         section: &CommandSection,
     ) {
-        if reason == VisitReason::Exit {
+        if self.ignore_current || reason == VisitReason::Exit {
             return;
         }
 
@@ -314,7 +320,7 @@ impl Visitor for CountingVisitor {
         reason: VisitReason,
         section: &InputSection,
     ) {
-        if reason == VisitReason::Exit {
+        if self.ignore_current || reason == VisitReason::Exit {
             return;
         }
 
@@ -339,7 +345,7 @@ impl Visitor for CountingVisitor {
         reason: VisitReason,
         section: &OutputSection,
     ) {
-        if reason == VisitReason::Exit {
+        if self.ignore_current || reason == VisitReason::Exit {
             return;
         }
 
@@ -364,7 +370,7 @@ impl Visitor for CountingVisitor {
         reason: VisitReason,
         section: &RequirementsSection,
     ) {
-        if reason == VisitReason::Exit {
+        if self.ignore_current || reason == VisitReason::Exit {
             return;
         }
 
@@ -400,7 +406,7 @@ impl Visitor for CountingVisitor {
         reason: VisitReason,
         section: &RuntimeSection,
     ) {
-        if reason == VisitReason::Exit {
+        if self.ignore_current || reason == VisitReason::Exit {
             return;
         }
 
@@ -436,7 +442,7 @@ impl Visitor for CountingVisitor {
         reason: VisitReason,
         section: &MetadataSection,
     ) {
-        if reason == VisitReason::Exit {
+        if self.ignore_current || reason == VisitReason::Exit {
             return;
         }
 
@@ -461,7 +467,7 @@ impl Visitor for CountingVisitor {
         reason: VisitReason,
         section: &ParameterMetadataSection,
     ) {
-        if reason == VisitReason::Exit {
+        if self.ignore_current || reason == VisitReason::Exit {
             return;
         }
 

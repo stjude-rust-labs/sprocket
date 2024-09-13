@@ -25,3 +25,11 @@ error: duplicate key `foo` in runtime section
 13 │         foo: "dup"
    │         ^^^ this key is a duplicate
 
+error: conflicting key `container` in runtime section
+   ┌─ tests/validation/runtime-duplicate-keys/source.wdl:23:9
+   │
+22 │         docker: "foo"
+   │         ------ the conflicting alias is here
+23 │         container: "bar"
+   │         ^^^^^^^^^ this key conflicts with an alias
+

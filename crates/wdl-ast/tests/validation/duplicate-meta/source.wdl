@@ -14,6 +14,19 @@ task t {
     command <<<>>>
 }
 
+# This duplicate task should be ignored.
+task t {
+    meta {
+
+    }
+
+    meta {
+
+    }
+
+    command <<<>>>
+}
+
 workflow w {
     meta {
 

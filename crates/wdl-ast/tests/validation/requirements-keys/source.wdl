@@ -1,4 +1,4 @@
-## This is a test of unsupported validation keys
+## This is a test of unsupported requirements keys.
 
 version 1.2
 

@@ -8,11 +8,11 @@ error: task `t` contains a duplicate input section
    │     ^^^^^ this input section is a duplicate
 
 error: workflow `w` contains a duplicate input section
-   ┌─ tests/validation/duplicate-input/source.wdl:22:5
+   ┌─ tests/validation/duplicate-input/source.wdl:35:5
    │
-18 │     input {
+31 │     input {
    │     ----- first input section is defined here
    ·
-22 │     input {
+35 │     input {
    │     ^^^^^ this input section is a duplicate
 

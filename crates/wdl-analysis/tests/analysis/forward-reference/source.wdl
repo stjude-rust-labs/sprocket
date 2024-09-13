@@ -1,6 +1,6 @@
 ## This is a test for forward references in a WDL task.
 
-version 1.1
+version 1.2
 
 task forward_reference {
     # OK as the forward reference is to a string
@@ -14,6 +14,14 @@ task forward_reference {
     }
 
     String z = "5"
+
+    requirements {
+        cpu: y
+    }
+
+    hints {
+        max_cpu: y
+    }
 
     command <<<>>>
 }

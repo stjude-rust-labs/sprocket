@@ -15,3 +15,13 @@ task test {
 
     command <<<>>>
 }
+
+# Check for duplicated aliases in the runtime section.
+task test2 {
+    runtime {
+        docker: "foo"
+        container: "bar"
+    }
+
+    command <<<>>>
+}

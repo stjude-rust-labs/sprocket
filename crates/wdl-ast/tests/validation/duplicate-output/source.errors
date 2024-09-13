@@ -8,11 +8,11 @@ error: task `t` contains a duplicate output section
    │     ^^^^^^ this output section is a duplicate
 
 error: workflow `w` contains a duplicate output section
-   ┌─ tests/validation/duplicate-output/source.wdl:22:5
+   ┌─ tests/validation/duplicate-output/source.wdl:35:5
    │
-18 │     output {
+31 │     output {
    │     ------ first output section is defined here
    ·
-22 │     output {
+35 │     output {
    │     ^^^^^^ this output section is a duplicate
 

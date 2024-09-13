@@ -1386,8 +1386,12 @@ pub struct StandardLibrary {
     functions: IndexMap<&'static str, Function>,
     /// The type for `Array[String]`.
     pub(crate) array_string: Type,
+    /// The type for `Array[Int]`.
+    pub(crate) array_int: Type,
     /// The type for `Map[String, Int]`.
     pub(crate) map_string_int: Type,
+    /// The type for `Map[String, String]`.
+    pub(crate) map_string_string: Type,
 }
 
 impl StandardLibrary {
@@ -2631,7 +2635,9 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
         types,
         functions,
         array_string,
+        array_int,
         map_string_int,
+        map_string_string,
     }
 });
 

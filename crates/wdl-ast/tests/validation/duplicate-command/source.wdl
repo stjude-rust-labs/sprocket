@@ -6,3 +6,9 @@ task test {
     command <<<>>>
     command <<<>>>
 }
+
+# This duplicate task should be ignored.
+task test {
+    command <<<>>>
+    command <<<>>>
+}

@@ -8,20 +8,20 @@ error: task `t` contains a duplicate metadata section
    │     ^^^^ this metadata section is a duplicate
 
 error: workflow `w` contains a duplicate metadata section
-   ┌─ tests/validation/duplicate-meta/source.wdl:22:5
+   ┌─ tests/validation/duplicate-meta/source.wdl:35:5
    │
-18 │     meta {
+31 │     meta {
    │     ---- first metadata section is defined here
    ·
-22 │     meta {
+35 │     meta {
    │     ^^^^ this metadata section is a duplicate
 
 error: struct `X` contains a duplicate metadata section
-   ┌─ tests/validation/duplicate-meta/source.wdl:34:5
+   ┌─ tests/validation/duplicate-meta/source.wdl:47:5
    │
-30 │     meta {
+43 │     meta {
    │     ---- first metadata section is defined here
    ·
-34 │     meta {
+47 │     meta {
    │     ^^^^ this metadata section is a duplicate
 

@@ -1,0 +1,9 @@
+error: conflicting task name `foo`
+   ┌─ tests/analysis/duplicate-task/source.wdl:14:6
+   │
+ 6 │ task foo {
+   │      --- the task with the conflicting name is here
+   ·
+14 │ task foo {
+   │      ^^^ this task conflicts with a previously used name
+

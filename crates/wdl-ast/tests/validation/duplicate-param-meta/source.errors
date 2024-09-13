@@ -8,20 +8,20 @@ error: task `t` contains a duplicate parameter metadata section
    │     ^^^^^^^^^^^^^^ this parameter metadata section is a duplicate
 
 error: workflow `w` contains a duplicate parameter metadata section
-   ┌─ tests/validation/duplicate-param-meta/source.wdl:22:5
+   ┌─ tests/validation/duplicate-param-meta/source.wdl:35:5
    │
-18 │     parameter_meta {
+31 │     parameter_meta {
    │     -------------- first parameter metadata section is defined here
    ·
-22 │     parameter_meta {
+35 │     parameter_meta {
    │     ^^^^^^^^^^^^^^ this parameter metadata section is a duplicate
 
 error: struct `X` contains a duplicate parameter metadata section
-   ┌─ tests/validation/duplicate-param-meta/source.wdl:34:5
+   ┌─ tests/validation/duplicate-param-meta/source.wdl:47:5
    │
-30 │     parameter_meta {
+43 │     parameter_meta {
    │     -------------- first parameter metadata section is defined here
    ·
-34 │     parameter_meta {
+47 │     parameter_meta {
    │     ^^^^^^^^^^^^^^ this parameter metadata section is a duplicate
 

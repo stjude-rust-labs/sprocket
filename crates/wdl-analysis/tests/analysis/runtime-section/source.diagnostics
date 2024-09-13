@@ -1,0 +1,40 @@
+error: type mismatch: expected type `String` or type `Array[String]`, but found type `Boolean`
+   ┌─ tests/analysis/runtime-section/source.wdl:62:20
+   │
+62 │         container: false
+   │         ---------  ^^^^^ this is type `Boolean`
+   │         │           
+   │         this expects type `String` or type `Array[String]`
+
+error: type mismatch: expected type `Int` or type `Float`, but found type `Boolean`
+   ┌─ tests/analysis/runtime-section/source.wdl:63:14
+   │
+63 │         cpu: false
+   │         ---  ^^^^^ this is type `Boolean`
+   │         │     
+   │         this expects type `Int` or type `Float`
+
+error: type mismatch: expected type `Int` or type `String`, but found type `Boolean`
+   ┌─ tests/analysis/runtime-section/source.wdl:64:17
+   │
+64 │         memory: false
+   │         ------  ^^^^^ this is type `Boolean`
+   │         │        
+   │         this expects type `Int` or type `String`
+
+error: type mismatch: expected type `Boolean`, but found type `String`
+   ┌─ tests/analysis/runtime-section/source.wdl:65:14
+   │
+65 │         gpu: "false"
+   │         ---  ^^^^^^^ this is type `String`
+   │         │     
+   │         this expects type `Boolean`
+
+error: type mismatch: expected type `Int`, type `String`, or type `Array[String]`, but found type `Boolean`
+   ┌─ tests/analysis/runtime-section/source.wdl:67:16
+   │
+67 │         disks: false
+   │         -----  ^^^^^ this is type `Boolean`
+   │         │       
+   │         this expects type `Int`, type `String`, or type `Array[String]`
+

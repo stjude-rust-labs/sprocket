@@ -178,7 +178,11 @@ impl Visitor for UniqueKeysVisitor {
 
         check_duplicate_keys(
             &mut self.0,
-            &[],
+            &[
+                ("max_cpu", "maxCpu"),
+                ("max_memory", "maxMemory"),
+                ("localization_optional", "localizationOptional"),
+            ],
             section.items().map(|i| i.name()),
             Context::HintsSection,
             state,
@@ -197,7 +201,7 @@ impl Visitor for UniqueKeysVisitor {
 
         check_duplicate_keys(
             &mut self.0,
-            &[],
+            &[("container", "docker")],
             section.items().map(|i| i.name()),
             Context::RuntimeSection,
             state,
