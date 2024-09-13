@@ -1,3 +1,5 @@
+//! Implementation of the check and lint commands.
+
 use std::borrow::Cow;
 use std::path::PathBuf;
 
@@ -20,6 +22,7 @@ use wdl::ast::SyntaxNode;
 use wdl::ast::Validator;
 use wdl::lint::LintVisitor;
 
+/// The diagnostic mode to use for reporting diagnostics.
 #[derive(Clone, Debug, Default, ValueEnum)]
 pub enum Mode {
     /// Prints diagnostics as multiple lines.
@@ -64,6 +67,7 @@ pub struct Common {
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct CheckArgs {
+    /// The common command line arguments.
     #[command(flatten)]
     common: Common,
 
@@ -84,6 +88,7 @@ pub struct CheckArgs {
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct LintArgs {
+    /// The command command line arguments.
     #[command(flatten)]
     common: Common,
 
@@ -96,6 +101,7 @@ pub struct LintArgs {
     deny_notes: bool,
 }
 
+/// Checks WDL source files for diagnostics.
 pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     if !args.lint && !args.common.except.is_empty() {
         bail!("cannot specify `--except` without `--lint`");
@@ -208,6 +214,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Lints WDL source files.
 pub async fn lint(args: LintArgs) -> anyhow::Result<()> {
     check(CheckArgs {
         common: args.common,
@@ -218,6 +225,7 @@ pub async fn lint(args: LintArgs) -> anyhow::Result<()> {
     .await
 }
 
+/// Gets the display config to use for reporting diagnostics.
 fn get_display_config(args: &Common) -> (Config, StandardStream) {
     let display_style = match args.report_mode {
         Mode::Full => DisplayStyle::Rich,

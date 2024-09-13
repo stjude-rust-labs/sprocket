@@ -1,3 +1,5 @@
+//! Implementation of the analyzer command.
+
 use clap::Parser;
 use wdl::lsp::Server;
 use wdl::lsp::ServerOptions;

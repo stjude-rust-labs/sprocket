@@ -9,9 +9,8 @@ use clap_verbosity_flag::Verbosity;
 use colored::Colorize;
 use git_testament::git_testament;
 use git_testament::render_testament;
+use sprocket::commands;
 use tracing_log::AsTrace;
-
-pub mod commands;
 
 git_testament!(TESTAMENT);
 
