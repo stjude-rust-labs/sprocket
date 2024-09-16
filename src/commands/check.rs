@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use anyhow::bail;
 use anyhow::Context;
@@ -21,6 +22,9 @@ use wdl::ast::Severity;
 use wdl::ast::SyntaxNode;
 use wdl::ast::Validator;
 use wdl::lint::LintVisitor;
+
+/// The delay in showing the progress bar.
+const PROGRESS_BAR_DELAY: Duration = Duration::from_secs(2);
 
 /// The diagnostic mode to use for reporting diagnostics.
 #[derive(Clone, Debug, Default, ValueEnum)]
@@ -113,10 +117,15 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let except_rules = args.common.except;
     let analyzer = Analyzer::new_with_validator(
         move |bar: ProgressBar, kind, completed, total| async move {
-            if completed == 0 {
+            if bar.elapsed() < PROGRESS_BAR_DELAY {
+                return;
+            }
+
+            if completed == 0 || bar.length() == Some(0) {
                 bar.set_length(total.try_into().unwrap());
                 bar.set_message(format!("{kind}"));
             }
+
             bar.set_position(completed.try_into().unwrap());
         },
         move || {
@@ -137,13 +146,14 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         },
     );
 
+    analyzer.add_documents(args.common.paths).await?;
+
     let bar = ProgressBar::new(0);
     bar.set_style(
         ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {msg} {pos}/{len}")
             .unwrap(),
     );
 
-    analyzer.add_documents(args.common.paths).await?;
     let results = analyzer
         .analyze(bar.clone())
         .await
