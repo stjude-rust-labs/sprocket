@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.7.0 - 09-16-2024
+
 ### Added
 
 * moved "except comment" logic from `wdl-lint` into `wdl-ast`.
