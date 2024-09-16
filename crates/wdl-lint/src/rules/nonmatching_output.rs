@@ -13,6 +13,8 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -129,22 +131,38 @@ impl<'a> Rule for NonmatchingOutputRule<'a> {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::WorkflowDefinitionNode,
+        ])
+    }
 }
 
 /// Check each output key exists in the `outputs` key within the `meta` section.
-fn check_matching(state: &mut Diagnostics, rule: &mut NonmatchingOutputRule<'_>) {
+fn check_matching(
+    state: &mut Diagnostics,
+    rule: &mut NonmatchingOutputRule<'_>,
+    element: SyntaxElement,
+) {
     let mut exact_match = true;
     // Check for expected entries missing from `meta.outputs`.
     for (name, span) in &rule.output_keys {
         if !rule.meta_outputs_keys.contains_key(name) {
             exact_match = false;
             if rule.current_meta_span.is_some() {
-                state.add(nonmatching_output(
-                    *span,
-                    name,
-                    rule.name.as_deref().expect("should have a name"),
-                    rule.ty.expect("should have a type"),
-                ));
+                state.exceptable_add(
+                    nonmatching_output(
+                        *span,
+                        name,
+                        rule.name.as_deref().expect("should have a name"),
+                        rule.ty.expect("should have a type"),
+                    ),
+                    element.clone(),
+                    &rule.exceptable_nodes(),
+                );
             }
         }
     }
@@ -154,42 +172,58 @@ fn check_matching(state: &mut Diagnostics, rule: &mut NonmatchingOutputRule<'_>)
         if !rule.output_keys.contains_key(name) {
             exact_match = false;
             if rule.current_output_span.is_some() {
-                state.add(extra_output_in_meta(
-                    *span,
-                    name,
-                    rule.name.as_deref().expect("should have a name"),
-                    rule.ty.expect("should have a type"),
-                ));
+                state.exceptable_add(
+                    extra_output_in_meta(
+                        *span,
+                        name,
+                        rule.name.as_deref().expect("should have a name"),
+                        rule.ty.expect("should have a type"),
+                    ),
+                    element.clone(),
+                    &rule.exceptable_nodes(),
+                );
             }
         }
     }
 
     // Check for out-of-order entries.
     if exact_match && !rule.meta_outputs_keys.keys().eq(rule.output_keys.keys()) {
-        state.add(out_of_order(
-            rule.current_meta_outputs_span
-                .expect("should have a `meta.outputs` span"),
-            rule.current_output_span
-                .expect("should have an `output` span"),
-            rule.name.as_deref().expect("should have a name"),
-            rule.ty.expect("should have a type"),
-        ));
+        state.exceptable_add(
+            out_of_order(
+                rule.current_meta_outputs_span
+                    .expect("should have a `meta.outputs` span"),
+                rule.current_output_span
+                    .expect("should have an `output` span"),
+                rule.name.as_deref().expect("should have a name"),
+                rule.ty.expect("should have a type"),
+            ),
+            element,
+            &rule.exceptable_nodes(),
+        );
     }
 }
 
 /// Handle missing `meta.outputs` and reset the visitor.
-fn handle_meta_outputs_and_reset(state: &mut Diagnostics, rule: &mut NonmatchingOutputRule<'_>) {
+fn handle_meta_outputs_and_reset(
+    state: &mut Diagnostics,
+    rule: &mut NonmatchingOutputRule<'_>,
+    element: SyntaxElement,
+) {
     if rule.current_meta_span.is_some()
         && rule.current_meta_outputs_span.is_none()
         && !rule.output_keys.is_empty()
     {
-        state.add(missing_outputs_in_meta(
-            rule.current_meta_span.expect("should have a `meta` span"),
-            rule.name.as_deref().expect("should have a name"),
-            rule.ty.expect("should have a type"),
-        ));
+        state.exceptable_add(
+            missing_outputs_in_meta(
+                rule.current_meta_span.expect("should have a `meta` span"),
+                rule.name.as_deref().expect("should have a name"),
+                rule.ty.expect("should have a type"),
+            ),
+            element,
+            &rule.exceptable_nodes(),
+        );
     } else {
-        check_matching(state, rule);
+        check_matching(state, rule, element);
     }
 
     rule.name = None;
@@ -230,7 +264,11 @@ impl<'a> Visitor for NonmatchingOutputRule<'a> {
                 self.ty = Some("workflow");
             }
             VisitReason::Exit => {
-                handle_meta_outputs_and_reset(state, self);
+                handle_meta_outputs_and_reset(
+                    state,
+                    self,
+                    SyntaxElement::from(workflow.syntax().clone()),
+                );
             }
         }
     }
@@ -247,7 +285,11 @@ impl<'a> Visitor for NonmatchingOutputRule<'a> {
                 self.ty = Some("task");
             }
             VisitReason::Exit => {
-                handle_meta_outputs_and_reset(state, self);
+                handle_meta_outputs_and_reset(
+                    state,
+                    self,
+                    SyntaxElement::from(task.syntax().clone()),
+                );
             }
         }
     }
@@ -323,11 +365,15 @@ impl<'a> Visitor for NonmatchingOutputRule<'a> {
                         match item.value() {
                             MetadataValue::Object(_) => {}
                             _ => {
-                                state.add(non_object_meta_outputs(
-                                    item.syntax().text_range().to_span(),
-                                    self.name.as_deref().expect("should have a name"),
-                                    self.ty.expect("should have a type"),
-                                ));
+                                state.exceptable_add(
+                                    non_object_meta_outputs(
+                                        item.syntax().text_range().to_span(),
+                                        self.name.as_deref().expect("should have a name"),
+                                        self.ty.expect("should have a type"),
+                                    ),
+                                    SyntaxElement::from(item.syntax().clone()),
+                                    &self.exceptable_nodes(),
+                                );
                             }
                         }
                     } else if let Some(meta_outputs_span) = self.current_meta_outputs_span {

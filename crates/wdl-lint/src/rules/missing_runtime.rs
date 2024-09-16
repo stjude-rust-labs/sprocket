@@ -2,12 +2,15 @@
 
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::version::V1;
+use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -46,6 +49,13 @@ impl Rule for MissingRuntimeRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness, Tag::Portability])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::TaskDefinitionNode,
+        ])
+    }
 }
 
 impl Visitor for MissingRuntimeRule {
@@ -81,7 +91,11 @@ impl Visitor for MissingRuntimeRule {
         if let SupportedVersion::V1(minor_version) = self.0.expect("version should exist here") {
             if minor_version <= V1::One && task.runtime().is_none() {
                 let name = task.name();
-                state.add(missing_runtime_section(name.as_str(), name.span()));
+                state.exceptable_add(
+                    missing_runtime_section(name.as_str(), name.span()),
+                    SyntaxElement::from(task.syntax().clone()),
+                    &self.exceptable_nodes(),
+                );
             }
         }
     }

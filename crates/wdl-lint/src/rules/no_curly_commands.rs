@@ -9,6 +9,7 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
@@ -53,6 +54,13 @@ impl Rule for NoCurlyCommandsRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::CommandSectionNode,
+        ])
+    }
 }
 
 impl Visitor for NoCurlyCommandsRule {
@@ -88,10 +96,11 @@ impl Visitor for NoCurlyCommandsRule {
             let command_keyword = support::token(section.syntax(), SyntaxKind::CommandKeyword)
                 .expect("should have a command keyword token");
 
-            state.add(curly_commands(
-                name.as_str(),
-                command_keyword.text_range().to_span(),
-            ));
+            state.exceptable_add(
+                curly_commands(name.as_str(), command_keyword.text_range().to_span()),
+                SyntaxElement::from(section.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }

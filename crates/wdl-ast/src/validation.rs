@@ -1,5 +1,12 @@
 //! Validator for WDL documents.
 
+use std::collections::HashSet;
+
+use rowan::Direction;
+use wdl_grammar::SyntaxElement;
+use wdl_grammar::SyntaxKind;
+use wdl_grammar::SyntaxNode;
+
 use super::v1;
 use super::Comment;
 use super::Diagnostic;
@@ -19,6 +26,9 @@ mod requirements;
 mod strings;
 mod version;
 
+/// The prefix of `except` comments.
+pub const EXCEPT_COMMENT_PREFIX: &str = "#@ except:";
+
 /// Represents a collection of validation diagnostics.
 ///
 /// Validation visitors receive a diagnostics collection during
@@ -31,6 +41,57 @@ impl Diagnostics {
     /// Adds a diagnostic to the collection.
     pub fn add(&mut self, diagnostic: Diagnostic) {
         self.0.push(diagnostic);
+    }
+
+    /// Adds a diagnostic to the collection, unless the diagnostic is for an
+    /// element that has an exception for the given rule.
+    ///
+    /// If the diagnostic does not have a rule, the diagnostic is always added.
+    pub fn exceptable_add(
+        &mut self,
+        diagnostic: Diagnostic,
+        element: SyntaxElement,
+        exceptable_nodes: &Option<&'static [SyntaxKind]>,
+    ) {
+        if let Some(rule) = diagnostic.rule() {
+            for node in element.ancestors().filter(|node| {
+                exceptable_nodes
+                    .as_ref()
+                    .map_or(true, |nodes| nodes.contains(&node.kind()))
+            }) {
+                if self.exceptions_for(&node).contains(rule) {
+                    // Rule is currently excepted, don't add the diagnostic
+                    return;
+                }
+            }
+        }
+
+        self.add(diagnostic);
+    }
+
+    /// Gets the set of excepted rule ids for the given syntax node.
+    pub fn exceptions_for(&self, node: &SyntaxNode) -> HashSet<String> {
+        let siblings = node
+            .siblings_with_tokens(Direction::Prev)
+            .skip(1)
+            .take_while(|s| s.kind() == SyntaxKind::Whitespace || s.kind() == SyntaxKind::Comment)
+            .filter_map(SyntaxElement::into_token);
+
+        let mut set = HashSet::default();
+        for sibling in siblings {
+            if sibling.kind() == SyntaxKind::Whitespace {
+                continue;
+            }
+
+            if let Some(ids) = sibling.text().strip_prefix(EXCEPT_COMMENT_PREFIX) {
+                for id in ids.split(',') {
+                    let id = id.trim();
+                    set.insert(id.to_string());
+                }
+            }
+        }
+
+        set
     }
 }
 

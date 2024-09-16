@@ -5,6 +5,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::Whitespace;
@@ -52,6 +53,10 @@ impl Rule for InconsistentNewlinesRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Clarity])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[SyntaxKind::VersionStatementNode])
+    }
 }
 
 impl Visitor for InconsistentNewlinesRule {
@@ -72,6 +77,9 @@ impl Visitor for InconsistentNewlinesRule {
         }
 
         if self.newline > 0 && self.carriage_return > 0 {
+            // Since this rule can only be excepted in a document-wide fashion,
+            // if the rule is running we can directly add the diagnostic
+            // without checking for the exceptable nodes
             state.add(inconsistent_newlines(self.first_inconsistent.unwrap()));
         }
     }

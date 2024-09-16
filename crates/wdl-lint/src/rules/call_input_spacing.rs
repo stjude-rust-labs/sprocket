@@ -7,6 +7,7 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
@@ -77,6 +78,14 @@ impl Rule for CallInputSpacingRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Spacing])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::CallStatementNode,
+            SyntaxKind::WorkflowDefinitionNode,
+        ])
+    }
 }
 
 impl Visitor for CallInputSpacingRule {
@@ -122,14 +131,18 @@ impl Visitor for CallInputSpacingRule {
             if let Some(whitespace) = input_keyword.prev_sibling_or_token() {
                 if whitespace.kind() != SyntaxKind::Whitespace {
                     // If there is no whitespace before the input keyword
-                    state.add(call_input_keyword_spacing(
-                        input_keyword.text_range().to_span(),
-                    ));
+                    state.exceptable_add(
+                        call_input_keyword_spacing(input_keyword.text_range().to_span()),
+                        SyntaxElement::from(call.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 } else if !whitespace.as_token().unwrap().text().eq(" ") {
                     // If there is anything other than one space before the input keyword
-                    state.add(call_input_incorrect_spacing(
-                        whitespace.text_range().to_span(),
-                    ));
+                    state.exceptable_add(
+                        call_input_incorrect_spacing(whitespace.text_range().to_span()),
+                        SyntaxElement::from(call.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             }
         }
@@ -147,7 +160,11 @@ impl Visitor for CallInputSpacingRule {
                 ) {
                     (SyntaxKind::Whitespace, SyntaxKind::Whitespace) => {}
                     _ => {
-                        state.add(call_input_assignment(assign.text_range().to_span()));
+                        state.exceptable_add(
+                            call_input_assignment(assign.text_range().to_span()),
+                            SyntaxElement::from(call.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
                 }
             }
@@ -165,7 +182,11 @@ impl Visitor for CallInputSpacingRule {
                 }
                 SyntaxKind::CallInputItemNode => {
                     if newline_seen == 0 && inputs > 1 {
-                        state.add(call_input_missing_newline(c.text_range().to_span()));
+                        state.exceptable_add(
+                            call_input_missing_newline(c.text_range().to_span()),
+                            SyntaxElement::from(call.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
                     newline_seen = 0;
                 }

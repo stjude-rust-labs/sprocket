@@ -7,6 +7,7 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -55,6 +56,10 @@ impl Rule for TodoRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        None
+    }
 }
 
 impl Visitor for TodoRule {
@@ -66,7 +71,11 @@ impl Visitor for TodoRule {
 
     fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
         for (offset, pattern) in comment.as_str().match_indices(TODO) {
-            state.add(todo_comment(pattern, comment.span(), offset))
+            state.exceptable_add(
+                todo_comment(pattern, comment.span(), offset),
+                SyntaxElement::from(comment.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }

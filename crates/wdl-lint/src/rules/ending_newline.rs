@@ -62,6 +62,10 @@ impl Rule for EndingNewlineRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing, Tag::Style])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[SyntaxKind::VersionStatementNode])
+    }
 }
 
 impl Visitor for EndingNewlineRule {
@@ -104,16 +108,25 @@ impl Visitor for EndingNewlineRule {
                         }
 
                         if extra > 0 {
+                            // Since this rule can only be excepted in a document-wide fashion,
+                            // if the rule is running we can directly add the diagnostic
+                            // without checking for the exceptable nodes
                             state.add(multiple_ending_newline(
                                 Span::new(start + text.len(), len - text.len() - 1),
                                 extra,
                             ));
                         }
                     }
+                    // Since this rule can only be excepted in a document-wide fashion,
+                    // if the rule is running we can directly add the diagnostic
+                    // without checking for the exceptable nodes
                     None => state.add(missing_ending_newline(Span::new(start + (len - 1), 1))),
                 }
             }
             Some(last) => {
+                // Since this rule can only be excepted in a document-wide fashion,
+                // if the rule is running we can directly add the diagnostic
+                // without checking for the exceptable nodes
                 state.add(missing_ending_newline(Span::new(
                     usize::from(last.text_range().end()) - 1,
                     1,

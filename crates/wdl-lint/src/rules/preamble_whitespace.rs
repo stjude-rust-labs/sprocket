@@ -79,6 +79,10 @@ impl Rule for PreambleWhitespaceRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing, Tag::Style])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[SyntaxKind::VersionStatementNode])
+    }
 }
 
 impl Visitor for PreambleWhitespaceRule {
@@ -109,6 +113,10 @@ impl Visitor for PreambleWhitespaceRule {
             self.exited_version = true;
             return;
         }
+
+        // Since this rule can only be excepted in a document-wide fashion,
+        // if the rule is running we can directly add the diagnostic
+        // without checking for the exceptable nodes
 
         // We're finished after the version statement
         self.entered_version = true;
@@ -179,6 +187,9 @@ impl Visitor for PreambleWhitespaceRule {
     }
 
     fn whitespace(&mut self, state: &mut Self::State, whitespace: &Whitespace) {
+        // Since this rule can only be excepted in a document-wide fashion,
+        // if the rule is running we can directly add the diagnostic
+        // without checking for the exceptable nodes
         if self.exited_version {
             // Check to see if we've already checked for a blank line after the version
             // statement

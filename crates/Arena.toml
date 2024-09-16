@@ -1712,11 +1712,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:134:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/data_structures/read_group.wdl/#L134"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:159:20: note[ContainerValue]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/data_structures/read_group.wdl/#L159"
 
@@ -1744,11 +1739,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:142:79: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/arriba.wdl/#L142"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:147:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/arriba.wdl/#L147"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -2137,11 +2127,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:127:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L127"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:12:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L12"
 
@@ -2162,11 +2147,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:194:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L194"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:216:20: note[ContainerValue]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L216"
 
@@ -2184,11 +2164,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:246:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L246"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:280:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/gatk4.wdl/#L280"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -2259,11 +2234,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:135:20: note[ContainerValue]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/htseq.wdl/#L135"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:163:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/htseq.wdl/#L163"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
@@ -2569,11 +2539,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:223:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L223"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:239:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/ngsderive.wdl/#L239"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -3832,11 +3797,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:632:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/star.wdl/#L632"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
 message = "star.wdl:654:17: note[ExpressionSpacing]: multi-line if...then...else must have a preceding parenthesis and newline"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/star.wdl/#L654"
 
@@ -3947,11 +3907,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:458:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L458"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:45:20: note[ContainerValue]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L45"
 
@@ -3969,11 +3924,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:686:20: note[ContainerValue]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L686"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:713:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/tools/util.wdl/#L713"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -4219,11 +4169,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4
 document = "stjudecloud/workflows:/workflows/qc/markdups-post.wdl"
 message = "markdups-post.wdl:25:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/qc/markdups-post.wdl/#L25"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:111:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/129060215443bbd1b67c4d3d149d48acdab90ef2/workflows/qc/quality-check-standard.wdl/#L111"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"

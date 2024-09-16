@@ -26,7 +26,8 @@ struct Ok {         # OK
 #@ except: MissingMetas,MissingOutput,Whitespace
 workflow test {
     String bad = 'bad string'   # NOT OK
-    String good = #@ except: DoubleQuotes
+    #@ except: DoubleQuotes
+    String good =
         'good string'           # OK
 }
 

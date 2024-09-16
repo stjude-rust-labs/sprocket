@@ -7,7 +7,7 @@ be out of sync with released packages.
 ## Lint Rules
 
 | Name                             | Tags                          | Description                                                                                       |
-| :------------------------------- | :---------------------------- | :------------------------------------------------------------------------------------------------ |
+|:---------------------------------|:------------------------------|:--------------------------------------------------------------------------------------------------|
 | `BlankLinesBetweenElements`      | Spacing                       | Ensures proper blank space between elements                                                       |
 | `CallInputSpacing`               | Style, Clarity, Spacing       | Ensures proper spacing for call inputs                                                            |
 | `CommandSectionMixedIndentation` | Clarity, Correctness, Spacing | Ensures that lines within a command do not mix spaces and tabs.                                   |
@@ -43,3 +43,5 @@ be out of sync with released packages.
 | `Todo`                           | Completeness                  | Ensures that `TODO` statements are flagged for followup.                                          |
 | `TrailingComma`                  | Style                         | Ensures that lists and objects in meta have a trailing comma.                                     |
 | `Whitespace`                     | Spacing, Style                | Ensures that a document does not contain undesired whitespace.                                    |
+| `UnknownRule`                    | Clarity                       | Ensures there are no unknown rules present in lint directives.                                    |
+| `MisplacedLintDirective`         | Clarity, Correctness          | Ensures there are no misplaced lint directives.                                                   |

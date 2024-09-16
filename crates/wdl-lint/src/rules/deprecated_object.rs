@@ -1,12 +1,15 @@
 //! A lint rule for flagging `Object`s as deprecated.
 
 use wdl_ast::v1::Type;
+use wdl_ast::AstNode;
 use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -52,6 +55,16 @@ impl Rule for DeprecatedObjectRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Deprecated])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::WorkflowDefinitionNode,
+            SyntaxKind::BoundDeclNode,
+            SyntaxKind::UnboundDeclNode,
+        ])
+    }
 }
 
 impl Visitor for DeprecatedObjectRule {
@@ -83,7 +96,11 @@ impl Visitor for DeprecatedObjectRule {
         }
 
         if let Type::Object(ty) = decl.ty() {
-            state.add(deprecated_object_use(ty.span()));
+            state.exceptable_add(
+                deprecated_object_use(ty.span()),
+                SyntaxElement::from(decl.syntax().clone()),
+                &self.exceptable_nodes(),
+            )
         }
     }
 
@@ -98,7 +115,11 @@ impl Visitor for DeprecatedObjectRule {
         }
 
         if let Type::Object(ty) = decl.ty() {
-            state.add(deprecated_object_use(ty.span()));
+            state.exceptable_add(
+                deprecated_object_use(ty.span()),
+                SyntaxElement::from(decl.syntax().clone()),
+                &self.exceptable_nodes(),
+            )
         }
     }
 }

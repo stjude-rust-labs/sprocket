@@ -9,6 +9,7 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 use wdl_ast::VisitReason;
@@ -86,6 +87,10 @@ impl Rule for CommentWhitespaceRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        None
+    }
 }
 
 impl Visitor for CommentWhitespaceRule {
@@ -112,7 +117,11 @@ impl Visitor for CommentWhitespaceRule {
             if let Some(prior) = comment.syntax().prev_sibling_or_token() {
                 if prior.kind() != SyntaxKind::Whitespace || prior.to_string() != "  " {
                     // Report a diagnostic if there are not two spaces before the comment delimiter
-                    state.add(inline_preceding_whitespace(comment.span()))
+                    state.exceptable_add(
+                        inline_preceding_whitespace(comment.span()),
+                        SyntaxElement::from(comment.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             }
         } else {
@@ -133,16 +142,24 @@ impl Visitor for CommentWhitespaceRule {
                 if this_indentation != expected_indentation {
                     // Report a diagnostic if the comment is not indented properly
                     match this_indentation.len().cmp(&expected_indentation.len()) {
-                        Ordering::Greater => state.add(excess_indentation(
-                            comment.span(),
-                            expected_indentation.len() / INDENT.len(),
-                            this_indentation.len() / INDENT.len(),
-                        )),
-                        Ordering::Less => state.add(insufficient_indentation(
-                            comment.span(),
-                            expected_indentation.len() / INDENT.len(),
-                            this_indentation.len() / INDENT.len(),
-                        )),
+                        Ordering::Greater => state.exceptable_add(
+                            excess_indentation(
+                                comment.span(),
+                                expected_indentation.len() / INDENT.len(),
+                                this_indentation.len() / INDENT.len(),
+                            ),
+                            SyntaxElement::from(comment.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        ),
+                        Ordering::Less => state.exceptable_add(
+                            insufficient_indentation(
+                                comment.span(),
+                                expected_indentation.len() / INDENT.len(),
+                                this_indentation.len() / INDENT.len(),
+                            ),
+                            SyntaxElement::from(comment.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        ),
                         Ordering::Equal => {}
                     }
                 }
@@ -173,10 +190,11 @@ impl Visitor for CommentWhitespaceRule {
         if comment_chars.skip(n_whitespace).count() > 0
             && ((n_whitespace != 1 && !preamble) || (preamble && n_whitespace == 0))
         {
-            state.add(following_whitespace(Span::new(
-                comment.span().start(),
-                n_delimiter,
-            )));
+            state.exceptable_add(
+                following_whitespace(Span::new(comment.span().start(), n_delimiter)),
+                SyntaxElement::from(comment.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }

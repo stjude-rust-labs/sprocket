@@ -10,6 +10,8 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -66,6 +68,13 @@ impl Rule for DescriptionMissingRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::MetadataSectionNode,
+        ])
+    }
 }
 
 impl Visitor for DescriptionMissingRule {
@@ -118,15 +127,19 @@ impl Visitor for DescriptionMissingRule {
             .find(|entry| entry.name().syntax().to_string() == "description");
 
         if description.is_none() {
-            state.add(description_missing(
-                section
-                    .syntax()
-                    .first_token()
-                    .unwrap()
-                    .text_range()
-                    .to_span(),
-                section.parent(),
-            ));
+            state.exceptable_add(
+                description_missing(
+                    section
+                        .syntax()
+                        .first_token()
+                        .unwrap()
+                        .text_range()
+                        .to_span(),
+                    section.parent(),
+                ),
+                SyntaxElement::from(section.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }

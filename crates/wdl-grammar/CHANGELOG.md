@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `describe()` method to `SyntaxKind` ([#162](https://github.com/stjude-rust-labs/wdl/pull/162))
+
 ### Fixed
 
 * Fixed requiring comma delimiter for `input`, `object` and `hints` literal

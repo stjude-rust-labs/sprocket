@@ -75,6 +75,13 @@ impl Rule for ImportWhitespaceRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Spacing])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::ImportStatementNode,
+        ])
+    }
 }
 
 impl Visitor for ImportWhitespaceRule {
@@ -114,9 +121,11 @@ impl Visitor for ImportWhitespaceRule {
 
         for token in internal_whitespace {
             if token.text() != " " && token.prev_token().unwrap().kind() != SyntaxKind::Comment {
-                state.add(improper_whitespace_within_import(
-                    token.text_range().to_span(),
-                ));
+                state.exceptable_add(
+                    improper_whitespace_within_import(token.text_range().to_span()),
+                    SyntaxElement::from(token),
+                    &self.exceptable_nodes(),
+                );
             }
         }
 
@@ -132,10 +141,14 @@ impl Visitor for ImportWhitespaceRule {
                 let span = token.text_range().to_span();
                 for (text, offset, _) in lines_with_offset(token.text()) {
                     if !text.is_empty() {
-                        state.add(improper_whitespace_before_import(Span::new(
-                            span.start() + offset,
-                            span.len() - offset,
-                        )));
+                        state.exceptable_add(
+                            improper_whitespace_before_import(Span::new(
+                                span.start() + offset,
+                                span.len() - offset,
+                            )),
+                            SyntaxElement::from(token.clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
                 }
             }
@@ -174,10 +187,16 @@ impl Visitor for ImportWhitespaceRule {
 
                 if should_warn {
                     let span = token.text_range().to_span();
-                    state.add(blank_between_imports(Span::new(
-                        span.start() + second_line_start.expect("should have a second line start"),
-                        span.len() - second_line_start.expect("should have a second line start"),
-                    )));
+                    state.exceptable_add(
+                        blank_between_imports(Span::new(
+                            span.start()
+                                + second_line_start.expect("should have a second line start"),
+                            span.len()
+                                - second_line_start.expect("should have a second line start"),
+                        )),
+                        SyntaxElement::from(token.clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             } else if token.kind() != SyntaxKind::Comment {
                 // We've backed into non-trivia, so we're done.

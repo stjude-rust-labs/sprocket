@@ -1,7 +1,6 @@
 //! A lint rule for spacing of expressions.
 
 use rowan::Direction;
-use rowan::NodeOrToken;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
 use wdl_ast::AstNode;
@@ -10,9 +9,8 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::SyntaxNode;
-use wdl_ast::SyntaxToken;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -201,6 +199,10 @@ impl Rule for ExpressionSpacingRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        None
+    }
 }
 
 impl Visitor for ExpressionSpacingRule {
@@ -236,7 +238,11 @@ impl Visitor for ExpressionSpacingRule {
                     .count()
                     > 0
                 {
-                    state.add(prefix_whitespace(expr.syntax().text_range().to_span()));
+                    state.exceptable_add(
+                        prefix_whitespace(expr.syntax().text_range().to_span()),
+                        SyntaxElement::from(expr.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             }
             Expr::Parenthesized(_) => {
@@ -292,7 +298,7 @@ impl Visitor for ExpressionSpacingRule {
                         | SyntaxKind::LogicalOr => {}
                         _ => {
                             // opening parens should be preceded by whitespace
-                            state.add(missing_preceding_whitespace(open.text_range().to_span()));
+                            state.exceptable_add(missing_preceding_whitespace(open.text_range().to_span()), SyntaxElement::from(expr.syntax().clone()), &self.exceptable_nodes());
                         }
                     }
                 }
@@ -308,7 +314,11 @@ impl Visitor for ExpressionSpacingRule {
                                 .is_some_and(|t| t.kind() != SyntaxKind::Comment)
                         {
                             // opening parens should not be followed by non-newline whitespace
-                            state.add(disallowed_space(token.text_range().to_span()));
+                            state.exceptable_add(
+                                disallowed_space(token.text_range().to_span()),
+                                SyntaxElement::from(expr.syntax().clone()),
+                                &self.exceptable_nodes(),
+                            );
                         }
                     }
                 }
@@ -325,7 +335,11 @@ impl Visitor for ExpressionSpacingRule {
                     {
                         // closing parenthesis should not be preceded by whitespace without a
                         // newline
-                        state.add(disallowed_space(close_prev.text_range().to_span()));
+                        state.exceptable_add(
+                            disallowed_space(close_prev.text_range().to_span()),
+                            SyntaxElement::from(expr.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
                 }
             }
@@ -337,7 +351,7 @@ impl Visitor for ExpressionSpacingRule {
                     .find(|t| matches!(t.kind(), SyntaxKind::LogicalAnd | SyntaxKind::LogicalOr))
                     .expect("expression node should have an operator");
 
-                check_required_surrounding_ws(state, &op);
+                check_required_surrounding_ws(state, &op, &self.exceptable_nodes());
             }
             Expr::Equality(_) | Expr::Inequality(_) => {
                 // find the operator
@@ -347,7 +361,7 @@ impl Visitor for ExpressionSpacingRule {
                     .find(|t| matches!(t.kind(), SyntaxKind::Equal | SyntaxKind::NotEqual))
                     .expect("expression node should have an operator");
 
-                check_required_surrounding_ws(state, &op);
+                check_required_surrounding_ws(state, &op, &self.exceptable_nodes());
             }
             Expr::Addition(_)
             | Expr::Subtraction(_)
@@ -373,7 +387,7 @@ impl Visitor for ExpressionSpacingRule {
                     .expect("expression node should have an operator");
 
                 // Infix operators must be surrounded by whitespace
-                check_required_surrounding_ws(state, &op);
+                check_required_surrounding_ws(state, &op, &self.exceptable_nodes());
             }
             Expr::Less(_) | Expr::LessEqual(_) | Expr::Greater(_) | Expr::GreaterEqual(_) => {
                 // find the operator
@@ -391,7 +405,7 @@ impl Visitor for ExpressionSpacingRule {
                     })
                     .expect("expression node should have an operator");
 
-                check_required_surrounding_ws(state, &op);
+                check_required_surrounding_ws(state, &op, &self.exceptable_nodes());
             }
             Expr::If(_) => {
                 // find the if keyword
@@ -450,7 +464,11 @@ impl Visitor for ExpressionSpacingRule {
                         }
                     }
                     if !open_paren || !newline {
-                        state.add(multiline_if_open_paren(if_keyword.text_range().to_span()));
+                        state.exceptable_add(
+                            multiline_if_open_paren(if_keyword.text_range().to_span()),
+                            SyntaxElement::from(expr.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
 
                     // check the then keyword
@@ -462,7 +480,11 @@ impl Visitor for ExpressionSpacingRule {
                         || !then_ws.to_string().contains('\n')
                     {
                         // then should be preceded by a newline
-                        state.add(multiline_then_space(then_keyword.text_range().to_span()));
+                        state.exceptable_add(
+                            multiline_then_space(then_keyword.text_range().to_span()),
+                            SyntaxElement::from(expr.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
 
                     // else keyword should be preceded by a newline
@@ -473,7 +495,11 @@ impl Visitor for ExpressionSpacingRule {
                         || !else_prior.to_string().contains('\n')
                     {
                         // then should be preceded by a newline
-                        state.add(multiline_else_space(else_keyword.text_range().to_span()));
+                        state.exceptable_add(
+                            multiline_else_space(else_keyword.text_range().to_span()),
+                            SyntaxElement::from(expr.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
 
                     // check the closing parenthesis
@@ -499,9 +525,11 @@ impl Visitor for ExpressionSpacingRule {
                         }
                     }
                     if !close_paren || !newline {
-                        state.add(multiline_if_close_paren(
-                            else_keyword.text_range().to_span(),
-                        ));
+                        state.exceptable_add(
+                            multiline_if_close_paren(else_keyword.text_range().to_span()),
+                            SyntaxElement::from(expr.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
                 }
             }
@@ -534,7 +562,11 @@ impl Visitor for ExpressionSpacingRule {
 
                 checks.iter().for_each(|f| {
                     if let Some(ws) = f {
-                        state.add(disallowed_space(ws.text_range().to_span()));
+                        state.exceptable_add(
+                            disallowed_space(ws.text_range().to_span()),
+                            SyntaxElement::from(expr.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
                 });
             }
@@ -552,10 +584,18 @@ impl Visitor for ExpressionSpacingRule {
                     .filter(|t| t.kind() == SyntaxKind::Whitespace);
 
                 if let Some(ws) = before_ws {
-                    state.add(disallowed_space(ws.text_range().to_span()));
+                    state.exceptable_add(
+                        disallowed_space(ws.text_range().to_span()),
+                        SyntaxElement::from(acc.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
                 if let Some(ws) = after_ws {
-                    state.add(disallowed_space(ws.text_range().to_span()));
+                    state.exceptable_add(
+                        disallowed_space(ws.text_range().to_span()),
+                        SyntaxElement::from(acc.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             }
             Expr::Literal(l) => {
@@ -623,9 +663,13 @@ impl Visitor for ExpressionSpacingRule {
                                 }
                             }
                             if !newline {
-                                state.add(multiline_literal_open_newline(
-                                    open_bracket.text_range().to_span(),
-                                ));
+                                state.exceptable_add(
+                                    multiline_literal_open_newline(
+                                        open_bracket.text_range().to_span(),
+                                    ),
+                                    SyntaxElement::from(expr.syntax().clone()),
+                                    &self.exceptable_nodes(),
+                                );
                             }
 
                             let close_bracket_prior = close_bracket
@@ -650,9 +694,13 @@ impl Visitor for ExpressionSpacingRule {
                                 }
                             }
                             if !newline {
-                                state.add(multiline_literal_close_newline(
-                                    close_bracket.text_range().to_span(),
-                                ));
+                                state.exceptable_add(
+                                    multiline_literal_close_newline(
+                                        close_bracket.text_range().to_span(),
+                                    ),
+                                    SyntaxElement::from(expr.syntax().clone()),
+                                    &self.exceptable_nodes(),
+                                );
                             }
                         }
                     }
@@ -686,19 +734,25 @@ impl Visitor for ExpressionSpacingRule {
 
             if !before_ws && !after_ws {
                 // assignments must be surrounded by whitespace
-                state.add(assignment_missing_surrounding_whitespace(
-                    assign.text_range().to_span(),
-                ));
+                state.exceptable_add(
+                    assignment_missing_surrounding_whitespace(assign.text_range().to_span()),
+                    SyntaxElement::from(decl.syntax().clone()),
+                    &self.exceptable_nodes(),
+                );
             } else if !before_ws {
                 // assignments must be preceded by whitespace
-                state.add(assignment_missing_preceding_whitespace(
-                    assign.text_range().to_span(),
-                ));
+                state.exceptable_add(
+                    assignment_missing_preceding_whitespace(assign.text_range().to_span()),
+                    SyntaxElement::from(decl.syntax().clone()),
+                    &self.exceptable_nodes(),
+                );
             } else if !after_ws {
                 // assignments must be followed by whitespace
-                state.add(assignment_missing_following_whitespace(
-                    assign.text_range().to_span(),
-                ));
+                state.exceptable_add(
+                    assignment_missing_following_whitespace(assign.text_range().to_span()),
+                    SyntaxElement::from(decl.syntax().clone()),
+                    &self.exceptable_nodes(),
+                );
             }
         }
     }
@@ -707,19 +761,32 @@ impl Visitor for ExpressionSpacingRule {
 /// Checks to ensure a token is surrounded by whitespace.
 fn check_required_surrounding_ws(
     state: &mut Diagnostics,
-    op: &NodeOrToken<SyntaxNode, SyntaxToken>,
+    op: &SyntaxElement,
+    exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
     let before_ws = op.prev_sibling_or_token().map(|t| t.kind()) == Some(SyntaxKind::Whitespace);
     let after_ws = op.next_sibling_or_token().map(|t| t.kind()) == Some(SyntaxKind::Whitespace);
 
     if !before_ws && !after_ws {
         // must be surrounded by whitespace
-        state.add(missing_surrounding_whitespace(op.text_range().to_span()));
+        state.exceptable_add(
+            missing_surrounding_whitespace(op.text_range().to_span()),
+            op.clone(),
+            exceptable_nodes,
+        );
     } else if !before_ws {
         // must be preceded by whitespace
-        state.add(missing_preceding_whitespace(op.text_range().to_span()));
+        state.exceptable_add(
+            missing_preceding_whitespace(op.text_range().to_span()),
+            op.clone(),
+            exceptable_nodes,
+        );
     } else if !after_ws {
         // must be followed by whitespace
-        state.add(missing_following_whitespace(op.text_range().to_span()));
+        state.exceptable_add(
+            missing_following_whitespace(op.text_range().to_span()),
+            op.clone(),
+            exceptable_nodes,
+        );
     }
 }

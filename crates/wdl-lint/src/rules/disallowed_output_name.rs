@@ -4,12 +4,15 @@ use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::OutputSection;
 use wdl_ast::v1::UnboundDecl;
+use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -72,6 +75,14 @@ impl Rule for DisallowedOutputNameRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Naming])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::OutputSectionNode,
+            SyntaxKind::BoundDeclNode,
+        ])
+    }
 }
 
 impl Visitor for DisallowedOutputNameRule {
@@ -98,26 +109,38 @@ impl Visitor for DisallowedOutputNameRule {
 
     fn bound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &BoundDecl) {
         if reason == VisitReason::Enter && self.output_section {
-            check_decl_name(state, &Decl::Bound(decl.clone()));
+            check_decl_name(state, &Decl::Bound(decl.clone()), &self.exceptable_nodes());
         }
     }
 
     fn unbound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &UnboundDecl) {
         if reason == VisitReason::Enter && self.output_section {
-            check_decl_name(state, &Decl::Unbound(decl.clone()));
+            check_decl_name(
+                state,
+                &Decl::Unbound(decl.clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }
 
 /// Check declaration name
-fn check_decl_name(state: &mut Diagnostics, decl: &Decl) {
+fn check_decl_name(
+    state: &mut Diagnostics,
+    decl: &Decl,
+    exceptable_nodes: &Option<&'static [SyntaxKind]>,
+) {
     let name = decl.name();
     let name = name.as_str();
 
     let length = name.len();
     if length < 3 {
         // name is too short
-        state.add(decl_identifier_too_short(decl.name().span()));
+        state.exceptable_add(
+            decl_identifier_too_short(decl.name().span()),
+            SyntaxElement::from(decl.syntax().clone()),
+            exceptable_nodes,
+        );
     }
 
     let mut name = name.chars().peekable();
@@ -130,12 +153,20 @@ fn check_decl_name(state: &mut Diagnostics, decl: &Decl) {
                     if let Some(c) = name.peek() {
                         if c.is_ascii_uppercase() || c == &'_' {
                             // name starts with "out"
-                            state.add(decl_identifier_starts_with_out(decl.name().span()));
+                            state.exceptable_add(
+                                decl_identifier_starts_with_out(decl.name().span()),
+                                SyntaxElement::from(decl.syntax().clone()),
+                                exceptable_nodes,
+                            );
                         } else {
                             let s: String = name.take(3).collect();
                             if s == "put" {
                                 // name starts with "output"
-                                state.add(decl_identifier_starts_with_output(decl.name().span()));
+                                state.exceptable_add(
+                                    decl_identifier_starts_with_output(decl.name().span()),
+                                    SyntaxElement::from(decl.syntax().clone()),
+                                    exceptable_nodes,
+                                );
                             }
                         }
                     }

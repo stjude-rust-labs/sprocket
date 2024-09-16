@@ -111,15 +111,12 @@ task garply {
 }
 
 # This task should not trigger a warning due to `#@ except`.
+#@ except: NonmatchingOutput
 task garply2 {
-    # except works here
-    #@ except: NonmatchingOutput
     meta {
-        # except doesn't work here. In fact, this triggers a missing "outputs" warning.
         outputs: {
             s: "s",
             t: "t",
-            # This also works
             v: "v"
         }
     }
@@ -130,6 +127,7 @@ task garply2 {
     }
 }
 
+#@ except: NonmatchingOutput
 # This task should not trigger a warning due to `#@ except`.
 task waldo {
     meta {
@@ -139,17 +137,15 @@ task waldo {
         }
     }
     command <<< >>>
-    # except works here
     output {
         String s = "hello"
         String t = "world"
-        # Also here
-        #@ except: NonmatchingOutput
         String v = "!"
     }
 }
 
 # This should not trigger any warnings.
+#@ except: NonmatchingOutput
 task waldo2 {
     meta {
         outputs: {
@@ -158,12 +154,9 @@ task waldo2 {
         }
     }
     command <<< >>>
-    # except works here
-    #@ except: NonmatchingOutput
     output {
         String s = "hello"
         String t = "world"
-        # Also here
         String v = "!"
     }
 }

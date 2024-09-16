@@ -4,12 +4,15 @@ use std::fmt;
 
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
+use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -67,6 +70,14 @@ impl Rule for MissingOutputRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness, Tag::Portability])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::WorkflowDefinitionNode,
+        ])
+    }
 }
 
 impl Visitor for MissingOutputRule {
@@ -99,11 +110,11 @@ impl Visitor for MissingOutputRule {
 
         if task.output().is_none() {
             let name = task.name();
-            state.add(missing_output_section(
-                name.as_str(),
-                Context::Task,
-                name.span(),
-            ));
+            state.exceptable_add(
+                missing_output_section(name.as_str(), Context::Task, name.span()),
+                SyntaxElement::from(task.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 
@@ -119,11 +130,11 @@ impl Visitor for MissingOutputRule {
 
         if workflow.output().is_none() {
             let name = workflow.name();
-            state.add(missing_output_section(
-                name.as_str(),
-                Context::Workflow,
-                name.span(),
-            ));
+            state.exceptable_add(
+                missing_output_section(name.as_str(), Context::Workflow, name.span()),
+                SyntaxElement::from(workflow.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }

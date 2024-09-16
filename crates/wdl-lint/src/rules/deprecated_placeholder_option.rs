@@ -3,12 +3,15 @@
 use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::version::V1;
+use wdl_ast::AstNode;
 use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -85,6 +88,15 @@ impl Rule for DeprecatedPlaceholderOptionRule {
          was the version where the deprecation was introduced."
     }
 
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::WorkflowDefinitionNode,
+            SyntaxKind::PlaceholderNode,
+        ])
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Deprecated])
     }
@@ -131,17 +143,20 @@ impl Visitor for DeprecatedPlaceholderOptionRule {
         };
 
         if let Some(option) = placeholder.option() {
-            match option {
-                PlaceholderOption::Sep(option) => {
-                    state.add(deprecated_sep_placeholder_option(option.span()));
-                }
+            let diagnostic = match option {
+                PlaceholderOption::Sep(option) => deprecated_sep_placeholder_option(option.span()),
                 PlaceholderOption::Default(option) => {
-                    state.add(deprecated_default_placeholder_option(option.span()));
+                    deprecated_default_placeholder_option(option.span())
                 }
                 PlaceholderOption::TrueFalse(option) => {
-                    state.add(deprecated_true_false_placeholder_option(option.span()));
+                    deprecated_true_false_placeholder_option(option.span())
                 }
-            }
+            };
+            state.exceptable_add(
+                diagnostic,
+                SyntaxElement::from(placeholder.syntax().clone()),
+                &self.exceptable_nodes(),
+            )
         }
     }
 }

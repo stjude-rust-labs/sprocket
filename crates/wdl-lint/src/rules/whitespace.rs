@@ -6,6 +6,7 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::VersionStatement;
 use wdl_ast::VisitReason;
@@ -71,6 +72,10 @@ impl Rule for WhitespaceRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Spacing])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        None
+    }
 }
 
 impl Visitor for WhitespaceRule {
@@ -133,12 +138,17 @@ impl Visitor for WhitespaceRule {
                 // If it's the first line, it's considered trailing
                 // The remaining lines will be treated as "blank".
                 if i == 0 {
-                    state.add(trailing_whitespace(Span::new(
-                        span.start() + start,
-                        line.len(),
-                    )));
+                    state.exceptable_add(
+                        trailing_whitespace(Span::new(span.start() + start, line.len())),
+                        SyntaxElement::from(whitespace.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 } else {
-                    state.add(only_whitespace(Span::new(span.start() + start, line.len())));
+                    state.exceptable_add(
+                        only_whitespace(Span::new(span.start() + start, line.len())),
+                        SyntaxElement::from(whitespace.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             }
 
@@ -153,10 +163,11 @@ impl Visitor for WhitespaceRule {
         // The "ending newline" rule will catch blank lines at the end of the file
         if !is_last {
             if let Some(start) = blank_start {
-                state.add(more_than_one_blank_line(Span::new(
-                    span.start() + start,
-                    span.len() - start,
-                )));
+                state.exceptable_add(
+                    more_than_one_blank_line(Span::new(span.start() + start, span.len() - start)),
+                    SyntaxElement::from(whitespace.syntax().clone()),
+                    &self.exceptable_nodes(),
+                );
             }
         }
     }

@@ -23,6 +23,7 @@ task a_task_with_excepted_engine_hints {
     meta {}
     command <<<>>>
     output {}
+    #@ except: RuntimeSectionKeys
     runtime {
         container: "ubuntu"
         cpu: 1
@@ -31,9 +32,7 @@ task a_task_with_excepted_engine_hints {
         maxRetries: 1
         memory: "1 GiB"
         returnCodes: "*"
-        #@ except: RuntimeSectionKeys
         cromwell: {}
-        #@ except: RuntimeSectionKeys
         miniwdl: {}
     }
 }

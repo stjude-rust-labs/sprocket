@@ -3,12 +3,15 @@
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::LiteralStringKind;
+use wdl_ast::AstNode;
 use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -49,6 +52,19 @@ impl Rule for DoubleQuotesRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity, Tag::Style])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::WorkflowDefinitionNode,
+            SyntaxKind::StructDefinitionNode,
+            SyntaxKind::MetadataSectionNode,
+            SyntaxKind::ParameterMetadataSectionNode,
+            SyntaxKind::BoundDeclNode,
+            SyntaxKind::LiteralStringNode,
+        ])
+    }
 }
 
 impl Visitor for DoubleQuotesRule {
@@ -76,7 +92,11 @@ impl Visitor for DoubleQuotesRule {
 
         if let Expr::Literal(LiteralExpr::String(s)) = expr {
             if s.kind() == LiteralStringKind::SingleQuoted {
-                state.add(use_double_quotes(s.span()));
+                state.exceptable_add(
+                    use_double_quotes(s.span()),
+                    SyntaxElement::from(expr.syntax().clone()),
+                    &self.exceptable_nodes(),
+                );
             }
         }
     }

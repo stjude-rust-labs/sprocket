@@ -23,6 +23,7 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxToken;
@@ -102,6 +103,23 @@ impl Rule for BlankLinesBetweenElementsRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::WorkflowDefinitionNode,
+            SyntaxKind::StructDefinitionNode,
+            SyntaxKind::InputSectionNode,
+            SyntaxKind::OutputSectionNode,
+            SyntaxKind::RuntimeSectionNode,
+            SyntaxKind::MetadataSectionNode,
+            SyntaxKind::ParameterMetadataSectionNode,
+            SyntaxKind::RequirementsSectionNode,
+            SyntaxKind::HintsSectionNode,
+            SyntaxKind::CommandSectionNode,
+        ])
+    }
 }
 
 impl Visitor for BlankLinesBetweenElementsRule {
@@ -135,7 +153,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
 
         let first = is_first_element(task.syntax());
         let actual_start = skip_preceding_comments(task.syntax());
-        check_prior_spacing(&actual_start, state, true, first);
+        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
     }
 
     fn workflow_definition(
@@ -150,7 +168,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
 
         let first = is_first_element(workflow.syntax());
         let actual_start = skip_preceding_comments(workflow.syntax());
-        check_prior_spacing(&actual_start, state, true, first);
+        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
     }
 
     fn metadata_section(
@@ -168,8 +186,8 @@ impl Visitor for BlankLinesBetweenElementsRule {
 
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
-        check_prior_spacing(&actual_start, state, true, first);
-        flag_all_blank_lines_within(section.syntax(), state);
+        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
+        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
     }
 
     fn parameter_metadata_section(
@@ -187,8 +205,8 @@ impl Visitor for BlankLinesBetweenElementsRule {
 
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
-        check_prior_spacing(&actual_start, state, true, first);
-        flag_all_blank_lines_within(section.syntax(), state);
+        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
+        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
     }
 
     fn input_section(
@@ -206,7 +224,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
 
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
-        check_prior_spacing(&actual_start, state, true, first);
+        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
     }
 
     fn command_section(
@@ -221,7 +239,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
 
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
-        check_prior_spacing(&actual_start, state, true, first);
+        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
     }
 
     fn output_section(
@@ -238,7 +256,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         }
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
-        check_prior_spacing(&actual_start, state, true, first);
+        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
     }
 
     fn runtime_section(
@@ -254,10 +272,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             self.state = State::RuntimeSection;
         }
 
-        flag_all_blank_lines_within(section.syntax(), state);
+        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
-        check_prior_spacing(&actual_start, state, true, first);
+        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
     }
 
     // call statement internal spacing is handled by the CallInputSpacing rule
@@ -278,7 +296,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let prev = skip_preceding_comments(stmt.syntax());
 
         if first {
-            check_prior_spacing(&prev, state, true, false);
+            check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
         }
     }
 
@@ -297,7 +315,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let prev = skip_preceding_comments(stmt.syntax());
 
         if first {
-            check_prior_spacing(&prev, state, true, false);
+            check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
         }
     }
 
@@ -313,7 +331,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
 
         let first = is_first_element(def.syntax());
         let actual_start = skip_preceding_comments(def.syntax());
-        check_prior_spacing(&actual_start, state, true, first);
+        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
     }
 
     fn requirements_section(
@@ -328,8 +346,8 @@ impl Visitor for BlankLinesBetweenElementsRule {
 
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
-        check_prior_spacing(&actual_start, state, true, first);
-        flag_all_blank_lines_within(section.syntax(), state);
+        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
+        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
     }
 
     fn hints_section(
@@ -344,8 +362,8 @@ impl Visitor for BlankLinesBetweenElementsRule {
 
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
-        check_prior_spacing(&actual_start, state, true, first);
-        flag_all_blank_lines_within(section.syntax(), state);
+        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
+        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
     }
 
     fn unbound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &UnboundDecl) {
@@ -361,7 +379,11 @@ impl Visitor for BlankLinesBetweenElementsRule {
                 // one `\n` is allowed.
                 if self.state == State::InputSection || self.state == State::OutputSection {
                     if count > 1 {
-                        state.add(excess_blank_line(p.text_range().to_span()));
+                        state.exceptable_add(
+                            excess_blank_line(p.text_range().to_span()),
+                            SyntaxElement::from(decl.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
                 } else {
                     let first = is_first_body(decl.syntax());
@@ -369,7 +391,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
                     let prev = skip_preceding_comments(decl.syntax());
 
                     if first {
-                        check_prior_spacing(&prev, state, true, false);
+                        check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
                     }
                 }
             }
@@ -391,7 +413,11 @@ impl Visitor for BlankLinesBetweenElementsRule {
                 // one `\n` is allowed.
                 if self.state == State::InputSection || self.state == State::OutputSection {
                     if count > 1 {
-                        state.add(excess_blank_line(p.text_range().to_span()));
+                        state.exceptable_add(
+                            excess_blank_line(p.text_range().to_span()),
+                            SyntaxElement::from(decl.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
                 } else {
                     let first = is_first_body(decl.syntax());
@@ -399,7 +425,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
                     let prev = skip_preceding_comments(decl.syntax());
 
                     if first {
-                        check_prior_spacing(&prev, state, true, false);
+                        check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
                     }
                 }
             }
@@ -421,7 +447,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let prev = skip_preceding_comments(stmt.syntax());
 
         if first {
-            check_prior_spacing(&prev, state, true, false);
+            check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
         }
     }
 }
@@ -446,12 +472,20 @@ fn is_first_element(syntax: &SyntaxNode) -> bool {
 }
 
 /// Some sections do not allow blank lines, so detect and flag them.
-fn flag_all_blank_lines_within(syntax: &SyntaxNode, state: &mut Diagnostics) {
+fn flag_all_blank_lines_within(
+    syntax: &SyntaxNode,
+    state: &mut Diagnostics,
+    exceptable_nodes: &Option<&'static [SyntaxKind]>,
+) {
     syntax.descendants_with_tokens().for_each(|c| {
         if c.kind() == SyntaxKind::Whitespace {
             let count = c.to_string().chars().filter(|c| *c == '\n').count();
             if count > 1 {
-                state.add(excess_blank_line(c.text_range().to_span()));
+                state.exceptable_add(
+                    excess_blank_line(c.text_range().to_span()),
+                    SyntaxElement::from(syntax.clone()),
+                    exceptable_nodes,
+                );
             }
         }
     });
@@ -466,6 +500,7 @@ fn check_prior_spacing(
     state: &mut Diagnostics,
     element_spacing_required: bool,
     first: bool,
+    exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
     if let Some(prior) = syntax.prev_sibling_or_token() {
         match prior.kind() {
@@ -474,10 +509,18 @@ fn check_prior_spacing(
                 if first || !element_spacing_required {
                     // first element cannot have a blank line before it
                     if count > 1 {
-                        state.add(excess_blank_line(prior.text_range().to_span()));
+                        state.exceptable_add(
+                            excess_blank_line(prior.text_range().to_span()),
+                            SyntaxElement::from(syntax.clone()),
+                            exceptable_nodes,
+                        );
                     }
                 } else if count < 2 && element_spacing_required {
-                    state.add(missing_blank_line(syntax.text_range().to_span()));
+                    state.exceptable_add(
+                        missing_blank_line(syntax.text_range().to_span()),
+                        SyntaxElement::from(syntax.clone()),
+                        exceptable_nodes,
+                    );
                 }
             }
             // Something other than whitespace precedes
@@ -485,7 +528,11 @@ fn check_prior_spacing(
                 // If we require between element spacing and are not the first element,
                 // we're missing a blank line.
                 if element_spacing_required && !first {
-                    state.add(missing_blank_line(syntax.text_range().to_span()));
+                    state.exceptable_add(
+                        missing_blank_line(syntax.text_range().to_span()),
+                        SyntaxElement::from(syntax.clone()),
+                        exceptable_nodes,
+                    );
                 }
             }
         }

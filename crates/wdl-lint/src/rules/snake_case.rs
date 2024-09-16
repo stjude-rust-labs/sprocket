@@ -13,12 +13,15 @@ use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::UnboundDecl;
 use wdl_ast::v1::WorkflowDefinition;
+use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -69,14 +72,21 @@ fn snake_case(context: Context, name: &str, properly_cased_name: &str, span: Spa
 
 /// Checks if the given name is snake case, and if not adds a warning to the
 /// diagnostics.
-fn check_name(context: Context, name: &str, span: Span, diagnostics: &mut Diagnostics) {
+fn check_name(
+    context: Context,
+    name: &str,
+    span: Span,
+    diagnostics: &mut Diagnostics,
+    element: SyntaxElement,
+    exceptable_nodes: &Option<&'static [SyntaxKind]>,
+) {
     let converter = Converter::new()
         .remove_boundaries(&[Boundary::DigitLower, Boundary::LowerDigit])
         .to_case(Case::Snake);
     let properly_cased_name = converter.convert(name);
     if name != properly_cased_name {
         let warning = snake_case(context, name, &properly_cased_name, span);
-        diagnostics.add(warning);
+        diagnostics.exceptable_add(warning, element, exceptable_nodes);
     }
 }
 
@@ -122,6 +132,17 @@ impl Rule for SnakeCaseRule {
 
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Naming, Tag::Style, Tag::Clarity])
+    }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::StructDefinitionNode,
+            SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::WorkflowDefinitionNode,
+            SyntaxKind::BoundDeclNode,
+            SyntaxKind::UnboundDeclNode,
+        ])
     }
 }
 
@@ -202,7 +223,14 @@ impl Visitor for SnakeCaseRule {
         }
 
         let name = task.name();
-        check_name(Context::Task, name.as_str(), name.span(), state);
+        check_name(
+            Context::Task,
+            name.as_str(),
+            name.span(),
+            state,
+            SyntaxElement::from(task.syntax().clone()),
+            &self.exceptable_nodes(),
+        );
     }
 
     fn workflow_definition(
@@ -216,7 +244,14 @@ impl Visitor for SnakeCaseRule {
         }
 
         let name = workflow.name();
-        check_name(Context::Workflow, name.as_str(), name.span(), state);
+        check_name(
+            Context::Workflow,
+            name.as_str(),
+            name.span(),
+            state,
+            SyntaxElement::from(workflow.syntax().clone()),
+            &self.exceptable_nodes(),
+        );
     }
 
     fn bound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &BoundDecl) {
@@ -226,7 +261,14 @@ impl Visitor for SnakeCaseRule {
 
         let name = decl.name();
         let context = self.determine_decl_context();
-        check_name(context, name.as_str(), name.span(), state);
+        check_name(
+            context,
+            name.as_str(),
+            name.span(),
+            state,
+            SyntaxElement::from(decl.syntax().clone()),
+            &self.exceptable_nodes(),
+        );
     }
 
     fn unbound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &UnboundDecl) {
@@ -236,6 +278,13 @@ impl Visitor for SnakeCaseRule {
 
         let name = decl.name();
         let context = self.determine_decl_context();
-        check_name(context, name.as_str(), name.span(), state);
+        check_name(
+            context,
+            name.as_str(),
+            name.span(),
+            state,
+            SyntaxElement::from(decl.syntax().clone()),
+            &self.exceptable_nodes(),
+        );
     }
 }

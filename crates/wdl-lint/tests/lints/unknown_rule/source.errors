@@ -1,0 +1,30 @@
+note[UnknownRule]: unknown lint rule `ThisIsNotARealRule`
+  ┌─ tests/lints/unknown_rule/source.wdl:3:12
+  │
+3 │ #@ except: ThisIsNotARealRule, DescriptionMissing
+  │            ^^^^^^^^^^^^^^^^^^ cannot make an exception for this rule
+  │
+  = fix: remove the rule from the exception list
+
+note[MisplacedLintDirective]: lint directive `DescriptionMissing` has no effect above workflow definition
+  ┌─ tests/lints/unknown_rule/source.wdl:3:32
+  │  
+3 │   #@ except: ThisIsNotARealRule, DescriptionMissing
+  │                                  ^^^^^^^^^^^^^^^^^^ cannot make an exception for this rule
+4 │ ╭ workflow test {
+5 │ │   meta {}
+6 │ │ 
+7 │ │   output {}
+8 │ │ }
+  │ ╰─' invalid element for this lint directive
+  │  
+  = fix: valid locations for this directive are above: version statement, metadata section
+
+note[DescriptionMissing]: workflow `test` is missing a description key
+  ┌─ tests/lints/unknown_rule/source.wdl:5:3
+  │
+5 │   meta {}
+  │   ^^^^
+  │
+  = fix: add a `description` key to this meta section
+

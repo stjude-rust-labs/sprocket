@@ -10,6 +10,8 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -63,6 +65,21 @@ impl Rule for TrailingCommaRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::MetadataSectionNode,
+            SyntaxKind::ParameterMetadataSectionNode,
+            SyntaxKind::MetadataArrayNode,
+            SyntaxKind::MetadataObjectNode,
+            SyntaxKind::CallStatementNode,
+            SyntaxKind::LiteralStructNode,
+            SyntaxKind::LiteralArrayNode,
+            SyntaxKind::LiteralMapNode,
+            SyntaxKind::LiteralObjectNode,
+        ])
+    }
 }
 
 impl Visitor for TrailingCommaRule {
@@ -101,18 +118,25 @@ impl Visitor for TrailingCommaRule {
                 if let Some(comma) = next_comma {
                     if !comma_is_next {
                         // Comma found, but not next, extraneous trivia
-                        state.add(extraneous_content(Span::new(
-                            usize::from(last_child.syntax().text_range().end()),
-                            usize::from(
-                                comma.text_range().start() - last_child.syntax().text_range().end(),
-                            ),
-                        )));
+                        state.exceptable_add(
+                            extraneous_content(Span::new(
+                                usize::from(last_child.syntax().text_range().end()),
+                                usize::from(
+                                    comma.text_range().start()
+                                        - last_child.syntax().text_range().end(),
+                                ),
+                            )),
+                            SyntaxElement::from(item.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
                 } else {
                     // No comma found, report missing
-                    state.add(missing_trailing_comma(
-                        last_child.syntax().text_range().to_span(),
-                    ));
+                    state.exceptable_add(
+                        missing_trailing_comma(last_child.syntax().text_range().to_span()),
+                        SyntaxElement::from(item.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             }
         }
@@ -136,18 +160,25 @@ impl Visitor for TrailingCommaRule {
                 if let Some(comma) = next_comma {
                     if !comma_is_next {
                         // Comma found, but not next, extraneous trivia
-                        state.add(extraneous_content(Span::new(
-                            usize::from(last_child.syntax().text_range().end()),
-                            usize::from(
-                                comma.text_range().start() - last_child.syntax().text_range().end(),
-                            ),
-                        )));
+                        state.exceptable_add(
+                            extraneous_content(Span::new(
+                                usize::from(last_child.syntax().text_range().end()),
+                                usize::from(
+                                    comma.text_range().start()
+                                        - last_child.syntax().text_range().end(),
+                                ),
+                            )),
+                            SyntaxElement::from(item.syntax().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
                 } else {
                     // No comma found, report missing
-                    state.add(missing_trailing_comma(
-                        last_child.syntax().text_range().to_span(),
-                    ));
+                    state.exceptable_add(
+                        missing_trailing_comma(last_child.syntax().text_range().to_span()),
+                        SyntaxElement::from(item.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             }
         }
@@ -174,15 +205,23 @@ impl Visitor for TrailingCommaRule {
             let (next_comma, comma_is_next) = find_next_comma(input.syntax());
             if let Some(nc) = next_comma {
                 if !comma_is_next {
-                    state.add(extraneous_content(Span::new(
-                        usize::from(input.syntax().text_range().end()),
-                        usize::from(nc.text_range().start() - input.syntax().text_range().end()),
-                    )));
+                    state.exceptable_add(
+                        extraneous_content(Span::new(
+                            usize::from(input.syntax().text_range().end()),
+                            usize::from(
+                                nc.text_range().start() - input.syntax().text_range().end(),
+                            ),
+                        )),
+                        SyntaxElement::from(call.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             } else {
-                state.add(missing_trailing_comma(
-                    input.syntax().text_range().to_span(),
-                ));
+                state.exceptable_add(
+                    missing_trailing_comma(input.syntax().text_range().to_span()),
+                    SyntaxElement::from(call.syntax().clone()),
+                    &self.exceptable_nodes(),
+                );
             }
         });
     }
@@ -207,18 +246,25 @@ impl Visitor for TrailingCommaRule {
                             if let Some(comma) = next_comma {
                                 if !comma_is_next {
                                     // Comma found, but not next, extraneous trivia
-                                    state.add(extraneous_content(Span::new(
-                                        usize::from(last_child.text_range().end()),
-                                        usize::from(
-                                            comma.text_range().start()
-                                                - last_child.text_range().end(),
-                                        ),
-                                    )));
+                                    state.exceptable_add(
+                                        extraneous_content(Span::new(
+                                            usize::from(last_child.text_range().end()),
+                                            usize::from(
+                                                comma.text_range().start()
+                                                    - last_child.text_range().end(),
+                                            ),
+                                        )),
+                                        SyntaxElement::from(l.syntax().clone()),
+                                        &self.exceptable_nodes(),
+                                    );
                                 }
                             } else {
                                 // No comma found, report missing
-                                state
-                                    .add(missing_trailing_comma(last_child.text_range().to_span()));
+                                state.exceptable_add(
+                                    missing_trailing_comma(last_child.text_range().to_span()),
+                                    SyntaxElement::from(l.syntax().clone()),
+                                    &self.exceptable_nodes(),
+                                );
                             }
                         }
                     }

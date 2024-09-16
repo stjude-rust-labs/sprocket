@@ -30,6 +30,7 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 
 use wdl_ast::Diagnostics;
+use wdl_ast::SyntaxKind;
 use wdl_ast::Visitor;
 
 pub mod rules;
@@ -64,6 +65,11 @@ pub trait Rule: Visitor<State = Diagnostics> {
     fn url(&self) -> Option<&'static str> {
         None
     }
+
+    /// Gets the nodes that are exceptable for this rule.
+    ///
+    /// If `None` is returned, all nodes are exceptable.
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]>;
 }
 
 /// Gets the default rule set.
@@ -105,6 +111,8 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<rules::DisallowedOutputNameRule>::default(),
         Box::<rules::ContainerValue>::default(),
         Box::<rules::MissingRequirementsRule>::default(),
+        Box::<rules::UnknownRule>::default(),
+        Box::<rules::MisplacedLintDirective>::default(),
     ];
 
     // Ensure all the rule ids are unique and pascal case

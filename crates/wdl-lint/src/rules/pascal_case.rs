@@ -4,12 +4,15 @@ use convert_case::Boundary;
 use convert_case::Case;
 use convert_case::Converter;
 use wdl_ast::v1::StructDefinition;
+use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -49,17 +52,34 @@ impl Rule for PascalCaseRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Naming, Tag::Style, Tag::Clarity])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::StructDefinitionNode,
+        ])
+    }
 }
 
 /// Checks if the given name is pascal case, and if not adds a warning to the
 /// diagnostics.
-fn check_name(name: &str, span: Span, diagnostics: &mut Diagnostics) {
+fn check_name(
+    name: &str,
+    span: Span,
+    diagnostics: &mut Diagnostics,
+    element: SyntaxElement,
+    exceptable_nodes: &Option<&'static [SyntaxKind]>,
+) {
     let converter = Converter::new()
         .remove_boundaries(&[Boundary::DigitLower, Boundary::LowerDigit])
         .to_case(Case::Pascal);
     let properly_cased_name = converter.convert(name);
     if name != properly_cased_name {
-        diagnostics.add(use_pascal_case(name, &properly_cased_name, span));
+        diagnostics.exceptable_add(
+            use_pascal_case(name, &properly_cased_name, span),
+            element,
+            exceptable_nodes,
+        );
     }
 }
 
@@ -92,6 +112,12 @@ impl Visitor for PascalCaseRule {
         }
 
         let name = def.name();
-        check_name(name.as_str(), name.span(), state);
+        check_name(
+            name.as_str(),
+            name.span(),
+            state,
+            SyntaxElement::from(def.syntax().clone()),
+            &self.exceptable_nodes(),
+        );
     }
 }

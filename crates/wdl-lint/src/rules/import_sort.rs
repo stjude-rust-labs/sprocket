@@ -59,6 +59,10 @@ impl Rule for ImportSortRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Clarity])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[SyntaxKind::VersionStatementNode])
+    }
 }
 
 impl Visitor for ImportSortRule {
@@ -88,6 +92,9 @@ impl Visitor for ImportSortRule {
         for import in imports {
             if let Some(prev) = prev_import {
                 if import.text().to_string() < prev.text().to_string() {
+                    // Since this rule can only be excepted in a document-wide fashion,
+                    // if the rule is running we can directly add the diagnostic
+                    // without checking for the exceptable nodes
                     state.add(import_not_sorted(import.text_range().to_span()));
                     return; // Only report one sorting diagnostic at a time.
                 }
@@ -114,6 +121,9 @@ impl Visitor for ImportSortRule {
             .map(|c| c.into_token().unwrap());
 
         for comment in internal_comments {
+            // Since this rule can only be excepted in a document-wide fashion,
+            // if the rule is running we can directly add the diagnostic
+            // without checking for the exceptable nodes
             state.add(improper_comment(comment.text_range().to_span()));
         }
     }

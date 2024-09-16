@@ -5,12 +5,15 @@ use std::fmt;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
+use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Ident;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -113,6 +116,15 @@ impl Rule for MissingMetasRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness, Tag::Clarity])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::WorkflowDefinitionNode,
+            SyntaxKind::StructDefinitionNode,
+        ])
+    }
 }
 
 impl Visitor for MissingMetasRule {
@@ -147,15 +159,23 @@ impl Visitor for MissingMetasRule {
         let inputs_present = task.input().is_some();
 
         if inputs_present && task.metadata().is_none() && task.parameter_metadata().is_none() {
-            state.add(missing_sections(task.name(), Context::Task));
+            state.exceptable_add(
+                missing_sections(task.name(), Context::Task),
+                SyntaxElement::from(task.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         } else if task.metadata().is_none() {
-            state.add(missing_section(task.name(), Section::Meta, Context::Task));
+            state.exceptable_add(
+                missing_section(task.name(), Section::Meta, Context::Task),
+                SyntaxElement::from(task.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         } else if inputs_present && task.parameter_metadata().is_none() {
-            state.add(missing_section(
-                task.name(),
-                Section::ParameterMeta,
-                Context::Task,
-            ));
+            state.exceptable_add(
+                missing_section(task.name(), Section::ParameterMeta, Context::Task),
+                SyntaxElement::from(task.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 
@@ -175,19 +195,23 @@ impl Visitor for MissingMetasRule {
             && workflow.metadata().is_none()
             && workflow.parameter_metadata().is_none()
         {
-            state.add(missing_sections(workflow.name(), Context::Workflow));
+            state.exceptable_add(
+                missing_sections(workflow.name(), Context::Workflow),
+                SyntaxElement::from(workflow.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         } else if workflow.metadata().is_none() {
-            state.add(missing_section(
-                workflow.name(),
-                Section::Meta,
-                Context::Workflow,
-            ));
+            state.exceptable_add(
+                missing_section(workflow.name(), Section::Meta, Context::Workflow),
+                SyntaxElement::from(workflow.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         } else if inputs_present && workflow.parameter_metadata().is_none() {
-            state.add(missing_section(
-                workflow.name(),
-                Section::ParameterMeta,
-                Context::Workflow,
-            ));
+            state.exceptable_add(
+                missing_section(workflow.name(), Section::ParameterMeta, Context::Workflow),
+                SyntaxElement::from(workflow.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 
@@ -207,15 +231,23 @@ impl Visitor for MissingMetasRule {
         }
 
         if def.metadata().next().is_none() && def.parameter_metadata().next().is_none() {
-            state.add(missing_sections(def.name(), Context::Struct));
+            state.exceptable_add(
+                missing_sections(def.name(), Context::Struct),
+                SyntaxElement::from(def.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         } else if def.metadata().next().is_none() {
-            state.add(missing_section(def.name(), Section::Meta, Context::Struct));
+            state.exceptable_add(
+                missing_section(def.name(), Section::Meta, Context::Struct),
+                SyntaxElement::from(def.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         } else if def.parameter_metadata().next().is_none() {
-            state.add(missing_section(
-                def.name(),
-                Section::ParameterMeta,
-                Context::Struct,
-            ));
+            state.exceptable_add(
+                missing_section(def.name(), Section::ParameterMeta, Context::Struct),
+                SyntaxElement::from(def.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }

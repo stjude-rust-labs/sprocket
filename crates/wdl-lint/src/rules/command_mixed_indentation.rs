@@ -12,6 +12,7 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
@@ -96,6 +97,14 @@ impl Rule for CommandSectionMixedIndentationRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Correctness, Tag::Spacing, Tag::Clarity])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::CommandSectionNode,
+        ])
+    }
 }
 
 impl Visitor for CommandSectionMixedIndentationRule {
@@ -171,11 +180,15 @@ impl Visitor for CommandSectionMixedIndentationRule {
             let command_keyword = support::token(section.syntax(), SyntaxKind::CommandKeyword)
                 .expect("should have a command keyword token");
 
-            state.add(mixed_indentation(
-                command_keyword.text_range().to_span(),
-                span,
-                kind.expect("an indentation kind should be present"),
-            ));
+            state.exceptable_add(
+                mixed_indentation(
+                    command_keyword.text_range().to_span(),
+                    span,
+                    kind.expect("an indentation kind should be present"),
+                ),
+                SyntaxElement::from(section.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }

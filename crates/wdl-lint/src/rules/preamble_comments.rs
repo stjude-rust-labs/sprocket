@@ -11,11 +11,11 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::VersionStatement;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::EXCEPT_COMMENT_PREFIX;
 
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::EXCEPT_COMMENT_PREFIX;
 
 /// The identifier for the preamble comments rule.
 const ID: &str = "PreambleComments";
@@ -70,6 +70,10 @@ impl Rule for PreambleCommentsRule {
 
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing, Tag::Style, Tag::Clarity])
+    }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[SyntaxKind::VersionStatementNode])
     }
 }
 
@@ -154,6 +158,9 @@ impl Visitor for PreambleCommentsRule {
             current = sibling.next_sibling_or_token();
         }
 
+        // Since this rule can only be excepted in a document-wide fashion,
+        // if the rule is running we can directly add the diagnostic
+        // without checking for the exceptable nodes
         if self.finished {
             state.add(preamble_comment_after_version(span));
         } else {

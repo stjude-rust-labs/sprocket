@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* moved "except comment" logic from `wdl-lint` into `wdl-ast`.
+  This is for future support of disabling certain diagnostics such as "unused import" and the like.
+  ([#162](https://github.com/stjude-rust-labs/wdl/pull/162))
+
 ### Changed
 
 * Removed `span_of` function in favor of `AstNode` extension trait ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).

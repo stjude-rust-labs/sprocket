@@ -11,6 +11,8 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -72,6 +74,14 @@ impl Rule for SectionOrderingRule {
 
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Sorting])
+    }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::WorkflowDefinitionNode,
+        ])
     }
 }
 
@@ -160,11 +170,15 @@ impl Visitor for SectionOrderingRule {
                     encountered = State::Hints;
                 }
                 _ => {
-                    state.add(task_section_order(
-                        task.name().span(),
-                        task.name().as_str(),
-                        item.syntax().first_token().unwrap().text_range().to_span(),
-                    ));
+                    state.exceptable_add(
+                        task_section_order(
+                            task.name().span(),
+                            task.name().as_str(),
+                            item.syntax().first_token().unwrap().text_range().to_span(),
+                        ),
+                        SyntaxElement::from(task.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                     break;
                 }
             }
@@ -208,11 +222,15 @@ impl Visitor for SectionOrderingRule {
                     encountered = State::Hints;
                 }
                 _ => {
-                    state.add(workflow_section_order(
-                        workflow.name().span(),
-                        workflow.name().as_str(),
-                        item.syntax().first_token().unwrap().text_range().to_span(),
-                    ));
+                    state.exceptable_add(
+                        workflow_section_order(
+                            workflow.name().span(),
+                            workflow.name().as_str(),
+                            item.syntax().first_token().unwrap().text_range().to_span(),
+                        ),
+                        SyntaxElement::from(workflow.syntax().clone()),
+                        &self.exceptable_nodes(),
+                    );
                     break;
                 }
             }

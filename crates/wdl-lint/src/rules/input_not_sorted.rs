@@ -12,6 +12,8 @@ use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxElement;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -212,6 +214,13 @@ impl Rule for InputNotSortedRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Sorting])
     }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::InputSectionNode,
+        ])
+    }
 }
 
 impl Visitor for InputNotSortedRule {
@@ -263,7 +272,11 @@ impl Visitor for InputNotSortedRule {
                 }
             });
         if errors > 0 {
-            state.add(input_not_sorted(input.span(), input_string));
+            state.exceptable_add(
+                input_not_sorted(input.span(), input_string),
+                SyntaxElement::from(input.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }
