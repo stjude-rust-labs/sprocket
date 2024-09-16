@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.8.0 - 09-16-2024
+
 ### Fixed
 
 * Fixed CLI tool to not output colors when stdio is not a terminal ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 
 ### Changed
+
+* Updated `wdl` crate dependencies.
 * Use `tracing-subscriber` to configure tracing env ([#172](https://github.com/stjude-rust-labs/wdl/pull/172))
 
 ## 0.7.0 - 08-22-2024
@@ -40,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Updated `wdl` crate dependencies
+* Updated `wdl` crate dependencies.
 
 ## 0.4.0 - 06-13-2024
 
