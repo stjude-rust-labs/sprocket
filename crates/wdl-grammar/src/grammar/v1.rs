@@ -219,6 +219,23 @@ const METADATA_ARRAY_RECOVERY_SET: TokenSet = METADATA_VALUE_EXPECTED_SET.union(
     Token::CloseBracket as u8,
 ]));
 
+/// The expected names of a workflow hints value.
+const WORKFLOW_HINT_VALUE_EXPECTED_NAMES: &[&str] = &[
+    "number",
+    "string",
+    "boolean",
+    "literal object",
+    "literal array",
+];
+
+/// The recovery set of tokens in a workflow hints literal object (same as
+/// metadata objects).
+const WORKFLOW_HINTS_OBJECT_RECOVERY_SET: TokenSet = METADATA_OBJECT_RECOVERY_SET;
+
+/// The recovery set of tokens in a workflow hints literal array (same as
+/// metadata arrays).
+const WORKFLOW_HINTS_ARRAY_RECOVERY_SET: TokenSet = METADATA_ARRAY_RECOVERY_SET;
+
 /// A token set for expression atoms.
 const ATOM_EXPECTED_SET: TokenSet = ANY_IDENT.union(TokenSet::new(&[
     Token::Integer as u8,
@@ -634,7 +651,7 @@ fn task_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Dia
         Some((Token::OutputKeyword, _)) => output_section(parser, marker),
         Some((Token::RuntimeKeyword, _)) => runtime_section(parser, marker),
         Some((Token::RequirementsKeyword, _)) => requirements_section(parser, marker),
-        Some((Token::HintsKeyword, _)) => hints_section(parser, marker),
+        Some((Token::HintsKeyword, _)) => task_hints_section(parser, marker),
         Some((Token::MetaKeyword, _)) => metadata_section(parser, marker),
         Some((Token::ParameterMetaKeyword, _)) => parameter_metadata_section(parser, marker),
         Some((t, _)) if TYPE_EXPECTED_SET.contains(t.into_raw()) => {
@@ -659,7 +676,7 @@ fn workflow_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker,
         Some((Token::OutputKeyword, _)) => output_section(parser, marker),
         Some((Token::MetaKeyword, _)) => metadata_section(parser, marker),
         Some((Token::ParameterMetaKeyword, _)) => parameter_metadata_section(parser, marker),
-        Some((Token::HintsKeyword, _)) => hints_section(parser, marker),
+        Some((Token::HintsKeyword, _)) => workflow_hints_section(parser, marker),
         Some((Token::IfKeyword, _)) => conditional_statement(parser, marker),
         Some((Token::ScatterKeyword, _)) => scatter_statement(parser, marker),
         Some((Token::CallKeyword, _)) => call_statement(parser, marker),
@@ -1032,20 +1049,141 @@ fn requirements_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Mar
 }
 
 /// Parses a hints section in a task.
-fn hints_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+fn task_hints_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::HintsKeyword);
-    braced_items!(parser, marker, None, HINTS_ITEM_RECOVERY_SET, hints_item);
-    marker.complete(parser, SyntaxKind::HintsSectionNode);
+    braced_items!(
+        parser,
+        marker,
+        None,
+        HINTS_ITEM_RECOVERY_SET,
+        task_hints_item
+    );
+    marker.complete(parser, SyntaxKind::TaskHintsSectionNode);
     Ok(())
 }
 
-/// Parses an item in a hints section or hints literal.
-fn hints_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    expected_in!(parser, marker, ANY_IDENT, "hints key");
+/// Parses a hints section in a workflow.
+fn workflow_hints_section(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    parser.require(Token::HintsKeyword);
+    braced_items!(
+        parser,
+        marker,
+        None,
+        HINTS_ITEM_RECOVERY_SET,
+        workflow_hints_item
+    );
+    marker.complete(parser, SyntaxKind::WorkflowHintsSectionNode);
+    Ok(())
+}
+
+/// Parses an item in a task hints section.
+fn task_hints_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    expected_in!(parser, marker, ANY_IDENT, "hint key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);
-    marker.complete(parser, SyntaxKind::HintsItemNode);
+    marker.complete(parser, SyntaxKind::TaskHintsItemNode);
+    Ok(())
+}
+
+/// Parses an item in a workflow hints section.
+fn workflow_hints_item(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    expected_in!(parser, marker, ANY_IDENT, "hint key");
+    parser.update_last_token_kind(SyntaxKind::Ident);
+    expected!(parser, marker, Token::Colon);
+    expected_fn!(parser, marker, workflow_hints_value);
+    marker.complete(parser, SyntaxKind::WorkflowHintsItemNode);
+    Ok(())
+}
+
+/// Parses a workflow hints item value.
+fn workflow_hints_value(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    match parser.peek() {
+        Some((Token::Minus, _)) | Some((Token::Integer, _)) | Some((Token::Float, _)) => {
+            number(parser, marker, true)?;
+            Ok(())
+        }
+        Some((Token::SingleQuote, _)) => {
+            single_quote_string(parser, marker, false)?;
+            Ok(())
+        }
+        Some((Token::DoubleQuote, _)) => {
+            double_quote_string(parser, marker, false)?;
+            Ok(())
+        }
+        Some((Token::OpenHeredoc, _)) => {
+            multiline_string(parser, marker, false)?;
+            Ok(())
+        }
+        Some((Token::TrueKeyword, _)) | Some((Token::FalseKeyword, _)) => {
+            boolean(parser, marker)?;
+            Ok(())
+        }
+        Some((Token::OpenBrace, _)) => workflow_hints_object(parser, marker),
+        Some((Token::OpenBracket, _)) => workflow_hints_array(parser, marker),
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(t.describe()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            Err((
+                marker,
+                expected_one_of(WORKFLOW_HINT_VALUE_EXPECTED_NAMES, found, span),
+            ))
+        }
+    }
+}
+
+/// Parses a workflow hints object.
+fn workflow_hints_object(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    braced_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        WORKFLOW_HINTS_OBJECT_RECOVERY_SET,
+        workflow_hints_object_item
+    );
+    marker.complete(parser, SyntaxKind::WorkflowHintsObjectNode);
+    Ok(())
+}
+
+/// Parses an item in a workflow hints object.
+fn workflow_hints_object_item(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    expected_in!(parser, marker, ANY_IDENT, "object key");
+    parser.update_last_token_kind(SyntaxKind::Ident);
+    expected!(parser, marker, Token::Colon);
+    expected_fn!(parser, marker, workflow_hints_value);
+    marker.complete(parser, SyntaxKind::WorkflowHintsObjectItemNode);
+    Ok(())
+}
+
+/// Parses a workflow hints array.
+fn workflow_hints_array(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    bracketed_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        WORKFLOW_HINTS_ARRAY_RECOVERY_SET,
+        workflow_hints_value
+    );
+    marker.complete(parser, SyntaxKind::WorkflowHintsArrayNode);
     Ok(())
 }
 

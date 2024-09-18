@@ -18,13 +18,13 @@ use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::Expr;
-use wdl_ast::v1::HintsSection;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::NameRef;
 use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
+use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::v1::TaskItem;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::v1::WorkflowItem;
@@ -1039,7 +1039,7 @@ fn type_check_task(
             /// The scope to use for evaluating the hints section.
             scope: ScopeIndex,
             /// The hints section.
-            section: HintsSection,
+            section: TaskHintsSection,
         },
     }
 

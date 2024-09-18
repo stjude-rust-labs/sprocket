@@ -64,7 +64,7 @@ impl TaskDefinition {
     }
 
     /// Gets the hints section of the task.
-    pub fn hints(&self) -> Option<HintsSection> {
+    pub fn hints(&self) -> Option<TaskHintsSection> {
         child(&self.0)
     }
 
@@ -126,7 +126,7 @@ pub enum TaskItem {
     /// The item is a requirements section.
     Requirements(RequirementsSection),
     /// The item is a hints section.
-    Hints(HintsSection),
+    Hints(TaskHintsSection),
     /// The item is a runtime section.
     Runtime(RuntimeSection),
     /// The item is a metadata section.
@@ -150,7 +150,7 @@ impl AstNode for TaskItem {
                 | SyntaxKind::OutputSectionNode
                 | SyntaxKind::CommandSectionNode
                 | SyntaxKind::RequirementsSectionNode
-                | SyntaxKind::HintsSectionNode
+                | SyntaxKind::TaskHintsSectionNode
                 | SyntaxKind::RuntimeSectionNode
                 | SyntaxKind::MetadataSectionNode
                 | SyntaxKind::ParameterMetadataSectionNode
@@ -169,7 +169,7 @@ impl AstNode for TaskItem {
             SyntaxKind::RequirementsSectionNode => {
                 Some(Self::Requirements(RequirementsSection(syntax)))
             }
-            SyntaxKind::HintsSectionNode => Some(Self::Hints(HintsSection(syntax))),
+            SyntaxKind::TaskHintsSectionNode => Some(Self::Hints(TaskHintsSection(syntax))),
             SyntaxKind::RuntimeSectionNode => Some(Self::Runtime(RuntimeSection(syntax))),
             SyntaxKind::MetadataSectionNode => Some(Self::Metadata(MetadataSection(syntax))),
             SyntaxKind::ParameterMetadataSectionNode => {
@@ -606,29 +606,29 @@ impl AstNode for RequirementsItem {
 
 /// Represents a hints section in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct HintsSection(pub(crate) SyntaxNode);
+pub struct TaskHintsSection(pub(crate) SyntaxNode);
 
-impl HintsSection {
+impl TaskHintsSection {
     /// Gets the items in the hints section.
-    pub fn items(&self) -> AstChildren<HintsItem> {
+    pub fn items(&self) -> AstChildren<TaskHintsItem> {
         children(&self.0)
     }
 
     /// Gets the parent of the hints section.
-    pub fn parent(&self) -> SectionParent {
-        SectionParent::cast(self.0.parent().expect("should have a parent"))
+    pub fn parent(&self) -> TaskDefinition {
+        TaskDefinition::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
 }
 
-impl AstNode for HintsSection {
+impl AstNode for TaskHintsSection {
     type Language = WorkflowDescriptionLanguage;
 
     fn can_cast(kind: SyntaxKind) -> bool
     where
         Self: Sized,
     {
-        kind == SyntaxKind::HintsSectionNode
+        kind == SyntaxKind::TaskHintsSectionNode
     }
 
     fn cast(syntax: SyntaxNode) -> Option<Self>
@@ -636,7 +636,7 @@ impl AstNode for HintsSection {
         Self: Sized,
     {
         match syntax.kind() {
-            SyntaxKind::HintsSectionNode => Some(Self(syntax)),
+            SyntaxKind::TaskHintsSectionNode => Some(Self(syntax)),
             _ => None,
         }
     }
@@ -646,11 +646,11 @@ impl AstNode for HintsSection {
     }
 }
 
-/// Represents an item in a hints section.
+/// Represents an item in a task hints section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct HintsItem(SyntaxNode);
+pub struct TaskHintsItem(SyntaxNode);
 
-impl HintsItem {
+impl TaskHintsItem {
     /// Gets the name of the hints item.
     pub fn name(&self) -> Ident {
         token(&self.0).expect("expected an item name")
@@ -662,14 +662,14 @@ impl HintsItem {
     }
 }
 
-impl AstNode for HintsItem {
+impl AstNode for TaskHintsItem {
     type Language = WorkflowDescriptionLanguage;
 
     fn can_cast(kind: SyntaxKind) -> bool
     where
         Self: Sized,
     {
-        kind == SyntaxKind::HintsItemNode
+        kind == SyntaxKind::TaskHintsItemNode
     }
 
     fn cast(syntax: SyntaxNode) -> Option<Self>
@@ -677,7 +677,7 @@ impl AstNode for HintsItem {
         Self: Sized,
     {
         match syntax.kind() {
-            SyntaxKind::HintsItemNode => Some(Self(syntax)),
+            SyntaxKind::TaskHintsItemNode => Some(Self(syntax)),
             _ => None,
         }
     }
@@ -1292,7 +1292,7 @@ task test {
 
         // Task hints
         let hints = tasks[0].hints().expect("should have a hints section");
-        assert_eq!(hints.parent().unwrap_task().name().as_str(), "test");
+        assert_eq!(hints.parent().name().as_str(), "test");
         let items: Vec<_> = hints.items().collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].name().as_str(), "foo");
@@ -1456,11 +1456,11 @@ task test {
                 }
             }
 
-            fn hints_section(
+            fn task_hints_section(
                 &mut self,
                 _: &mut Self::State,
                 reason: VisitReason,
-                _: &HintsSection,
+                _: &TaskHintsSection,
             ) {
                 if reason == VisitReason::Enter {
                     self.hints += 1;

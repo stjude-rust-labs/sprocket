@@ -221,10 +221,20 @@ pub enum SyntaxKind {
     RequirementsSectionNode,
     /// Represents a requirements item node.
     RequirementsItemNode,
-    /// Represents a hints section node.
-    HintsSectionNode,
-    /// Represents a hints item node.
-    HintsItemNode,
+    /// Represents a hints section node in a task.
+    TaskHintsSectionNode,
+    /// Represents a hints section node in a workflow.
+    WorkflowHintsSectionNode,
+    /// Represents a hints item node in a task.
+    TaskHintsItemNode,
+    /// Represents a hints item node in a workflow.
+    WorkflowHintsItemNode,
+    /// Represents a literal object in a workflow hints item value.
+    WorkflowHintsObjectNode,
+    /// Represents an item in a workflow hints object.
+    WorkflowHintsObjectItemNode,
+    /// Represents a literal array in a workflow hints item value.
+    WorkflowHintsArrayNode,
     /// Represents a runtime section node.
     RuntimeSectionNode,
     /// Represents a runtime item node.
@@ -466,8 +476,13 @@ impl SyntaxKind {
             SyntaxKind::CommandSectionNode => "command section",
             SyntaxKind::RequirementsSectionNode => "requirements section",
             SyntaxKind::RequirementsItemNode => "requirements item",
-            SyntaxKind::HintsSectionNode => "hints section",
-            SyntaxKind::HintsItemNode => "hints item",
+            SyntaxKind::TaskHintsSectionNode | SyntaxKind::WorkflowHintsSectionNode => {
+                "hints section"
+            }
+            SyntaxKind::TaskHintsItemNode | SyntaxKind::WorkflowHintsItemNode => "hints item",
+            SyntaxKind::WorkflowHintsObjectNode => "literal object",
+            SyntaxKind::WorkflowHintsObjectItemNode => "literal object item",
+            SyntaxKind::WorkflowHintsArrayNode => "literal array",
             SyntaxKind::RuntimeSectionNode => "runtime section",
             SyntaxKind::RuntimeItemNode => "runtime item",
             SyntaxKind::PrimitiveTypeNode => "primitive type",

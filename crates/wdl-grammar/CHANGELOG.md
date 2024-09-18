@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed parsing of workflow `hints` section to no longer accept expressions ([#176](https://github.com/stjude-rust-labs/wdl/pull/176))
+
 ## 0.8.0 - 09-16-2024
 
 ### Added

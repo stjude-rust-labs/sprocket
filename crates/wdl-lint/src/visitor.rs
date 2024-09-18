@@ -216,14 +216,25 @@ impl Visitor for LintVisitor {
         });
     }
 
-    fn hints_section(
+    fn task_hints_section(
         &mut self,
         state: &mut Self::State,
         reason: VisitReason,
-        section: &v1::HintsSection,
+        section: &v1::TaskHintsSection,
     ) {
         self.each_enabled_rule(state, |state, rule| {
-            rule.hints_section(state, reason, section)
+            rule.task_hints_section(state, reason, section)
+        });
+    }
+
+    fn workflow_hints_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &v1::WorkflowHintsSection,
+    ) {
+        self.each_enabled_rule(state, |state, rule| {
+            rule.workflow_hints_section(state, reason, section)
         });
     }
 

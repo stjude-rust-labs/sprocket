@@ -29,7 +29,6 @@ use crate::v1::CommandSection;
 use crate::v1::CommandText;
 use crate::v1::ConditionalStatement;
 use crate::v1::Expr;
-use crate::v1::HintsSection;
 use crate::v1::ImportStatement;
 use crate::v1::InputSection;
 use crate::v1::MetadataArray;
@@ -46,8 +45,10 @@ use crate::v1::ScatterStatement;
 use crate::v1::StringText;
 use crate::v1::StructDefinition;
 use crate::v1::TaskDefinition;
+use crate::v1::TaskHintsSection;
 use crate::v1::UnboundDecl;
 use crate::v1::WorkflowDefinition;
+use crate::v1::WorkflowHintsSection;
 use crate::AstNode;
 use crate::AstToken as _;
 use crate::Comment;
@@ -172,12 +173,21 @@ pub trait Visitor {
     ) {
     }
 
-    /// Visits a hints section node.
-    fn hints_section(
+    /// Visits a task hints section node.
+    fn task_hints_section(
         &mut self,
         state: &mut Self::State,
         reason: VisitReason,
-        section: &HintsSection,
+        section: &TaskHintsSection,
+    ) {
+    }
+
+    /// Visits a workflow hints section node.
+    fn workflow_hints_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &WorkflowHintsSection,
     ) {
     }
 
@@ -366,8 +376,18 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
                 reason,
                 &RequirementsSection(element.into_node().unwrap()),
             ),
-            SyntaxKind::HintsSectionNode => {
-                visitor.hints_section(state, reason, &HintsSection(element.into_node().unwrap()))
+            SyntaxKind::TaskHintsSectionNode => visitor.task_hints_section(
+                state,
+                reason,
+                &TaskHintsSection(element.into_node().unwrap()),
+            ),
+            SyntaxKind::WorkflowHintsSectionNode => visitor.workflow_hints_section(
+                state,
+                reason,
+                &WorkflowHintsSection(element.into_node().unwrap()),
+            ),
+            SyntaxKind::TaskHintsItemNode | SyntaxKind::WorkflowHintsItemNode => {
+                // Skip this node as it's part of a hints section
             }
             SyntaxKind::RequirementsItemNode => {
                 // Skip this node as it's part of a requirements section

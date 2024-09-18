@@ -16,10 +16,6 @@ task foo {
 
 workflow bar {
     hints {
-        inputs: input {
-            a: hints {
-                foo: "bar"
-            }
-        }
+        allow_nested_inputs: true
     }
 }

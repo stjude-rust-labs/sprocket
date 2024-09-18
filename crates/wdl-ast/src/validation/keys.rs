@@ -4,13 +4,14 @@ use std::collections::HashSet;
 use std::fmt;
 
 use crate::v1::Expr;
-use crate::v1::HintsSection;
 use crate::v1::LiteralExpr;
 use crate::v1::MetadataObject;
 use crate::v1::MetadataSection;
 use crate::v1::ParameterMetadataSection;
 use crate::v1::RequirementsSection;
 use crate::v1::RuntimeSection;
+use crate::v1::TaskHintsSection;
+use crate::v1::WorkflowHintsSection;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
@@ -166,11 +167,11 @@ impl Visitor for UniqueKeysVisitor {
         );
     }
 
-    fn hints_section(
+    fn task_hints_section(
         &mut self,
         state: &mut Self::State,
         reason: VisitReason,
-        section: &HintsSection,
+        section: &TaskHintsSection,
     ) {
         if reason == VisitReason::Exit {
             return;
@@ -183,6 +184,25 @@ impl Visitor for UniqueKeysVisitor {
                 ("max_memory", "maxMemory"),
                 ("localization_optional", "localizationOptional"),
             ],
+            section.items().map(|i| i.name()),
+            Context::HintsSection,
+            state,
+        );
+    }
+
+    fn workflow_hints_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &WorkflowHintsSection,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        check_duplicate_keys(
+            &mut self.0,
+            &[],
             section.items().map(|i| i.name()),
             Context::HintsSection,
             state,

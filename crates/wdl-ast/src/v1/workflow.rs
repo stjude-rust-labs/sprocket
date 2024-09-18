@@ -2,8 +2,11 @@
 
 use super::BoundDecl;
 use super::Expr;
-use super::HintsSection;
 use super::InputSection;
+use super::LiteralBoolean;
+use super::LiteralFloat;
+use super::LiteralInteger;
+use super::LiteralString;
 use super::MetadataSection;
 use super::OutputSection;
 use super::ParameterMetadataSection;
@@ -60,7 +63,7 @@ impl WorkflowDefinition {
     }
 
     /// Gets the hints section of the workflow.
-    pub fn hints(&self) -> Option<HintsSection> {
+    pub fn hints(&self) -> Option<WorkflowHintsSection> {
         child(&self.0)
     }
 
@@ -113,7 +116,7 @@ pub enum WorkflowItem {
     /// The item is a parameter meta section.
     ParameterMetadata(ParameterMetadataSection),
     /// The item is a hints section.
-    Hints(HintsSection),
+    Hints(WorkflowHintsSection),
     /// The item is a private bound declaration.
     Declaration(BoundDecl),
 }
@@ -134,7 +137,7 @@ impl AstNode for WorkflowItem {
                 | SyntaxKind::CallStatementNode
                 | SyntaxKind::MetadataSectionNode
                 | SyntaxKind::ParameterMetadataSectionNode
-                | SyntaxKind::HintsSectionNode
+                | SyntaxKind::WorkflowHintsSectionNode
                 | SyntaxKind::BoundDeclNode
         )
     }
@@ -155,7 +158,7 @@ impl AstNode for WorkflowItem {
             SyntaxKind::ParameterMetadataSectionNode => {
                 Some(Self::ParameterMetadata(ParameterMetadataSection(syntax)))
             }
-            SyntaxKind::HintsSectionNode => Some(Self::Hints(HintsSection(syntax))),
+            SyntaxKind::WorkflowHintsSectionNode => Some(Self::Hints(WorkflowHintsSection(syntax))),
             SyntaxKind::BoundDeclNode => Some(Self::Declaration(BoundDecl(syntax))),
             _ => None,
         }
@@ -573,6 +576,338 @@ impl AstNode for CallInputItem {
     }
 }
 
+/// Represents a hints section in a workflow definition.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkflowHintsSection(pub(crate) SyntaxNode);
+
+impl WorkflowHintsSection {
+    /// Gets the items in the hints section.
+    pub fn items(&self) -> AstChildren<WorkflowHintsItem> {
+        children(&self.0)
+    }
+
+    /// Gets the parent of the hints section.
+    pub fn parent(&self) -> WorkflowDefinition {
+        WorkflowDefinition::cast(self.0.parent().expect("should have a parent"))
+            .expect("parent should cast")
+    }
+}
+
+impl AstNode for WorkflowHintsSection {
+    type Language = WorkflowDescriptionLanguage;
+
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        kind == SyntaxKind::WorkflowHintsSectionNode
+    }
+
+    fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::WorkflowHintsSectionNode => Some(Self(syntax)),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        &self.0
+    }
+}
+
+/// Represents an item in a workflow hints section.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkflowHintsItem(SyntaxNode);
+
+impl WorkflowHintsItem {
+    /// Gets the name of the hints item.
+    pub fn name(&self) -> Ident {
+        token(&self.0).expect("expected an item name")
+    }
+
+    /// Gets the value of the hints item.
+    pub fn value(&self) -> WorkflowHintsItemValue {
+        child(&self.0).expect("expected an item value")
+    }
+}
+
+impl AstNode for WorkflowHintsItem {
+    type Language = WorkflowDescriptionLanguage;
+
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        kind == SyntaxKind::WorkflowHintsItemNode
+    }
+
+    fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::WorkflowHintsItemNode => Some(Self(syntax)),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        &self.0
+    }
+}
+
+/// Represents a workflow hints item value.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum WorkflowHintsItemValue {
+    /// The value is a literal boolean.
+    Boolean(LiteralBoolean),
+    /// The value is a literal integer.
+    Integer(LiteralInteger),
+    /// The value is a literal float.
+    Float(LiteralFloat),
+    /// The value is a literal string.
+    String(LiteralString),
+    /// The value is a literal object.
+    Object(WorkflowHintsObject),
+    /// The value is a literal array.
+    Array(WorkflowHintsArray),
+}
+
+impl WorkflowHintsItemValue {
+    /// Unwraps the value into a boolean.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not a boolean.
+    pub fn unwrap_boolean(self) -> LiteralBoolean {
+        match self {
+            Self::Boolean(b) => b,
+            _ => panic!("not a boolean"),
+        }
+    }
+
+    /// Unwraps the value into an integer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not an integer.
+    pub fn unwrap_integer(self) -> LiteralInteger {
+        match self {
+            Self::Integer(i) => i,
+            _ => panic!("not an integer"),
+        }
+    }
+
+    /// Unwraps the value into a float.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not a float.
+    pub fn unwrap_float(self) -> LiteralFloat {
+        match self {
+            Self::Float(f) => f,
+            _ => panic!("not a float"),
+        }
+    }
+
+    /// Unwraps the value into a string.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not a string.
+    pub fn unwrap_string(self) -> LiteralString {
+        match self {
+            Self::String(s) => s,
+            _ => panic!("not a string"),
+        }
+    }
+
+    /// Unwraps the value into an object.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not an object.
+    pub fn unwrap_object(self) -> WorkflowHintsObject {
+        match self {
+            Self::Object(o) => o,
+            _ => panic!("not an object"),
+        }
+    }
+
+    /// Unwraps the value into an array.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not an array.
+    pub fn unwrap_array(self) -> WorkflowHintsArray {
+        match self {
+            Self::Array(a) => a,
+            _ => panic!("not an array"),
+        }
+    }
+}
+
+impl AstNode for WorkflowHintsItemValue {
+    type Language = WorkflowDescriptionLanguage;
+
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        matches!(
+            kind,
+            SyntaxKind::LiteralBooleanNode
+                | SyntaxKind::LiteralIntegerNode
+                | SyntaxKind::LiteralFloatNode
+                | SyntaxKind::LiteralStringNode
+                | SyntaxKind::WorkflowHintsObjectNode
+                | SyntaxKind::WorkflowHintsArrayNode
+        )
+    }
+
+    fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::LiteralBooleanNode => Some(Self::Boolean(LiteralBoolean(syntax))),
+            SyntaxKind::LiteralIntegerNode => Some(Self::Integer(LiteralInteger(syntax))),
+            SyntaxKind::LiteralFloatNode => Some(Self::Float(LiteralFloat(syntax))),
+            SyntaxKind::LiteralStringNode => Some(Self::String(LiteralString(syntax))),
+            SyntaxKind::WorkflowHintsObjectNode => Some(Self::Object(WorkflowHintsObject(syntax))),
+            SyntaxKind::WorkflowHintsArrayNode => Some(Self::Array(WorkflowHintsArray(syntax))),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        match self {
+            Self::Boolean(b) => &b.0,
+            Self::Integer(i) => &i.0,
+            Self::Float(f) => &f.0,
+            Self::String(s) => &s.0,
+            Self::Object(o) => &o.0,
+            Self::Array(a) => &a.0,
+        }
+    }
+}
+
+/// Represents a workflow hints object.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkflowHintsObject(pub(crate) SyntaxNode);
+
+impl WorkflowHintsObject {
+    /// Gets the items of the workflow hints object.
+    pub fn items(&self) -> AstChildren<WorkflowHintsObjectItem> {
+        children(&self.0)
+    }
+}
+
+impl AstNode for WorkflowHintsObject {
+    type Language = WorkflowDescriptionLanguage;
+
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        kind == SyntaxKind::WorkflowHintsObjectNode
+    }
+
+    fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::WorkflowHintsObjectNode => Some(Self(syntax)),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        &self.0
+    }
+}
+
+/// Represents a workflow hints object item.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkflowHintsObjectItem(pub(crate) SyntaxNode);
+
+impl WorkflowHintsObjectItem {
+    /// Gets the name of the item.
+    pub fn name(&self) -> Ident {
+        token(&self.0).expect("expected a name")
+    }
+
+    /// Gets the value of the item.
+    pub fn value(&self) -> WorkflowHintsItemValue {
+        child(&self.0).expect("expected a value")
+    }
+}
+
+impl AstNode for WorkflowHintsObjectItem {
+    type Language = WorkflowDescriptionLanguage;
+
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        kind == SyntaxKind::WorkflowHintsObjectItemNode
+    }
+
+    fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::WorkflowHintsObjectItemNode => Some(Self(syntax)),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        &self.0
+    }
+}
+
+/// Represents a workflow hints array.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkflowHintsArray(pub(crate) SyntaxNode);
+
+impl WorkflowHintsArray {
+    /// Gets the elements of the workflow hints array.
+    pub fn elements(&self) -> AstChildren<WorkflowHintsItemValue> {
+        children(&self.0)
+    }
+}
+
+impl AstNode for WorkflowHintsArray {
+    type Language = WorkflowDescriptionLanguage;
+
+    fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        kind == SyntaxKind::WorkflowHintsArrayNode
+    }
+
+    fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::WorkflowHintsArrayNode => Some(Self(syntax)),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        &self.0
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -883,18 +1218,12 @@ workflow test {
         let hints = workflows[0]
             .hints()
             .expect("workflow should have a hints section");
-        assert_eq!(hints.parent().unwrap_workflow().name().as_str(), "test");
+        assert_eq!(hints.parent().name().as_str(), "test");
         let items: Vec<_> = hints.items().collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].name().as_str(), "foo");
         assert_eq!(
-            items[0]
-                .expr()
-                .unwrap_literal()
-                .unwrap_string()
-                .text()
-                .unwrap()
-                .as_str(),
+            items[0].value().unwrap_string().text().unwrap().as_str(),
             "bar"
         );
 

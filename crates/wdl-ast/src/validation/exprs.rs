@@ -97,7 +97,12 @@ impl Visitor for ScopedExprVisitor {
         self.version = Some(version);
     }
 
-    fn hints_section(&mut self, _: &mut Self::State, reason: VisitReason, _: &v1::HintsSection) {
+    fn task_hints_section(
+        &mut self,
+        _: &mut Self::State,
+        reason: VisitReason,
+        _: &v1::TaskHintsSection,
+    ) {
         self.in_hints_section = reason == VisitReason::Enter;
     }
 

@@ -105,11 +105,33 @@ impl Visitor for VersionVisitor {
         }
     }
 
-    fn hints_section(
+    fn task_hints_section(
         &mut self,
         state: &mut Self::State,
         reason: VisitReason,
-        section: &v1::HintsSection,
+        section: &v1::TaskHintsSection,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(version) = self.version {
+            if version < SupportedVersion::V1(V1::Two) {
+                state.add(hints_section(
+                    token(section.syntax(), SyntaxKind::HintsKeyword)
+                        .expect("should have keyword")
+                        .text_range()
+                        .to_span(),
+                ));
+            }
+        }
+    }
+
+    fn workflow_hints_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &v1::WorkflowHintsSection,
     ) {
         if reason == VisitReason::Exit {
             return;
