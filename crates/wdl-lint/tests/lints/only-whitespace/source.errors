@@ -1,4 +1,4 @@
-warning[Whitespace]: line contains only whitespace
+note[Whitespace]: line contains only whitespace
   ┌─ tests/lints/only-whitespace/source.wdl:7:1
   │
 7 │     
@@ -6,7 +6,7 @@ warning[Whitespace]: line contains only whitespace
   │
   = fix: remove the whitespace from this line
 
-warning[Whitespace]: line contains only whitespace
+note[Whitespace]: line contains only whitespace
    ┌─ tests/lints/only-whitespace/source.wdl:10:1
    │
 10 │           
@@ -14,7 +14,7 @@ warning[Whitespace]: line contains only whitespace
    │
    = fix: remove the whitespace from this line
 
-warning[Whitespace]: more than one blank line in a row
+note[Whitespace]: more than one blank line in a row
    ┌─ tests/lints/only-whitespace/source.wdl:10:1
    │  
 10 │ ╭           
@@ -25,15 +25,15 @@ warning[Whitespace]: more than one blank line in a row
    │  
    = fix: remove the unnecessary blank lines
 
-warning[Whitespace]: line contains trailing whitespace
+note[Whitespace]: line contains trailing whitespace
    ┌─ tests/lints/only-whitespace/source.wdl:13:16
    │
 13 │ workflow test {    
    │                ^^^^
    │
-   = fix: remove the trailing whitespace from this line
+   = fix: remove this trailing whitespace
 
-warning[Whitespace]: line contains only whitespace
+note[Whitespace]: line contains only whitespace
    ┌─ tests/lints/only-whitespace/source.wdl:14:1
    │
 14 │     
@@ -41,15 +41,15 @@ warning[Whitespace]: line contains only whitespace
    │
    = fix: remove the whitespace from this line
 
-warning[Whitespace]: line contains trailing whitespace
+note[Whitespace]: line contains trailing whitespace
    ┌─ tests/lints/only-whitespace/source.wdl:18:18
    │
 18 │     String x = ""           
    │                  ^^^^^^^^^^^
    │
-   = fix: remove the trailing whitespace from this line
+   = fix: remove this trailing whitespace
 
-warning[Whitespace]: line contains only whitespace
+note[Whitespace]: line contains only whitespace
    ┌─ tests/lints/only-whitespace/source.wdl:20:1
    │
 20 │      

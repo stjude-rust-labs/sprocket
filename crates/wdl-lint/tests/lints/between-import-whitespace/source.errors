@@ -42,7 +42,7 @@ note[ImportWhitespace]: blank lines are not allowed between imports
    │  
    = fix: remove any blank lines between imports
 
-warning[Whitespace]: more than one blank line in a row
+note[Whitespace]: more than one blank line in a row
    ┌─ tests/lints/between-import-whitespace/source.wdl:19:1
    │  
 19 │ ╭ 

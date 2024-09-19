@@ -23,7 +23,7 @@ const ID: &str = "Whitespace";
 
 /// Creates an "only whitespace" diagnostic.
 fn only_whitespace(span: Span) -> Diagnostic {
-    Diagnostic::warning("line contains only whitespace")
+    Diagnostic::note("line contains only whitespace")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("remove the whitespace from this line")
@@ -31,15 +31,15 @@ fn only_whitespace(span: Span) -> Diagnostic {
 
 /// Creates a "trailing whitespace" diagnostic.
 fn trailing_whitespace(span: Span) -> Diagnostic {
-    Diagnostic::warning("line contains trailing whitespace")
+    Diagnostic::note("line contains trailing whitespace")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("remove the trailing whitespace from this line")
+        .with_fix("remove this trailing whitespace")
 }
 
 /// Creates a "more than one blank line" diagnostic.
 fn more_than_one_blank_line(span: Span) -> Diagnostic {
-    Diagnostic::warning("more than one blank line in a row")
+    Diagnostic::note("more than one blank line in a row")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("remove the unnecessary blank lines")
@@ -80,6 +80,23 @@ impl Rule for WhitespaceRule {
 
 impl Visitor for WhitespaceRule {
     type State = Diagnostics;
+
+    fn comment(&mut self, state: &mut Self::State, comment: &wdl_ast::Comment) {
+        let comment_str = comment.as_str();
+        let span = comment.span();
+        let trimmed_end = comment_str.trim_end();
+        if comment_str != trimmed_end {
+            // Trailing whitespace
+            state.exceptable_add(
+                trailing_whitespace(Span::new(
+                    span.start() + trimmed_end.len(),
+                    comment_str.len() - trimmed_end.len(),
+                )),
+                SyntaxElement::from(comment.syntax().clone()),
+                &self.exceptable_nodes(),
+            )
+        }
+    }
 
     fn document(
         &mut self,

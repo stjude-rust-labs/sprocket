@@ -7,7 +7,7 @@ note[ImportWhitespace]: blank lines are not allowed between imports
   │  
   = fix: remove any blank lines between imports
 
-warning[Whitespace]: more than one blank line in a row
+note[Whitespace]: more than one blank line in a row
    ┌─ tests/lints/blank-lines-between-elements/source.wdl:11:1
    │  
 11 │ ╭ 
@@ -53,7 +53,7 @@ note[BlankLinesBetweenElements]: missing blank line
    │  
    = fix: add a blank line before this element
 
-warning[Whitespace]: more than one blank line in a row
+note[Whitespace]: more than one blank line in a row
    ┌─ tests/lints/blank-lines-between-elements/source.wdl:29:1
    │  
 29 │ ╭ 
@@ -62,7 +62,7 @@ warning[Whitespace]: more than one blank line in a row
    │  
    = fix: remove the unnecessary blank lines
 
-warning[Whitespace]: more than one blank line in a row
+note[Whitespace]: more than one blank line in a row
    ┌─ tests/lints/blank-lines-between-elements/source.wdl:35:1
    │  
 35 │ ╭ 
@@ -71,7 +71,7 @@ warning[Whitespace]: more than one blank line in a row
    │  
    = fix: remove the unnecessary blank lines
 
-warning[Whitespace]: more than one blank line in a row
+note[Whitespace]: more than one blank line in a row
    ┌─ tests/lints/blank-lines-between-elements/source.wdl:40:1
    │  
 40 │ ╭ 
@@ -149,7 +149,7 @@ note[BlankLinesBetweenElements]: extra blank line(s) found
    │  
    = fix: remove the blank line(s)
 
-warning[Whitespace]: more than one blank line in a row
+note[Whitespace]: more than one blank line in a row
    ┌─ tests/lints/blank-lines-between-elements/source.wdl:79:1
    │  
 79 │ ╭ 
