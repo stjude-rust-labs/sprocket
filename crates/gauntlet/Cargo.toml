@@ -1,6 +1,7 @@
 [package]
-name = "wdl-gauntlet"
+name = "gauntlet"
 version = "0.5.0"
+publish = false
 description = "Testing of parse trees and ASTs within the `wdl` family of crates"
 rust-version.workspace = true
 license.workspace = true

@@ -1,9 +1,9 @@
 [workspace]
-members = [
+members = [ "ci",
     "wdl",
     "wdl-analysis",
     "wdl-ast",
-    "wdl-gauntlet",
+    "gauntlet",
     "wdl-grammar",
     "wdl-lint",
     "wdl-lsp",
@@ -23,7 +23,6 @@ clap = { version = "4.5.7", features = ["derive"] }
 colored = "2.1.0"
 convert_case = "0.6.0"
 indexmap = { version = "2.2.6", features = ["serde"] }
-regex = "1.10.5"
 serde = { version = "1", features = ["derive"] }
 serde_with = "3.8.1"
 tokio = { version = "1.38.0", features = ["full"] }

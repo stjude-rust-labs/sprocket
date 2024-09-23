@@ -16,7 +16,6 @@
 use clap::Parser as _;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
-use wdl_gauntlet as gauntlet;
 
 /// The inner function for `wdl-gauntlet`.
 async fn inner() -> Result<(), Box<dyn std::error::Error>> {
@@ -56,8 +55,6 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn verify_arguments() {
         use clap::CommandFactory;

@@ -1,0 +1,16 @@
+[package]
+name = "ci"
+version = "0.1.0"
+publish = false
+license.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+clap.workspace = true
+reqwest = { workspace = true, features = ["blocking"] }
+toml.workspace = true
+toml_edit = { version = "0.22.21", features = ["serde"] }
