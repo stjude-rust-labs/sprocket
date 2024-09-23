@@ -6,7 +6,6 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 use petgraph::graph::NodeIndex;
 use url::Url;
-use wdl_ast::support::token;
 use wdl_ast::Ast;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
@@ -15,6 +14,7 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::WorkflowDescriptionLanguage;
+use wdl_ast::support::token;
 
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;

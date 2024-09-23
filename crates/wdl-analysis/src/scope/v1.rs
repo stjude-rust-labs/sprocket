@@ -11,6 +11,17 @@ use petgraph::graph::DiGraph;
 use petgraph::graph::NodeIndex;
 use petgraph::prelude::DiGraphMap;
 use url::Url;
+use wdl_ast::AstNode;
+use wdl_ast::AstNodeExt;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::Ident;
+use wdl_ast::Span;
+use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxNode;
+use wdl_ast::ToSpan;
+use wdl_ast::TokenStrHash;
+use wdl_ast::Version;
 use wdl_ast::v1::Ast;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::CommandPart;
@@ -30,20 +41,7 @@ use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::v1::WorkflowItem;
 use wdl_ast::v1::WorkflowStatement;
 use wdl_ast::version::V1;
-use wdl_ast::AstNode;
-use wdl_ast::AstNodeExt;
-use wdl_ast::AstToken;
-use wdl_ast::Diagnostic;
-use wdl_ast::Ident;
-use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxNode;
-use wdl_ast::ToSpan;
-use wdl_ast::TokenStrHash;
-use wdl_ast::Version;
 
-use super::braced_scope_span;
-use super::heredoc_scope_span;
 use super::Context;
 use super::DocumentScope;
 use super::Name;
@@ -55,15 +53,17 @@ use super::ScopeRefMut;
 use super::Struct;
 use super::Task;
 use super::Workflow;
+use super::braced_scope_span;
+use super::heredoc_scope_span;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::scope::ScopeRef;
 use crate::scope::TaskOutputScope;
-use crate::types::v1::type_mismatch;
-use crate::types::v1::AstTypeConverter;
-use crate::types::v1::ExprTypeEvaluator;
 use crate::types::Coercible;
 use crate::types::Type;
+use crate::types::v1::AstTypeConverter;
+use crate::types::v1::ExprTypeEvaluator;
+use crate::types::v1::type_mismatch;
 
 /// The `task` variable name available in task command sections and outputs in
 /// WDL 1.2.
@@ -324,14 +324,11 @@ fn add_namespace(
                 ));
                 return;
             } else {
-                document.namespaces.insert(
-                    ns.clone(),
-                    Namespace {
-                        span,
-                        source: uri.clone(),
-                        scope: imported.clone(),
-                    },
-                );
+                document.namespaces.insert(ns.clone(), Namespace {
+                    span,
+                    source: uri.clone(),
+                    scope: imported.clone(),
+                });
                 ns
             }
         }
@@ -382,18 +379,15 @@ fn add_namespace(
                 }
             }
             None => {
-                document.structs.insert(
-                    aliased_name.to_string(),
-                    Struct {
-                        span,
-                        offset: s.offset,
-                        node: s.node.clone(),
-                        namespace: Some(ns.clone()),
-                        ty: s
-                            .ty
-                            .map(|ty| document.types.import(&namespace.scope.types, ty)),
-                    },
-                );
+                document.structs.insert(aliased_name.to_string(), Struct {
+                    span,
+                    offset: s.offset,
+                    node: s.node.clone(),
+                    namespace: Some(ns.clone()),
+                    ty: s
+                        .ty
+                        .map(|ty| document.types.import(&namespace.scope.types, ty)),
+                });
             }
         }
     }
@@ -455,16 +449,13 @@ fn add_struct(
         }
     }
 
-    document.structs.insert(
-        name.as_str().to_string(),
-        Struct {
-            span: name.span(),
-            namespace: None,
-            offset: definition.span().start(),
-            node: definition.syntax().green().into(),
-            ty: None,
-        },
-    );
+    document.structs.insert(name.as_str().to_string(), Struct {
+        span: name.span(),
+        namespace: None,
+        offset: definition.span().start(),
+        node: definition.syntax().green().into(),
+        ty: None,
+    });
 }
 
 /// Adds an input to a scope.
@@ -566,13 +557,12 @@ fn add_task(
                 document.scope_mut(scope).add_child(child);
 
                 if document.version >= Some(SupportedVersion::V1(V1::Two)) {
-                    document.scopes[child.0].names.insert(
-                        TASK_VAR_NAME.to_string(),
-                        Name {
+                    document.scopes[child.0]
+                        .names
+                        .insert(TASK_VAR_NAME.to_string(), Name {
                             context: NameContext::Task(name.span()),
                             ty: Some(Type::Task),
-                        },
-                    );
+                        });
                 }
 
                 for decl in section.declarations() {
@@ -595,13 +585,12 @@ fn add_task(
                 document.scope_mut(scope).add_child(child);
 
                 if document.version >= Some(SupportedVersion::V1(V1::Two)) {
-                    document.scopes[child.0].names.insert(
-                        TASK_VAR_NAME.to_string(),
-                        Name {
+                    document.scopes[child.0]
+                        .names
+                        .insert(TASK_VAR_NAME.to_string(), Name {
                             context: NameContext::Task(name.span()),
                             ty: Some(Type::Task),
-                        },
-                    );
+                        });
                 }
 
                 command = Some(child);
@@ -617,15 +606,12 @@ fn add_task(
         }
     }
 
-    document.tasks.insert(
-        name.as_str().to_string(),
-        Task {
-            name_span: name.span(),
-            scope,
-            outputs,
-            command,
-        },
-    );
+    document.tasks.insert(name.as_str().to_string(), Task {
+        name_span: name.span(),
+        scope,
+        outputs,
+        command,
+    });
 }
 
 /// Adds a workflow to the document scope.

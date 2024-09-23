@@ -6,20 +6,20 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
-use anyhow::anyhow;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
+use anyhow::bail;
 use indexmap::IndexMap;
 use indexmap::IndexSet;
 use line_index::LineIndex;
+use petgraph::Direction;
 use petgraph::algo::has_path_connecting;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
 use petgraph::visit::Bfs;
 use petgraph::visit::EdgeRef;
 use petgraph::visit::Visitable;
-use petgraph::Direction;
 use reqwest::Client;
 use rowan::GreenNode;
 use tokio::runtime::Handle;
@@ -32,8 +32,8 @@ use wdl_ast::Diagnostic;
 use wdl_ast::SyntaxNode;
 use wdl_ast::Validator;
 
-use crate::scope::DocumentScope;
 use crate::IncrementalChange;
+use crate::scope::DocumentScope;
 
 /// Represents space for a DFS search of a document graph.
 pub type DfsSpace =
@@ -193,13 +193,10 @@ impl DocumentGraphNode {
         // Clear the analysis as there has been a change
         self.analysis = None;
 
-        if !matches!(
-            self.parse_state,
-            ParseState::Parsed {
-                version: Some(_),
-                ..
-            }
-        ) || discard_pending
+        if !matches!(self.parse_state, ParseState::Parsed {
+            version: Some(_),
+            ..
+        }) || discard_pending
         {
             self.parse_state = ParseState::NotParsed;
             self.change = None;

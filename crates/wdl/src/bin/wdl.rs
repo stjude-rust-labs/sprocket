@@ -5,16 +5,16 @@ use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use clap::Args;
 use clap::Parser;
 use codespan_reporting::files::SimpleFile;
+use codespan_reporting::term::Config;
 use codespan_reporting::term::emit;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
-use codespan_reporting::term::Config;
 use colored::Colorize;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;

@@ -4,11 +4,6 @@
 //! This check only occurs if the `container` key exists in the
 //! `runtime`/`requirements` sections.
 
-use wdl_ast::v1::common::container::value::uri::ANY_CONTAINER_VALUE;
-use wdl_ast::v1::common::container::value::Value;
-use wdl_ast::v1::common::container::Kind;
-use wdl_ast::v1::RequirementsSection;
-use wdl_ast::v1::RuntimeSection;
 use wdl_ast::AstNode;
 use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
@@ -20,6 +15,11 @@ use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::v1::RequirementsSection;
+use wdl_ast::v1::RuntimeSection;
+use wdl_ast::v1::common::container::Kind;
+use wdl_ast::v1::common::container::value::Value;
+use wdl_ast::v1::common::container::value::uri::ANY_CONTAINER_VALUE;
 
 use crate::Rule;
 use crate::Tag;

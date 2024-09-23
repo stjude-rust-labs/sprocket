@@ -11,10 +11,10 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
-use crate::util::strip_newline;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::strip_newline;
 
 /// The identifier for the ending newline rule.
 const ID: &str = "EndingNewline";

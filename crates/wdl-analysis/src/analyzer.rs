@@ -5,16 +5,16 @@ use std::fmt;
 use std::future::Future;
 use std::mem::ManuallyDrop;
 use std::ops::Range;
-use std::path::absolute;
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
-use anyhow::anyhow;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
+use anyhow::bail;
 use indexmap::IndexSet;
 use line_index::LineCol;
 use line_index::LineIndex;
@@ -304,22 +304,16 @@ impl SourceEdit {
             ),
             SourcePositionEncoding::UTF16 => (
                 lines
-                    .to_utf8(
-                        WideEncoding::Utf16,
-                        WideLineCol {
-                            line: self.range.start.line,
-                            col: self.range.start.character,
-                        },
-                    )
+                    .to_utf8(WideEncoding::Utf16, WideLineCol {
+                        line: self.range.start.line,
+                        col: self.range.start.character,
+                    })
                     .context("invalid edit start position")?,
                 lines
-                    .to_utf8(
-                        WideEncoding::Utf16,
-                        WideLineCol {
-                            line: self.range.end.line,
-                            col: self.range.end.character,
-                        },
-                    )
+                    .to_utf8(WideEncoding::Utf16, WideLineCol {
+                        line: self.range.end.line,
+                        col: self.range.end.character,
+                    })
                     .context("invalid edit end position")?,
             ),
         };
@@ -816,18 +810,15 @@ workflow test {
         // Edit the file to correct the issue
         let uri = path_to_uri(&path).expect("should convert to URI");
         analyzer
-            .notify_incremental_change(
-                uri.clone(),
-                IncrementalChange {
-                    version: 2,
-                    start: None,
-                    edits: vec![SourceEdit {
-                        range: SourcePosition::new(6, 9)..SourcePosition::new(6, 13),
-                        encoding: SourcePositionEncoding::UTF8,
-                        text: "something_else".to_string(),
-                    }],
-                },
-            )
+            .notify_incremental_change(uri.clone(), IncrementalChange {
+                version: 2,
+                start: None,
+                edits: vec![SourceEdit {
+                    range: SourcePosition::new(6, 9)..SourcePosition::new(6, 13),
+                    encoding: SourcePositionEncoding::UTF8,
+                    text: "something_else".to_string(),
+                }],
+            })
             .unwrap();
 
         // Analyze again and ensure the analysis result id is changed and the issue was

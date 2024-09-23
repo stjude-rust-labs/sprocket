@@ -3,10 +3,10 @@
 use rowan::ast::AstNode;
 use wdl_grammar::WorkflowDescriptionLanguage;
 
+use crate::AstToken;
+use crate::v1::RequirementsItem;
 use crate::v1::common::container::value;
 use crate::v1::common::container::value::Value;
-use crate::v1::RequirementsItem;
-use crate::AstToken;
 
 /// The key name for a container requirements item.
 const CONTAINER_KEY: &str = "container";

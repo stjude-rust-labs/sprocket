@@ -2,9 +2,9 @@
 
 use logos::Logos;
 
+use super::Span;
 use super::parser::ParserToken;
 use super::tree::SyntaxKind;
-use super::Span;
 
 pub mod v1;
 

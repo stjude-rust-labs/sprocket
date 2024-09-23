@@ -6,8 +6,8 @@ use std::str::FromStr;
 
 use rowan::ast::AstNode;
 
-use crate::v1::LiteralString;
 use crate::AstToken;
+use crate::v1::LiteralString;
 
 /// The value of the key that signifies _any_ POSIX-compliant operating
 /// environment may be used.

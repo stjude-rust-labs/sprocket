@@ -23,6 +23,16 @@
 
 use rowan::WalkEvent;
 
+use crate::AstNode;
+use crate::AstToken as _;
+use crate::Comment;
+use crate::Document;
+use crate::SupportedVersion;
+use crate::SyntaxKind;
+use crate::SyntaxNode;
+use crate::VersionStatement;
+use crate::VisitReason;
+use crate::Whitespace;
 use crate::v1::BoundDecl;
 use crate::v1::CallStatement;
 use crate::v1::CommandSection;
@@ -49,16 +59,6 @@ use crate::v1::TaskHintsSection;
 use crate::v1::UnboundDecl;
 use crate::v1::WorkflowDefinition;
 use crate::v1::WorkflowHintsSection;
-use crate::AstNode;
-use crate::AstToken as _;
-use crate::Comment;
-use crate::Document;
-use crate::SupportedVersion;
-use crate::SyntaxKind;
-use crate::SyntaxNode;
-use crate::VersionStatement;
-use crate::VisitReason;
-use crate::Whitespace;
 
 /// A trait used to implement an AST visitor.
 ///

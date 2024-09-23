@@ -16,24 +16,24 @@ use std::collections::HashSet;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
-use std::path::absolute;
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 use std::process::exit;
 
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term;
-use codespan_reporting::term::termcolor::Buffer;
 use codespan_reporting::term::Config;
+use codespan_reporting::term::termcolor::Buffer;
 use colored::Colorize;
 use path_clean::clean;
 use pretty_assertions::StrComparison;
-use wdl_analysis::path_to_uri;
 use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
+use wdl_analysis::path_to_uri;
 use wdl_ast::Diagnostic;
 use wdl_ast::SyntaxNode;
 

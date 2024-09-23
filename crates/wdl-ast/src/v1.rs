@@ -1,11 +1,11 @@
 //! AST representation for a 1.x WDL document.
 
-use crate::support::children;
 use crate::AstChildren;
 use crate::AstNode;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::WorkflowDescriptionLanguage;
+use crate::support::children;
 
 mod decls;
 mod expr;

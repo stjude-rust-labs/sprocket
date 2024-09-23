@@ -1,14 +1,14 @@
 //! Module for the WDL grammar functions.
 
+use super::Diagnostic;
+use super::Span;
 use super::lexer::PreambleToken;
 use super::parser::Event;
 use super::parser::Marker;
 use super::parser::Parser;
 use super::tree::SyntaxKind;
-use super::Diagnostic;
-use super::Span;
-use crate::lexer::VersionStatementToken;
 use crate::SupportedVersion;
+use crate::lexer::VersionStatementToken;
 
 pub mod v1;
 

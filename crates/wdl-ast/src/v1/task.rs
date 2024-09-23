@@ -10,10 +10,6 @@ use super::LiteralString;
 use super::Placeholder;
 use super::StructDefinition;
 use super::WorkflowDefinition;
-use crate::support;
-use crate::support::child;
-use crate::support::children;
-use crate::token;
 use crate::AstChildren;
 use crate::AstNode;
 use crate::AstToken;
@@ -23,6 +19,10 @@ use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::SyntaxToken;
 use crate::WorkflowDescriptionLanguage;
+use crate::support;
+use crate::support::child;
+use crate::support::children;
+use crate::token;
 
 pub mod common;
 pub mod requirements;
@@ -1166,11 +1166,11 @@ impl AstNode for ParameterMetadataSection {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::v1::UnboundDecl;
     use crate::Document;
     use crate::SupportedVersion;
     use crate::VisitReason;
     use crate::Visitor;
+    use crate::v1::UnboundDecl;
 
     #[test]
     fn tasks() {

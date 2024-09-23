@@ -1,7 +1,5 @@
 //! Validation of imports.
 
-use crate::v1;
-use crate::v1::StringPart;
 use crate::AstNode;
 use crate::Diagnostic;
 use crate::Diagnostics;
@@ -11,6 +9,8 @@ use crate::SupportedVersion;
 use crate::ToSpan;
 use crate::VisitReason;
 use crate::Visitor;
+use crate::v1;
+use crate::v1::StringPart;
 
 /// Creates an "empty import" diagnostic
 fn empty_import(span: Span) -> Diagnostic {

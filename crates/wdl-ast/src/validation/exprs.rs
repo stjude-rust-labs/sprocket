@@ -4,8 +4,6 @@ use std::fmt;
 
 use rowan::ast::support::token;
 
-use crate::v1;
-use crate::version::V1;
 use crate::AstNode;
 use crate::Diagnostic;
 use crate::Diagnostics;
@@ -16,6 +14,8 @@ use crate::SyntaxKind;
 use crate::ToSpan;
 use crate::VisitReason;
 use crate::Visitor;
+use crate::v1;
+use crate::version::V1;
 
 /// Creates a "hints scope required" diagnostic.
 fn hints_scope_required(literal: &Literal) -> Diagnostic {

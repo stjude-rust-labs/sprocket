@@ -1,6 +1,5 @@
 //! A lint rule for spacing of call inputs.
 
-use wdl_ast::v1::CallStatement;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
@@ -12,6 +11,7 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::v1::CallStatement;
 
 use crate::Rule;
 use crate::Tag;

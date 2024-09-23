@@ -1,6 +1,5 @@
 //! A lint rule for flagging `Object`s as deprecated.
 
-use wdl_ast::v1::Type;
 use wdl_ast::AstNode;
 use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
@@ -12,6 +11,7 @@ use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::v1::Type;
 
 use crate::Rule;
 use crate::Tag;

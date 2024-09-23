@@ -1,7 +1,5 @@
 //! A lint rule for key-value pairs to ensure each element is on a newline.
 
-use wdl_ast::v1::MetadataArray;
-use wdl_ast::v1::MetadataObject;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
@@ -13,11 +11,13 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::v1::MetadataArray;
+use wdl_ast::v1::MetadataObject;
 
-use crate::rules::trailing_comma::find_next_comma;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::rules::trailing_comma::find_next_comma;
 
 /// Set indentation string
 const INDENT: &str = "    ";

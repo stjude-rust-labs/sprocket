@@ -3,6 +3,12 @@
 use std::fmt;
 use std::fmt::Write;
 
+use wdl_ast::AstNodeExt;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::Ident;
+use wdl_ast::Span;
+use wdl_ast::SupportedVersion;
 use wdl_ast::v1;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
@@ -26,12 +32,6 @@ use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::v1::StringPart;
 use wdl_ast::version::V1;
-use wdl_ast::AstNodeExt;
-use wdl_ast::AstToken;
-use wdl_ast::Diagnostic;
-use wdl_ast::Ident;
-use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 
 use super::ArrayType;
 use super::CompoundTypeDef;
@@ -470,18 +470,14 @@ enum ComparisonOperator {
 
 impl fmt::Display for ComparisonOperator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Equality => "==",
-                Self::Inequality => "!=",
-                Self::Less => "<",
-                Self::LessEqual => "<=",
-                Self::Greater => ">",
-                Self::GreaterEqual => ">=",
-            }
-        )
+        write!(f, "{}", match self {
+            Self::Equality => "==",
+            Self::Inequality => "!=",
+            Self::Less => "<",
+            Self::LessEqual => "<=",
+            Self::Greater => ">",
+            Self::GreaterEqual => ">=",
+        })
     }
 }
 
@@ -504,18 +500,14 @@ enum NumericOperator {
 
 impl fmt::Display for NumericOperator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Addition => "addition",
-                Self::Subtraction => "subtraction",
-                Self::Multiplication => "multiplication",
-                Self::Division => "division",
-                Self::Modulo => "remainder",
-                Self::Exponentiation => "exponentiation",
-            }
-        )
+        write!(f, "{}", match self {
+            Self::Addition => "addition",
+            Self::Subtraction => "subtraction",
+            Self::Multiplication => "multiplication",
+            Self::Division => "division",
+            Self::Modulo => "remainder",
+            Self::Exponentiation => "exponentiation",
+        })
     }
 }
 

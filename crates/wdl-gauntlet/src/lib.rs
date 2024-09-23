@@ -19,10 +19,10 @@ use clap::Parser;
 use codespan_reporting::files::Files;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term;
+use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::termcolor::Buffer;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
-use codespan_reporting::term::DisplayStyle;
 use colored::Colorize;
 use indexmap::IndexSet;
 use tracing::debug;
@@ -39,9 +39,9 @@ pub use report::Report;
 use report::Status;
 use report::UnmatchedStatus;
 pub use repository::Repository;
+use wdl_lint::LintVisitor;
 use wdl_lint::ast::Document;
 use wdl_lint::ast::Validator;
-use wdl_lint::LintVisitor;
 
 use crate::repository::WorkDir;
 

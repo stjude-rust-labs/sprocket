@@ -5,18 +5,6 @@ use std::fmt;
 
 use wdl_grammar::SyntaxToken;
 
-use crate::support;
-use crate::v1::CommandSection;
-use crate::v1::InputSection;
-use crate::v1::MetadataSection;
-use crate::v1::OutputSection;
-use crate::v1::ParameterMetadataSection;
-use crate::v1::RequirementsSection;
-use crate::v1::RuntimeSection;
-use crate::v1::SectionParent;
-use crate::v1::StructDefinition;
-use crate::v1::TaskDefinition;
-use crate::v1::WorkflowDefinition;
 use crate::Ast;
 use crate::AstNode;
 use crate::AstToken;
@@ -32,6 +20,18 @@ use crate::ToSpan;
 use crate::TokenStrHash;
 use crate::VisitReason;
 use crate::Visitor;
+use crate::support;
+use crate::v1::CommandSection;
+use crate::v1::InputSection;
+use crate::v1::MetadataSection;
+use crate::v1::OutputSection;
+use crate::v1::ParameterMetadataSection;
+use crate::v1::RequirementsSection;
+use crate::v1::RuntimeSection;
+use crate::v1::SectionParent;
+use crate::v1::StructDefinition;
+use crate::v1::TaskDefinition;
+use crate::v1::WorkflowDefinition;
 
 /// Represents section context of an error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

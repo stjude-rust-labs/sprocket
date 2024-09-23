@@ -1,6 +1,5 @@
 //! Validation of requirements section keys.
 
-use crate::v1;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
@@ -9,6 +8,7 @@ use crate::Ident;
 use crate::SupportedVersion;
 use crate::VisitReason;
 use crate::Visitor;
+use crate::v1;
 
 /// Creates an "unsupported requirements key" diagnostic.
 fn unsupported_requirements_key(name: &Ident) -> Diagnostic {

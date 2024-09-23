@@ -3,7 +3,6 @@
 use std::collections::HashSet;
 
 use indexmap::IndexMap;
-use wdl_ast::v1;
 use wdl_ast::AstNode;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostics;
@@ -13,9 +12,10 @@ use wdl_ast::VersionStatement;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::Whitespace;
+use wdl_ast::v1;
 
-use crate::rules;
 use crate::Rule;
+use crate::rules;
 
 /// A visitor that runs linting rules.
 ///

@@ -8,9 +8,6 @@ use wdl_grammar::lexer::v1::Logos;
 use wdl_grammar::lexer::v1::Token;
 
 use super::LiteralString;
-use crate::support::child;
-use crate::support::children;
-use crate::token;
 use crate::AstChildren;
 use crate::AstNode;
 use crate::AstToken;
@@ -21,6 +18,9 @@ use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::ToSpan;
 use crate::WorkflowDescriptionLanguage;
+use crate::support::child;
+use crate::support::children;
+use crate::token;
 
 /// Represents an import statement.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -2,28 +2,28 @@
 
 use super::macros::expected;
 use super::macros::expected_fn;
+use crate::Diagnostic;
+use crate::Span;
 use crate::grammar::macros::expected_in;
+use crate::lexer::TokenSet;
 use crate::lexer::v1::BraceCommandToken;
 use crate::lexer::v1::DQStringToken;
 use crate::lexer::v1::HeredocToken;
 use crate::lexer::v1::SQStringToken;
 use crate::lexer::v1::Token;
-use crate::lexer::TokenSet;
 use crate::parser;
+use crate::parser::CompletedMarker;
+use crate::parser::Event;
+use crate::parser::Interpolator;
+use crate::parser::Marker;
+use crate::parser::ParserToken;
 use crate::parser::expected_found;
 use crate::parser::expected_one_of;
 use crate::parser::unmatched;
 use crate::parser::unterminated_braced_command;
 use crate::parser::unterminated_heredoc;
 use crate::parser::unterminated_string;
-use crate::parser::CompletedMarker;
-use crate::parser::Event;
-use crate::parser::Interpolator;
-use crate::parser::Marker;
-use crate::parser::ParserToken;
 use crate::tree::SyntaxKind;
-use crate::Diagnostic;
-use crate::Span;
 
 /// The parser type for the V1 grammar.
 pub type Parser<'a> = parser::Parser<'a, Token>;

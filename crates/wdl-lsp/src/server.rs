@@ -10,13 +10,13 @@ use notification::Progress;
 use parking_lot::RwLock;
 use request::WorkDoneProgressCreate;
 use serde_json::to_value;
+use tower_lsp::Client;
+use tower_lsp::LanguageServer;
+use tower_lsp::LspService;
 use tower_lsp::jsonrpc::Error as RpcError;
 use tower_lsp::jsonrpc::ErrorCode;
 use tower_lsp::jsonrpc::Result as RpcResult;
 use tower_lsp::lsp_types::*;
-use tower_lsp::Client;
-use tower_lsp::LanguageServer;
-use tower_lsp::LspService;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
@@ -431,25 +431,25 @@ impl LanguageServer for Server {
         };
 
         // Notify the analyzer that the document has changed
-        if let Err(e) = self.analyzer.notify_incremental_change(
-            params.text_document.uri,
-            IncrementalChange {
-                version: params.text_document.version,
-                start,
-                edits: changes
-                    .iter_mut()
-                    .map(|e| {
-                        let range = e.range.expect("edit should be after the last full change");
-                        SourceEdit::new(
-                            SourcePosition::new(range.start.line, range.start.character)
-                                ..SourcePosition::new(range.end.line, range.end.character),
-                            SourcePositionEncoding::UTF16,
-                            mem::take(&mut e.text),
-                        )
-                    })
-                    .collect(),
-            },
-        ) {
+        if let Err(e) =
+            self.analyzer
+                .notify_incremental_change(params.text_document.uri, IncrementalChange {
+                    version: params.text_document.version,
+                    start,
+                    edits: changes
+                        .iter_mut()
+                        .map(|e| {
+                            let range = e.range.expect("edit should be after the last full change");
+                            SourceEdit::new(
+                                SourcePosition::new(range.start.line, range.start.character)
+                                    ..SourcePosition::new(range.end.line, range.end.character),
+                                SourcePositionEncoding::UTF16,
+                                mem::take(&mut e.text),
+                            )
+                        })
+                        .collect(),
+                })
+        {
             error!("failed to notify incremental change: {e}");
         }
     }

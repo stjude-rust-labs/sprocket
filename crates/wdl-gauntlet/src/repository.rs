@@ -5,8 +5,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use faster_hex;
-use git2::build::RepoBuilder;
 use git2::FetchOptions;
+use git2::build::RepoBuilder;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde::Serialize;

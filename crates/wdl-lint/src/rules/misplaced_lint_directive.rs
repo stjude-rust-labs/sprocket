@@ -8,6 +8,7 @@ use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
+use wdl_ast::EXCEPT_COMMENT_PREFIX;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
@@ -15,12 +16,11 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
-use wdl_ast::EXCEPT_COMMENT_PREFIX;
 
-use crate::rules;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::rules;
 
 /// The identifier for the unknown rule rule.
 const ID: &str = "MisplacedLintDirective";

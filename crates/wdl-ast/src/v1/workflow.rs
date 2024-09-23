@@ -10,9 +10,6 @@ use super::LiteralString;
 use super::MetadataSection;
 use super::OutputSection;
 use super::ParameterMetadataSection;
-use crate::support::child;
-use crate::support::children;
-use crate::token;
 use crate::AstChildren;
 use crate::AstNode;
 use crate::AstToken;
@@ -21,6 +18,9 @@ use crate::SyntaxElement;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::WorkflowDescriptionLanguage;
+use crate::support::child;
+use crate::support::children;
+use crate::token;
 
 /// Represents a workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -911,11 +911,11 @@ impl AstNode for WorkflowHintsArray {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::v1::UnboundDecl;
     use crate::Document;
     use crate::SupportedVersion;
     use crate::VisitReason;
     use crate::Visitor;
+    use crate::v1::UnboundDecl;
 
     #[test]
     fn workflows() {

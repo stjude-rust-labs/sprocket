@@ -3,15 +3,15 @@
 use std::fmt;
 
 use super::Expr;
-use crate::support;
-use crate::support::child;
-use crate::token;
 use crate::AstNode;
 use crate::AstToken;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::WorkflowDescriptionLanguage;
+use crate::support;
+use crate::support::child;
+use crate::token;
 
 /// Represents a `Map` type.
 #[derive(Clone, Debug, Eq)]

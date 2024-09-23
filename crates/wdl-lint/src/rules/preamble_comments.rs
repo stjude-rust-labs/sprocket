@@ -5,13 +5,13 @@ use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
+use wdl_ast::EXCEPT_COMMENT_PREFIX;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::VersionStatement;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
-use wdl_ast::EXCEPT_COMMENT_PREFIX;
 
 use crate::Rule;
 use crate::Tag;

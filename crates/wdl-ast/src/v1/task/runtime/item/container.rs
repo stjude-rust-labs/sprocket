@@ -3,10 +3,10 @@
 use rowan::ast::AstNode;
 use wdl_grammar::WorkflowDescriptionLanguage;
 
+use crate::AstToken;
+use crate::v1::RuntimeItem;
 use crate::v1::common::container::value;
 use crate::v1::common::container::value::Value;
-use crate::v1::RuntimeItem;
-use crate::AstToken;
 
 /// The key name for a container runtime item.
 const CONTAINER_KEYS: &[&str] = &["container", "docker"];

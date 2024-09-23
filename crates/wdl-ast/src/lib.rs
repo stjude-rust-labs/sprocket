@@ -38,11 +38,10 @@
 
 use std::fmt;
 
-pub use rowan::ast::support;
+pub use rowan::Direction;
 pub use rowan::ast::AstChildren;
 pub use rowan::ast::AstNode;
-pub use rowan::Direction;
-pub use wdl_grammar::version;
+pub use rowan::ast::support;
 pub use wdl_grammar::Diagnostic;
 pub use wdl_grammar::Label;
 pub use wdl_grammar::Severity;
@@ -55,6 +54,7 @@ pub use wdl_grammar::SyntaxToken;
 pub use wdl_grammar::SyntaxTree;
 pub use wdl_grammar::ToSpan;
 pub use wdl_grammar::WorkflowDescriptionLanguage;
+pub use wdl_grammar::version;
 
 pub mod v1;
 

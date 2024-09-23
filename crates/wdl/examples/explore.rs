@@ -10,26 +10,26 @@ use std::io::IsTerminal;
 use std::path::Path;
 use std::path::PathBuf;
 
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use clap::Parser;
 use codespan_reporting::files::SimpleFile;
+use codespan_reporting::term::Config;
 use codespan_reporting::term::emit;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
-use codespan_reporting::term::Config;
-use wdl::ast::v1::InputSection;
-use wdl::ast::v1::MetadataSection;
-use wdl::ast::v1::OutputSection;
-use wdl::ast::v1::TaskDefinition;
-use wdl::ast::v1::WorkflowDefinition;
 use wdl::ast::Ast;
 use wdl::ast::AstNode;
 use wdl::ast::AstToken;
 use wdl::ast::Diagnostic;
 use wdl::ast::Document;
 use wdl::ast::Validator;
+use wdl::ast::v1::InputSection;
+use wdl::ast::v1::MetadataSection;
+use wdl::ast::v1::OutputSection;
+use wdl::ast::v1::TaskDefinition;
+use wdl::ast::v1::WorkflowDefinition;
 
 /// An example for exploring WDL source files.
 #[derive(Parser)]

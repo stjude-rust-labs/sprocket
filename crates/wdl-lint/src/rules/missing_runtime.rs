@@ -1,7 +1,5 @@
 //! A lint rule for missing `runtime` sections.
 
-use wdl_ast::v1::TaskDefinition;
-use wdl_ast::version::V1;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -13,6 +11,8 @@ use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::v1::TaskDefinition;
+use wdl_ast::version::V1;
 
 use crate::Rule;
 use crate::Tag;

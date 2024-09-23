@@ -3,14 +3,14 @@
 use super::MetadataSection;
 use super::ParameterMetadataSection;
 use super::UnboundDecl;
-use crate::support::children;
-use crate::token;
 use crate::AstChildren;
 use crate::AstNode;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::WorkflowDescriptionLanguage;
+use crate::support::children;
+use crate::token;
 
 /// Represents a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -121,12 +121,12 @@ impl AstNode for StructItem {
 mod test {
     use pretty_assertions::assert_eq;
 
-    use crate::v1::StructDefinition;
     use crate::AstToken;
     use crate::Document;
     use crate::SupportedVersion;
     use crate::VisitReason;
     use crate::Visitor;
+    use crate::v1::StructDefinition;
 
     #[test]
     fn struct_definitions() {

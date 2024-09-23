@@ -13,10 +13,10 @@ use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::Whitespace;
 
-use crate::util::lines_with_offset;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::lines_with_offset;
 
 /// The identifier for the whitespace rule.
 const ID: &str = "Whitespace";

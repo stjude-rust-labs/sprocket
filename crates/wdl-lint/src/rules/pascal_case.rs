@@ -3,7 +3,6 @@
 use convert_case::Boundary;
 use convert_case::Case;
 use convert_case::Converter;
-use wdl_ast::v1::StructDefinition;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -15,6 +14,7 @@ use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::v1::StructDefinition;
 
 use crate::Rule;
 use crate::Tag;

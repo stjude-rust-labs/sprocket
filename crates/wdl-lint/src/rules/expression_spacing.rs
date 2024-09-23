@@ -1,8 +1,6 @@
 //! A lint rule for spacing of expressions.
 
 use rowan::Direction;
-use wdl_ast::v1::Expr;
-use wdl_ast::v1::LiteralExpr;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
@@ -14,6 +12,8 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::v1::Expr;
+use wdl_ast::v1::LiteralExpr;
 
 use crate::Rule;
 use crate::Tag;

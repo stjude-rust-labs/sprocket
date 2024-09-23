@@ -378,10 +378,10 @@ mod test {
             .optional();
         assert!(constraint.satisfied(&types, ty));
 
-        let ty = types.add_struct(StructType::new(
-            "Foo",
-            [("foo", PrimitiveTypeKind::Directory)],
-        ));
+        let ty = types.add_struct(StructType::new("Foo", [(
+            "foo",
+            PrimitiveTypeKind::Directory,
+        )]));
         assert!(constraint.satisfied(&types, ty));
     }
 

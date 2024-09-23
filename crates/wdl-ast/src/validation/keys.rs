@@ -3,15 +3,6 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use crate::v1::Expr;
-use crate::v1::LiteralExpr;
-use crate::v1::MetadataObject;
-use crate::v1::MetadataSection;
-use crate::v1::ParameterMetadataSection;
-use crate::v1::RequirementsSection;
-use crate::v1::RuntimeSection;
-use crate::v1::TaskHintsSection;
-use crate::v1::WorkflowHintsSection;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
@@ -22,6 +13,15 @@ use crate::SupportedVersion;
 use crate::TokenStrHash;
 use crate::VisitReason;
 use crate::Visitor;
+use crate::v1::Expr;
+use crate::v1::LiteralExpr;
+use crate::v1::MetadataObject;
+use crate::v1::MetadataSection;
+use crate::v1::ParameterMetadataSection;
+use crate::v1::RequirementsSection;
+use crate::v1::RuntimeSection;
+use crate::v1::TaskHintsSection;
+use crate::v1::WorkflowHintsSection;
 
 /// Represents context about a unique key validation error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,6 +1,5 @@
 //! Ensures that lines do not exceed a certain width.
 
-use wdl_ast::v1;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
@@ -11,6 +10,7 @@ use wdl_ast::SyntaxElement;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::Whitespace;
+use wdl_ast::v1;
 
 use crate::Rule;
 use crate::Tag;

@@ -6,9 +6,9 @@
 //!
 //! ```rust
 //! # let source = "version 1.1\nworkflow test {}";
+//! use wdl_lint::LintVisitor;
 //! use wdl_lint::ast::Document;
 //! use wdl_lint::ast::Validator;
-//! use wdl_lint::LintVisitor;
 //!
 //! let (document, diagnostics) = Document::parse(source);
 //! if !diagnostics.is_empty() {

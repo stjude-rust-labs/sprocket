@@ -7,11 +7,11 @@ use wdl_grammar::SyntaxElement;
 use wdl_grammar::SyntaxKind;
 use wdl_grammar::SyntaxNode;
 
-use super::v1;
 use super::Comment;
 use super::Diagnostic;
 use super::VisitReason;
 use super::Whitespace;
+use super::v1;
 use crate::Document;
 use crate::SupportedVersion;
 use crate::VersionStatement;

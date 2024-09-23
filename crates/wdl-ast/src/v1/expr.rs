@@ -1,9 +1,5 @@
 //! V1 AST representation for expressions.
 
-use crate::support;
-use crate::support::child;
-use crate::support::children;
-use crate::token;
 use crate::AstChildren;
 use crate::AstNode;
 use crate::AstToken;
@@ -13,6 +9,10 @@ use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::SyntaxToken;
 use crate::WorkflowDescriptionLanguage;
+use crate::support;
+use crate::support::child;
+use crate::support::children;
+use crate::token;
 
 /// Represents an expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -3428,19 +3428,16 @@ task test {
 
         let mut visitor = MyVisitor(Vec::new());
         document.visit(&mut (), &mut visitor);
-        assert_eq!(
-            visitor.0,
-            [
-                Some(0),
-                Some(1234),
-                Some(668),
-                Some(4660),
-                Some(15),
-                Some(9223372036854775807),
-                None,
-                None,
-            ]
-        );
+        assert_eq!(visitor.0, [
+            Some(0),
+            Some(1234),
+            Some(668),
+            Some(4660),
+            Some(15),
+            Some(9223372036854775807),
+            None,
+            None,
+        ]);
     }
 
     #[test]

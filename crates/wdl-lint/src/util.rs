@@ -73,16 +73,13 @@ mod test {
         let s = "This string\nhas many\n\nnewlines, including Windows\r\n\r\nand even a \r that \
                  should not be a newline\n";
         let lines = lines_with_offset(s).collect::<Vec<_>>();
-        assert_eq!(
-            lines,
-            &[
-                ("This string", 0, 12),
-                ("has many", 12, 21),
-                ("", 21, 22),
-                ("newlines, including Windows", 22, 51),
-                ("", 51, 53),
-                ("and even a \r that should not be a newline", 53, 95),
-            ]
-        );
+        assert_eq!(lines, &[
+            ("This string", 0, 12),
+            ("has many", 12, 21),
+            ("", 21, 22),
+            ("newlines, including Windows", 22, 51),
+            ("", 51, 53),
+            ("and even a \r that should not be a newline", 53, 95),
+        ]);
     }
 }

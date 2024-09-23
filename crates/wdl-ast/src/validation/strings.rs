@@ -1,15 +1,12 @@
 //! Validation of string literals in an AST.
 
-use rowan::ast::support::children;
 use rowan::ast::AstChildren;
 use rowan::ast::AstNode;
+use rowan::ast::support::children;
+use wdl_grammar::ToSpan;
 use wdl_grammar::lexer::v1::EscapeToken;
 use wdl_grammar::lexer::v1::Logos;
-use wdl_grammar::ToSpan;
 
-use crate::v1;
-use crate::v1::LiteralStringKind;
-use crate::v1::PlaceholderOption;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
@@ -18,6 +15,9 @@ use crate::Span;
 use crate::SupportedVersion;
 use crate::VisitReason;
 use crate::Visitor;
+use crate::v1;
+use crate::v1::LiteralStringKind;
+use crate::v1::PlaceholderOption;
 
 /// Creates an "unknown escape sequence" diagnostic
 fn unknown_escape_sequence(sequence: &str, span: Span) -> Diagnostic {

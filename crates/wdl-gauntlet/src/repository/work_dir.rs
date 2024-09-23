@@ -5,8 +5,8 @@ use std::path::Path;
 use indexmap::IndexMap;
 use tempfile::TempDir;
 
-use crate::repository::identifier::Identifier;
 use crate::repository::Repository;
+use crate::repository::identifier::Identifier;
 
 /// A working directory for storing `Repository` files.
 #[derive(Debug)]

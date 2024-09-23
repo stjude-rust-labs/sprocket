@@ -8,10 +8,10 @@ use std::fmt;
 use rowan::GreenNodeBuilder;
 use rowan::GreenNodeData;
 
+use super::Diagnostic;
 use super::grammar;
 use super::lexer::Lexer;
 use super::parser::Event;
-use super::Diagnostic;
 use crate::parser::Parser;
 
 /// Represents the kind of syntax element (node or token) in a WDL concrete

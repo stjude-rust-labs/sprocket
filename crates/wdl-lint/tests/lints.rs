@@ -23,8 +23,8 @@ use std::sync::atomic::Ordering;
 
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term;
-use codespan_reporting::term::termcolor::Buffer;
 use codespan_reporting::term::Config;
+use codespan_reporting::term::termcolor::Buffer;
 use colored::Colorize;
 use pretty_assertions::StrComparison;
 use rayon::prelude::*;

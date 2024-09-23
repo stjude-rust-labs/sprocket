@@ -9,12 +9,12 @@ use std::fmt;
 
 use logos::Logos;
 
+use super::Diagnostic;
+use super::Span;
 use super::lexer::Lexer;
 use super::lexer::LexerResult;
 use super::lexer::TokenSet;
 use super::tree::SyntaxKind;
-use super::Diagnostic;
-use super::Span;
 
 /// Represents an event produced by the parser.
 ///

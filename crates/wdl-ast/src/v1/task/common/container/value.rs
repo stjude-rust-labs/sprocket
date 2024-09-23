@@ -297,8 +297,8 @@ impl TryFrom<Expr> for Value {
 
 #[cfg(test)]
 mod tests {
-    use crate::v1::task::requirements::item::container::Container;
     use crate::Document;
+    use crate::v1::task::requirements::item::container::Container;
 
     fn get_container(document: Document) -> Container {
         document

@@ -9,13 +9,13 @@ use std::time::Instant;
 
 use anyhow::Context;
 use anyhow::Result;
-use futures::stream::FuturesUnordered;
 use futures::Future;
 use futures::StreamExt;
+use futures::stream::FuturesUnordered;
 use indexmap::IndexSet;
 use parking_lot::RwLock;
-use petgraph::graph::NodeIndex;
 use petgraph::Direction;
+use petgraph::graph::NodeIndex;
 use reqwest::Client;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -26,15 +26,15 @@ use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::AstToken;
 
+use crate::AnalysisResult;
+use crate::IncrementalChange;
+use crate::ProgressKind;
 use crate::graph::Analysis;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::rayon::RayonHandle;
 use crate::scope::DocumentScope;
-use crate::AnalysisResult;
-use crate::IncrementalChange;
-use crate::ProgressKind;
 
 /// The minimum number of milliseconds between analysis progress reports.
 const MINIMUM_PROGRESS_MILLIS: u128 = 50;

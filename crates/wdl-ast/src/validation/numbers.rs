@@ -1,8 +1,5 @@
 //! Validation of number literals in an AST.
 
-use crate::support;
-use crate::v1::Expr;
-use crate::v1::LiteralExpr;
 use crate::AstNode;
 use crate::AstToken;
 use crate::Diagnostic;
@@ -14,6 +11,9 @@ use crate::SyntaxKind;
 use crate::ToSpan;
 use crate::VisitReason;
 use crate::Visitor;
+use crate::support;
+use crate::v1::Expr;
+use crate::v1::LiteralExpr;
 
 /// Creates an "integer not in range" diagnostic
 fn integer_not_in_range(span: Span) -> Diagnostic {

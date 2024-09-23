@@ -1,11 +1,9 @@
 //! Validation of supported syntax for WDL versions.
 
 use rowan::ast::support::token;
-use wdl_grammar::version::V1;
 use wdl_grammar::ToSpan;
+use wdl_grammar::version::V1;
 
-use crate::v1;
-use crate::v1::Expr;
 use crate::AstNode;
 use crate::Diagnostic;
 use crate::Diagnostics;
@@ -15,6 +13,8 @@ use crate::SupportedVersion;
 use crate::SyntaxKind;
 use crate::VisitReason;
 use crate::Visitor;
+use crate::v1;
+use crate::v1::Expr;
 
 /// Creates an "exponentiation requirement" diagnostic.
 fn exponentiation_requirement(span: Span) -> Diagnostic {

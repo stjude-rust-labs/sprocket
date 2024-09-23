@@ -1,8 +1,5 @@
 //! A lint rule to ensure a description is included in `meta` sections.
 
-use wdl_ast::v1::MetadataSection;
-use wdl_ast::v1::SectionParent;
-use wdl_ast::version::V1;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -15,6 +12,9 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::v1::MetadataSection;
+use wdl_ast::v1::SectionParent;
+use wdl_ast::version::V1;
 
 use crate::Rule;
 use crate::Tag;
