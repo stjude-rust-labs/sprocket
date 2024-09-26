@@ -2,6 +2,7 @@
 
   * [ ] Update version in `Cargo.toml`.
   * [ ] Update `CHANGELOG.md` with version and publication date.
+  * [ ] Update the [docs site](https://stjude-rust-labs.github.io/sprocket/) to the new version ([here](https://github.com/stjude-rust-labs/sprocket/blob/main/docs/.vitepress/config.mts#L17))
     * To get the changes to the crate since the last release, you can use a
       command like the following:
       ```bash
