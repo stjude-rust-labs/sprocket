@@ -1,10 +1,12 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing, Todo, MissingRequirements
+#@ except: DescriptionMissing, Todo, MissingRequirements
+
 ## This is a test of the `ContainerValue` lint.
 
 version 1.2
 
 task a {
     meta {}
+
     parameter_meta {}
 
     command <<<
@@ -21,6 +23,7 @@ task a {
 
 task b {
     meta {}
+
     parameter_meta {}
 
     command <<<
@@ -37,6 +40,7 @@ task b {
 
 task c {
     meta {}
+
     parameter_meta {}
 
     command <<<
@@ -53,6 +57,7 @@ task c {
 
 task d {
     meta {}
+
     parameter_meta {}
 
     command <<<
@@ -70,6 +75,7 @@ task d {
 
 task e {
     meta {}
+
     parameter_meta {}
 
     command <<<
@@ -79,7 +85,7 @@ task e {
     output {}
 
     runtime {
-        # This is the same as task a but with the deprecated 'docker' key name, so it
+        # This is the same as `task a` but with the deprecated 'docker' key name, so it
         # should be flagged as missing a tag.
         docker: "ubuntu"
     }
@@ -87,6 +93,7 @@ task e {
 
 task f {
     meta {}
+
     parameter_meta {}
 
     command <<<
@@ -96,7 +103,7 @@ task f {
     output {}
 
     runtime {
-        # This is the same as task b but with the deprecated 'docker' key name, so it
+        # This is the same as `task b` but with the deprecated 'docker' key name, so it
         # should be flagged as a mutable tag.
         docker: "ubuntu:latest"
     }
@@ -104,6 +111,7 @@ task f {
 
 task g {
     meta {}
+
     parameter_meta {}
 
     command <<<
@@ -120,6 +128,7 @@ task g {
 
 task h {
     meta {}
+
     parameter_meta {}
 
     command <<<
@@ -136,6 +145,7 @@ task h {
 
 task i {
     meta {}
+
     parameter_meta {}
 
     command <<<
@@ -152,6 +162,7 @@ task i {
 
 task j {
     meta {}
+
     parameter_meta {}
 
     command <<<
@@ -168,6 +179,7 @@ task j {
 
 task k {
     meta {}
+
     parameter_meta {}
 
     command <<<
@@ -183,6 +195,7 @@ task k {
 
 task l {
     meta {}
+
     parameter_meta {
         image: "The docker image to use"
     }

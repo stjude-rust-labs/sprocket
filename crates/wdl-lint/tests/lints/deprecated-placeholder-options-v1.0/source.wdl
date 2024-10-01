@@ -1,5 +1,3 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing,RuntimeSectionKeys
-##
 ## This is a test of the `DeprecatedPlaceholderOption` lint.
 
 version 1.0
@@ -7,6 +5,7 @@ version 1.0
 # None of these lints should trigger as the version is WDL v1.0 (prior to
 # placeholder options being deprecated).
 task a_task {
+    #@ except: DescriptionMissing
     meta {}
 
     String bad_sep_option = "~{sep="," numbers}"
@@ -20,5 +19,7 @@ task a_task {
     >>>
 
     output {}
+
+    #@ except: RuntimeSectionKeys
     runtime {}
 }

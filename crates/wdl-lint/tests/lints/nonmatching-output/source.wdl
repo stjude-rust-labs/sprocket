@@ -1,4 +1,4 @@
-#@ except: BlankLinesBetweenElements, CommentWhitespace, DescriptionMissing, DisallowedOutputName, LineWidth, MissingRuntime, TrailingComma
+#@ except: DescriptionMissing, DisallowedOutputName, MissingRuntime
 
 version 1.1
 
@@ -9,7 +9,9 @@ task foo {
             out: "String output of task foo"
         }
     }
+
     command <<< >>>
+
     output {
         String out = read_string(stdout())
     }
@@ -18,7 +20,9 @@ task foo {
 # This task should trigger a warning for missing `meta.outputs`.
 task bar {
     meta {}
+
     command <<< >>>
+
     output {
         String s = "hello"
     }
@@ -31,7 +35,9 @@ task baz {
             s: "String output of task baz"
         }
     }
+
     command <<< >>>
+
     output {
         String s = "hello"
         String t = "world"
@@ -46,7 +52,9 @@ task qux {
             s: "s",
         }
     }
+
     command <<< >>>
+
     output {
         String s = "hello"
         String t = "world"
@@ -59,10 +67,12 @@ task quux {
         outputs: {
             s: "s",
             t: "t",
-            v: "v"
+            v: "v",
         }
     }
+
     command <<< >>>
+
     output {
         String s = "hello"
         String t = "world"
@@ -75,7 +85,9 @@ task corge {
     meta {
         outputs: "string"
     }
+
     command <<< >>>
+
     output {
         String s = "hello"
         String t = "world"
@@ -86,24 +98,25 @@ task corge {
 # This task should not trigger any warnings.
 task grault {
     meta {}
+
     command <<< >>>
-    output {} # There should be no warnings here.
+
+    output {}  # There should be no warnings here.
 }
 
-# This task should not trigger a warning due to `#@ except`.
 task garply {
-    # except works here
     meta {
-        # except doesn't work here. In fact, this triggers a missing "outputs" warning.
         outputs: {
             s: "s",
             t: "t",
-            # This also works
+            # The next lint directive will _not_ work.
             #@ except: NonmatchingOutput
-            v: "v"
+            v: "v",
         }
     }
+
     command <<< >>>
+
     output {
         String s = "hello"
         String t = "world"
@@ -117,10 +130,12 @@ task garply2 {
         outputs: {
             s: "s",
             t: "t",
-            v: "v"
+            v: "v",
         }
     }
+
     command <<< >>>
+
     output {
         String s = "hello"
         String t = "world"
@@ -136,7 +151,9 @@ task waldo {
             t: "t",
         }
     }
+
     command <<< >>>
+
     output {
         String s = "hello"
         String t = "world"
@@ -153,7 +170,9 @@ task waldo2 {
             t: "t",
         }
     }
+
     command <<< >>>
+
     output {
         String s = "hello"
         String t = "world"
@@ -167,10 +186,12 @@ task quuux {
         outputs: {
             s: "s",
             t: "t",
-            v: "v"
+            v: "v",
         }
     }
+
     command <<< >>>
+
     output {}
 }
 
@@ -181,11 +202,13 @@ task quuuux {
             # another comment
             s: {
                 # adding a comment
-                description: "s"
+                description: "s",
             },
         }
     }
+
     command <<< >>>
+
     output {
         String s = "string"
     }

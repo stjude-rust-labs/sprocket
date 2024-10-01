@@ -1,27 +1,33 @@
-#@ except: BlankLinesBetweenElements, CommentWhitespace, ContainerValue
-#@ except: DescriptionMissing, MissingRequirements
+#@ except: DescriptionMissing, ContainerValue
 
 version 1.1
 
 task a_task_with_no_keys {
     meta {}
+
     command <<<>>>
+
     output {}
-    runtime {} # Missing every recommended runtime key, so many keys should be
-               # flagged here.
+
+    runtime {}  # Missing `container` key
 }
 
 task a_task_with_no_keys_but_they_are_excepted {
     meta {}
+
     command <<<>>>
+
     output {}
+
     #@ except: RuntimeSectionKeys
-    runtime {} # No errors should show.
+    runtime {}  # No errors should show.
 }
 
 task a_task_with_all_keys {
     meta {}
+
     command <<<>>>
+
     output {}
 
     runtime {
@@ -37,8 +43,11 @@ task a_task_with_all_keys {
 
 task a_task_with_one_extra_key {
     meta {}
+
     command <<<>>>
+
     output {}
+
     runtime {
         container: "ubuntu"
         cpu: 1
@@ -53,8 +62,11 @@ task a_task_with_one_extra_key {
 
 task a_task_with_two_extra_keys {
     meta {}
+
     command <<<>>>
+
     output {}
+
     runtime {
         container: "ubuntu"
         cpu: 1

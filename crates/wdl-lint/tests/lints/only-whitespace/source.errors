@@ -1,58 +1,66 @@
 note[Whitespace]: line contains only whitespace
-  ┌─ tests/lints/only-whitespace/source.wdl:7:1
+  ┌─ tests/lints/only-whitespace/source.wdl:6:1
   │
-7 │     
+6 │     
   │ ^^^^
   │
   = fix: remove the whitespace from this line
 
 note[Whitespace]: line contains only whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:10:1
-   │
-10 │           
-   │ ^^^^^^^^^^
-   │
-   = fix: remove the whitespace from this line
+  ┌─ tests/lints/only-whitespace/source.wdl:9:1
+  │
+9 │           
+  │ ^^^^^^^^^^
+  │
+  = fix: remove the whitespace from this line
 
 note[Whitespace]: more than one blank line in a row
-   ┌─ tests/lints/only-whitespace/source.wdl:10:1
+   ┌─ tests/lints/only-whitespace/source.wdl:9:1
    │  
-10 │ ╭           
+ 9 │ ╭           
+10 │ │ 
 11 │ │ 
-12 │ │ 
-13 │ │ workflow test {    
+12 │ │ workflow test {    
    │ ╰^
    │  
    = fix: remove the unnecessary blank lines
 
 note[Whitespace]: line contains trailing whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:13:16
+   ┌─ tests/lints/only-whitespace/source.wdl:12:16
    │
-13 │ workflow test {    
+12 │ workflow test {    
    │                ^^^^
    │
    = fix: remove this trailing whitespace
 
-note[Whitespace]: line contains only whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:14:1
+note[Whitespace]: line contains trailing whitespace
+   ┌─ tests/lints/only-whitespace/source.wdl:14:34
    │
-14 │     
+14 │     #@ except: DescriptionMissing        
+   │                                  ^^^^^^^^
+   │
+   = fix: remove this trailing whitespace
+
+note[Whitespace]: line contains only whitespace
+   ┌─ tests/lints/only-whitespace/source.wdl:16:1
+   │
+16 │     
    │ ^^^^
    │
    = fix: remove the whitespace from this line
 
 note[Whitespace]: line contains trailing whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:18:18
+   ┌─ tests/lints/only-whitespace/source.wdl:19:18
    │
-18 │     String x = ""           
+19 │     String x = ""           
    │                  ^^^^^^^^^^^
    │
    = fix: remove this trailing whitespace
 
 note[Whitespace]: line contains only whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:20:1
+   ┌─ tests/lints/only-whitespace/source.wdl:23:1
    │
-20 │      
+23 │      
    │ ^^^^^
    │
    = fix: remove the whitespace from this line

@@ -21,7 +21,7 @@ const ID: &str = "EndingNewline";
 
 /// Creates a "missing ending newline" diagnostic.
 fn missing_ending_newline(span: Span) -> Diagnostic {
-    Diagnostic::warning("missing newline at the end of the file")
+    Diagnostic::note("missing newline at the end of the file")
         .with_rule(ID)
         .with_label("expected a newline to follow this", span)
         .with_fix("add an empty line at the end of the file")
@@ -29,7 +29,7 @@ fn missing_ending_newline(span: Span) -> Diagnostic {
 
 /// Creates a "multiple ending newline" diagnostic.
 fn multiple_ending_newline(span: Span, count: usize) -> Diagnostic {
-    Diagnostic::warning("multiple empty lines at the end of file")
+    Diagnostic::note("multiple empty lines at the end of file")
         .with_rule(ID)
         .with_label(
             if count > 1 {

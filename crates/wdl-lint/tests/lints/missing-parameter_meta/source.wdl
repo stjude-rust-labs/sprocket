@@ -1,11 +1,12 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing, SectionOrdering
-
 version 1.0
 
 workflow test {
-    input {}
-    output {}
+    #@ except: DescriptionMissing
     meta {}
+
+    input {}
+
+    output {}
 }
 
 # This should not have diagnostics for <= 1.2

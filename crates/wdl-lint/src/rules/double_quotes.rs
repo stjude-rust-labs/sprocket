@@ -24,7 +24,7 @@ const ID: &str = "DoubleQuotes";
 
 /// Creates a "use double quotes" diagnostic.
 fn use_double_quotes(span: Span) -> Diagnostic {
-    Diagnostic::warning("string defined with single quotes")
+    Diagnostic::note("string defined with single quotes")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("change the single quotes to double quotes")

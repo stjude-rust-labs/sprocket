@@ -1,4 +1,3 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing, SectionOrdering
 ## This is a test of lines that only contain whitespace
 
 version 1.1
@@ -11,10 +10,14 @@ version 1.1
 
 
 workflow test {    
-    
+    # lines above and below have trailing whitespace
+    #@ except: DescriptionMissing        
     meta {}
+    
     parameter_meta {}
-    output {}
+
     String x = ""           
+
+    output {}
 }
      

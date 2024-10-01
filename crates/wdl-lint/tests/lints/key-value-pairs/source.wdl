@@ -1,4 +1,4 @@
-#@ except: MatchingParameterMeta, MissingRequirements, TrailingComma
+#@ except: MatchingParameterMeta, MissingRequirements
 
 version 1.2
 
@@ -6,7 +6,7 @@ task foo {
     meta {
         description: "test for key-value pairs"
         another_key: ["value1",
-        "value2", "value3"]
+        "value2", "value3",]
         more_key: {d: "a",
             e: "b",}
         complex_key: {
@@ -17,7 +17,7 @@ task foo {
                 i: "j",
                 },
             k: ["l",
-                "m", "n"],
+                "m", "n",],
             o: ["p",
                 "q",
                 "r",
@@ -31,9 +31,9 @@ task foo {
         strandedness: {
             description: "Strandedness protocol of the RNA-Seq experiment",
             external_help: "https://htseq.readthedocs.io/en/latest/htseqcount.html#cmdoption-htseq-count-s",
-            choices: ["yes", "reverse", "no"]
+            choices: ["yes", "reverse", "no",]
         }
-        minaqual: {description: "Skip all reads with alignment quality lower than the given minimum value", common: true}
+        minaqual: {description: "Skip all reads with alignment quality lower than the given minimum value", common: true,}
         modify_memory_gb: "Add to or subtract from dynamic memory allocation. Default memory is determined by the size of the inputs. Specified in GB."
         modify_disk_size_gb: "Add to or subtract from dynamic disk space allocation. Default disk size is determined by the size of the inputs. Specified in GB."
    }

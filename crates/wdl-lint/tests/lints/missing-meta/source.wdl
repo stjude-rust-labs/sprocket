@@ -1,13 +1,16 @@
-#@ except: BlankLinesBetweenElements, RuntimeSectionKeys, SectionOrdering
-
 version 1.0
 
 task test {
-    runtime {}
-    command <<<>>>
-    input {}
     parameter_meta {}
+
+    input {}
+
+    command <<<>>>
+
     output {}
+
+    #@ except: RuntimeSectionKeys
+    runtime {}
 }
 
 # This should not have diagnostics for <= 1.2

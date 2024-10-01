@@ -1,9 +1,0 @@
-note[PreambleWhitespace]: unnecessary whitespace in document preamble
-  ┌─ tests/lints/ws-after-blank-line/source.wdl:4:1
-  │  
-4 │ ╭      
-5 │ │ version 1.1
-  │ ╰^
-  │  
-  = fix: remove the unnecessary whitespace
-

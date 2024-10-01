@@ -1,7 +1,7 @@
 note[MissingMetas]: workflow `test` is missing a `parameter_meta` section
-  ┌─ tests/lints/missing-parameter_meta/source.wdl:5:10
+  ┌─ tests/lints/missing-parameter_meta/source.wdl:3:10
   │
-5 │ workflow test {
+3 │ workflow test {
   │          ^^^^ this workflow is missing a `parameter_meta` section
   │
   = fix: add a `parameter_meta` section to the workflow

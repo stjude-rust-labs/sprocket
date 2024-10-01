@@ -80,8 +80,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<rules::SnakeCaseRule>::default(),
         Box::<rules::MissingRuntimeRule>::default(),
         Box::<rules::EndingNewlineRule>::default(),
-        Box::<rules::PreambleWhitespaceRule>::default(),
-        Box::<rules::PreambleCommentsRule>::default(),
+        Box::<rules::PreambleFormattingRule>::default(),
         Box::<rules::MatchingParameterMetaRule>::default(),
         Box::<rules::WhitespaceRule>::default(),
         Box::<rules::CommandSectionMixedIndentationRule>::default(),
@@ -112,7 +111,9 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<rules::ContainerValue>::default(),
         Box::<rules::MissingRequirementsRule>::default(),
         Box::<rules::UnknownRule>::default(),
-        Box::<rules::MisplacedLintDirective>::default(),
+        Box::<rules::MisplacedLintDirectiveRule>::default(),
+        Box::<rules::VersionFormattingRule>::default(),
+        Box::<rules::PreambleCommentAfterVersionRule>::default(),
     ];
 
     // Ensure all the rule ids are unique and pascal case

@@ -1,4 +1,3 @@
-#@ except: BlankLinesBetweenElements, CommentWhitespace, DescriptionMissing
 ## This is a normal preamble comment.
        ## Bad leading whitespace!
 
@@ -18,6 +17,8 @@ version 1.1
 
 workflow test {
     ## This one is bad!
+    #@ except: DescriptionMissing
     meta {}
+
     output {}
 }

@@ -1,23 +1,23 @@
 note[DeprecatedObject]: use of a deprecated `Object` type
-   ┌─ tests/lints/deprecated-object/source.wdl:10:9
+   ┌─ tests/lints/deprecated-object/source.wdl:11:9
    │
-10 │         Object an_unbound_literal_object
+11 │         Object an_unbound_literal_object
    │         ^^^^^^
    │
    = fix: replace the `Object` with a `Map` or a `Struct`
 
 note[DeprecatedObject]: use of a deprecated `Object` type
-   ┌─ tests/lints/deprecated-object/source.wdl:13:5
+   ┌─ tests/lints/deprecated-object/source.wdl:14:5
    │
-13 │     Object a_bound_literal_object = object {
+14 │     Object a_bound_literal_object = object {
    │     ^^^^^^
    │
    = fix: replace the `Object` with a `Map` or a `Struct`
 
 note[DeprecatedObject]: use of a deprecated `Object` type
-   ┌─ tests/lints/deprecated-object/source.wdl:19:9
+   ┌─ tests/lints/deprecated-object/source.wdl:20:9
    │
-19 │         Object another_bound_literal_object = object {
+20 │         Object another_bound_literal_object = object {
    │         ^^^^^^
    │
    = fix: replace the `Object` with a `Map` or a `Struct`

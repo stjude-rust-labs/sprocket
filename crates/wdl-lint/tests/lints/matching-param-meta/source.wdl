@@ -1,4 +1,5 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing, LineWidth, RuntimeSectionKeys, SectionOrdering, TrailingComma
+#@ except: DescriptionMissing, RuntimeSectionKeys
+
 ## This is a test for checking for missing and extraneous entries
 ## in a `parameter_meta` section.
 
@@ -6,10 +7,6 @@ version 1.1
 
 task t {
     meta {}
-    input {
-        String matching
-        String does_not_exist
-    }
 
     parameter_meta {
         matching: {
@@ -17,24 +14,26 @@ task t {
             foo: {
                 bar: {
                     does_not_exist: "this should not suppress a missing input lint"
-                }
-            }
+                },
+            },
         }
         extra: "this should not be here"
     }
 
-    runtime {}
+    input {
+        String matching
+        String does_not_exist
+    }
+
     command <<<>>>
+
     output {}
+
+    runtime {}
 }
 
 workflow w {
     meta {}
-    output {}
-    input {
-        String matching
-        String does_not_exist
-    }
 
     parameter_meta {
         matching: {
@@ -42,9 +41,16 @@ workflow w {
             foo: {
                 bar: {
                     does_not_exist: "this should not suppress a missing input lint"
-                }
-            }
+                },
+            },
         }
         extra: "this should not be here"
     }
+
+    input {
+        String matching
+        String does_not_exist
+    }
+
+    output {}
 }

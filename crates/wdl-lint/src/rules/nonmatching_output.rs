@@ -63,7 +63,7 @@ fn extra_output_in_meta(span: Span, name: &str, item_name: &str, ty: &str) -> Di
 
 /// Creates a diagnostic for out-of-order entries.
 fn out_of_order(span: Span, output_span: Span, item_name: &str, ty: &str) -> Diagnostic {
-    Diagnostic::warning(format!(
+    Diagnostic::note(format!(
         "`outputs` section of `meta` for the {ty} `{item_name}` is out of order"
     ))
     .with_rule(ID)

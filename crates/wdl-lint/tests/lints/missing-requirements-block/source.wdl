@@ -1,30 +1,34 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing, SectionOrdering
+#@ except: DescriptionMissing
 
 version 1.2
 
 task bad {
     meta {}
-    output {}
+
     command <<<>>>
+
+    output {}
 }
 
 task good {
     meta {}
-    output {}
+
     command <<<>>>
 
-    requirements {
+    output {}
 
+    requirements {
     }
 }
 
 task deprecated_runtime {
     meta {}
-    output {}
+
     command <<<>>>
+
+    output {}
 
     # This `runtime` section should be flagged as deprecated.
     runtime {
-
     }
 }

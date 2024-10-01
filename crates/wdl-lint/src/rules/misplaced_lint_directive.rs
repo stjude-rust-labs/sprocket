@@ -65,9 +65,9 @@ pub static RULE_MAP: LazyLock<HashMap<&'static str, Option<&'static [SyntaxKind]
 
 /// Detects unknown rules within lint directives.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct MisplacedLintDirective;
+pub struct MisplacedLintDirectiveRule;
 
-impl Rule for MisplacedLintDirective {
+impl Rule for MisplacedLintDirectiveRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -91,7 +91,7 @@ impl Rule for MisplacedLintDirective {
     }
 }
 
-impl Visitor for MisplacedLintDirective {
+impl Visitor for MisplacedLintDirectiveRule {
     type State = Diagnostics;
 
     fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document, _: SupportedVersion) {

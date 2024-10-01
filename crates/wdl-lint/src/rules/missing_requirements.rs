@@ -24,7 +24,7 @@ const ID: &str = "MissingRequirements";
 
 /// Creates a "deprecated runtime section" diagnostic.
 fn deprecated_runtime_section(task: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(format!(
+    Diagnostic::note(format!(
         "task `{task}` contains a deprecated `runtime` section"
     ))
     .with_rule(ID)

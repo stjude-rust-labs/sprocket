@@ -1,19 +1,15 @@
-note[PreambleWhitespace]: unnecessary whitespace in document preamble
-  ┌─ tests/lints/ws-preamble-comments/source.wdl:3:1
+note[PreambleFormatting]: unnecessary whitespace in document preamble
+  ┌─ tests/lints/ws-preamble-comments/source.wdl:4:1
   │  
-3 │ ╭ 
-4 │ │   
-5 │ │ ## The above lines should be a warning, as well as below
+4 │ ╭ 
+5 │ │   
+6 │ │ ## The above lines should be a warning, as well as below
   │ ╰^
-  │  
-  = fix: remove the unnecessary whitespace
 
-note[PreambleWhitespace]: unnecessary whitespace in document preamble
-  ┌─ tests/lints/ws-preamble-comments/source.wdl:6:1
+note[PreambleFormatting]: unnecessary whitespace in document preamble
+  ┌─ tests/lints/ws-preamble-comments/source.wdl:7:1
   │  
-6 │ ╭ 
-7 │ │ ## Last comment
+7 │ ╭ 
+8 │ │ ## Last comment
   │ ╰^
-  │  
-  = fix: remove the unnecessary whitespace
 

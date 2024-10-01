@@ -1,16 +1,12 @@
-note[PreambleComments]: preamble comments must start with `##` followed by a space
-  ┌─ tests/lints/too-many-pounds-preamble/source.wdl:2:1
+note[PreambleFormatting]: preamble comments must start with `##` and have at least one space between the `##` and the comment text
+  ┌─ tests/lints/too-many-pounds-preamble/source.wdl:1:1
   │
-2 │ ### This comment has too many pound signs!
+1 │ ### This comment has too many pound signs!
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  │
-  = fix: change each preamble comment to start with `##` followed by a space
 
-note[PreambleComments]: preamble comments must start with `##` followed by a space
-  ┌─ tests/lints/too-many-pounds-preamble/source.wdl:4:1
+note[PreambleFormatting]: preamble comments must start with `##` and have at least one space between the `##` and the comment text
+  ┌─ tests/lints/too-many-pounds-preamble/source.wdl:3:1
   │
-4 │ ###### This comment also has too many pound signs!
+3 │ ###### This comment also has too many pound signs!
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  │
-  = fix: change each preamble comment to start with `##` followed by a space
 

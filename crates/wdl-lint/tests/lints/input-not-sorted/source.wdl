@@ -1,5 +1,5 @@
-#@ except: BlankLinesBetweenElements, DeprecatedObject, DescriptionMissing
-#@ except: DisallowedInputName, MissingRequirements, SectionOrdering, RuntimeSectionKeys
+#@ except: DescriptionMissing, DisallowedInputName, MissingRequirements
+#@ except: RuntimeSectionKeys
 
 version 1.2
 
@@ -11,6 +11,7 @@ struct Mystruct {
 
 workflow foo {
     meta {}
+
     parameter_meta {
         a: ""
         b: ""
@@ -37,6 +38,7 @@ workflow foo {
         w: ""
         x: ""
     }
+
     input {
         String g = "hello"
         Int? f = 2
@@ -51,6 +53,7 @@ workflow foo {
         Pair[File, Int] j
         Array[Int]? d
         Array[String] q
+        #@ except: DeprecatedObject
         Object v
         Map[String, Int]? k
         Map[String, Array[Int]]? l
@@ -63,11 +66,14 @@ workflow foo {
         Array[String]+ p
         mystruct u
     }
+
     output {}
 }
 
+#@ except: SectionOrdering
 task bar {
     meta {}
+
     parameter_meta {
         a: ""
         b: ""
@@ -92,6 +98,7 @@ task bar {
         w: ""
         x: ""
     }
+
     input {
         String g = "hello"
         Int? f = 2
@@ -116,8 +123,11 @@ task bar {
         Pair[String, File] n
         Array[String]+ p
     }
+
     command <<<
     >>>
+
     runtime {}
+
     output {}
 }

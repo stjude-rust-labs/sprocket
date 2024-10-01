@@ -1,4 +1,5 @@
 #@ except: CommentWhitespace, Whitespace, EndingNewline, Unknown
+
 ## This is a test of the `#@ except` comments.
 ## The above exceptions apply to the whole file.
 
@@ -26,8 +27,8 @@ struct Ok {         # OK
 #@ except: MissingMetas,MissingOutput,Whitespace
 workflow test {
     String bad = 'bad string'   # NOT OK
-    #@ except: DoubleQuotes
     String good =
+        #@ except: DoubleQuotes
         'good string'           # OK
 }
 

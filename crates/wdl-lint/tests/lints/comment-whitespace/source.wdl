@@ -1,18 +1,17 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing, DisallowedOutputName, ExpressionSpacing, LineWidth, MissingMetas, NonmatchingOutput, TrailingComma, Whitespace
-## some comment
+#@ except: ExpressionSpacing, BlankLinesBetweenElements
 
 version 1.2
-
-
-################
 
 #a bad comment
     # another bad comment
 
 # a good comment
+# a comment with trailing whitespace          
 
+#@ except: MissingMetas, NonmatchingOutput
 workflow foo {# test in-line comment without preceding whitespace
-    meta {# this is a problematic yet valid comment
+    #@ except: DescriptionMissing
+    meta {# this is a problematic comment
     }
 
     input { # a bad comment
@@ -22,13 +21,14 @@ workflow foo {# test in-line comment without preceding whitespace
         String foo = "bar"       # too much space for an inline comment
     }
 
+    #@ except: DisallowedOutputName
     output {  # a fine comment
               # what about this one?
-    
+
         # an OK comment
         String bar = foo
 
-        Int a = 5 / 
+        Int a = 5 /
             # a comment
             10
             / (
@@ -71,7 +71,7 @@ workflow foo {# test in-line comment without preceding whitespace
         Boolean h = [1,2,3] == [1,2,3]
         Boolean i = [1
             # a comment
-            ,2,3] == [1,2,4]
+            ,2,3,] == [1,2,4]
         Boolean j = [
             1,
             2,
@@ -101,7 +101,7 @@ workflow foo {# test in-line comment without preceding whitespace
         Boolean l = {
             # comment
             "a": 1,
-            "b": 2
+            "b": 2,
         } == {
             "b": 2,
             "a": 1,
@@ -110,7 +110,7 @@ workflow foo {# test in-line comment without preceding whitespace
         Boolean m = {
             # comment
             "a": 1,
-            "b": 2
+            "b": 2,
         }
         == {
             "b": 2,
@@ -120,7 +120,7 @@ workflow foo {# test in-line comment without preceding whitespace
         Boolean n = {
             # comment
             "a": 1,
-            "b": 2
+            "b": 2,
         }
         ==
         {
@@ -131,7 +131,7 @@ workflow foo {# test in-line comment without preceding whitespace
         Boolean o = {
             # comment
             "a": 1,
-            "b": 2
+            "b": 2,
         } == {
             "b": 2,
             "a": 1,

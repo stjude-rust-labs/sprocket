@@ -1,10 +1,16 @@
-note[PreambleWhitespace]: expected a blank line before the version statement
+note[PreambleFormatting]: expected exactly one blank line between lint directives and preamble comments
+  ┌─ tests/lints/missing-preamble-ws/source.wdl:1:30
+  │  
+1 │   #@ except: DescriptionMissing
+  │ ╭─────────────────────────────^
+2 │ │ ## This is a test of missing preamble whitespace.
+  │ ╰^
+
+note[VersionFormatting]: expected exactly one blank line between the last comment and the version statement
   ┌─ tests/lints/missing-preamble-ws/source.wdl:2:50
   │  
 2 │   ## This is a test of missing preamble whitespace.
   │ ╭─────────────────────────────────────────────────^
 3 │ │ version 1.1
   │ ╰^
-  │  
-  = fix: add a blank line between the last preamble comment and the version statement
 

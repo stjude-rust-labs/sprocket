@@ -1,192 +1,186 @@
 note[ImportWhitespace]: blank lines are not allowed between imports
-  ┌─ tests/lints/blank-lines-between-elements/source.wdl:8:1
+  ┌─ tests/lints/blank-lines-between-elements/source.wdl:6:1
   │  
-8 │ ╭ 
-9 │ │ import "qux"  # following whitespace duplication is caught be Whitespace rule
+6 │ ╭ 
+7 │ │ import "qux"  # following whitespace duplication is caught be Whitespace rule
   │ ╰^
   │  
   = fix: remove any blank lines between imports
 
 note[Whitespace]: more than one blank line in a row
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:11:1
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:9:1
    │  
-11 │ ╭ 
-12 │ │ # test comment
+ 9 │ ╭ 
+10 │ │ # test comment
    │ ╰^
    │  
    = fix: remove the unnecessary blank lines
 
 note[BlankLinesBetweenElements]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:13:15
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:11:15
    │  
-13 │   workflow foo {
+11 │   workflow foo {
    │ ╭──────────────^
-14 │ │ 
-15 │ │     # This is OK (but the prior line is not).
+12 │ │ 
+13 │ │     # This is OK (but the prior line is not).
    │ ╰────^
    │  
    = fix: remove the blank line(s)
 
 note[BlankLinesBetweenElements]: missing blank line
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:18:5
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:16:5
    │
-18 │     parameter_meta {}
+16 │     parameter_meta {}
    │     ^^^^^^^^^^^^^^^^^
    │
    = fix: add a blank line before this element
 
 note[BlankLinesBetweenElements]: missing blank line
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:19:5
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:17:5
    │
-19 │     # what about this comment?
+17 │     # what about this comment?
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = fix: add a blank line before this element
 
 note[BlankLinesBetweenElements]: missing blank line
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:21:5
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:19:5
    │  
-21 │ ╭     scatter (i in ["hello", "world"]) {
-22 │ │         call bar { input: s = i }
-23 │ │     }
+19 │ ╭     scatter (i in ["hello", "world"]) {
+20 │ │         call bar { input: s = i }
+21 │ │     }
    │ ╰─────^
    │  
    = fix: add a blank line before this element
 
 note[Whitespace]: more than one blank line in a row
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:29:1
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:27:1
    │  
-29 │ ╭ 
-30 │ │     String q = "bar"  # The following whitespace is allowable between private declarations
+27 │ ╭ 
+28 │ │     String q = "bar"  # The following whitespace is allowable between private declarations
    │ ╰────^
    │  
    = fix: remove the unnecessary blank lines
 
 note[Whitespace]: more than one blank line in a row
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:35:1
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:33:1
    │  
-35 │ ╭ 
-36 │ │     call bar { input:
+33 │ ╭ 
+34 │ │     call bar { input:
    │ ╰────^
    │  
    = fix: remove the unnecessary blank lines
 
 note[Whitespace]: more than one blank line in a row
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:40:1
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:38:1
    │  
-40 │ ╭ 
-41 │ │     call bar as baz { input:
+38 │ ╭ 
+39 │ │     call bar as baz { input:
    │ ╰────^
    │  
    = fix: remove the unnecessary blank lines
 
 note[BlankLinesBetweenElements]: missing blank line
    ┌─ tests/lints/blank-lines-between-elements/source.wdl:48:1
-   │  
-48 │ ╭ task bar {
-49 │ │ 
-50 │ │     meta {
-51 │ │ 
-   · │
-71 │ │ 
-72 │ │ }
-   │ ╰─^
-   │  
+   │
+48 │ #@ except: MissingMetas, MissingRuntime
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
    = fix: add a blank line before this element
 
 note[BlankLinesBetweenElements]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:48:11
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:49:11
    │  
-48 │   task bar {
+49 │   task bar {
    │ ╭──────────^
-49 │ │ 
-50 │ │     meta {
+50 │ │ 
+51 │ │     meta {
    │ ╰────^
    │  
    = fix: remove the blank line(s)
 
 note[BlankLinesBetweenElements]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:50:11
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:51:11
    │  
-50 │       meta {
+51 │       meta {
    │ ╭──────────^
-51 │ │ 
-52 │ │         description: "bar"
+52 │ │ 
+53 │ │         description: "bar"
    │ ╰────────^
    │  
    = fix: remove the blank line(s)
 
 note[BlankLinesBetweenElements]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:52:27
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:53:27
    │  
-52 │           description: "bar"
+53 │           description: "bar"
    │ ╭──────────────────────────^
-53 │ │ 
-54 │ │         outputs: {
+54 │ │ 
+55 │ │         outputs: {
    │ ╰────────^
    │  
    = fix: remove the blank line(s)
 
 note[BlankLinesBetweenElements]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:55:19
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:56:19
    │  
-55 │               u: "u"
+56 │               u: "u"
    │ ╭──────────────────^
-56 │ │ 
-57 │ │         }
+57 │ │ 
+58 │ │         }
    │ ╰────────^
    │  
    = fix: remove the blank line(s)
 
 note[BlankLinesBetweenElements]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:61:27
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:62:27
    │  
-61 │           String s = "hello"
+62 │           String s = "hello"
    │ ╭──────────────────────────^
-62 │ │ 
-63 │ │         String? t
+63 │ │ 
+64 │ │         String? t
    │ ╰────────^
    │  
    = fix: remove the blank line(s)
 
 note[Whitespace]: more than one blank line in a row
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:79:1
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:81:1
    │  
-79 │ ╭ 
-80 │ │     input {}
+81 │ ╭ 
+82 │ │     input {}
    │ ╰────^
    │  
    = fix: remove the unnecessary blank lines
 
 note[BlankLinesBetweenElements]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:86:14
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:89:14
    │  
-86 │       runtime {
+89 │       runtime {
    │ ╭─────────────^
-87 │ │ 
-88 │ │         disks: "50 GB"
-   │ ╰────────^
-   │  
-   = fix: remove the blank line(s)
-
-note[BlankLinesBetweenElements]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:89:23
-   │  
-89 │           memory: "4 GB"
-   │ ╭──────────────────────^
 90 │ │ 
-91 │ │         container: "ubuntu:latest"
+91 │ │         disks: "50 GB"
    │ ╰────────^
    │  
    = fix: remove the blank line(s)
 
 note[BlankLinesBetweenElements]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:91:35
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:92:23
    │  
-91 │           container: "ubuntu:latest"
+92 │           memory: "4 GB"
+   │ ╭──────────────────────^
+93 │ │ 
+94 │ │         container: "ubuntu:latest"
+   │ ╰────────^
+   │  
+   = fix: remove the blank line(s)
+
+note[BlankLinesBetweenElements]: extra blank line(s) found
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:94:35
+   │  
+94 │           container: "ubuntu:latest"
    │ ╭──────────────────────────────────^
-92 │ │ 
-93 │ │     }
+95 │ │ 
+96 │ │     }
    │ ╰────^
    │  
    = fix: remove the blank line(s)

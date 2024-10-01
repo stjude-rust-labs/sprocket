@@ -1,23 +1,23 @@
 note[Todo]: remaining `TODO` item found
-  ┌─ tests/lints/todo/source.wdl:6:3
+  ┌─ tests/lints/todo/source.wdl:7:3
   │
-6 │ # TODO: this should be flagged
+7 │ # TODO: this should be flagged
   │   ^^^^
   │
   = fix: implement this todo item and remove the `TODO` statement
 
 note[Todo]: remaining `TODO` item found
-  ┌─ tests/lints/todo/source.wdl:7:4
+  ┌─ tests/lints/todo/source.wdl:8:4
   │
-7 │ # [TODO] this should be flagged
+8 │ # [TODO] this should be flagged
   │    ^^^^
   │
   = fix: implement this todo item and remove the `TODO` statement
 
 note[Todo]: remaining `TODO` item found
-   ┌─ tests/lints/todo/source.wdl:10:31
+   ┌─ tests/lints/todo/source.wdl:11:31
    │
-10 │     # This should be flagged (TODO).
+11 │     # This should be flagged (TODO).
    │                               ^^^^
    │
    = fix: implement this todo item and remove the `TODO` statement

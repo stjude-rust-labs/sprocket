@@ -1,12 +1,15 @@
-#@ except: CommentWhitespace, DescriptionMissing, DisallowedInputName, DisallowedOutputName, InputSorting, LineWidth, MatchingParameterMeta, NonmatchingOutput, RuntimeSectionKeys, TrailingComma, Whitespace
+#@ except: InputSorting, MatchingParameterMeta, NonmatchingOutput, RuntimeSectionKeys
+#@ except: Whitespace
 
 version 1.1
 
 task foo {
+    #@ except: DescriptionMissing
     meta {}
 
     parameter_meta{}
 
+    #@ except: DisallowedInputName
     input {
         Int a=- 1
         Int w = 1
@@ -77,7 +80,7 @@ task foo {
                 Boolean h = [1,2,3] == [1,2,3]
         Boolean i = [1
             # a comment
-            ,2,3] == [1,2,4]
+            ,2,3,] == [1,2,4]
         Boolean j = [
             1,
             2,
@@ -107,7 +110,7 @@ task foo {
         Boolean l = {
             # comment
             "a": 1,
-            "b": 2
+            "b": 2,
         } == {
             "b": 2,
             "a": 1,
@@ -116,7 +119,7 @@ task foo {
         Boolean m = {
             # comment
             "a": 1,
-            "b": 2
+            "b": 2,
         }
         == {
             "b": 2,
@@ -126,7 +129,7 @@ task foo {
         Boolean n = {
             # comment
             "a": 1,
-            "b": 2
+            "b": 2,
         }
         ==
         {
@@ -137,18 +140,19 @@ task foo {
         Boolean o = {
             # comment
             "a": 1,
-            "b": 2
+            "b": 2,
         } == {
             "b": 2,
             "a": 1,
             # This comment is OK.
         }
         Array[Int] p = [1,
-        2,3]
+        2,3,]
     }
 
     command <<< >>>
 
+    #@ except: DisallowedOutputName
     output {
         Boolean b = ! a
     }

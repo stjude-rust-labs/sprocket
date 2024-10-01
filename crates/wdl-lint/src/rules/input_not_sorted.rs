@@ -26,7 +26,7 @@ const ID: &str = "InputSorting";
 
 /// Creates a "input not sorted" diagnostic.
 fn input_not_sorted(span: Span, sorted_inputs: String) -> Diagnostic {
-    Diagnostic::warning("input not sorted")
+    Diagnostic::note("input not sorted")
         .with_rule(ID)
         .with_label("input section must be sorted".to_string(), span)
         .with_fix(format!("sort input statements as: \n{}", sorted_inputs))

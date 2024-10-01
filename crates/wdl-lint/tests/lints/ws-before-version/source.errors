@@ -1,18 +1,11 @@
-note[PreambleWhitespace]: unnecessary whitespace in document preamble
-  ┌─ tests/lints/ws-before-version/source.wdl:2:1
-  │
-2 │     
-  │ ^^^^
-  │
-  = fix: remove the unnecessary whitespace
-
-note[PreambleWhitespace]: unnecessary whitespace in document preamble
-  ┌─ tests/lints/ws-before-version/source.wdl:3:1
+note[VersionFormatting]: expected exactly one blank line between the last comment and the version statement
+  ┌─ tests/lints/ws-before-version/source.wdl:1:57
   │  
-3 │ ╭ 
+1 │   #@ except: BlankLinesBetweenElements, DescriptionMissing
+  │ ╭────────────────────────────────────────────────────────^
+2 │ │     
+3 │ │ 
 4 │ │   
 5 │ │     version 1.1
   │ ╰────^
-  │  
-  = fix: remove the unnecessary whitespace
 

@@ -1,7 +1,7 @@
 warning[MissingOutput]: workflow `test` is missing an output section
-  ┌─ tests/lints/missing-output/source.wdl:5:10
+  ┌─ tests/lints/missing-output/source.wdl:3:10
   │
-5 │ workflow test {
+3 │ workflow test {
   │          ^^^^ this workflow is missing an output section
   │
   = fix: add an output section to the workflow

@@ -1,4 +1,4 @@
-warning[DoubleQuotes]: string defined with single quotes
+note[DoubleQuotes]: string defined with single quotes
    ┌─ tests/lints/double-quotes/source.wdl:10:18
    │
 10 │     String bad = 'this string is not okay'
@@ -6,7 +6,7 @@ warning[DoubleQuotes]: string defined with single quotes
    │
    = fix: change the single quotes to double quotes
 
-warning[DoubleQuotes]: string defined with single quotes
+note[DoubleQuotes]: string defined with single quotes
    ┌─ tests/lints/double-quotes/source.wdl:13:13
    │  
 13 │ ╭             'but this is not and ~{
@@ -18,7 +18,7 @@ warning[DoubleQuotes]: string defined with single quotes
    │  
    = fix: change the single quotes to double quotes
 
-warning[DoubleQuotes]: string defined with single quotes
+note[DoubleQuotes]: string defined with single quotes
    ┌─ tests/lints/double-quotes/source.wdl:15:21
    │
 15 │                     'this one is not'

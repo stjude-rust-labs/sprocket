@@ -25,7 +25,7 @@ const ID: &str = "DeprecatedPlaceholderOption";
 /// Creates a diagnostic for the use of the deprecated `default` placeholder
 /// option.
 fn deprecated_default_placeholder_option(span: Span) -> Diagnostic {
-    Diagnostic::warning(String::from(
+    Diagnostic::note(String::from(
         "use of the deprecated `default` placeholder option",
     ))
     .with_rule(ID)
@@ -38,7 +38,7 @@ fn deprecated_default_placeholder_option(span: Span) -> Diagnostic {
 
 /// Creates a diagnostic for the use of the deprecated `sep` placeholder option.
 fn deprecated_sep_placeholder_option(span: Span) -> Diagnostic {
-    Diagnostic::warning(String::from(
+    Diagnostic::note(String::from(
         "use of the deprecated `sep` placeholder option",
     ))
     .with_rule(ID)
@@ -51,7 +51,7 @@ fn deprecated_sep_placeholder_option(span: Span) -> Diagnostic {
 /// Creates a diagnostic for the use of the deprecated `true`/`false`
 /// placeholder option.
 fn deprecated_true_false_placeholder_option(span: Span) -> Diagnostic {
-    Diagnostic::warning(String::from(
+    Diagnostic::note(String::from(
         "use of the deprecated `true`/`false` placeholder option",
     ))
     .with_rule(ID)

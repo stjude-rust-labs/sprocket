@@ -1,11 +1,14 @@
-#@ except: BlankLinesBetweenElements, ContainerValue, DescriptionMissing
+#@ except: DescriptionMissing
 
 version 1.1
 
 task a_task_with_engine_hints {
     meta {}
+
     command <<<>>>
+
     output {}
+
     runtime {
         container: "ubuntu"
         cpu: 1
@@ -21,9 +24,12 @@ task a_task_with_engine_hints {
 
 task a_task_with_excepted_engine_hints {
     meta {}
+
     command <<<>>>
+
     output {}
-    #@ except: RuntimeSectionKeys
+
+    #@ except: RuntimeSectionKeys, ContainerValue
     runtime {
         container: "ubuntu"
         cpu: 1

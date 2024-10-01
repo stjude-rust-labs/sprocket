@@ -389,8 +389,9 @@ mod test {
 
     #[test]
     fn it_supports_reuse() {
-        let source = r#"## Test source
-#@ except: MissingMetas, MissingOutput
+        let source = r#"#@ except: MissingMetas, MissingOutput
+
+## Test source
 
 version 1.1
 

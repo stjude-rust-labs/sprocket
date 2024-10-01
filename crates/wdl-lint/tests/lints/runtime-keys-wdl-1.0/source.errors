@@ -1,28 +1,52 @@
 note[RuntimeSectionKeys]: the following runtime keys are recommended by the WDL v1.0 specification: `docker` and `memory`
-   ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:10:5
+   ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:12:5
    │
-10 │     runtime {} # Two missing keys: "docker" and "memory"
+12 │     runtime {}  # Two missing keys: "docker" and "memory"
    │     ^^^^^^^^^^
    │
    = fix: include entries for the `docker` and `memory` keys in the `runtime` section
 
 note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL v1.0 specification: `memory`
-   ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:25:5
+   ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:33:5
    │  
-25 │ ╭     runtime {
-26 │ │         docker: "foo"
-27 │ │     }
+33 │ ╭     runtime {
+34 │ │         docker: "foo"
+35 │ │     }
    │ ╰─────^
    │  
    = fix: include an entry for the `memory` key in the `runtime` section
 
+warning[ContainerValue]: container URI is missing a tag
+   ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:34:17
+   │
+34 │         docker: "foo"
+   │                 ^^^^^
+   │
+   = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
+
 note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL v1.0 specification: `docker`
-   ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:34:5
+   ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:45:5
    │  
-34 │ ╭     runtime {
-35 │ │         memory: "foo"
-36 │ │     }
+45 │ ╭     runtime {
+46 │ │         memory: "foo"
+47 │ │     }
    │ ╰─────^
    │  
    = fix: include an entry for the `docker` key in the `runtime` section
+
+warning[ContainerValue]: container URI is missing a tag
+   ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:58:17
+   │
+58 │         docker: "foo"
+   │                 ^^^^^
+   │
+   = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
+
+warning[ContainerValue]: container URI is missing a tag
+   ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:71:17
+   │
+71 │         docker: "foo"
+   │                 ^^^^^
+   │
+   = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
 

@@ -1,7 +1,6 @@
-#@ except: MissingRequirements, SnakeCase
-
 version 1.2
 
+#@ except: MissingRequirements, SnakeCase
 task foo {
     meta {
         description: "This is a test of disallowed input names"

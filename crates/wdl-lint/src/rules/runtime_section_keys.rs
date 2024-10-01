@@ -145,7 +145,7 @@ fn serialize_oxford_comma<T: std::fmt::Display>(items: &[T]) -> Option<String> {
 
 /// Creates a "deprecated runtime key" diagnostic.
 fn deprecated_runtime_key(key: &Ident, replacement: &str) -> Diagnostic {
-    Diagnostic::warning(format!(
+    Diagnostic::note(format!(
         "the `{key}` runtime key has been deprecated in favor of `{replacement}`",
         key = key.as_str()
     ))

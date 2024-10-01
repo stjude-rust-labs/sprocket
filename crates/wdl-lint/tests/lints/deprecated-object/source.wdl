@@ -1,9 +1,10 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing, LineWidth, MissingMetas, NonmatchingOutput, SectionOrdering
 ## This is a test of the `DeprecatedObject` lint
 
 version 1.1
 
+#@ except: MissingMetas, NonmatchingOutput
 workflow test {
+    #@ except: DescriptionMissing
     meta {}
 
     input {
@@ -19,7 +20,6 @@ workflow test {
         Object another_bound_literal_object = object {
             bar: "baz"
         }
-
         #@ except: DeprecatedObject
         Object but_this_is_okay = object {
             quux: 42

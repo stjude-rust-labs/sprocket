@@ -1,5 +1,5 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing, RuntimeSectionKeys
-##
+#@ except: DescriptionMissing, RuntimeSectionKeys
+
 ## This is a test of the `DeprecatedPlaceholderOption` lint.
 
 version 1.1
@@ -18,6 +18,7 @@ task a_failing_task {
     >>>
 
     output {}
+
     runtime {}
 }
 
@@ -37,6 +38,7 @@ task a_better_task {
     >>>
 
     output {}
+
     runtime {}
 }
 
@@ -55,5 +57,6 @@ task an_ignored_task {
     >>>
 
     output {}
+
     runtime {}
 }

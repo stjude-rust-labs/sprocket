@@ -1,31 +1,31 @@
 note[DisallowedOutputName]: declaration identifier must be at least 3 characters
-   ┌─ tests/lints/disallowed-output-name/source.wdl:27:14
+   ┌─ tests/lints/disallowed-output-name/source.wdl:26:14
    │
-27 │         File f = "test.wdl"  # This is not OK
+26 │         File f = "test.wdl"  # This is not OK
    │              ^
    │
    = fix: rename the declaration to a name with at least 3 characters
 
 note[DisallowedOutputName]: declaration identifier starts with 'out'
-   ┌─ tests/lints/disallowed-output-name/source.wdl:28:16
+   ┌─ tests/lints/disallowed-output-name/source.wdl:27:16
    │
-28 │         String outString = "string"  # This is not OK
+27 │         String outString = "string"  # This is not OK
    │                ^^^^^^^^^
    │
    = fix: rename the declaration to a name that does not start with 'out'
 
 note[DisallowedOutputName]: declaration identifier starts with 'output'
-   ┌─ tests/lints/disallowed-output-name/source.wdl:29:16
+   ┌─ tests/lints/disallowed-output-name/source.wdl:28:16
    │
-29 │         String output_string = "string"  # This is not OK
+28 │         String output_string = "string"  # This is not OK
    │                ^^^^^^^^^^^^^
    │
    = fix: rename the declaration to a name that does not start with 'output'
 
 note[DisallowedOutputName]: declaration identifier starts with 'out'
-   ┌─ tests/lints/disallowed-output-name/source.wdl:30:16
+   ┌─ tests/lints/disallowed-output-name/source.wdl:29:16
    │
-30 │         String out_string = "string"  # This is not OK
+29 │         String out_string = "string"  # This is not OK
    │                ^^^^^^^^^^
    │
    = fix: rename the declaration to a name that does not start with 'out'

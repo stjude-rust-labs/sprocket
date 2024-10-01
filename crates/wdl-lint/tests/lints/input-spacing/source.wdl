@@ -1,4 +1,4 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing, DisallowedInputName, LineWidth, SectionOrdering, RuntimeSectionKeys, TrailingComma
+#@ except: DescriptionMissing, DisallowedInputName, RuntimeSectionKeys
 
 version 1.1
 
@@ -17,25 +17,31 @@ workflow foo {
     call bar as ba
 
     call bar as ba2 {input:
-        a="something", b="somethingelse"
+        a="something", b="somethingelse",
     }
 
     call bar as ba3 { input: a = "something"}
+
     output {}
 }
 
 task bar {
     meta {}
+
     parameter_meta {
         a: ""
         b: ""
     }
+
     input {
         String a
         String? b
     }
+
     command <<<
     >>>
-    runtime {}
+
     output {}
+
+    runtime {}
 }

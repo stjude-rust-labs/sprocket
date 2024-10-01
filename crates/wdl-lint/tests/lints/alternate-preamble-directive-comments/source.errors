@@ -1,0 +1,14 @@
+note[PreambleFormatting]: lint directives must come before preamble comments
+  ┌─ tests/lints/alternate-preamble-directive-comments/source.wdl:3:1
+  │  
+3 │ ╭ #@ except: UnknownRule
+4 │ │ #@ except: Foo
+  │ ╰──────────────^
+
+note[PreambleFormatting]: lint directives must come before preamble comments
+  ┌─ tests/lints/alternate-preamble-directive-comments/source.wdl:8:1
+  │  
+8 │ ╭ #@ except: Bar
+9 │ │ #@ except: Baz
+  │ ╰──────────────^
+

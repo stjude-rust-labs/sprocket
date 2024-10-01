@@ -1,39 +1,39 @@
 note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL v1.1 specification: `container`
-   ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:10:5
+   ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:12:5
    │
-10 │     runtime {} # Missing every recommended runtime key, so many keys should be
+12 │     runtime {}  # Missing `container` key
    │     ^^^^^^^^^^
    │
    = fix: include an entry for the `container` key in the `runtime` section
 
 warning[RuntimeSectionKeys]: the following runtime key is not reserved in the WDL v1.1 specification: `foo`; therefore, its inclusion in the `runtime` section is deprecated
-   ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:42:5
+   ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:51:5
    │  
-42 │ ╭     runtime {
-43 │ │         container: "ubuntu"
-44 │ │         cpu: 1
-45 │ │         memory: "2 GiB"
+51 │ ╭     runtime {
+52 │ │         container: "ubuntu"
+53 │ │         cpu: 1
+54 │ │         memory: "2 GiB"
    · │
-50 │ │         foo: "bar"
+59 │ │         foo: "bar"
    │ │         --- the `foo` key should be removed
-51 │ │     }
+60 │ │     }
    │ ╰─────^
    │  
    = fix: if a reserved key name was intended, correct the spelling; otherwise, remove the `foo` key
 
 warning[RuntimeSectionKeys]: the following runtime keys are not reserved in the WDL v1.1 specification: `baz` and `foo`; therefore, their inclusion in the `runtime` section is deprecated
-   ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:58:5
+   ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:70:5
    │  
-58 │ ╭     runtime {
-59 │ │         container: "ubuntu"
-60 │ │         cpu: 1
-61 │ │         memory: "2 GiB"
+70 │ ╭     runtime {
+71 │ │         container: "ubuntu"
+72 │ │         cpu: 1
+73 │ │         memory: "2 GiB"
    · │
-66 │ │         foo: "bar"
+78 │ │         foo: "bar"
    │ │         --- the `foo` key should be removed
-67 │ │         baz: "quux"
+79 │ │         baz: "quux"
    │ │         --- the `baz` key should be removed
-68 │ │     }
+80 │ │     }
    │ ╰─────^
    │  
    = fix: if reserved key names were intended, correct the spelling of each key; otherwise, remove the `baz` and `foo` keys

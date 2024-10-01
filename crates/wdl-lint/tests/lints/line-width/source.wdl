@@ -1,10 +1,12 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing, RuntimeSectionKeys
+#@ except: DescriptionMissing, RuntimeSectionKeys
 
 version 1.1
 
 task task_a {
     meta {}
+
     parameter_meta {}
+
     input {}
 
     command <<<
@@ -17,16 +19,17 @@ task task_a {
     >>>
 
     output {}
+
     runtime {}
 }
 
 task task_b {
     meta {}
+
     parameter_meta {}
+
     input {}
 
-    # This except currently causes the entire command block to fail.
-    # That will be fixed in the future when we fix how excepting works.
     #@ except: LineWidth
     command <<<
         bin \
@@ -38,17 +41,21 @@ task task_b {
     >>>
 
     output {}
+
     runtime {}
 }
 
 task task_c {
     meta {}
+
     parameter_meta {}
+
     input {}
 
     command <<< this is a task that has a very very very long command section on the first line. >>>
 
     output {}
+
     runtime {}
 }
 

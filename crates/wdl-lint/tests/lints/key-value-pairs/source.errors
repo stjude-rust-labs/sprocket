@@ -11,7 +11,7 @@ note[KeyValuePairs]: incorrect indentation
   │  
 8 │           another_key: ["value1",
   │ ╭───────────────────────────────^
-9 │ │         "value2", "value3"]
+9 │ │         "value2", "value3",]
   │ ╰────────^
   │  
   = fix: add 4 spaces to indentation
@@ -19,7 +19,7 @@ note[KeyValuePairs]: incorrect indentation
 note[KeyValuePairs]: item should be followed by a newline
   ┌─ tests/lints/key-value-pairs/source.wdl:9:9
   │
-9 │         "value2", "value3"]
+9 │         "value2", "value3",]
   │         ^^^^^^^^^
   │
   = fix: add a newline after this element
@@ -27,8 +27,8 @@ note[KeyValuePairs]: item should be followed by a newline
 note[KeyValuePairs]: item should be followed by a newline
   ┌─ tests/lints/key-value-pairs/source.wdl:9:19
   │
-9 │         "value2", "value3"]
-  │                   ^^^^^^^^
+9 │         "value2", "value3",]
+  │                   ^^^^^^^^^
   │
   = fix: add a newline after this element
 
@@ -83,7 +83,7 @@ note[KeyValuePairs]: item should be followed by a newline
 note[KeyValuePairs]: item should be followed by a newline
    ┌─ tests/lints/key-value-pairs/source.wdl:20:17
    │
-20 │                 "m", "n"],
+20 │                 "m", "n",],
    │                 ^^^^
    │
    = fix: add a newline after this element
@@ -91,8 +91,8 @@ note[KeyValuePairs]: item should be followed by a newline
 note[KeyValuePairs]: item should be followed by a newline
    ┌─ tests/lints/key-value-pairs/source.wdl:20:22
    │
-20 │                 "m", "n"],
-   │                      ^^^
+20 │                 "m", "n",],
+   │                      ^^^^
    │
    = fix: add a newline after this element
 
@@ -112,19 +112,27 @@ note[KeyValuePairs]: incorrect indentation
    │
    = fix: add 4 spaces to indentation
 
+note[TrailingComma]: item missing trailing comma
+   ┌─ tests/lints/key-value-pairs/source.wdl:34:13
+   │
+34 │             choices: ["yes", "reverse", "no",]
+   │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: add a comma after this element
+
 note[KeyValuePairs]: all items in an array or object should be on separate lines
    ┌─ tests/lints/key-value-pairs/source.wdl:34:22
    │
-34 │             choices: ["yes", "reverse", "no"]
-   │                      ^^^^^^^^^^^^^^^^^^^^^^^^
+34 │             choices: ["yes", "reverse", "no",]
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = fix: move each item to a new line
 
 note[KeyValuePairs]: all items in an array or object should be on separate lines
    ┌─ tests/lints/key-value-pairs/source.wdl:36:19
    │
-36 │         minaqual: {description: "Skip all reads with alignment quality lower than the given minimum value", common: true}
-   │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+36 │         minaqual: {description: "Skip all reads with alignment quality lower than the given minimum value", common: true,}
+   │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = fix: move each item to a new line
 

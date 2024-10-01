@@ -1,14 +1,12 @@
-note[PreambleComments]: preamble comments must start with `##` followed by a space
-   ┌─ tests/lints/one-invalid-preamble-comment/source.wdl:2:1
+note[PreambleFormatting]: preamble comments must start with `##` and have at least one space between the `##` and the comment text
+   ┌─ tests/lints/one-invalid-preamble-comment/source.wdl:1:1
    │  
- 2 │ ╭ # This is a test of having one big invalid preamble comment.
- 3 │ │ #
- 4 │ │ 
- 5 │ │ # All of the lines
+ 1 │ ╭ # This is a test of having one big invalid preamble comment.
+ 2 │ │ #
+ 3 │ │ 
+ 4 │ │ # All of the lines
    · │
-11 │ │ # as a single diagnostic
-12 │ │ # warning
+10 │ │ ###### as a single diagnostic
+11 │ │ # warning
    │ ╰─────────^
-   │  
-   = fix: change each preamble comment to start with `##` followed by a space
 

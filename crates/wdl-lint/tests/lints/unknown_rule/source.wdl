@@ -1,8 +1,6 @@
 version 1.1
 
-#@ except: ThisIsNotARealRule, DescriptionMissing
+#@ except: ThisIsNotARealRule, MissingMetas
 workflow test {
-  meta {}
-
   output {}
 }
