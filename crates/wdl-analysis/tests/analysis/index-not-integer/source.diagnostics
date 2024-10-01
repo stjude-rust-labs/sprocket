@@ -1,6 +1,12 @@
-error: index type mismatch: expected type `Int`, but found type `String`
-  ┌─ tests/analysis/index-not-integer/source.wdl:7:18
+error: type mismatch: expected index to be type `Int`, but found type `String`
+  ┌─ tests/analysis/index-not-integer/source.wdl:8:18
   │
-7 │     String x = a["foo"]
+8 │     String x = a["foo"]
   │                  ^^^^^ this is type `String`
+
+error: type mismatch: expected index to be type `String`, but found type `Int`
+  ┌─ tests/analysis/index-not-integer/source.wdl:9:18
+  │
+9 │     String y = b[0]
+  │                  ^ this is type `Int`
 

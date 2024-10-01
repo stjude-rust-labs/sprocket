@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Detect duplicate call inputs ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
 * Split hint section representation into `TaskHintsSection` and
   `WorkflowHintsSection` as workflow hints [do not support expressions](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#workflow-hints) ([#176](https://github.com/stjude-rust-labs/wdl/pull/176))
 

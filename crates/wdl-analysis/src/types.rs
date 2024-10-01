@@ -1,5 +1,6 @@
 //! Representation of the WDL type system.
 
+use std::collections::HashMap;
 use std::fmt;
 
 use id_arena::Arena;
@@ -67,7 +68,11 @@ impl Coercible for PrimitiveTypeKind {
             // String -> Directory
             (Self::String, Self::Directory) |
             // Int -> Float
-            (Self::Integer, Self::Float)
+            (Self::Integer, Self::Float) |
+            // File -> String
+            (Self::File, Self::String) |
+            // Directory -> String
+            (Self::Directory, Self::String)
             => true,
 
             // Not coercible
@@ -453,6 +458,7 @@ impl CompoundType {
                     CompoundTypeDef::Pair(ty) => ty.display(self.types).fmt(f)?,
                     CompoundTypeDef::Map(ty) => ty.display(self.types).fmt(f)?,
                     CompoundTypeDef::Struct(ty) => ty.fmt(f)?,
+                    CompoundTypeDef::CallOutput(ty) => ty.fmt(f)?,
                 }
 
                 if self.optional {
@@ -545,6 +551,8 @@ pub enum CompoundTypeDef {
     Map(MapType),
     /// The type is a struct (e.g. `Foo`).
     Struct(StructType),
+    /// The type is a call output.
+    CallOutput(CallOutputType),
 }
 
 impl CompoundTypeDef {
@@ -561,6 +569,9 @@ impl CompoundTypeDef {
                 ty.assert_valid(types);
             }
             Self::Struct(ty) => {
+                ty.assert_valid(types);
+            }
+            Self::CallOutput(ty) => {
                 ty.assert_valid(types);
             }
         }
@@ -702,7 +713,10 @@ pub struct ArrayType {
     /// The element type of the array.
     element_type: Type,
     /// Whether or not the array type is non-empty.
-    non_empty: bool,
+    ///
+    /// This is `None` for literal arrays so that the array may coerce to both
+    /// empty and non-empty types.
+    non_empty: Option<bool>,
 }
 
 impl ArrayType {
@@ -710,7 +724,7 @@ impl ArrayType {
     pub fn new(element_type: impl Into<Type>) -> Self {
         Self {
             element_type: element_type.into(),
-            non_empty: false,
+            non_empty: Some(false),
         }
     }
 
@@ -718,7 +732,7 @@ impl ArrayType {
     pub fn non_empty(element_type: impl Into<Type>) -> Self {
         Self {
             element_type: element_type.into(),
-            non_empty: true,
+            non_empty: Some(true),
         }
     }
 
@@ -728,7 +742,7 @@ impl ArrayType {
     }
 
     /// Determines if the array type is non-empty.
-    pub fn is_non_empty(&self) -> bool {
+    pub fn is_non_empty(&self) -> Option<bool> {
         self.non_empty
     }
 
@@ -746,7 +760,7 @@ impl ArrayType {
                 self.ty.element_type.display(self.types).fmt(f)?;
                 write!(f, "]")?;
 
-                if self.ty.non_empty {
+                if self.ty.non_empty == Some(true) {
                     write!(f, "+")?;
                 }
 
@@ -765,7 +779,7 @@ impl ArrayType {
 
 impl Coercible for ArrayType {
     fn is_coercible_to(&self, types: &Types, target: &Self) -> bool {
-        if !self.is_non_empty() && target.is_non_empty() {
+        if self.is_non_empty() == Some(false) && target.is_non_empty() == Some(true) {
             return false;
         }
 
@@ -984,6 +998,74 @@ impl fmt::Display for StructType {
     }
 }
 
+/// Represents the type of a call output.
+#[derive(Debug, Clone)]
+pub struct CallOutputType {
+    /// The name of the task or workflow that was called.
+    name: String,
+    /// The outputs from the call.
+    outputs: HashMap<String, Type>,
+    /// Whether or not the call was to a workflow (or a task).
+    workflow: bool,
+}
+
+impl CallOutputType {
+    /// Constructs a new call output type.
+    pub fn new(name: impl Into<String>, outputs: HashMap<String, Type>, workflow: bool) -> Self {
+        Self {
+            name: name.into(),
+            outputs,
+            workflow,
+        }
+    }
+
+    /// Gets the name of the task or workflow that was called.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Gets the outputs from the call.
+    pub fn outputs(&self) -> &HashMap<String, Type> {
+        &self.outputs
+    }
+
+    /// Gets the mutable outputs from the call.
+    pub(crate) fn outputs_mut(&mut self) -> &mut HashMap<String, Type> {
+        &mut self.outputs
+    }
+
+    /// Whether or not the call output is from a workflow.
+    ///
+    /// If `false`, the output is from a task.
+    pub fn is_workflow(&self) -> bool {
+        self.workflow
+    }
+
+    /// Asserts that this type is valid.
+    fn assert_valid(&self, types: &Types) {
+        for v in self.outputs.values() {
+            v.assert_valid(types);
+        }
+    }
+}
+
+impl Coercible for CallOutputType {
+    fn is_coercible_to(&self, _: &Types, _: &Self) -> bool {
+        // Call outputs are not coercible to other types
+        false
+    }
+}
+
+impl fmt::Display for CallOutputType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{kind} call output",
+            kind = if self.workflow { "workflow" } else { "task" },
+        )
+    }
+}
+
 /// Represents a collection of types.
 #[derive(Debug, Default)]
 pub struct Types(Arena<CompoundTypeDef>);
@@ -1046,6 +1128,20 @@ impl Types {
         ty.assert_valid(self);
         Type::Compound(CompoundType {
             definition: self.0.alloc(CompoundTypeDef::Struct(ty)),
+            optional: false,
+        })
+    }
+
+    /// Adds a call output type to the type collection.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided type contains a type definition identifier from a
+    /// different types collection.
+    pub fn add_call_output(&mut self, ty: CallOutputType) -> Type {
+        ty.assert_valid(self);
+        Type::Compound(CompoundType {
+            definition: self.0.alloc(CompoundTypeDef::CallOutput(ty)),
             optional: false,
         })
     }
@@ -1116,6 +1212,19 @@ impl Types {
                         name: ty.name.clone(),
                         members,
                     })
+                }
+                CompoundTypeDef::CallOutput(ty) => {
+                    let members = ty
+                        .outputs
+                        .iter()
+                        .map(|(k, v)| (k.clone(), self.import(types, *v)))
+                        .collect();
+
+                    self.add_call_output(CallOutputType::new(
+                        ty.name.as_str(),
+                        members,
+                        ty.workflow,
+                    ))
                 }
             },
             Type::Object => Type::Object,
@@ -1364,11 +1473,11 @@ mod test {
                 .is_coercible_to(&types, &PrimitiveType::new(PrimitiveTypeKind::Float))
         );
         assert!(
-            !PrimitiveType::new(PrimitiveTypeKind::File)
+            PrimitiveType::new(PrimitiveTypeKind::File)
                 .is_coercible_to(&types, &PrimitiveType::new(PrimitiveTypeKind::String))
         );
         assert!(
-            !PrimitiveType::new(PrimitiveTypeKind::Directory)
+            PrimitiveType::new(PrimitiveTypeKind::Directory)
                 .is_coercible_to(&types, &PrimitiveType::new(PrimitiveTypeKind::String))
         );
         assert!(
@@ -1455,7 +1564,7 @@ mod test {
                 .is_coercible_to(&types, &ArrayType::new(PrimitiveTypeKind::String))
         );
         assert!(
-            !ArrayType::new(PrimitiveTypeKind::File)
+            ArrayType::new(PrimitiveTypeKind::File)
                 .is_coercible_to(&types, &ArrayType::new(PrimitiveTypeKind::String))
         );
         assert!(
@@ -1481,6 +1590,14 @@ mod test {
         let type1 = types.add_array(ArrayType::non_empty(PrimitiveTypeKind::String));
         let type2 = types.add_array(ArrayType::new(PrimitiveType::optional(
             PrimitiveTypeKind::File,
+        )));
+        assert!(type1.is_coercible_to(&types, &type2));
+        assert!(!type2.is_coercible_to(&types, &type1));
+
+        // Array[X]+ -> Array[X?]
+        let type1 = types.add_array(ArrayType::non_empty(PrimitiveTypeKind::String));
+        let type2 = types.add_array(ArrayType::new(PrimitiveType::optional(
+            PrimitiveTypeKind::String,
         )));
         assert!(type1.is_coercible_to(&types, &type2));
         assert!(!type2.is_coercible_to(&types, &type1));
@@ -1528,7 +1645,7 @@ mod test {
             )
         );
         assert!(
-            !PairType::new(PrimitiveTypeKind::File, PrimitiveTypeKind::Directory).is_coercible_to(
+            PairType::new(PrimitiveTypeKind::File, PrimitiveTypeKind::Directory).is_coercible_to(
                 &types,
                 &PairType::new(PrimitiveTypeKind::String, PrimitiveTypeKind::String)
             )
@@ -1613,7 +1730,7 @@ mod test {
             )
         );
         assert!(
-            !MapType::new(PrimitiveTypeKind::File, PrimitiveTypeKind::Directory).is_coercible_to(
+            MapType::new(PrimitiveTypeKind::File, PrimitiveTypeKind::Directory).is_coercible_to(
                 &types,
                 &MapType::new(PrimitiveTypeKind::String, PrimitiveTypeKind::String)
             )

@@ -549,6 +549,11 @@ impl CallInputItem {
     pub fn expr(&self) -> Option<Expr> {
         child(&self.0)
     }
+
+    /// Gets the call statement for the call input item.
+    pub fn parent(&self) -> CallStatement {
+        CallStatement::cast(self.0.parent().expect("should have parent")).expect("node should cast")
+    }
 }
 
 impl AstNode for CallInputItem {

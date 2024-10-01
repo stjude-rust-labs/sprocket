@@ -71,6 +71,7 @@ impl Constraint for SizeableConstraint {
                 CompoundTypeDef::Struct(s) => {
                     s.members().values().any(|ty| type_is_sizable(types, *ty))
                 }
+                CompoundTypeDef::CallOutput(_) => false,
             }
         }
 
@@ -137,6 +138,7 @@ impl Constraint for JsonSerializableConstraint {
                     .members()
                     .values()
                     .all(|ty| type_is_serializable(types, *ty)),
+                CompoundTypeDef::CallOutput(_) => false,
             }
         }
 

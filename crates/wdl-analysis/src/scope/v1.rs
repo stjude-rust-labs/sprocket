@@ -7,7 +7,6 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 use petgraph::algo::has_path_connecting;
 use petgraph::algo::toposort;
-use petgraph::graph::DiGraph;
 use petgraph::graph::NodeIndex;
 use petgraph::prelude::DiGraphMap;
 use url::Url;
@@ -23,235 +22,72 @@ use wdl_ast::ToSpan;
 use wdl_ast::TokenStrHash;
 use wdl_ast::Version;
 use wdl_ast::v1::Ast;
-use wdl_ast::v1::BoundDecl;
+use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::CommandPart;
-use wdl_ast::v1::CommandSection;
+use wdl_ast::v1::ConditionalStatement;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::ImportStatement;
-use wdl_ast::v1::NameRef;
-use wdl_ast::v1::RequirementsSection;
-use wdl_ast::v1::RuntimeSection;
+use wdl_ast::v1::MetadataValue;
+use wdl_ast::v1::ScatterStatement;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
-use wdl_ast::v1::TaskHintsSection;
-use wdl_ast::v1::TaskItem;
 use wdl_ast::v1::WorkflowDefinition;
-use wdl_ast::v1::WorkflowItem;
-use wdl_ast::v1::WorkflowStatement;
+use wdl_ast::v1::WorkflowHintsItemValue;
 use wdl_ast::version::V1;
 
-use super::Context;
 use super::DocumentScope;
-use super::Name;
-use super::NameContext;
 use super::Namespace;
 use super::Scope;
 use super::ScopeIndex;
-use super::ScopeRefMut;
 use super::Struct;
+use super::TASK_VAR_NAME;
 use super::Task;
 use super::Workflow;
 use super::braced_scope_span;
 use super::heredoc_scope_span;
+use crate::diagnostics::Context;
+use crate::diagnostics::call_input_type_mismatch;
+use crate::diagnostics::duplicate_workflow;
+use crate::diagnostics::if_conditional_mismatch;
+use crate::diagnostics::import_cycle;
+use crate::diagnostics::import_failure;
+use crate::diagnostics::import_missing_version;
+use crate::diagnostics::imported_struct_conflict;
+use crate::diagnostics::incompatible_import;
+use crate::diagnostics::invalid_relative_import;
+use crate::diagnostics::missing_call_input;
+use crate::diagnostics::name_conflict;
+use crate::diagnostics::namespace_conflict;
+use crate::diagnostics::only_one_namespace;
+use crate::diagnostics::recursive_struct;
+use crate::diagnostics::recursive_workflow_call;
+use crate::diagnostics::struct_conflicts_with_import;
+use crate::diagnostics::struct_not_in_scope;
+use crate::diagnostics::type_is_not_array;
+use crate::diagnostics::type_mismatch;
+use crate::diagnostics::unknown_io_name;
+use crate::diagnostics::unknown_namespace;
+use crate::diagnostics::unknown_task_or_workflow;
+use crate::diagnostics::unknown_type;
+use crate::eval::v1::TaskGraph;
+use crate::eval::v1::TaskGraphNode;
+use crate::eval::v1::WorkflowGraph;
+use crate::eval::v1::WorkflowGraphNode;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::scope::ScopeRef;
-use crate::scope::TaskOutputScope;
+use crate::types::ArrayType;
+use crate::types::CallOutputType;
 use crate::types::Coercible;
+use crate::types::CompoundTypeDef;
+use crate::types::Optional;
+use crate::types::PrimitiveTypeKind;
 use crate::types::Type;
+use crate::types::Types;
 use crate::types::v1::AstTypeConverter;
 use crate::types::v1::ExprTypeEvaluator;
-use crate::types::v1::type_mismatch;
-
-/// The `task` variable name available in task command sections and outputs in
-/// WDL 1.2.
-const TASK_VAR_NAME: &str = "task";
-
-/// Creates a "name conflict" diagnostic
-fn name_conflict(name: &str, conflicting: Context, first: Context) -> Diagnostic {
-    Diagnostic::error(format!("conflicting {conflicting} name `{name}`"))
-        .with_label(
-            format!("this {conflicting} conflicts with a previously used name"),
-            conflicting.span(),
-        )
-        .with_label(
-            format!("the {first} with the conflicting name is here"),
-            first.span(),
-        )
-}
-
-/// Creates a "namespace conflict" diagnostic
-fn namespace_conflict(name: &str, conflicting: Span, first: Span, suggest_fix: bool) -> Diagnostic {
-    let diagnostic = Diagnostic::error(format!("conflicting import namespace `{name}`"))
-        .with_label("this conflicts with another import namespace", conflicting)
-        .with_label(
-            "the conflicting import namespace was introduced here",
-            first,
-        );
-
-    if suggest_fix {
-        diagnostic.with_fix("add an `as` clause to the import to specify a namespace")
-    } else {
-        diagnostic
-    }
-}
-
-/// Creates an "import cycle" diagnostic
-fn import_cycle(span: Span) -> Diagnostic {
-    Diagnostic::error("import introduces a dependency cycle")
-        .with_label("this import has been skipped to break the cycle", span)
-}
-
-/// Creates an "import failure" diagnostic
-fn import_failure(uri: &str, error: &anyhow::Error, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("failed to import `{uri}`: {error:?}")).with_highlight(span)
-}
-
-/// Creates an "incompatible import" diagnostic
-fn incompatible_import(
-    import_version: &str,
-    import_span: Span,
-    importer_version: &Version,
-) -> Diagnostic {
-    Diagnostic::error("imported document has incompatible version")
-        .with_label(
-            format!("the imported document is version `{import_version}`"),
-            import_span,
-        )
-        .with_label(
-            format!(
-                "the importing document is version `{version}`",
-                version = importer_version.as_str()
-            ),
-            importer_version.span(),
-        )
-}
-
-/// Creates an "import missing version" diagnostic
-fn import_missing_version(span: Span) -> Diagnostic {
-    Diagnostic::error("imported document is missing a version statement").with_highlight(span)
-}
-
-/// Creates an "invalid relative import" diagnostic
-fn invalid_relative_import(error: &url::ParseError, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("{error:?}")).with_highlight(span)
-}
-
-/// Creates a "struct not in scope" diagnostic
-fn struct_not_in_scope(name: &Ident) -> Diagnostic {
-    Diagnostic::error(format!(
-        "a struct named `{name}` does not exist in the imported document",
-        name = name.as_str()
-    ))
-    .with_label("this struct does not exist", name.span())
-}
-
-/// Creates an "imported struct conflict" diagnostic
-fn imported_struct_conflict(
-    name: &str,
-    conflicting: Span,
-    first: Span,
-    suggest_fix: bool,
-) -> Diagnostic {
-    let diagnostic = Diagnostic::error(format!("conflicting struct name `{name}`"))
-        .with_label(
-            "this import introduces a conflicting definition",
-            conflicting,
-        )
-        .with_label("the first definition was introduced by this import", first);
-
-    if suggest_fix {
-        diagnostic.with_fix("add an `alias` clause to the import to specify a different name")
-    } else {
-        diagnostic
-    }
-}
-
-/// Creates a "struct conflicts with import" diagnostic
-fn struct_conflicts_with_import(name: &str, conflicting: Span, import: Span) -> Diagnostic {
-    Diagnostic::error(format!("conflicting struct name `{name}`"))
-        .with_label("this name conflicts with an imported struct", conflicting)
-        .with_label("the import that introduced the struct is here", import)
-        .with_fix(
-            "either rename the struct or use an `alias` clause on the import with a different name",
-        )
-}
-
-/// Creates a "duplicate workflow" diagnostic
-fn duplicate_workflow(name: &Ident, first: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "cannot define workflow `{name}` as only one workflow is allowed per source file",
-        name = name.as_str(),
-    ))
-    .with_label("consider moving this workflow to a new file", name.span())
-    .with_label("first workflow is defined here", first)
-}
-
-/// Creates a "call conflict" diagnostic
-fn call_conflict(name: &Ident, first: Context, suggest_fix: bool) -> Diagnostic {
-    let diagnostic = Diagnostic::error(format!(
-        "conflicting call name `{name}`",
-        name = name.as_str()
-    ))
-    .with_label(
-        "this call name conflicts with a previously used name",
-        name.span(),
-    )
-    .with_label(
-        format!("the {first} with the conflicting name is here"),
-        first.span(),
-    );
-
-    if suggest_fix {
-        diagnostic.with_fix("add an `as` clause to the call to specify a different name")
-    } else {
-        diagnostic
-    }
-}
-
-/// Creates a "recursive struct" diagnostic.
-fn recursive_struct(name: &str, span: Span, member: Span) -> Diagnostic {
-    Diagnostic::error(format!("struct `{name}` has a recursive definition",))
-        .with_highlight(span)
-        .with_label("this struct member participates in the recursion", member)
-}
-
-/// Creates an "unknown type" diagnostic.
-fn unknown_type(name: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("unknown type name `{name}`")).with_highlight(span)
-}
-
-/// Creates an "unknown name" diagnostic.
-fn unknown_name(name: &str, span: Span) -> Diagnostic {
-    // Handle special case names here
-    let message = match name {
-        "task" => "the `task` variable may only be used within a task command section or task \
-                   output section using WDL 1.2 or later"
-            .to_string(),
-        _ => format!("unknown name `{name}`"),
-    };
-
-    Diagnostic::error(message).with_highlight(span)
-}
-
-/// Creates a "self-referential" diagnostic.
-fn self_referential(name: &str, span: Span, reference: Span) -> Diagnostic {
-    Diagnostic::error(format!("declaration of `{name}` is self-referential"))
-        .with_label("self-reference is here", reference)
-        .with_highlight(span)
-}
-
-/// Creates a "reference cycle" diagnostic.
-fn reference_cycle(from: &str, from_span: Span, to: &str, to_span: Span) -> Diagnostic {
-    Diagnostic::error("a name reference cycle was detected")
-        .with_label(
-            format!("ensure this expression does not directly or indirectly refer to `{from}`"),
-            to_span,
-        )
-        .with_label(format!("a reference back to `{to}` is here"), from_span)
-}
 
 /// Creates a new document scope for a V1 AST.
 pub(crate) fn scope_from_ast(
@@ -266,6 +102,14 @@ pub(crate) fn scope_from_ast(
         ..Default::default()
     };
 
+    assert!(
+        document.version.is_some(),
+        "expected a supported V1 version"
+    );
+
+    // First start by processing imports and struct definitions
+    // This needs to be performed before processing tasks and workflows as
+    // declarations might reference an imported or locally-defined struct
     for item in ast.items() {
         match item {
             DocumentItem::Import(import) => {
@@ -274,20 +118,38 @@ pub(crate) fn scope_from_ast(
             DocumentItem::Struct(s) => {
                 add_struct(&mut document, &s, diagnostics);
             }
-            DocumentItem::Task(task) => {
-                add_task(&mut document, &task, diagnostics);
-            }
-            DocumentItem::Workflow(workflow) => {
-                add_workflow(&mut document, &workflow, diagnostics);
+            DocumentItem::Task(_) | DocumentItem::Workflow(_) => {
+                continue;
             }
         }
     }
 
-    // Populate the struct types now that all structs are accounted for
-    add_struct_types(&mut document, diagnostics);
+    // Populate the struct types now that all structs have been processed
+    set_struct_types(&mut document, diagnostics);
 
-    // Finally, perform a type check
-    type_check(&mut document, ast, diagnostics);
+    // Now process the tasks and workflows
+    let mut definition = None;
+    for item in ast.items() {
+        match item {
+            DocumentItem::Task(task) => {
+                add_task(&mut document, &task, diagnostics);
+            }
+            DocumentItem::Workflow(workflow) => {
+                // Note that this doesn't populate the workflow scope; we delay that until after
+                // we've seen every task in the document
+                if add_workflow(&mut document, &workflow, diagnostics) {
+                    definition = Some(workflow.clone());
+                }
+            }
+            DocumentItem::Import(_) | DocumentItem::Struct(_) => {
+                continue;
+            }
+        }
+    }
+
+    if let Some(definition) = definition {
+        populate_workflow_scope(&mut document, &definition, diagnostics);
+    }
 
     document
 }
@@ -458,58 +320,68 @@ fn add_struct(
     });
 }
 
-/// Adds an input to a scope.
-fn add_input(mut scope: ScopeRefMut<'_>, decl: Decl, diagnostics: &mut Vec<Diagnostic>) {
-    let name = decl.name();
-    if let Some(prev) = scope.lookup(name.as_str()) {
-        diagnostics.push(name_conflict(
-            name.as_str(),
-            NameContext::Input(name.span()).into(),
-            prev.context.into(),
-        ));
-        return;
-    }
+/// Converts an AST type to an analysis type.
+fn convert_ast_type(
+    document: &mut DocumentScope,
+    ty: &wdl_ast::v1::Type,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Type {
+    let mut converter = AstTypeConverter::new(&mut document.types, |name, span| {
+        lookup_type(&document.structs, name, span)
+    });
 
-    scope.insert(
-        name.as_str().to_string(),
-        Name::new(NameContext::Input(name.span())),
-    );
+    match converter.convert_type(ty) {
+        Ok(ty) => ty,
+        Err(diagnostic) => {
+            diagnostics.push(diagnostic);
+            Type::Union
+        }
+    }
 }
 
-/// Adds an output to a scope.
-fn add_output(mut scope: ScopeRefMut<'_>, decl: BoundDecl, diagnostics: &mut Vec<Diagnostic>) {
-    let name = decl.name();
-    if let Some(prev) = scope.lookup(name.as_str()) {
-        diagnostics.push(name_conflict(
-            name.as_str(),
-            NameContext::Output(name.span()).into(),
-            prev.context.into(),
-        ));
-        return;
+/// Creates an input type map.
+fn create_input_type_map(
+    document: &mut DocumentScope,
+    declarations: impl Iterator<Item = Decl>,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> HashMap<String, (Type, bool)> {
+    let mut map = HashMap::new();
+    for decl in declarations {
+        let name = decl.name();
+        if map.contains_key(name.as_str()) {
+            // Ignore the duplicate
+            continue;
+        }
+
+        let ty = convert_ast_type(document, &decl.ty(), diagnostics);
+        map.insert(
+            name.as_str().to_string(),
+            (ty, decl.expr().is_none() && !ty.is_optional()),
+        );
     }
 
-    scope.insert(
-        name.as_str().to_string(),
-        Name::new(NameContext::Output(name.span())),
-    );
+    map
 }
 
-/// Adds a declaration to a scope.
-fn add_decl(mut scope: ScopeRefMut<'_>, decl: BoundDecl, diagnostics: &mut Vec<Diagnostic>) {
-    let name = decl.name();
-    if let Some(prev) = scope.lookup(name.as_str()) {
-        diagnostics.push(name_conflict(
-            name.as_str(),
-            NameContext::Decl(name.span()).into(),
-            prev.context.into(),
-        ));
-        return;
+/// Creates an output type map.
+fn create_output_type_map(
+    document: &mut DocumentScope,
+    declarations: impl Iterator<Item = Decl>,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> HashMap<String, Type> {
+    let mut map = HashMap::new();
+    for decl in declarations {
+        let name = decl.name();
+        if map.contains_key(name.as_str()) {
+            // Ignore the duplicate
+            continue;
+        }
+
+        let ty = convert_ast_type(document, &decl.ty(), diagnostics);
+        map.insert(name.as_str().to_string(), ty);
     }
 
-    scope.insert(
-        name.as_str().to_string(),
-        Name::new(NameContext::Decl(name.span())),
-    );
+    map
 }
 
 /// Adds a task to the document's scope.
@@ -518,6 +390,25 @@ fn add_task(
     task: &TaskDefinition,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
+    /// Helper function for creating a scope for a task section.
+    fn create_section_scope(
+        document: &mut DocumentScope,
+        task_name: &Ident,
+        parent: ScopeIndex,
+        span: Span,
+    ) -> ScopeIndex {
+        let scope = document.add_scope(Scope::new(Some(parent), span));
+
+        // Command and output sections in 1.2 have access to the `task` variable
+        if document.version >= Some(SupportedVersion::V1(V1::Two)) {
+            document
+                .scope_mut(scope)
+                .insert(TASK_VAR_NAME, task_name.span(), Type::Task);
+        }
+
+        scope
+    }
+
     // Check for a name conflict with another task or workflow
     let name = task.name();
     if let Some(s) = document.tasks.get(name.as_str()) {
@@ -538,88 +429,178 @@ fn add_task(
         }
     }
 
-    // Populate the task's scope and evaluation graph
+    // Populate type maps for the task's inputs and outputs
+    let inputs = create_input_type_map(
+        document,
+        task.input().into_iter().flat_map(|s| s.declarations()),
+        diagnostics,
+    );
+    let outputs = create_output_type_map(
+        document,
+        task.output()
+            .into_iter()
+            .flat_map(|s| s.declarations().map(Decl::Bound)),
+        diagnostics,
+    );
+
+    // Process the task in evaluation order
+    let graph = TaskGraph::new(document.version.unwrap(), task, diagnostics);
     let scope = document.add_scope(Scope::new(None, braced_scope_span(task)));
-    let mut saw_input = false;
-    let mut outputs = None;
-    let mut command = None;
-    for item in task.items() {
-        match item {
-            TaskItem::Input(section) if !saw_input => {
-                saw_input = true;
-                for decl in section.declarations() {
-                    add_input(document.scope_mut(scope), decl, diagnostics)
+    let mut output_scope = None;
+    let mut command_scope = None;
+
+    for node in graph.toposort() {
+        match node {
+            TaskGraphNode::Input(decl) => {
+                add_decl(
+                    document,
+                    scope,
+                    &decl,
+                    |_, n, _, _| inputs[n].0,
+                    diagnostics,
+                );
+            }
+            TaskGraphNode::Decl(decl) => {
+                add_decl(
+                    document,
+                    scope,
+                    &decl,
+                    |doc, _, decl, diag| convert_ast_type(doc, &decl.ty(), diag),
+                    diagnostics,
+                );
+            }
+            TaskGraphNode::Output(decl) => {
+                let scope = *output_scope.get_or_insert_with(|| {
+                    create_section_scope(
+                        document,
+                        &name,
+                        scope,
+                        braced_scope_span(&task.output().expect("should have output section")),
+                    )
+                });
+                add_decl(document, scope, &decl, |_, n, _, _| outputs[n], diagnostics);
+            }
+            TaskGraphNode::Command(section) => {
+                let scope = *command_scope.get_or_insert_with(|| {
+                    let span = if section.is_heredoc() {
+                        heredoc_scope_span(&section)
+                    } else {
+                        braced_scope_span(&section)
+                    };
+
+                    create_section_scope(document, &name, scope, span)
+                });
+
+                // Perform type checking on the command section's placeholders
+                let mut evaluator = ExprTypeEvaluator::new(
+                    document.version.unwrap(),
+                    &mut document.types,
+                    diagnostics,
+                    |name, span| lookup_type(&document.structs, name, span),
+                );
+
+                for part in section.parts() {
+                    if let CommandPart::Placeholder(p) = part {
+                        evaluator.check_placeholder(&ScopeRef::new(&document.scopes, scope), &p);
+                    }
                 }
             }
-            TaskItem::Output(section) if outputs.is_none() => {
-                let child =
-                    document.add_scope(Scope::new(Some(scope), braced_scope_span(&section)));
-                document.scope_mut(scope).add_child(child);
+            TaskGraphNode::Runtime(section) => {
+                // Perform type checking on the runtime section's expressions
+                let mut evaluator = ExprTypeEvaluator::new(
+                    document.version.unwrap(),
+                    &mut document.types,
+                    diagnostics,
+                    |name, span| lookup_type(&document.structs, name, span),
+                );
 
-                if document.version >= Some(SupportedVersion::V1(V1::Two)) {
-                    document.scopes[child.0]
-                        .names
-                        .insert(TASK_VAR_NAME.to_string(), Name {
-                            context: NameContext::Task(name.span()),
-                            ty: Some(Type::Task),
-                        });
+                let scope = ScopeRef::new(&document.scopes, scope);
+                for item in section.items() {
+                    evaluator.evaluate_runtime_item(&scope, &item.name(), &item.expr());
                 }
+            }
+            TaskGraphNode::Requirements(section) => {
+                // Perform type checking on the requirements section's expressions
+                let mut evaluator = ExprTypeEvaluator::new(
+                    document.version.unwrap(),
+                    &mut document.types,
+                    diagnostics,
+                    |name, span| lookup_type(&document.structs, name, span),
+                );
 
-                for decl in section.declarations() {
-                    add_output(document.scope_mut(child), decl, diagnostics);
+                let scope = ScopeRef::new(&document.scopes, scope);
+                for item in section.items() {
+                    evaluator.evaluate_requirements_item(&scope, &item.name(), &item.expr());
                 }
+            }
+            TaskGraphNode::Hints(section) => {
+                // Perform type checking on the hints section's expressions
+                let mut evaluator = ExprTypeEvaluator::new(
+                    document.version.unwrap(),
+                    &mut document.types,
+                    diagnostics,
+                    |name, span| lookup_type(&document.structs, name, span),
+                );
 
-                outputs = Some(child);
-            }
-            TaskItem::Declaration(decl) => {
-                add_decl(document.scope_mut(scope), decl, diagnostics);
-            }
-            TaskItem::Command(section) if command.is_none() => {
-                let span = if section.is_heredoc() {
-                    heredoc_scope_span(&section)
-                } else {
-                    braced_scope_span(&section)
+                // Create a special scope for evaluating the hints section which allows for the
+                // `hints`, `input`, and `output` hidden types
+                let scope = ScopeRef {
+                    scopes: &document.scopes,
+                    scope,
+                    task_name: Some(name.as_str()),
+                    inputs: Some(&inputs),
+                    outputs: Some(&outputs),
                 };
 
-                let child = document.add_scope(Scope::new(Some(scope), span));
-                document.scope_mut(scope).add_child(child);
-
-                if document.version >= Some(SupportedVersion::V1(V1::Two)) {
-                    document.scopes[child.0]
-                        .names
-                        .insert(TASK_VAR_NAME.to_string(), Name {
-                            context: NameContext::Task(name.span()),
-                            ty: Some(Type::Task),
-                        });
+                for item in section.items() {
+                    evaluator.evaluate_hints_item(&scope, &item.name(), &item.expr())
                 }
-
-                command = Some(child);
             }
-            TaskItem::Input(_)
-            | TaskItem::Output(_)
-            | TaskItem::Command(_)
-            | TaskItem::Requirements(_)
-            | TaskItem::Hints(_)
-            | TaskItem::Runtime(_)
-            | TaskItem::Metadata(_)
-            | TaskItem::ParameterMetadata(_) => continue,
         }
     }
 
     document.tasks.insert(name.as_str().to_string(), Task {
         name_span: name.span(),
         scope,
+        inputs,
         outputs,
-        command,
     });
 }
 
+/// Adds a declaration to a scope.
+fn add_decl(
+    document: &mut DocumentScope,
+    scope: ScopeIndex,
+    decl: &Decl,
+    ty: impl FnOnce(&mut DocumentScope, &str, &Decl, &mut Vec<Diagnostic>) -> Type,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let (name, expr) = (decl.name(), decl.expr());
+    if document.scope(scope).lookup(name.as_str()).is_some() {
+        // The declaration is conflicting; don't add to the scope
+        return;
+    }
+
+    let ty = ty(document, name.as_str(), decl, diagnostics);
+
+    document
+        .scope_mut(scope)
+        .insert(name.as_str(), name.span(), ty);
+
+    if let Some(expr) = expr {
+        type_check_expr(document, scope, &expr, ty, name.span(), diagnostics);
+    }
+}
+
 /// Adds a workflow to the document scope.
+///
+/// Returns `true` if the workflow was added to the document or `false` if not
+/// (i.e. there was a conflict).
 fn add_workflow(
     document: &mut DocumentScope,
     workflow: &WorkflowDefinition,
     diagnostics: &mut Vec<Diagnostic>,
-) {
+) -> bool {
     // Check for conflicts with task names or an existing workspace
     let name = workflow.name();
     if let Some(s) = document.tasks.get(name.as_str()) {
@@ -628,191 +609,532 @@ fn add_workflow(
             Context::Workflow(name.span()),
             Context::Task(s.name_span),
         ));
-        return;
+        return false;
     } else if let Some(s) = &document.workflow {
         diagnostics.push(duplicate_workflow(&name, s.name_span));
-        return;
+        return false;
     }
 
-    let scope = document.add_scope(Scope::new(None, braced_scope_span(workflow)));
-    let mut saw_input = false;
-    let mut saw_output = false;
-    for item in workflow.items() {
-        match item {
-            WorkflowItem::Input(section) if !saw_input => {
-                saw_input = true;
-                for decl in section.declarations() {
-                    add_input(document.scope_mut(scope), decl, diagnostics)
-                }
-            }
-            WorkflowItem::Output(section) if !saw_output => {
-                saw_output = true;
-                let outputs =
-                    document.add_scope(Scope::new(Some(scope), braced_scope_span(&section)));
-                document.scope_mut(scope).add_child(outputs);
-                for decl in section.declarations() {
-                    add_output(document.scope_mut(outputs), decl, diagnostics);
-                }
-            }
-            WorkflowItem::Declaration(decl) => {
-                add_workflow_statement_decls(
-                    document,
-                    &WorkflowStatement::Declaration(decl),
-                    scope,
-                    diagnostics,
-                );
-            }
-            WorkflowItem::Conditional(stmt) => {
-                add_workflow_statement_decls(
-                    document,
-                    &WorkflowStatement::Conditional(stmt),
-                    scope,
-                    diagnostics,
-                );
-            }
-            WorkflowItem::Scatter(stmt) => {
-                add_workflow_statement_decls(
-                    document,
-                    &WorkflowStatement::Scatter(stmt),
-                    scope,
-                    diagnostics,
-                );
-            }
-            WorkflowItem::Call(stmt) => {
-                add_workflow_statement_decls(
-                    document,
-                    &WorkflowStatement::Call(stmt),
-                    scope,
-                    diagnostics,
-                );
-            }
-            WorkflowItem::Input(_)
-            | WorkflowItem::Output(_)
-            | WorkflowItem::Metadata(_)
-            | WorkflowItem::ParameterMetadata(_)
-            | WorkflowItem::Hints(_) => continue,
-        }
-    }
+    // Note: we delay actually populating the workflow scope until later on so that
+    // we can populate all tasks in the document first.
 
     document.workflow = Some(Workflow {
         name_span: name.span(),
         name: name.as_str().to_string(),
-        scope,
+        scope: document.add_scope(Scope::new(None, braced_scope_span(workflow))),
+        inputs: Default::default(),
+        outputs: Default::default(),
     });
+
+    true
 }
 
-/// Adds declarations from workflow statements.
-fn add_workflow_statement_decls(
-    document: &mut DocumentScope,
-    stmt: &WorkflowStatement,
-    parent: ScopeIndex,
-    diagnostics: &mut Vec<Diagnostic>,
-) {
-    match stmt {
-        WorkflowStatement::Conditional(stmt) => {
-            let scope = document.add_scope(Scope::new(Some(parent), braced_scope_span(stmt)));
-            document.scope_mut(parent).add_child(scope);
-
-            for stmt in stmt.statements() {
-                add_workflow_statement_decls(document, &stmt, scope, diagnostics);
-            }
-
-            // We need to split the scopes as we want to read from one part of the slice and
-            // write to another; the left side will contain the parent at it's index and the
-            // right side will contain the child scope at it's index minus the parent's
-            assert!(scope.0 > parent.0);
-            let (left, right) = document.scopes.split_at_mut(parent.0 + 1);
-            let scope = &right[scope.0 - parent.0 - 1];
-            let parent = &mut left[parent.0];
-            for (name, local) in scope.names.iter() {
-                parent.names.insert(name.clone(), Name::new(local.context));
-            }
+/// Determines if nested inputs are allowed for a workflow.
+fn is_nested_inputs_allowed(document: &DocumentScope, definition: &WorkflowDefinition) -> bool {
+    match document.version() {
+        Some(SupportedVersion::V1(V1::Zero)) => return true,
+        Some(SupportedVersion::V1(V1::One)) => {
+            // Fall through to below
         }
-        WorkflowStatement::Scatter(stmt) => {
-            let scope = document.add_scope(Scope::new(Some(parent), braced_scope_span(stmt)));
-            document.scope_mut(parent).add_child(scope);
-
-            // Introduce the scatter variable into the scope
-            let variable = stmt.variable();
-            let context = NameContext::ScatterVariable(variable.span());
-            if let Some(prev) = document.scope(scope).lookup(variable.as_str()) {
-                diagnostics.push(name_conflict(
-                    variable.as_str(),
-                    context.into(),
-                    prev.context().into(),
-                ));
-            }
-
-            document
-                .scope_mut(scope)
-                .insert(variable.as_str().to_string(), Name::new(context));
-
-            // Process the statements
-            for stmt in stmt.statements() {
-                add_workflow_statement_decls(document, &stmt, scope, diagnostics);
-            }
-
-            // We need to split the scopes as we want to read from one part of the slice and
-            // write to another; the left side will contain the parent at it's index and the
-            // right side will contain the child scope at it's index minus the parent's
-            assert!(scope.0 > parent.0);
-            let (left, right) = document.scopes.split_at_mut(parent.0 + 1);
-            let scope = &right[scope.0 - parent.0 - 1];
-            let parent = &mut left[parent.0];
-
-            for (name, local) in scope.names.iter() {
-                // Don't export the scatter variable into the parent scope
-                if !matches!(local.context, NameContext::ScatterVariable(_)) {
-                    parent.names.insert(name.clone(), Name::new(local.context));
-                }
-            }
-        }
-        WorkflowStatement::Call(stmt) => {
-            let name = stmt.alias().map(|a| a.name()).unwrap_or_else(|| {
-                stmt.target()
-                    .names()
-                    .last()
-                    .expect("expected a last call target name")
+        Some(SupportedVersion::V1(V1::Two)) => {
+            // Check the hints section
+            let allow = definition.hints().and_then(|s| {
+                s.items().find_map(|i| {
+                    if matches!(
+                        i.name().as_str(),
+                        "allow_nested_inputs" | "allowNestedInputs"
+                    ) {
+                        match i.value() {
+                            WorkflowHintsItemValue::Boolean(v) => Some(v.value()),
+                            _ => Some(false),
+                        }
+                    } else {
+                        None
+                    }
+                })
             });
 
-            if let Some(prev) = document.scope(parent).lookup(name.as_str()) {
-                diagnostics.push(call_conflict(
-                    &name,
-                    prev.context().into(),
-                    stmt.alias().is_none(),
-                ));
+            if let Some(allow) = allow {
+                return allow;
+            }
 
-                // Define the name in this scope if it conflicted with a scatter variable
-                if !matches!(prev.context, NameContext::ScatterVariable(_)) {
-                    return;
+            // Fall through to below
+        }
+        _ => return false,
+    }
+
+    // Check the metadata section
+    definition
+        .metadata()
+        .and_then(|s| {
+            s.items().find_map(|i| {
+                if i.name().as_str() == "allowNestedInputs" {
+                    match i.value() {
+                        MetadataValue::Boolean(v) => Some(v.value()),
+                        _ => Some(false),
+                    }
+                } else {
+                    None
+                }
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Finishes processing a workflow by populating its scope.
+fn populate_workflow_scope(
+    document: &mut DocumentScope,
+    definition: &WorkflowDefinition,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    // Populate type maps for the workflow's inputs and outputs
+    let inputs = create_input_type_map(
+        document,
+        definition
+            .input()
+            .into_iter()
+            .flat_map(|s| s.declarations()),
+        diagnostics,
+    );
+    let outputs = create_output_type_map(
+        document,
+        definition
+            .output()
+            .into_iter()
+            .flat_map(|s| s.declarations().map(Decl::Bound)),
+        diagnostics,
+    );
+
+    let nested_inputs_allowed = is_nested_inputs_allowed(document, definition);
+
+    // Keep a map of scopes from syntax node that introduced the scope to the scope
+    // index
+    let mut scopes = HashMap::new();
+    let workflow_scope = document
+        .workflow
+        .as_ref()
+        .map(|w| w.scope)
+        .expect("should have a workflow");
+    let mut output_scope = None;
+    let graph = WorkflowGraph::new(definition, diagnostics);
+    for node in graph.toposort() {
+        match node {
+            WorkflowGraphNode::Input(decl) => {
+                add_decl(
+                    document,
+                    workflow_scope,
+                    &decl,
+                    |_, n, _, _| inputs[n].0,
+                    diagnostics,
+                );
+            }
+            WorkflowGraphNode::Decl(decl) => {
+                let scope = scopes
+                    .get(&decl.syntax().parent().expect("should have parent"))
+                    .copied()
+                    .unwrap_or(workflow_scope);
+                add_decl(
+                    document,
+                    scope,
+                    &decl,
+                    |doc, _, decl, diag| convert_ast_type(doc, &decl.ty(), diag),
+                    diagnostics,
+                );
+            }
+            WorkflowGraphNode::Output(decl) => {
+                let scope = *output_scope.get_or_insert_with(|| {
+                    document.add_scope(Scope::new(
+                        Some(workflow_scope),
+                        braced_scope_span(
+                            &definition.output().expect("should have output section"),
+                        ),
+                    ))
+                });
+                add_decl(document, scope, &decl, |_, n, _, _| outputs[n], diagnostics);
+            }
+            WorkflowGraphNode::Conditional(statement) => {
+                let parent = scopes
+                    .get(&statement.syntax().parent().expect("should have parent"))
+                    .copied()
+                    .unwrap_or(workflow_scope);
+                add_conditional_statement(document, parent, &mut scopes, &statement, diagnostics);
+            }
+            WorkflowGraphNode::Scatter(statement) => {
+                let parent = scopes
+                    .get(&statement.syntax().parent().expect("should have parent"))
+                    .copied()
+                    .unwrap_or(workflow_scope);
+                add_scatter_statement(document, parent, &mut scopes, &statement, diagnostics);
+            }
+            WorkflowGraphNode::Call(statement) => {
+                let scope = scopes
+                    .get(&statement.syntax().parent().expect("should have parent"))
+                    .copied()
+                    .unwrap_or(workflow_scope);
+                add_call_statement(
+                    document,
+                    definition.name().as_str(),
+                    scope,
+                    &statement,
+                    nested_inputs_allowed,
+                    diagnostics,
+                );
+            }
+            WorkflowGraphNode::ExitConditional(statement) => {
+                let scope = scopes
+                    .get(statement.syntax())
+                    .copied()
+                    .expect("should have scope");
+                promote_scope(document, scope, None, promote_optional_type);
+            }
+            WorkflowGraphNode::ExitScatter(statement) => {
+                let scope = scopes
+                    .get(statement.syntax())
+                    .copied()
+                    .expect("should have scope");
+                let variable = statement.variable();
+                promote_scope(document, scope, Some(variable.as_str()), promote_array_type);
+            }
+        }
+    }
+
+    let workflow = document.workflow.as_mut().expect("expected a workflow");
+    workflow.inputs = inputs;
+    workflow.outputs = outputs;
+}
+
+/// Adds a conditional statement to the current scope.
+fn add_conditional_statement(
+    document: &mut DocumentScope,
+    parent: ScopeIndex,
+    scopes: &mut HashMap<SyntaxNode, ScopeIndex>,
+    statement: &ConditionalStatement,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let scope = document.add_scope(Scope::new(Some(parent), braced_scope_span(statement)));
+    scopes.insert(statement.syntax().clone(), scope);
+
+    let mut evaluator = ExprTypeEvaluator::new(
+        document.version.unwrap(),
+        &mut document.types,
+        diagnostics,
+        |name, span| lookup_type(&document.structs, name, span),
+    );
+
+    // Evaluate the statement's expression; it is expected to be a boolean
+    let expr = statement.expr();
+    let ty = evaluator
+        .evaluate_expr(&ScopeRef::new(&document.scopes, scope), &expr)
+        .unwrap_or(Type::Union);
+
+    if !ty.is_coercible_to(&document.types, &PrimitiveTypeKind::Boolean.into()) {
+        diagnostics.push(if_conditional_mismatch(&document.types, ty, expr.span()));
+    }
+}
+
+/// Adds a scatter statement to the current scope.
+fn add_scatter_statement(
+    document: &mut DocumentScope,
+    parent: ScopeIndex,
+    scopes: &mut HashMap<SyntaxNode, ScopeIndex>,
+    statement: &ScatterStatement,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let scope = document.add_scope(Scope::new(Some(parent), braced_scope_span(statement)));
+    scopes.insert(statement.syntax().clone(), scope);
+
+    let mut evaluator = ExprTypeEvaluator::new(
+        document.version.unwrap(),
+        &mut document.types,
+        diagnostics,
+        |name, span| lookup_type(&document.structs, name, span),
+    );
+
+    // Evaluate the statement expression; it is expected to be an array
+    let expr = statement.expr();
+    let ty = evaluator
+        .evaluate_expr(&ScopeRef::new(&document.scopes, scope), &expr)
+        .unwrap_or(Type::Union);
+    let element_ty = match ty {
+        Type::Compound(compound_ty) => {
+            match document.types.type_definition(compound_ty.definition()) {
+                CompoundTypeDef::Array(ty) => ty.element_type(),
+                _ => {
+                    diagnostics.push(type_is_not_array(&document.types, ty, expr.span()));
+                    Type::Union
+                }
+            }
+        }
+        Type::Union => Type::Union,
+        _ => {
+            diagnostics.push(type_is_not_array(&document.types, ty, expr.span()));
+            Type::Union
+        }
+    };
+
+    // Introduce the scatter variable into the scope
+    let variable = statement.variable();
+    document
+        .scope_mut(scope)
+        .insert(variable.as_str().to_string(), variable.span(), element_ty);
+}
+
+/// Adds a call statement to the current scope.
+fn add_call_statement(
+    document: &mut DocumentScope,
+    workflow_name: &str,
+    scope: ScopeIndex,
+    statement: &CallStatement,
+    nested_inputs_allowed: bool,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let target_name = statement
+        .target()
+        .names()
+        .last()
+        .expect("expected a last call target name");
+
+    let name = statement
+        .alias()
+        .map(|a| a.name())
+        .unwrap_or_else(|| target_name.clone());
+
+    let ty = match resolve_call_target(document, workflow_name, statement, diagnostics) {
+        Some(target) => {
+            // Type check the call inputs
+            let mut seen = HashSet::new();
+            for input in statement.inputs() {
+                let input_name = input.name();
+
+                let expected_ty = target
+                    .inputs
+                    .get(input_name.as_str())
+                    .copied()
+                    .map(|(ty, _)| ty)
+                    .unwrap_or_else(|| {
+                        diagnostics.push(unknown_io_name(
+                            name.as_str(),
+                            &input_name,
+                            target.workflow,
+                            true,
+                        ));
+                        Type::Union
+                    });
+
+                match input.expr() {
+                    Some(expr) => {
+                        type_check_expr(
+                            document,
+                            scope,
+                            &expr,
+                            expected_ty,
+                            input_name.span(),
+                            diagnostics,
+                        );
+                    }
+                    None => {
+                        if let Some((_, actual_ty)) =
+                            document.scope(scope).lookup(input_name.as_str())
+                        {
+                            if expected_ty != Type::Union
+                                && !actual_ty.is_coercible_to(&document.types, &expected_ty)
+                            {
+                                diagnostics.push(call_input_type_mismatch(
+                                    &document.types,
+                                    &input_name,
+                                    expected_ty,
+                                    actual_ty,
+                                ));
+                            }
+                        }
+                    }
+                }
+
+                // Don't bother keeping track of seen inputs if nested inputs are allowed
+                if !nested_inputs_allowed {
+                    seen.insert(TokenStrHash::new(input_name));
                 }
             }
 
-            document.scope_mut(parent).insert(
-                name.as_str().to_string(),
-                Name::new(NameContext::Call(name.span())),
-            );
-        }
-        WorkflowStatement::Declaration(decl) => {
-            let name = decl.name();
-            let context = NameContext::Decl(name.span());
-            if let Some(prev) = document.scope(parent).lookup(name.as_str()) {
-                diagnostics.push(name_conflict(
-                    name.as_str(),
-                    context.into(),
-                    prev.context().into(),
-                ));
-
-                // Define the name in this scope if it conflicted with a scatter variable
-                if !matches!(prev.context, NameContext::ScatterVariable(_)) {
-                    return;
+            if !nested_inputs_allowed {
+                for (input, (_, required)) in &target.inputs {
+                    if *required && !seen.contains(input.as_str()) {
+                        diagnostics.push(missing_call_input(target.workflow, &target_name, input));
+                    }
                 }
             }
 
-            document
-                .scope_mut(parent)
-                .insert(name.as_str().to_string(), Name::new(context));
+            document.types.add_call_output(CallOutputType::new(
+                name.as_str(),
+                target.outputs,
+                target.workflow,
+            ))
         }
+        None => Type::Union,
+    };
+
+    // Don't add if there's a conflict
+    if document.scope(scope).lookup(name.as_str()).is_some() {
+        return;
+    }
+
+    document
+        .scope_mut(scope)
+        .insert(name.as_str(), name.span(), ty);
+}
+
+/// Represents information about a call target.
+struct CallTarget {
+    /// Whether or not the target is a workflow.
+    workflow: bool,
+    /// The inputs of the call target.
+    ///
+    /// The value is the pair of the input type and whether or not the input is
+    /// required.
+    inputs: HashMap<String, (Type, bool)>,
+    /// The outputs of the call target.
+    ///
+    /// The value is the output type.
+    outputs: HashMap<String, Type>,
+}
+
+/// Resolves the target of a call statement.
+///
+/// Returns `None` if the call target could not be resolved.
+fn resolve_call_target(
+    document: &mut DocumentScope,
+    workflow_name: &str,
+    statement: &CallStatement,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Option<CallTarget> {
+    let mut targets = statement.target().names().peekable();
+    let mut namespace = None;
+    let mut name = None;
+    while let Some(target) = targets.next() {
+        if targets.peek().is_none() {
+            name = Some(target);
+            break;
+        }
+
+        if namespace.is_some() {
+            diagnostics.push(only_one_namespace(target.span()));
+            return None;
+        }
+
+        match document.namespaces.get(target.as_str()) {
+            Some(ns) => namespace = Some(ns),
+            None => {
+                diagnostics.push(unknown_namespace(&target));
+                return None;
+            }
+        }
+    }
+
+    let target = namespace.map(|ns| ns.scope.as_ref()).unwrap_or(document);
+    let name = name.expect("should have name");
+
+    if namespace.is_none() && name.as_str() == workflow_name {
+        diagnostics.push(recursive_workflow_call(&name));
+        return None;
+    }
+
+    let (workflow, mut inputs, mut outputs) = if let Some(task) = target.tasks.get(name.as_str()) {
+        (false, task.inputs.clone(), task.outputs.clone())
+    } else {
+        match &target.workflow {
+            Some(workflow) if workflow.name == name.as_str() => {
+                (true, workflow.inputs.clone(), workflow.outputs.clone())
+            }
+            _ => {
+                diagnostics.push(unknown_task_or_workflow(namespace.map(|ns| ns.span), &name));
+                return None;
+            }
+        }
+    };
+
+    // If the target is from an import, we need to import its type definitions into
+    // the current document scope
+    if let Some(types) = namespace.map(|ns| &ns.scope.types) {
+        for (ty, _) in inputs.values_mut() {
+            *ty = document.types.import(types, *ty);
+        }
+
+        for ty in outputs.values_mut() {
+            *ty = document.types.import(types, *ty);
+        }
+    }
+
+    Some(CallTarget {
+        workflow,
+        inputs,
+        outputs,
+    })
+}
+
+/// Promotes the names in the current to the parent scope.
+fn promote_scope<F>(
+    document: &mut DocumentScope,
+    scope: ScopeIndex,
+    skip: Option<&str>,
+    transform: F,
+) where
+    F: Fn(&mut Types, Type) -> Type,
+{
+    // We need to split the scopes as we want to read from one part of the slice and
+    // write to another; the left side will contain the parent at it's index and the
+    // right side will contain the child scope at it's index minus the parent's
+    let parent = document.scopes[scope.0]
+        .parent
+        .expect("should have a parent scope");
+    assert!(scope.0 > parent.0);
+    let (left, right) = document.scopes.split_at_mut(parent.0 + 1);
+    let scope = &right[scope.0 - parent.0 - 1];
+    let parent = &mut left[parent.0];
+    for (name, (span, ty)) in scope.names.iter() {
+        if Some(name.as_str()) == skip {
+            continue;
+        }
+
+        parent
+            .names
+            .entry(name.clone())
+            .or_insert_with(|| (*span, transform(&mut document.types, *ty)));
+    }
+}
+
+/// Promotes a type to an array type for scatter statements.
+fn promote_array_type(types: &mut Types, ty: Type) -> Type {
+    match ty {
+        Type::Compound(ty) => match types.type_definition(ty.definition()) {
+            CompoundTypeDef::CallOutput(ty) => {
+                let mut ty = ty.clone();
+                for ty in ty.outputs_mut().values_mut() {
+                    *ty = types.add_array(ArrayType::new(*ty))
+                }
+
+                types.add_call_output(ty)
+            }
+            _ => types.add_array(ArrayType::new(Type::Compound(ty))),
+        },
+        _ => types.add_array(ArrayType::new(ty)),
+    }
+}
+
+/// Promotes a type to an optional type for conditional statements.
+fn promote_optional_type(types: &mut Types, ty: Type) -> Type {
+    match ty {
+        Type::Compound(ty) => match types.type_definition(ty.definition()) {
+            CompoundTypeDef::CallOutput(ty) => {
+                let mut ty = ty.clone();
+                for ty in ty.outputs_mut().values_mut() {
+                    *ty = ty.optional();
+                }
+
+                types.add_call_output(ty)
+            }
+            _ => Type::Compound(ty.optional()),
+        },
+        _ => ty.optional(),
     }
 }
 
@@ -880,8 +1202,8 @@ fn resolve_import(
     Ok((import_node.uri().clone(), import_scope))
 }
 
-/// Adds the struct types to the document.
-fn add_struct_types(document: &mut DocumentScope, diagnostics: &mut Vec<Diagnostic>) {
+/// Sets the struct types in the document.
+fn set_struct_types(document: &mut DocumentScope, diagnostics: &mut Vec<Diagnostic>) {
     if document.structs.is_empty() {
         return;
     }
@@ -956,489 +1278,45 @@ fn add_struct_types(document: &mut DocumentScope, diagnostics: &mut Vec<Diagnost
     }
 }
 
-/// Performs type checking on a document.
-fn type_check(document: &mut DocumentScope, ast: &Ast, diagnostics: &mut Vec<Diagnostic>) {
-    let mut seen = HashSet::new();
-    for item in ast.items() {
-        match item {
-            DocumentItem::Import(_) | DocumentItem::Struct(_) => continue,
-            DocumentItem::Task(definition) => {
-                if let Some(task) = document.tasks.get_index_of(definition.name().as_str()) {
-                    // Only process the first task we encounter in the AST with this name
-                    // Duplicates that come later will be excluded from type checking, but a
-                    // diagnostic will have already been added for the duplicate
-                    if seen.insert(task) {
-                        type_check_task(document, &definition, task, diagnostics);
-                    }
-                }
-            }
-            DocumentItem::Workflow(_) => {
-                // TODO: implement
-            }
-        }
-    }
+/// Looks up a struct type.
+fn lookup_type(
+    structs: &IndexMap<String, Struct>,
+    name: &str,
+    span: Span,
+) -> Result<Type, Diagnostic> {
+    structs
+        .get(name)
+        .map(|s| s.ty().expect("struct should have type"))
+        .ok_or_else(|| unknown_type(name, span))
 }
 
-/// Performs a type check on a task.
-fn type_check_task(
+/// Performs a type check of an expression.
+fn type_check_expr(
     document: &mut DocumentScope,
-    definition: &TaskDefinition,
-    task_index: usize,
+    scope: ScopeIndex,
+    expr: &Expr,
+    expected: Type,
+    expected_span: Span,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    /// Represents a node in the name reference graph.
-    enum GraphNode {
-        /// The node is an input/output/decl node.
-        Decl {
-            /// The scope to use to evaluate the expression.
-            scope: ScopeIndex,
-            /// The expected type of the expression.
-            expected: Type,
-            /// The optional expression to evaluate.
-            expr: Option<Expr>,
-            /// The span of the associated declaration name.
-            span: Span,
-        },
-        /// The node is the task's command.
-        Command {
-            /// The scope to use to evaluate the command.
-            scope: ScopeIndex,
-            /// The command section.
-            section: CommandSection,
-        },
-        /// The node is a runtime section.
-        Runtime {
-            /// The scope to use for evaluating the runtime section.
-            scope: ScopeIndex,
-            /// The runtime section.
-            section: RuntimeSection,
-        },
-        /// The node is a requirements section.
-        Requirements {
-            /// The scope to use for evaluating the requirements section.
-            scope: ScopeIndex,
-            /// The requirements section.
-            section: RequirementsSection,
-        },
-        /// The node is a hints section.
-        Hints {
-            /// The scope to use for evaluating the hints section.
-            scope: ScopeIndex,
-            /// The hints section.
-            section: TaskHintsSection,
-        },
-    }
+    let mut evaluator = ExprTypeEvaluator::new(
+        document.version.unwrap(),
+        &mut document.types,
+        diagnostics,
+        |name, span| lookup_type(&document.structs, name, span),
+    );
 
-    /// Looks up a struct type.
-    fn lookup_type(
-        structs: &IndexMap<String, Struct>,
-        name: &str,
-        span: Span,
-    ) -> Result<Type, Diagnostic> {
-        structs
-            .get(name)
-            .map(|s| s.ty().expect("struct should have type"))
-            .ok_or_else(|| unknown_type(name, span))
-    }
+    let actual = evaluator
+        .evaluate_expr(&ScopeRef::new(&document.scopes, scope), expr)
+        .unwrap_or(Type::Union);
 
-    /// Adds a decl node to the name reference graph.
-    ///
-    /// This also populates the declaration type for the name in the scope.
-    fn add_decl_node(
-        document: &mut DocumentScope,
-        graph: &mut DiGraph<GraphNode, ()>,
-        names: &mut IndexMap<TokenStrHash<Ident>, NodeIndex>,
-        scope: ScopeIndex,
-        decl: Decl,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) {
-        let name = decl.name();
-        if let Some(local) = document.scopes[scope.0].names.get_mut(name.as_str()) {
-            if local.ty.is_some() {
-                return;
-            }
-
-            // Convert the AST type
-            let mut converter = AstTypeConverter::new(&mut document.types, |name, span| {
-                lookup_type(&document.structs, name, span)
-            });
-            let ty = match converter.convert_type(&decl.ty()) {
-                Ok(ty) => ty,
-                Err(diagnostic) => {
-                    diagnostics.push(diagnostic);
-                    Type::Union
-                }
-            };
-            local.ty = Some(ty);
-
-            // Add a node to the graph for this declaration
-            let span = name.span();
-            names.insert(
-                TokenStrHash::new(name),
-                graph.add_node(GraphNode::Decl {
-                    scope,
-                    expected: ty,
-                    expr: decl.expr(),
-                    span,
-                }),
-            );
-        }
-    }
-
-    /// Adds edges from task sections to declarations.
-    fn add_section_edges(
-        document: &DocumentScope,
-        graph: &mut DiGraph<GraphNode, ()>,
-        names: &IndexMap<TokenStrHash<Ident>, NodeIndex>,
-        diagnostics: &mut Vec<Diagnostic>,
-        from: NodeIndex,
-        descendants: impl Iterator<Item = SyntaxNode>,
-        scope: ScopeIndex,
-    ) {
-        // Add edges for any descendant name references
-        for r in descendants.filter_map(NameRef::cast) {
-            let name = r.name();
-
-            // Look up the name; we don't check for cycles here as decls can't
-            // reference a section.
-            if document.scope(scope).lookup(name.as_str()).is_some() {
-                if let Some(to) = names.get(name.as_str()) {
-                    graph.update_edge(*to, from, ());
-                }
-            } else {
-                diagnostics.push(unknown_name(name.as_str(), name.span()));
-            }
-        }
-    }
-
-    /// Adds name reference edges to the graph.
-    fn add_reference_edges(
-        document: &DocumentScope,
-        graph: &mut DiGraph<GraphNode, ()>,
-        names: &IndexMap<TokenStrHash<Ident>, NodeIndex>,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) {
-        let mut space = Default::default();
-
-        // Populate edges for any nodes that reference other nodes by name
-        for from in graph.node_indices() {
-            match &graph[from] {
-                GraphNode::Decl {
-                    scope,
-                    expected: _,
-                    expr,
-                    span,
-                } => {
-                    let scope = *scope;
-                    let span = *span;
-                    let expr = expr.clone();
-
-                    if let Some(expr) = expr {
-                        for r in expr.syntax().descendants().filter_map(NameRef::cast) {
-                            let name = r.name();
-
-                            // Look up the name, checking for cycles
-                            if document.scope(scope).lookup(name.as_str()).is_some() {
-                                if let Some(to) = names.get(name.as_str()) {
-                                    // Check to see if the node is self-referential
-                                    if *to == from {
-                                        diagnostics.push(self_referential(
-                                            name.as_str(),
-                                            span,
-                                            name.span(),
-                                        ));
-                                        continue;
-                                    }
-
-                                    // Check to see if the edge would form a cycle
-                                    if has_path_connecting(&*graph, from, *to, Some(&mut space)) {
-                                        diagnostics.push(reference_cycle(
-                                            names
-                                                .get_index(from.index())
-                                                .unwrap()
-                                                .0
-                                                .as_ref()
-                                                .as_str(),
-                                            r.span(),
-                                            name.as_str(),
-                                            match &graph[*to] {
-                                                GraphNode::Decl { expr, .. } => expr
-                                                    .as_ref()
-                                                    .map(|e| e.span())
-                                                    .expect("should have expr to form a cycle"),
-                                                _ => panic!("expected decl node"),
-                                            },
-                                        ));
-                                        continue;
-                                    }
-
-                                    graph.update_edge(*to, from, ());
-                                }
-                            } else {
-                                diagnostics.push(unknown_name(name.as_str(), name.span()));
-                            }
-                        }
-                    }
-                }
-                GraphNode::Command { scope, section } => {
-                    // Add name references from the command section to any decls in scope
-                    let scope = *scope;
-                    let section = section.clone();
-                    for part in section.parts() {
-                        if let CommandPart::Placeholder(p) = part {
-                            add_section_edges(
-                                document,
-                                graph,
-                                names,
-                                diagnostics,
-                                from,
-                                p.syntax().descendants(),
-                                scope,
-                            );
-                        }
-                    }
-                }
-                GraphNode::Runtime { scope, section } => {
-                    // Add name references from the runtime section to any decls in scope
-                    let scope = *scope;
-                    let section = section.clone();
-                    for item in section.items() {
-                        add_section_edges(
-                            document,
-                            graph,
-                            names,
-                            diagnostics,
-                            from,
-                            item.expr().syntax().descendants(),
-                            scope,
-                        );
-                    }
-                }
-                GraphNode::Requirements { scope, section } => {
-                    // Add name references from the requirements section to any decls in scope
-                    let scope = *scope;
-                    let section = section.clone();
-                    for item in section.items() {
-                        add_section_edges(
-                            document,
-                            graph,
-                            names,
-                            diagnostics,
-                            from,
-                            item.expr().syntax().descendants(),
-                            scope,
-                        );
-                    }
-                }
-                GraphNode::Hints { scope, section } => {
-                    // Add name references from the hints section to any decls in scope
-                    let scope = *scope;
-                    let section = section.clone();
-                    for item in section.items() {
-                        add_section_edges(
-                            document,
-                            graph,
-                            names,
-                            diagnostics,
-                            from,
-                            item.expr().syntax().descendants(),
-                            scope,
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    // Populate the declaration types and build a name reference graph
-    let mut saw_inputs = false;
-    let mut saw_outputs = false;
-    let mut saw_runtime = false;
-    let mut saw_requirements = false;
-    let mut saw_hints = false;
-    let mut command = None;
-    let mut graph = DiGraph::new();
-    let mut names = IndexMap::new();
-    for item in definition.items() {
-        match item {
-            TaskItem::Input(section) if !saw_inputs => {
-                saw_inputs = true;
-                for decl in section.declarations() {
-                    add_decl_node(
-                        document,
-                        &mut graph,
-                        &mut names,
-                        document.tasks[task_index].scope,
-                        decl,
-                        diagnostics,
-                    );
-                }
-            }
-            TaskItem::Output(section) if !saw_outputs => {
-                saw_outputs = true;
-                let scope = document.tasks[task_index]
-                    .outputs
-                    .expect("should have output scope");
-                for decl in section.declarations() {
-                    add_decl_node(
-                        document,
-                        &mut graph,
-                        &mut names,
-                        scope,
-                        Decl::Bound(decl),
-                        diagnostics,
-                    );
-                }
-            }
-            TaskItem::Declaration(decl) => {
-                add_decl_node(
-                    document,
-                    &mut graph,
-                    &mut names,
-                    document.tasks[task_index].scope,
-                    Decl::Bound(decl),
-                    diagnostics,
-                );
-            }
-            TaskItem::Command(section) if command.is_none() => {
-                command = Some(
-                    graph.add_node(GraphNode::Command {
-                        scope: document.tasks[task_index]
-                            .command
-                            .expect("should have command scope"),
-                        section,
-                    }),
-                );
-            }
-            TaskItem::Runtime(section) if !saw_runtime => {
-                saw_runtime = true;
-                graph.add_node(GraphNode::Runtime {
-                    scope: document.tasks[task_index].scope,
-                    section,
-                });
-            }
-            TaskItem::Requirements(section) if !saw_requirements => {
-                saw_requirements = true;
-                graph.add_node(GraphNode::Requirements {
-                    scope: document.tasks[task_index].scope,
-                    section,
-                });
-            }
-            TaskItem::Hints(section) if !saw_hints => {
-                saw_hints = true;
-                graph.add_node(GraphNode::Hints {
-                    scope: document.tasks[task_index].scope,
-                    section,
-                });
-            }
-            _ => continue,
-        }
-    }
-
-    add_reference_edges(document, &mut graph, &names, diagnostics);
-
-    // Type check the nodes
-    for index in graph.node_indices() {
-        match &graph[index] {
-            GraphNode::Decl {
-                scope,
-                expected,
-                expr,
-                span,
-            } => {
-                if let Some(expr) = expr {
-                    let scopes = &document.scopes;
-                    let mut evaluator = ExprTypeEvaluator::new(
-                        document.version.expect("document should be a 1.x version"),
-                        &mut document.types,
-                        diagnostics,
-                        |name, span| lookup_type(&document.structs, name, span),
-                    );
-                    let actual = evaluator
-                        .evaluate_expr(&ScopeRef::new(scopes, *scope), expr)
-                        .unwrap_or(Type::Union);
-
-                    if *expected != Type::Union
-                        && !actual.is_coercible_to(&document.types, expected)
-                    {
-                        diagnostics.push(type_mismatch(
-                            &document.types,
-                            *expected,
-                            *span,
-                            actual,
-                            expr.span(),
-                        ));
-                    }
-                }
-            }
-            GraphNode::Command { scope, section } => {
-                let mut evaluator = ExprTypeEvaluator::new(
-                    document.version.expect("document should be a 1.x version"),
-                    &mut document.types,
-                    diagnostics,
-                    |name, span| lookup_type(&document.structs, name, span),
-                );
-
-                // Check any placeholder expression
-                for part in section.parts() {
-                    if let CommandPart::Placeholder(p) = part {
-                        evaluator.check_placeholder(&ScopeRef::new(&document.scopes, *scope), &p);
-                    }
-                }
-            }
-            GraphNode::Runtime { scope, section } => {
-                let mut evaluator = ExprTypeEvaluator::new(
-                    document.version.expect("document should be a 1.x version"),
-                    &mut document.types,
-                    diagnostics,
-                    |name, span| lookup_type(&document.structs, name, span),
-                );
-
-                let scope = ScopeRef::new(&document.scopes, *scope);
-                for item in section.items() {
-                    evaluator.evaluate_runtime_item(&scope, &item.name(), &item.expr());
-                }
-            }
-            GraphNode::Requirements { scope, section } => {
-                let mut evaluator = ExprTypeEvaluator::new(
-                    document.version.expect("document should be a 1.x version"),
-                    &mut document.types,
-                    diagnostics,
-                    |name, span| lookup_type(&document.structs, name, span),
-                );
-
-                let scope = ScopeRef::new(&document.scopes, *scope);
-                for item in section.items() {
-                    evaluator.evaluate_requirements_item(&scope, &item.name(), &item.expr());
-                }
-            }
-            GraphNode::Hints { scope, section } => {
-                let mut evaluator = ExprTypeEvaluator::new(
-                    document.version.expect("document should be a 1.x version"),
-                    &mut document.types,
-                    diagnostics,
-                    |name, span| lookup_type(&document.structs, name, span),
-                );
-
-                // Create a special scope for evaluating the hints section which allows for the
-                // `hints`, `input`, and `output` hidden types
-                let scope = ScopeRef {
-                    scopes: &document.scopes,
-                    scope: *scope,
-                    inputs: Some(*scope),
-                    outputs: Some(
-                        document.tasks[task_index]
-                            .outputs
-                            .map(TaskOutputScope::Present)
-                            .unwrap_or(TaskOutputScope::NotPresent),
-                    ),
-                    hints: true,
-                };
-
-                for item in section.items() {
-                    evaluator.evaluate_hints_item(&scope, &item.name(), &item.expr())
-                }
-            }
-        }
+    if expected != Type::Union && !actual.is_coercible_to(&document.types, &expected) {
+        diagnostics.push(type_mismatch(
+            &document.types,
+            expected,
+            expected_span,
+            actual,
+            expr.span(),
+        ));
     }
 }

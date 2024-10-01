@@ -1,0 +1,6 @@
+error: cannot recursively call workflow `test`
+  ┌─ tests/analysis/recursive-workflow-call/source.wdl:6:10
+  │
+6 │     call test
+  │          ^^^^
+

@@ -1,0 +1,6 @@
+error: only one namespace may be specified in a call statement
+  ┌─ tests/analysis/call-multiple-namespaces/source.wdl:8:14
+  │
+8 │     call foo.bar.baz
+  │              ^^^
+

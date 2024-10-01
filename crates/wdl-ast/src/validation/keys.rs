@@ -13,6 +13,7 @@ use crate::SupportedVersion;
 use crate::TokenStrHash;
 use crate::VisitReason;
 use crate::Visitor;
+use crate::v1::CallStatement;
 use crate::v1::Expr;
 use crate::v1::LiteralExpr;
 use crate::v1::MetadataObject;
@@ -42,6 +43,8 @@ enum Context {
     LiteralObject,
     /// The error is in a literal struct.
     LiteralStruct,
+    /// The error is in a call statement.
+    CallStatement,
 }
 
 impl fmt::Display for Context {
@@ -55,18 +58,25 @@ impl fmt::Display for Context {
             Self::MetadataObject => write!(f, "metadata object"),
             Self::LiteralObject => write!(f, "literal object"),
             Self::LiteralStruct => write!(f, "literal struct"),
+            Self::CallStatement => write!(f, "call statement"),
         }
     }
 }
 
 /// Creates a "duplicate key" diagnostic
 fn duplicate_key(context: Context, name: &Ident, first: Span) -> Diagnostic {
+    let kind = if context == Context::CallStatement {
+        "call input"
+    } else {
+        "key"
+    };
+
     Diagnostic::error(format!(
-        "duplicate key `{name}` in {context}",
+        "duplicate {kind} `{name}` in {context}",
         name = name.as_str(),
     ))
-    .with_label("this key is a duplicate", name.span())
-    .with_label("first key with this name is here", first)
+    .with_label(format!("this {kind} is a duplicate"), name.span())
+    .with_label(format!("first {kind} with this name is here"), first)
 }
 
 /// Creates a "conflicting key" diagnostic
@@ -202,7 +212,7 @@ impl Visitor for UniqueKeysVisitor {
 
         check_duplicate_keys(
             &mut self.0,
-            &[],
+            &[("allow_nested_inputs", "allowNestedInputs")],
             section.items().map(|i| i.name()),
             Context::HintsSection,
             state,
@@ -314,5 +324,24 @@ impl Visitor for UniqueKeysVisitor {
             }
             _ => {}
         }
+    }
+
+    fn call_statement(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        stmt: &CallStatement,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        check_duplicate_keys(
+            &mut self.0,
+            &[],
+            stmt.inputs().map(|i| i.name()),
+            Context::CallStatement,
+            state,
+        );
     }
 }

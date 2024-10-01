@@ -923,6 +923,12 @@ impl FunctionSignature {
         parameters
     }
 
+    /// Determines if the there is an insufficient number of arguments to bind
+    /// to this signature.
+    fn insufficient_arguments(&self, arguments: &[Type]) -> bool {
+        arguments.len() < self.required() || arguments.len() > self.parameters.len()
+    }
+
     /// Binds the function signature to the given arguments.
     ///
     /// This function will infer the type parameters for the arguments and
@@ -949,8 +955,12 @@ impl FunctionSignature {
             match parameter.realize(types, &type_parameters) {
                 Some(ty) => {
                     // If a coercion hasn't occurred yet, check for type equivalence
-                    // Otherwise, fall back to coercion
-                    if !coerced && !argument.type_eq(types, &ty) {
+                    // For the purpose of this check, also accept equivalence of `T` if the
+                    // parameter type is `T?`; otherwise, fall back to coercion
+                    if !coerced
+                        && !argument.type_eq(types, &ty)
+                        && !argument.type_eq(types, &ty.require())
+                    {
                         coerced = true;
                     }
 
@@ -1260,11 +1270,10 @@ impl PolymorphicFunction {
             let mut exact: Option<(usize, Type)> = None;
             let mut coercion1: Option<(usize, Type)> = None;
             let mut coercion2 = None;
-            for (index, signature) in self
-                .signatures
-                .iter()
-                .enumerate()
-                .filter(|(_, s)| s.is_generic() == generic)
+            for (index, signature) in
+                self.signatures.iter().enumerate().filter(|(_, s)| {
+                    s.is_generic() == generic && !s.insufficient_arguments(arguments)
+                })
             {
                 match signature.bind(types, arguments) {
                     Ok(Binding::Equivalence(ty)) => {
@@ -2327,12 +2336,10 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
         functions
             .insert(
                 "select_first",
-                PolymorphicFunction::new(SupportedVersion::V1(V1::Zero), vec![
-                    FunctionSignature::builder()
-                        .type_parameter("X", OptionalTypeConstraint)
-                        .parameter(GenericArrayType::non_empty(GenericType::Parameter("X")))
-                        .ret(GenericType::UnqualifiedParameter("X"))
-                        .build(),
+                // This differs from the definition of `select_first` in that we can have a single
+                // signature of `X select_first(Array[X?], [X])`.
+                MonomorphicFunction::new(
+                    SupportedVersion::V1(V1::Zero),
                     FunctionSignature::builder()
                         .type_parameter("X", OptionalTypeConstraint)
                         .required(1)
@@ -2340,7 +2347,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(GenericType::UnqualifiedParameter("X"))
                         .ret(GenericType::UnqualifiedParameter("X"))
                         .build(),
-                ])
+                )
                 .into(),
             )
             .is_none()
@@ -2697,7 +2704,6 @@ mod test {
             "contains(Array[P], P) -> Boolean where `P`: any primitive type",
             "chunk(Array[X], Int) -> Array[Array[X]]",
             "flatten(Array[Array[X]]) -> Array[X]",
-            "select_first(Array[X]+) -> X where `X`: any optional type",
             "select_first(Array[X], <X>) -> X where `X`: any optional type",
             "select_all(Array[X]) -> Array[X] where `X`: any optional type",
             "as_pairs(Map[K, V]) -> Array[Pair[K, V]] where `K`: any required primitive type",
@@ -2996,9 +3002,7 @@ mod test {
             .expect_err("binding should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
             index: 0,
-            expected: "`Array[X]+` where `X`: any optional type or `Array[X]` where `X`: any \
-                       optional type"
-                .into()
+            expected: "`Array[X]` where `X`: any optional type".into()
         });
 
         // Check `Array[String?]+`

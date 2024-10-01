@@ -1,4 +1,4 @@
-error: index target type mismatch: expected type `Array`, but found type `String`
+error: indexing is only allowed on `Array` and `Map` types
   ┌─ tests/analysis/index-target-not-array/source.wdl:7:16
   │
 7 │     String x = a[0]

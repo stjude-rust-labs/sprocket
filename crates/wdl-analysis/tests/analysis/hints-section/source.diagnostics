@@ -54,7 +54,7 @@ error: type mismatch: expected type `Boolean`, but found type `String`
     │         │                       
     │         this expects type `Boolean`
 
-error: an input with name `wrong` does not exist
+error: task `baz` does not have an input named `wrong`
     ┌─ tests/analysis/hints-section/source.wdl:122:13
     │
 122 │             wrong: hints {
@@ -80,7 +80,7 @@ error: type mismatch: expected type `hints`, but found type `String`
     │             │     
     │             this expects type `hints`
 
-error: an output with name `wrong` does not exist
+error: task `baz` does not have an output named `wrong`
     ┌─ tests/analysis/hints-section/source.wdl:134:13
     │
 134 │             wrong: hints {

@@ -4,7 +4,7 @@ commit_hash = "26eeda81a0540dc793fc69b0c390d232ca7ca50a"
 
 [repositories."PacificBiosciences/HiFi-human-WGS-WDL"]
 identifier = "PacificBiosciences/HiFi-human-WGS-WDL"
-commit_hash = "9a1a2846443e4b621f1dca0259fd3fa21885156a"
+commit_hash = "1cf2b2e80024290d0ec1ea93b6a279ea2de519b0"
 
 [repositories."aws-samples/amazon-omics-tutorials"]
 identifier = "aws-samples/amazon-omics-tutorials"
@@ -20,11 +20,11 @@ commit_hash = "4536dd2c6719b86f4c50348f0ce354818260cadb"
 
 [repositories."broadinstitute/palantir-workflows"]
 identifier = "broadinstitute/palantir-workflows"
-commit_hash = "ae5b3026ea0102ab4164d30d552cabfc16076b44"
+commit_hash = "84111f54323074954fd18b2723a111e533726d8f"
 
 [repositories."broadinstitute/warp"]
 identifier = "broadinstitute/warp"
-commit_hash = "9b5e498e19b89ef72a2c27bb68884c54de768d76"
+commit_hash = "0c6697b5b017be4f0335077f7807b67c091fdbac"
 
 [repositories."chanzuckerberg/czid-workflows"]
 identifier = "chanzuckerberg/czid-workflows"
@@ -44,12 +44,12 @@ commit_hash = "c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2"
 
 [repositories."stjudecloud/workflows"]
 identifier = "stjudecloud/workflows"
-commit_hash = "129060215443bbd1b67c4d3d149d48acdab90ef2"
+commit_hash = "8a709b25b8a0d0b850c4adb1ba915293d9d024d1"
 filters = ["/template/task-templates.wdl"]
 
 [repositories."theiagen/public_health_bioinformatics"]
 identifier = "theiagen/public_health_bioinformatics"
-commit_hash = "109e5878fd71d4102dff91110d18d6d6f1d2c002"
+commit_hash = "8c91ecdec2ca3a1c85adc9e182caa126b6437024"
 
 [[diagnostics]]
 document = "aws-samples/amazon-omics-tutorials:/example-workflows/gatk-best-practices/workflows/somatic-snps-and-indels/mutec2.wdl"
@@ -379,152 +379,157 @@ permalink = "https://github.com/biowdl/tasks/blob/2bf875300d90a3c9c8d670b3d99026
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
 message = "BenchmarkSVs.wdl:457:40: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/BenchmarkSVs/BenchmarkSVs.wdl/#L457"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/BenchmarkSVs/BenchmarkSVs.wdl/#L457"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
 message = "BenchmarkSVs.wdl:485:43: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/BenchmarkSVs/BenchmarkSVs.wdl/#L485"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/BenchmarkSVs/BenchmarkSVs.wdl/#L485"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
 message = "BenchmarkSVs.wdl:772:43: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/BenchmarkSVs/BenchmarkSVs.wdl/#L772"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/BenchmarkSVs/BenchmarkSVs.wdl/#L772"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
 message = "BenchmarkSVs.wdl:789:36: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/BenchmarkSVs/BenchmarkSVs.wdl/#L789"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/BenchmarkSVs/BenchmarkSVs.wdl/#L789"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
 message = "BenchmarkSVs.wdl:790:42: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/BenchmarkSVs/BenchmarkSVs.wdl/#L790"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/BenchmarkSVs/BenchmarkSVs.wdl/#L790"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
 message = "BenchmarkSVs.wdl:890:36: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/BenchmarkSVs/BenchmarkSVs.wdl/#L890"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/BenchmarkSVs/BenchmarkSVs.wdl/#L890"
 
 [[diagnostics]]
-document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/SimpleBenchmark.wdl"
-message = "SimpleBenchmark.wdl:551:36: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/BenchmarkVCFs/SimpleBenchmark.wdl/#L551"
+document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
+message = "BenchmarkVCFs.wdl:613:36: error: a placeholder cannot have more than one option"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/BenchmarkVCFs/BenchmarkVCFs.wdl/#L613"
 
 [[diagnostics]]
-document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/SimpleBenchmark.wdl"
-message = "SimpleBenchmark.wdl:565:36: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/BenchmarkVCFs/SimpleBenchmark.wdl/#L565"
+document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
+message = "BenchmarkVCFs.wdl:621:36: error: a placeholder cannot have more than one option"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/BenchmarkVCFs/BenchmarkVCFs.wdl/#L621"
 
 [[diagnostics]]
-document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/SimpleBenchmark.wdl"
-message = "SimpleBenchmark.wdl:570:36: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/BenchmarkVCFs/SimpleBenchmark.wdl/#L570"
+document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
+message = "BenchmarkVCFs.wdl:626:36: error: a placeholder cannot have more than one option"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/BenchmarkVCFs/BenchmarkVCFs.wdl/#L626"
 
 [[diagnostics]]
-document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/SimpleBenchmark.wdl"
-message = "SimpleBenchmark.wdl:575:36: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/BenchmarkVCFs/SimpleBenchmark.wdl/#L575"
+document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
+message = "BenchmarkVCFs.wdl:631:36: error: a placeholder cannot have more than one option"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/BenchmarkVCFs/BenchmarkVCFs.wdl/#L631"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/HaplotypeMap/BuildHaplotypeMap.wdl"
 message = "BuildHaplotypeMap.wdl:17:1: error: a WDL document must start with a version statement"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/HaplotypeMap/BuildHaplotypeMap.wdl/#L17"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/HaplotypeMap/BuildHaplotypeMap.wdl/#L17"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl"
 message = "ComputeIntervalBamStats.wdl:223:37: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl/#L223"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl/#L223"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl"
 message = "ComputeIntervalBamStats.wdl:270:37: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl/#L270"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl/#L270"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/CreateIGVSession.wdl"
 message = "CreateIGVSession.wdl:51:36: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/Utilities/WDLs/CreateIGVSession.wdl/#L51"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/Utilities/WDLs/CreateIGVSession.wdl/#L51"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/CreateIGVSession.wdl"
 message = "CreateIGVSession.wdl:52:36: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/Utilities/WDLs/CreateIGVSession.wdl/#L52"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/Utilities/WDLs/CreateIGVSession.wdl/#L52"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/CreateIGVSession.wdl"
 message = "CreateIGVSession.wdl:53:46: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/ae5b3026ea0102ab4164d30d552cabfc16076b44/Utilities/WDLs/CreateIGVSession.wdl/#L53"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/84111f54323074954fd18b2723a111e533726d8f/Utilities/WDLs/CreateIGVSession.wdl/#L53"
+
+[[diagnostics]]
+document = "broadinstitute/warp:/pipelines/skylab/multiome/Multiome.wdl"
+message = "Multiome.wdl:104:13: error: duplicate call input `cloud_provider` in call statement"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/pipelines/skylab/multiome/Multiome.wdl/#L104"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/scATAC/scATAC.wdl"
 message = "scATAC.wdl:203:9: error: duplicate key `cpu` in runtime section"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/pipelines/skylab/scATAC/scATAC.wdl/#L203"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/pipelines/skylab/scATAC/scATAC.wdl/#L203"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/Funcotator.wdl"
 message = "Funcotator.wdl:163:92: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/tasks/broad/Funcotator.wdl/#L163"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/tasks/broad/Funcotator.wdl/#L163"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/Funcotator.wdl"
 message = "Funcotator.wdl:164:89: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/tasks/broad/Funcotator.wdl/#L164"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/tasks/broad/Funcotator.wdl/#L164"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/Funcotator.wdl"
 message = "Funcotator.wdl:165:91: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/tasks/broad/Funcotator.wdl/#L165"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/tasks/broad/Funcotator.wdl/#L165"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:140:32: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/tasks/broad/GermlineVariantDiscovery.wdl/#L140"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/tasks/broad/GermlineVariantDiscovery.wdl/#L140"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:67:32: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/tasks/broad/GermlineVariantDiscovery.wdl/#L67"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/tasks/broad/GermlineVariantDiscovery.wdl/#L67"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/Qc.wdl"
 message = "Qc.wdl:434:31: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/tasks/broad/Qc.wdl/#L434"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/tasks/broad/Qc.wdl/#L434"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/Qc.wdl"
 message = "Qc.wdl:436:46: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/tasks/broad/Qc.wdl/#L436"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/tasks/broad/Qc.wdl/#L436"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
 message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:814:27: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L814"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L814"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl"
 message = "UltimaGenomicsWholeGenomeGermlineTasks.wdl:866:27: error: expected string, but found integer"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L866"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/tasks/broad/UltimaGenomicsWholeGenomeGermlineTasks.wdl/#L866"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tests/cemba/pr/CheckCembaOutputs.wdl"
 message = "CheckCembaOutputs.wdl:1:1: error: a WDL document must start with a version statement"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/tests/cemba/pr/CheckCembaOutputs.wdl/#L1"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/tests/cemba/pr/CheckCembaOutputs.wdl/#L1"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyMetrics.wdl"
 message = "VerifyMetrics.wdl:87:89: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/verification/VerifyMetrics.wdl/#L87"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/verification/VerifyMetrics.wdl/#L87"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl"
 message = "VerifyUltimaGenomicsWholeGenomeCramOnly.wdl:102:87: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl/#L102"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl/#L102"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:161:87: error: a placeholder cannot have more than one option"
-permalink = "https://github.com/broadinstitute/warp/blob/9b5e498e19b89ef72a2c27bb68884c54de768d76/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl/#L161"
+message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:174:87: error: a placeholder cannot have more than one option"
+permalink = "https://github.com/broadinstitute/warp/blob/0c6697b5b017be4f0335077f7807b67c091fdbac/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl/#L174"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/index-generation/index-generation.wdl"

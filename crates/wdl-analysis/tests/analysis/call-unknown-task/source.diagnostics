@@ -1,0 +1,6 @@
+error: unknown task or workflow `foo`
+  ┌─ tests/analysis/call-unknown-task/source.wdl:6:10
+  │
+6 │     call foo
+  │          ^^^
+

@@ -44,394 +44,38 @@ use super::StructType;
 use super::Type;
 use super::TypeEq;
 use super::Types;
+use crate::diagnostics::ambiguous_argument;
+use crate::diagnostics::argument_type_mismatch;
+use crate::diagnostics::cannot_access;
+use crate::diagnostics::cannot_coerce_to_string;
+use crate::diagnostics::cannot_index;
+use crate::diagnostics::comparison_mismatch;
+use crate::diagnostics::element_type_mismatch;
+use crate::diagnostics::if_conditional_mismatch;
+use crate::diagnostics::index_type_mismatch;
+use crate::diagnostics::logical_and_mismatch;
+use crate::diagnostics::logical_not_mismatch;
+use crate::diagnostics::logical_or_mismatch;
+use crate::diagnostics::map_key_not_primitive;
+use crate::diagnostics::missing_struct_members;
+use crate::diagnostics::negation_mismatch;
+use crate::diagnostics::not_a_pair_accessor;
+use crate::diagnostics::not_a_struct;
+use crate::diagnostics::not_a_struct_member;
+use crate::diagnostics::not_a_task_member;
+use crate::diagnostics::numeric_mismatch;
+use crate::diagnostics::string_concat_mismatch;
+use crate::diagnostics::too_few_arguments;
+use crate::diagnostics::too_many_arguments;
+use crate::diagnostics::type_mismatch;
+use crate::diagnostics::type_mismatch_custom;
+use crate::diagnostics::unknown_function;
+use crate::diagnostics::unknown_io_name;
+use crate::diagnostics::unsupported_function;
 use crate::scope::ScopeRef;
 use crate::stdlib::FunctionBindError;
 use crate::stdlib::STDLIB;
 use crate::types::Coercible;
-
-/// Creates a "type mismatch" diagnostic.
-pub(crate) fn type_mismatch(
-    types: &Types,
-    expected: Type,
-    expected_span: Span,
-    actual: Type,
-    actual_span: Span,
-) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: expected type `{expected}`, but found type `{actual}`",
-        expected = expected.display(types),
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-    .with_label(
-        format!(
-            "this expects type `{expected}`",
-            expected = expected.display(types)
-        ),
-        expected_span,
-    )
-}
-
-/// Creates a "element type mismatch" diagnostic.
-pub(crate) fn element_type_mismatch(
-    types: &Types,
-    expected: Type,
-    expected_span: Span,
-    actual: Type,
-    actual_span: Span,
-) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: expected all elements to be type `{expected}`, but found type `{actual}`",
-        expected = expected.display(types),
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-    .with_label(
-        format!(
-            "the first element is type `{expected}`",
-            expected = expected.display(types)
-        ),
-        expected_span,
-    )
-}
-
-/// Creates a custom "type mismatch" diagnostic.
-fn type_mismatch_custom(
-    types: &Types,
-    expected: &str,
-    expected_span: Span,
-    actual: Type,
-    actual_span: Span,
-) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: expected {expected}, but found type `{actual}`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-    .with_label(format!("this expects {expected}"), expected_span)
-}
-
-/// Creates a "not a task member" diagnostic.
-fn not_a_task_member(member: &Ident) -> Diagnostic {
-    Diagnostic::error(format!(
-        "the `task` variable does not have a member named `{member}`",
-        member = member.as_str()
-    ))
-    .with_highlight(member.span())
-}
-
-/// Creates a "not an I/O name" diagnostic.
-fn not_io_name(name: &Ident, input: bool) -> Diagnostic {
-    Diagnostic::error(format!(
-        "an {kind} with name `{name}` does not exist",
-        kind = if input { "input" } else { "output" },
-        name = name.as_str(),
-    ))
-    .with_highlight(name.span())
-}
-
-/// Creates a "not a struct" diagnostic.
-fn not_a_struct(member: &Ident, input: bool) -> Diagnostic {
-    Diagnostic::error(format!(
-        "{kind} `{member}` is not a struct",
-        kind = if input { "input" } else { "struct member" },
-        member = member.as_str()
-    ))
-    .with_highlight(member.span())
-}
-
-/// Creates a "not a struct member" diagnostic.
-fn not_a_struct_member(name: &str, member: &Ident) -> Diagnostic {
-    Diagnostic::error(format!(
-        "struct `{name}` does not have a member named `{member}`",
-        member = member.as_str()
-    ))
-    .with_highlight(member.span())
-}
-
-/// Creates a "not a pair accessor" diagnostic.
-fn not_a_pair_accessor(name: &Ident) -> Diagnostic {
-    Diagnostic::error(format!(
-        "cannot access a pair with name `{name}`",
-        name = name.as_str()
-    ))
-    .with_highlight(name.span())
-    .with_fix("use `left` or `right` to access a pair")
-}
-
-/// Creates a "missing struct members" diagnostic.
-fn missing_struct_members(name: &Ident, count: usize, members: &str) -> Diagnostic {
-    Diagnostic::error(format!(
-        "struct `{name}` requires a value for member{s} {members}",
-        name = name.as_str(),
-        s = if count > 1 { "s" } else { "" },
-    ))
-    .with_highlight(name.span())
-}
-
-/// Creates a "map key not primitive" diagnostic.
-fn map_key_not_primitive(types: &Types, span: Span, actual: Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error("expected map literal to use primitive type keys")
-        .with_highlight(span)
-        .with_label(
-            format!("this is type `{actual}`", actual = actual.display(types)),
-            actual_span,
-        )
-}
-
-/// Creates a "if conditional mismatch" diagnostic.
-fn if_conditional_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: expected `if` conditional expression to be type `Boolean`, but found type \
-         `{actual}`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-}
-
-/// Creates a "logical not mismatch" diagnostic.
-fn logical_not_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: expected `logical not` operand to be type `Boolean`, but found type \
-         `{actual}`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-}
-
-/// Creates a "negation mismatch" diagnostic.
-fn negation_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: expected negation operand to be type `Int` or `Float`, but found type \
-         `{actual}`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-}
-
-/// Creates a "logical or mismatch" diagnostic.
-fn logical_or_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: expected `logical or` operand to be type `Boolean`, but found type \
-         `{actual}`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-}
-
-/// Creates a "logical and mismatch" diagnostic.
-fn logical_and_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: expected `logical and` operand to be type `Boolean`, but found type \
-         `{actual}`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-}
-
-/// Creates a "comparison mismatch" diagnostic.
-fn comparison_mismatch(
-    types: &Types,
-    op: ComparisonOperator,
-    span: Span,
-    lhs: Type,
-    lhs_span: Span,
-    rhs: Type,
-    rhs_span: Span,
-) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: operator `{op}` cannot compare type `{lhs}` to type `{rhs}`",
-        lhs = lhs.display(types),
-        rhs = rhs.display(types),
-    ))
-    .with_highlight(span)
-    .with_label(
-        format!("this is type `{lhs}`", lhs = lhs.display(types)),
-        lhs_span,
-    )
-    .with_label(
-        format!("this is type `{rhs}`", rhs = rhs.display(types)),
-        rhs_span,
-    )
-}
-
-/// Creates a "numeric mismatch" diagnostic.
-fn numeric_mismatch(
-    types: &Types,
-    op: NumericOperator,
-    span: Span,
-    lhs: Type,
-    lhs_span: Span,
-    rhs: Type,
-    rhs_span: Span,
-) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: {op} operator is not supported for type `{lhs}` and type `{rhs}`",
-        lhs = lhs.display(types),
-        rhs = rhs.display(types)
-    ))
-    .with_highlight(span)
-    .with_label(
-        format!("this is type `{lhs}`", lhs = lhs.display(types)),
-        lhs_span,
-    )
-    .with_label(
-        format!("this is type `{rhs}`", rhs = rhs.display(types)),
-        rhs_span,
-    )
-}
-
-/// Creates a "string concat mismatch" diagnostic.
-fn string_concat_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: string concatenation is not supported for type `{actual}`",
-        actual = actual.display(types),
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-}
-
-/// Creates an "unknown function" diagnostic.
-fn unknown_function(name: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("unknown function `{name}`")).with_label(
-        "the WDL standard library does not have a function with this name",
-        span,
-    )
-}
-
-/// Creates an "unsupported function" diagnostic.
-fn unsupported_function(minimum: SupportedVersion, name: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "function `{name}` requires a minimum WDL version of {minimum}"
-    ))
-    .with_highlight(span)
-}
-
-/// Creates a "too few arguments" diagnostic.
-fn too_few_arguments(name: &str, span: Span, minimum: usize, count: usize) -> Diagnostic {
-    Diagnostic::error(format!(
-        "function `{name}` requires at least {minimum} argument{s} but {count} {v} supplied",
-        s = if minimum == 1 { "" } else { "s" },
-        v = if count == 1 { "was" } else { "were" },
-    ))
-    .with_highlight(span)
-}
-
-/// Creates a "too many arguments" diagnostic.
-fn too_many_arguments(
-    name: &str,
-    span: Span,
-    maximum: usize,
-    count: usize,
-    excessive: impl Iterator<Item = Span>,
-) -> Diagnostic {
-    let mut diagnostic = Diagnostic::error(format!(
-        "function `{name}` requires no more than {maximum} argument{s} but {count} {v} supplied",
-        s = if maximum == 1 { "" } else { "s" },
-        v = if count == 1 { "was" } else { "were" },
-    ))
-    .with_highlight(span);
-
-    for span in excessive {
-        diagnostic = diagnostic.with_label("this argument is unexpected", span);
-    }
-
-    diagnostic
-}
-
-/// Constructs an "argument type mismatch" diagnostic.
-fn argument_type_mismatch(types: &Types, expected: &str, actual: Type, span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "argument type mismatch: expected type {expected}, but found type `{actual}`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        span,
-    )
-}
-
-/// Constructs an "ambiguous argument" diagnostic.
-fn ambiguous_argument(name: &str, span: Span, first: &str, second: &str) -> Diagnostic {
-    Diagnostic::error(format!(
-        "ambiguous call to function `{name}` with conflicting signatures `{first}` and `{second}`",
-    ))
-    .with_highlight(span)
-}
-
-/// Constructs an "integer not integer" diagnostic.
-fn index_not_integer(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "index type mismatch: expected type `Int`, but found type `{actual}`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-}
-
-/// Constructs an "index target not array" diagnostic.
-fn index_target_not_array(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "index target type mismatch: expected type `Array`, but found type `{actual}`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-}
-
-/// Constructs a "cannot access" diagnostic.
-fn cannot_access(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "cannot access type `{actual}`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-}
-
-/// Constructs a "cannot coerce to string" diagnostic.
-fn cannot_coerce_to_string(types: &Types, actual: Type, span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "cannot coerce type `{actual}` to `String`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        span,
-    )
-}
 
 /// Gets the type of a `task` variable member type.
 ///
@@ -483,7 +127,7 @@ impl fmt::Display for ComparisonOperator {
 
 /// Represents a numeric operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum NumericOperator {
+pub enum NumericOperator {
     /// The `+` operator.
     Addition,
     /// The `-` operator.
@@ -690,7 +334,7 @@ where
     pub fn evaluate_expr(&mut self, scope: &ScopeRef<'_>, expr: &Expr) -> Option<Type> {
         match expr {
             Expr::Literal(expr) => self.evaluate_literal_expr(scope, expr),
-            Expr::Name(r) => scope.lookup(r.name().as_str()).and_then(|n| n.ty()),
+            Expr::Name(r) => scope.lookup(r.name().as_str()).map(|(_, ty)| ty),
             Expr::Parenthesized(expr) => self.evaluate_expr(scope, &expr.inner()),
             Expr::If(expr) => self.evaluate_if_expr(scope, expr),
             Expr::LogicalNot(expr) => self.evaluate_logical_not_expr(scope, expr),
@@ -699,11 +343,17 @@ where
             Expr::LogicalAnd(expr) => self.evaluate_logical_and_expr(scope, expr),
             Expr::Equality(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.comparison_expr(ComparisonOperator::Equality, scope, &lhs, &rhs, expr.span())
+                self.evaluate_comparison_expr(
+                    ComparisonOperator::Equality,
+                    scope,
+                    &lhs,
+                    &rhs,
+                    expr.span(),
+                )
             }
             Expr::Inequality(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.comparison_expr(
+                self.evaluate_comparison_expr(
                     ComparisonOperator::Inequality,
                     scope,
                     &lhs,
@@ -713,11 +363,17 @@ where
             }
             Expr::Less(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.comparison_expr(ComparisonOperator::Less, scope, &lhs, &rhs, expr.span())
+                self.evaluate_comparison_expr(
+                    ComparisonOperator::Less,
+                    scope,
+                    &lhs,
+                    &rhs,
+                    expr.span(),
+                )
             }
             Expr::LessEqual(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.comparison_expr(
+                self.evaluate_comparison_expr(
                     ComparisonOperator::LessEqual,
                     scope,
                     &lhs,
@@ -727,11 +383,17 @@ where
             }
             Expr::Greater(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.comparison_expr(ComparisonOperator::Greater, scope, &lhs, &rhs, expr.span())
+                self.evaluate_comparison_expr(
+                    ComparisonOperator::Greater,
+                    scope,
+                    &lhs,
+                    &rhs,
+                    expr.span(),
+                )
             }
             Expr::GreaterEqual(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.comparison_expr(
+                self.evaluate_comparison_expr(
                     ComparisonOperator::GreaterEqual,
                     scope,
                     &lhs,
@@ -741,15 +403,27 @@ where
             }
             Expr::Addition(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.numeric_expr(NumericOperator::Addition, scope, expr.span(), &lhs, &rhs)
+                self.evaluate_numeric_expr(
+                    NumericOperator::Addition,
+                    scope,
+                    expr.span(),
+                    &lhs,
+                    &rhs,
+                )
             }
             Expr::Subtraction(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.numeric_expr(NumericOperator::Subtraction, scope, expr.span(), &lhs, &rhs)
+                self.evaluate_numeric_expr(
+                    NumericOperator::Subtraction,
+                    scope,
+                    expr.span(),
+                    &lhs,
+                    &rhs,
+                )
             }
             Expr::Multiplication(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.numeric_expr(
+                self.evaluate_numeric_expr(
                     NumericOperator::Multiplication,
                     scope,
                     expr.span(),
@@ -759,15 +433,21 @@ where
             }
             Expr::Division(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.numeric_expr(NumericOperator::Division, scope, expr.span(), &lhs, &rhs)
+                self.evaluate_numeric_expr(
+                    NumericOperator::Division,
+                    scope,
+                    expr.span(),
+                    &lhs,
+                    &rhs,
+                )
             }
             Expr::Modulo(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.numeric_expr(NumericOperator::Modulo, scope, expr.span(), &lhs, &rhs)
+                self.evaluate_numeric_expr(NumericOperator::Modulo, scope, expr.span(), &lhs, &rhs)
             }
             Expr::Exponentiation(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.numeric_expr(
+                self.evaluate_numeric_expr(
                     NumericOperator::Exponentiation,
                     scope,
                     expr.span(),
@@ -859,23 +539,37 @@ where
             .next()
             .and_then(|e| Some((self.evaluate_expr(scope, &e)?, e.span())))
         {
-            Some((expected, expected_span)) => {
-                // Ensure the remaining element types are the same as the first
+            Some((mut expected, mut expected_span)) => {
+                // Ensure the remaining element types are the same as (or coercible to) the
+                // first
                 for expr in elements {
                     if let Some(actual) = self.evaluate_expr(scope, &expr) {
                         if !actual.is_coercible_to(self.types, &expected) {
-                            self.diagnostics.push(element_type_mismatch(
-                                self.types,
-                                expected,
-                                expected_span,
-                                actual,
-                                expr.span(),
-                            ));
+                            // Check to see if we can coerce the expected type to the current
+                            // element's type
+                            if expected.is_coercible_to(self.types, &actual) {
+                                expected = actual;
+                                expected_span = expr.span();
+                            } else {
+                                self.diagnostics.push(element_type_mismatch(
+                                    self.types,
+                                    "array element",
+                                    expected,
+                                    expected_span,
+                                    actual,
+                                    expr.span(),
+                                ));
+                            }
                         }
                     }
                 }
 
-                self.types.add_array(ArrayType::new(expected))
+                self.types.add_array(ArrayType {
+                    element_type: expected,
+                    // A special value that allows for coercion to either empty or non-empty
+                    // This allows for an expression like `if (true) then [a, b, c] else []`.
+                    non_empty: None,
+                })
             }
             // Treat empty array as `Array[Union]`
             None => self.types.add_array(ArrayType::new(Type::Union)),
@@ -920,30 +614,51 @@ where
 
         let mut items = expr.items();
         match items.next().and_then(map_item_type) {
-            Some((expected_key, expected_key_span, expected_value, expected_value_span)) => {
+            Some((
+                mut expected_key,
+                mut expected_key_span,
+                mut expected_value,
+                mut expected_value_span,
+            )) => {
                 // Ensure the remaining items types are the same as the first
                 for item in items {
                     let (key, value) = item.key_value();
                     if let Some(actual_key) = self.evaluate_expr(scope, &key) {
                         if let Some(actual_value) = self.evaluate_expr(scope, &value) {
                             if !actual_key.is_coercible_to(self.types, &expected_key) {
-                                self.diagnostics.push(type_mismatch(
-                                    self.types,
-                                    expected_key,
-                                    expected_key_span,
-                                    actual_key,
-                                    key.span(),
-                                ));
+                                // Check to see if we can coerce the expected key type to the
+                                // current element's key type
+                                if expected_key.is_coercible_to(self.types, &actual_key) {
+                                    expected_key = actual_key;
+                                    expected_key_span = key.span();
+                                } else {
+                                    self.diagnostics.push(element_type_mismatch(
+                                        self.types,
+                                        "map key",
+                                        expected_key,
+                                        expected_key_span,
+                                        actual_key,
+                                        key.span(),
+                                    ));
+                                }
                             }
 
                             if !actual_value.is_coercible_to(self.types, &expected_value) {
-                                self.diagnostics.push(element_type_mismatch(
-                                    self.types,
-                                    expected_value,
-                                    expected_value_span,
-                                    actual_value,
-                                    value.span(),
-                                ));
+                                // Check to see if we can coerce the expected value type to the
+                                // current element's value type
+                                if expected_value.is_coercible_to(self.types, &actual_value) {
+                                    expected_value = actual_value;
+                                    expected_value_span = value.span();
+                                } else {
+                                    self.diagnostics.push(element_type_mismatch(
+                                        self.types,
+                                        "map value",
+                                        expected_value,
+                                        expected_value_span,
+                                        actual_value,
+                                        value.span(),
+                                    ));
+                                }
                             }
                         }
                     }
@@ -1461,16 +1176,18 @@ where
                 span = Some(name.span());
 
                 match if input {
-                    scope.input(name.as_str()).unwrap()
+                    scope.input_type(name.as_str()).unwrap().map(|(ty, _)| ty)
                 } else {
-                    scope.output(name.as_str()).unwrap()
+                    scope.output_type(name.as_str()).unwrap()
                 } {
-                    Some(n) => match n.ty() {
-                        Some(ty) => ty,
-                        None => break,
-                    },
+                    Some(ty) => ty,
                     None => {
-                        self.diagnostics.push(not_io_name(&name, input));
+                        self.diagnostics.push(unknown_io_name(
+                            scope.task_name().expect("should have task name"),
+                            &name,
+                            false,
+                            input,
+                        ));
                         break;
                     }
                 }
@@ -1555,7 +1272,11 @@ where
             (Type::Union, _) => Some(false_ty),
             (_, Type::Union) => Some(true_ty),
             _ => {
-                if !false_ty.is_coercible_to(self.types, &true_ty) {
+                if true_ty.is_coercible_to(self.types, &false_ty) {
+                    Some(false_ty)
+                } else if false_ty.is_coercible_to(self.types, &true_ty) {
+                    Some(true_ty)
+                } else {
                     self.diagnostics.push(type_mismatch(
                         self.types,
                         true_ty,
@@ -1565,8 +1286,6 @@ where
                     ));
 
                     None
-                } else {
-                    Some(true_ty)
                 }
             }
         }
@@ -1664,7 +1383,7 @@ where
     }
 
     /// Evaluates the type of a comparison expression.
-    fn comparison_expr(
+    fn evaluate_comparison_expr(
         &mut self,
         op: ComparisonOperator,
         scope: &ScopeRef<'_>,
@@ -1690,11 +1409,17 @@ where
             PrimitiveTypeKind::Directory.into(),
         ] {
             // Only support equality/inequality comparisons for `File` and `Directory`
-            if op != ComparisonOperator::Equality && op != ComparisonOperator::Inequality {
-                match expected.as_primitive().unwrap().kind {
-                    PrimitiveTypeKind::File | PrimitiveTypeKind::Directory => continue,
-                    _ => {}
-                }
+            if op != ComparisonOperator::Equality
+                && op != ComparisonOperator::Inequality
+                && (matches!(
+                    lhs_ty.as_primitive().map(|ty| ty.kind),
+                    Some(PrimitiveTypeKind::File) | Some(PrimitiveTypeKind::Directory)
+                ) || matches!(
+                    rhs_ty.as_primitive().map(|ty| ty.kind),
+                    Some(PrimitiveTypeKind::File) | Some(PrimitiveTypeKind::Directory)
+                ))
+            {
+                continue;
             }
 
             if lhs_ty.is_coercible_to(self.types, &expected)
@@ -1755,7 +1480,7 @@ where
         // A type mismatch at this point
         self.diagnostics.push(comparison_mismatch(
             self.types,
-            op,
+            &op,
             span,
             lhs_ty,
             lhs.span(),
@@ -1766,7 +1491,7 @@ where
     }
 
     /// Evaluates the type of a numeric expression.
-    fn numeric_expr(
+    fn evaluate_numeric_expr(
         &mut self,
         op: NumericOperator,
         scope: &ScopeRef<'_>,
@@ -1840,7 +1565,7 @@ where
         if lhs_ty != Type::Union && rhs_ty != Type::Union {
             self.diagnostics.push(numeric_mismatch(
                 self.types,
-                op,
+                &op,
                 span,
                 lhs_ty,
                 lhs.span(),
@@ -1893,6 +1618,7 @@ where
                     Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
                         self.diagnostics.push(argument_type_mismatch(
                             self.types,
+                            target.as_str(),
                             &expected,
                             arguments[index],
                             expr.arguments()
@@ -1925,31 +1651,38 @@ where
     fn evaluate_index_expr(&mut self, scope: &ScopeRef<'_>, expr: &IndexExpr) -> Option<Type> {
         let (target, index) = expr.operands();
 
-        // Determine the element type of the target expression
-        let array_type = self.evaluate_expr(scope, &target)?;
-        let element_type = match array_type {
+        // Determine the expected index type and result type of the expression
+        let target_ty = self.evaluate_expr(scope, &target)?;
+        let (expected_index_ty, result_ty) = match target_ty {
             Type::Compound(ty) => match self.types.type_definition(ty.definition()) {
-                CompoundTypeDef::Array(ty) => Some(ty.element_type()),
-                _ => None,
+                CompoundTypeDef::Array(ty) => (
+                    Some(PrimitiveTypeKind::Integer.into()),
+                    Some(ty.element_type()),
+                ),
+                CompoundTypeDef::Map(ty) => (Some(ty.key_type()), Some(ty.value_type())),
+                _ => (None, None),
             },
-            _ => None,
+            _ => (None, None),
         };
 
-        // Check that the index is an integer
-        let index_ty = self.evaluate_expr(scope, &index).unwrap_or(Type::Union);
-        if !index_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into()) {
-            self.diagnostics
-                .push(index_not_integer(self.types, index_ty, index.span()));
+        // Check that the index type is the expected one
+        if let Some(expected_index_ty) = expected_index_ty {
+            let index_ty = self.evaluate_expr(scope, &index).unwrap_or(Type::Union);
+            if !index_ty.is_coercible_to(self.types, &expected_index_ty) {
+                self.diagnostics.push(index_type_mismatch(
+                    self.types,
+                    expected_index_ty,
+                    index_ty,
+                    index.span(),
+                ));
+            }
         }
 
-        match element_type {
+        match result_ty {
             Some(ty) => Some(ty),
             None => {
-                self.diagnostics.push(index_target_not_array(
-                    self.types,
-                    array_type,
-                    target.span(),
-                ));
+                self.diagnostics
+                    .push(cannot_index(self.types, target_ty, target.span()));
                 None
             }
         }
@@ -1994,6 +1727,17 @@ where
                         None
                     }
                 };
+            }
+
+            // Check to see if it's a call output
+            if let CompoundTypeDef::CallOutput(ty) = definition {
+                if let Some(ty) = ty.outputs().get(name.as_str()) {
+                    return Some(*ty);
+                }
+
+                self.diagnostics
+                    .push(unknown_io_name(ty.name(), &name, ty.is_workflow(), false));
+                return None;
             }
         }
 

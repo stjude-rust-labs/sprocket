@@ -1,0 +1,6 @@
+error: type mismatch: expected an array type, but found type `String`
+  ┌─ tests/analysis/scatter-not-array/source.wdl:8:19
+  │
+8 │     scatter (x in a) {
+  │                   ^ this is type `String`
+
