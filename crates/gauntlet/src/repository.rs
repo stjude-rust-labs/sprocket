@@ -7,7 +7,6 @@ use std::path::PathBuf;
 use faster_hex;
 use git2::FetchOptions;
 use git2::build::RepoBuilder;
-use indexmap::IndexMap;
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::info;
@@ -140,8 +139,8 @@ impl Repository {
         &self.filters
     }
 
-    /// Retrieve all the WDL files from the [`Repository`].
-    pub fn wdl_files(&self, root: &Path) -> IndexMap<String, String> {
+    /// Check out files from the [`Repository`].
+    pub fn checkout(&self, root: &Path) -> PathBuf {
         let repo_root = root
             .join(self.identifier.organization())
             .join(self.identifier.name());
@@ -185,26 +184,23 @@ impl Repository {
             None => {
                 unreachable!("commit hash must be set");
             }
-        };
-        let mut wdl_files = IndexMap::new();
-        add_wdl_files(&repo_root, &mut wdl_files, &repo_root);
-
-        match std::fs::remove_dir_all(&repo_root) {
-            Ok(_) => {
-                info!(
-                    "removed repository after parsing WDL files: {:?}",
-                    repo_root
-                );
-            }
-            Err(_) => {
-                info!(
-                    "failed to remove repository after parsing WDL files: {:?}",
-                    repo_root
-                );
-            }
         }
 
-        wdl_files
+        for mut submodule in git_repo
+            .submodules()
+            .expect("failed to load repository submodules")
+        {
+            let mut co = git2::build::CheckoutBuilder::new();
+            co.force();
+            let mut opts = git2::SubmoduleUpdateOptions::new();
+            opts.checkout(co);
+
+            submodule
+                .update(true, Some(&mut opts))
+                .expect("failed to update submodule");
+        }
+
+        repo_root
     }
 
     /// Update to the latest commit hash for the [`Repository`].
@@ -232,34 +228,5 @@ impl Repository {
         let mut bytes = [0u8; 20];
         bytes.copy_from_slice(commit.id().as_bytes());
         self.commit_hash = Some(RawHash(bytes));
-    }
-}
-
-/// Add to an [`IndexMap`] all the WDL files in a directory
-/// and its subdirectories.
-fn add_wdl_files(path: &PathBuf, wdl_files: &mut IndexMap<String, String>, repo_root: &Path) {
-    if path.is_dir() {
-        for entry in std::fs::read_dir(path).expect("failed to read directory") {
-            let entry = entry.expect("failed to read entry");
-            let path = entry.path();
-            add_wdl_files(&path, wdl_files, repo_root);
-        }
-    } else if path.is_file() {
-        let path_str = path
-            .to_str()
-            .expect("failed to convert file name to string");
-        if path_str.ends_with(".wdl") {
-            let contents = std::fs::read_to_string(path).expect("failed to read file contents");
-            // Strip the repo root from the path and normalize backslashes to slash.
-            // SAFETY: `path_str` is guaranteed to start with `leading_dirs`
-            wdl_files.insert(
-                path_str
-                    .strip_prefix(repo_root.to_str().expect("path should be UTF-8"))
-                    .expect("path should start with repo root")
-                    .to_string()
-                    .replace('\\', "/"),
-                contents,
-            );
-        }
     }
 }

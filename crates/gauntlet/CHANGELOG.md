@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Full analysis instead of basic validation ([#207](https://github.com/stjude-rust-labs/wdl/pull/172))
+* Checkout submodules ([#207](https://github.com/stjude-rust-labs/wdl/pull/172))
+
 ### Changed
 
 * Use `tracing` events instead of the `log` crate ([#172](https://github.com/stjude-rust-labs/wdl/pull/172))

@@ -34,10 +34,9 @@ impl Diagnostic {
         line_no: Option<usize>,
     ) -> Self {
         let url = format!(
-            "https://github.com/{}/blob/{}{}",
-            document.repository(),
-            hash,
-            document.path()
+            "https://github.com/{doc}/blob/{hash}{path}",
+            doc = document.repository(),
+            path = document.path()
         );
         let url = if let Some(line_no) = line_no {
             format!("{}/#L{}", url, line_no)

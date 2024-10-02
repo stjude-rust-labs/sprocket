@@ -1,4 +1,4 @@
-//! `wdl-gauntlet`
+//! Gauntlet
 
 #![warn(missing_docs)]
 #![warn(rust_2018_idioms)]
@@ -6,6 +6,7 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::borrow::Cow;
 use std::io::IsTerminal;
 use std::path::Path;
 use std::path::PathBuf;
@@ -27,7 +28,6 @@ use colored::Colorize;
 use indexmap::IndexSet;
 use tracing::debug;
 use tracing::info;
-use tracing::trace;
 
 pub mod config;
 pub mod document;
@@ -39,9 +39,11 @@ pub use report::Report;
 use report::Status;
 use report::UnmatchedStatus;
 pub use repository::Repository;
-use wdl_lint::LintVisitor;
-use wdl_lint::ast::Document;
-use wdl_lint::ast::Validator;
+use wdl::analysis::Analyzer;
+use wdl::ast::Diagnostic;
+use wdl::ast::SyntaxNode;
+use wdl::lint::LintVisitor;
+use wdl::lint::ast::Validator;
 
 use crate::repository::WorkDir;
 
@@ -51,8 +53,8 @@ const EXIT_CODE_UNEXPECTED: i32 = 1;
 /// The exit code to emit when an error was expected but not encountered.
 const EXIT_CODE_MISSING: i32 = 2;
 
-/// A command-line utility for testing the compatibility of `wdl-grammar` and
-/// `wdl-ast` against a wide variety of community WDL repositories.
+/// A command-line utility for testing the compatibility of `wdl-analysis`
+/// against a wide variety of community WDL repositories.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about)]
 pub struct Args {
@@ -157,7 +159,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
     }));
     let mut total_time = Duration::ZERO;
     for (index, (repository_identifier, repo)) in config.inner().repositories().iter().enumerate() {
-        let files = repo.wdl_files(work_dir.root());
+        let repo_root = repo.checkout(work_dir.root());
         report.title(repository_identifier).with_context(|| {
             format!("failed to write report title for repository `{repository_identifier}`")
         })?;
@@ -165,54 +167,57 @@ pub async fn gauntlet(args: Args) -> Result<()> {
             .next_section()
             .context("failed to write next section")?;
 
-        for (relative_path, source) in files {
-            let abs_path = work_dir
-                .root()
-                .join(repository_identifier.organization())
-                .join(repository_identifier.name())
-                .join(&relative_path);
-
-            if args.filters.contains(&relative_path) || repo.filters().contains(&relative_path) {
-                trace!("skipping: {:?}", abs_path);
-                continue;
-            }
-
-            trace!("processing: {:?}", abs_path);
-
-            let document_identifier =
-                document::Identifier::new(repository_identifier.clone(), relative_path);
-
-            // Parse and validate the document
-            // If "arena mode" is activated, also validate with the lint rules enabled
-            let before = Instant::now();
-            let (document, diagnostics) = Document::parse(&source);
-            let diagnostics = if !diagnostics.is_empty() {
-                if args.arena {
-                    // If we're in arena mode, skip over the files that failed to fully parse
-                    // We log those diagnostics as part of the normal gauntlet run.
-                    trace!("skipping {:?} as it has parse errors", abs_path);
-                    continue;
-                }
-
-                diagnostics
-            } else {
-                let mut validator = Validator::default();
+        let analyzer = Analyzer::new_with_validator(
+            move |_: (), _, _, _| async move {},
+            move || {
+                let mut validator = if !args.arena {
+                    Validator::default()
+                } else {
+                    Validator::empty()
+                };
                 if args.arena {
                     validator.add_visitor(LintVisitor::default());
                 }
 
-                match validator.validate(&document) {
-                    Ok(()) => diagnostics,
-                    Err(diagnostics) => diagnostics,
-                }
+                validator
+            },
+        );
+
+        let before = Instant::now();
+        analyzer.add_documents(vec![repo_root.clone()]).await?;
+        let results = analyzer.analyze(()).await?;
+        let elapsed = before.elapsed();
+        total_time += elapsed;
+
+        for result in &results {
+            let path = result.uri().to_file_path().ok();
+            let path = match &path {
+                Some(path) => path
+                    .strip_prefix(&repo_root)
+                    .unwrap_or(path)
+                    .to_string_lossy(),
+                // We're only concerned with local files from the repo for Gauntlet
+                None => continue,
             };
 
-            let elapsed = before.elapsed();
-            total_time += elapsed;
+            let document_identifier =
+                document::Identifier::new(repository_identifier.clone(), &path);
 
-            // Convert the diagnostics to a set of short-form messages
+            let diagnostics: Cow<'_, [Diagnostic]> = match result.parse_result().error() {
+                Some(e) => {
+                    vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into()
+                }
+                None => result.diagnostics().into(),
+            };
+
             let mut actual = IndexSet::new();
             if !diagnostics.is_empty() {
+                let source = result
+                    .parse_result()
+                    .root()
+                    .map(|n| SyntaxNode::new_root(n.clone()).text().to_string())
+                    .unwrap_or(String::new());
+
                 let file: SimpleFile<_, _> = SimpleFile::new(
                     Path::new(document_identifier.path())
                         .file_name()
@@ -227,6 +232,9 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                 };
 
                 for diagnostic in diagnostics.iter() {
+                    if args.arena && diagnostic.severity() == wdl::ast::Severity::Error {
+                        continue;
+                    }
                     let mut buffer = Buffer::no_color();
                     term::emit(&mut buffer, &config, &file, &diagnostic.to_codespan())
                         .context("failed to write diagnostic")?;
@@ -244,7 +252,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                                 .context("diagnostic should be UTF-8")?
                                 .trim()
                                 .to_string(),
-                            line_no
+                            line_no,
                         ))
                     );
                 }

@@ -62,10 +62,12 @@ pub struct Identifier {
 
 impl Identifier {
     /// Creates a new [`Identifier`].
-    pub fn new(repository: repository::Identifier, relative_path: String) -> Self {
+    pub fn new(repository: repository::Identifier, relative_path: impl AsRef<str>) -> Self {
+        let path = relative_path.as_ref();
         Self {
             repository,
-            path: relative_path,
+            // Ensure the path always starts with `/`
+            path: format!("/{path}", path = path.strip_prefix('/').unwrap_or(path)),
         }
     }
 
@@ -83,7 +85,12 @@ impl Identifier {
 
 impl std::fmt::Display for Identifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}{}", self.repository, SEPARATOR, self.path)
+        write!(
+            f,
+            "{repo}{SEPARATOR}{path}",
+            repo = self.repository,
+            path = self.path
+        )
     }
 }
 
@@ -135,6 +142,6 @@ impl<'de> Deserialize<'de> for Identifier {
         let repo = parts[0]
             .parse::<repository::Identifier>()
             .map_err(serde::de::Error::custom)?;
-        Ok(Identifier::new(repo, parts[1].to_string()))
+        Ok(Identifier::new(repo, parts[1]))
     }
 }
