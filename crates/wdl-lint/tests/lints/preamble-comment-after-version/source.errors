@@ -4,14 +4,6 @@ note[PreambleFormatting]: unnecessary whitespace in document preamble
 2 │        ## Bad leading whitespace!
   │ ^^^^^^^
 
-note[CommentWhitespace]: comment has too much indentation
-  ┌─ tests/lints/preamble-comment-after-version/source.wdl:2:8
-  │
-2 │        ## Bad leading whitespace!
-  │        ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  │
-  = fix: this comment has 1 levels of indentation. It should have 0 levels of indentation.
-
 error[PreambleCommentAfterVersion]: preamble comment after the version statement
    ┌─ tests/lints/preamble-comment-after-version/source.wdl:6:1
    │  

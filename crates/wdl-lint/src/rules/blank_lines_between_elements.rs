@@ -98,7 +98,7 @@ impl Rule for BlankLinesBetweenElementsRule {
          `requirements`, or `hints` section. For workflows, the `workflow body` includes any \
          private declarations, call statements, conditional statements, and scatter statements. A \
          `task body` is any and all private declarations. Within a workflow or task body, \
-         individual elements may optionally be separated by a blank line. "
+         individual elements may optionally be separated by a blank line."
     }
 
     fn tags(&self) -> TagSet {
@@ -141,7 +141,6 @@ impl Visitor for BlankLinesBetweenElementsRule {
     }
 
     // Import spacing is handled by the ImportWhitespace rule
-    // fn import_statement
 
     fn task_definition(
         &mut self,
@@ -156,6 +155,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let first = is_first_element(task.syntax());
         let actual_start = skip_preceding_comments(task.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
+        check_last_token(task.syntax(), state, &self.exceptable_nodes());
     }
 
     fn workflow_definition(
@@ -171,6 +171,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let first = is_first_element(workflow.syntax());
         let actual_start = skip_preceding_comments(workflow.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
+        check_last_token(workflow.syntax(), state, &self.exceptable_nodes());
     }
 
     fn metadata_section(
@@ -190,6 +191,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let actual_start = skip_preceding_comments(section.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
         flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        // flag_all_blank_lines_within() covers check_last_token()
     }
 
     fn parameter_metadata_section(
@@ -209,6 +211,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let actual_start = skip_preceding_comments(section.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
         flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        // flag_all_blank_lines_within() covers check_last_token()
     }
 
     fn input_section(
@@ -227,6 +230,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
+        check_last_token(section.syntax(), state, &self.exceptable_nodes());
     }
 
     fn command_section(
@@ -242,6 +246,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
+        check_last_token(section.syntax(), state, &self.exceptable_nodes());
     }
 
     fn output_section(
@@ -259,6 +264,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
+        check_last_token(section.syntax(), state, &self.exceptable_nodes());
     }
 
     fn runtime_section(
@@ -274,10 +280,11 @@ impl Visitor for BlankLinesBetweenElementsRule {
             self.state = State::RuntimeSection;
         }
 
-        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
         let first = is_first_element(section.syntax());
         let actual_start = skip_preceding_comments(section.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
+        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        // flag_all_blank_lines_within() covers check_last_token()
     }
 
     // call statement internal spacing is handled by the CallInputSpacing rule
@@ -300,6 +307,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         if first {
             check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
         }
+        check_last_token(stmt.syntax(), state, &self.exceptable_nodes());
     }
 
     fn scatter_statement(
@@ -319,6 +327,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         if first {
             check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
         }
+        check_last_token(stmt.syntax(), state, &self.exceptable_nodes());
     }
 
     fn struct_definition(
@@ -334,6 +343,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let first = is_first_element(def.syntax());
         let actual_start = skip_preceding_comments(def.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
+        check_last_token(def.syntax(), state, &self.exceptable_nodes());
     }
 
     fn requirements_section(
@@ -350,6 +360,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let actual_start = skip_preceding_comments(section.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
         flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        // flag_all_blank_lines_within() covers check_last_token()
     }
 
     fn task_hints_section(
@@ -366,6 +377,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let actual_start = skip_preceding_comments(section.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
         flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        // flag_all_blank_lines_within() covers check_last_token()
     }
 
     fn workflow_hints_section(
@@ -382,6 +394,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         let actual_start = skip_preceding_comments(section.syntax());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
         flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        // flag_all_blank_lines_within() covers check_last_token()
     }
 
     fn unbound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &UnboundDecl) {
@@ -389,10 +402,13 @@ impl Visitor for BlankLinesBetweenElementsRule {
             return;
         }
 
-        let prior = decl.syntax().prev_sibling_or_token();
+        let prior = decl
+            .syntax()
+            .prev_sibling_or_token()
+            .and_then(SyntaxElement::into_token);
         if let Some(p) = prior {
             if p.kind() == SyntaxKind::Whitespace {
-                let count = p.to_string().chars().filter(|c| *c == '\n').count();
+                let count = p.text().chars().filter(|c| *c == '\n').count();
                 // If we're in an `input` or `output`, we should have no blank lines, so only
                 // one `\n` is allowed.
                 if self.state == State::InputSection || self.state == State::OutputSection {
@@ -423,10 +439,12 @@ impl Visitor for BlankLinesBetweenElementsRule {
 
         let actual_start = skip_preceding_comments(decl.syntax());
 
-        let prior = actual_start.prev_sibling_or_token();
+        let prior = actual_start
+            .prev_sibling_or_token()
+            .and_then(SyntaxElement::into_token);
         if let Some(p) = prior {
             if p.kind() == SyntaxKind::Whitespace {
-                let count = p.to_string().chars().filter(|c| *c == '\n').count();
+                let count = p.text().chars().filter(|c| *c == '\n').count();
                 // If we're in an `input` or `output`, we should have no blank lines, so only
                 // one `\n` is allowed.
                 if self.state == State::InputSection || self.state == State::OutputSection {
@@ -467,6 +485,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         if first {
             check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
         }
+        check_last_token(stmt.syntax(), state, &self.exceptable_nodes());
     }
 }
 
@@ -497,7 +516,13 @@ fn flag_all_blank_lines_within(
 ) {
     syntax.descendants_with_tokens().for_each(|c| {
         if c.kind() == SyntaxKind::Whitespace {
-            let count = c.to_string().chars().filter(|c| *c == '\n').count();
+            let count = c
+                .as_token()
+                .expect("should be a token")
+                .text()
+                .chars()
+                .filter(|c| *c == '\n')
+                .count();
             if count > 1 {
                 state.exceptable_add(
                     excess_blank_line(c.text_range().to_span()),
@@ -523,10 +548,22 @@ fn check_prior_spacing(
     if let Some(prior) = syntax.prev_sibling_or_token() {
         match prior.kind() {
             SyntaxKind::Whitespace => {
-                let count = prior.to_string().chars().filter(|c| *c == '\n').count();
+                let count = prior
+                    .as_token()
+                    .expect("should be a token")
+                    .text()
+                    .chars()
+                    .filter(|c| *c == '\n')
+                    .count();
                 if first || !element_spacing_required {
-                    // first element cannot have a blank line before it
-                    if count > 1 {
+                    // first element cannot have a blank line before it.
+                    // Whitespace following the version statement is handled by the
+                    // `VerisonFormatting` rule.
+                    if count > 1
+                        && prior
+                            .prev_sibling_or_token()
+                            .is_some_and(|p| p.kind() != SyntaxKind::VersionStatementNode)
+                    {
                         state.exceptable_add(
                             excess_blank_line(prior.text_range().to_span()),
                             SyntaxElement::from(syntax.clone()),
@@ -557,13 +594,39 @@ fn check_prior_spacing(
     }
 }
 
+/// Check that the node's last token does not have a blank before it.
+fn check_last_token(
+    syntax: &SyntaxNode,
+    state: &mut Diagnostics,
+    exceptable_nodes: &Option<&'static [SyntaxKind]>,
+) {
+    let prev = syntax
+        .last_token()
+        .expect("node should have last token")
+        .prev_token();
+    if let Some(prev) = prev {
+        if prev.kind() == SyntaxKind::Whitespace {
+            let count = prev.text().chars().filter(|c| *c == '\n').count();
+            if count > 1 {
+                state.exceptable_add(
+                    excess_blank_line(prev.text_range().to_span()),
+                    SyntaxElement::from(syntax.clone()),
+                    exceptable_nodes,
+                );
+            }
+        }
+    }
+}
+
 /// For a given node, walk background until a non-comment or blank line is
 /// found. This allows us to skip comments that are "attached" to the current
 /// node.
 fn skip_preceding_comments(syntax: &SyntaxNode) -> NodeOrToken<SyntaxNode, SyntaxToken> {
     let mut preceding_comments = Vec::new();
 
-    let mut prev = syntax.prev_sibling_or_token();
+    let mut prev = syntax
+        .prev_sibling_or_token()
+        .and_then(SyntaxElement::into_token);
     while let Some(cur) = prev {
         match cur.kind() {
             SyntaxKind::Comment => {
@@ -571,10 +634,10 @@ fn skip_preceding_comments(syntax: &SyntaxNode) -> NodeOrToken<SyntaxNode, Synta
                 // A preceding comment on a blank line is considered to belong to the element.
                 // Otherwise, the comment "belongs" to whatever
                 // else is on that line.
-                if let Some(before_cur) = cur.prev_sibling_or_token() {
+                if let Some(before_cur) = cur.prev_token() {
                     match before_cur.kind() {
                         SyntaxKind::Whitespace => {
-                            if before_cur.to_string().contains('\n') {
+                            if before_cur.text().contains('\n') {
                                 // The 'cur' comment is on is on its own line.
                                 // It "belongs" to the current element.
                                 preceding_comments.push(cur.clone());
@@ -589,8 +652,7 @@ fn skip_preceding_comments(syntax: &SyntaxNode) -> NodeOrToken<SyntaxNode, Synta
                 }
             }
             SyntaxKind::Whitespace => {
-                // Ignore
-                if cur.to_string().chars().filter(|c| *c == '\n').count() > 1 {
+                if cur.text().chars().filter(|c| *c == '\n').count() > 1 {
                     // We've backed up to an empty line, so we can stop
                     break;
                 }
@@ -600,13 +662,13 @@ fn skip_preceding_comments(syntax: &SyntaxNode) -> NodeOrToken<SyntaxNode, Synta
                 break;
             }
         }
-        prev = cur.prev_sibling_or_token()
+        prev = cur.prev_token()
     }
 
-    return preceding_comments
-        .last()
-        .unwrap_or(&NodeOrToken::Node(syntax.clone()))
-        .clone();
+    return preceding_comments.last().map_or_else(
+        || SyntaxElement::from(syntax.clone()),
+        |c| SyntaxElement::from(c.clone()),
+    );
 }
 
 /// Is first body element?

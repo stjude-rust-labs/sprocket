@@ -4,14 +4,6 @@ note[PreambleFormatting]: unnecessary whitespace in document preamble
 1 │     #@ except: DescriptionMissing
   │ ^^^^
 
-note[CommentWhitespace]: in-line comments should be preceded by two spaces
-  ┌─ tests/lints/preamble-ws/source.wdl:1:5
-  │
-1 │     #@ except: DescriptionMissing
-  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  │
-  = fix: this comment must be preceded with two spaces
-
 note[PreambleFormatting]: expected exactly one blank line between lint directives and preamble comments
   ┌─ tests/lints/preamble-ws/source.wdl:1:34
   │  

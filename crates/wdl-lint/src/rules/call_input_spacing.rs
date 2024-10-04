@@ -176,7 +176,7 @@ impl Visitor for CallInputSpacingRule {
             .children_with_tokens()
             .for_each(|c| match c.kind() {
                 SyntaxKind::Whitespace => {
-                    if c.to_string().contains('\n') {
+                    if c.as_token().expect("should be token").text().contains('\n') {
                         newline_seen += 1;
                     }
                 }

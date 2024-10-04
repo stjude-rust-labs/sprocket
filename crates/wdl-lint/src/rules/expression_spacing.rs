@@ -429,7 +429,12 @@ impl Visitor for ExpressionSpacingRule {
                     .syntax()
                     .descendants_with_tokens()
                     .filter(|t| {
-                        if t.kind() == SyntaxKind::Whitespace && t.to_string().contains('\n') {
+                        if t.kind() == SyntaxKind::Whitespace
+                            && t.as_token()
+                                .expect("should be a token")
+                                .text()
+                                .contains('\n')
+                        {
                             return true;
                         }
                         false
@@ -455,7 +460,11 @@ impl Visitor for ExpressionSpacingRule {
                         ) {
                             // if should be preceded by an opening parenthesis and a newline
                             break;
-                        } else if t.kind() == SyntaxKind::Whitespace && t.to_string().contains('\n')
+                        } else if t.kind() == SyntaxKind::Whitespace
+                            && t.as_token()
+                                .expect("should be a token")
+                                .text()
+                                .contains('\n')
                         {
                             newline = true;
                         } else if t.kind() == SyntaxKind::OpenParen {
@@ -477,7 +486,11 @@ impl Visitor for ExpressionSpacingRule {
                         .expect("should have a prior sibling");
 
                     if then_ws.kind() != SyntaxKind::Whitespace
-                        || !then_ws.to_string().contains('\n')
+                        || !then_ws
+                            .as_token()
+                            .expect("should be a token")
+                            .text()
+                            .contains('\n')
                     {
                         // then should be preceded by a newline
                         state.exceptable_add(
@@ -492,7 +505,11 @@ impl Visitor for ExpressionSpacingRule {
                         .prev_sibling_or_token()
                         .expect("should have a prior sibling");
                     if else_prior.kind() != SyntaxKind::Whitespace
-                        || !else_prior.to_string().contains('\n')
+                        || !else_prior
+                            .as_token()
+                            .expect("should be a token")
+                            .text()
+                            .contains('\n')
                     {
                         // then should be preceded by a newline
                         state.exceptable_add(
@@ -516,7 +533,11 @@ impl Visitor for ExpressionSpacingRule {
                         ) {
                             // if should be preceded by an closing parenthesis and a newline
                             break;
-                        } else if t.kind() == SyntaxKind::Whitespace && t.to_string().contains('\n')
+                        } else if t.kind() == SyntaxKind::Whitespace
+                            && t.as_token()
+                                .expect("should be a token")
+                                .text()
+                                .contains('\n')
                         {
                             newline = true;
                         } else if t.kind() == SyntaxKind::CloseParen {
@@ -606,7 +627,10 @@ impl Visitor for ExpressionSpacingRule {
                             .descendants_with_tokens()
                             .filter(|t| {
                                 if t.kind() == SyntaxKind::Whitespace
-                                    && t.to_string().contains('\n')
+                                    && t.as_token()
+                                        .expect("should be a token")
+                                        .text()
+                                        .contains('\n')
                                 {
                                     return true;
                                 }
@@ -656,7 +680,10 @@ impl Visitor for ExpressionSpacingRule {
                                 {
                                     break;
                                 } else if t.kind() == SyntaxKind::Whitespace
-                                    && t.to_string().contains('\n')
+                                    && t.as_token()
+                                        .expect("should be a token")
+                                        .text()
+                                        .contains('\n')
                                 {
                                     newline = true;
                                     break;
@@ -687,7 +714,10 @@ impl Visitor for ExpressionSpacingRule {
                                     // if should be preceded by an opening parenthesis and a newline
                                     break;
                                 } else if t.kind() == SyntaxKind::Whitespace
-                                    && t.to_string().contains('\n')
+                                    && t.as_token()
+                                        .expect("should be a token")
+                                        .text()
+                                        .contains('\n')
                                 {
                                     newline = true;
                                     break;

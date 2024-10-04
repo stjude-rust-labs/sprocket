@@ -39,7 +39,7 @@ warning[NonmatchingOutput]: `v` appears in `outputs` section of the task `quux` 
    │
    = fix: ensure the output exists or remove the `v` key from `meta.outputs`
 
-warning[NonmatchingOutput]: `outputs` key in `meta` section is reserved for an object with keys corresponding to declared `output` values. task `corge` has a `meta.outputs` key that is not an object
+warning[NonmatchingOutput]: task `corge` has a `meta.outputs` key that is not an object containing output descriptions
    ┌─ tests/lints/nonmatching-output/source.wdl:86:9
    │
 86 │         outputs: "string"

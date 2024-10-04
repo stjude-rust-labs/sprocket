@@ -178,14 +178,12 @@ impl Visitor for WhitespaceRule {
 
         // Only report on multiple blank lines if not at the end of the file
         // The "ending newline" rule will catch blank lines at the end of the file
-        if !is_last {
-            if let Some(start) = blank_start {
-                state.exceptable_add(
-                    more_than_one_blank_line(Span::new(span.start() + start, span.len() - start)),
-                    SyntaxElement::from(whitespace.syntax().clone()),
-                    &self.exceptable_nodes(),
-                );
-            }
+        if !is_last && blank_start.is_some() {
+            state.exceptable_add(
+                more_than_one_blank_line(span),
+                SyntaxElement::from(whitespace.syntax().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }

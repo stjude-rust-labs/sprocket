@@ -17,6 +17,7 @@ use wdl_ast::Whitespace;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::lines_with_offset;
 
 /// The ID of the rule.
 const ID: &str = "VersionFormatting";
@@ -40,21 +41,21 @@ fn expected_blank_line_after_version(span: Span) -> Diagnostic {
 
 /// Creates a diagnostic for unexpected whitespace before the version statement.
 fn whitespace_before_version(span: Span) -> Diagnostic {
-    Diagnostic::error("unexpected whitespace before the version statement")
+    Diagnostic::note("unexpected whitespace before the version statement")
         .with_rule(ID)
         .with_highlight(span)
 }
 
 /// Creates a diagnostic for a comment inside the version statement.
 fn comment_inside_version(span: Span) -> Diagnostic {
-    Diagnostic::error("unexpected comment inside the version statement")
+    Diagnostic::note("unexpected comment inside the version statement")
         .with_rule(ID)
         .with_highlight(span)
 }
 
 /// Creates a diagnostic for unexpected whitespace inside the version statement.
 fn unexpected_whitespace_inside_version(span: Span) -> Diagnostic {
-    Diagnostic::error("expected exactly one space between 'version' and the version number")
+    Diagnostic::note("expected exactly one space between 'version' and the version number")
         .with_rule(ID)
         .with_highlight(span)
 }
@@ -115,9 +116,30 @@ impl Visitor for VersionFormattingRule {
             // If there's a previous sibling or token, it must be a comment
             if let Some(_prev_comment) = prev_ws.prev_sibling_or_token() {
                 if ws != "\n\n" && ws != "\r\n\r\n" {
-                    state.add(expected_blank_line_before_version(
-                        prev_ws.text_range().to_span(),
-                    ));
+                    // There's a special case where the blank line has extra whitespace
+                    // but that doesn't appear in the printed diagnostic.
+                    let mut diagnostic =
+                        expected_blank_line_before_version(prev_ws.text_range().to_span());
+
+                    if ws.chars().filter(|&c| c == '\n').count() == 2 {
+                        for (line, start, end) in lines_with_offset(ws) {
+                            if !line.is_empty() {
+                                let end_offset = if ws.ends_with('\n') {
+                                    1
+                                } else if ws.ends_with("\r\n") {
+                                    2
+                                } else {
+                                    0
+                                };
+
+                                diagnostic = diagnostic.with_highlight(Span::new(
+                                    prev_ws.text_range().to_span().start() + start,
+                                    end - start - end_offset,
+                                ));
+                            }
+                        }
+                    }
+                    state.add(diagnostic);
                 }
             } else {
                 state.add(whitespace_before_version(prev_ws.text_range().to_span()));
@@ -149,7 +171,9 @@ impl Visitor for VersionFormattingRule {
         if let Some(next) = stmt.syntax().next_sibling_or_token() {
             if let Some(ws) = next.as_token().and_then(|s| Whitespace::cast(s.clone())) {
                 let s = ws.as_str();
-                if s != "\n\n" && s != "\r\n\r\n" {
+                // Don't add diagnostic if there's nothing but whitespace after the version
+                // statement
+                if s != "\n\n" && s != "\r\n\r\n" && next.next_sibling_or_token().is_some() {
                     state.add(expected_blank_line_after_version(ws.span()));
                 }
             }

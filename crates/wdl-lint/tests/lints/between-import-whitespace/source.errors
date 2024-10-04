@@ -1,7 +1,9 @@
 note[ImportWhitespace]: blank lines are not allowed between imports
-  ┌─ tests/lints/between-import-whitespace/source.wdl:6:1
+  ┌─ tests/lints/between-import-whitespace/source.wdl:5:23
   │  
-6 │ ╭ 
+5 │   import "bar.wdl"  # OK
+  │ ╭──────────────────────^
+6 │ │ 
 7 │ │ import "baz.wdl"  # BAD
   │ ╰^
   │  
@@ -16,36 +18,45 @@ note[ImportWhitespace]: improper whitespace before import statement
   = fix: use minimal whitespace before import statements
 
 note[ImportWhitespace]: blank lines are not allowed between imports
-   ┌─ tests/lints/between-import-whitespace/source.wdl:9:1
+   ┌─ tests/lints/between-import-whitespace/source.wdl:8:28
    │  
- 9 │ ╭ 
+ 8 │       import "foo.wdl"  # BAD
+   │ ╭───────────────────────────^
+ 9 │ │ 
 10 │ │ import "huh.wdl"  # BAD
    │ ╰^
    │  
    = fix: remove any blank lines between imports
 
 note[ImportWhitespace]: blank lines are not allowed between imports
-   ┌─ tests/lints/between-import-whitespace/source.wdl:13:1
+   ┌─ tests/lints/between-import-whitespace/source.wdl:12:23
    │  
-13 │ ╭ 
+12 │   import "vom.wdl"  # OK
+   │ ╭──────────────────────^
+13 │ │ 
 14 │ │ # a comment and a blank is still BAD
    │ ╰^
    │  
    = fix: remove any blank lines between imports
 
 note[ImportWhitespace]: blank lines are not allowed between imports
-   ┌─ tests/lints/between-import-whitespace/source.wdl:15:1
+   ┌─ tests/lints/between-import-whitespace/source.wdl:14:37
    │  
-15 │ ╭ 
+14 │   # a comment and a blank is still BAD
+   │ ╭────────────────────────────────────^
+15 │ │ 
 16 │ │ import "wah.wdl"  # BAD
    │ ╰^
    │  
    = fix: remove any blank lines between imports
 
 note[Whitespace]: more than one blank line in a row
-   ┌─ tests/lints/between-import-whitespace/source.wdl:18:1
+   ┌─ tests/lints/between-import-whitespace/source.wdl:16:24
    │  
-18 │ ╭ 
+16 │   import "wah.wdl"  # BAD
+   │ ╭───────────────────────^
+17 │ │ 
+18 │ │ 
 19 │ │ import "zam.wdl"  # 2 blanks will be caught be a _different_ check
    │ ╰^
    │  

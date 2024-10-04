@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Change how some rules report whitespace spans ([#206](https://github.com/stjude-rust-labs/wdl/pull/206))
+* Cover a missing case in `BlankLinesBetweenElements` ([#206](https://github.com/stjude-rust-labs/wdl/pull/206))
+* Don't redundantly report the same issue from different rules or checks ([#206](https://github.com/stjude-rust-labs/wdl/pull/206))
 * `PreambleComments` and `PreambleWhitespace` have been refactored into 3 rules: `PreambleFormatting`, `VersionFormatting`, and `PreambleCommentAfterVersion` ([#187](https://github.com/stjude-rust-labs/wdl/pull/187))
 * test files have been cleaned up ([#187](https://github.com/stjude-rust-labs/wdl/pull/187))
 * Some `warning` diagnostics are now `note` diagnostics ([#187](https://github.com/stjude-rust-labs/wdl/pull/187))

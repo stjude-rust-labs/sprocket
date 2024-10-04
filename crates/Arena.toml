@@ -632,6 +632,11 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:51:6: note[BlankLinesBetweenElements]: extra blank line(s) found"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L51"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:53:18: note[Whitespace]: line contains trailing whitespace"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L53"
 
@@ -1734,6 +1739,11 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
 message = "flag_filter.wdl:119:20: note[ContainerValue]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8a709b25b8a0d0b850c4adb1ba915293d9d024d1/data_structures/flag_filter.wdl/#L119"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
+message = "flag_filter.wdl:155:6: note[BlankLinesBetweenElements]: extra blank line(s) found"
+permalink = "https://github.com/stjudecloud/workflows/blob/8a709b25b8a0d0b850c4adb1ba915293d9d024d1/data_structures/flag_filter.wdl/#L155"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"

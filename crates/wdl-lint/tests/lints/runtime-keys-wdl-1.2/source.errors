@@ -1,11 +1,3 @@
-warning[MissingRequirements]: task `a_task_with_no_keys` is missing a `requirements` section
-  ┌─ tests/lints/runtime-keys-wdl-1.2/source.wdl:3:6
-  │
-3 │ task a_task_with_no_keys {
-  │      ^^^^^^^^^^^^^^^^^^^ this task is missing a `requirements` section
-  │
-  = fix: add a `requirements` section to the task
-
 note[MissingRequirements]: task `a_task_with_no_keys` contains a deprecated `runtime` section
    ┌─ tests/lints/runtime-keys-wdl-1.2/source.wdl:11:5
    │

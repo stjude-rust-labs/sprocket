@@ -173,11 +173,8 @@ impl Visitor for ImportWhitespaceRule {
         while let Some(token) = prev_token {
             if token.kind() == SyntaxKind::Whitespace {
                 let mut should_warn = false;
-                let mut second_line_start = None;
-                for (i, (text, _, next)) in lines_with_offset(token.text()).enumerate() {
-                    if i == 0 {
-                        second_line_start = Some(next);
-                    } else if i == 1 && text.is_empty() {
+                for (i, (text, ..)) in lines_with_offset(token.text()).enumerate() {
+                    if i == 1 && text.is_empty() {
                         should_warn = true;
                     } else if i == 2 {
                         should_warn = false;
@@ -188,12 +185,7 @@ impl Visitor for ImportWhitespaceRule {
                 if should_warn {
                     let span = token.text_range().to_span();
                     state.exceptable_add(
-                        blank_between_imports(Span::new(
-                            span.start()
-                                + second_line_start.expect("should have a second line start"),
-                            span.len()
-                                - second_line_start.expect("should have a second line start"),
-                        )),
+                        blank_between_imports(span),
                         SyntaxElement::from(token.clone()),
                         &self.exceptable_nodes(),
                     );

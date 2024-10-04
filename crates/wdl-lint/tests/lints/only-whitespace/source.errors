@@ -1,66 +1,89 @@
-note[Whitespace]: line contains only whitespace
-  ┌─ tests/lints/only-whitespace/source.wdl:6:1
-  │
-6 │     
-  │ ^^^^
-  │
-  = fix: remove the whitespace from this line
+note[PreambleFormatting]: expected exactly one blank line between lint directives and preamble comments
+  ┌─ tests/lints/only-whitespace/source.wdl:1:28
+  │  
+1 │   #@ except: Foo, UnknownRule
+  │ ╭───────────────────────────^
+2 │ │      
+  │ │ -----
+3 │ │ ## The above line has extra whitespace
+  │ ╰^
+
+note[VersionFormatting]: expected exactly one blank line between the last comment and the version statement
+  ┌─ tests/lints/only-whitespace/source.wdl:5:28
+  │  
+5 │   ## The next line has spaces
+  │ ╭───────────────────────────^
+6 │ │           
+  │ │ ----------
+7 │ │ version 1.1
+  │ ╰^
 
 note[Whitespace]: line contains only whitespace
-  ┌─ tests/lints/only-whitespace/source.wdl:9:1
-  │
-9 │           
-  │ ^^^^^^^^^^
-  │
-  = fix: remove the whitespace from this line
+   ┌─ tests/lints/only-whitespace/source.wdl:10:1
+   │
+10 │     
+   │ ^^^^
+   │
+   = fix: remove the whitespace from this line
 
 note[Whitespace]: more than one blank line in a row
-   ┌─ tests/lints/only-whitespace/source.wdl:9:1
+   ┌─ tests/lints/only-whitespace/source.wdl:11:45
    │  
- 9 │ ╭           
-10 │ │ 
-11 │ │ 
-12 │ │ workflow test {    
+11 │   # The next has multiple blank lines in a row
+   │ ╭────────────────────────────────────────────^
+12 │ │ 
+13 │ │           
+14 │ │ 
+15 │ │ 
+16 │ │ workflow test {    
    │ ╰^
    │  
    = fix: remove the unnecessary blank lines
 
-note[Whitespace]: line contains trailing whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:12:16
+note[Whitespace]: line contains only whitespace
+   ┌─ tests/lints/only-whitespace/source.wdl:13:1
    │
-12 │ workflow test {    
+13 │           
+   │ ^^^^^^^^^^
+   │
+   = fix: remove the whitespace from this line
+
+note[Whitespace]: line contains trailing whitespace
+   ┌─ tests/lints/only-whitespace/source.wdl:16:16
+   │
+16 │ workflow test {    
    │                ^^^^
    │
    = fix: remove this trailing whitespace
 
 note[Whitespace]: line contains trailing whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:14:34
+   ┌─ tests/lints/only-whitespace/source.wdl:18:34
    │
-14 │     #@ except: DescriptionMissing        
+18 │     #@ except: DescriptionMissing        
    │                                  ^^^^^^^^
    │
    = fix: remove this trailing whitespace
 
 note[Whitespace]: line contains only whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:16:1
+   ┌─ tests/lints/only-whitespace/source.wdl:20:1
    │
-16 │     
+20 │     
    │ ^^^^
    │
    = fix: remove the whitespace from this line
 
 note[Whitespace]: line contains trailing whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:19:18
+   ┌─ tests/lints/only-whitespace/source.wdl:23:18
    │
-19 │     String x = ""           
+23 │     String x = ""           
    │                  ^^^^^^^^^^^
    │
    = fix: remove this trailing whitespace
 
 note[Whitespace]: line contains only whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:23:1
+   ┌─ tests/lints/only-whitespace/source.wdl:27:1
    │
-23 │      
+27 │      
    │ ^^^^^
    │
    = fix: remove the whitespace from this line

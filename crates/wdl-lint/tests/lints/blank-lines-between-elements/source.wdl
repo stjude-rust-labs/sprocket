@@ -12,15 +12,23 @@ workflow foo {
 
     # This is OK (but the prior line is not).
     #@ except: DescriptionMissing
-    meta {}
-    parameter_meta {}
+    meta {
+    }
+    # above is ok but the next won't be
+    parameter_meta {
+
+    }
     # what about this comment?
-    input {}
+    input {
+
+    }
     scatter (i in ["hello", "world"]) {
         call bar { input: s = i }
+
     }
     if (true) {
         call bar { input: s = "world" }
+
     }
     String p = "pip"
 
@@ -33,6 +41,7 @@ workflow foo {
 
     call bar { input:
         s = s
+
     }  # following whitespace duplication is caught be Whitespace rule
 
 
@@ -43,7 +52,9 @@ workflow foo {
         s = s
     }
 
-    output {}
+    output {
+
+    }
 }
 #@ except: MissingMetas, MissingRuntime
 task bar {
@@ -56,6 +67,7 @@ task bar {
             u: "u"
 
         }
+
     }
 
     input {
