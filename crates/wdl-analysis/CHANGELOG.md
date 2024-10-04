@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Improved type calculations in function calls and when determining common
+  types in certain expressions ([#209](https://github.com/stjude-rust-labs/wdl/pull/209)).
 * Treat a coercion to `T?` for a function argument of type `T` as a preference
   over any other coercion ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
 * Fix the signature of `select_first` such that it is monomorphic ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).

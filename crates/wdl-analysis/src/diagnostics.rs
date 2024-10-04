@@ -373,30 +373,26 @@ pub fn call_input_type_mismatch(
     )
 }
 
-/// Creates a "element type mismatch" diagnostic.
-pub fn element_type_mismatch(
+/// Creates a "no common type" diagnostic.
+pub fn no_common_type(
     types: &Types,
-    kind: &str,
     expected: Type,
     expected_span: Span,
     actual: Type,
     actual_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected every {kind} to be type `{expected}`, but found type `{actual}`",
+        "type mismatch: a type common to both type `{expected}` and type `{actual}` does not exist",
         expected = expected.display(types),
         actual = actual.display(types)
     ))
     .with_label(
-        format!(
-            "this {kind} is type `{actual}`",
-            actual = actual.display(types)
-        ),
+        format!("this is type `{actual}`", actual = actual.display(types)),
         actual_span,
     )
     .with_label(
         format!(
-            "this {kind} is type `{expected}`",
+            "this is type `{expected}`",
             expected = expected.display(types)
         ),
         expected_span,

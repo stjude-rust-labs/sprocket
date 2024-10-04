@@ -38,29 +38,29 @@ error: type mismatch: expected type `Map[Int, String]`, but found type `Map[Stri
    │                      │    
    │                      this expects type `Map[Int, String]`
 
-error: type mismatch: expected every array element to be type `Int`, but found type `String`
+error: type mismatch: a type common to both type `Int` and type `String` does not exist
    ┌─ tests/analysis/type-mismatch/source.wdl:15:24
    │
 15 │     Array[Int] f = [1, "2", "3"]
-   │                     -  ^^^ this array element is type `String`
+   │                     -  ^^^ this is type `String`
    │                     │   
-   │                     this array element is type `Int`
+   │                     this is type `Int`
 
-error: type mismatch: expected every array element to be type `Int`, but found type `String`
+error: type mismatch: a type common to both type `Int` and type `String` does not exist
    ┌─ tests/analysis/type-mismatch/source.wdl:15:29
    │
 15 │     Array[Int] f = [1, "2", "3"]
-   │                     -       ^^^ this array element is type `String`
+   │                     -       ^^^ this is type `String`
    │                     │        
-   │                     this array element is type `Int`
+   │                     this is type `Int`
 
-error: type mismatch: expected every map value to be type `String`, but found type `Int`
+error: type mismatch: a type common to both type `String` and type `Int` does not exist
    ┌─ tests/analysis/type-mismatch/source.wdl:16:46
    │
 16 │     Map[String, String] g = { "a": "1", "b": 2, "c": "3" }
-   │                                    ---       ^ this map value is type `Int`
+   │                                    ---       ^ this is type `Int`
    │                                    │          
-   │                                    this map value is type `String`
+   │                                    this is type `String`
 
 error: type mismatch: expected type `Int`, but found type `Array[Int]`
    ┌─ tests/analysis/type-mismatch/source.wdl:17:22
@@ -70,11 +70,11 @@ error: type mismatch: expected type `Int`, but found type `Array[Int]`
    │                   │   
    │                   this expects type `Int`
 
-error: type mismatch: expected every map key to be type `String`, but found type `Int`
+error: type mismatch: a type common to both type `String` and type `Int` does not exist
    ┌─ tests/analysis/type-mismatch/source.wdl:18:41
    │
 18 │     Map[String, String] i = { "a": "1", 0: "2", "c": "3" }
-   │                               ---       ^ this map key is type `Int`
+   │                               ---       ^ this is type `Int`
    │                               │          
-   │                               this map key is type `String`
+   │                               this is type `String`
 

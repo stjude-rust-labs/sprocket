@@ -31,7 +31,8 @@ impl Constraint for OptionalTypeConstraint {
     }
 
     fn satisfied(&self, _: &Types, ty: Type) -> bool {
-        ty.is_optional()
+        // For the purpose of the constraint, treat `Union` as optional
+        ty == Type::Union || ty.is_optional()
     }
 }
 
@@ -258,7 +259,7 @@ mod test {
         assert!(!constraint.satisfied(&types, PrimitiveTypeKind::Directory.into()));
         assert!(!constraint.satisfied(&types, Type::Object));
         assert!(constraint.satisfied(&types, Type::OptionalObject));
-        assert!(!constraint.satisfied(&types, Type::Union));
+        assert!(constraint.satisfied(&types, Type::Union));
 
         let ty = types.add_array(ArrayType::new(PrimitiveType::optional(
             PrimitiveTypeKind::Boolean,

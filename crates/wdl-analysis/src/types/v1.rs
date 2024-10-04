@@ -50,7 +50,6 @@ use crate::diagnostics::cannot_access;
 use crate::diagnostics::cannot_coerce_to_string;
 use crate::diagnostics::cannot_index;
 use crate::diagnostics::comparison_mismatch;
-use crate::diagnostics::element_type_mismatch;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::index_type_mismatch;
 use crate::diagnostics::logical_and_mismatch;
@@ -59,6 +58,7 @@ use crate::diagnostics::logical_or_mismatch;
 use crate::diagnostics::map_key_not_primitive;
 use crate::diagnostics::missing_struct_members;
 use crate::diagnostics::negation_mismatch;
+use crate::diagnostics::no_common_type;
 use crate::diagnostics::not_a_pair_accessor;
 use crate::diagnostics::not_a_struct;
 use crate::diagnostics::not_a_struct_member;
@@ -544,22 +544,17 @@ where
                 // first
                 for expr in elements {
                     if let Some(actual) = self.evaluate_expr(scope, &expr) {
-                        if !actual.is_coercible_to(self.types, &expected) {
-                            // Check to see if we can coerce the expected type to the current
-                            // element's type
-                            if expected.is_coercible_to(self.types, &actual) {
-                                expected = actual;
-                                expected_span = expr.span();
-                            } else {
-                                self.diagnostics.push(element_type_mismatch(
-                                    self.types,
-                                    "array element",
-                                    expected,
-                                    expected_span,
-                                    actual,
-                                    expr.span(),
-                                ));
-                            }
+                        if let Some(ty) = self.common_type(actual, expected) {
+                            expected = ty;
+                            expected_span = expr.span();
+                        } else {
+                            self.diagnostics.push(no_common_type(
+                                self.types,
+                                expected,
+                                expected_span,
+                                actual,
+                                expr.span(),
+                            ));
                         }
                     }
                 }
@@ -590,7 +585,7 @@ where
             let (key, value) = item.key_value();
             let expected_key = self.evaluate_expr(scope, &key)?;
             match expected_key {
-                Type::Primitive(_) => {
+                Type::Primitive(_) | Type::None | Type::Union => {
                     // OK
                 }
                 _ => {
@@ -625,40 +620,30 @@ where
                     let (key, value) = item.key_value();
                     if let Some(actual_key) = self.evaluate_expr(scope, &key) {
                         if let Some(actual_value) = self.evaluate_expr(scope, &value) {
-                            if !actual_key.is_coercible_to(self.types, &expected_key) {
-                                // Check to see if we can coerce the expected key type to the
-                                // current element's key type
-                                if expected_key.is_coercible_to(self.types, &actual_key) {
-                                    expected_key = actual_key;
-                                    expected_key_span = key.span();
-                                } else {
-                                    self.diagnostics.push(element_type_mismatch(
-                                        self.types,
-                                        "map key",
-                                        expected_key,
-                                        expected_key_span,
-                                        actual_key,
-                                        key.span(),
-                                    ));
-                                }
+                            if let Some(ty) = self.common_type(actual_key, expected_key) {
+                                expected_key = ty;
+                                expected_key_span = key.span();
+                            } else {
+                                self.diagnostics.push(no_common_type(
+                                    self.types,
+                                    expected_key,
+                                    expected_key_span,
+                                    actual_key,
+                                    key.span(),
+                                ));
                             }
 
-                            if !actual_value.is_coercible_to(self.types, &expected_value) {
-                                // Check to see if we can coerce the expected value type to the
-                                // current element's value type
-                                if expected_value.is_coercible_to(self.types, &actual_value) {
-                                    expected_value = actual_value;
-                                    expected_value_span = value.span();
-                                } else {
-                                    self.diagnostics.push(element_type_mismatch(
-                                        self.types,
-                                        "map value",
-                                        expected_value,
-                                        expected_value_span,
-                                        actual_value,
-                                        value.span(),
-                                    ));
-                                }
+                            if let Some(ty) = self.common_type(actual_value, expected_value) {
+                                expected_value = ty;
+                                expected_value_span = value.span();
+                            } else {
+                                self.diagnostics.push(no_common_type(
+                                    self.types,
+                                    expected_value,
+                                    expected_value_span,
+                                    actual_value,
+                                    value.span(),
+                                ));
                             }
                         }
                     }
@@ -1272,10 +1257,8 @@ where
             (Type::Union, _) => Some(false_ty),
             (_, Type::Union) => Some(true_ty),
             _ => {
-                if true_ty.is_coercible_to(self.types, &false_ty) {
-                    Some(false_ty)
-                } else if false_ty.is_coercible_to(self.types, &true_ty) {
-                    Some(true_ty)
+                if let Some(ty) = self.common_type(true_ty, false_ty) {
+                    Some(ty)
                 } else {
                     self.diagnostics.push(type_mismatch(
                         self.types,
@@ -1582,6 +1565,11 @@ where
         let target = expr.target();
         match STDLIB.function(target.as_str()) {
             Some(f) => {
+                let arguments: Vec<_> = expr
+                    .arguments()
+                    .map(|expr| self.evaluate_expr(scope, &expr).unwrap_or(Type::Union))
+                    .collect();
+
                 let minimum_version = f.minimum_version();
                 if minimum_version > self.version {
                     self.diagnostics.push(unsupported_function(
@@ -1589,13 +1577,8 @@ where
                         target.as_str(),
                         target.span(),
                     ));
-                    return f.ret(self.types);
                 }
 
-                let arguments: Vec<_> = expr
-                    .arguments()
-                    .map(|expr| self.evaluate_expr(scope, &expr).unwrap_or(Type::Union))
-                    .collect();
                 match f.bind(self.types, &arguments) {
                     Ok(ty) => return Some(ty),
                     Err(FunctionBindError::TooFewArguments(minimum)) => {
@@ -1637,7 +1620,7 @@ where
                     }
                 }
 
-                f.ret(self.types)
+                Some(f.realize_unconstrained_return_type(self.types, &arguments))
             }
             None => {
                 self.diagnostics
@@ -1749,6 +1732,35 @@ where
 
         self.diagnostics
             .push(cannot_access(self.types, ty, target.span()));
+        None
+    }
+
+    /// Calculates a common type between two types.
+    ///
+    /// Returns `None` if the types have no common type.
+    fn common_type(&self, first: Type, second: Type) -> Option<Type> {
+        // Check for the first type being coercible to the second type
+        if first.is_coercible_to(self.types, &second) {
+            return Some(second);
+        }
+
+        // Check for the second type being coercible to the second type
+        if second.is_coercible_to(self.types, &first) {
+            return Some(first);
+        }
+
+        // Check for `None` for the first type; the common type would be an optional
+        // second type
+        if first == Type::None {
+            return Some(second.optional());
+        }
+
+        // Check for `None` for the second type; the common type would be an optional
+        // first type
+        if second == Type::None {
+            return Some(first.optional());
+        }
+
         None
     }
 }
