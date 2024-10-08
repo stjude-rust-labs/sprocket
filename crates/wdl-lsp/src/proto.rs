@@ -82,7 +82,7 @@ pub fn diagnostic(
 
     let message = diagnostic.message().to_string();
 
-    let related = labels
+    let mut related: Vec<_> = labels
         .map(|label| {
             Ok(DiagnosticRelatedInformation {
                 location: Location::new(uri.clone(), range_from_span(index, label.span())?),
@@ -90,6 +90,15 @@ pub fn diagnostic(
             })
         })
         .collect::<Result<_>>()?;
+
+    if let Some(fix) = diagnostic.fix() {
+        if let Some(span) = diagnostic.labels().next().map(|l| l.span()) {
+            related.push(DiagnosticRelatedInformation {
+                location: Location::new(uri.clone(), range_from_span(index, span)?),
+                message: format!("fix: {fix}"),
+            });
+        }
+    }
 
     Ok(Diagnostic::new(
         range.unwrap_or_default(),
