@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test for a name that doesn't refer to a struct member.
 
 version 1.1

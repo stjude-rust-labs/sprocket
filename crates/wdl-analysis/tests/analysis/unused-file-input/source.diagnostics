@@ -1,0 +1,12 @@
+warning[UnusedInput]: unused input `used`
+  ┌─ tests/analysis/unused-file-input/source.wdl:8:14
+  │
+8 │         File used
+  │              ^^^^
+
+warning[UnusedInput]: unused input `used`
+   ┌─ tests/analysis/unused-file-input/source.wdl:29:14
+   │
+29 │         File used
+   │              ^^^^
+

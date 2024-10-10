@@ -1,3 +1,4 @@
+#@ except: UnusedImport
 ## This a test of importing by relative paths.
 ## There should be no diagnostics generated
 

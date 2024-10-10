@@ -15,8 +15,10 @@ pub mod eval;
 mod graph;
 mod queue;
 mod rayon;
+mod rules;
 pub mod scope;
 pub mod stdlib;
 pub mod types;
 
 pub use analyzer::*;
+pub use rules::*;

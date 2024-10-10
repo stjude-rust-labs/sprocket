@@ -5,7 +5,6 @@ use std::fmt;
 
 use petgraph::algo::DfsSpace;
 use petgraph::algo::has_path_connecting;
-use petgraph::algo::toposort;
 use petgraph::graph::DiGraph;
 use petgraph::graph::NodeIndex;
 use petgraph::visit::Visitable;
@@ -102,16 +101,9 @@ impl fmt::Display for TaskGraphNode {
     }
 }
 
-/// Represents a task evaluation graph.
-///
-/// This is used to evaluate declarations and sections in topological order.
+/// A builder for task evaluation graphs.
 #[derive(Debug, Default)]
-pub struct TaskGraph {
-    /// The inner directed graph.
-    ///
-    /// Note that edges in this graph are in *reverse* dependency ordering
-    /// (implies "depended upon by" relationships).
-    inner: DiGraph<TaskGraphNode, ()>,
+pub struct TaskGraphBuilder {
     /// The map of declaration names to node indexes in the graph.
     names: HashMap<TokenStrHash<Ident>, NodeIndex>,
     /// The command node index.
@@ -122,110 +114,109 @@ pub struct TaskGraph {
     requirements: Option<NodeIndex>,
     /// The hints node index.
     hints: Option<NodeIndex>,
+    /// Space for DFS operations when building the graph.
+    space: DfsSpace<NodeIndex, <DiGraph<TaskGraphNode, ()> as Visitable>::Map>,
 }
 
-impl TaskGraph {
-    /// Constructs a new task evaluation graph.
-    pub fn new(
+impl TaskGraphBuilder {
+    /// Builds a new task evaluation graph.
+    pub fn build(
+        mut self,
         version: SupportedVersion,
         task: &TaskDefinition,
         diagnostics: &mut Vec<Diagnostic>,
-    ) -> Self {
+    ) -> DiGraph<TaskGraphNode, ()> {
         // Populate the declaration types and build a name reference graph
-        let mut space = Default::default();
+        let mut graph = DiGraph::default();
         let mut saw_inputs = false;
         let mut outputs = None;
-        let mut graph = Self::default();
         for item in task.items() {
             match item {
                 TaskItem::Input(section) if !saw_inputs => {
                     saw_inputs = true;
                     for decl in section.declarations() {
-                        graph.add_named_node(decl.name(), TaskGraphNode::Input(decl), diagnostics);
+                        self.add_named_node(
+                            decl.name(),
+                            TaskGraphNode::Input(decl),
+                            &mut graph,
+                            diagnostics,
+                        );
                     }
                 }
                 TaskItem::Output(section) if outputs.is_none() => {
                     outputs = Some(section);
                 }
                 TaskItem::Declaration(decl) => {
-                    graph.add_named_node(
+                    self.add_named_node(
                         decl.name(),
                         TaskGraphNode::Decl(Decl::Bound(decl)),
+                        &mut graph,
                         diagnostics,
                     );
                 }
-                TaskItem::Command(section) if graph.command.is_none() => {
-                    graph.command = Some(graph.inner.add_node(TaskGraphNode::Command(section)));
+                TaskItem::Command(section) if self.command.is_none() => {
+                    self.command = Some(graph.add_node(TaskGraphNode::Command(section)));
                 }
-                TaskItem::Runtime(section) if graph.runtime.is_none() => {
-                    graph.runtime = Some(graph.inner.add_node(TaskGraphNode::Runtime(section)));
+                TaskItem::Runtime(section) if self.runtime.is_none() => {
+                    self.runtime = Some(graph.add_node(TaskGraphNode::Runtime(section)));
                 }
                 TaskItem::Requirements(section)
                     if version >= SupportedVersion::V1(V1::Two)
-                        && graph.requirements.is_none()
-                        && graph.runtime.is_none() =>
+                        && self.requirements.is_none()
+                        && self.runtime.is_none() =>
                 {
-                    graph.requirements =
-                        Some(graph.inner.add_node(TaskGraphNode::Requirements(section)));
+                    self.requirements = Some(graph.add_node(TaskGraphNode::Requirements(section)));
                 }
                 TaskItem::Hints(section)
                     if version >= SupportedVersion::V1(V1::Two)
-                        && graph.hints.is_none()
-                        && graph.runtime.is_none() =>
+                        && self.hints.is_none()
+                        && self.runtime.is_none() =>
                 {
-                    graph.hints = Some(graph.inner.add_node(TaskGraphNode::Hints(section)));
+                    self.hints = Some(graph.add_node(TaskGraphNode::Hints(section)));
                 }
                 _ => continue,
             }
         }
 
         // Add name reference edges before adding the outputs
-        graph.add_reference_edges(version, None, &mut space, diagnostics);
+        self.add_reference_edges(version, None, &mut graph, diagnostics);
 
-        let count = graph.inner.node_count();
+        let count = graph.node_count();
         if let Some(section) = outputs {
             for decl in section.declarations() {
-                if let Some(index) = graph.add_named_node(
+                if let Some(index) = self.add_named_node(
                     decl.name(),
                     TaskGraphNode::Output(Decl::Bound(decl)),
+                    &mut graph,
                     diagnostics,
                 ) {
                     // Add an edge to the command node as all outputs depend on the command
-                    if let Some(command) = graph.command {
-                        graph.inner.update_edge(command, index, ());
+                    if let Some(command) = self.command {
+                        graph.update_edge(command, index, ());
                     }
                 }
             }
         }
 
         // Add reference edges again, but only for the output declaration nodes
-        graph.add_reference_edges(version, Some(count), &mut space, diagnostics);
+        self.add_reference_edges(version, Some(count), &mut graph, diagnostics);
 
         // Finally, add edges from the command to runtime/requirements/hints
-        if let Some(command) = graph.command {
-            if let Some(runtime) = graph.runtime {
-                graph.inner.update_edge(runtime, command, ());
+        if let Some(command) = self.command {
+            if let Some(runtime) = self.runtime {
+                graph.update_edge(runtime, command, ());
             }
 
-            if let Some(requirements) = graph.requirements {
-                graph.inner.update_edge(requirements, command, ());
+            if let Some(requirements) = self.requirements {
+                graph.update_edge(requirements, command, ());
             }
 
-            if let Some(hints) = graph.hints {
-                graph.inner.update_edge(hints, command, ());
+            if let Some(hints) = self.hints {
+                graph.update_edge(hints, command, ());
             }
         }
 
         graph
-    }
-
-    /// Performs a topological sort of the graph nodes.
-    pub fn toposort(&self) -> Vec<TaskGraphNode> {
-        toposort(&self.inner, None)
-            .expect("graph should be acyclic")
-            .into_iter()
-            .map(|i| self.inner[i].clone())
-            .collect()
     }
 
     /// Adds a named node to the graph.
@@ -233,6 +224,7 @@ impl TaskGraph {
         &mut self,
         name: Ident,
         node: TaskGraphNode,
+        graph: &mut DiGraph<TaskGraphNode, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Option<NodeIndex> {
         // Check for conflicting nodes
@@ -240,7 +232,7 @@ impl TaskGraph {
             diagnostics.push(name_conflict(
                 name.as_str(),
                 node.context().expect("node should have context").into(),
-                self.inner[*existing]
+                graph[*existing]
                     .context()
                     .expect("node should have context")
                     .into(),
@@ -248,7 +240,7 @@ impl TaskGraph {
             return None;
         }
 
-        let index = self.inner.add_node(node);
+        let index = graph.add_node(node);
         self.names.insert(TokenStrHash::new(name), index);
         Some(index)
     }
@@ -259,6 +251,7 @@ impl TaskGraph {
         from: NodeIndex,
         descendants: impl Iterator<Item = SyntaxNode>,
         allow_task_var: bool,
+        graph: &mut DiGraph<TaskGraphNode, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         // Add edges for any descendant name references
@@ -268,7 +261,7 @@ impl TaskGraph {
             // Look up the name; we don't check for cycles here as decls can't
             // reference a section.
             if let Some(to) = self.names.get(name.as_str()) {
-                self.inner.update_edge(*to, from, ());
+                graph.update_edge(*to, from, ());
             } else if name.as_str() != TASK_VAR_NAME || !allow_task_var {
                 diagnostics.push(unknown_name(name.as_str(), name.span()));
             }
@@ -280,15 +273,15 @@ impl TaskGraph {
         &mut self,
         version: SupportedVersion,
         skip: Option<usize>,
-        space: &mut DfsSpace<NodeIndex, <DiGraph<TaskGraphNode, ()> as Visitable>::Map>,
+        graph: &mut DiGraph<TaskGraphNode, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         // Populate edges for any nodes that reference other nodes by name
-        for from in self.inner.node_indices().skip(skip.unwrap_or(0)) {
-            match self.inner[from].clone() {
+        for from in graph.node_indices().skip(skip.unwrap_or(0)) {
+            match graph[from].clone() {
                 TaskGraphNode::Input(decl) | TaskGraphNode::Decl(decl) => {
                     if let Some(expr) = decl.expr() {
-                        self.add_expr_edges(from, expr, false, space, diagnostics);
+                        self.add_expr_edges(from, expr, false, graph, diagnostics);
                     }
                 }
                 TaskGraphNode::Output(decl) => {
@@ -297,7 +290,7 @@ impl TaskGraph {
                             from,
                             expr,
                             version >= SupportedVersion::V1(V1::Two),
-                            space,
+                            graph,
                             diagnostics,
                         );
                     }
@@ -311,6 +304,7 @@ impl TaskGraph {
                                 from,
                                 p.syntax().descendants(),
                                 version >= SupportedVersion::V1(V1::Two),
+                                graph,
                                 diagnostics,
                             );
                         }
@@ -324,6 +318,7 @@ impl TaskGraph {
                             from,
                             item.syntax().descendants(),
                             false,
+                            graph,
                             diagnostics,
                         );
                     }
@@ -336,6 +331,7 @@ impl TaskGraph {
                             from,
                             item.syntax().descendants(),
                             false,
+                            graph,
                             diagnostics,
                         );
                     }
@@ -348,6 +344,7 @@ impl TaskGraph {
                             from,
                             item.syntax().descendants(),
                             false,
+                            graph,
                             diagnostics,
                         );
                     }
@@ -362,7 +359,7 @@ impl TaskGraph {
         from: NodeIndex,
         expr: Expr,
         allow_task_var: bool,
-        space: &mut DfsSpace<NodeIndex, <DiGraph<TaskGraphNode, ()> as Visitable>::Map>,
+        graph: &mut DiGraph<TaskGraphNode, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         for r in expr.syntax().descendants().filter_map(NameRef::cast) {
@@ -374,7 +371,7 @@ impl TaskGraph {
                 if *to == from {
                     diagnostics.push(self_referential(
                         name.as_str(),
-                        self.inner[from]
+                        graph[from]
                             .context()
                             .expect("node should have context")
                             .span(),
@@ -384,12 +381,12 @@ impl TaskGraph {
                 }
 
                 // Check for a dependency cycle
-                if has_path_connecting(&self.inner, from, *to, Some(space)) {
+                if has_path_connecting(graph as &_, from, *to, Some(&mut self.space)) {
                     diagnostics.push(task_reference_cycle(
-                        &self.inner[from],
+                        &graph[from],
                         r.span(),
                         name.as_str(),
-                        self.inner[*to]
+                        graph[*to]
                             .expr()
                             .expect("should have expr to form a cycle")
                             .span(),
@@ -397,7 +394,7 @@ impl TaskGraph {
                     continue;
                 }
 
-                self.inner.update_edge(*to, from, ());
+                graph.update_edge(*to, from, ());
             } else if name.as_str() != TASK_VAR_NAME || !allow_task_var {
                 diagnostics.push(unknown_name(name.as_str(), name.span()));
             }
@@ -500,16 +497,9 @@ impl fmt::Display for WorkflowGraphNode {
     }
 }
 
-/// Represents a workflow evaluation graph.
-///
-/// This is used to evaluate declarations and statements in topological order.
+/// Represents a builder of workflow evaluation graphs.
 #[derive(Debug, Default)]
-pub struct WorkflowGraph {
-    /// The inner directed graph.
-    ///
-    /// Note that edges in this graph are in *reverse* dependency ordering
-    /// (implies "depended upon by" relationships).
-    inner: DiGraph<WorkflowGraphNode, ()>,
+pub struct WorkflowGraphBuilder {
     /// The map of declaration names to node indexes in the graph.
     names: HashMap<TokenStrHash<Ident>, NodeIndex>,
     /// A stack of scatter variable names.
@@ -519,25 +509,32 @@ pub struct WorkflowGraph {
     /// This is used to add edges to the graph for references to names that are
     /// nested inside of conditional or scatter statements.
     entry_exits: HashMap<SyntaxNode, (NodeIndex, NodeIndex)>,
+    /// Space for DFS operations when building the graph.
+    space: DfsSpace<NodeIndex, <DiGraph<TaskGraphNode, ()> as Visitable>::Map>,
+    /// The common ancestor finder used when building the graph.
+    ancestor_finder: CommonAncestorFinder,
 }
 
-impl WorkflowGraph {
-    /// Constructs a new workflow evaluation graph.
-    pub fn new(workflow: &WorkflowDefinition, diagnostics: &mut Vec<Diagnostic>) -> Self {
+impl WorkflowGraphBuilder {
+    /// Builds a new workflow evaluation graph.
+    pub fn build(
+        mut self,
+        workflow: &WorkflowDefinition,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> DiGraph<WorkflowGraphNode, ()> {
         // Populate the declaration types and build a name reference graph
-        let mut space = Default::default();
-        let mut finder = CommonAncestorFinder::default();
+        let mut graph = DiGraph::new();
         let mut saw_inputs = false;
         let mut outputs = None;
-        let mut graph = Self::default();
         for item in workflow.items() {
             match item {
                 WorkflowItem::Input(section) if !saw_inputs => {
                     saw_inputs = true;
                     for decl in section.declarations() {
-                        graph.add_named_node(
+                        self.add_named_node(
                             decl.name(),
                             WorkflowGraphNode::Input(decl),
+                            &mut graph,
                             diagnostics,
                         );
                     }
@@ -546,30 +543,34 @@ impl WorkflowGraph {
                     outputs = Some(section);
                 }
                 WorkflowItem::Conditional(statement) => {
-                    graph.add_workflow_statement(
+                    self.add_workflow_statement(
                         WorkflowStatement::Conditional(statement),
                         None,
+                        &mut graph,
                         diagnostics,
                     );
                 }
                 WorkflowItem::Scatter(statement) => {
-                    graph.add_workflow_statement(
+                    self.add_workflow_statement(
                         WorkflowStatement::Scatter(statement),
                         None,
+                        &mut graph,
                         diagnostics,
                     );
                 }
                 WorkflowItem::Call(statement) => {
-                    graph.add_workflow_statement(
+                    self.add_workflow_statement(
                         WorkflowStatement::Call(statement),
                         None,
+                        &mut graph,
                         diagnostics,
                     );
                 }
                 WorkflowItem::Declaration(decl) => {
-                    graph.add_workflow_statement(
+                    self.add_workflow_statement(
                         WorkflowStatement::Declaration(decl),
                         None,
+                        &mut graph,
                         diagnostics,
                     );
                 }
@@ -578,31 +579,23 @@ impl WorkflowGraph {
         }
 
         // Add name reference edges before adding the outputs
-        graph.add_reference_edges(None, &mut finder, &mut space, diagnostics);
+        self.add_reference_edges(None, &mut graph, diagnostics);
 
-        let count = graph.inner.node_count();
+        let count = graph.node_count();
         if let Some(section) = outputs {
             for decl in section.declarations() {
-                graph.add_named_node(
+                self.add_named_node(
                     decl.name(),
                     WorkflowGraphNode::Output(Decl::Bound(decl)),
+                    &mut graph,
                     diagnostics,
                 );
             }
         }
 
         // Add reference edges again, but only for the output declaration nodes
-        graph.add_reference_edges(Some(count), &mut finder, &mut space, diagnostics);
+        self.add_reference_edges(Some(count), &mut graph, diagnostics);
         graph
-    }
-
-    /// Performs a topological sort of the graph nodes.
-    pub fn toposort(&self) -> Vec<WorkflowGraphNode> {
-        toposort(&self.inner, None)
-            .expect("graph should be acyclic")
-            .into_iter()
-            .map(|i| self.inner[i].clone())
-            .collect()
     }
 
     /// Adds nodes from a workflow statement to the graph.
@@ -610,25 +603,22 @@ impl WorkflowGraph {
         &mut self,
         statement: WorkflowStatement,
         parent_entry_exit: Option<(NodeIndex, NodeIndex)>,
+        graph: &mut DiGraph<WorkflowGraphNode, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         let entry_exit = match statement {
             WorkflowStatement::Conditional(statement) => {
                 // Create the entry and exit nodes for the conditional statement
                 // The exit node always depends on the entry node
-                let entry = self
-                    .inner
-                    .add_node(WorkflowGraphNode::Conditional(statement.clone()));
-                let exit = self
-                    .inner
-                    .add_node(WorkflowGraphNode::ExitConditional(statement.clone()));
-                self.inner.update_edge(entry, exit, ());
+                let entry = graph.add_node(WorkflowGraphNode::Conditional(statement.clone()));
+                let exit = graph.add_node(WorkflowGraphNode::ExitConditional(statement.clone()));
+                graph.update_edge(entry, exit, ());
                 self.entry_exits
                     .insert(statement.syntax().clone(), (entry, exit));
 
                 // Add all of the statement's statements
                 for statement in statement.statements() {
-                    self.add_workflow_statement(statement, Some((entry, exit)), diagnostics);
+                    self.add_workflow_statement(statement, Some((entry, exit)), graph, diagnostics);
                 }
 
                 Some((entry, exit))
@@ -636,13 +626,9 @@ impl WorkflowGraph {
             WorkflowStatement::Scatter(statement) => {
                 // Create the entry and exit nodes for the scatter statement
                 // The exit node always depends on the entry node
-                let entry = self
-                    .inner
-                    .add_node(WorkflowGraphNode::Scatter(statement.clone()));
-                let exit = self
-                    .inner
-                    .add_node(WorkflowGraphNode::ExitScatter(statement.clone()));
-                self.inner.update_edge(entry, exit, ());
+                let entry = graph.add_node(WorkflowGraphNode::Scatter(statement.clone()));
+                let exit = graph.add_node(WorkflowGraphNode::ExitScatter(statement.clone()));
+                graph.update_edge(entry, exit, ());
                 self.entry_exits
                     .insert(statement.syntax().clone(), (entry, exit));
 
@@ -652,7 +638,7 @@ impl WorkflowGraph {
                     diagnostics.push(name_conflict(
                         variable.as_str(),
                         NameContext::ScatterVariable(variable.span()).into(),
-                        self.inner[*existing]
+                        graph[*existing]
                             .context()
                             .expect("node should have context")
                             .into(),
@@ -665,7 +651,7 @@ impl WorkflowGraph {
 
                 // Add all of the statement's statements
                 for statement in statement.statements() {
-                    self.add_workflow_statement(statement, Some((entry, exit)), diagnostics);
+                    self.add_workflow_statement(statement, Some((entry, exit)), graph, diagnostics);
                 }
 
                 if pushed {
@@ -686,6 +672,7 @@ impl WorkflowGraph {
                 self.add_named_node(
                     name,
                     WorkflowGraphNode::Call(statement.clone()),
+                    graph,
                     diagnostics,
                 )
                 // The calls's node is both the entry and exit nodes
@@ -695,6 +682,7 @@ impl WorkflowGraph {
                 .add_named_node(
                     decl.name(),
                     WorkflowGraphNode::Decl(Decl::Bound(decl)),
+                    graph,
                     diagnostics,
                 )
                 // The declaration's node is both the entry and exit nodes
@@ -706,8 +694,8 @@ impl WorkflowGraph {
         if let (Some((entry, exit)), Some((parent_entry, parent_exit))) =
             (entry_exit, parent_entry_exit)
         {
-            self.inner.update_edge(parent_entry, entry, ());
-            self.inner.update_edge(exit, parent_exit, ());
+            graph.update_edge(parent_entry, entry, ());
+            graph.update_edge(exit, parent_exit, ());
         }
     }
 
@@ -716,6 +704,7 @@ impl WorkflowGraph {
         &mut self,
         name: Ident,
         node: WorkflowGraphNode,
+        graph: &mut DiGraph<WorkflowGraphNode, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Option<NodeIndex> {
         // Check for a conflicting name, either from a declaration or from a scatter
@@ -724,7 +713,7 @@ impl WorkflowGraph {
             // Conflict with a declaration
             (
                 Some(
-                    self.inner[*existing]
+                    graph[*existing]
                         .context()
                         .expect("node should have context"),
                 ),
@@ -758,7 +747,7 @@ impl WorkflowGraph {
             }
         }
 
-        let index = self.inner.add_node(node);
+        let index = graph.add_node(node);
         self.names.insert(TokenStrHash::new(name), index);
         Some(index)
     }
@@ -767,25 +756,24 @@ impl WorkflowGraph {
     fn add_reference_edges(
         &mut self,
         skip: Option<usize>,
-        finder: &mut CommonAncestorFinder,
-        space: &mut DfsSpace<NodeIndex, <DiGraph<TaskGraphNode, ()> as Visitable>::Map>,
+        graph: &mut DiGraph<WorkflowGraphNode, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         // Populate edges for any nodes that reference other nodes by name
-        for from in self.inner.node_indices().skip(skip.unwrap_or(0)) {
-            match self.inner[from].clone() {
+        for from in graph.node_indices().skip(skip.unwrap_or(0)) {
+            match graph[from].clone() {
                 WorkflowGraphNode::Input(decl)
                 | WorkflowGraphNode::Decl(decl)
                 | WorkflowGraphNode::Output(decl) => {
                     if let Some(expr) = decl.expr() {
-                        self.add_expr_edges(finder, from, expr, space, diagnostics);
+                        self.add_expr_edges(from, expr, graph, diagnostics);
                     }
                 }
                 WorkflowGraphNode::Conditional(statement) => {
-                    self.add_expr_edges(finder, from, statement.expr(), space, diagnostics);
+                    self.add_expr_edges(from, statement.expr(), graph, diagnostics);
                 }
                 WorkflowGraphNode::Scatter(statement) => {
-                    self.add_expr_edges(finder, from, statement.expr(), space, diagnostics);
+                    self.add_expr_edges(from, statement.expr(), graph, diagnostics);
                 }
                 WorkflowGraphNode::Call(statement) => {
                     // Add edges for the input expressions
@@ -793,17 +781,17 @@ impl WorkflowGraph {
                     for input in statement.inputs() {
                         let name = input.name();
                         if let Some(expr) = input.expr() {
-                            self.add_expr_edges(finder, from, expr, space, diagnostics);
+                            self.add_expr_edges(from, expr, graph, diagnostics);
                         } else if let Some(to) =
                             self.find_node_by_name(name.as_str(), input.syntax().clone())
                         {
                             // Check for a dependency cycle
-                            if has_path_connecting(&self.inner, from, to, Some(space)) {
+                            if has_path_connecting(graph as &_, from, to, Some(&mut self.space)) {
                                 diagnostics.push(workflow_reference_cycle(
-                                    &self.inner[from],
+                                    &graph[from],
                                     name.span(),
                                     name.as_str(),
-                                    self.inner[to]
+                                    graph[to]
                                         .context()
                                         .expect("node should have context")
                                         .span(),
@@ -811,7 +799,7 @@ impl WorkflowGraph {
                                 continue;
                             }
 
-                            self.add_dependency_edge(finder, from, to);
+                            self.add_dependency_edge(from, to, graph);
                         }
                     }
 
@@ -822,12 +810,12 @@ impl WorkflowGraph {
                             self.find_node_by_name(name.as_str(), after.syntax().clone())
                         {
                             // Check for a dependency cycle
-                            if has_path_connecting(&self.inner, from, to, Some(space)) {
+                            if has_path_connecting(graph as &_, from, to, Some(&mut self.space)) {
                                 diagnostics.push(workflow_reference_cycle(
-                                    &self.inner[from],
+                                    &graph[from],
                                     name.span(),
                                     name.as_str(),
-                                    self.inner[to]
+                                    graph[to]
                                         .context()
                                         .expect("node should have context")
                                         .span(),
@@ -835,7 +823,7 @@ impl WorkflowGraph {
                                 continue;
                             }
 
-                            self.add_dependency_edge(finder, from, to);
+                            self.add_dependency_edge(from, to, graph);
                         }
                     }
                 }
@@ -849,10 +837,9 @@ impl WorkflowGraph {
     /// Adds name reference edges for an expression.
     fn add_expr_edges(
         &mut self,
-        finder: &mut CommonAncestorFinder,
         from: NodeIndex,
         expr: Expr,
-        space: &mut DfsSpace<NodeIndex, <DiGraph<TaskGraphNode, ()> as Visitable>::Map>,
+        graph: &mut DiGraph<WorkflowGraphNode, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         for r in expr.syntax().descendants().filter_map(NameRef::cast) {
@@ -864,7 +851,7 @@ impl WorkflowGraph {
                 if to == from {
                     diagnostics.push(self_referential(
                         name.as_str(),
-                        self.inner[from]
+                        graph[from]
                             .context()
                             .expect("node should have a context")
                             .span(),
@@ -874,12 +861,12 @@ impl WorkflowGraph {
                 }
 
                 // Check for a dependency cycle
-                if has_path_connecting(&self.inner, from, to, Some(space)) {
+                if has_path_connecting(graph as &_, from, to, Some(&mut self.space)) {
                     diagnostics.push(workflow_reference_cycle(
-                        &self.inner[from],
+                        &graph[from],
                         r.span(),
                         name.as_str(),
-                        self.inner[to]
+                        graph[to]
                             .context()
                             .expect("node should have context")
                             .span(),
@@ -887,7 +874,7 @@ impl WorkflowGraph {
                     continue;
                 }
 
-                self.add_dependency_edge(finder, from, to);
+                self.add_dependency_edge(from, to, graph);
             } else {
                 diagnostics.push(unknown_name(name.as_str(), name.span()));
             }
@@ -911,17 +898,18 @@ impl WorkflowGraph {
     /// used.
     fn add_dependency_edge(
         &mut self,
-        finder: &mut CommonAncestorFinder,
         from: NodeIndex,
         to: NodeIndex,
+        graph: &mut DiGraph<WorkflowGraphNode, ()>,
     ) {
         assert!(from != to, "cannot add a self dependency edge");
 
-        let (from, to) = if let Some((f, t)) = finder.find_children_of_common_ancestor(
-            self.inner[from].syntax().ancestors(),
-            self.inner[to].syntax().ancestors(),
-            SyntaxKind::WorkflowDefinitionNode,
-        ) {
+        let (from, to) = if let Some((f, t)) =
+            self.ancestor_finder.find_children_of_common_ancestor(
+                graph[from].syntax().ancestors(),
+                graph[to].syntax().ancestors(),
+                SyntaxKind::WorkflowDefinitionNode,
+            ) {
             let from = self
                 .entry_exits
                 .get(&f)
@@ -944,7 +932,7 @@ impl WorkflowGraph {
         }
 
         // Add the actual edge in reverse order
-        self.inner.update_edge(to, from, ());
+        graph.update_edge(to, from, ());
     }
 
     /// Finds a node in the graph by name for the referencing expression.

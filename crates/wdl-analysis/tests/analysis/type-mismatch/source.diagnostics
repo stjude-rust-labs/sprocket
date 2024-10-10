@@ -1,79 +1,79 @@
 error: type mismatch: expected type `Int`, but found type `String`
-   ┌─ tests/analysis/type-mismatch/source.wdl:10:13
+   ┌─ tests/analysis/type-mismatch/source.wdl:11:13
    │
-10 │     Int a = "hello"
+11 │     Int a = "hello"
    │         -   ^^^^^^^ this is type `String`
    │         │    
    │         this expects type `Int`
 
 error: type mismatch: expected type `String`, but found type `Int`
-   ┌─ tests/analysis/type-mismatch/source.wdl:11:16
+   ┌─ tests/analysis/type-mismatch/source.wdl:12:16
    │
-11 │     String b = 5
+12 │     String b = 5
    │            -   ^ this is type `Int`
    │            │    
    │            this expects type `String`
 
 error: type mismatch: expected type `Array[String]`, but found type `Map[Int, String]`
-   ┌─ tests/analysis/type-mismatch/source.wdl:12:23
+   ┌─ tests/analysis/type-mismatch/source.wdl:13:23
    │
-12 │     Array[String] c = { 1: "one", 2: "two" }
+13 │     Array[String] c = { 1: "one", 2: "two" }
    │                   -   ^^^^^^^^^^^^^^^^^^^^^^ this is type `Map[Int, String]`
    │                   │    
    │                   this expects type `Array[String]`
 
 error: type mismatch: expected type `Array[Int]`, but found type `Array[String]`
-   ┌─ tests/analysis/type-mismatch/source.wdl:13:20
+   ┌─ tests/analysis/type-mismatch/source.wdl:14:20
    │
-13 │     Array[Int] d = ["a", "b", "c"]
+14 │     Array[Int] d = ["a", "b", "c"]
    │                -   ^^^^^^^^^^^^^^^ this is type `Array[String]`
    │                │    
    │                this expects type `Array[Int]`
 
 error: type mismatch: expected type `Map[Int, String]`, but found type `Map[String, Int]`
-   ┌─ tests/analysis/type-mismatch/source.wdl:14:26
+   ┌─ tests/analysis/type-mismatch/source.wdl:15:26
    │
-14 │     Map[Int, String] e = { "a": 1, "b": 2, "c": 3 }
+15 │     Map[Int, String] e = { "a": 1, "b": 2, "c": 3 }
    │                      -   ^^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Map[String, Int]`
    │                      │    
    │                      this expects type `Map[Int, String]`
 
 error: type mismatch: a type common to both type `Int` and type `String` does not exist
-   ┌─ tests/analysis/type-mismatch/source.wdl:15:24
+   ┌─ tests/analysis/type-mismatch/source.wdl:16:24
    │
-15 │     Array[Int] f = [1, "2", "3"]
+16 │     Array[Int] f = [1, "2", "3"]
    │                     -  ^^^ this is type `String`
    │                     │   
    │                     this is type `Int`
 
 error: type mismatch: a type common to both type `Int` and type `String` does not exist
-   ┌─ tests/analysis/type-mismatch/source.wdl:15:29
+   ┌─ tests/analysis/type-mismatch/source.wdl:16:29
    │
-15 │     Array[Int] f = [1, "2", "3"]
+16 │     Array[Int] f = [1, "2", "3"]
    │                     -       ^^^ this is type `String`
    │                     │        
    │                     this is type `Int`
 
 error: type mismatch: a type common to both type `String` and type `Int` does not exist
-   ┌─ tests/analysis/type-mismatch/source.wdl:16:46
+   ┌─ tests/analysis/type-mismatch/source.wdl:17:46
    │
-16 │     Map[String, String] g = { "a": "1", "b": 2, "c": "3" }
+17 │     Map[String, String] g = { "a": "1", "b": 2, "c": "3" }
    │                                    ---       ^ this is type `Int`
    │                                    │          
    │                                    this is type `String`
 
 error: type mismatch: expected type `Int`, but found type `Array[Int]`
-   ┌─ tests/analysis/type-mismatch/source.wdl:17:22
+   ┌─ tests/analysis/type-mismatch/source.wdl:18:22
    │
-17 │     Foo h = Foo { x: [1] }
+18 │     Foo h = Foo { x: [1] }
    │                   -  ^^^ this is type `Array[Int]`
    │                   │   
    │                   this expects type `Int`
 
 error: type mismatch: a type common to both type `String` and type `Int` does not exist
-   ┌─ tests/analysis/type-mismatch/source.wdl:18:41
+   ┌─ tests/analysis/type-mismatch/source.wdl:19:41
    │
-18 │     Map[String, String] i = { "a": "1", 0: "2", "c": "3" }
+19 │     Map[String, String] i = { "a": "1", 0: "2", "c": "3" }
    │                               ---       ^ this is type `Int`
    │                               │          
    │                               this is type `String`

@@ -1,3 +1,4 @@
+#@ except: UnusedInput,UnusedDeclaration
 ## This is a test of conflicting declaration names.
 
 version 1.1

@@ -1,6 +1,6 @@
 error: type mismatch: expected negation operand to be type `Int` or `Float`, but found type `String`
-  ┌─ tests/analysis/negation-mismatch/source.wdl:9:14
-  │
-9 │     Int d = -c
-  │              ^ this is type `String`
+   ┌─ tests/analysis/negation-mismatch/source.wdl:10:14
+   │
+10 │     Int d = -c
+   │              ^ this is type `String`
 

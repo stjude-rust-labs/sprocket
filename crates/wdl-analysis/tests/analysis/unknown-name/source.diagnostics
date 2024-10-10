@@ -1,6 +1,6 @@
 error: unknown name `c`
-  ┌─ tests/analysis/unknown-name/source.wdl:8:16
+  ┌─ tests/analysis/unknown-name/source.wdl:9:16
   │
-8 │     String d = c
+9 │     String d = c
   │                ^
 

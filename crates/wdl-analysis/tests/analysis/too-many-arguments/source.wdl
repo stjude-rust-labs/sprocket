@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of too many function arguments.
 
 version 1.1

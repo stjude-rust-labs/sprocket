@@ -1,3 +1,4 @@
+#@ except: UnusedImport
 ## This is a test of conflicting imports.
 
 version 1.1

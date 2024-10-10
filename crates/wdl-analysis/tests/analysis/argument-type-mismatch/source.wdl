@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a simple test of an argument type mismatch.
 
 version 1.1

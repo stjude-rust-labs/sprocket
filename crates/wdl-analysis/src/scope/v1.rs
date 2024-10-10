@@ -5,6 +5,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use petgraph::Direction;
 use petgraph::algo::has_path_connecting;
 use petgraph::algo::toposort;
 use petgraph::graph::NodeIndex;
@@ -18,6 +19,7 @@ use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
+use wdl_ast::SyntaxNodeExt;
 use wdl_ast::ToSpan;
 use wdl_ast::TokenStrHash;
 use wdl_ast::Version;
@@ -47,6 +49,11 @@ use super::Task;
 use super::Workflow;
 use super::braced_scope_span;
 use super::heredoc_scope_span;
+use crate::DiagnosticsConfig;
+use crate::UNUSED_CALL_RULE_ID;
+use crate::UNUSED_DECL_RULE_ID;
+use crate::UNUSED_IMPORT_RULE_ID;
+use crate::UNUSED_INPUT_RULE_ID;
 use crate::diagnostics::Context;
 use crate::diagnostics::call_input_type_mismatch;
 use crate::diagnostics::duplicate_workflow;
@@ -71,9 +78,12 @@ use crate::diagnostics::unknown_io_name;
 use crate::diagnostics::unknown_namespace;
 use crate::diagnostics::unknown_task_or_workflow;
 use crate::diagnostics::unknown_type;
-use crate::eval::v1::TaskGraph;
+use crate::diagnostics::unused_call;
+use crate::diagnostics::unused_declaration;
+use crate::diagnostics::unused_input;
+use crate::eval::v1::TaskGraphBuilder;
 use crate::eval::v1::TaskGraphNode;
-use crate::eval::v1::WorkflowGraph;
+use crate::eval::v1::WorkflowGraphBuilder;
 use crate::eval::v1::WorkflowGraphNode;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
@@ -89,8 +99,59 @@ use crate::types::Types;
 use crate::types::v1::AstTypeConverter;
 use crate::types::v1::ExprTypeEvaluator;
 
+/// Determines if an input is used based off a name heuristic.
+///
+/// To localize related files, WDL tasks typically use additional `File` or
+/// `Array[File]` inputs which aren't referenced in the task itself.
+///
+/// As such, we don't want to generate an "unused input" warning for these
+/// inputs.
+///
+/// It is expected that the name of the input is suffixed with a particular
+/// string (this list is based on the heuristic applied by `miniwdl`):
+///
+/// * index
+/// * indexes
+/// * indices
+/// * idx
+/// * tbi
+/// * bai
+/// * crai
+/// * csi
+/// * fai
+/// * dict
+fn is_input_used(document: &DocumentScope, name: &str, ty: Type) -> bool {
+    /// The suffixes that cause the input to be "used"
+    const SUFFIXES: &[&str] = &[
+        "index", "indexes", "indices", "idx", "tbi", "bai", "crai", "csi", "fai", "dict",
+    ];
+
+    // Determine if the input is `File` or `Array[File]`
+    match ty {
+        Type::Primitive(ty) if ty.kind() == PrimitiveTypeKind::File => {}
+        Type::Compound(ty) => match document.types.type_definition(ty.definition()) {
+            CompoundTypeDef::Array(ty) => match ty.element_type() {
+                Type::Primitive(ty) if ty.kind() == PrimitiveTypeKind::File => {}
+                _ => return false,
+            },
+            _ => return false,
+        },
+        _ => return false,
+    }
+
+    let name = name.to_lowercase();
+    for suffix in SUFFIXES {
+        if name.ends_with(suffix) {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Creates a new document scope for a V1 AST.
 pub(crate) fn scope_from_ast(
+    config: DiagnosticsConfig,
     graph: &DocumentGraph,
     index: NodeIndex,
     ast: &Ast,
@@ -132,7 +193,7 @@ pub(crate) fn scope_from_ast(
     for item in ast.items() {
         match item {
             DocumentItem::Task(task) => {
-                add_task(&mut document, &task, diagnostics);
+                add_task(config, &mut document, &task, diagnostics);
             }
             DocumentItem::Workflow(workflow) => {
                 // Note that this doesn't populate the workflow scope; we delay that until after
@@ -148,7 +209,7 @@ pub(crate) fn scope_from_ast(
     }
 
     if let Some(definition) = definition {
-        populate_workflow_scope(&mut document, &definition, diagnostics);
+        populate_workflow_scope(config, &mut document, &definition, diagnostics);
     }
 
     document
@@ -190,6 +251,8 @@ fn add_namespace(
                     span,
                     source: uri.clone(),
                     scope: imported.clone(),
+                    used: false,
+                    excepted: import.syntax().is_rule_excepted(UNUSED_IMPORT_RULE_ID),
                 });
                 ns
             }
@@ -327,7 +390,7 @@ fn convert_ast_type(
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Type {
     let mut converter = AstTypeConverter::new(&mut document.types, |name, span| {
-        lookup_type(&document.structs, name, span)
+        lookup_type(&mut document.namespaces, &document.structs, name, span)
     });
 
     match converter.convert_type(ty) {
@@ -386,6 +449,7 @@ fn create_output_type_map(
 
 /// Adds a task to the document's scope.
 fn add_task(
+    config: DiagnosticsConfig,
     document: &mut DocumentScope,
     task: &TaskDefinition,
     diagnostics: &mut Vec<Diagnostic>,
@@ -444,30 +508,70 @@ fn add_task(
     );
 
     // Process the task in evaluation order
-    let graph = TaskGraph::new(document.version.unwrap(), task, diagnostics);
+    let graph = TaskGraphBuilder::default().build(document.version.unwrap(), task, diagnostics);
     let scope = document.add_scope(Scope::new(None, braced_scope_span(task)));
     let mut output_scope = None;
     let mut command_scope = None;
 
-    for node in graph.toposort() {
-        match node {
+    for index in toposort(&graph, None).expect("graph should be acyclic") {
+        match graph[index].clone() {
             TaskGraphNode::Input(decl) => {
-                add_decl(
+                if !add_decl(
                     document,
                     scope,
                     &decl,
                     |_, n, _, _| inputs[n].0,
                     diagnostics,
-                );
+                ) {
+                    continue;
+                }
+
+                // Check for unused input
+                if let Some(severity) = config.unused_input {
+                    let name = decl.name();
+                    if graph
+                        .edges_directed(index, Direction::Outgoing)
+                        .next()
+                        .is_none()
+                    {
+                        // Determine if the input is really used based on its name and type
+                        if is_input_used(document, name.as_str(), inputs[name.as_str()].0) {
+                            continue;
+                        }
+
+                        if !decl.syntax().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
+                            diagnostics.push(
+                                unused_input(name.as_str(), name.span()).with_severity(severity),
+                            );
+                        }
+                    }
+                }
             }
             TaskGraphNode::Decl(decl) => {
-                add_decl(
+                if !add_decl(
                     document,
                     scope,
                     &decl,
                     |doc, _, decl, diag| convert_ast_type(doc, &decl.ty(), diag),
                     diagnostics,
-                );
+                ) {
+                    continue;
+                }
+
+                // Check for unused declaration
+                if let Some(severity) = config.unused_declaration {
+                    let name = decl.name();
+                    if graph
+                        .edges_directed(index, Direction::Outgoing)
+                        .next()
+                        .is_none()
+                        && !decl.syntax().is_rule_excepted(UNUSED_DECL_RULE_ID)
+                    {
+                        diagnostics.push(
+                            unused_declaration(name.as_str(), name.span()).with_severity(severity),
+                        );
+                    }
+                }
             }
             TaskGraphNode::Output(decl) => {
                 let scope = *output_scope.get_or_insert_with(|| {
@@ -496,7 +600,9 @@ fn add_task(
                     document.version.unwrap(),
                     &mut document.types,
                     diagnostics,
-                    |name, span| lookup_type(&document.structs, name, span),
+                    |name, span| {
+                        lookup_type(&mut document.namespaces, &document.structs, name, span)
+                    },
                 );
 
                 for part in section.parts() {
@@ -511,7 +617,9 @@ fn add_task(
                     document.version.unwrap(),
                     &mut document.types,
                     diagnostics,
-                    |name, span| lookup_type(&document.structs, name, span),
+                    |name, span| {
+                        lookup_type(&mut document.namespaces, &document.structs, name, span)
+                    },
                 );
 
                 let scope = ScopeRef::new(&document.scopes, scope);
@@ -525,7 +633,9 @@ fn add_task(
                     document.version.unwrap(),
                     &mut document.types,
                     diagnostics,
-                    |name, span| lookup_type(&document.structs, name, span),
+                    |name, span| {
+                        lookup_type(&mut document.namespaces, &document.structs, name, span)
+                    },
                 );
 
                 let scope = ScopeRef::new(&document.scopes, scope);
@@ -539,7 +649,9 @@ fn add_task(
                     document.version.unwrap(),
                     &mut document.types,
                     diagnostics,
-                    |name, span| lookup_type(&document.structs, name, span),
+                    |name, span| {
+                        lookup_type(&mut document.namespaces, &document.structs, name, span)
+                    },
                 );
 
                 // Create a special scope for evaluating the hints section which allows for the
@@ -574,11 +686,11 @@ fn add_decl(
     decl: &Decl,
     ty: impl FnOnce(&mut DocumentScope, &str, &Decl, &mut Vec<Diagnostic>) -> Type,
     diagnostics: &mut Vec<Diagnostic>,
-) {
+) -> bool {
     let (name, expr) = (decl.name(), decl.expr());
     if document.scope(scope).lookup(name.as_str()).is_some() {
         // The declaration is conflicting; don't add to the scope
-        return;
+        return false;
     }
 
     let ty = ty(document, name.as_str(), decl, diagnostics);
@@ -590,6 +702,8 @@ fn add_decl(
     if let Some(expr) = expr {
         type_check_expr(document, scope, &expr, ty, name.span(), diagnostics);
     }
+
+    true
 }
 
 /// Adds a workflow to the document scope.
@@ -683,6 +797,7 @@ fn is_nested_inputs_allowed(document: &DocumentScope, definition: &WorkflowDefin
 
 /// Finishes processing a workflow by populating its scope.
 fn populate_workflow_scope(
+    config: DiagnosticsConfig,
     document: &mut DocumentScope,
     definition: &WorkflowDefinition,
     diagnostics: &mut Vec<Diagnostic>,
@@ -716,30 +831,72 @@ fn populate_workflow_scope(
         .map(|w| w.scope)
         .expect("should have a workflow");
     let mut output_scope = None;
-    let graph = WorkflowGraph::new(definition, diagnostics);
-    for node in graph.toposort() {
-        match node {
+    let graph = WorkflowGraphBuilder::default().build(definition, diagnostics);
+
+    for index in toposort(&graph, None).expect("graph should be acyclic") {
+        match graph[index].clone() {
             WorkflowGraphNode::Input(decl) => {
-                add_decl(
+                if !add_decl(
                     document,
                     workflow_scope,
                     &decl,
                     |_, n, _, _| inputs[n].0,
                     diagnostics,
-                );
+                ) {
+                    continue;
+                }
+
+                // Check for unused input
+                if let Some(severity) = config.unused_input {
+                    let name = decl.name();
+                    if graph
+                        .edges_directed(index, Direction::Outgoing)
+                        .next()
+                        .is_none()
+                    {
+                        // Determine if the input is really used based on its name and type
+                        if is_input_used(document, name.as_str(), inputs[name.as_str()].0) {
+                            continue;
+                        }
+
+                        if !decl.syntax().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
+                            diagnostics.push(
+                                unused_input(name.as_str(), name.span()).with_severity(severity),
+                            );
+                        }
+                    }
+                }
             }
             WorkflowGraphNode::Decl(decl) => {
                 let scope = scopes
                     .get(&decl.syntax().parent().expect("should have parent"))
                     .copied()
                     .unwrap_or(workflow_scope);
-                add_decl(
+
+                if !add_decl(
                     document,
                     scope,
                     &decl,
                     |doc, _, decl, diag| convert_ast_type(doc, &decl.ty(), diag),
                     diagnostics,
-                );
+                ) {
+                    continue;
+                }
+
+                // Check for unused declaration
+                if let Some(severity) = config.unused_declaration {
+                    let name = decl.name();
+                    if graph
+                        .edges_directed(index, Direction::Outgoing)
+                        .next()
+                        .is_none()
+                        && !decl.syntax().is_rule_excepted(UNUSED_DECL_RULE_ID)
+                    {
+                        diagnostics.push(
+                            unused_declaration(name.as_str(), name.span()).with_severity(severity),
+                        );
+                    }
+                }
             }
             WorkflowGraphNode::Output(decl) => {
                 let scope = *output_scope.get_or_insert_with(|| {
@@ -779,6 +936,30 @@ fn populate_workflow_scope(
                     nested_inputs_allowed,
                     diagnostics,
                 );
+
+                // Check for unused call
+                if let Some(severity) = config.unused_call {
+                    if graph
+                        .edges_directed(index, Direction::Outgoing)
+                        .next()
+                        .is_none()
+                        && !statement.syntax().is_rule_excepted(UNUSED_CALL_RULE_ID)
+                    {
+                        let target_name = statement
+                            .target()
+                            .names()
+                            .last()
+                            .expect("expected a last call target name");
+
+                        let name = statement
+                            .alias()
+                            .map(|a| a.name())
+                            .unwrap_or_else(|| target_name);
+
+                        diagnostics
+                            .push(unused_call(name.as_str(), name.span()).with_severity(severity));
+                    }
+                }
             }
             WorkflowGraphNode::ExitConditional(statement) => {
                 let scope = scopes
@@ -818,7 +999,7 @@ fn add_conditional_statement(
         document.version.unwrap(),
         &mut document.types,
         diagnostics,
-        |name, span| lookup_type(&document.structs, name, span),
+        |name, span| lookup_type(&mut document.namespaces, &document.structs, name, span),
     );
 
     // Evaluate the statement's expression; it is expected to be a boolean
@@ -847,7 +1028,7 @@ fn add_scatter_statement(
         document.version.unwrap(),
         &mut document.types,
         diagnostics,
-        |name, span| lookup_type(&document.structs, name, span),
+        |name, span| lookup_type(&mut document.namespaces, &document.structs, name, span),
     );
 
     // Evaluate the statement expression; it is expected to be an array
@@ -1021,8 +1202,11 @@ fn resolve_call_target(
             return None;
         }
 
-        match document.namespaces.get(target.as_str()) {
-            Some(ns) => namespace = Some(ns),
+        match document.namespaces.get_mut(target.as_str()) {
+            Some(ns) => {
+                ns.used = true;
+                namespace = Some(&document.namespaces[target.as_str()])
+            }
             None => {
                 diagnostics.push(unknown_namespace(&target));
                 return None;
@@ -1032,7 +1216,6 @@ fn resolve_call_target(
 
     let target = namespace.map(|ns| ns.scope.as_ref()).unwrap_or(document);
     let name = name.expect("should have name");
-
     if namespace.is_none() && name.as_str() == workflow_name {
         diagnostics.push(recursive_workflow_call(&name));
         return None;
@@ -1255,14 +1438,18 @@ fn set_struct_types(document: &mut DocumentScope, diagnostics: &mut Vec<Diagnost
             StructDefinition::cast(SyntaxNode::new_root(document.structs[index].node.clone()))
                 .expect("node should cast");
 
-        let structs = &document.structs;
         let mut converter = AstTypeConverter::new(&mut document.types, |name, span| {
-            if let Some(s) = structs.get(name) {
+            if let Some(s) = document.structs.get(name) {
+                // Mark the struct's namespace as used
+                if let Some(ns) = &s.namespace {
+                    document.namespaces[ns].used = true;
+                }
+
                 Ok(s.ty().unwrap_or(Type::Union))
             } else {
                 diagnostics.push(unknown_type(
                     name,
-                    Span::new(span.start() + structs[index].offset, span.len()),
+                    Span::new(span.start() + document.structs[index].offset, span.len()),
                 ));
                 Ok(Type::Union)
             }
@@ -1280,13 +1467,21 @@ fn set_struct_types(document: &mut DocumentScope, diagnostics: &mut Vec<Diagnost
 
 /// Looks up a struct type.
 fn lookup_type(
+    namespaces: &mut IndexMap<String, Namespace>,
     structs: &IndexMap<String, Struct>,
     name: &str,
     span: Span,
 ) -> Result<Type, Diagnostic> {
     structs
         .get(name)
-        .map(|s| s.ty().expect("struct should have type"))
+        .map(|s| {
+            // Mark the struct's namespace as used
+            if let Some(ns) = &s.namespace {
+                namespaces[ns].used = true;
+            }
+
+            s.ty().expect("struct should have type")
+        })
         .ok_or_else(|| unknown_type(name, span))
 }
 
@@ -1303,7 +1498,7 @@ fn type_check_expr(
         document.version.unwrap(),
         &mut document.types,
         diagnostics,
-        |name, span| lookup_type(&document.structs, name, span),
+        |name, span| lookup_type(&mut document.namespaces, &document.structs, name, span),
     );
 
     let actual = evaluator

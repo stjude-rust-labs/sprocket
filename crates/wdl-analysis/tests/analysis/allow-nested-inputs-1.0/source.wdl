@@ -1,3 +1,4 @@
+#@ except: UnusedInput,UnusedCall
 ## This is a test of allowed nested inputs in 1.0.
 ## This should be accepted without diagnostics.
 

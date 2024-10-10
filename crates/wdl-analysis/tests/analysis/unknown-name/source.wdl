@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of an unknown name in a task.
 
 version 1.1

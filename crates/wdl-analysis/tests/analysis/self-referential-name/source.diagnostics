@@ -1,6 +1,6 @@
 error: declaration of `c` is self-referential
-  ┌─ tests/analysis/self-referential-name/source.wdl:8:21
+  ┌─ tests/analysis/self-referential-name/source.wdl:9:21
   │
-8 │     Int c = a + b + c
+9 │     Int c = a + b + c
   │         -           ^ self-reference is here
 

@@ -1,5 +1,6 @@
 //! Representation of scopes for for WDL documents.
 
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -8,6 +9,7 @@ use petgraph::graph::NodeIndex;
 use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::AstNode;
+use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
@@ -16,6 +18,8 @@ use wdl_ast::ToSpan;
 use wdl_ast::WorkflowDescriptionLanguage;
 use wdl_ast::support::token;
 
+use crate::DiagnosticsConfig;
+use crate::diagnostics::unused_import;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::types::Type;
@@ -74,9 +78,19 @@ pub struct Namespace {
     source: Arc<Url>,
     /// The namespace's document scope.
     scope: Arc<DocumentScope>,
+    /// Whether or not the namespace is used (i.e. referenced) in the document.
+    used: bool,
+    /// Whether or not the namespace is excepted from the "unused import"
+    /// diagnostic.
+    excepted: bool,
 }
 
 impl Namespace {
+    /// Gets the span of the import that introduced the namespace.
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
     /// Gets the URI of the imported document that introduced the namespace.
     pub fn source(&self) -> &Arc<Url> {
         &self.source
@@ -390,7 +404,11 @@ pub struct DocumentScope {
 
 impl DocumentScope {
     /// Creates a new document scope for a given document.
-    pub(crate) fn new(graph: &DocumentGraph, index: NodeIndex) -> (Self, Vec<Diagnostic>) {
+    pub(crate) fn new(
+        config: DiagnosticsConfig,
+        graph: &DocumentGraph,
+        index: NodeIndex,
+    ) -> (Self, Vec<Diagnostic>) {
         let node = graph.get(index);
 
         let mut diagnostics = match node.parse_state() {
@@ -402,7 +420,6 @@ impl DocumentScope {
         };
 
         let document = node.document().expect("node should have been parsed");
-
         let version = match document.version_statement() {
             Some(stmt) => stmt.version(),
             None => {
@@ -411,10 +428,25 @@ impl DocumentScope {
             }
         };
 
+        let config =
+            config.excepted_for_node(&version.syntax().parent().expect("token should have parent"));
+
         let mut scope = match document.ast() {
             Ast::Unsupported => Default::default(),
-            Ast::V1(ast) => v1::scope_from_ast(graph, index, &ast, &version, &mut diagnostics),
+            Ast::V1(ast) => {
+                v1::scope_from_ast(config, graph, index, &ast, &version, &mut diagnostics)
+            }
         };
+
+        // Check for unused imports
+        if let Some(severity) = config.unused_import {
+            for (name, ns) in scope
+                .namespaces()
+                .filter(|(_, ns)| !ns.used && !ns.excepted)
+            {
+                diagnostics.push(unused_import(name, ns.span()).with_severity(severity));
+            }
+        }
 
         // Sort the scopes by their start position so that we can do a binary search by
         // position; this works without having to remap a task's or workflow's scope
@@ -422,6 +454,14 @@ impl DocumentScope {
         scope
             .scopes
             .sort_by(|a, b| a.span.start().cmp(&b.span.start()));
+
+        // Sort the diagnostics by start
+        diagnostics.sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
+            (None, None) => Ordering::Equal,
+            (None, Some(_)) => Ordering::Less,
+            (Some(_), None) => Ordering::Greater,
+            (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
+        });
 
         // Perform a type check
         (scope, diagnostics)

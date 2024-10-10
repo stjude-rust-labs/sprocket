@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of an index target that is not an array.
 
 version 1.1

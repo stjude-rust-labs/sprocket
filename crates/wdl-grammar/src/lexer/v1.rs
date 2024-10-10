@@ -151,8 +151,8 @@ pub enum DQStringToken {
     End,
 }
 
-/// Represents a token in a heredoc command or multiline string (e.g. `<<< hello
-/// >>>`).
+/// Represents a token in a heredoc command or multiline string
+/// (e.g. `<<< hello >>>`).
 #[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
 pub enum HeredocToken {

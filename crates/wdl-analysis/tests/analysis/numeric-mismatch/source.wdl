@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of type mismatches in numeric expressions.
 
 version 1.2

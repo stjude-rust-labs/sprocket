@@ -308,7 +308,7 @@ pub struct ExprTypeEvaluator<'a, L> {
 
 impl<'a, L> ExprTypeEvaluator<'a, L>
 where
-    L: Fn(&str, Span) -> Result<Type, Diagnostic>,
+    L: FnMut(&str, Span) -> Result<Type, Diagnostic>,
 {
     /// Constructs a new AST expression type evaluator.
     ///

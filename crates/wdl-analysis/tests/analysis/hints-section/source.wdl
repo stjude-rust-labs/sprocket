@@ -1,3 +1,4 @@
+#@ except: UnusedInput,UnusedDeclaration,UnusedCall
 ## This is a test of type checking `requirements` keys. 
 
 version 1.2

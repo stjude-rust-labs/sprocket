@@ -190,6 +190,12 @@ impl Diagnostic {
         self
     }
 
+    /// Sets the severity of the diagnostic.
+    pub fn with_severity(mut self, severity: Severity) -> Self {
+        self.severity = severity;
+        self
+    }
+
     /// Gets the optional rule associated with the diagnostic.
     pub fn rule(&self) -> Option<&str> {
         self.rule.as_deref()

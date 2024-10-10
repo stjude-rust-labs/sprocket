@@ -1,30 +1,30 @@
 error: struct `Foo` requires a value for member `z`
-   ┌─ tests/analysis/missing-struct-member/source.wdl:16:13
+   ┌─ tests/analysis/missing-struct-member/source.wdl:17:13
    │
-16 │     Foo b = Foo { x: 1, a: 3 }
+17 │     Foo b = Foo { x: 1, a: 3 }
    │             ^^^
 
 error: struct `Foo` requires a value for member `a`
-   ┌─ tests/analysis/missing-struct-member/source.wdl:18:13
+   ┌─ tests/analysis/missing-struct-member/source.wdl:19:13
    │
-18 │     Foo c = Foo { x: 1, y: 2, z: 3 }
+19 │     Foo c = Foo { x: 1, y: 2, z: 3 }
    │             ^^^
 
 error: struct `Foo` requires a value for members `a` and `z`
-   ┌─ tests/analysis/missing-struct-member/source.wdl:20:13
+   ┌─ tests/analysis/missing-struct-member/source.wdl:21:13
    │
-20 │     Foo d = Foo { x: 1, y: 2 }
+21 │     Foo d = Foo { x: 1, y: 2 }
    │             ^^^
 
 error: struct `Foo` requires a value for members `a`, `x`, and `z`
-   ┌─ tests/analysis/missing-struct-member/source.wdl:22:13
+   ┌─ tests/analysis/missing-struct-member/source.wdl:23:13
    │
-22 │     Foo e = Foo { y: 2 }
+23 │     Foo e = Foo { y: 2 }
    │             ^^^
 
 error: struct `Foo` requires a value for members `a`, `x`, and `z`
-   ┌─ tests/analysis/missing-struct-member/source.wdl:24:13
+   ┌─ tests/analysis/missing-struct-member/source.wdl:25:13
    │
-24 │     Foo f = Foo { }
+25 │     Foo f = Foo { }
    │             ^^^
 

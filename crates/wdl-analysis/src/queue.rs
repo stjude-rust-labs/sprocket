@@ -1,7 +1,6 @@
 //! Implements the analysis queue.
 
 use std::cell::RefCell;
-use std::cmp::Ordering;
 use std::marker::PhantomData;
 use std::ops::Range;
 use std::sync::Arc;
@@ -27,6 +26,7 @@ use wdl_ast::Ast;
 use wdl_ast::AstToken;
 
 use crate::AnalysisResult;
+use crate::DiagnosticsConfig;
 use crate::IncrementalChange;
 use crate::ProgressKind;
 use crate::graph::Analysis;
@@ -109,6 +109,8 @@ enum Cancelable<T> {
 pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     /// The document graph maintained by the analysis queue.
     graph: Arc<RwLock<DocumentGraph>>,
+    /// The diagnostics configuration to use.
+    config: DiagnosticsConfig,
     /// The handle to the tokio runtime for blocking on async tasks.
     tokio: Handle,
     /// The HTTP client to use for fetching documents.
@@ -129,9 +131,15 @@ where
     Validator: Fn() -> wdl_ast::Validator + Send + Sync + 'static,
 {
     /// Constructs a new analysis queue.
-    pub fn new(tokio: Handle, progress: Progress, validator: Validator) -> Self {
+    pub fn new(
+        config: DiagnosticsConfig,
+        tokio: Handle,
+        progress: Progress,
+        validator: Validator,
+    ) -> Self {
         Self {
             graph: Default::default(),
+            config,
             tokio,
             progress: Arc::new(progress),
             marker: PhantomData,
@@ -374,7 +382,10 @@ where
                         }
 
                         let graph = self.graph.clone();
-                        Some(RayonHandle::spawn(move || Self::analyze_node(graph, index)))
+                        let config = self.config;
+                        Some(RayonHandle::spawn(move || {
+                            Self::analyze_node(config, graph, index)
+                        }))
                     })
                     .collect::<FuturesUnordered<_>>()
             };
@@ -589,17 +600,14 @@ where
     }
 
     /// Analyzes a node in the document graph.
-    fn analyze_node(graph: Arc<RwLock<DocumentGraph>>, index: NodeIndex) -> (NodeIndex, Analysis) {
+    fn analyze_node(
+        config: DiagnosticsConfig,
+        graph: Arc<RwLock<DocumentGraph>>,
+        index: NodeIndex,
+    ) -> (NodeIndex, Analysis) {
         let start = Instant::now();
         let graph = graph.read();
-        let (scope, mut diagnostics) = DocumentScope::new(&graph, index);
-
-        diagnostics.sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
-            (None, None) => Ordering::Equal,
-            (None, Some(_)) => Ordering::Less,
-            (Some(_), None) => Ordering::Greater,
-            (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
-        });
+        let (scope, diagnostics) = DocumentScope::new(config, &graph, index);
 
         info!(
             "analysis of `{uri}` completed in {elapsed:?}",

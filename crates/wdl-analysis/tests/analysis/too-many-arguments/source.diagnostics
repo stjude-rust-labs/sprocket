@@ -1,7 +1,7 @@
 error: function `sub` requires no more than 3 arguments but 5 were supplied
-  ┌─ tests/analysis/too-many-arguments/source.wdl:6:16
+  ┌─ tests/analysis/too-many-arguments/source.wdl:7:16
   │
-6 │     String x = sub("foo", "bar", "baz", "qux", "jam")
+7 │     String x = sub("foo", "bar", "baz", "qux", "jam")
   │                ^^^                      -----  ----- this argument is unexpected
   │                                         │       
   │                                         this argument is unexpected

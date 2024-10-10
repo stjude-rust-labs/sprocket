@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test for a missing required struct member in a struct literal.
 
 version 1.1

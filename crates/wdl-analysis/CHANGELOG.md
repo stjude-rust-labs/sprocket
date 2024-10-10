@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Implemented `UnusedImport`, `UnusedInput`, `UnusedDeclaration`, and
+  `UnusedCall` analysis warnings ([#211](https://github.com/stjude-rust-labs/wdl/pull/211))
 * Implemented static analysis for workflows ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
 
 ### Fixed

@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of a name reference cycle in a task.
 
 version 1.1

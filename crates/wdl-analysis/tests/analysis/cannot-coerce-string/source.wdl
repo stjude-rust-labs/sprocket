@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of coercing the result of an expression in a string interpolation.
 
 version 1.1

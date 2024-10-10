@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test for a non-primitive map key.
 
 version 1.1

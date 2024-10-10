@@ -8,6 +8,7 @@ use wdl_ast::Comment;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxNodeExt;
 use wdl_ast::VersionStatement;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -87,11 +88,10 @@ impl Visitor for LintVisitor {
         }
 
         self.document_exceptions.extend(
-            state.exceptions_for(
-                doc.version_statement()
-                    .expect("document should have version statement")
-                    .syntax(),
-            ),
+            doc.version_statement()
+                .expect("document should have version statement")
+                .syntax()
+                .rule_exceptions(),
         );
 
         self.each_enabled_rule(state, |state, rule| {

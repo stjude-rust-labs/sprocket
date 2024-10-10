@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of a type mismatch in an if conditional.
 
 version 1.1

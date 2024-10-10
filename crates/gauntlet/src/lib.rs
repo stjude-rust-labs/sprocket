@@ -40,6 +40,7 @@ use report::Status;
 use report::UnmatchedStatus;
 pub use repository::Repository;
 use wdl::analysis::Analyzer;
+use wdl::analysis::rules;
 use wdl::ast::Diagnostic;
 use wdl::ast::SyntaxNode;
 use wdl::lint::LintVisitor;
@@ -168,6 +169,8 @@ pub async fn gauntlet(args: Args) -> Result<()> {
             .context("failed to write next section")?;
 
         let analyzer = Analyzer::new_with_validator(
+            // Don't bother duplicating analysis warnings for arena mode
+            if args.arena { Vec::new() } else { rules() },
             move |_: (), _, _, _| async move {},
             move || {
                 let mut validator = if !args.arena {

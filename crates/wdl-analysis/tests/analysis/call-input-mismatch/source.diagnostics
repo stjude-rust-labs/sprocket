@@ -1,28 +1,28 @@
 error: type mismatch: expected type `Int`, but found type `String`
-   ┌─ tests/analysis/call-input-mismatch/source.wdl:16:31
+   ┌─ tests/analysis/call-input-mismatch/source.wdl:17:31
    │
-16 │     call my_task { input: x = "1" }
+17 │     call my_task { input: x = "1" }
    │                           -   ^^^ this is type `String`
    │                           │    
    │                           this expects type `Int`
 
 error: type mismatch: expected type `Int`, but found type `String`
-   ┌─ tests/analysis/call-input-mismatch/source.wdl:17:36
+   ┌─ tests/analysis/call-input-mismatch/source.wdl:18:36
    │
-17 │     call my_task as my_task2 { x = x }
+18 │     call my_task as my_task2 { x = x }
    │                                -   ^ this is type `String`
    │                                │    
    │                                this expects type `Int`
 
 error: type mismatch: expected type `Int`, but found type `String`
-   ┌─ tests/analysis/call-input-mismatch/source.wdl:18:32
+   ┌─ tests/analysis/call-input-mismatch/source.wdl:19:32
    │
-18 │     call my_task as my_task3 { x }
+19 │     call my_task as my_task3 { x }
    │                                ^ input `x` is type `Int`, but name `x` is type `String`
 
 error: type mismatch: expected type `Int`, but found type `String`
-   ┌─ tests/analysis/call-input-mismatch/source.wdl:19:39
+   ┌─ tests/analysis/call-input-mismatch/source.wdl:20:39
    │
-19 │     call my_task as my_task4 { input: x }
+20 │     call my_task as my_task4 { input: x }
    │                                       ^ input `x` is type `Int`, but name `x` is type `String`
 

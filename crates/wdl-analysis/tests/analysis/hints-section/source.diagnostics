@@ -1,107 +1,107 @@
 error: type mismatch: expected type `Int` or type `Float`, but found type `Boolean`
-    ┌─ tests/analysis/hints-section/source.wdl:114:18
+    ┌─ tests/analysis/hints-section/source.wdl:115:18
     │
-114 │         max_cpu: true
+115 │         max_cpu: true
     │         -------  ^^^^ this is type `Boolean`
     │         │         
     │         this expects type `Int` or type `Float`
 
 error: type mismatch: expected type `Int` or type `String`, but found type `Boolean`
-    ┌─ tests/analysis/hints-section/source.wdl:115:21
+    ┌─ tests/analysis/hints-section/source.wdl:116:21
     │
-115 │         max_memory: false
+116 │         max_memory: false
     │         ----------  ^^^^^ this is type `Boolean`
     │         │            
     │         this expects type `Int` or type `String`
 
 error: type mismatch: expected type `String` or type `Map[String, String]`, but found type `Boolean`
-    ┌─ tests/analysis/hints-section/source.wdl:116:16
+    ┌─ tests/analysis/hints-section/source.wdl:117:16
     │
-116 │         disks: true
+117 │         disks: true
     │         -----  ^^^^ this is type `Boolean`
     │         │       
     │         this expects type `String` or type `Map[String, String]`
 
 error: type mismatch: expected type `Int` or type `String`, but found type `Boolean`
-    ┌─ tests/analysis/hints-section/source.wdl:117:14
+    ┌─ tests/analysis/hints-section/source.wdl:118:14
     │
-117 │         gpu: false
+118 │         gpu: false
     │         ---  ^^^^^ this is type `Boolean`
     │         │     
     │         this expects type `Int` or type `String`
 
 error: type mismatch: expected type `Int` or type `String`, but found type `Boolean`
-    ┌─ tests/analysis/hints-section/source.wdl:118:15
+    ┌─ tests/analysis/hints-section/source.wdl:119:15
     │
-118 │         fpga: true
+119 │         fpga: true
     │         ----  ^^^^ this is type `Boolean`
     │         │      
     │         this expects type `Int` or type `String`
 
 error: type mismatch: expected type `Boolean`, but found type `String`
-    ┌─ tests/analysis/hints-section/source.wdl:119:21
+    ┌─ tests/analysis/hints-section/source.wdl:120:21
     │
-119 │         short_task: "false"
+120 │         short_task: "false"
     │         ----------  ^^^^^^^ this is type `String`
     │         │            
     │         this expects type `Boolean`
 
 error: type mismatch: expected type `Boolean`, but found type `String`
-    ┌─ tests/analysis/hints-section/source.wdl:120:32
+    ┌─ tests/analysis/hints-section/source.wdl:121:32
     │
-120 │         localization_optional: "true"
+121 │         localization_optional: "true"
     │         ---------------------  ^^^^^^ this is type `String`
     │         │                       
     │         this expects type `Boolean`
 
 error: task `baz` does not have an input named `wrong`
-    ┌─ tests/analysis/hints-section/source.wdl:122:13
+    ┌─ tests/analysis/hints-section/source.wdl:123:13
     │
-122 │             wrong: hints {
+123 │             wrong: hints {
     │             ^^^^^
 
 error: struct `Foo` does not have a member named `wrong`
-    ┌─ tests/analysis/hints-section/source.wdl:125:17
+    ┌─ tests/analysis/hints-section/source.wdl:126:17
     │
-125 │             baz.wrong: hints {
+126 │             baz.wrong: hints {
     │                 ^^^^^
 
 error: struct member `foo` is not a struct
-    ┌─ tests/analysis/hints-section/source.wdl:128:17
+    ┌─ tests/analysis/hints-section/source.wdl:129:17
     │
-128 │             baz.foo.wrong: hints {
+129 │             baz.foo.wrong: hints {
     │                 ^^^
 
 error: type mismatch: expected type `hints`, but found type `String`
-    ┌─ tests/analysis/hints-section/source.wdl:131:18
+    ┌─ tests/analysis/hints-section/source.wdl:132:18
     │
-131 │             foo: "wrong"
+132 │             foo: "wrong"
     │             ---  ^^^^^^^ this is type `String`
     │             │     
     │             this expects type `hints`
 
 error: task `baz` does not have an output named `wrong`
-    ┌─ tests/analysis/hints-section/source.wdl:134:13
+    ┌─ tests/analysis/hints-section/source.wdl:135:13
     │
-134 │             wrong: hints {
+135 │             wrong: hints {
     │             ^^^^^
 
 error: struct `Foo` does not have a member named `wrong`
-    ┌─ tests/analysis/hints-section/source.wdl:137:19
+    ┌─ tests/analysis/hints-section/source.wdl:138:19
     │
-137 │             corge.wrong: hints {
+138 │             corge.wrong: hints {
     │                   ^^^^^
 
 error: struct member `foo` is not a struct
-    ┌─ tests/analysis/hints-section/source.wdl:140:19
+    ┌─ tests/analysis/hints-section/source.wdl:141:19
     │
-140 │             corge.foo.wrong: hints {
+141 │             corge.foo.wrong: hints {
     │                   ^^^
 
 error: type mismatch: expected type `hints`, but found type `String`
-    ┌─ tests/analysis/hints-section/source.wdl:143:18
+    ┌─ tests/analysis/hints-section/source.wdl:144:18
     │
-143 │             qux: "wrong"
+144 │             qux: "wrong"
     │             ---  ^^^^^^^ this is type `String`
     │             │     
     │             this expects type `hints`

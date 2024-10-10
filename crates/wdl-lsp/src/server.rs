@@ -26,6 +26,7 @@ use wdl_analysis::IncrementalChange;
 use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
 use wdl_analysis::SourcePositionEncoding;
+use wdl_analysis::rules;
 use wdl_ast::Validator;
 use wdl_lint::LintVisitor;
 
@@ -205,6 +206,7 @@ impl Server {
                 client,
                 options,
                 analyzer: Analyzer::<ProgressToken>::new_with_validator(
+                    rules(),
                     move |token, kind, current, total| {
                         let client = analyzer_client.clone();
                         async move {

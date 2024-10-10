@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of a self-referential name in a task.
 
 version 1.1

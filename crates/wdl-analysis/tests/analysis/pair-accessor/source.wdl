@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of accessing a pair.
 
 version 1.1

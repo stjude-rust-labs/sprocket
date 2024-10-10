@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test for forward references in a WDL task.
 
 version 1.2

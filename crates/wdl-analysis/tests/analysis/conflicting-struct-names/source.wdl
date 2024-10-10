@@ -1,3 +1,4 @@
+#@ except: UnusedImport
 ## This is a test of having conflicting struct names.
 
 version 1.1

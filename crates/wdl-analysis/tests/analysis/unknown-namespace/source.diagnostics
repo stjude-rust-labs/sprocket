@@ -1,6 +1,6 @@
 error: unknown namespace `foo`
-  ┌─ tests/analysis/unknown-namespace/source.wdl:6:10
+  ┌─ tests/analysis/unknown-namespace/source.wdl:7:10
   │
-6 │     call foo.bar
+7 │     call foo.bar
   │          ^^^
 

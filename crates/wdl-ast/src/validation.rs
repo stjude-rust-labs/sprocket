@@ -1,11 +1,7 @@
 //! Validator for WDL documents.
 
-use std::collections::HashSet;
-
-use rowan::Direction;
 use wdl_grammar::SyntaxElement;
 use wdl_grammar::SyntaxKind;
-use wdl_grammar::SyntaxNode;
 
 use super::Comment;
 use super::Diagnostic;
@@ -14,6 +10,7 @@ use super::Whitespace;
 use super::v1;
 use crate::Document;
 use crate::SupportedVersion;
+use crate::SyntaxNodeExt;
 use crate::VersionStatement;
 use crate::Visitor;
 
@@ -59,7 +56,7 @@ impl Diagnostics {
                     .as_ref()
                     .map_or(true, |nodes| nodes.contains(&node.kind()))
             }) {
-                if self.exceptions_for(&node).contains(rule) {
+                if node.is_rule_excepted(rule) {
                     // Rule is currently excepted, don't add the diagnostic
                     return;
                 }
@@ -67,31 +64,6 @@ impl Diagnostics {
         }
 
         self.add(diagnostic);
-    }
-
-    /// Gets the set of excepted rule ids for the given syntax node.
-    pub fn exceptions_for(&self, node: &SyntaxNode) -> HashSet<String> {
-        let siblings = node
-            .siblings_with_tokens(Direction::Prev)
-            .skip(1)
-            .take_while(|s| s.kind() == SyntaxKind::Whitespace || s.kind() == SyntaxKind::Comment)
-            .filter_map(SyntaxElement::into_token);
-
-        let mut set = HashSet::default();
-        for sibling in siblings {
-            if sibling.kind() == SyntaxKind::Whitespace {
-                continue;
-            }
-
-            if let Some(ids) = sibling.text().strip_prefix(EXCEPT_COMMENT_PREFIX) {
-                for id in ids.split(',') {
-                    let id = id.trim();
-                    set.insert(id.to_string());
-                }
-            }
-        }
-
-        set
     }
 }
 

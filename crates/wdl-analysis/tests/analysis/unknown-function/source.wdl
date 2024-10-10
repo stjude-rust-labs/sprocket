@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of calling an unknown function.
 
 version 1.1

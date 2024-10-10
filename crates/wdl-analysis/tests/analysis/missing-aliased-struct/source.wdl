@@ -1,3 +1,4 @@
+#@ except: UnusedImport
 ## This is a test of aliasing a struct that does not exist in an import.
 
 version 1.1

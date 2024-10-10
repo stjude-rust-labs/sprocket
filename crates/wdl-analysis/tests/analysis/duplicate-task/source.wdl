@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This checks to ensure that validation and analysis of duplicate tasks
 ## is effectively ignored beyond reporting the duplicate
 

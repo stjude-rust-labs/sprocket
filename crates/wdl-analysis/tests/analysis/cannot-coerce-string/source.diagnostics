@@ -1,6 +1,6 @@
 error: cannot coerce type `Array[String]` to `String`
-  ┌─ tests/analysis/cannot-coerce-string/source.wdl:9:23
-  │
-9 │     String x = "foo ${a}"
-  │                       ^ this is type `Array[String]`
+   ┌─ tests/analysis/cannot-coerce-string/source.wdl:10:23
+   │
+10 │     String x = "foo ${a}"
+   │                       ^ this is type `Array[String]`
 

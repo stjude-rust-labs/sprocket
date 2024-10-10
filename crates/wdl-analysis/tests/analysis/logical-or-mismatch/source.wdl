@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of a type mismatch for the logical OR operator.
 
 version 1.1

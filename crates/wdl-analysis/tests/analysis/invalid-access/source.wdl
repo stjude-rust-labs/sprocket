@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This is a test of an invalid access.
 
 version 1.1

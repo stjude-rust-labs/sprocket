@@ -1,3 +1,4 @@
+#@ except: UnusedDeclaration
 ## This tests calculations of common types.
 ## No diagnostics are expected from this test.
 
