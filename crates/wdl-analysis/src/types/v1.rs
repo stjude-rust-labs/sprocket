@@ -559,12 +559,7 @@ where
                     }
                 }
 
-                self.types.add_array(ArrayType {
-                    element_type: expected,
-                    // A special value that allows for coercion to either empty or non-empty
-                    // This allows for an expression like `if (true) then [a, b, c] else []`.
-                    non_empty: None,
-                })
+                self.types.add_array(ArrayType::non_empty(expected))
             }
             // Treat empty array as `Array[Union]`
             None => self.types.add_array(ArrayType::new(Type::Union)),

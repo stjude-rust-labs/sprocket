@@ -22,11 +22,11 @@ error: type mismatch: expected type `Array[String]`, but found type `Map[Int, St
    │                   │    
    │                   this expects type `Array[String]`
 
-error: type mismatch: expected type `Array[Int]`, but found type `Array[String]`
+error: type mismatch: expected type `Array[Int]`, but found type `Array[String]+`
    ┌─ tests/analysis/type-mismatch/source.wdl:14:20
    │
 14 │     Array[Int] d = ["a", "b", "c"]
-   │                -   ^^^^^^^^^^^^^^^ this is type `Array[String]`
+   │                -   ^^^^^^^^^^^^^^^ this is type `Array[String]+`
    │                │    
    │                this expects type `Array[Int]`
 
@@ -62,11 +62,11 @@ error: type mismatch: a type common to both type `String` and type `Int` does no
    │                                    │          
    │                                    this is type `String`
 
-error: type mismatch: expected type `Int`, but found type `Array[Int]`
+error: type mismatch: expected type `Int`, but found type `Array[Int]+`
    ┌─ tests/analysis/type-mismatch/source.wdl:18:22
    │
 18 │     Foo h = Foo { x: [1] }
-   │                   -  ^^^ this is type `Array[Int]`
+   │                   -  ^^^ this is type `Array[Int]+`
    │                   │   
    │                   this expects type `Int`
 

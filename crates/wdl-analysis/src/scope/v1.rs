@@ -67,6 +67,7 @@ use crate::diagnostics::invalid_relative_import;
 use crate::diagnostics::missing_call_input;
 use crate::diagnostics::name_conflict;
 use crate::diagnostics::namespace_conflict;
+use crate::diagnostics::non_empty_array_assignment;
 use crate::diagnostics::only_one_namespace;
 use crate::diagnostics::recursive_struct;
 use crate::diagnostics::recursive_workflow_call;
@@ -1513,5 +1514,14 @@ fn type_check_expr(
             actual,
             expr.span(),
         ));
+    }
+    // Check to see if we're assigning an empty array literal to a non-empty type; we can statically
+    // flag these as errors; otherwise, non-empty array constraints are checked at runtime
+    else if let Type::Compound(e) = expected {
+        if let CompoundTypeDef::Array(e) = document.types.type_definition(e.definition()) {
+            if e.is_non_empty() && expr.is_empty_array_literal() {
+                diagnostics.push(non_empty_array_assignment(expected_span, expr.span()));
+            }
+        }
     }
 }

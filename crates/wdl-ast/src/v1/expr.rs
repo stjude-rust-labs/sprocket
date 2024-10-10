@@ -853,6 +853,16 @@ impl Expr {
             _ => panic!("not an access expression"),
         }
     }
+
+    /// Determines if the expression is an empty array literal or any number of
+    /// parenthesized expressions that terminate with an empty array literal.
+    pub fn is_empty_array_literal(&self) -> bool {
+        match self {
+            Self::Parenthesized(expr) => expr.inner().is_empty_array_literal(),
+            Self::Literal(LiteralExpr::Array(expr)) => expr.elements().next().is_none(),
+            _ => false,
+        }
+    }
 }
 
 impl AstNode for Expr {

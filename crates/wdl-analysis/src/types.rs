@@ -716,7 +716,7 @@ pub struct ArrayType {
     ///
     /// This is `None` for literal arrays so that the array may coerce to both
     /// empty and non-empty types.
-    non_empty: Option<bool>,
+    non_empty: bool,
 }
 
 impl ArrayType {
@@ -724,7 +724,7 @@ impl ArrayType {
     pub fn new(element_type: impl Into<Type>) -> Self {
         Self {
             element_type: element_type.into(),
-            non_empty: Some(false),
+            non_empty: false,
         }
     }
 
@@ -732,7 +732,7 @@ impl ArrayType {
     pub fn non_empty(element_type: impl Into<Type>) -> Self {
         Self {
             element_type: element_type.into(),
-            non_empty: Some(true),
+            non_empty: true,
         }
     }
 
@@ -742,7 +742,7 @@ impl ArrayType {
     }
 
     /// Determines if the array type is non-empty.
-    pub fn is_non_empty(&self) -> Option<bool> {
+    pub fn is_non_empty(&self) -> bool {
         self.non_empty
     }
 
@@ -760,7 +760,7 @@ impl ArrayType {
                 self.ty.element_type.display(self.types).fmt(f)?;
                 write!(f, "]")?;
 
-                if self.ty.non_empty == Some(true) {
+                if self.ty.non_empty {
                     write!(f, "+")?;
                 }
 
@@ -779,10 +779,6 @@ impl ArrayType {
 
 impl Coercible for ArrayType {
     fn is_coercible_to(&self, types: &Types, target: &Self) -> bool {
-        if self.is_non_empty() == Some(false) && target.is_non_empty() == Some(true) {
-            return false;
-        }
-
         self.element_type
             .is_coercible_to(types, &target.element_type)
     }
