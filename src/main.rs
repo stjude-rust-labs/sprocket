@@ -1,7 +1,7 @@
 //! The Sprocket command line tool.
 
-use std::io::stderr;
 use std::io::IsTerminal;
+use std::io::stderr;
 
 use clap::Parser;
 use clap::Subcommand;
