@@ -1,6 +1,5 @@
 //! A lint rule that disallows redundant input names.
 
-use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;

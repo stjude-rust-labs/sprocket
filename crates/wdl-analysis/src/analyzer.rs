@@ -27,7 +27,6 @@ use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use url::Url;
 use walkdir::WalkDir;
-use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_ast::SyntaxNode;

@@ -39,8 +39,8 @@ impl TaskDefinition {
     }
 
     /// Gets the items of the task.
-    pub fn items(&self) -> AstChildren<TaskItem> {
-        children(&self.0)
+    pub fn items(&self) -> impl Iterator<Item = TaskItem> {
+        TaskItem::children(&self.0)
     }
 
     /// Gets the input section of the task.
@@ -125,7 +125,7 @@ pub enum TaskItem {
     Command(CommandSection),
     /// The item is a requirements section.
     Requirements(RequirementsSection),
-    /// The item is a hints section.
+    /// The item is a task hints section.
     Hints(TaskHintsSection),
     /// The item is a runtime section.
     Runtime(RuntimeSection),
@@ -137,10 +137,10 @@ pub enum TaskItem {
     Declaration(BoundDecl),
 }
 
-impl AstNode for TaskItem {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
+impl TaskItem {
+    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
+    /// underlying members within the [`TaskItem`].
+    pub fn can_cast(kind: SyntaxKind) -> bool
     where
         Self: Sized,
     {
@@ -158,40 +158,294 @@ impl AstNode for TaskItem {
         )
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
+    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
+    /// within the [`TaskItem`].
+    pub fn cast(syntax: SyntaxNode) -> Option<Self>
     where
         Self: Sized,
     {
         match syntax.kind() {
-            SyntaxKind::InputSectionNode => Some(Self::Input(InputSection(syntax))),
-            SyntaxKind::OutputSectionNode => Some(Self::Output(OutputSection(syntax))),
-            SyntaxKind::CommandSectionNode => Some(Self::Command(CommandSection(syntax))),
-            SyntaxKind::RequirementsSectionNode => {
-                Some(Self::Requirements(RequirementsSection(syntax)))
-            }
-            SyntaxKind::TaskHintsSectionNode => Some(Self::Hints(TaskHintsSection(syntax))),
-            SyntaxKind::RuntimeSectionNode => Some(Self::Runtime(RuntimeSection(syntax))),
-            SyntaxKind::MetadataSectionNode => Some(Self::Metadata(MetadataSection(syntax))),
-            SyntaxKind::ParameterMetadataSectionNode => {
-                Some(Self::ParameterMetadata(ParameterMetadataSection(syntax)))
-            }
-            SyntaxKind::BoundDeclNode => Some(Self::Declaration(BoundDecl(syntax))),
+            SyntaxKind::InputSectionNode => Some(Self::Input(
+                InputSection::cast(syntax).expect("input section to cast"),
+            )),
+            SyntaxKind::OutputSectionNode => Some(Self::Output(
+                OutputSection::cast(syntax).expect("output section to cast"),
+            )),
+            SyntaxKind::CommandSectionNode => Some(Self::Command(
+                CommandSection::cast(syntax).expect("command section to cast"),
+            )),
+            SyntaxKind::RequirementsSectionNode => Some(Self::Requirements(
+                RequirementsSection::cast(syntax).expect("requirements section to cast"),
+            )),
+            SyntaxKind::RuntimeSectionNode => Some(Self::Runtime(
+                RuntimeSection::cast(syntax).expect("runtime section to cast"),
+            )),
+            SyntaxKind::MetadataSectionNode => Some(Self::Metadata(
+                MetadataSection::cast(syntax).expect("metadata section to cast"),
+            )),
+            SyntaxKind::ParameterMetadataSectionNode => Some(Self::ParameterMetadata(
+                ParameterMetadataSection::cast(syntax).expect("parameter metadata section to cast"),
+            )),
+            SyntaxKind::TaskHintsSectionNode => Some(Self::Hints(
+                TaskHintsSection::cast(syntax).expect("task hints section to cast"),
+            )),
+            SyntaxKind::BoundDeclNode => Some(Self::Declaration(
+                BoundDecl::cast(syntax).expect("bound decl to cast"),
+            )),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    /// Gets a reference to the underlying [`SyntaxNode`].
+    pub fn syntax(&self) -> &SyntaxNode {
         match self {
-            Self::Input(i) => &i.0,
-            Self::Output(o) => &o.0,
-            Self::Command(c) => &c.0,
-            Self::Requirements(r) => &r.0,
-            Self::Hints(h) => &h.0,
-            Self::Runtime(r) => &r.0,
-            Self::Metadata(m) => &m.0,
-            Self::ParameterMetadata(m) => &m.0,
-            Self::Declaration(d) => &d.0,
+            Self::Input(element) => element.syntax(),
+            Self::Output(element) => element.syntax(),
+            Self::Command(element) => element.syntax(),
+            Self::Requirements(element) => element.syntax(),
+            Self::Hints(element) => element.syntax(),
+            Self::Runtime(element) => element.syntax(),
+            Self::Metadata(element) => element.syntax(),
+            Self::ParameterMetadata(element) => element.syntax(),
+            Self::Declaration(element) => element.syntax(),
         }
+    }
+
+    /// Attempts to get a reference to the inner [`InputSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Input`], then a reference to the inner
+    ///   [`InputSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_input_section(&self) -> Option<&InputSection> {
+        match self {
+            Self::Input(input_section) => Some(input_section),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`InputSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Input`], then the inner [`InputSection`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_input_section(self) -> Option<InputSection> {
+        match self {
+            Self::Input(input_section) => Some(input_section),
+            _ => None,
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`OutputSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Output`], then a reference to the inner
+    ///   [`OutputSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_output_section(&self) -> Option<&OutputSection> {
+        match self {
+            Self::Output(output_section) => Some(output_section),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`OutputSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Output`], then the inner [`OutputSection`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_output_section(self) -> Option<OutputSection> {
+        match self {
+            Self::Output(output_section) => Some(output_section),
+            _ => None,
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`CommandSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Command`], then a reference to the inner
+    ///   [`CommandSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_command_section(&self) -> Option<&CommandSection> {
+        match self {
+            Self::Command(command_section) => Some(command_section),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`CommandSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Command`], then the inner
+    ///   [`CommandSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_command_section(self) -> Option<CommandSection> {
+        match self {
+            Self::Command(command_section) => Some(command_section),
+            _ => None,
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`RequirementsSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Requirements`], then a reference to the
+    ///   inner [`RequirementsSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_requirements_section(&self) -> Option<&RequirementsSection> {
+        match self {
+            Self::Requirements(requirements_section) => Some(requirements_section),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner
+    /// [`RequirementsSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Requirements`], then the inner
+    ///   [`RequirementsSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_requirements_section(self) -> Option<RequirementsSection> {
+        match self {
+            Self::Requirements(requirements_section) => Some(requirements_section),
+            _ => None,
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`TaskHintsSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Hints`], then a reference to the inner
+    ///   [`TaskHintsSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_hints_section(&self) -> Option<&TaskHintsSection> {
+        match self {
+            Self::Hints(hints_section) => Some(hints_section),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`TaskHintsSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Hints`], then the inner
+    ///   [`TaskHintsSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_hints_section(self) -> Option<TaskHintsSection> {
+        match self {
+            Self::Hints(hints_section) => Some(hints_section),
+            _ => None,
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`RuntimeSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Runtime`], then a reference to the inner
+    ///   [`RuntimeSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_runtime_section(&self) -> Option<&RuntimeSection> {
+        match self {
+            Self::Runtime(runtime_section) => Some(runtime_section),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`RuntimeSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Runtime`], then the inner
+    ///   [`RuntimeSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_runtime_section(self) -> Option<RuntimeSection> {
+        match self {
+            Self::Runtime(runtime_section) => Some(runtime_section),
+            _ => None,
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`MetadataSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Metadata`], then a reference to the inner
+    ///   [`MetadataSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_metadata_section(&self) -> Option<&MetadataSection> {
+        match self {
+            Self::Metadata(metadata_section) => Some(metadata_section),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`MetadataSection`].
+    ///
+    /// * If `self` is a [`TaskItem::Metadata`], then the inner
+    ///   [`MetadataSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_metadata_section(self) -> Option<MetadataSection> {
+        match self {
+            Self::Metadata(metadata_section) => Some(metadata_section),
+            _ => None,
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`ParameterMetadataSection`].
+    ///
+    /// * If `self` is a [`TaskItem::ParameterMetadata`], then a reference to
+    ///   the inner [`ParameterMetadataSection`] is returned wrapped in
+    ///   [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_parameter_metadata_section(&self) -> Option<&ParameterMetadataSection> {
+        match self {
+            Self::ParameterMetadata(parameter_metadata_section) => Some(parameter_metadata_section),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner
+    /// [`ParameterMetadataSection`].
+    ///
+    /// * If `self` is a [`TaskItem::ParameterMetadata`], then the inner
+    ///   [`ParameterMetadataSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_parameter_metadata_section(self) -> Option<ParameterMetadataSection> {
+        match self {
+            Self::ParameterMetadata(parameter_metadata_section) => Some(parameter_metadata_section),
+            _ => None,
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`BoundDecl`].
+    ///
+    /// * If `self` is a [`TaskItem::Declaration`], then a reference to the
+    ///   inner [`BoundDecl`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_declaration(&self) -> Option<&BoundDecl> {
+        match self {
+            Self::Declaration(declaration) => Some(declaration),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`BoundDecl`].
+    ///
+    /// * If `self` is a [`TaskItem::Declaration`], then the inner [`BoundDecl`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_declaration(self) -> Option<BoundDecl> {
+        match self {
+            Self::Declaration(declaration) => Some(declaration),
+            _ => None,
+        }
+    }
+
+    /// Finds the first child that can be cast to an [`TaskItem`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::child`] without requiring [`TaskItem`] to
+    /// implement the `AstNode` trait.
+    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
+        syntax.children().find_map(Self::cast)
+    }
+
+    /// Finds all children that can be cast to an [`TaskItem`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::children`] without requiring [`TaskItem`] to
+    /// implement the `AstNode` trait.
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = TaskItem> {
+        syntax.children().filter_map(Self::cast)
     }
 }
 
@@ -207,12 +461,79 @@ pub enum SectionParent {
 }
 
 impl SectionParent {
+    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
+    /// underlying members within the [`SectionParent`].
+    pub fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        matches!(
+            kind,
+            SyntaxKind::TaskDefinitionNode
+                | SyntaxKind::WorkflowDefinitionNode
+                | SyntaxKind::StructDefinitionNode
+        )
+    }
+
+    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
+    /// within the [`SectionParent`].
+    pub fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::TaskDefinitionNode => Some(Self::Task(
+                TaskDefinition::cast(syntax).expect("task definition to cast"),
+            )),
+            SyntaxKind::WorkflowDefinitionNode => Some(Self::Workflow(
+                WorkflowDefinition::cast(syntax).expect("workflow definition to cast"),
+            )),
+            SyntaxKind::StructDefinitionNode => Some(Self::Struct(
+                StructDefinition::cast(syntax).expect("struct definition to cast"),
+            )),
+            _ => None,
+        }
+    }
+
+    /// Gets a reference to the underlying [`SyntaxNode`].
+    pub fn syntax(&self) -> &SyntaxNode {
+        match self {
+            Self::Task(element) => element.syntax(),
+            Self::Workflow(element) => element.syntax(),
+            Self::Struct(element) => element.syntax(),
+        }
+    }
+
     /// Gets the name of the section parent.
     pub fn name(&self) -> Ident {
         match self {
             Self::Task(t) => t.name(),
             Self::Workflow(w) => w.name(),
             Self::Struct(s) => s.name(),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`TaskDefinition`].
+    ///
+    /// * If `self` is a [`SectionParent::Task`], then a reference to the inner
+    ///   [`TaskDefinition`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_task(&self) -> Option<&TaskDefinition> {
+        match self {
+            Self::Task(task) => Some(task),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`TaskDefinition`].
+    ///
+    /// * If `self` is a [`SectionParent::Task`], then the inner
+    ///   [`TaskDefinition`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_task(self) -> Option<TaskDefinition> {
+        match self {
+            Self::Task(task) => Some(task),
+            _ => None,
         }
     }
 
@@ -228,6 +549,30 @@ impl SectionParent {
         }
     }
 
+    /// Attempts to get a reference to the inner [`WorkflowDefinition`].
+    ///
+    /// * If `self` is a [`SectionParent::Workflow`], then a reference to the
+    ///   inner [`WorkflowDefinition`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_workflow(&self) -> Option<&WorkflowDefinition> {
+        match self {
+            Self::Workflow(workflow) => Some(workflow),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`WorkflowDefinition`].
+    ///
+    /// * If `self` is a [`SectionParent::Workflow`], then the inner
+    ///   [`WorkflowDefinition`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_workflow(self) -> Option<WorkflowDefinition> {
+        match self {
+            Self::Workflow(workflow) => Some(workflow),
+            _ => None,
+        }
+    }
+
     /// Unwraps to a workflow definition.
     ///
     /// # Panics
@@ -237,6 +582,30 @@ impl SectionParent {
         match self {
             Self::Workflow(workflow) => workflow,
             _ => panic!("not a workflow definition"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`StructDefinition`].
+    ///
+    /// * If `self` is a [`SectionParent::Struct`], then a reference to the
+    ///   inner [`StructDefinition`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_struct(&self) -> Option<&StructDefinition> {
+        match self {
+            Self::Struct(r#struct) => Some(r#struct),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`StructDefinition`].
+    ///
+    /// * If `self` is a [`SectionParent::Struct`], then the inner
+    ///   [`StructDefinition`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_struct(self) -> Option<StructDefinition> {
+        match self {
+            Self::Struct(r#struct) => Some(r#struct),
+            _ => None,
         }
     }
 
@@ -251,41 +620,23 @@ impl SectionParent {
             _ => panic!("not a struct definition"),
         }
     }
-}
 
-impl AstNode for SectionParent {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
-        matches!(
-            kind,
-            SyntaxKind::TaskDefinitionNode
-                | SyntaxKind::WorkflowDefinitionNode
-                | SyntaxKind::StructDefinitionNode
-        )
+    /// Finds the first child that can be cast to an [`SectionParent`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::child`] without requiring [`SectionParent`] to
+    /// implement the `AstNode` trait.
+    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
+        syntax.children().find_map(Self::cast)
     }
 
-    fn cast(node: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match node.kind() {
-            SyntaxKind::TaskDefinitionNode => Some(Self::Task(TaskDefinition(node))),
-            SyntaxKind::WorkflowDefinitionNode => Some(Self::Workflow(WorkflowDefinition(node))),
-            SyntaxKind::StructDefinitionNode => Some(Self::Struct(StructDefinition(node))),
-            _ => None,
-        }
-    }
-
-    fn syntax(&self) -> &SyntaxNode {
-        match self {
-            Self::Task(t) => &t.0,
-            Self::Workflow(w) => &w.0,
-            Self::Struct(s) => &s.0,
-        }
+    /// Finds all children that can be cast to an [`SectionParent`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::children`] without requiring [`SectionParent`] to
+    /// implement the `AstNode` trait.
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = SectionParent> {
+        syntax.children().filter_map(Self::cast)
     }
 }
 
@@ -295,8 +646,8 @@ pub struct InputSection(pub(crate) SyntaxNode);
 
 impl InputSection {
     /// Gets the declarations of the input section.
-    pub fn declarations(&self) -> AstChildren<Decl> {
-        children(&self.0)
+    pub fn declarations(&self) -> impl Iterator<Item = Decl> {
+        Decl::children(&self.0)
     }
 
     /// Gets the parent of the input section.
@@ -388,12 +739,11 @@ impl CommandSection {
         self.0.children_with_tokens().filter_map(CommandPart::cast)
     }
 
-    /// Gets the command text if the command is not interpolated (i.e.
-    /// has no placeholders).
+    /// Gets the command text if the command is not interpolated (i.e. has no
+    /// placeholders).
     ///
-    /// Returns `None` if the command is interpolated, as
-    /// interpolated commands cannot be represented as a single
-    /// span of text.
+    /// Returns `None` if the command is interpolated, as interpolated commands
+    /// cannot be represented as a single span of text.
     pub fn text(&self) -> Option<CommandText> {
         let mut parts = self.parts();
         if let Some(CommandPart::Text(text)) = parts.next() {
@@ -569,7 +919,7 @@ impl RequirementsItem {
 
     /// Gets the expression of the requirements item.
     pub fn expr(&self) -> Expr {
-        child(&self.0).expect("expected an item expression")
+        Expr::child(&self.0).expect("expected an item expression")
     }
 
     /// Consumes `self` and attempts to cast the requirements item to a
@@ -658,7 +1008,7 @@ impl TaskHintsItem {
 
     /// Gets the expression of the hints item.
     pub fn expr(&self) -> Expr {
-        child(&self.0).expect("expected an item expression")
+        Expr::child(&self.0).expect("expected an item expression")
     }
 }
 
@@ -749,7 +1099,7 @@ impl RuntimeItem {
 
     /// Gets the expression of the runtime item.
     pub fn expr(&self) -> Expr {
-        child(&self.0).expect("expected an item expression")
+        Expr::child(&self.0).expect("expected an item expression")
     }
 
     /// Consumes `self` and attempts to cast the runtime item to a

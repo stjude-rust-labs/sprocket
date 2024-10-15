@@ -38,6 +38,7 @@ use wdl_analysis::rules;
 use wdl_ast::Diagnostic;
 use wdl_ast::SyntaxNode;
 
+/// Finds tests to run as part of the analysis test suite.
 fn find_tests() -> Vec<PathBuf> {
     // Check for filter arguments consisting of test names
     let mut filter = HashSet::new();
@@ -65,6 +66,7 @@ fn find_tests() -> Vec<PathBuf> {
     tests
 }
 
+/// Normalizes a result.
 fn normalize(s: &str, is_error: bool) -> String {
     if is_error {
         // Normalize paths in any error messages
@@ -75,6 +77,7 @@ fn normalize(s: &str, is_error: bool) -> String {
     s.replace("\r\n", "\n")
 }
 
+/// Comparse a single result.
 fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<()> {
     let result = normalize(result, is_error);
     if env::var_os("BLESS").is_some() {
@@ -101,6 +104,7 @@ fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<()> {
     Ok(())
 }
 
+/// Compares the provided results.
 fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
     let mut buffer = Buffer::no_color();
     let cwd = std::env::current_dir().expect("must have a CWD");
@@ -150,6 +154,7 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
 async fn main() {
     // These are the tests that require single document analysis as they are
     // sensitive to parse order
+    /// The tests that require single document analysis.
     const SINGLE_DOCUMENT_TESTS: &[&str] = &["import-dependency-cycle"];
 
     let tests = find_tests();
@@ -177,6 +182,9 @@ async fn main() {
 
         // Discover the results that are relevant only to this test
         let base = clean(absolute(test).expect("should be made absolute"));
+        // NOTE: clippy appears to be incorrect that this can be modified to use
+        // `filter_map`. Perhaps this should be revisited in the future.
+        #[allow(clippy::filter_map_bool_then)]
         let results = results
             .iter()
             .filter_map(|r| {

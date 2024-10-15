@@ -78,6 +78,9 @@ pub use wdl_analysis as analysis;
 #[cfg(feature = "ast")]
 #[doc(inline)]
 pub use wdl_ast as ast;
+#[cfg(feature = "format")]
+#[doc(inline)]
+pub use wdl_format as format;
 #[cfg(feature = "grammar")]
 #[doc(inline)]
 pub use wdl_grammar as grammar;

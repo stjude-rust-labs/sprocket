@@ -48,55 +48,82 @@ use std::time::Duration;
 use clap::Parser;
 use toml_edit::DocumentMut;
 
-// note that this list must be topologically sorted by dependencies
+/// Crates names to publish.
+// Note that this list must be topologically sorted by dependencies.
 const SORTED_CRATES_TO_PUBLISH: &[&str] = &[
     "wdl-grammar",
     "wdl-ast",
     "wdl-lint",
+    "wdl-format",
     "wdl-analysis",
     "wdl-lsp",
     "wdl",
 ];
 
+/// Paths to ignore.
 const IGNORE_PATHS: &[&str] = &["target", "tests", "examples", "benches", "book", "docs"];
 
+/// An in-memory representation of a crate.
 #[derive(Debug, Clone)]
 struct Crate {
+    /// The manifest file.
     manifest: DocumentMut,
+
+    /// The path to the manifest.
     manifest_path: PathBuf,
+
+    /// The path to the changelog.
     changelog_path: Option<PathBuf>,
+
+    /// The name of the crate.
     name: String,
+
+    /// The version of the crate.
     version: String,
+
+    /// Whether the version should be bumped.
     should_bump: bool,
 }
 
+/// The command line arguments.
 #[derive(Parser)]
-struct Opts {
+struct Args {
+    /// The subcommand.
     #[clap(subcommand)]
-    subcmd: SubCommand,
+    command: Subcommand,
 }
 
+/// The subcommand to use.
 #[derive(Parser)]
-enum SubCommand {
+enum Subcommand {
+    /// Request to bump a crate/crates.
     Bump(Bump),
+
+    /// Publishes a crate/crates.
     Publish(Publish),
 }
 
+/// The arguments to the `bump` subcommand.
 #[derive(Parser)]
 struct Bump {
+    /// Whether or not the bump should be a patch version increase.
     #[clap(short, long)]
     patch: bool,
 
+    /// The list of crate names to bump.
     #[clap(short, long)]
     crates_to_bump: Vec<String>,
 }
 
+/// The arguments to the `publish` subcommand.
 #[derive(Parser)]
 struct Publish {
+    /// Whether or not to perform a dry-run of the publishing.
     #[clap(short, long)]
     dry_run: bool,
 }
 
+/// The main function.
 fn main() {
     let mut all_crates: Vec<Rc<RefCell<Crate>>> = Vec::new();
     find_crates(".".as_ref(), &mut all_crates);
@@ -108,9 +135,9 @@ fn main() {
         .collect::<HashMap<_, _>>();
     all_crates.sort_by_key(|krate| publish_order.get(&krate.borrow().name[..]));
 
-    let opts = Opts::parse();
-    match opts.subcmd {
-        SubCommand::Bump(Bump {
+    let opts = Args::parse();
+    match opts.command {
+        Subcommand::Bump(Bump {
             patch,
             crates_to_bump,
         }) => {
@@ -150,7 +177,7 @@ fn main() {
                     .success()
             );
         }
-        SubCommand::Publish(Publish { dry_run }) => {
+        Subcommand::Publish(Publish { dry_run }) => {
             // We have so many crates to publish we're frequently either
             // rate-limited or we run into issues where crates can't publish
             // successfully because they're waiting on the index entries of
@@ -177,6 +204,7 @@ fn main() {
     }
 }
 
+/// Finds crates in a particular directory.
 fn find_crates(dir: &Path, dst: &mut Vec<Rc<RefCell<Crate>>>) {
     if dir.join("Cargo.toml").exists() {
         if let Some(krate) = read_crate(&dir.join("Cargo.toml")) {
@@ -195,6 +223,7 @@ fn find_crates(dir: &Path, dst: &mut Vec<Rc<RefCell<Crate>>>) {
     }
 }
 
+/// Reads a crate from a manifest.
 fn read_crate(manifest_path: &Path) -> Option<Crate> {
     let contents = fs::read_to_string(manifest_path).expect("failed to read manifest");
     let mut manifest =
@@ -223,6 +252,7 @@ fn read_crate(manifest_path: &Path) -> Option<Crate> {
     })
 }
 
+/// Bumps the version of a crate.
 fn bump_version(krate: &Crate, crates: &[Rc<RefCell<Crate>>], patch: bool) {
     let mut new_manifest = krate.manifest.clone();
 
@@ -289,6 +319,7 @@ fn bump(version: &str, patch_bump: bool) -> String {
     }
 }
 
+/// Publishes a crate.
 fn publish(krate: &Crate, dry_run: bool) -> bool {
     if !SORTED_CRATES_TO_PUBLISH.iter().any(|s| *s == krate.name) {
         return true;

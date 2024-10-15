@@ -40,6 +40,9 @@ tempfile = { workspace = true }
 default = []
 codespan = ["wdl-ast/codespan"]
 
+[lints]
+workspace = true
+
 [[test]]
 name = "analysis"
 required-features = ["codespan"]

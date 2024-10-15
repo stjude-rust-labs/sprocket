@@ -1,6 +1,5 @@
 //! A lint rule for using double quoted strings.
 
-use wdl_ast::AstNode;
 use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;

@@ -31,6 +31,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Document;
 use wdl_ast::Validator;
 
+/// Finds tests for grammar validation.
 fn find_tests() -> Vec<PathBuf> {
     // Check for filter arguments consisting of test names
     let mut filter = HashSet::new();
@@ -58,6 +59,7 @@ fn find_tests() -> Vec<PathBuf> {
     tests
 }
 
+/// Normalizes a result.
 fn normalize(s: &str, is_error: bool) -> String {
     if is_error {
         // Normalize paths in any error messages
@@ -68,6 +70,7 @@ fn normalize(s: &str, is_error: bool) -> String {
     s.replace("\r\n", "\n")
 }
 
+/// Formats diagnostics.
 fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> String {
     let file = SimpleFile::new(path.as_os_str().to_str().unwrap(), source);
     let mut buffer = Buffer::no_color();
@@ -84,6 +87,7 @@ fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> 
     String::from_utf8(buffer.into_inner()).expect("should be UTF-8")
 }
 
+/// Compares a single result.
 fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<(), String> {
     let result = normalize(result, is_error);
     if env::var_os("BLESS").is_some() {
@@ -115,6 +119,7 @@ fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<(), Strin
     Ok(())
 }
 
+/// Runs a test.
 fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
     let path = test.join("source.wdl");
     let source = std::fs::read_to_string(&path)

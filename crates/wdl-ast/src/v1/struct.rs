@@ -2,6 +2,7 @@
 
 use super::MetadataSection;
 use super::ParameterMetadataSection;
+use super::StructKeyword;
 use super::UnboundDecl;
 use crate::AstChildren;
 use crate::AstNode;
@@ -22,9 +23,14 @@ impl StructDefinition {
         token(&self.0).expect("struct should have a name")
     }
 
+    /// Gets the `struct` keyword of the struct definition.
+    pub fn keyword(&self) -> StructKeyword {
+        token(&self.0).expect("struct should have a keyword")
+    }
+
     /// Gets the items in the struct definition.
-    pub fn items(&self) -> AstChildren<StructItem> {
-        children(&self.0)
+    pub fn items(&self) -> impl Iterator<Item = StructItem> {
+        StructItem::children(&self.0)
     }
 
     /// Gets the member declarations of the struct.
@@ -79,10 +85,10 @@ pub enum StructItem {
     ParameterMetadata(ParameterMetadataSection),
 }
 
-impl AstNode for StructItem {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
+impl StructItem {
+    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
+    /// underlying members within the [`StructItem`].
+    pub fn can_cast(kind: SyntaxKind) -> bool
     where
         Self: Sized,
     {
@@ -94,26 +100,125 @@ impl AstNode for StructItem {
         )
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
+    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
+    /// within the [`StructItem`].
+    pub fn cast(syntax: SyntaxNode) -> Option<Self>
     where
         Self: Sized,
     {
         match syntax.kind() {
-            SyntaxKind::UnboundDeclNode => Some(Self::Member(UnboundDecl(syntax))),
-            SyntaxKind::MetadataSectionNode => Some(Self::Metadata(MetadataSection(syntax))),
-            SyntaxKind::ParameterMetadataSectionNode => {
-                Some(Self::ParameterMetadata(ParameterMetadataSection(syntax)))
-            }
+            SyntaxKind::UnboundDeclNode => Some(Self::Member(
+                UnboundDecl::cast(syntax).expect("unbound decl to cast"),
+            )),
+            SyntaxKind::MetadataSectionNode => Some(Self::Metadata(
+                MetadataSection::cast(syntax).expect("metadata section to cast"),
+            )),
+            SyntaxKind::ParameterMetadataSectionNode => Some(Self::ParameterMetadata(
+                ParameterMetadataSection::cast(syntax).expect("parameter metadata section to cast"),
+            )),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    /// Gets a reference to the underlying [`SyntaxNode`].
+    pub fn syntax(&self) -> &SyntaxNode {
         match self {
-            Self::Member(m) => &m.0,
-            Self::Metadata(m) => &m.0,
-            Self::ParameterMetadata(m) => &m.0,
+            Self::Member(element) => element.syntax(),
+            Self::Metadata(element) => element.syntax(),
+            Self::ParameterMetadata(element) => element.syntax(),
         }
+    }
+
+    /// Attempts to get a reference to the inner [`UnboundDecl`].
+    ///
+    /// * If `self` is a [`StructItem::Member`], then a reference to the inner
+    ///   [`UnboundDecl`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_unbound_decl(&self) -> Option<&UnboundDecl> {
+        match self {
+            Self::Member(unbound_decl) => Some(unbound_decl),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`UnboundDecl`].
+    ///
+    /// * If `self` is a [`StructItem::Member`], then the inner [`UnboundDecl`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_unbound_decl(self) -> Option<UnboundDecl> {
+        match self {
+            Self::Member(unbound_decl) => Some(unbound_decl),
+            _ => None,
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`MetadataSection`].
+    ///
+    /// * If `self` is a [`StructItem::Metadata`], then a reference to the inner
+    ///   [`MetadataSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_metadata_section(&self) -> Option<&MetadataSection> {
+        match self {
+            Self::Metadata(metadata_section) => Some(metadata_section),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`MetadataSection`].
+    ///
+    /// * If `self` is a [`StructItem::Metadata`], then the inner
+    ///   [`MetadataSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_metadata_section(self) -> Option<MetadataSection> {
+        match self {
+            Self::Metadata(metadata_section) => Some(metadata_section),
+            _ => None,
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`ParameterMetadataSection`].
+    ///
+    /// * If `self` is a [`StructItem::ParameterMetadata`], then a reference to
+    ///   the inner [`ParameterMetadataSection`] is returned wrapped in
+    ///   [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_parameter_metadata_section(&self) -> Option<&ParameterMetadataSection> {
+        match self {
+            Self::ParameterMetadata(parameter_metadata_section) => Some(parameter_metadata_section),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner
+    /// [`ParameterMetadataSection`].
+    ///
+    /// * If `self` is a [`StructItem::ParameterMetadata`], then the inner
+    ///   [`ParameterMetadataSection`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_parameter_metadata_section(self) -> Option<ParameterMetadataSection> {
+        match self {
+            Self::ParameterMetadata(parameter_metadata_section) => Some(parameter_metadata_section),
+            _ => None,
+        }
+    }
+
+    /// Finds the first child that can be cast to an [`StructItem`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::child`] without requiring [`StructItem`] to
+    /// implement the `AstNode` trait.
+    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
+        syntax.children().find_map(Self::cast)
+    }
+
+    /// Finds all children that can be cast to an [`StructItem`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::children`] without requiring [`StructItem`] to
+    /// implement the `AstNode` trait.
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = StructItem> {
+        syntax.children().filter_map(Self::cast)
     }
 }
 
@@ -179,7 +284,7 @@ struct ComplexTypes {
     parameter_meta {
         a: "foo"
     }
-}            
+}
 "#,
         );
         assert!(diagnostics.is_empty());

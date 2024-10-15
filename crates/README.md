@@ -121,7 +121,7 @@ cargo run --bin wdl --features cli -- $ARGS
 
 Where `$ARGS` are the command line arguments to the `wdl` CLI tool.
 
-The `wdl` CLI tool currently supports three subcommands:
+The `wdl` CLI tool currently supports the following subcommands:
 
 * `parse` - Parses a WDL document and prints both the parse diagnostics and the
   resulting Concrete Syntax Tree (CST).
@@ -137,6 +137,8 @@ The `wdl` CLI tool currently supports three subcommands:
   document scopes and exits with a status code of `0` if the documents are
   valid; otherwise, prints the validation diagnostics and exits with a status
   code of `1`.
+* `format` - Parses, validates, and then formats a single WDL document, printing
+  the result to STDOUT.
 
 Each of the subcommands supports passing `-` as the file path to denote reading
 from STDIN instead of a file on disk.

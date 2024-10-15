@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `SyntaxExt` (for better handling of siblings) and `SyntaxTokenExt` (for handling of associated trivia) traits ([#133](https://github.com/stjude-rust-labs/wdl/pull/133))
+* `is_trivia()` and `is_symbolic()` methods for `SyntaxKind` ([#133](https://github.com/stjude-rust-labs/wdl/pull/133))
+
 ### Fixed
 
 * Fixed parsing of workflow `hints` section to no longer accept expressions ([#176](https://github.com/stjude-rust-labs/wdl/pull/176))

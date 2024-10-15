@@ -3,8 +3,6 @@
 
 use std::ops::Deref;
 
-use rowan::ast::AstNode;
-
 use crate::v1::Expr;
 use crate::v1::LiteralExpr;
 

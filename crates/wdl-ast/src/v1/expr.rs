@@ -13,6 +13,7 @@ use crate::support;
 use crate::support::child;
 use crate::support::children;
 use crate::token;
+use crate::token_child;
 
 /// Represents an expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -66,24 +67,172 @@ pub enum Expr {
 }
 
 impl Expr {
-    /// Attempts to reference a literal expression.
-    ///
-    /// - If the value is a literal expression, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_literal(&self) -> Option<&LiteralExpr> {
-        match self {
-            Self::Literal(expr) => Some(expr),
+    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
+    /// underlying members within the [`Expr`].
+    pub fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        if LiteralExpr::can_cast(kind) {
+            return true;
+        }
+
+        matches!(
+            kind,
+            SyntaxKind::NameRefNode
+                | SyntaxKind::ParenthesizedExprNode
+                | SyntaxKind::IfExprNode
+                | SyntaxKind::LogicalNotExprNode
+                | SyntaxKind::NegationExprNode
+                | SyntaxKind::LogicalOrExprNode
+                | SyntaxKind::LogicalAndExprNode
+                | SyntaxKind::EqualityExprNode
+                | SyntaxKind::InequalityExprNode
+                | SyntaxKind::LessExprNode
+                | SyntaxKind::LessEqualExprNode
+                | SyntaxKind::GreaterExprNode
+                | SyntaxKind::GreaterEqualExprNode
+                | SyntaxKind::AdditionExprNode
+                | SyntaxKind::SubtractionExprNode
+                | SyntaxKind::MultiplicationExprNode
+                | SyntaxKind::DivisionExprNode
+                | SyntaxKind::ModuloExprNode
+                | SyntaxKind::ExponentiationExprNode
+                | SyntaxKind::CallExprNode
+                | SyntaxKind::IndexExprNode
+                | SyntaxKind::AccessExprNode
+        )
+    }
+
+    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
+    /// within the [`Expr`].
+    pub fn cast(syntax: SyntaxNode) -> Option<Self> {
+        if LiteralExpr::can_cast(syntax.kind()) {
+            return Some(Self::Literal(
+                LiteralExpr::cast(syntax).expect("literal expr should cast"),
+            ));
+        }
+
+        match syntax.kind() {
+            SyntaxKind::NameRefNode => Some(Self::Name(
+                NameRef::cast(syntax).expect("name ref should cast"),
+            )),
+            SyntaxKind::ParenthesizedExprNode => Some(Self::Parenthesized(
+                ParenthesizedExpr::cast(syntax).expect("parenthesized expr should cast"),
+            )),
+            SyntaxKind::IfExprNode => {
+                Some(Self::If(IfExpr::cast(syntax).expect("if expr should cast")))
+            }
+            SyntaxKind::LogicalNotExprNode => Some(Self::LogicalNot(
+                LogicalNotExpr::cast(syntax).expect("logical not expr should cast"),
+            )),
+            SyntaxKind::NegationExprNode => Some(Self::Negation(
+                NegationExpr::cast(syntax).expect("negation expr should cast"),
+            )),
+            SyntaxKind::LogicalOrExprNode => Some(Self::LogicalOr(
+                LogicalOrExpr::cast(syntax).expect("logical or expr should cast"),
+            )),
+            SyntaxKind::LogicalAndExprNode => Some(Self::LogicalAnd(
+                LogicalAndExpr::cast(syntax).expect("logical and expr should cast"),
+            )),
+            SyntaxKind::EqualityExprNode => Some(Self::Equality(
+                EqualityExpr::cast(syntax).expect("equality expr should cast"),
+            )),
+            SyntaxKind::InequalityExprNode => Some(Self::Inequality(
+                InequalityExpr::cast(syntax).expect("inequality expr should cast"),
+            )),
+            SyntaxKind::LessExprNode => Some(Self::Less(
+                LessExpr::cast(syntax).expect("less expr should cast"),
+            )),
+            SyntaxKind::LessEqualExprNode => Some(Self::LessEqual(
+                LessEqualExpr::cast(syntax).expect("less equal expr should cast"),
+            )),
+            SyntaxKind::GreaterExprNode => Some(Self::Greater(
+                GreaterExpr::cast(syntax).expect("greater expr should cast"),
+            )),
+            SyntaxKind::GreaterEqualExprNode => Some(Self::GreaterEqual(
+                GreaterEqualExpr::cast(syntax).expect("greater equal expr should cast"),
+            )),
+            SyntaxKind::AdditionExprNode => Some(Self::Addition(
+                AdditionExpr::cast(syntax).expect("addition expr should cast"),
+            )),
+            SyntaxKind::SubtractionExprNode => Some(Self::Subtraction(
+                SubtractionExpr::cast(syntax).expect("subtraction expr should cast"),
+            )),
+            SyntaxKind::MultiplicationExprNode => Some(Self::Multiplication(
+                MultiplicationExpr::cast(syntax).expect("multiplication expr should cast"),
+            )),
+            SyntaxKind::DivisionExprNode => Some(Self::Division(
+                DivisionExpr::cast(syntax).expect("division expr should cast"),
+            )),
+            SyntaxKind::ModuloExprNode => Some(Self::Modulo(
+                ModuloExpr::cast(syntax).expect("modulo expr should cast"),
+            )),
+            SyntaxKind::ExponentiationExprNode => Some(Self::Exponentiation(
+                ExponentiationExpr::cast(syntax).expect("exponentiation expr should cast"),
+            )),
+            SyntaxKind::CallExprNode => Some(Self::Call(
+                CallExpr::cast(syntax).expect("call expr should cast"),
+            )),
+            SyntaxKind::IndexExprNode => Some(Self::Index(
+                IndexExpr::cast(syntax).expect("index expr should cast"),
+            )),
+            SyntaxKind::AccessExprNode => Some(Self::Access(
+                AccessExpr::cast(syntax).expect("access expr should cast"),
+            )),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a literal expression.
+    /// Gets a reference to the underlying [`SyntaxNode`].
+    pub fn syntax(&self) -> &SyntaxNode {
+        match self {
+            Expr::Literal(element) => element.syntax(),
+            Expr::Name(element) => element.syntax(),
+            Expr::Parenthesized(element) => element.syntax(),
+            Expr::If(element) => element.syntax(),
+            Expr::LogicalNot(element) => element.syntax(),
+            Expr::Negation(element) => element.syntax(),
+            Expr::LogicalOr(element) => element.syntax(),
+            Expr::LogicalAnd(element) => element.syntax(),
+            Expr::Equality(element) => element.syntax(),
+            Expr::Inequality(element) => element.syntax(),
+            Expr::Less(element) => element.syntax(),
+            Expr::LessEqual(element) => element.syntax(),
+            Expr::Greater(element) => element.syntax(),
+            Expr::GreaterEqual(element) => element.syntax(),
+            Expr::Addition(element) => element.syntax(),
+            Expr::Subtraction(element) => element.syntax(),
+            Expr::Multiplication(element) => element.syntax(),
+            Expr::Division(element) => element.syntax(),
+            Expr::Modulo(element) => element.syntax(),
+            Expr::Exponentiation(element) => element.syntax(),
+            Expr::Call(element) => element.syntax(),
+            Expr::Index(element) => element.syntax(),
+            Expr::Access(element) => element.syntax(),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralExpr`].
     ///
-    /// - If the value is a literal expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Literal`], then a reference to the inner
+    ///   [`LiteralExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_literal(&self) -> Option<&LiteralExpr> {
+        match self {
+            Self::Literal(literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralExpr`].
+    ///
+    /// * If `self` is a [`Expr::Literal`], then the inner [`LiteralExpr`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_literal(self) -> Option<LiteralExpr> {
         match self {
-            Self::Literal(expr) => Some(expr),
+            Self::Literal(literal) => Some(literal),
             _ => None,
         }
     }
@@ -100,24 +249,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a name reference.
+    /// Attempts to get a reference to the inner [`NameRef`].
     ///
-    /// - If the value is a name reference, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Name`], then a reference to the inner
+    ///   [`NameRef`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_name_ref(&self) -> Option<&NameRef> {
         match self {
-            Self::Name(expr) => Some(expr),
+            Self::Name(name_ref) => Some(name_ref),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a name reference.
+    /// Consumes `self` and attempts to return the inner [`NameRef`].
     ///
-    /// - If the value is a name reference, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Name`], then the inner [`NameRef`] is returned
+    ///   wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_name_ref(self) -> Option<NameRef> {
         match self {
-            Self::Name(expr) => Some(expr),
+            Self::Name(name_ref) => Some(name_ref),
             _ => None,
         }
     }
@@ -134,24 +285,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a parenthesized expression.
+    /// Attempts to get a reference to the inner [`ParenthesizedExpr`].
     ///
-    /// - If the value is a parenthesized expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Parenthesized`], then a reference to the inner
+    ///   [`ParenthesizedExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_parenthesized(&self) -> Option<&ParenthesizedExpr> {
         match self {
-            Self::Parenthesized(expr) => Some(expr),
+            Self::Parenthesized(parenthesized) => Some(parenthesized),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a parenthesized expression.
+    /// Consumes `self` and attempts to return the inner [`ParenthesizedExpr`].
     ///
-    /// - If the value is a parenthesized expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Parenthesized`], then the inner
+    ///   [`ParenthesizedExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_parenthesized(self) -> Option<ParenthesizedExpr> {
         match self {
-            Self::Parenthesized(expr) => Some(expr),
+            Self::Parenthesized(parenthesized) => Some(parenthesized),
             _ => None,
         }
     }
@@ -168,24 +321,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference an `if` expression.
+    /// Attempts to get a reference to the inner [`IfExpr`].
     ///
-    /// - If the value is an `if` expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::If`], then a reference to the inner [`IfExpr`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_if(&self) -> Option<&IfExpr> {
         match self {
-            Self::If(expr) => Some(expr),
+            Self::If(r#if) => Some(r#if),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return an `if` expression.
+    /// Consumes `self` and attempts to return the inner [`IfExpr`].
     ///
-    /// - If the value is an `if` expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::If`], then the inner [`IfExpr`] is returned
+    ///   wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_if(self) -> Option<IfExpr> {
         match self {
-            Self::If(expr) => Some(expr),
+            Self::If(r#if) => Some(r#if),
             _ => None,
         }
     }
@@ -202,24 +357,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a logical `not` expression.
+    /// Attempts to get a reference to the inner [`LogicalNotExpr`].
     ///
-    /// - If the value is a logical `not` expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::LogicalNot`], then a reference to the inner
+    ///   [`LogicalNotExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_logical_not(&self) -> Option<&LogicalNotExpr> {
         match self {
-            Self::LogicalNot(expr) => Some(expr),
+            Self::LogicalNot(logical_not) => Some(logical_not),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a logical `not` expression.
+    /// Consumes `self` and attempts to return the inner [`LogicalNotExpr`].
     ///
-    /// - If the value is a logical `not` expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::LogicalNot`], then the inner [`LogicalNotExpr`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_logical_not(self) -> Option<LogicalNotExpr> {
         match self {
-            Self::LogicalNot(expr) => Some(expr),
+            Self::LogicalNot(logical_not) => Some(logical_not),
             _ => None,
         }
     }
@@ -236,24 +393,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a negation expression.
+    /// Attempts to get a reference to the inner [`NegationExpr`].
     ///
-    /// - If the value is a negation expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Negation`], then a reference to the inner
+    ///   [`NegationExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_negation(&self) -> Option<&NegationExpr> {
         match self {
-            Self::Negation(expr) => Some(expr),
+            Self::Negation(negation) => Some(negation),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a negation expression.
+    /// Consumes `self` and attempts to return the inner [`NegationExpr`].
     ///
-    /// - If the value is a negation expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Negation`], then the inner [`NegationExpr`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_negation(self) -> Option<NegationExpr> {
         match self {
-            Self::Negation(expr) => Some(expr),
+            Self::Negation(negation) => Some(negation),
             _ => None,
         }
     }
@@ -270,24 +429,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a logical `or` expression.
+    /// Attempts to get a reference to the inner [`LogicalOrExpr`].
     ///
-    /// - If the value is a logical `or` expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::LogicalOr`], then a reference to the inner
+    ///   [`LogicalOrExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_logical_or(&self) -> Option<&LogicalOrExpr> {
         match self {
-            Self::LogicalOr(expr) => Some(expr),
+            Self::LogicalOr(logical_or) => Some(logical_or),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a logical `or` expression.
+    /// Consumes `self` and attempts to return the inner [`LogicalOrExpr`].
     ///
-    /// - If the value is a logical `or` expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::LogicalOr`], then the inner [`LogicalOrExpr`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_logical_or(self) -> Option<LogicalOrExpr> {
         match self {
-            Self::LogicalOr(expr) => Some(expr),
+            Self::LogicalOr(logical_or) => Some(logical_or),
             _ => None,
         }
     }
@@ -304,24 +465,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a logical `and` expression.
+    /// Attempts to get a reference to the inner [`LogicalAndExpr`].
     ///
-    /// - If the value is a logical `and` expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::LogicalAnd`], then a reference to the inner
+    ///   [`LogicalAndExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_logical_and(&self) -> Option<&LogicalAndExpr> {
         match self {
-            Self::LogicalAnd(expr) => Some(expr),
+            Self::LogicalAnd(logical_and) => Some(logical_and),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a logical `and` expression.
+    /// Consumes `self` and attempts to return the inner [`LogicalAndExpr`].
     ///
-    /// - If the value is a logical `and` expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::LogicalAnd`], then the inner [`LogicalAndExpr`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_logical_and(self) -> Option<LogicalAndExpr> {
         match self {
-            Self::LogicalAnd(expr) => Some(expr),
+            Self::LogicalAnd(logical_and) => Some(logical_and),
             _ => None,
         }
     }
@@ -338,24 +501,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference an equality expression.
+    /// Attempts to get a reference to the inner [`EqualityExpr`].
     ///
-    /// - If the value is an equality expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Equality`], then a reference to the inner
+    ///   [`EqualityExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_equality(&self) -> Option<&EqualityExpr> {
         match self {
-            Self::Equality(expr) => Some(expr),
+            Self::Equality(equality) => Some(equality),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return an equality expression.
+    /// Consumes `self` and attempts to return the inner [`EqualityExpr`].
     ///
-    /// - If the value is an equality expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Equality`], then the inner [`EqualityExpr`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_equality(self) -> Option<EqualityExpr> {
         match self {
-            Self::Equality(expr) => Some(expr),
+            Self::Equality(equality) => Some(equality),
             _ => None,
         }
     }
@@ -372,24 +537,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference an inequality expression.
+    /// Attempts to get a reference to the inner [`InequalityExpr`].
     ///
-    /// - If the value is an inequality expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Inequality`], then a reference to the inner
+    ///   [`InequalityExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_inequality(&self) -> Option<&InequalityExpr> {
         match self {
-            Self::Inequality(expr) => Some(expr),
+            Self::Inequality(inequality) => Some(inequality),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return an inequality expression.
+    /// Consumes `self` and attempts to return the inner [`InequalityExpr`].
     ///
-    /// - If the value is an inequality expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Inequality`], then the inner [`InequalityExpr`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_inequality(self) -> Option<InequalityExpr> {
         match self {
-            Self::Inequality(expr) => Some(expr),
+            Self::Inequality(inequality) => Some(inequality),
             _ => None,
         }
     }
@@ -406,24 +573,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a "less than" expression.
+    /// Attempts to get a reference to the inner [`LessExpr`].
     ///
-    /// - If the value is a "less than" expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Less`], then a reference to the inner
+    ///   [`LessExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_less(&self) -> Option<&LessExpr> {
         match self {
-            Self::Less(expr) => Some(expr),
+            Self::Less(less) => Some(less),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a "less than" expression.
+    /// Consumes `self` and attempts to return the inner [`LessExpr`].
     ///
-    /// - If the value is a "less than" expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Less`], then the inner [`LessExpr`] is returned
+    ///   wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_less(self) -> Option<LessExpr> {
         match self {
-            Self::Less(expr) => Some(expr),
+            Self::Less(less) => Some(less),
             _ => None,
         }
     }
@@ -440,27 +609,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a "less than or equal to" expression.
+    /// Attempts to get a reference to the inner [`LessEqualExpr`].
     ///
-    /// - If the value is a "less than or equal to" expression, `Some()` is
-    ///   returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::LessEqual`], then a reference to the inner
+    ///   [`LessEqualExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_less_equal(&self) -> Option<&LessEqualExpr> {
         match self {
-            Self::LessEqual(expr) => Some(expr),
+            Self::LessEqual(less_equal) => Some(less_equal),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a "less than or equal to"
-    /// expression.
+    /// Consumes `self` and attempts to return the inner [`LessEqualExpr`].
     ///
-    /// - If the value is a "less than or equal to" expression, `Some()` is
-    ///   returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::LessEqual`], then the inner [`LessEqualExpr`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_less_equal(self) -> Option<LessEqualExpr> {
         match self {
-            Self::LessEqual(expr) => Some(expr),
+            Self::LessEqual(less_equal) => Some(less_equal),
             _ => None,
         }
     }
@@ -477,24 +645,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a "greater than" expression.
+    /// Attempts to get a reference to the inner [`GreaterExpr`].
     ///
-    /// - If the value is a "greater than" expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Greater`], then a reference to the inner
+    ///   [`GreaterExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_greater(&self) -> Option<&GreaterExpr> {
         match self {
-            Self::Greater(expr) => Some(expr),
+            Self::Greater(greater) => Some(greater),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a "greater than" expression.
+    /// Consumes `self` and attempts to return the inner [`GreaterExpr`].
     ///
-    /// - If the value is a "greater than" expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Greater`], then the inner [`GreaterExpr`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_greater(self) -> Option<GreaterExpr> {
         match self {
-            Self::Greater(expr) => Some(expr),
+            Self::Greater(greater) => Some(greater),
             _ => None,
         }
     }
@@ -511,27 +681,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a "greater than or equal to" expression.
+    /// Attempts to get a reference to the inner [`GreaterEqualExpr`].
     ///
-    /// - If the value is a "greater than or equal to" expression, `Some()` is
-    ///   returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::GreaterEqual`], then a reference to the inner
+    ///   [`GreaterEqualExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_greater_equal(&self) -> Option<&GreaterEqualExpr> {
         match self {
-            Self::GreaterEqual(expr) => Some(expr),
+            Self::GreaterEqual(greater_equal) => Some(greater_equal),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a "greater than or equal to"
-    /// expression.
+    /// Consumes `self` and attempts to return the inner [`GreaterEqualExpr`].
     ///
-    /// - If the value is a "greater than or equal to" expression, `Some()` is
-    ///   returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::GreaterEqual`], then the inner
+    ///   [`GreaterEqualExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_greater_equal(self) -> Option<GreaterEqualExpr> {
         match self {
-            Self::GreaterEqual(expr) => Some(expr),
+            Self::GreaterEqual(greater_equal) => Some(greater_equal),
             _ => None,
         }
     }
@@ -548,24 +717,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference an addition expression.
+    /// Attempts to get a reference to the inner [`AdditionExpr`].
     ///
-    /// - If the value is an addition expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Addition`], then a reference to the inner
+    ///   [`AdditionExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_addition(&self) -> Option<&AdditionExpr> {
         match self {
-            Self::Addition(expr) => Some(expr),
+            Self::Addition(addition) => Some(addition),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return an addition expression.
+    /// Consumes `self` and attempts to return the inner [`AdditionExpr`].
     ///
-    /// - If the value is an addition expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Addition`], then the inner [`AdditionExpr`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_addition(self) -> Option<AdditionExpr> {
         match self {
-            Self::Addition(expr) => Some(expr),
+            Self::Addition(addition) => Some(addition),
             _ => None,
         }
     }
@@ -582,24 +753,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a subtraction expression.
+    /// Attempts to get a reference to the inner [`SubtractionExpr`].
     ///
-    /// - If the value is a subtraction expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Subtraction`], then a reference to the inner
+    ///   [`SubtractionExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_subtraction(&self) -> Option<&SubtractionExpr> {
         match self {
-            Self::Subtraction(expr) => Some(expr),
+            Self::Subtraction(subtraction) => Some(subtraction),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a subtraction expression.
+    /// Consumes `self` and attempts to return the inner [`SubtractionExpr`].
     ///
-    /// - If the value is a subtraction expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Subtraction`], then the inner
+    ///   [`SubtractionExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_subtraction(self) -> Option<SubtractionExpr> {
         match self {
-            Self::Subtraction(expr) => Some(expr),
+            Self::Subtraction(subtraction) => Some(subtraction),
             _ => None,
         }
     }
@@ -616,24 +789,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a multiplication expression.
+    /// Attempts to get a reference to the inner [`MultiplicationExpr`].
     ///
-    /// - If the value is a multiplication expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Multiplication`], then a reference to the inner
+    ///   [`MultiplicationExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_multiplication(&self) -> Option<&MultiplicationExpr> {
         match self {
-            Self::Multiplication(expr) => Some(expr),
+            Self::Multiplication(multiplication) => Some(multiplication),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a multiplication expression.
+    /// Consumes `self` and attempts to return the inner [`MultiplicationExpr`].
     ///
-    /// - If the value is a multiplication expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Multiplication`], then the inner
+    ///   [`MultiplicationExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_multiplication(self) -> Option<MultiplicationExpr> {
         match self {
-            Self::Multiplication(expr) => Some(expr),
+            Self::Multiplication(multiplication) => Some(multiplication),
             _ => None,
         }
     }
@@ -650,24 +825,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a division expression.
+    /// Attempts to get a reference to the inner [`DivisionExpr`].
     ///
-    /// - If the value is a division expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Division`], then a reference to the inner
+    ///   [`DivisionExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_division(&self) -> Option<&DivisionExpr> {
         match self {
-            Self::Division(expr) => Some(expr),
+            Self::Division(division) => Some(division),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a division expression.
+    /// Consumes `self` and attempts to return the inner [`DivisionExpr`].
     ///
-    /// - If the value is a division expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Division`], then the inner [`DivisionExpr`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_division(self) -> Option<DivisionExpr> {
         match self {
-            Self::Division(expr) => Some(expr),
+            Self::Division(division) => Some(division),
             _ => None,
         }
     }
@@ -684,24 +861,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a modulo expression.
+    /// Attempts to get a reference to the inner [`ModuloExpr`].
     ///
-    /// - If the value is a modulo expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Modulo`], then a reference to the inner
+    ///   [`ModuloExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_modulo(&self) -> Option<&ModuloExpr> {
         match self {
-            Self::Modulo(expr) => Some(expr),
+            Self::Modulo(modulo) => Some(modulo),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a modulo expression.
+    /// Consumes `self` and attempts to return the inner [`ModuloExpr`].
     ///
-    /// - If the value is a modulo expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Modulo`], then the inner [`ModuloExpr`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_modulo(self) -> Option<ModuloExpr> {
         match self {
-            Self::Modulo(expr) => Some(expr),
+            Self::Modulo(modulo) => Some(modulo),
             _ => None,
         }
     }
@@ -718,24 +897,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference an exponentiation expression.
+    /// Attempts to get a reference to the inner [`ExponentiationExpr`].
     ///
-    /// - If the value is an exponentiation expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Exponentiation`], then a reference to the inner
+    ///   [`ExponentiationExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_exponentiation(&self) -> Option<&ExponentiationExpr> {
         match self {
-            Self::Exponentiation(expr) => Some(expr),
+            Self::Exponentiation(exponentiation) => Some(exponentiation),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return an exponentiation expression.
+    /// Consumes `self` and attempts to return the inner [`ExponentiationExpr`].
     ///
-    /// - If the value is an exponentiation expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Exponentiation`], then the inner
+    ///   [`ExponentiationExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_exponentiation(self) -> Option<ExponentiationExpr> {
         match self {
-            Self::Exponentiation(expr) => Some(expr),
+            Self::Exponentiation(exponentiation) => Some(exponentiation),
             _ => None,
         }
     }
@@ -752,24 +933,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference a call expression.
+    /// Attempts to get a reference to the inner [`CallExpr`].
     ///
-    /// - If the value is a call expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Call`], then a reference to the inner
+    ///   [`CallExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_call(&self) -> Option<&CallExpr> {
         match self {
-            Self::Call(expr) => Some(expr),
+            Self::Call(call) => Some(call),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return a call expression.
+    /// Consumes `self` and attempts to return the inner [`CallExpr`].
     ///
-    /// - If the value is a call expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Call`], then the inner [`CallExpr`] is returned
+    ///   wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_call(self) -> Option<CallExpr> {
         match self {
-            Self::Call(expr) => Some(expr),
+            Self::Call(call) => Some(call),
             _ => None,
         }
     }
@@ -786,24 +969,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference an index expression.
+    /// Attempts to get a reference to the inner [`IndexExpr`].
     ///
-    /// - If the value is an index expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Index`], then a reference to the inner
+    ///   [`IndexExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_index(&self) -> Option<&IndexExpr> {
         match self {
-            Self::Index(expr) => Some(expr),
+            Self::Index(index) => Some(index),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return an index expression.
+    /// Consumes `self` and attempts to return the inner [`IndexExpr`].
     ///
-    /// - If the value is an index expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Index`], then the inner [`IndexExpr`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_index(self) -> Option<IndexExpr> {
         match self {
-            Self::Index(expr) => Some(expr),
+            Self::Index(index) => Some(index),
             _ => None,
         }
     }
@@ -820,24 +1005,26 @@ impl Expr {
         }
     }
 
-    /// Attempts to reference an access expression.
+    /// Attempts to get a reference to the inner [`AccessExpr`].
     ///
-    /// - If the value is an access expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Access`], then a reference to the inner
+    ///   [`AccessExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn as_access(&self) -> Option<&AccessExpr> {
         match self {
-            Self::Access(expr) => Some(expr),
+            Self::Access(access) => Some(access),
             _ => None,
         }
     }
 
-    /// Consumes `self` and attempts to return an access expression.
+    /// Consumes `self` and attempts to return the inner [`AccessExpr`].
     ///
-    /// - If the value is an access expression, `Some()` is returned.
-    /// - Else, `None` is returned.
+    /// * If `self` is a [`Expr::Access`], then the inner [`AccessExpr`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
     pub fn into_access(self) -> Option<AccessExpr> {
         match self {
-            Self::Access(expr) => Some(expr),
+            Self::Access(access) => Some(access),
             _ => None,
         }
     }
@@ -852,6 +1039,24 @@ impl Expr {
             Self::Access(expr) => expr,
             _ => panic!("not an access expression"),
         }
+    }
+
+    /// Finds the first child that can be cast to an [`Expr`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::child`] without requiring [`Expr`] to implement
+    /// the `AstNode` trait.
+    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
+        syntax.children().find_map(Self::cast)
+    }
+
+    /// Finds all children that can be cast to an [`Expr`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::children`] without requiring [`Expr`] to
+    /// implement the `AstNode` trait.
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = Expr> {
+        syntax.children().filter_map(Self::cast)
     }
 
     /// Determines if the expression is an empty array literal or any number of
@@ -1005,464 +1210,9 @@ pub enum LiteralExpr {
 }
 
 impl LiteralExpr {
-    /// Attempts to reference the expression as a literal boolean.
-    ///
-    /// - If the value is a literal boolean, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_boolean(&self) -> Option<&LiteralBoolean> {
-        match self {
-            Self::Boolean(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal
-    /// boolean.
-    ///
-    /// - If the value is a literal boolean, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_boolean(self) -> Option<LiteralBoolean> {
-        match self {
-            Self::Boolean(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal boolean.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal boolean.
-    pub fn unwrap_boolean(self) -> LiteralBoolean {
-        match self {
-            Self::Boolean(literal) => literal,
-            _ => panic!("not a literal boolean"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal integer.
-    ///
-    /// - If the value is a literal integer, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_integer(&self) -> Option<&LiteralInteger> {
-        match self {
-            Self::Integer(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal
-    /// integer.
-    ///
-    /// - If the value is a literal integer, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_integer(self) -> Option<LiteralInteger> {
-        match self {
-            Self::Integer(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal integer.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal integer.
-    pub fn unwrap_integer(self) -> LiteralInteger {
-        match self {
-            Self::Integer(literal) => literal,
-            _ => panic!("not a literal integer"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal float.
-    ///
-    /// - If the value is a literal float, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_float(&self) -> Option<&LiteralFloat> {
-        match self {
-            Self::Float(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal
-    /// float.
-    ///
-    /// - If the value is a literal float, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_float(self) -> Option<LiteralFloat> {
-        match self {
-            Self::Float(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal float.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal float.
-    pub fn unwrap_float(self) -> LiteralFloat {
-        match self {
-            Self::Float(literal) => literal,
-            _ => panic!("not a literal float"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal string.
-    ///
-    /// - If the value is a literal string, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_string(&self) -> Option<&LiteralString> {
-        match self {
-            Self::String(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal
-    /// string.
-    ///
-    /// - If the value is a literal string, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_string(self) -> Option<LiteralString> {
-        match self {
-            Self::String(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal string.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal string.
-    pub fn unwrap_string(self) -> LiteralString {
-        match self {
-            Self::String(literal) => literal,
-            _ => panic!("not a literal string"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal array.
-    ///
-    /// - If the value is a literal array, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_array(&self) -> Option<&LiteralArray> {
-        match self {
-            Self::Array(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal
-    /// array.
-    ///
-    /// - If the value is a literal array, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_array(self) -> Option<LiteralArray> {
-        match self {
-            Self::Array(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal array.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal array.
-    pub fn unwrap_array(self) -> LiteralArray {
-        match self {
-            Self::Array(literal) => literal,
-            _ => panic!("not a literal array"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal pair.
-    ///
-    /// - If the value is a literal pair, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_pair(&self) -> Option<&LiteralPair> {
-        match self {
-            Self::Pair(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal pair.
-    ///
-    /// - If the value is a literal pair, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_pair(self) -> Option<LiteralPair> {
-        match self {
-            Self::Pair(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal pair.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal pair.
-    pub fn unwrap_pair(self) -> LiteralPair {
-        match self {
-            Self::Pair(literal) => literal,
-            _ => panic!("not a literal pair"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal map.
-    ///
-    /// - If the value is a literal map, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_map(&self) -> Option<&LiteralMap> {
-        match self {
-            Self::Map(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal map.
-    ///
-    /// - If the value is a literal map, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_map(self) -> Option<LiteralMap> {
-        match self {
-            Self::Map(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal map.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal map.
-    pub fn unwrap_map(self) -> LiteralMap {
-        match self {
-            Self::Map(literal) => literal,
-            _ => panic!("not a literal map"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal object.
-    ///
-    /// - If the value is a literal object, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_object(&self) -> Option<&LiteralObject> {
-        match self {
-            Self::Object(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal
-    /// object.
-    ///
-    /// - If the value is a literal object, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_object(self) -> Option<LiteralObject> {
-        match self {
-            Self::Object(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal object.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal object.
-    pub fn unwrap_object(self) -> LiteralObject {
-        match self {
-            Self::Object(literal) => literal,
-            _ => panic!("not a literal object"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal struct.
-    ///
-    /// - If the value is a literal struct, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_struct(&self) -> Option<&LiteralStruct> {
-        match self {
-            Self::Struct(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal
-    /// struct.
-    ///
-    /// - If the value is a literal struct, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_struct(self) -> Option<LiteralStruct> {
-        match self {
-            Self::Struct(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal struct.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal struct.
-    pub fn unwrap_struct(self) -> LiteralStruct {
-        match self {
-            Self::Struct(literal) => literal,
-            _ => panic!("not a literal struct"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal `None`.
-    ///
-    /// - If the value is a literal `None`, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_none(&self) -> Option<&LiteralNone> {
-        match self {
-            Self::None(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal
-    /// `None`.
-    ///
-    /// - If the value is a literal `None`, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_none(self) -> Option<LiteralNone> {
-        match self {
-            Self::None(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal `None`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal `None`.
-    pub fn unwrap_none(self) -> LiteralNone {
-        match self {
-            Self::None(literal) => literal,
-            _ => panic!("not a literal `None`"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal `hints`.
-    ///
-    /// - If the value is a literal `hints`, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_hints(&self) -> Option<&LiteralHints> {
-        match self {
-            Self::Hints(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal
-    /// `hints`.
-    ///
-    /// - If the value is a literal `hints`, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_hints(self) -> Option<LiteralHints> {
-        match self {
-            Self::Hints(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal `hints`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal `hints`.
-    pub fn unwrap_hints(self) -> LiteralHints {
-        match self {
-            Self::Hints(literal) => literal,
-            _ => panic!("not a literal `hints`"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal `input`.
-
-    /// - If the value is a literal `input`, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_input(&self) -> Option<&LiteralInput> {
-        match self {
-            Self::Input(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal
-    /// `input`.
-
-    /// - If the value is a literal `input`, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_input(self) -> Option<LiteralInput> {
-        match self {
-            Self::Input(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal `input`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal `input`.
-    pub fn unwrap_input(self) -> LiteralInput {
-        match self {
-            Self::Input(literal) => literal,
-            _ => panic!("not a literal `input`"),
-        }
-    }
-
-    /// Attempts to reference the expression as a literal `output`.
-
-    /// - If the value is a literal `output`, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn as_output(&self) -> Option<&LiteralOutput> {
-        match self {
-            Self::Output(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the expression as a literal
-    /// `output`.
-
-    /// - If the value is a literal `output`, `Some()` is returned.
-    /// - Else, `None` is returned.
-    pub fn into_output(self) -> Option<LiteralOutput> {
-        match self {
-            Self::Output(literal) => Some(literal),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the expression into a literal `output`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the expression is not a literal `output`.
-    pub fn unwrap_output(self) -> LiteralOutput {
-        match self {
-            Self::Output(literal) => literal,
-            _ => panic!("not a literal `output`"),
-        }
-    }
-}
-
-impl AstNode for LiteralExpr {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
+    /// Returns whether or not a [`SyntaxKind`] is able to be cast
+    /// to any of the underlying members within the [`Expr`].
+    pub fn can_cast(kind: SyntaxKind) -> bool
     where
         Self: Sized,
     {
@@ -1484,44 +1234,556 @@ impl AstNode for LiteralExpr {
         )
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
+    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
+    /// within the [`LiteralExpr`].
+    pub fn cast(syntax: SyntaxNode) -> Option<Self> {
         match syntax.kind() {
-            SyntaxKind::LiteralBooleanNode => Some(Self::Boolean(LiteralBoolean(syntax))),
-            SyntaxKind::LiteralIntegerNode => Some(Self::Integer(LiteralInteger(syntax))),
-            SyntaxKind::LiteralFloatNode => Some(Self::Float(LiteralFloat(syntax))),
-            SyntaxKind::LiteralStringNode => Some(Self::String(LiteralString(syntax))),
-            SyntaxKind::LiteralArrayNode => Some(Self::Array(LiteralArray(syntax))),
-            SyntaxKind::LiteralPairNode => Some(Self::Pair(LiteralPair(syntax))),
-            SyntaxKind::LiteralMapNode => Some(Self::Map(LiteralMap(syntax))),
-            SyntaxKind::LiteralObjectNode => Some(Self::Object(LiteralObject(syntax))),
-            SyntaxKind::LiteralStructNode => Some(Self::Struct(LiteralStruct(syntax))),
-            SyntaxKind::LiteralNoneNode => Some(Self::None(LiteralNone(syntax))),
-            SyntaxKind::LiteralHintsNode => Some(Self::Hints(LiteralHints(syntax))),
-            SyntaxKind::LiteralInputNode => Some(Self::Input(LiteralInput(syntax))),
-            SyntaxKind::LiteralOutputNode => Some(Self::Output(LiteralOutput(syntax))),
+            SyntaxKind::LiteralBooleanNode => Some(Self::Boolean(
+                LiteralBoolean::cast(syntax).expect("literal boolean to cast"),
+            )),
+            SyntaxKind::LiteralIntegerNode => Some(Self::Integer(
+                LiteralInteger::cast(syntax).expect("literal integer to cast"),
+            )),
+            SyntaxKind::LiteralFloatNode => Some(Self::Float(
+                LiteralFloat::cast(syntax).expect("literal float to cast"),
+            )),
+            SyntaxKind::LiteralStringNode => Some(Self::String(
+                LiteralString::cast(syntax).expect("literal string to cast"),
+            )),
+            SyntaxKind::LiteralArrayNode => Some(Self::Array(
+                LiteralArray::cast(syntax).expect("literal array to cast"),
+            )),
+            SyntaxKind::LiteralPairNode => Some(Self::Pair(
+                LiteralPair::cast(syntax).expect("literal pair to cast"),
+            )),
+            SyntaxKind::LiteralMapNode => Some(Self::Map(
+                LiteralMap::cast(syntax).expect("literal map to case"),
+            )),
+            SyntaxKind::LiteralObjectNode => Some(Self::Object(
+                LiteralObject::cast(syntax).expect("literal object to cast"),
+            )),
+            SyntaxKind::LiteralStructNode => Some(Self::Struct(
+                LiteralStruct::cast(syntax).expect("literal struct to cast"),
+            )),
+            SyntaxKind::LiteralNoneNode => Some(Self::None(
+                LiteralNone::cast(syntax).expect("literal none to cast"),
+            )),
+            SyntaxKind::LiteralHintsNode => Some(Self::Hints(
+                LiteralHints::cast(syntax).expect("literal hints to cast"),
+            )),
+            SyntaxKind::LiteralInputNode => Some(Self::Input(
+                LiteralInput::cast(syntax).expect("literal input to cast"),
+            )),
+            SyntaxKind::LiteralOutputNode => Some(Self::Output(
+                LiteralOutput::cast(syntax).expect("literal output to cast"),
+            )),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    /// Gets a reference to the underlying [`SyntaxNode`].
+    pub fn syntax(&self) -> &SyntaxNode {
         match self {
-            Self::Boolean(b) => &b.0,
-            Self::Integer(i) => &i.0,
-            Self::Float(f) => &f.0,
-            Self::String(s) => &s.0,
-            Self::Array(a) => &a.0,
-            Self::Pair(p) => &p.0,
-            Self::Map(m) => &m.0,
-            Self::Object(o) => &o.0,
-            Self::Struct(s) => &s.0,
-            Self::None(n) => &n.0,
-            Self::Hints(h) => &h.0,
-            Self::Input(i) => &i.0,
-            Self::Output(o) => &o.0,
+            Self::Boolean(element) => element.syntax(),
+            Self::Integer(element) => element.syntax(),
+            Self::Float(element) => element.syntax(),
+            Self::String(element) => element.syntax(),
+            Self::Array(element) => element.syntax(),
+            Self::Pair(element) => element.syntax(),
+            Self::Map(element) => element.syntax(),
+            Self::Object(element) => element.syntax(),
+            Self::Struct(element) => element.syntax(),
+            Self::None(element) => element.syntax(),
+            Self::Hints(element) => element.syntax(),
+            Self::Input(element) => element.syntax(),
+            Self::Output(element) => element.syntax(),
         }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralBoolean`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Boolean`], then a reference to the inner
+    ///   [`LiteralBoolean`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_boolean(&self) -> Option<&LiteralBoolean> {
+        match self {
+            Self::Boolean(boolean) => Some(boolean),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralBoolean`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Boolean`], then the inner
+    ///   [`LiteralBoolean`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_boolean(self) -> Option<LiteralBoolean> {
+        match self {
+            Self::Boolean(boolean) => Some(boolean),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal boolean.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal boolean.
+    pub fn unwrap_boolean(self) -> LiteralBoolean {
+        match self {
+            Self::Boolean(literal) => literal,
+            _ => panic!("not a literal boolean"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralInteger`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Integer`], then a reference to the inner
+    ///   [`LiteralInteger`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_integer(&self) -> Option<&LiteralInteger> {
+        match self {
+            Self::Integer(integer) => Some(integer),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralInteger`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Integer`], then the inner
+    ///   [`LiteralInteger`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_integer(self) -> Option<LiteralInteger> {
+        match self {
+            Self::Integer(integer) => Some(integer),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal integer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal integer.
+    pub fn unwrap_integer(self) -> LiteralInteger {
+        match self {
+            Self::Integer(literal) => literal,
+            _ => panic!("not a literal integer"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralFloat`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Float`], then a reference to the inner
+    ///   [`LiteralFloat`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_float(&self) -> Option<&LiteralFloat> {
+        match self {
+            Self::Float(float) => Some(float),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralFloat`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Float`], then the inner [`LiteralFloat`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_float(self) -> Option<LiteralFloat> {
+        match self {
+            Self::Float(float) => Some(float),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal float.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal float.
+    pub fn unwrap_float(self) -> LiteralFloat {
+        match self {
+            Self::Float(literal) => literal,
+            _ => panic!("not a literal float"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralString`].
+    ///
+    /// * If `self` is a [`LiteralExpr::String`], then a reference to the inner
+    ///   [`LiteralString`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_string(&self) -> Option<&LiteralString> {
+        match self {
+            Self::String(string) => Some(string),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralString`].
+    ///
+    /// * If `self` is a [`LiteralExpr::String`], then the inner
+    ///   [`LiteralString`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_string(self) -> Option<LiteralString> {
+        match self {
+            Self::String(string) => Some(string),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal string.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal string.
+    pub fn unwrap_string(self) -> LiteralString {
+        match self {
+            Self::String(literal) => literal,
+            _ => panic!("not a literal string"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralArray`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Array`], then a reference to the inner
+    ///   [`LiteralArray`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_array(&self) -> Option<&LiteralArray> {
+        match self {
+            Self::Array(array) => Some(array),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralArray`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Array`], then the inner [`LiteralArray`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_array(self) -> Option<LiteralArray> {
+        match self {
+            Self::Array(array) => Some(array),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal array.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal array.
+    pub fn unwrap_array(self) -> LiteralArray {
+        match self {
+            Self::Array(literal) => literal,
+            _ => panic!("not a literal array"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralPair`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Pair`], then a reference to the inner
+    ///   [`LiteralPair`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_pair(&self) -> Option<&LiteralPair> {
+        match self {
+            Self::Pair(pair) => Some(pair),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralPair`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Pair`], then the inner [`LiteralPair`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_pair(self) -> Option<LiteralPair> {
+        match self {
+            Self::Pair(pair) => Some(pair),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal pair.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal pair.
+    pub fn unwrap_pair(self) -> LiteralPair {
+        match self {
+            Self::Pair(literal) => literal,
+            _ => panic!("not a literal pair"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralMap`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Map`], then a reference to the inner
+    ///   [`LiteralMap`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_map(&self) -> Option<&LiteralMap> {
+        match self {
+            Self::Map(map) => Some(map),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralMap`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Map`], then the inner [`LiteralMap`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_map(self) -> Option<LiteralMap> {
+        match self {
+            Self::Map(map) => Some(map),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal map.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal map.
+    pub fn unwrap_map(self) -> LiteralMap {
+        match self {
+            Self::Map(literal) => literal,
+            _ => panic!("not a literal map"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralObject`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Object`], then a reference to the inner
+    ///   [`LiteralObject`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_object(&self) -> Option<&LiteralObject> {
+        match self {
+            Self::Object(object) => Some(object),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralObject`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Object`], then the inner
+    ///   [`LiteralObject`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_object(self) -> Option<LiteralObject> {
+        match self {
+            Self::Object(object) => Some(object),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal object.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal object.
+    pub fn unwrap_object(self) -> LiteralObject {
+        match self {
+            Self::Object(literal) => literal,
+            _ => panic!("not a literal object"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralStruct`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Struct`], then a reference to the inner
+    ///   [`LiteralStruct`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_struct(&self) -> Option<&LiteralStruct> {
+        match self {
+            Self::Struct(r#struct) => Some(r#struct),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralStruct`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Struct`], then the inner
+    ///   [`LiteralStruct`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_struct(self) -> Option<LiteralStruct> {
+        match self {
+            Self::Struct(r#struct) => Some(r#struct),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal struct.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal struct.
+    pub fn unwrap_struct(self) -> LiteralStruct {
+        match self {
+            Self::Struct(literal) => literal,
+            _ => panic!("not a literal struct"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralNone`].
+    ///
+    /// * If `self` is a [`LiteralExpr::None`], then a reference to the inner
+    ///   [`LiteralNone`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_none(&self) -> Option<&LiteralNone> {
+        match self {
+            Self::None(none) => Some(none),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralNone`].
+    ///
+    /// * If `self` is a [`LiteralExpr::None`], then the inner [`LiteralNone`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_none(self) -> Option<LiteralNone> {
+        match self {
+            Self::None(none) => Some(none),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal `None`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal `None`.
+    pub fn unwrap_none(self) -> LiteralNone {
+        match self {
+            Self::None(literal) => literal,
+            _ => panic!("not a literal `None`"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralHints`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Hints`], then a reference to the inner
+    ///   [`LiteralHints`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_hints(&self) -> Option<&LiteralHints> {
+        match self {
+            Self::Hints(hints) => Some(hints),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralHints`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Hints`], then the inner [`LiteralHints`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_hints(self) -> Option<LiteralHints> {
+        match self {
+            Self::Hints(hints) => Some(hints),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal `hints`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal `hints`.
+    pub fn unwrap_hints(self) -> LiteralHints {
+        match self {
+            Self::Hints(literal) => literal,
+            _ => panic!("not a literal `hints`"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralInput`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Input`], then a reference to the inner
+    ///   [`LiteralInput`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_input(&self) -> Option<&LiteralInput> {
+        match self {
+            Self::Input(input) => Some(input),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralInput`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Input`], then the inner [`LiteralInput`]
+    ///   is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_input(self) -> Option<LiteralInput> {
+        match self {
+            Self::Input(input) => Some(input),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal `input`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal `input`.
+    pub fn unwrap_input(self) -> LiteralInput {
+        match self {
+            Self::Input(literal) => literal,
+            _ => panic!("not a literal `input`"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`LiteralOutput`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Output`], then a reference to the inner
+    ///   [`LiteralOutput`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_output(&self) -> Option<&LiteralOutput> {
+        match self {
+            Self::Output(output) => Some(output),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`LiteralOutput`].
+    ///
+    /// * If `self` is a [`LiteralExpr::Output`], then the inner
+    ///   [`LiteralOutput`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_output(self) -> Option<LiteralOutput> {
+        match self {
+            Self::Output(output) => Some(output),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into a literal `output`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not a literal `output`.
+    pub fn unwrap_output(self) -> LiteralOutput {
+        match self {
+            Self::Output(literal) => literal,
+            _ => panic!("not a literal `output`"),
+        }
+    }
+
+    /// Finds the first child that can be cast to an [`Expr`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::child`] without requiring [`LiteralExpr`] to
+    /// implement the `AstNode` trait.
+    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
+        syntax.children().find_map(Self::cast)
+    }
+
+    /// Finds all children that can be cast to an [`Expr`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::children`] without requiring [`LiteralExpr`] to
+    /// implement the `AstNode` trait.
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = LiteralExpr> {
+        syntax.children().filter_map(Self::cast)
     }
 }
 
@@ -1990,7 +2252,7 @@ impl Placeholder {
 
     /// Gets the placeholder expression.
     pub fn expr(&self) -> Expr {
-        child(&self.0).expect("placeholder should have an expression")
+        Expr::child(&self.0).expect("placeholder should have an expression")
     }
 }
 
@@ -2033,6 +2295,73 @@ pub enum PlaceholderOption {
 }
 
 impl PlaceholderOption {
+    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
+    /// underlying members within the [`PlaceholderOption`].
+    pub fn can_cast(kind: SyntaxKind) -> bool
+    where
+        Self: Sized,
+    {
+        matches!(
+            kind,
+            SyntaxKind::PlaceholderSepOptionNode
+                | SyntaxKind::PlaceholderDefaultOptionNode
+                | SyntaxKind::PlaceholderTrueFalseOptionNode
+        )
+    }
+
+    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
+    /// within the [`PlaceholderOption`].
+    pub fn cast(syntax: SyntaxNode) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        match syntax.kind() {
+            SyntaxKind::PlaceholderSepOptionNode => Some(Self::Sep(
+                SepOption::cast(syntax).expect("separator option to cast"),
+            )),
+            SyntaxKind::PlaceholderDefaultOptionNode => Some(Self::Default(
+                DefaultOption::cast(syntax).expect("default option to cast"),
+            )),
+            SyntaxKind::PlaceholderTrueFalseOptionNode => Some(Self::TrueFalse(
+                TrueFalseOption::cast(syntax).expect("true false option to cast"),
+            )),
+            _ => None,
+        }
+    }
+
+    /// Gets a reference to the underlying [`SyntaxNode`].
+    pub fn syntax(&self) -> &SyntaxNode {
+        match self {
+            Self::Sep(element) => element.syntax(),
+            Self::Default(element) => element.syntax(),
+            Self::TrueFalse(element) => element.syntax(),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`SepOption`].
+    ///
+    /// * If `self` is a [`PlaceholderOption::Sep`], then a reference to the
+    ///   inner [`SepOption`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_sep(&self) -> Option<&SepOption> {
+        match self {
+            Self::Sep(sep) => Some(sep),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`SepOption`].
+    ///
+    /// * If `self` is a [`PlaceholderOption::Sep`], then the inner
+    ///   [`SepOption`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_sep(self) -> Option<SepOption> {
+        match self {
+            Self::Sep(sep) => Some(sep),
+            _ => None,
+        }
+    }
+
     /// Unwraps the option into a separator option.
     ///
     /// # Panics
@@ -2042,6 +2371,30 @@ impl PlaceholderOption {
         match self {
             Self::Sep(opt) => opt,
             _ => panic!("not a separator option"),
+        }
+    }
+
+    /// Attempts to get a reference to the inner [`DefaultOption`].
+    ///
+    /// * If `self` is a [`PlaceholderOption::Default`], then a reference to the
+    ///   inner [`DefaultOption`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_default(&self) -> Option<&DefaultOption> {
+        match self {
+            Self::Default(default) => Some(default),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`DefaultOption`].
+    ///
+    /// * If `self` is a [`PlaceholderOption::Default`], then the inner
+    ///   [`DefaultOption`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_default(self) -> Option<DefaultOption> {
+        match self {
+            Self::Default(default) => Some(default),
+            _ => None,
         }
     }
 
@@ -2057,6 +2410,30 @@ impl PlaceholderOption {
         }
     }
 
+    /// Attempts to get a reference to the inner [`TrueFalseOption`].
+    ///
+    /// * If `self` is a [`PlaceholderOption::TrueFalse`], then a reference to
+    ///   the inner [`TrueFalseOption`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_true_false(&self) -> Option<&TrueFalseOption> {
+        match self {
+            Self::TrueFalse(true_false) => Some(true_false),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`TrueFalseOption`].
+    ///
+    /// * If `self` is a [`PlaceholderOption::TrueFalse`], then the inner
+    ///   [`TrueFalseOption`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_true_false(self) -> Option<TrueFalseOption> {
+        match self {
+            Self::TrueFalse(true_false) => Some(true_false),
+            _ => None,
+        }
+    }
+
     /// Unwraps the option into a true/false option.
     ///
     /// # Panics
@@ -2067,6 +2444,24 @@ impl PlaceholderOption {
             Self::TrueFalse(opt) => opt,
             _ => panic!("not a true/false option"),
         }
+    }
+
+    /// Finds the first child that can be cast to an [`PlaceholderOption`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::child`] without requiring [`PlaceholderOption`]
+    /// to implement the `AstNode` trait.
+    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
+        syntax.children().find_map(Self::cast)
+    }
+
+    /// Finds all children that can be cast to an [`PlaceholderOption`].
+    ///
+    /// This is meant to emulate the functionality of
+    /// [`rowan::ast::support::children`] without requiring
+    /// [`PlaceholderOption`] to implement the `AstNode` trait.
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = PlaceholderOption> {
+        syntax.children().filter_map(Self::cast)
     }
 }
 
@@ -2259,8 +2654,8 @@ pub struct LiteralArray(SyntaxNode);
 
 impl LiteralArray {
     /// Gets the elements of the literal array.
-    pub fn elements(&self) -> AstChildren<Expr> {
-        children(&self.0)
+    pub fn elements(&self) -> impl Iterator<Item = Expr> {
+        Expr::children(&self.0)
     }
 }
 
@@ -2296,7 +2691,7 @@ pub struct LiteralPair(SyntaxNode);
 impl LiteralPair {
     /// Gets the first and second expressions in the literal pair.
     pub fn exprs(&self) -> (Expr, Expr) {
-        let mut children = self.0.children().filter_map(Expr::cast);
+        let mut children = Expr::children(&self.0);
         let first = children
             .next()
             .expect("pair should have a first expression");
@@ -2375,7 +2770,7 @@ pub struct LiteralMapItem(SyntaxNode);
 impl LiteralMapItem {
     /// Gets the key and the value of the item.
     pub fn key_value(&self) -> (Expr, Expr) {
-        let mut children = self.0.children().filter_map(Expr::cast);
+        let mut children = Expr::children(&self.0);
         let key = children.next().expect("expected a key expression");
         let value = children.next().expect("expected a value expression");
         (key, value)
@@ -2445,25 +2840,9 @@ impl AstNode for LiteralObject {
 
 /// Gets the name and value of a object or struct literal item.
 fn name_value(parent: &SyntaxNode) -> (Ident, Expr) {
-    let mut children = parent
-        .children_with_tokens()
-        .filter(|c| Ident::can_cast(c.kind()) || Expr::can_cast(c.kind()));
-    let key = Ident::cast(
-        children
-            .next()
-            .expect("expected a key token")
-            .into_token()
-            .expect("key should be a token"),
-    )
-    .expect("token should cast to ident");
-    let value = Expr::cast(
-        children
-            .next()
-            .expect("there should be a value expression")
-            .into_node()
-            .expect("value should be a node"),
-    )
-    .expect("node should cast to an expression");
+    let key = token_child::<Ident>(parent).expect("expected a key token");
+    let value = Expr::child(parent).expect("expected a value expression");
+
     (key, value)
 }
 
@@ -2657,7 +3036,7 @@ impl LiteralHintsItem {
 
     /// Gets the expression of the hints item.
     pub fn expr(&self) -> Expr {
-        child(&self.0).expect("expected an item expression")
+        Expr::child(&self.0).expect("expected an item expression")
     }
 }
 
@@ -2739,7 +3118,7 @@ impl LiteralInputItem {
 
     /// Gets the expression of the input item.
     pub fn expr(&self) -> Expr {
-        child(&self.0).expect("expected an item expression")
+        Expr::child(&self.0).expect("expected an item expression")
     }
 }
 
@@ -2821,7 +3200,7 @@ impl LiteralOutputItem {
 
     /// Gets the expression of the output item.
     pub fn expr(&self) -> Expr {
-        child(&self.0).expect("expected an item expression")
+        Expr::child(&self.0).expect("expected an item expression")
     }
 }
 
@@ -2893,7 +3272,7 @@ pub struct ParenthesizedExpr(SyntaxNode);
 impl ParenthesizedExpr {
     /// Gets the inner expression.
     pub fn inner(&self) -> Expr {
-        child(&self.0).expect("expected an inner expression")
+        Expr::child(&self.0).expect("expected an inner expression")
     }
 }
 
@@ -2933,7 +3312,7 @@ impl IfExpr {
     /// The second expression is the `true` expression.
     /// The third expression is the `false` expression.
     pub fn exprs(&self) -> (Expr, Expr, Expr) {
-        let mut children = self.0.children().filter_map(Expr::cast);
+        let mut children = Expr::children(&self.0);
         let conditional = children
             .next()
             .expect("should have a conditional expression");
@@ -2978,7 +3357,7 @@ macro_rules! prefix_expression {
         impl $name {
             /// Gets the operand expression.
             pub fn operand(&self) -> Expr {
-                child(&self.0).expect("expected an operand expression")
+                Expr::child(&self.0).expect("expected an operand expression")
             }
         }
 
@@ -3019,7 +3398,7 @@ macro_rules! infix_expression {
         impl $name {
             /// Gets the operands of the expression.
             pub fn operands(&self) -> (Expr, Expr) {
-                let mut children = self.0.children().filter_map(Expr::cast);
+                let mut children = Expr::children(&self.0);
                 let lhs = children.next().expect("expected a lhs expression");
                 let rhs = children.next().expect("expected a rhs expression");
                 (lhs, rhs)
@@ -3086,7 +3465,7 @@ impl CallExpr {
 
     /// Gets the call arguments.
     pub fn arguments(&self) -> impl Iterator<Item = Expr> {
-        children(&self.0)
+        Expr::children(&self.0)
     }
 }
 
@@ -3125,7 +3504,7 @@ impl IndexExpr {
     /// The first is the operand expression.
     /// The second is the index expression.
     pub fn operands(&self) -> (Expr, Expr) {
-        let mut children = self.0.children().filter_map(Expr::cast);
+        let mut children = Expr::children(&self.0);
         let operand = children.next().expect("expected an operand expression");
         let index = children.next().expect("expected an index expression");
         (operand, index)
@@ -3167,7 +3546,7 @@ impl AccessExpr {
     /// The first is the operand expression.
     /// The second is the member name.
     pub fn operands(&self) -> (Expr, Ident) {
-        let operand = child(&self.0).expect("expected an operand expression");
+        let operand = Expr::child(&self.0).expect("expected an operand expression");
         let name = Ident::cast(self.0.last_token().expect("expected a last token"))
             .expect("expected an ident token");
         (operand, name)

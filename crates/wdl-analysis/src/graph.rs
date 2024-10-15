@@ -27,7 +27,6 @@ use tracing::debug;
 use tracing::info;
 use url::Url;
 use uuid::Uuid;
-use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::SyntaxNode;
 use wdl_ast::Validator;

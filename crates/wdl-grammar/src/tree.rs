@@ -3,10 +3,15 @@
 pub mod dive;
 
 use std::borrow::Cow;
+use std::collections::VecDeque;
 use std::fmt;
+use std::iter;
 
+use itertools::Either;
+use rowan::Direction;
 use rowan::GreenNodeBuilder;
 use rowan::GreenNodeData;
+use strum::VariantArray;
 
 use super::Diagnostic;
 use super::grammar;
@@ -22,7 +27,7 @@ use crate::parser::Parser;
 /// Tokens are terminal and represent any span of the source.
 ///
 /// This enumeration is a union of all supported WDL tokens and nodes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, VariantArray)]
 #[repr(u16)]
 pub enum SyntaxKind {
     /// The token is unknown to WDL.
@@ -261,9 +266,9 @@ pub enum SyntaxKind {
     MetadataObjectNode,
     /// Represents a metadata array node.
     MetadataArrayNode,
-    /// Represents a literal integer node.  
+    /// Represents a literal integer node.
     LiteralIntegerNode,
-    /// Represents a literal float node.  
+    /// Represents a literal float node.
     LiteralFloatNode,
     /// Represents a literal boolean node.
     LiteralBooleanNode,
@@ -372,6 +377,23 @@ pub enum SyntaxKind {
     /// The exclusive maximum syntax kind value.
     MAX,
 }
+
+impl SyntaxKind {
+    /// Returns whether the token is a symbolic [`SyntaxKind`].
+    ///
+    /// Generally speaking, symbolic [`SyntaxKind`]s have special meanings
+    /// during parsing—they are not real elements of the grammar but rather an
+    /// implementation detail.
+    pub fn is_symbolic(&self) -> bool {
+        matches!(
+            self,
+            SyntaxKind::Abandoned | SyntaxKind::Unknown | SyntaxKind::Unparsed | SyntaxKind::MAX
+        )
+    }
+}
+
+/// Every [`SyntaxKind`] variant.
+pub static ALL_SYNTAX_KIND: &[SyntaxKind] = SyntaxKind::VARIANTS;
 
 impl From<SyntaxKind> for rowan::SyntaxKind {
     fn from(kind: SyntaxKind) -> Self {
@@ -552,6 +574,11 @@ impl SyntaxKind {
             SyntaxKind::MAX => unreachable!(),
         }
     }
+
+    /// Returns whether the [`SyntaxKind`] is trivia.
+    pub fn is_trivia(&self) -> bool {
+        matches!(self, SyntaxKind::Whitespace | SyntaxKind::Comment)
+    }
 }
 
 /// Represents the Workflow Definition Language (WDL).
@@ -688,5 +715,317 @@ impl fmt::Display for SyntaxTree {
 impl fmt::Debug for SyntaxTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+/// An extension trait for [`SyntaxNode`]s, [`SyntaxToken`]s, and
+/// [`SyntaxElement`]s.
+pub trait SyntaxExt {
+    /// Returns whether `self` matches the provided element.
+    fn matches(&self, other: &SyntaxElement) -> bool;
+
+    /// Gets the parent of the element.
+    ///
+    /// Returns `None` for the root node.
+    fn parent(&self) -> Option<SyntaxNode>;
+
+    /// Gets the child index of the element.
+    fn index(&self) -> usize;
+
+    /// Gets the siblings with tokens.
+    ///
+    /// **NOTE:** this is needed because Rowan does not encapsulate this
+    /// functionality in a trait. Once wrapped here, most of the functions
+    /// provided by this extension trait can just be provided, which simplifies
+    /// the code. Generally speaking, this should just defer to the underlying
+    /// `siblings_with_tokens` method for each type.
+    fn siblings_with_tokens(&self, direction: Direction) -> impl Iterator<Item = SyntaxElement>;
+
+    /// Returns all of the siblings _before_ the current element.
+    ///
+    /// The siblings are returned in the order they were parsed.
+    fn preceding_siblings(&self) -> impl Iterator<Item = SyntaxElement> {
+        let index = self.index();
+        self.parent()
+            .into_iter()
+            .flat_map(move |p| p.children_with_tokens().take(index))
+    }
+
+    /// Returns all of the siblings _after_ the current element.
+    ///
+    /// The siblings are returned in the order they were parsed.
+    fn succeeding_siblings(&self) -> impl Iterator<Item = SyntaxElement> {
+        self.siblings_with_tokens(Direction::Next)
+            // NOTE: this `skip` is necessary because `siblings_with_tokens` returns the current
+            // node.
+            .skip(1)
+    }
+
+    /// Gets all elements that are adjacent to a particular element (not
+    /// including the element itself). This means in both the forward and
+    /// reverse direction.
+    ///
+    /// The siblings are returned in the order they were parsed.
+    fn adjacent(&self) -> impl Iterator<Item = SyntaxElement> {
+        self.preceding_siblings().chain(self.succeeding_siblings())
+    }
+}
+
+impl SyntaxExt for SyntaxNode {
+    fn matches(&self, other: &SyntaxElement) -> bool {
+        other.as_node().map(|n| n == self).unwrap_or(false)
+    }
+
+    fn siblings_with_tokens(&self, direction: Direction) -> impl Iterator<Item = SyntaxElement> {
+        self.siblings_with_tokens(direction)
+    }
+
+    fn parent(&self) -> Option<SyntaxNode> {
+        self.parent()
+    }
+
+    fn index(&self) -> usize {
+        self.index()
+    }
+}
+
+impl SyntaxExt for SyntaxToken {
+    fn matches(&self, other: &SyntaxElement) -> bool {
+        other.as_token().map(|n| n == self).unwrap_or(false)
+    }
+
+    fn siblings_with_tokens(&self, direction: Direction) -> impl Iterator<Item = SyntaxElement> {
+        self.siblings_with_tokens(direction)
+    }
+
+    fn parent(&self) -> Option<SyntaxNode> {
+        self.parent()
+    }
+
+    fn index(&self) -> usize {
+        self.index()
+    }
+}
+
+impl SyntaxExt for SyntaxElement {
+    fn matches(&self, other: &SyntaxElement) -> bool {
+        self == other
+    }
+
+    fn siblings_with_tokens(&self, direction: Direction) -> impl Iterator<Item = SyntaxElement> {
+        match self {
+            SyntaxElement::Node(node) => Either::Left(node.siblings_with_tokens(direction)),
+            SyntaxElement::Token(token) => Either::Right(token.siblings_with_tokens(direction)),
+        }
+    }
+
+    fn parent(&self) -> Option<SyntaxNode> {
+        self.parent()
+    }
+
+    fn index(&self) -> usize {
+        self.index()
+    }
+}
+
+/// An extension trait for [`SyntaxToken`]s.
+pub trait SyntaxTokenExt {
+    /// Gets all of the substantial preceding trivia for an element.
+    fn preceding_trivia(&self) -> impl Iterator<Item = SyntaxToken>;
+
+    /// Gets all of the substantial succeeding trivia for an element.
+    fn succeeding_trivia(&self) -> impl Iterator<Item = SyntaxToken>;
+
+    /// Get any inline comment directly following an element on the
+    /// same line.
+    fn inline_comment(&self) -> Option<SyntaxToken>;
+}
+
+impl SyntaxTokenExt for SyntaxToken {
+    fn preceding_trivia(&self) -> impl Iterator<Item = SyntaxToken> {
+        let mut tokens = VecDeque::new();
+        let mut cur = self.prev_token();
+        while let Some(token) = cur {
+            cur = token.prev_token();
+            // Stop at first non-trivia
+            if !token.kind().is_trivia() {
+                break;
+            }
+            // Stop if a comment is not on its own line
+            if token.kind() == SyntaxKind::Comment {
+                if let Some(prev) = token.prev_token() {
+                    if prev.kind() == SyntaxKind::Whitespace {
+                        let has_newlines = prev.text().chars().any(|c| c == '\n');
+                        // If there are newlines in 'prev' then we know
+                        // that the comment is on its own line.
+                        // The comment may still be on its own line if
+                        // 'prev' does not have newlines and nothing comes
+                        // before 'prev'.
+                        if !has_newlines && prev.prev_token().is_some() {
+                            break;
+                        }
+                    } else {
+                        // There is something else on this line before the comment.
+                        break;
+                    }
+                }
+            }
+            // Filter out whitespace that is not substantial
+            match token.kind() {
+                SyntaxKind::Whitespace
+                    if token.text().chars().filter(|c| *c == '\n').count() > 1 =>
+                {
+                    tokens.push_front(token);
+                }
+                SyntaxKind::Comment => {
+                    tokens.push_front(token);
+                }
+                _ => {}
+            }
+        }
+        tokens.into_iter()
+    }
+
+    fn succeeding_trivia(&self) -> impl Iterator<Item = SyntaxToken> {
+        let mut next = self.next_token();
+        iter::from_fn(move || {
+            let cur = next.clone()?;
+            next = cur.next_token();
+            Some(cur)
+        })
+        .take_while(|t| {
+            // Stop at first non-trivia
+            t.kind().is_trivia()
+        })
+        .filter(|t| {
+            // Filter out whitespace that is not substantial
+            if t.kind() == SyntaxKind::Whitespace {
+                return t.text().chars().filter(|c| *c == '\n').count() > 1;
+            }
+            true
+        })
+    }
+
+    fn inline_comment(&self) -> Option<SyntaxToken> {
+        let mut next = self.next_token();
+        iter::from_fn(move || {
+            let cur = next.clone()?;
+            next = cur.next_token();
+            Some(cur)
+        })
+        .take_while(|t| {
+            // Stop at non-trivia
+            if !t.kind().is_trivia() {
+                return false;
+            }
+            // Stop on first whitespace containing a newline
+            if t.kind() == SyntaxKind::Whitespace {
+                return !t.text().chars().any(|c| c == '\n');
+            }
+            true
+        })
+        .find(|t| t.kind() == SyntaxKind::Comment)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::SyntaxTree;
+
+    #[test]
+    fn preceding_comments() {
+        let (tree, diagnostics) = SyntaxTree::parse(
+            "version 1.2
+
+# This comment should not be included
+task foo {} # This comment should not be included
+
+# Some
+# comments
+# are
+# long
+    
+# Others are short
+
+#     and, yet    another
+workflow foo {} # This should not be collected.
+
+# This comment should not be included either.",
+        );
+
+        assert!(diagnostics.is_empty());
+
+        let workflow = tree.root().last_child().unwrap();
+        assert_eq!(workflow.kind(), SyntaxKind::WorkflowDefinitionNode);
+        let token = workflow.first_token().unwrap();
+        let mut trivia = token.preceding_trivia();
+        assert_eq!(trivia.next().unwrap().text(), "\n\n");
+        assert_eq!(trivia.next().unwrap().text(), "# Some");
+        assert_eq!(trivia.next().unwrap().text(), "# comments");
+        assert_eq!(trivia.next().unwrap().text(), "# are");
+        assert_eq!(trivia.next().unwrap().text(), "# long");
+        assert_eq!(trivia.next().unwrap().text(), "\n    \n");
+        assert_eq!(trivia.next().unwrap().text(), "# Others are short");
+        assert_eq!(trivia.next().unwrap().text(), "\n\n");
+        assert_eq!(trivia.next().unwrap().text(), "#     and, yet    another");
+        assert!(trivia.next().is_none());
+    }
+
+    #[test]
+    fn succeeding_comments() {
+        let (tree, diagnostics) = SyntaxTree::parse(
+            "version 1.2
+
+# This comment should not be included
+task foo {}
+
+# This should not be collected.
+workflow foo {} # Here is a comment that should be collected.
+
+# This comment should be included too.",
+        );
+
+        assert!(diagnostics.is_empty());
+
+        let workflow = tree.root().last_child().unwrap();
+        assert_eq!(workflow.kind(), SyntaxKind::WorkflowDefinitionNode);
+        let token = workflow.last_token().unwrap();
+        let mut trivia = token.succeeding_trivia();
+        assert_eq!(
+            trivia.next().unwrap().text(),
+            "# Here is a comment that should be collected."
+        );
+        assert_eq!(trivia.next().unwrap().text(), "\n\n");
+        assert_eq!(
+            trivia.next().unwrap().text(),
+            "# This comment should be included too."
+        );
+        assert!(trivia.next().is_none());
+    }
+
+    #[test]
+    fn inline_comment() {
+        let (tree, diagnostics) = SyntaxTree::parse(
+            "version 1.2
+
+# This comment should not be included
+task foo {}
+
+# This should not be collected.
+workflow foo {} # Here is a comment that should be collected.
+
+# This comment should not be included either.",
+        );
+
+        assert!(diagnostics.is_empty());
+
+        let workflow = tree.root().last_child().unwrap();
+        assert_eq!(workflow.kind(), SyntaxKind::WorkflowDefinitionNode);
+        let comment = workflow.last_token().unwrap().inline_comment().unwrap();
+        assert_eq!(
+            comment.text(),
+            "# Here is a comment that should be collected."
+        );
     }
 }

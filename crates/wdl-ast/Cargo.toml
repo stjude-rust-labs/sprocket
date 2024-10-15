@@ -12,6 +12,8 @@ documentation = "https://docs.rs/wdl-ast"
 
 [dependencies]
 wdl-grammar = { path = "../wdl-grammar", version = "0.8.0" }
+macropol = "0.1.3"
+paste = "1.0.15"
 rowan = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
@@ -25,6 +27,9 @@ codespan-reporting = { workspace = true }
 
 [features]
 codespan = ["wdl-grammar/codespan"]
+
+[lints]
+workspace = true
 
 [[test]]
 name = "validation"

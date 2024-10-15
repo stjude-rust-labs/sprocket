@@ -11,8 +11,10 @@ repository = "https://github.com/stjude-rust-labs/wdl"
 documentation = "https://docs.rs/wdl-grammar"
 
 [dependencies]
+itertools = { workspace = true }
 logos = { workspace = true }
 rowan = { workspace = true }
+strum = { version = "0.26", features = ["derive"] }
 codespan-reporting = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -23,6 +25,9 @@ codespan-reporting = { workspace = true }
 
 [features]
 codespan = ["dep:codespan-reporting"]
+
+[lints]
+workspace = true
 
 [[test]]
 name = "parsing"

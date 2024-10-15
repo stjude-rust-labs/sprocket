@@ -1,3 +1,8 @@
+//! The `wdl` command line tool.
+//!
+//! If you're here and not a developer of the `wdl` family of crates, you're
+//! probably looking for
+//! [Sprocket](https://github.com/stjude-rust-labs/sprocket) instead.
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fs;
@@ -32,6 +37,9 @@ use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Rule;
 use wdl_analysis::rules;
+use wdl_ast::Node;
+use wdl_format::Formatter;
+use wdl_format::element::node::AstNodeFormatExt as _;
 
 /// Emits the given diagnostics to the output stream.
 ///
@@ -58,6 +66,7 @@ fn emit_diagnostics(path: &str, source: &str, diagnostics: &[Diagnostic]) -> Res
     Ok(())
 }
 
+/// Analyzes a path.
 async fn analyze<T: AsRef<dyn Rule>>(
     rules: impl IntoIterator<Item = T>,
     path: PathBuf,
@@ -157,6 +166,7 @@ pub struct ParseCommand {
 }
 
 impl ParseCommand {
+    /// Executes the `parse` subcommand.
     async fn exec(self) -> Result<()> {
         let source = read_source(&self.path)?;
         let (document, diagnostics) = Document::parse(&source);
@@ -232,11 +242,13 @@ pub struct CheckCommand {
     #[clap(value_name = "PATH")]
     pub path: PathBuf,
 
+    /// The analysis options.
     #[clap(flatten)]
     pub options: AnalysisOptions,
 }
 
 impl CheckCommand {
+    /// Executes the `check` subcommand.
     async fn exec(self) -> Result<()> {
         self.options.check_for_conflicts()?;
         analyze(self.options.into_rules(), self.path, false).await?;
@@ -254,6 +266,7 @@ pub struct LintCommand {
 }
 
 impl LintCommand {
+    /// Executes the `lint` subcommand.
     async fn exec(self) -> Result<()> {
         let source = read_source(&self.path)?;
         let (document, diagnostics) = Document::parse(&source);
@@ -291,6 +304,7 @@ pub struct AnalyzeCommand {
     #[clap(value_name = "PATH")]
     pub path: PathBuf,
 
+    /// The analysis options.
     #[clap(flatten)]
     pub options: AnalysisOptions,
 
@@ -300,10 +314,50 @@ pub struct AnalyzeCommand {
 }
 
 impl AnalyzeCommand {
+    /// Executes the `analyze` subcommand.
     async fn exec(self) -> Result<()> {
         self.options.check_for_conflicts()?;
         let results = analyze(self.options.into_rules(), self.path, self.lint).await?;
         println!("{:#?}", results);
+        Ok(())
+    }
+}
+
+/// Formats a WDL source file.
+#[derive(Args)]
+#[clap(disable_version_flag = true)]
+pub struct FormatCommand {
+    /// The path to the source WDL file.
+    #[clap(value_name = "PATH")]
+    pub path: PathBuf,
+}
+
+impl FormatCommand {
+    /// Executes the `format` subcommand.
+    async fn exec(self) -> Result<()> {
+        let source = read_source(&self.path)?;
+
+        let (document, diagnostics) = Document::parse(&source);
+        assert!(diagnostics.is_empty());
+
+        if !diagnostics.is_empty() {
+            emit_diagnostics(&self.path.to_string_lossy(), &source, &diagnostics)?;
+
+            bail!(
+                "aborting due to previous {count} diagnostic{s}",
+                count = diagnostics.len(),
+                s = if diagnostics.len() == 1 { "" } else { "s" }
+            );
+        }
+
+        let document = Node::Ast(document.ast().into_v1().unwrap()).into_format_element();
+        let formatter = Formatter::default();
+
+        match formatter.format(&document) {
+            Ok(formatted) => print!("{formatted}"),
+            Err(err) => bail!(err),
+        };
+
         Ok(())
     }
 }
@@ -325,19 +379,31 @@ impl AnalyzeCommand {
     arg_required_else_help = true
 )]
 struct App {
+    /// The subcommand to use.
     #[command(subcommand)]
     command: Command,
 
+    /// The verbosity flags.
     #[command(flatten)]
     verbose: Verbosity,
 }
 
 #[derive(Subcommand)]
 enum Command {
+    /// Parses a WDL file.
     Parse(ParseCommand),
+
+    /// Checks a WDL file.
     Check(CheckCommand),
+
+    /// Lints a WDL file.
     Lint(LintCommand),
+
+    /// Analyzes a WDL workspace.
     Analyze(AnalyzeCommand),
+
+    /// Formats a WDL file.
+    Format(FormatCommand),
 }
 
 #[tokio::main]
@@ -356,6 +422,7 @@ async fn main() -> Result<()> {
         Command::Check(cmd) => cmd.exec().await,
         Command::Lint(cmd) => cmd.exec().await,
         Command::Analyze(cmd) => cmd.exec().await,
+        Command::Format(cmd) => cmd.exec().await,
     } {
         eprintln!(
             "{error}: {e:?}",

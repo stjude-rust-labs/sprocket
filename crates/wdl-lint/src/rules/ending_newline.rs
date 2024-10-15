@@ -1,7 +1,6 @@
 //! A lint rule for newlines at the end of the document.
 
 use wdl_ast::Ast;
-use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;

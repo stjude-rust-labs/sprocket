@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* Introduce a guarantee that each CST element (node or token) has one and only one analogous AST element ([#133](https://github.com/stjude-rust-labs/wdl/pull/133))
+
 ### Fixed
 
 * Detect duplicate call inputs ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).

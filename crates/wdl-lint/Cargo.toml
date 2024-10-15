@@ -26,6 +26,9 @@ colored = { workspace = true }
 [features]
 codespan = ["wdl-ast/codespan"]
 
+[lints]
+workspace = true
+
 [[test]]
 name = "lints"
 required-features = ["codespan"]

@@ -39,6 +39,7 @@ struct Args {
     path: PathBuf,
 }
 
+/// Emits diagnostics.
 fn emit_diagnostics(path: &Path, source: &str, diagnostics: &[Diagnostic]) -> Result<()> {
     let file = SimpleFile::new(path.to_str().context("path should be UTF-8")?, source);
     let mut stream = StandardStream::stdout(if std::io::stdout().is_terminal() {
@@ -59,6 +60,7 @@ fn emit_diagnostics(path: &Path, source: &str, diagnostics: &[Diagnostic]) -> Re
     Ok(())
 }
 
+/// The main function.
 pub fn main() -> Result<()> {
     let args = Args::parse();
     let source = read_to_string(&args.path).with_context(|| {
@@ -112,6 +114,7 @@ pub fn main() -> Result<()> {
     Ok(())
 }
 
+/// Explores metadata.
 fn explore_metadata(metadata: &MetadataSection) {
     for item in metadata.items() {
         let value = item.value().syntax().text().to_string();
@@ -123,6 +126,7 @@ fn explore_metadata(metadata: &MetadataSection) {
     }
 }
 
+/// Explores an input.
 fn explore_input(input: &InputSection) {
     for decl in input.declarations() {
         println!(
@@ -133,6 +137,7 @@ fn explore_input(input: &InputSection) {
     }
 }
 
+/// Explores an output.
 fn explore_output(output: &OutputSection) {
     for decl in output.declarations() {
         println!(

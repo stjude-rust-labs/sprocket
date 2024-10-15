@@ -7,6 +7,9 @@ use url::Url;
 use wdl_grammar::lexer::v1::Logos;
 use wdl_grammar::lexer::v1::Token;
 
+use super::AliasKeyword;
+use super::AsKeyword;
+use super::ImportKeyword;
 use super::LiteralString;
 use crate::AstChildren;
 use crate::AstNode;
@@ -30,6 +33,11 @@ impl ImportStatement {
     /// Gets the URI of the import statement.
     pub fn uri(&self) -> LiteralString {
         child(&self.0).expect("import should have a URI")
+    }
+
+    /// Gets the `import` keyword of the import statement.
+    pub fn keyword(&self) -> ImportKeyword {
+        token(&self.0).expect("import should have a keyword")
     }
 
     /// Gets the explicit namespace of the import statement (i.e. the `as`
@@ -128,6 +136,16 @@ impl ImportAlias {
         let source = children.next().expect("expected a source identifier");
         let target = children.next().expect("expected a target identifier");
         (source, target)
+    }
+
+    /// Gets the `alias` keyword of the alias.
+    pub fn alias_keyword(&self) -> AliasKeyword {
+        token(&self.0).expect("alias should have an `alias` keyword")
+    }
+
+    /// Gets the `as` keyword of the alias.
+    pub fn as_keyword(&self) -> AsKeyword {
+        token(&self.0).expect("alias should have an `as` keyword")
     }
 }
 
