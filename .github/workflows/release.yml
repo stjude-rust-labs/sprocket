@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - sprocket-v*
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update Rust
+      run: rustup update stable && rustup default stable
+    - name: Update lock file
+      run: cargo update
+    - name: Publish to crates.io
+      run: cargo publish
+      env:
+        CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+    - name: Create a GH release
+      uses: softprops/action-gh-release@v2
+      with:
+        generate_release_notes: true
+        make_latest: true
+  build_artifacts:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - rust-target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - rust-target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross: true
+          - rust-target: x86_64-apple-darwin
+            os: macos-latest
+          - rust-target: aarch64-apple-darwin
+            os: macos-latest
+          - rust-target: x86_64-pc-windows-gnu
+            os: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update Rust
+      run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
+    - run: cargo build --release --target ${{ matrix.rust-target }}
+      if: ${{ ! matrix.cross }}
+    - run: cargo install cross
+      if: ${{ matrix.cross }}
+    - run: cross build --release --target ${{ matrix.rust-target }}
+      if: ${{ matrix.cross }}
+    - run: mv ./target/${{ matrix.rust-target }}/release/sprocket.exe ./target/${{ matrix.rust-target }}/release/sprocket-${{ matrix.rust-target }}
+      if: matrix.os == 'windows-latest'
+    - run: mv ./target/${{ matrix.rust-target }}/release/sprocket ./target/${{ matrix.rust-target }}/release/sprocket-${{ matrix.rust-target }}
+      if: matrix.os != 'windows-latest'
+    - name: Update the GH release with the new artifact
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ matrix.rust-target }}
+        
