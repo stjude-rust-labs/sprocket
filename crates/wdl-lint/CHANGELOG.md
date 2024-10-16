@@ -17,8 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Some `warning` diagnostics are now `note` diagnostics ([#187](https://github.com/stjude-rust-labs/wdl/pull/187))
 
 ### Added
+
 * Added comments to the trailing whitespace check of the `Whitespace` rule ([#177](https://github.com/stjude-rust-labs/wdl/pull/177))
 * Added a `MalformedLintDirective` rule ([#194](https://github.com/stjude-rust-labs/wdl/pull/194))
+
+### Fixed
+
+* Fixed inline comment detection edge case ([#219](https://github.com/stjude-rust-labs/wdl/pull/219))
 
 ## 0.6.0 - 09-16-2024
 

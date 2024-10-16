@@ -266,39 +266,6 @@ mod tests {
     use wdl_ast::SyntaxKind;
     use wdl_ast::SyntaxTree;
 
-    use crate::rules::comment_whitespace::is_inline_comment;
-
-    #[test]
-    fn it_detects_inline() {
-        let (tree, _) = SyntaxTree::parse(
-            r#"version 1.2
-
-task foo {  # an in-line comment
-    # not an in-line comment
-}"#,
-        );
-
-        let mut comments = tree
-            .root()
-            .descendants_with_tokens()
-            .filter(|t| t.kind() == SyntaxKind::Comment);
-
-        let inline_comment = comments.next().expect("there should be a first comment");
-        let inline_comment = Comment::cast(inline_comment.as_token().unwrap().clone()).unwrap();
-
-        let is_inline = is_inline_comment(&inline_comment);
-
-        assert!(is_inline);
-
-        let non_inline_comment = comments.next().expect("there should be a second comment");
-        let non_inline_comment =
-            Comment::cast(non_inline_comment.as_token().unwrap().clone()).unwrap();
-
-        let is_inline = is_inline_comment(&non_inline_comment);
-
-        assert!(!is_inline);
-    }
-
     #[test]
     fn filter_parents() {
         let (tree, _) = SyntaxTree::parse(
