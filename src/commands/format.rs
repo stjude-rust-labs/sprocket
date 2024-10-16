@@ -85,7 +85,13 @@ pub fn format(args: FormatArgs) -> Result<()> {
         );
     }
 
-    let document = Node::Ast(document.ast().into_v1().unwrap()).into_format_element();
+    let document = Node::Ast(
+        document
+            .ast()
+            .into_v1()
+            .ok_or_else(|| anyhow!("only WDL 1.x documents are currently supported"))?,
+    )
+    .into_format_element();
     let config = Builder::default()
         .indent(if args.with_tabs {
             Indent::Tabs(NonZeroUsize::new(1).unwrap())
