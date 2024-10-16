@@ -45,3 +45,4 @@ be out of sync with released packages.
 | `Whitespace`                     | Spacing, Style                | Ensures that a document does not contain undesired whitespace.                                    |
 | `UnknownRule`                    | Clarity                       | Ensures there are no unknown rules present in lint directives.                                    |
 | `MisplacedLintDirective`         | Clarity, Correctness          | Ensures there are no misplaced lint directives.                                                   |
+| `MalformedLintDirective`         | Clarity, Correctness          | Ensures there are no malformed lint directives.                                                   |

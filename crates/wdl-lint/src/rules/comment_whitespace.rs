@@ -18,6 +18,7 @@ use wdl_ast::Visitor;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::is_inline_comment;
 
 /// Set indentation string
 const INDENT: &str = "    ";
@@ -222,20 +223,6 @@ impl Visitor for CommentWhitespaceRule {
             );
         }
     }
-}
-
-/// Detect is a comment is in-line or not by looking for `\n` in the prior
-/// whitespace.
-fn is_inline_comment(token: &Comment) -> bool {
-    if let Some(prior) = token.syntax().prev_sibling_or_token() {
-        return prior.kind() != SyntaxKind::Whitespace
-            || !prior
-                .as_token()
-                .expect("should be a token")
-                .text()
-                .contains('\n');
-    }
-    false
 }
 
 /// Filter parent nodes, removing any that don't contribute indentation.
