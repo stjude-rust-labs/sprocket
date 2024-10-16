@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.9.1 - 10-16-2024
+
+### Fixed
+
+* Fixed a bug in `wdl-format` that panicked on certain optional types ([#224](https://github.com/stjude-rust-labs/wdl/pull/224))
+
 ## 0.9.0 - 10-16-2024
 
 ### Added

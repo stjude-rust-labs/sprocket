@@ -33,11 +33,9 @@ pub fn format_map_type(element: &FormatElement, stream: &mut TokenStream<PreToke
 
 /// Formats an [`ObjectType`](wdl_ast::v1::ObjectType).
 pub fn format_object_type(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
-    let mut children = element.children().expect("object type children");
-    let object_keyword = children.next().expect("object type object keyword");
-    assert!(object_keyword.element().kind() == SyntaxKind::ObjectTypeKeyword);
-    (&object_keyword).write(stream);
-    assert!(children.next().is_none());
+    for child in element.children().expect("object type children") {
+        (&child).write(stream);
+    }
 }
 
 /// Formats a [`PairType`](wdl_ast::v1::PairType).
@@ -52,10 +50,9 @@ pub fn format_pair_type(element: &FormatElement, stream: &mut TokenStream<PreTok
 
 /// Formats a [`TypeRef`](wdl_ast::v1::TypeRef).
 pub fn format_type_ref(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
-    let mut children = element.children().expect("type ref children");
-    let t = children.next().expect("type ref type");
-    (&t).write(stream);
-    assert!(children.next().is_none());
+    for child in element.children().expect("type ref children") {
+        (&child).write(stream);
+    }
 }
 
 /// Formats an [`UnboundDecl`](wdl_ast::v1::UnboundDecl).
