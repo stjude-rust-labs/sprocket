@@ -7,7 +7,7 @@ pub use builder::Builder;
 pub use indent::Indent;
 
 /// Configuration for formatting.
-#[derive(Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Config {
     /// The number of characters to indent.
     indent: Indent,

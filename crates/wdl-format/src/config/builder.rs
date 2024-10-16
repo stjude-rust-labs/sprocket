@@ -33,6 +33,11 @@ pub struct Builder {
 }
 
 impl Builder {
+    /// Creates a new builder with default values.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     /// Sets the indentation level.
     ///
     /// # Notes

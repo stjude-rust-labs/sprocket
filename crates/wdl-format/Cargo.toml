@@ -1,6 +1,7 @@
 [package]
 name = "wdl-format"
 version = "0.2.0"
+description = "Formatting of WDL (Workflow Description Language) documents"
 license.workspace = true
 edition.workspace = true
 authors.workspace = true
