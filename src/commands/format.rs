@@ -1,5 +1,4 @@
 //! Implementation of the format command.
-//! Implementation of the analyzer command.
 
 use std::fs;
 use std::io::Read;
