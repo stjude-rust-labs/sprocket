@@ -58,10 +58,16 @@ pub struct FormatArgs {
     pub report_mode: Mode,
 
     /// Use tabs instead of spaces for indentation.
+    #[arg(long)]
     pub with_tabs: bool,
 
     /// The number of spaces that represents an indentation level.
-    #[arg(value_name = "SIZE", default_value = "4", conflicts_with = "with_tabs")]
+    #[arg(
+        long,
+        value_name = "SIZE",
+        default_value = "4",
+        conflicts_with = "with_tabs"
+    )]
     pub indentation_size: usize,
 }
 
