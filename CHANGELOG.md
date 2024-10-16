@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.8.0 - 10-16-2024
+
 ### Added
 
 * Added the `format` subcommand to sprocket ([#24](https://github.com/stjude-rust-labs/sprocket/pull/24)).
 * Added the analysis rules to `sprocket explain` ([#24](https://github.com/stjude-rust-labs/sprocket/pull/24)).
+
+### Changed
+
+* Update to version 0.9.0 of `wdl` crate; this pulls in new lint rules,
+  formatting support, and completes static analysis for the `check` and `lint`
+  subcommands ([#24](https://github.com/stjude-rust-labs/sprocket/pull/24)).
 
 ## 0.7.0 - 09-16-2024
 
