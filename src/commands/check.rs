@@ -2,69 +2,56 @@
 
 use std::borrow::Cow;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::bail;
 use clap::Parser;
-use clap::ValueEnum;
 use codespan_reporting::files::SimpleFile;
-use codespan_reporting::term::Config;
-use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::emit;
-use codespan_reporting::term::termcolor::ColorChoice;
-use codespan_reporting::term::termcolor::StandardStream;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 use wdl::analysis::Analyzer;
+use wdl::analysis::rules;
 use wdl::ast::Diagnostic;
 use wdl::ast::Severity;
 use wdl::ast::SyntaxNode;
 use wdl::ast::Validator;
 use wdl::lint::LintVisitor;
 
+use super::Mode;
+use super::get_display_config;
+
 /// The delay in showing the progress bar.
 const PROGRESS_BAR_DELAY: Duration = Duration::from_secs(2);
-
-/// The diagnostic mode to use for reporting diagnostics.
-#[derive(Clone, Debug, Default, ValueEnum)]
-pub enum Mode {
-    /// Prints diagnostics as multiple lines.
-    #[default]
-    Full,
-
-    /// Prints diagnostics as one line.
-    OneLine,
-}
-
-impl std::fmt::Display for Mode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Mode::Full => write!(f, "full"),
-            Mode::OneLine => write!(f, "one-line"),
-        }
-    }
-}
-
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Common {
     /// The files or directories to check.
     #[arg(required = true)]
-    paths: Vec<PathBuf>,
+    pub paths: Vec<PathBuf>,
 
     /// Lint rules to except from running.
     #[arg(short, long, value_name = "RULE")]
-    except: Vec<String>,
+    pub except: Vec<String>,
+
+    /// Causes the command to fail if warnings were reported.
+    #[clap(long)]
+    pub deny_warnings: bool,
+
+    /// Causes the command to fail if notes were reported.
+    #[clap(long)]
+    pub deny_notes: bool,
 
     /// Disables color output.
     #[arg(long)]
-    no_color: bool,
+    pub no_color: bool,
 
     /// The report mode.
     #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
-    report_mode: Mode,
+    pub report_mode: Mode,
 }
 
 /// Arguments for the `check` subcommand.
@@ -73,19 +60,11 @@ pub struct Common {
 pub struct CheckArgs {
     /// The common command line arguments.
     #[command(flatten)]
-    common: Common,
+    pub common: Common,
 
     /// Perform lint checks in addition to checking for errors.
     #[arg(short, long)]
-    lint: bool,
-
-    /// Causes the command to fail if warnings were reported.
-    #[clap(long)]
-    deny_warnings: bool,
-
-    /// Causes the command to fail if notes were reported.
-    #[clap(long)]
-    deny_notes: bool,
+    pub lint: bool,
 }
 
 /// Arguments for the `lint` subcommand.
@@ -94,15 +73,7 @@ pub struct CheckArgs {
 pub struct LintArgs {
     /// The command command line arguments.
     #[command(flatten)]
-    common: Common,
-
-    /// Causes the command to fail if warnings were reported.
-    #[clap(long)]
-    deny_warnings: bool,
-
-    /// Causes the command to fail if notes were reported.
-    #[clap(long)]
-    deny_notes: bool,
+    pub common: Common,
 }
 
 /// Checks WDL source files for diagnostics.
@@ -111,11 +82,15 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         bail!("cannot specify `--except` without `--lint`");
     }
 
-    let (config, mut stream) = get_display_config(&args.common);
-
+    let (config, mut stream) = get_display_config(args.common.report_mode, args.common.no_color);
+    let exceptions = Arc::new(args.common.except);
+    let excepts = exceptions.clone();
+    let rules = rules()
+        .into_iter()
+        .filter(|r| !excepts.iter().any(|e| e == r.id()));
     let lint = args.lint;
-    let except_rules = args.common.except;
     let analyzer = Analyzer::new_with_validator(
+        rules,
         move |bar: ProgressBar, kind, completed, total| async move {
             if bar.elapsed() < PROGRESS_BAR_DELAY {
                 return;
@@ -133,7 +108,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
 
             if lint {
                 let visitor = LintVisitor::new(wdl::lint::rules().into_iter().filter_map(|rule| {
-                    if except_rules.contains(&rule.id().to_string()) {
+                    if exceptions.iter().any(|e| e == rule.id()) {
                         None
                     } else {
                         Some(rule)
@@ -209,12 +184,12 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             "aborting due to previous {error_count} error{s}",
             s = if error_count == 1 { "" } else { "s" }
         );
-    } else if args.deny_warnings && warning_count > 0 {
+    } else if args.common.deny_warnings && warning_count > 0 {
         bail!(
             "aborting due to previous {warning_count} warning{s} (`--deny-warnings` was specified)",
             s = if warning_count == 1 { "" } else { "s" }
         );
-    } else if args.deny_notes && note_count > 0 {
+    } else if args.common.deny_notes && note_count > 0 {
         bail!(
             "aborting due to previous {note_count} note{s} (`--deny-notes` was specified)",
             s = if note_count == 1 { "" } else { "s" }
@@ -229,31 +204,6 @@ pub async fn lint(args: LintArgs) -> anyhow::Result<()> {
     check(CheckArgs {
         common: args.common,
         lint: true,
-        deny_warnings: args.deny_warnings,
-        deny_notes: args.deny_notes,
     })
     .await
-}
-
-/// Gets the display config to use for reporting diagnostics.
-fn get_display_config(args: &Common) -> (Config, StandardStream) {
-    let display_style = match args.report_mode {
-        Mode::Full => DisplayStyle::Rich,
-        Mode::OneLine => DisplayStyle::Short,
-    };
-
-    let config = Config {
-        display_style,
-        ..Default::default()
-    };
-
-    let color_choice = if args.no_color {
-        ColorChoice::Never
-    } else {
-        ColorChoice::Always
-    };
-
-    let writer = StandardStream::stderr(color_choice);
-
-    (config, writer)
 }

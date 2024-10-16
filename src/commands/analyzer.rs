@@ -10,11 +10,11 @@ use wdl::lsp::ServerOptions;
 pub struct AnalyzerArgs {
     /// Use stdin and stdout for the RPC transport.
     #[clap(long, required = true)]
-    stdio: bool,
+    pub stdio: bool,
 
     /// Whether or not to enable all lint rules.
     #[clap(long)]
-    lint: bool,
+    pub lint: bool,
 }
 
 /// Runs the `analyzer` command.
