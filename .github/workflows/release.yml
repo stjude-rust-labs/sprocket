@@ -46,7 +46,7 @@ jobs:
       run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
     - run: cargo build --release --target ${{ matrix.rust-target }}
       if: ${{ ! matrix.cross }}
-    - run: sudo apt-get install -y libssl-dev:arm64
+    - run: sudo dpkg --add-architecture arm64 && sudo apt-get update && sudo apt-get install -y libssl-dev:arm64
       if: ${{ matrix.cross }}
     - run: cargo install cross
       if: ${{ matrix.cross }}
