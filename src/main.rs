@@ -17,7 +17,7 @@ git_testament!(TESTAMENT);
 #[derive(Subcommand)]
 #[allow(clippy::large_enum_variant)]
 enum Commands {
-    /// Checks a WDL file (or a directory containing WDL files) and reports
+    /// Checks a WDL document (or a directory containing WDL files) and reports
     /// diagnostics.
     Check(commands::check::CheckArgs),
 
@@ -29,6 +29,10 @@ enum Commands {
 
     /// Runs the analyzer LSP server.
     Analyzer(commands::analyzer::AnalyzerArgs),
+
+    /// Formats a WDL document.
+    #[clap(alias = "fmt")]
+    Format(commands::format::FormatArgs),
 }
 
 #[derive(Parser)]
@@ -58,6 +62,7 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Lint(args) => commands::check::lint(args).await,
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
+        Commands::Format(args) => commands::format::format(args),
     }
 }
 
