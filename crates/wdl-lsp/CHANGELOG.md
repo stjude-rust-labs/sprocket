@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.4.0 - 10-16-2024
+
 ### Fixed
 
 * Added "fixes" to LSP diagnostics ([#214](https://github.com/stjude-rust-labs/wdl/pull/214)).

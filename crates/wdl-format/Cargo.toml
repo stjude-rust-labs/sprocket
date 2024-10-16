@@ -1,6 +1,6 @@
 [package]
 name = "wdl-format"
-version = "0.1.0"
+version = "0.2.0"
 license.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-wdl-ast = { path = "../wdl-ast", version = "0.7.1", features = ["codespan"] }
+wdl-ast = { path = "../wdl-ast", version = "0.8.0", features = ["codespan"] }
 nonempty.workspace = true
 
 [dev-dependencies]

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.9.0 - 10-16-2024
+
 ### Added
 
 * `SyntaxExt` (for better handling of siblings) and `SyntaxTokenExt` (for handling of associated trivia) traits ([#133](https://github.com/stjude-rust-labs/wdl/pull/133))

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.7.0 - 10-16-2024
+
 ### Changed
 
 * Change how some rules report whitespace spans ([#206](https://github.com/stjude-rust-labs/wdl/pull/206))
