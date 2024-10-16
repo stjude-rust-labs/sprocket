@@ -31,33 +31,37 @@ jobs:
         include:
           - rust-target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
+            extension: tar.gz
           - rust-target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             cross: true
+            extension: tar.gz
           - rust-target: x86_64-apple-darwin
             os: macos-latest
+            extension: tar.gz
           - rust-target: aarch64-apple-darwin
             os: macos-latest
+            extension: tar.gz
           - rust-target: x86_64-pc-windows-gnu
             os: windows-latest
+            extension: zip
     steps:
     - uses: actions/checkout@v4
     - name: Update Rust
       run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
     - run: cargo build --release --target ${{ matrix.rust-target }}
       if: ${{ ! matrix.cross }}
-    - run: sudo apt-get install -y libssl-dev:arm64
+    - run: sudo dpkg --add-architecture arm64 && sudo apt-get update && sudo apt-get install -y libssl-dev:arm64
       if: ${{ matrix.cross }}
     - run: cargo install cross
       if: ${{ matrix.cross }}
     - run: cross build --release --target ${{ matrix.rust-target }}
       if: ${{ matrix.cross }}
-    - run: mv ./target/${{ matrix.rust-target }}/release/sprocket.exe ./target/${{ matrix.rust-target }}/release/sprocket-${{ matrix.rust-target }}
-      if: matrix.os == 'windows-latest'
-    - run: mv ./target/${{ matrix.rust-target }}/release/sprocket ./target/${{ matrix.rust-target }}/release/sprocket-${{ matrix.rust-target }}
+    - run: tar -czvf sprocket-${{ matrix.rust-target }}.tar.gz -C ./target/${{ matrix.rust-target }}/release sprocket
       if: matrix.os != 'windows-latest'
+    - run: cd ./target/${{ matrix.rust-target }}/release && 7z a sprocket-${{ matrix.rust-target }}.zip sprocket.exe
+      if: matrix.os == 'windows-latest'
     - name: Update the GH release with the new artifact
       uses: softprops/action-gh-release@v2
       with:
-        files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ matrix.rust-target }}
-        
+        files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ matrix.rust-target }}.${{ matrix.extension }}
