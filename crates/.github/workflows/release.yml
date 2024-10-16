@@ -14,7 +14,7 @@ jobs:
         run: rustup update stable && rustup default stable
       - run: cargo run --release --bin ci -- publish
         env:
-          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
