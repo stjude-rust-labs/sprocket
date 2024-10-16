@@ -51,15 +51,15 @@ jobs:
       run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
     - run: cargo build --release --target ${{ matrix.rust-target }}
       if: ${{ ! matrix.cross }}
-    - run: sudo dpkg --add-architecture arm64 && sudo apt-get update && sudo apt-get install -y libssl-dev:arm64
-      if: ${{ matrix.cross }}
     - run: cargo install cross
       if: ${{ matrix.cross }}
     - run: cross build --release --target ${{ matrix.rust-target }}
       if: ${{ matrix.cross }}
-    - run: tar -czvf sprocket-${{ matrix.rust-target }}.tar.gz -C ./target/${{ matrix.rust-target }}/release sprocket
+    - run: tar -czvf sprocket-${{ matrix.rust-target }}.tar.gz sprocket
+      working-directory: ./target/${{ matrix.rust-target }}/release
       if: matrix.os != 'windows-latest'
-    - run: cd ./target/${{ matrix.rust-target }}/release && 7z a sprocket-${{ matrix.rust-target }}.zip sprocket.exe
+    - run: 7z a sprocket-${{ matrix.rust-target }}.zip sprocket.exe
+      working-directory: ./target/${{ matrix.rust-target }}/release
       if: matrix.os == 'windows-latest'
     - name: Update the GH release with the new artifact
       uses: softprops/action-gh-release@v2
