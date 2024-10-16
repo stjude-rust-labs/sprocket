@@ -12,7 +12,7 @@ pub mod explain;
 pub mod format;
 
 /// The diagnostic mode to use for reporting diagnostics.
-#[derive(Clone, Debug, Default, ValueEnum)]
+#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
 pub enum Mode {
     /// Prints diagnostics as multiple lines.
     #[default]
