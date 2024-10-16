@@ -36,7 +36,7 @@ const DEFAULT_TAB_INDENT_SIZE: usize = 1;
 /// The default number of spaces to use for indentation.
 const DEFAULT_SPACE_IDENT_SIZE: usize = 4;
 
-/// Arguments for the `analyzer` subcommand.
+/// Arguments for the `format` subcommand.
 #[derive(Parser, Debug)]
 #[command(
     author,
