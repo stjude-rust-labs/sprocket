@@ -17,8 +17,8 @@ git_testament!(TESTAMENT);
 #[derive(Subcommand)]
 #[allow(clippy::large_enum_variant)]
 enum Commands {
-    /// Checks a WDL document (or a directory containing WDL documents) and reports
-    /// diagnostics.
+    /// Checks a WDL document (or a directory containing WDL documents) and
+    /// reports diagnostics.
     Check(commands::check::CheckArgs),
 
     /// Lints Workflow Description Language files.
