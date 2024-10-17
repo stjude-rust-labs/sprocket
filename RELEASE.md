@@ -19,7 +19,7 @@
     ```
   * [ ] Create git tag:
     ```
-    git tag sprocket-v0.1.0
+    git tag v0.1.0
     ```
   * [ ] Push release: `git push && git push --tags`.
   * [ ] Go to the Releases page in Github, create a Release for this tag, and

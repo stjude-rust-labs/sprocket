@@ -32,7 +32,7 @@ Rule specific checks:
 - [ ] You have added a test that covers every possible setting for the rule 
       within the file where the rule is implemented.
 
-END SECTIOn -->
+END SECTION -->
 
 <!-- START SECTION: "any other pull request"
 

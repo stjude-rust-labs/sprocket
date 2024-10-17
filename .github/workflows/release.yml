@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - sprocket-v*
+      - v*
 
 jobs:
   release:
@@ -55,10 +55,10 @@ jobs:
       if: ${{ matrix.cross }}
     - run: cross build --release --target ${{ matrix.rust-target }}
       if: ${{ matrix.cross }}
-    - run: tar -czvf sprocket-${{ matrix.rust-target }}.tar.gz sprocket
+    - run: tar -czvf sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.tar.gz sprocket
       working-directory: ./target/${{ matrix.rust-target }}/release
       if: matrix.os != 'windows-latest'
-    - run: 7z a sprocket-${{ matrix.rust-target }}.zip sprocket.exe
+    - run: 7z a sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.zip sprocket.exe
       working-directory: ./target/${{ matrix.rust-target }}/release
       if: matrix.os == 'windows-latest'
     - name: Update the GH release with the new artifact
