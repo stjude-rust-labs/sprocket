@@ -16,7 +16,7 @@
   </p>
 
   <p align="center">
-    A bioinformatics workflow orchestration engine and package manager built on top of the Workflow Description Language (WDL).
+    A bioinformatics workflow engine built on top of the Workflow Description Language (WDL).
     <br />
     <br />
     <a href="https://github.com/stjude-rust-labs/sprocket/issues/new?assignees=&title=Descriptive%20Title&labels=enhancement">Request Feature</a>
@@ -50,7 +50,6 @@
 - Build on an **open, domain-tailored standard** to ensure the toolset remains
   singularly focused on unencumbered innovation within bioinformatics.
 - Retain a **simple and accessible user experience** when complexity isn't warranted.
-  warranted.
 
 ## 📚 Getting Started
 

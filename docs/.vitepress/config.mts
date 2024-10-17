@@ -3,8 +3,7 @@ import { defineConfig } from "vitepress";
 export default defineConfig({
   title: "Sprocket",
   description:
-    "A bioinformatics workflow orchestration engine and package manager built on top of the Workflow Description Language (WDL)",
-  base: "/sprocket/",
+    "A bioinformatics workflow engine built on top of the Workflow Description Language (WDL)",
   themeConfig: {
     logo: {
       light: "/sprocket-logo.png",
