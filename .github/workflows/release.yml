@@ -64,4 +64,4 @@ jobs:
     - name: Update the GH release with the new artifact
       uses: softprops/action-gh-release@v2
       with:
-        files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ matrix.rust-target }}.${{ matrix.extension }}
+        files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.${{ matrix.extension }}
