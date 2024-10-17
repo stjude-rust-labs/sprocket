@@ -49,7 +49,7 @@ impl TokenSet {
     }
 
     /// Iterates the raw tokens in the set.
-    pub fn iter(&self) -> impl Iterator<Item = u8> {
+    pub fn iter(&self) -> impl Iterator<Item = u8> + use<> {
         let mut bits = self.0;
         std::iter::from_fn(move || {
             if bits == 0 {

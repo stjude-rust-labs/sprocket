@@ -39,7 +39,7 @@ impl TaskDefinition {
     }
 
     /// Gets the items of the task.
-    pub fn items(&self) -> impl Iterator<Item = TaskItem> {
+    pub fn items(&self) -> impl Iterator<Item = TaskItem> + use<> {
         TaskItem::children(&self.0)
     }
 
@@ -444,7 +444,7 @@ impl TaskItem {
     /// This is meant to emulate the functionality of
     /// [`rowan::ast::support::children`] without requiring [`TaskItem`] to
     /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = TaskItem> {
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = TaskItem> + use<> {
         syntax.children().filter_map(Self::cast)
     }
 }
@@ -635,7 +635,7 @@ impl SectionParent {
     /// This is meant to emulate the functionality of
     /// [`rowan::ast::support::children`] without requiring [`SectionParent`] to
     /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = SectionParent> {
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = SectionParent> + use<> {
         syntax.children().filter_map(Self::cast)
     }
 }
@@ -646,7 +646,7 @@ pub struct InputSection(pub(crate) SyntaxNode);
 
 impl InputSection {
     /// Gets the declarations of the input section.
-    pub fn declarations(&self) -> impl Iterator<Item = Decl> {
+    pub fn declarations(&self) -> impl Iterator<Item = Decl> + use<> {
         Decl::children(&self.0)
     }
 
@@ -735,7 +735,7 @@ impl CommandSection {
     }
 
     /// Gets the parts of the command.
-    pub fn parts(&self) -> impl Iterator<Item = CommandPart> {
+    pub fn parts(&self) -> impl Iterator<Item = CommandPart> + use<> {
         self.0.children_with_tokens().filter_map(CommandPart::cast)
     }
 

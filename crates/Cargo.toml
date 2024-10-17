@@ -5,6 +5,7 @@ members = [
     "wdl",
     "wdl-analysis",
     "wdl-ast",
+    "wdl-engine",
     "wdl-format",
     "wdl-grammar",
     "wdl-lint",
@@ -18,7 +19,7 @@ edition = "2021"
 authors = ["The Rust WDL project developers"]
 homepage = "https://github.com/stjude-rust-labs/wdl"
 repository = "https://github.com/stjude-rust-labs/wdl"
-rust-version = "1.80.0"
+rust-version = "1.82.0"
 
 [workspace.dependencies]
 anyhow = "1.0.86"
@@ -39,6 +40,7 @@ itertools = "0.13.0"
 line-index = "0.1.1"
 logos = "0.14.0"
 nonempty = "0.10.0"
+ordered-float = "4.3.0"
 parking_lot = "0.12.3"
 path-clean = "1.0.1"
 petgraph = "0.6.5"
@@ -49,6 +51,7 @@ rowan = "0.15.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.120"
 serde_with = "3.8.1"
+string-interner = "0.17.0"
 tempfile = "3.10.1"
 tokio = { version = "1.38.0", features = ["full"] }
 toml = "0.8.14"

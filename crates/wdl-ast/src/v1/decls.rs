@@ -156,9 +156,9 @@ impl PairType {
     /// Gets the first and second types of the `Pair`.
     pub fn types(&self) -> (Type, Type) {
         let mut children = self.0.children().filter_map(Type::cast);
-        let first = children.next().expect("pair should have a first type");
-        let second = children.next().expect("pair should have a second type");
-        (first, second)
+        let left = children.next().expect("pair should have a left type");
+        let right = children.next().expect("pair should have a right type");
+        (left, right)
     }
 
     /// Determines if the type is optional.
@@ -203,10 +203,10 @@ impl AstNode for PairType {
 
 impl fmt::Display for PairType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (first, second) = self.types();
+        let (left, right) = self.types();
         write!(
             f,
-            "Pair[{first}, {second}]{o}",
+            "Pair[{left}, {right}]{o}",
             o = if self.is_optional() { "?" } else { "" }
         )
     }
@@ -740,7 +740,7 @@ impl Type {
     /// This is meant to emulate the functionality of
     /// [`rowan::ast::support::children`] without requiring [`Type`] to
     /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = Type> {
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = Type> + use<> {
         syntax.children().filter_map(Self::cast)
     }
 }
@@ -1001,7 +1001,7 @@ impl Decl {
     /// This is meant to emulate the functionality of
     /// [`rowan::ast::support::children`] without requiring [`Decl`] to
     /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = Decl> {
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = Decl> + use<> {
         syntax.children().filter_map(Self::cast)
     }
 }

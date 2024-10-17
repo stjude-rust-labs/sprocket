@@ -33,7 +33,7 @@ impl WorkflowDefinition {
     }
 
     /// Gets the items of the workflow.
-    pub fn items(&self) -> impl Iterator<Item = WorkflowItem> {
+    pub fn items(&self) -> impl Iterator<Item = WorkflowItem> + use<> {
         WorkflowItem::children(&self.0)
     }
 
@@ -48,7 +48,7 @@ impl WorkflowDefinition {
     }
 
     /// Gets the statements of the workflow.
-    pub fn statements(&self) -> impl Iterator<Item = WorkflowStatement> {
+    pub fn statements(&self) -> impl Iterator<Item = WorkflowStatement> + use<> {
         WorkflowStatement::children(&self.0)
     }
 
@@ -430,7 +430,7 @@ impl WorkflowItem {
     /// This is meant to emulate the functionality of
     /// [`rowan::ast::support::children`] without requiring [`WorkflowItem`] to
     /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = WorkflowItem> {
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = WorkflowItem> + use<> {
         syntax.children().filter_map(Self::cast)
     }
 }
@@ -659,7 +659,7 @@ impl WorkflowStatement {
     /// This is meant to emulate the functionality of
     /// [`rowan::ast::support::children`] without requiring
     /// [`WorkflowStatement`] to implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = WorkflowStatement> {
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = WorkflowStatement> + use<> {
         syntax.children().filter_map(Self::cast)
     }
 }
@@ -675,7 +675,7 @@ impl ConditionalStatement {
     }
 
     /// Gets the statements of the conditional body.
-    pub fn statements(&self) -> impl Iterator<Item = WorkflowStatement> {
+    pub fn statements(&self) -> impl Iterator<Item = WorkflowStatement> + use<> {
         WorkflowStatement::children(&self.0)
     }
 }
@@ -721,7 +721,7 @@ impl ScatterStatement {
     }
 
     /// Gets the statements of the scatter body.
-    pub fn statements(&self) -> impl Iterator<Item = WorkflowStatement> {
+    pub fn statements(&self) -> impl Iterator<Item = WorkflowStatement> + use<> {
         WorkflowStatement::children(&self.0)
     }
 }
@@ -811,7 +811,7 @@ impl CallTarget {
     ///
     /// The last name in the iteration is considered to be the task or workflow
     /// being called.
-    pub fn names(&self) -> impl Iterator<Item = Ident> {
+    pub fn names(&self) -> impl Iterator<Item = Ident> + use<> {
         self.0
             .children_with_tokens()
             .filter_map(SyntaxElement::into_token)

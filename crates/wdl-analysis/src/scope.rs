@@ -239,7 +239,7 @@ impl<'a> ScopeRef<'a> {
     }
 
     /// Gets all of the names available at this scope.
-    pub fn names(&self) -> impl Iterator<Item = (&str, (Span, Type))> {
+    pub fn names(&self) -> impl Iterator<Item = (&str, (Span, Type))> + use<'_> {
         self.scopes[self.scope.0]
             .names
             .iter()

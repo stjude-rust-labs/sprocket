@@ -1,0 +1,25 @@
+[package]
+name = "wdl-engine"
+version = "0.0.0"
+rust-version.workspace = true
+license.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Execution engine for Workflow Description Language (WDL) documents."
+documentation = "https://docs.rs/wdl-engine"
+
+[dependencies]
+wdl-ast = { version = "0.8.0", path = "../wdl-ast" }
+wdl-analysis = { version = "0.4.0", path = "../wdl-analysis" }
+id-arena = { workspace = true }
+ordered-float = { workspace = true }
+string-interner = { workspace = true }
+indexmap = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+
+[lints]
+workspace = true

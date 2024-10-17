@@ -63,8 +63,7 @@ impl Constraint for SizeableConstraint {
             match types.type_definition(ty.definition()) {
                 CompoundTypeDef::Array(ty) => type_is_sizable(types, ty.element_type()),
                 CompoundTypeDef::Pair(ty) => {
-                    type_is_sizable(types, ty.first_type())
-                        | type_is_sizable(types, ty.second_type())
+                    type_is_sizable(types, ty.left_type()) | type_is_sizable(types, ty.right_type())
                 }
                 CompoundTypeDef::Map(ty) => {
                     type_is_sizable(types, ty.key_type()) | type_is_sizable(types, ty.value_type())

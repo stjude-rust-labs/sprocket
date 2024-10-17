@@ -224,10 +224,10 @@ where
     /// If a type could not created, an error with the relevant diagnostic is
     /// returned.
     pub fn convert_pair_type(&mut self, ty: &v1::PairType) -> Result<PairType, Diagnostic> {
-        let (first_type, second_type) = ty.types();
+        let (left_type, right_type) = ty.types();
         Ok(PairType::new(
-            self.convert_type(&first_type)?,
-            self.convert_type(&second_type)?,
+            self.convert_type(&left_type)?,
+            self.convert_type(&right_type)?,
         ))
     }
 
@@ -568,10 +568,10 @@ where
 
     /// Evaluates the type of a literal pair expression.
     fn evaluate_literal_pair(&mut self, scope: &ScopeRef<'_>, expr: &LiteralPair) -> Type {
-        let (first, second) = expr.exprs();
-        let first = self.evaluate_expr(scope, &first).unwrap_or(Type::Union);
-        let second = self.evaluate_expr(scope, &second).unwrap_or(Type::Union);
-        self.types.add_pair(PairType::new(first, second))
+        let (left, right) = expr.exprs();
+        let left = self.evaluate_expr(scope, &left).unwrap_or(Type::Union);
+        let right = self.evaluate_expr(scope, &right).unwrap_or(Type::Union);
+        self.types.add_pair(PairType::new(left, right))
     }
 
     /// Evaluates the type of a literal map expression.
@@ -1698,8 +1698,8 @@ where
             if let CompoundTypeDef::Pair(ty) = definition {
                 // Support `left` and `right` accessors for pairs
                 return match name.as_str() {
-                    "left" => Some(ty.first_type),
-                    "right" => Some(ty.second_type),
+                    "left" => Some(ty.left_type),
+                    "right" => Some(ty.right_type),
                     _ => {
                         self.diagnostics.push(not_a_pair_accessor(&name));
                         None
@@ -1739,7 +1739,7 @@ where
             return Some(second);
         }
 
-        // Check for the second type being coercible to the second type
+        // Check for the second type being coercible to the first type
         if second.is_coercible_to(self.types, &first) {
             return Some(first);
         }

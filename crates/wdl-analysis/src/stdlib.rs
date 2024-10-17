@@ -376,32 +376,32 @@ impl GenericArrayType {
 /// Represents a generic `Pair` type.
 #[derive(Debug, Clone)]
 pub struct GenericPairType {
-    /// The type of the first element of the pair.
-    first_type: Box<FunctionalType>,
-    /// The type of the second element of the pair.
-    second_type: Box<FunctionalType>,
+    /// The type of the left element of the pair.
+    left_type: Box<FunctionalType>,
+    /// The type of the right element of the pair.
+    right_type: Box<FunctionalType>,
 }
 
 impl GenericPairType {
     /// Constructs a new generic pair type.
     pub fn new(
-        first_type: impl Into<FunctionalType>,
-        second_type: impl Into<FunctionalType>,
+        left_type: impl Into<FunctionalType>,
+        right_type: impl Into<FunctionalType>,
     ) -> Self {
         Self {
-            first_type: Box::new(first_type.into()),
-            second_type: Box::new(second_type.into()),
+            left_type: Box::new(left_type.into()),
+            right_type: Box::new(right_type.into()),
         }
     }
 
-    /// Gets the pairs's first type.
-    pub fn first_type(&self) -> &FunctionalType {
-        &self.first_type
+    /// Gets the pairs's left type.
+    pub fn left_type(&self) -> &FunctionalType {
+        &self.left_type
     }
 
-    /// Gets the pairs's second type.
-    pub fn second_type(&self) -> &FunctionalType {
-        &self.second_type
+    /// Gets the pairs's right type.
+    pub fn right_type(&self) -> &FunctionalType {
+        &self.right_type
     }
 
     /// Returns an object that implements `Display` for formatting the type.
@@ -420,12 +420,9 @@ impl GenericPairType {
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(f, "Pair[")?;
-                self.ty.first_type.display(self.types, self.params).fmt(f)?;
+                self.ty.left_type.display(self.types, self.params).fmt(f)?;
                 write!(f, ", ")?;
-                self.ty
-                    .second_type
-                    .display(self.types, self.params)
-                    .fmt(f)?;
+                self.ty.right_type.display(self.types, self.params).fmt(f)?;
                 write!(f, "]")
             }
         }
@@ -447,13 +444,13 @@ impl GenericPairType {
     ) {
         match ty {
             Type::Union => {
-                self.first_type.infer_type_parameters(
+                self.left_type.infer_type_parameters(
                     types,
                     Type::Union,
                     params,
                     ignore_constraints,
                 );
-                self.second_type.infer_type_parameters(
+                self.right_type.infer_type_parameters(
                     types,
                     Type::Union,
                     params,
@@ -462,15 +459,15 @@ impl GenericPairType {
             }
             Type::Compound(ty) if !ty.is_optional() => {
                 if let CompoundTypeDef::Pair(ty) = types.type_definition(ty.definition()) {
-                    self.first_type.infer_type_parameters(
+                    self.left_type.infer_type_parameters(
                         types,
-                        ty.first_type(),
+                        ty.left_type(),
                         params,
                         ignore_constraints,
                     );
-                    self.second_type.infer_type_parameters(
+                    self.right_type.infer_type_parameters(
                         types,
-                        ty.second_type(),
+                        ty.right_type(),
                         params,
                         ignore_constraints,
                     );
@@ -482,9 +479,9 @@ impl GenericPairType {
 
     /// Realizes the generic type to a `Pair`.
     fn realize(&self, types: &mut Types, params: &TypeParameters<'_>) -> Option<Type> {
-        let first_type = self.first_type.realize(types, params)?;
-        let second_type = self.second_type.realize(types, params)?;
-        Some(types.add_pair(PairType::new(first_type, second_type)))
+        let left_type = self.left_type.realize(types, params)?;
+        let right_type = self.right_type.realize(types, params)?;
+        Some(types.add_pair(PairType::new(left_type, right_type)))
     }
 
     /// Asserts that the type parameters referenced by the type are valid.
@@ -493,8 +490,8 @@ impl GenericPairType {
     ///
     /// Panics if referenced type parameter is invalid.
     fn assert_type_parameters(&self, parameters: &[TypeParameter]) {
-        self.first_type.assert_type_parameters(parameters);
-        self.second_type.assert_type_parameters(parameters);
+        self.left_type.assert_type_parameters(parameters);
+        self.right_type.assert_type_parameters(parameters);
     }
 }
 
@@ -666,7 +663,7 @@ impl<'a> TypeParameters<'a> {
 
     /// Gets an iterator of the type parameters that have been referenced since
     /// the last reset.
-    pub fn referenced(&self) -> impl Iterator<Item = (&TypeParameter, Option<Type>)> {
+    pub fn referenced(&self) -> impl Iterator<Item = (&TypeParameter, Option<Type>)> + use<'_> {
         let mut bits = self.referenced.get();
         std::iter::from_fn(move || {
             if bits == 0 {

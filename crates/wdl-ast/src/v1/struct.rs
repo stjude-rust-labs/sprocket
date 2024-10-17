@@ -29,7 +29,7 @@ impl StructDefinition {
     }
 
     /// Gets the items in the struct definition.
-    pub fn items(&self) -> impl Iterator<Item = StructItem> {
+    pub fn items(&self) -> impl Iterator<Item = StructItem> + use<> {
         StructItem::children(&self.0)
     }
 
@@ -217,7 +217,7 @@ impl StructItem {
     /// This is meant to emulate the functionality of
     /// [`rowan::ast::support::children`] without requiring [`StructItem`] to
     /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = StructItem> {
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = StructItem> + use<> {
         syntax.children().filter_map(Self::cast)
     }
 }

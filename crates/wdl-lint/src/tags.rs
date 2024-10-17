@@ -96,7 +96,7 @@ impl TagSet {
     }
 
     /// Iterates the tags in the set.
-    pub fn iter(&self) -> impl Iterator<Item = Tag> {
+    pub fn iter(&self) -> impl Iterator<Item = Tag> + use<> {
         let mut bits = self.0;
         std::iter::from_fn(move || {
             if bits == 0 {

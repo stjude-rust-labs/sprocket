@@ -236,7 +236,7 @@ impl Type {
     }
 
     /// Returns an object that implements `Display` for formatting the type.
-    pub fn display<'a>(&self, types: &'a Types) -> impl fmt::Display + 'a {
+    pub fn display<'a>(&self, types: &'a Types) -> impl fmt::Display + use<'a> {
         #[allow(clippy::missing_docs_in_private_items)]
         struct Display<'a> {
             types: &'a Types,
@@ -443,7 +443,7 @@ impl CompoundType {
     }
 
     /// Returns an object that implements `Display` for formatting the type.
-    pub fn display<'a>(&self, types: &'a Types) -> impl fmt::Display + 'a {
+    pub fn display<'a>(&self, types: &'a Types) -> impl fmt::Display + use<'a> {
         #[allow(clippy::missing_docs_in_private_items)]
         struct Display<'a> {
             types: &'a Types,
@@ -793,29 +793,29 @@ impl TypeEq for ArrayType {
 /// Represents the type of a `Pair`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PairType {
-    /// The type of the first element of the pair.
-    first_type: Type,
-    /// The type of the second element of the pair.
-    second_type: Type,
+    /// The type of the left element of the pair.
+    left_type: Type,
+    /// The type of the right element of the pair.
+    right_type: Type,
 }
 
 impl PairType {
     /// Constructs a new pair type.
-    pub fn new(first_type: impl Into<Type>, second_type: impl Into<Type>) -> Self {
+    pub fn new(left_type: impl Into<Type>, right_type: impl Into<Type>) -> Self {
         Self {
-            first_type: first_type.into(),
-            second_type: second_type.into(),
+            left_type: left_type.into(),
+            right_type: right_type.into(),
         }
     }
 
-    /// Gets the pairs's first type.
-    pub fn first_type(&self) -> Type {
-        self.first_type
+    /// Gets the pairs's left type.
+    pub fn left_type(&self) -> Type {
+        self.left_type
     }
 
-    /// Gets the pairs's second type.
-    pub fn second_type(&self) -> Type {
-        self.second_type
+    /// Gets the pairs's right type.
+    pub fn right_type(&self) -> Type {
+        self.right_type
     }
 
     /// Returns an object that implements `Display` for formatting the type.
@@ -829,9 +829,9 @@ impl PairType {
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(f, "Pair[")?;
-                self.ty.first_type.display(self.types).fmt(f)?;
+                self.ty.left_type.display(self.types).fmt(f)?;
                 write!(f, ", ")?;
-                self.ty.second_type.display(self.types).fmt(f)?;
+                self.ty.right_type.display(self.types).fmt(f)?;
                 write!(f, "]")
             }
         }
@@ -841,22 +841,22 @@ impl PairType {
 
     /// Asserts that the type is valid.
     fn assert_valid(&self, types: &Types) {
-        self.first_type.assert_valid(types);
-        self.second_type.assert_valid(types);
+        self.left_type.assert_valid(types);
+        self.right_type.assert_valid(types);
     }
 }
 
 impl Coercible for PairType {
     fn is_coercible_to(&self, types: &Types, target: &Self) -> bool {
-        self.first_type.is_coercible_to(types, &target.first_type)
-            && self.second_type.is_coercible_to(types, &target.second_type)
+        self.left_type.is_coercible_to(types, &target.left_type)
+            && self.right_type.is_coercible_to(types, &target.right_type)
     }
 }
 
 impl TypeEq for PairType {
     fn type_eq(&self, types: &Types, other: &Self) -> bool {
-        self.first_type.type_eq(types, &other.first_type)
-            && self.second_type.type_eq(types, &other.second_type)
+        self.left_type.type_eq(types, &other.left_type)
+            && self.right_type.type_eq(types, &other.right_type)
     }
 }
 
@@ -1183,11 +1183,11 @@ impl Types {
                     })
                 }
                 CompoundTypeDef::Pair(ty) => {
-                    let first_type = self.import(types, ty.first_type);
-                    let second_type = self.import(types, ty.second_type);
+                    let left_type = self.import(types, ty.left_type);
+                    let right_type = self.import(types, ty.right_type);
                     self.add_pair(PairType {
-                        first_type,
-                        second_type,
+                        left_type,
+                        right_type,
                     })
                 }
                 CompoundTypeDef::Map(ty) => {

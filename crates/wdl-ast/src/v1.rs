@@ -41,7 +41,7 @@ pub struct Ast(SyntaxNode);
 
 impl Ast {
     /// Gets all of the document items in the AST.
-    pub fn items(&self) -> impl Iterator<Item = DocumentItem> {
+    pub fn items(&self) -> impl Iterator<Item = DocumentItem> + use<> {
         DocumentItem::children(&self.0)
     }
 
@@ -263,7 +263,7 @@ impl DocumentItem {
     /// This is meant to emulate the functionality of
     /// [`rowan::ast::support::children`] without requiring [`DocumentItem`] to
     /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = DocumentItem> {
+    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = DocumentItem> + use<> {
         syntax.children().filter_map(Self::cast)
     }
 }

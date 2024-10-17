@@ -56,6 +56,7 @@ const SORTED_CRATES_TO_PUBLISH: &[&str] = &[
     "wdl-lint",
     "wdl-format",
     "wdl-analysis",
+    "wdl-engine",
     "wdl-lsp",
     "wdl",
 ];
