@@ -136,7 +136,7 @@ pub fn format_literal_string(element: &FormatElement, stream: &mut TokenStream<P
                     "\"".to_owned(),
                 );
             }
-            SyntaxKind::DoubleQuote => {
+            SyntaxKind::OpenHeredoc | SyntaxKind::CloseHeredoc | SyntaxKind::DoubleQuote => {
                 (&child).write(stream);
             }
             SyntaxKind::LiteralStringText => {
