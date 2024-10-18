@@ -42,7 +42,10 @@ jobs:
           - rust-target: aarch64-apple-darwin
             os: macos-latest
             extension: tar.gz
-          - rust-target: x86_64-pc-windows-gnu
+          - rust-target: x86_64-pc-windows-msvc
+            os: windows-latest
+            extension: zip
+          - rust-target: aarch64-pc-windows-msvc
             os: windows-latest
             extension: zip
     steps:
