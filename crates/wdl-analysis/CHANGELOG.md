@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* Switched to `rustls-tls` for TLS implementation rather than relying on
+  OpenSSL for Linux builds (#[228](https://github.com/stjude-rust-labs/wdl/pull/228)).
+
 ## 0.4.0 - 10-16-2024
 
 ### Added
