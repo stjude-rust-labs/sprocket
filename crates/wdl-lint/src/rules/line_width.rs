@@ -63,9 +63,11 @@ impl LineWidthRule {
         {
             let current_offset = start + offset;
             let previous_offset = self.previous_newline_offset.unwrap_or_default();
+            let length = current_offset - previous_offset;
 
-            if !self.ignored_section && current_offset - previous_offset > self.max_width {
-                let span = Span::new(previous_offset, current_offset - previous_offset);
+            if !self.ignored_section && length > self.max_width {
+                let span = Span::new(previous_offset, length);
+
                 state.exceptable_add(
                     line_too_long(span, self.max_width),
                     element.clone(),

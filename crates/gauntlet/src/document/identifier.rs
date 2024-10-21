@@ -1,5 +1,7 @@
 //! Identifiers for documents.
 
+use std::path::MAIN_SEPARATOR;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -63,11 +65,16 @@ pub struct Identifier {
 impl Identifier {
     /// Creates a new [`Identifier`].
     pub fn new(repository: repository::Identifier, relative_path: impl AsRef<str>) -> Self {
-        let path = relative_path.as_ref();
+        // NOTE: the tests are stored using UNIX filepath conventions (namely,
+        // with `/` as the delimiter), so we need to replace the separators on
+        // Windows with this.
+        let path = relative_path.as_ref().replace(MAIN_SEPARATOR, "/");
+        let path = path.strip_prefix("/").unwrap_or(&path);
+
         Self {
             repository,
             // Ensure the path always starts with `/`
-            path: format!("/{path}", path = path.strip_prefix('/').unwrap_or(path)),
+            path: format!("/{path}"),
         }
     }
 

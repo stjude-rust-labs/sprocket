@@ -1,0 +1,5 @@
+# The default behavior.
+* text=auto
+
+# Ensure that WDL files always use LF line endings.
+*.wdl text eol=lf
