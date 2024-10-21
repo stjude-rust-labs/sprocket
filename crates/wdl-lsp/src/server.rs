@@ -2,7 +2,9 @@
 
 use std::ffi::OsStr;
 use std::mem;
+use std::path::Component;
 use std::path::PathBuf;
+use std::path::Prefix;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -31,6 +33,49 @@ use wdl_ast::Validator;
 use wdl_lint::LintVisitor;
 
 use crate::proto;
+
+/// Normalizes the path of a URI.
+///
+/// If the path contains percent encoded sequences, the sequences are decoded.
+///
+/// Additionally, on Windows, this will normalize the drive letter to uppercase.
+fn normalize_uri_path(uri: &mut Url) {
+    if uri.scheme() != "file" {
+        return;
+    }
+
+    // Call `to_file_path` which will automatically decode any encoded sequences
+    if let Ok(path) = uri.to_file_path() {
+        // On windows we need to normalize any drive letter prefixes to uppercase
+        let path = if cfg!(windows) {
+            let mut comps = path.components();
+            match comps.next() {
+                Some(Component::Prefix(prefix)) => match prefix.kind() {
+                    Prefix::Disk(d) => {
+                        let mut path = PathBuf::new();
+                        path.push(format!("{}:", d.to_ascii_uppercase() as char));
+                        path.extend(comps);
+                        path
+                    }
+                    Prefix::VerbatimDisk(d) => {
+                        let mut path = PathBuf::new();
+                        path.push(format!(r"\\?\{}:", d.to_ascii_uppercase() as char));
+                        path.extend(comps);
+                        path
+                    }
+                    _ => path,
+                },
+                _ => path,
+            }
+        } else {
+            path
+        };
+
+        if let Ok(u) = Url::from_file_path(path) {
+            *uri = u;
+        }
+    }
+}
 
 /// LSP features supported by the client.
 #[derive(Clone, Copy, Debug, Default)]
@@ -385,7 +430,9 @@ impl LanguageServer for Server {
         Ok(())
     }
 
-    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+    async fn did_open(&self, mut params: DidOpenTextDocumentParams) {
+        normalize_uri_path(&mut params.text_document.uri);
+
         debug!("received `textDocument/didOpen` request: {params:#?}");
 
         if let Ok(path) = params.text_document.uri.to_file_path() {
@@ -411,6 +458,8 @@ impl LanguageServer for Server {
     }
 
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
+        normalize_uri_path(&mut params.text_document.uri);
+
         debug!("received `textDocument/didChange` request: {params:#?}");
 
         debug!(
@@ -456,7 +505,9 @@ impl LanguageServer for Server {
         }
     }
 
-    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+    async fn did_close(&self, mut params: DidCloseTextDocumentParams) {
+        normalize_uri_path(&mut params.text_document.uri);
+
         debug!("received `textDocument/didClose` request: {params:#?}");
         if let Err(e) = self.analyzer.notify_change(params.text_document.uri, true) {
             error!("failed to notify change: {e}");
@@ -465,8 +516,10 @@ impl LanguageServer for Server {
 
     async fn diagnostic(
         &self,
-        params: DocumentDiagnosticParams,
+        mut params: DocumentDiagnosticParams,
     ) -> RpcResult<DocumentDiagnosticReportResult> {
+        normalize_uri_path(&mut params.text_document.uri);
+
         debug!("received `textDocument/diagnostic` request: {params:#?}");
 
         let results: Vec<wdl_analysis::AnalysisResult> = self
@@ -519,7 +572,17 @@ impl LanguageServer for Server {
         if !params.event.removed.is_empty() {
             if let Err(e) = self
                 .analyzer
-                .remove_documents(params.event.removed.into_iter().map(|f| f.uri).collect())
+                .remove_documents(
+                    params
+                        .event
+                        .removed
+                        .into_iter()
+                        .map(|mut f| {
+                            normalize_uri_path(&mut f.uri);
+                            f.uri
+                        })
+                        .collect(),
+                )
                 .await
             {
                 error!("failed to remove documents from analyzer: {e}");
@@ -562,7 +625,9 @@ impl LanguageServer for Server {
         let mut added = Vec::new();
         let mut deleted = Vec::new();
 
-        for event in params.changes {
+        for mut event in params.changes {
+            normalize_uri_path(&mut event.uri);
+
             match event.typ {
                 FileChangeType::CREATED => {
                     if let Some(path) = to_wdl_file_path(&event.uri) {

@@ -70,14 +70,21 @@ fn find_tests() -> Vec<PathBuf> {
 fn normalize(s: &str, is_error: bool) -> String {
     if is_error {
         // Normalize paths in any error messages
-        return s.replace('\\', "/").replace("\r\n", "\n");
+        let s = s.replace('\\', "/").replace("\r\n", "\n");
+
+        // Handle any OS specific errors messages
+        let s = s.replace(
+            "The system cannot find the file specified. (os error 2)",
+            "No such file or directory (os error 2)",
+        );
+        return s;
     }
 
     // Otherwise, just normalize line endings
     s.replace("\r\n", "\n")
 }
 
-/// Comparse a single result.
+/// Compares a single result.
 fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<()> {
     let result = normalize(result, is_error);
     if env::var_os("BLESS").is_some() {

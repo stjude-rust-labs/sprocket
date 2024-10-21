@@ -33,6 +33,12 @@ use wdl_ast::Node;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt;
 
+/// Normalizes a result.
+fn normalize(s: &str) -> String {
+    // Just normalize line endings
+    s.replace("\r\n", "\n")
+}
+
 /// Find all the tests in the `tests/format` directory.
 fn find_tests() -> Vec<PathBuf> {
     // Check for filter arguments consisting of test names
@@ -80,6 +86,7 @@ fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> 
 
 /// Compare the result of a test to the expected result.
 fn compare_result(path: &Path, result: &str) -> Result<(), String> {
+    let result = normalize(result);
     if env::var_os("BLESS").is_some() {
         fs::write(path, &result).map_err(|e| {
             format!(

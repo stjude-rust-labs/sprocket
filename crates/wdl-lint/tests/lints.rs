@@ -62,14 +62,9 @@ fn find_tests() -> Vec<PathBuf> {
 }
 
 /// Normalizes a path.
-fn normalize(s: &str, is_error: bool) -> String {
-    if is_error {
-        // Normalize paths in any error messages
-        return s.replace('\\', "/").replace("\r\n", "\n");
-    }
-
-    // Otherwise, just normalize line endings
-    s.replace("\r\n", "\n")
+fn normalize(s: &str) -> String {
+    // Normalize paths in any error messages
+    s.replace('\\', "/").replace("\r\n", "\n")
 }
 
 /// Formats diagnostics.
@@ -90,8 +85,8 @@ fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> 
 }
 
 /// Compares a test result.
-fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<(), String> {
-    let result = normalize(result, is_error);
+fn compare_result(path: &Path, result: &str) -> Result<(), String> {
+    let result = normalize(result);
     if env::var_os("BLESS").is_some() {
         fs::write(path, &result).map_err(|e| {
             format!(
@@ -124,12 +119,16 @@ fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<(), Strin
 /// Runs a test.
 fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
     let path = test.join("source.wdl");
-    let source = std::fs::read_to_string(&path).map_err(|e| {
+    let mut source = std::fs::read_to_string(&path).map_err(|e| {
         format!(
             "failed to read source file `{path}`: {e}",
             path = path.display()
         )
     })?;
+
+    if !test.to_string_lossy().contains("inconsistent-newlines") {
+        source = source.replace("\r\n", "\n");
+    }
 
     let (document, diagnostics) = Document::parse(&source);
 
@@ -137,7 +136,6 @@ fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
         compare_result(
             &path.with_extension("errors"),
             &format_diagnostics(&diagnostics, &path, &source),
-            true,
         )?;
     } else {
         let mut validator = Validator::default();
@@ -146,7 +144,7 @@ fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
             Ok(()) => String::new(),
             Err(diagnostics) => format_diagnostics(&diagnostics, &path, &source),
         };
-        compare_result(&path.with_extension("errors"), &errors, true)?;
+        compare_result(&path.with_extension("errors"), &errors)?;
     }
 
     ntests.fetch_add(1, Ordering::SeqCst);
