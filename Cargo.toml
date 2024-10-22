@@ -1,6 +1,6 @@
 [package]
 name = "sprocket"
-version = "0.8.0"
+version = "0.9.0"
 description = "A package manager for the Workflow Description Language files"
 authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -11,26 +11,19 @@ documentation = "https://docs.rs/sprocket"
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.86"
-clap = { version = "4.5.11", features = ["derive", "string"] }
+anyhow = "1.0.91"
+clap = { version = "4.5.20", features = ["derive", "string"] }
 codespan-reporting = "0.11.1"
 git-testament = "0.2.5"
-indexmap = "2.2.6"
+indexmap = "2.6.0"
 nonempty = "0.10.0"
-pest = { version = "2.7.11", features = ["pretty-print"] }
+pest = { version = "2.7.14", features = ["pretty-print"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
-wdl = { version = "0.9.0", features = ["codespan", "lsp", "analysis", "format"] }
+wdl = { version = "0.10.0", features = ["codespan", "lsp", "analysis", "format"] }
 walkdir = "2.5.0"
 colored = "2.1.0"
-tokio = { version = "1.39.1", features = ["full"] }
+tokio = { version = "1.41.0", features = ["full"] }
 tracing-log = "0.2.0"
 indicatif = "0.17.8"
-clap-verbosity-flag = "2.2.1"
-
-# Install openssl for the linux arm64 build
-[package.metadata.cross.target.aarch64-unknown-linux-gnu]
-pre-build = [
-    "dpkg --add-architecture $CROSS_DEB_ARCH",
-    "apt-get update && apt-get --assume-yes install libssl-dev:$CROSS_DEB_ARCH"
-]
+clap-verbosity-flag = "2.2.2"

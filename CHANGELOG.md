@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.9.0 - 10-22-2024
+
+### Changed
+
+* Updated WDL crate to latest; this includes some important fixes to using
+  `sprocket` on Windows and Linux ([#35](https://github.com/stjude-rust-labs/sprocket/pull/35)).
+
 ## 0.8.0 - 10-16-2024
 
 ### Added
