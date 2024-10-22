@@ -266,8 +266,8 @@ pub fn invalid_relative_import(error: &url::ParseError, span: Span) -> Diagnosti
     Diagnostic::error(format!("{error:?}")).with_highlight(span)
 }
 
-/// Creates a "struct not in scope" diagnostic.
-pub fn struct_not_in_scope(name: &Ident) -> Diagnostic {
+/// Creates a "struct not in document" diagnostic.
+pub fn struct_not_in_document(name: &Ident) -> Diagnostic {
     Diagnostic::error(format!(
         "a struct named `{name}` does not exist in the imported document",
         name = name.as_str()

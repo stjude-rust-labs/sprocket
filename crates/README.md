@@ -134,7 +134,7 @@ The `wdl` CLI tool currently supports the following subcommands:
   prints the linting diagnostics and exits with a status code of `1`.
 * `analyze` - Parses, validates, and analyzes a single WDL document or a
   directory containing WDL documents. Prints a debug representation of the
-  document scopes and exits with a status code of `0` if the documents are
+  analysis result and exits with a status code of `0` if the documents are
   valid; otherwise, prints the validation diagnostics and exits with a status
   code of `1`.
 * `format` - Parses, validates, and then formats a single WDL document, printing

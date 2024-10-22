@@ -38,6 +38,7 @@ use crate::UNUSED_CALL_RULE_ID;
 use crate::UNUSED_DECL_RULE_ID;
 use crate::UNUSED_IMPORT_RULE_ID;
 use crate::UNUSED_INPUT_RULE_ID;
+use crate::document::Document;
 use crate::graph::DocumentGraphNode;
 use crate::graph::ParseState;
 use crate::queue::AddRequest;
@@ -48,7 +49,6 @@ use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::RemoveRequest;
 use crate::queue::Request;
 use crate::rayon::RayonHandle;
-use crate::scope::DocumentScope;
 
 /// Represents the kind of analysis progress being reported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -186,8 +186,8 @@ pub struct AnalysisResult {
     parse_result: ParseResult,
     /// The diagnostics for the document.
     diagnostics: Arc<[Diagnostic]>,
-    /// The scope of the analyzed document.
-    scope: Arc<DocumentScope>,
+    /// The analyzed document.
+    document: Arc<Document>,
 }
 
 impl AnalysisResult {
@@ -200,7 +200,7 @@ impl AnalysisResult {
             uri: node.uri().clone(),
             parse_result: node.parse_state().into(),
             diagnostics: analysis.diagnostics().clone(),
-            scope: analysis.scope().clone(),
+            document: analysis.document().clone(),
         }
     }
 
@@ -226,9 +226,9 @@ impl AnalysisResult {
         &self.diagnostics
     }
 
-    /// Gets the scope of the analyzed document.
-    pub fn scope(&self) -> &Arc<DocumentScope> {
-        &self.scope
+    /// Gets the analyzed document.
+    pub fn document(&self) -> &Arc<Document> {
+        &self.document
     }
 }
 

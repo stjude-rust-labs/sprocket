@@ -32,7 +32,7 @@ use wdl_ast::SyntaxNode;
 use wdl_ast::Validator;
 
 use crate::IncrementalChange;
-use crate::scope::DocumentScope;
+use crate::document::Document;
 
 /// Represents space for a DFS search of a document graph.
 pub type DfsSpace =
@@ -87,18 +87,18 @@ pub enum ParseState {
 pub struct Analysis {
     /// The unique identifier of the analysis.
     id: Arc<String>,
-    /// The document's scope.
-    scope: Arc<DocumentScope>,
+    /// The analyzed document.
+    document: Arc<Document>,
     /// The analysis diagnostics.
     diagnostics: Arc<[Diagnostic]>,
 }
 
 impl Analysis {
     /// Constructs a new analysis.
-    pub fn new(scope: DocumentScope, diagnostics: impl Into<Arc<[Diagnostic]>>) -> Self {
+    pub fn new(document: Document, diagnostics: impl Into<Arc<[Diagnostic]>>) -> Self {
         Self {
             id: Arc::new(Uuid::new_v4().to_string()),
-            scope: Arc::new(scope),
+            document: Arc::new(document),
             diagnostics: diagnostics.into(),
         }
     }
@@ -110,9 +110,9 @@ impl Analysis {
         &self.id
     }
 
-    /// Gets the document scope from the analysis.
-    pub fn scope(&self) -> &Arc<DocumentScope> {
-        &self.scope
+    /// Gets the analyzed document.
+    pub fn document(&self) -> &Arc<Document> {
+        &self.document
     }
 
     /// Gets the diagnostics from the analysis.

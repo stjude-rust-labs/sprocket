@@ -9,6 +9,7 @@ use id_arena::DefaultArenaBehavior;
 use id_arena::Id;
 use indexmap::IndexMap;
 
+use crate::document::Output;
 use crate::stdlib::STDLIB;
 
 pub mod v1;
@@ -1000,14 +1001,14 @@ pub struct CallOutputType {
     /// The name of the task or workflow that was called.
     name: String,
     /// The outputs from the call.
-    outputs: HashMap<String, Type>,
+    outputs: HashMap<String, Output>,
     /// Whether or not the call was to a workflow (or a task).
     workflow: bool,
 }
 
 impl CallOutputType {
     /// Constructs a new call output type.
-    pub fn new(name: impl Into<String>, outputs: HashMap<String, Type>, workflow: bool) -> Self {
+    pub fn new(name: impl Into<String>, outputs: HashMap<String, Output>, workflow: bool) -> Self {
         Self {
             name: name.into(),
             outputs,
@@ -1021,12 +1022,12 @@ impl CallOutputType {
     }
 
     /// Gets the outputs from the call.
-    pub fn outputs(&self) -> &HashMap<String, Type> {
+    pub fn outputs(&self) -> &HashMap<String, Output> {
         &self.outputs
     }
 
     /// Gets the mutable outputs from the call.
-    pub(crate) fn outputs_mut(&mut self) -> &mut HashMap<String, Type> {
+    pub(crate) fn outputs_mut(&mut self) -> &mut HashMap<String, Output> {
         &mut self.outputs
     }
 
@@ -1040,7 +1041,7 @@ impl CallOutputType {
     /// Asserts that this type is valid.
     fn assert_valid(&self, types: &Types) {
         for v in self.outputs.values() {
-            v.assert_valid(types);
+            v.ty().assert_valid(types);
         }
     }
 }
@@ -1213,7 +1214,7 @@ impl Types {
                     let members = ty
                         .outputs
                         .iter()
-                        .map(|(k, v)| (k.clone(), self.import(types, *v)))
+                        .map(|(k, v)| (k.clone(), Output::new(self.import(types, v.ty()))))
                         .collect();
 
                     self.add_call_output(CallOutputType::new(

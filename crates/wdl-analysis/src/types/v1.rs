@@ -72,7 +72,7 @@ use crate::diagnostics::type_mismatch_custom;
 use crate::diagnostics::unknown_function;
 use crate::diagnostics::unknown_io_name;
 use crate::diagnostics::unsupported_function;
-use crate::scope::ScopeRef;
+use crate::document::ScopeRef;
 use crate::stdlib::FunctionBindError;
 use crate::stdlib::STDLIB;
 use crate::types::Coercible;
@@ -334,7 +334,7 @@ where
     pub fn evaluate_expr(&mut self, scope: &ScopeRef<'_>, expr: &Expr) -> Option<Type> {
         match expr {
             Expr::Literal(expr) => self.evaluate_literal_expr(scope, expr),
-            Expr::Name(r) => scope.lookup(r.name().as_str()).map(|(_, ty)| ty),
+            Expr::Name(r) => scope.lookup(r.name().as_str()).map(|n| n.ty()),
             Expr::Parenthesized(expr) => self.evaluate_expr(scope, &expr.inner()),
             Expr::If(expr) => self.evaluate_if_expr(scope, expr),
             Expr::LogicalNot(expr) => self.evaluate_logical_not_expr(scope, expr),
@@ -1156,9 +1156,9 @@ where
                 span = Some(name.span());
 
                 match if input {
-                    scope.input_type(name.as_str()).unwrap().map(|(ty, _)| ty)
+                    scope.input(name.as_str()).unwrap().map(|i| i.ty())
                 } else {
-                    scope.output_type(name.as_str()).unwrap()
+                    scope.output(name.as_str()).unwrap().map(|o| o.ty())
                 } {
                     Some(ty) => ty,
                     None => {
@@ -1709,8 +1709,8 @@ where
 
             // Check to see if it's a call output
             if let CompoundTypeDef::CallOutput(ty) = definition {
-                if let Some(ty) = ty.outputs().get(name.as_str()) {
-                    return Some(*ty);
+                if let Some(output) = ty.outputs().get(name.as_str()) {
+                    return Some(output.ty());
                 }
 
                 self.diagnostics

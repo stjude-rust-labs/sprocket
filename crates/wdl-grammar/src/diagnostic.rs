@@ -43,6 +43,11 @@ impl Span {
     pub fn is_empty(&self) -> bool {
         self.start == self.end
     }
+
+    /// Determines if the span contains the given offset.
+    pub fn contains(&self, offset: usize) -> bool {
+        offset >= self.start && offset < self.end
+    }
 }
 
 impl fmt::Display for Span {

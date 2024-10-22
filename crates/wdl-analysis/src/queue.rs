@@ -29,12 +29,12 @@ use crate::AnalysisResult;
 use crate::DiagnosticsConfig;
 use crate::IncrementalChange;
 use crate::ProgressKind;
+use crate::document::Document;
 use crate::graph::Analysis;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::rayon::RayonHandle;
-use crate::scope::DocumentScope;
 
 /// The minimum number of milliseconds between analysis progress reports.
 const MINIMUM_PROGRESS_MILLIS: u128 = 50;
@@ -607,7 +607,7 @@ where
     ) -> (NodeIndex, Analysis) {
         let start = Instant::now();
         let graph = graph.read();
-        let (scope, diagnostics) = DocumentScope::new(config, &graph, index);
+        let (document, diagnostics) = Document::new(config, &graph, index);
 
         info!(
             "analysis of `{uri}` completed in {elapsed:?}",
@@ -615,6 +615,6 @@ where
             elapsed = start.elapsed()
         );
 
-        (index, Analysis::new(scope, diagnostics))
+        (index, Analysis::new(document, diagnostics))
     }
 }

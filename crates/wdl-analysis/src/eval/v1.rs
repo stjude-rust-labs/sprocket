@@ -42,7 +42,7 @@ use crate::diagnostics::self_referential;
 use crate::diagnostics::task_reference_cycle;
 use crate::diagnostics::unknown_name;
 use crate::diagnostics::workflow_reference_cycle;
-use crate::scope::TASK_VAR_NAME;
+use crate::document::TASK_VAR_NAME;
 
 /// Represents a node in an task evaluation graph.
 #[derive(Debug, Clone)]

@@ -1,4 +1,4 @@
-//! Representation of scopes for for WDL documents.
+//! Representation of analyzed WDL documents.
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -76,8 +76,8 @@ pub struct Namespace {
     span: Span,
     /// The URI of the imported document that introduced the namespace.
     source: Arc<Url>,
-    /// The namespace's document scope.
-    scope: Arc<DocumentScope>,
+    /// The namespace's document.
+    document: Arc<Document>,
     /// Whether or not the namespace is used (i.e. referenced) in the document.
     used: bool,
     /// Whether or not the namespace is excepted from the "unused import"
@@ -96,9 +96,9 @@ impl Namespace {
         &self.source
     }
 
-    /// Gets the scope of the imported document.
-    pub fn scope(&self) -> &DocumentScope {
-        &self.scope
+    /// Gets the imported document.
+    pub fn document(&self) -> &Document {
+        &self.document
     }
 }
 
@@ -132,8 +132,8 @@ pub struct Struct {
 impl Struct {
     /// Gets the namespace that defines this struct.
     ///
-    /// Returns `None` for structs defined in the containing scope or `Some` for
-    /// a struct introduced by an import.
+    /// Returns `None` for structs defined in the containing document or `Some`
+    /// for a struct introduced by an import.
     pub fn namespace(&self) -> Option<&str> {
         self.namespace.as_deref()
     }
@@ -147,26 +147,42 @@ impl Struct {
     }
 }
 
-/// Represents an index into a document's collection of scopes.
+/// Represents information about a name in a scope.
+#[derive(Debug, Clone, Copy)]
+pub struct Name {
+    /// The span of the name.
+    span: Span,
+    /// The type of the name.
+    ty: Type,
+}
+
+impl Name {
+    /// Gets the span of the name.
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    /// Gets the type of the name.
+    pub fn ty(&self) -> Type {
+        self.ty
+    }
+}
+
+/// Represents an index of a scope in a collection of scopes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct ScopeIndex(usize);
+struct ScopeIndex(usize);
 
 /// Represents a scope in a WDL document.
 #[derive(Debug)]
 struct Scope {
     /// The index of the parent scope.
     ///
-    /// This is `None` for top-level scopes (i.e. tasks and workflows).
+    /// This is `None` for task and workflow scopes.
     parent: Option<ScopeIndex>,
     /// The span in the document where the names of the scope are visible.
     span: Span,
     /// The map of names in scope to their span and types.
-    names: IndexMap<String, (Span, Type)>,
-    /// The child scope indexes of this scope.
-    ///
-    /// Child scopes are from output sections, workflow conditional statements,
-    /// and workflow scatter statements.
-    children: Vec<ScopeIndex>,
+    names: IndexMap<String, Name>,
 }
 
 impl Scope {
@@ -176,18 +192,22 @@ impl Scope {
             parent,
             span,
             names: Default::default(),
-            children: Default::default(),
         }
+    }
+
+    /// Inserts a name into the scope.
+    pub fn insert(&mut self, name: impl Into<String>, span: Span, ty: Type) {
+        self.names.insert(name.into(), Name { span, ty });
     }
 }
 
 /// Represents a reference to a scope.
 #[derive(Debug, Clone, Copy)]
 pub struct ScopeRef<'a> {
-    /// The reference to all scopes.
+    /// The reference to the scopes collection.
     scopes: &'a [Scope],
-    /// The index of the scope.
-    scope: ScopeIndex,
+    /// The index of the scope in the collection.
+    index: ScopeIndex,
     /// The name of the task associated with the scope.
     ///
     /// This is `Some` only when evaluating a task `hints` section.
@@ -195,43 +215,37 @@ pub struct ScopeRef<'a> {
     /// The input type map.
     ///
     /// This is `Some` only when evaluating a task `hints` section.
-    inputs: Option<&'a HashMap<String, (Type, bool)>>,
+    inputs: Option<&'a HashMap<String, Input>>,
     /// The output type map.
     ///
     /// This is `Some` only when evaluating a task `hints` section.
-    outputs: Option<&'a HashMap<String, Type>>,
+    outputs: Option<&'a HashMap<String, Output>>,
 }
 
 impl<'a> ScopeRef<'a> {
     /// Creates a new scope reference given the scope index.
-    fn new(scopes: &'a [Scope], scope: ScopeIndex) -> Self {
+    fn new(scopes: &'a [Scope], index: ScopeIndex) -> Self {
         Self {
             scopes,
-            scope,
+            index,
             task_name: None,
             inputs: None,
             outputs: None,
         }
     }
 
+    /// Gets the span of the scope.
+    pub fn span(&self) -> Span {
+        self.scopes[self.index.0].span
+    }
+
     /// Gets the parent scope.
     ///
     /// Returns `None` if there is no parent scope.
     pub fn parent(&self) -> Option<Self> {
-        self.scopes[self.scope.0].parent.map(|p| Self {
+        self.scopes[self.index.0].parent.map(|p| Self {
             scopes: self.scopes,
-            scope: p,
-            task_name: self.task_name,
-            inputs: self.inputs,
-            outputs: self.outputs,
-        })
-    }
-
-    /// Gets an iterator over the child scopes.
-    pub fn children(&self) -> impl Iterator<Item = Self> + '_ {
-        self.scopes[self.scope.0].children.iter().map(|c| Self {
-            scopes: self.scopes,
-            scope: *c,
+            index: p,
             task_name: self.task_name,
             inputs: self.inputs,
             outputs: self.outputs,
@@ -239,8 +253,8 @@ impl<'a> ScopeRef<'a> {
     }
 
     /// Gets all of the names available at this scope.
-    pub fn names(&self) -> impl Iterator<Item = (&str, (Span, Type))> + use<'_> {
-        self.scopes[self.scope.0]
+    pub fn names(&self) -> impl Iterator<Item = (&str, Name)> + use<'_> {
+        self.scopes[self.index.0]
             .names
             .iter()
             .map(|(name, span_ty)| (name.as_str(), *span_ty))
@@ -249,54 +263,54 @@ impl<'a> ScopeRef<'a> {
     /// Gets a name local to this scope.
     ///
     /// Returns `None` if a name local to this scope was not found.
-    pub fn local(&self, name: &str) -> Option<(Span, Type)> {
-        self.scopes[self.scope.0].names.get(name).copied()
+    pub fn local(&self, name: &str) -> Option<Name> {
+        self.scopes[self.index.0].names.get(name).copied()
     }
 
     /// Lookups a name in the scope.
     ///
     /// Returns `None` if the name is not available in the scope.
-    pub fn lookup(&self, name: &str) -> Option<(Span, Type)> {
-        let mut scope = Some(self.scope);
+    pub fn lookup(&self, name: &str) -> Option<Name> {
+        let mut current = Some(self.index);
 
-        while let Some(index) = scope {
+        while let Some(index) = current {
             if let Some(name) = self.scopes[index.0].names.get(name).copied() {
                 return Some(name);
             }
 
-            scope = self.scopes[index.0].parent;
+            current = self.scopes[index.0].parent;
         }
 
         None
     }
 
-    /// Gets the type of an input for the given name.
+    /// Gets an input for the given name.
     ///
     /// Returns `Err(())` if input hidden types are not supported by this scope.
     ///
-    /// Returns `Ok(None)` if input hidden types are supported, but the name is
-    /// unknown.
+    /// Returns `Ok(None)` if input hidden types are supported, but the
+    /// specified name is not a known input.
     ///
-    /// Returns `Ok(Some)` if input hidden types are supported and the name is
-    /// known.
-    pub(crate) fn input_type(&self, name: &str) -> Result<Option<(Type, bool)>, ()> {
+    /// Returns `Ok(Some)` if input hidden types are supported and the specified
+    /// name is a known input.
+    pub(crate) fn input(&self, name: &str) -> Result<Option<Input>, ()> {
         match self.inputs {
             Some(map) => Ok(map.get(name).copied()),
             None => Err(()),
         }
     }
 
-    /// Gets the type of an output for the given name.
+    /// Gets an output for the given name.
     ///
     /// Returns `Err(())` if output hidden types are not supported by this
     /// scope.
     ///
-    /// Returns `Ok(None)` if output hidden types are supported, but the name is
-    /// unknown.
+    /// Returns `Ok(None)` if input hidden types are supported, but the
+    /// specified name is not a known output.
     ///
-    /// Returns `Ok(Some)` if output hidden types are supported and the name is
-    /// known.
-    pub(crate) fn output_type(&self, name: &str) -> Result<Option<Type>, ()> {
+    /// Returns `Ok(Some)` if input hidden types are supported and the specified
+    /// name is a known output.
+    pub(crate) fn output(&self, name: &str) -> Result<Option<Output>, ()> {
         match self.outputs {
             Some(map) => Ok(map.get(name).copied()),
             None => Err(()),
@@ -330,59 +344,176 @@ struct ScopeRefMut<'a> {
     /// The reference to all scopes.
     scopes: &'a mut [Scope],
     /// The index to the scope.
-    scope: ScopeIndex,
+    index: ScopeIndex,
 }
 
 impl<'a> ScopeRefMut<'a> {
+    /// Creates a new mutable scope reference given the scope index.
+    fn new(scopes: &'a mut [Scope], index: ScopeIndex) -> Self {
+        Self { scopes, index }
+    }
+
+    /// Lookups a name in the scope.
+    ///
+    /// Returns `None` if the name is not available in the scope.
+    pub fn lookup(&self, name: &str) -> Option<Name> {
+        let mut current = Some(self.index);
+
+        while let Some(index) = current {
+            if let Some(name) = self.scopes[index.0].names.get(name).copied() {
+                return Some(name);
+            }
+
+            current = self.scopes[index.0].parent;
+        }
+
+        None
+    }
+
     /// Inserts a name into the scope.
     pub fn insert(&mut self, name: impl Into<String>, span: Span, ty: Type) {
-        self.scopes[self.scope.0]
+        self.scopes[self.index.0]
             .names
-            .insert(name.into(), (span, ty));
+            .insert(name.into(), Name { span, ty });
+    }
+
+    /// Converts the mutable scope reference to an immutable scope reference.
+    pub fn into_scope_ref(self) -> ScopeRef<'a> {
+        ScopeRef {
+            scopes: self.scopes,
+            index: self.index,
+            task_name: None,
+            inputs: None,
+            outputs: None,
+        }
+    }
+}
+
+/// Represents a task or workflow input.
+#[derive(Debug, Clone, Copy)]
+pub struct Input {
+    /// The type of the input.
+    ty: Type,
+    /// Whether or not the input is required.
+    required: bool,
+}
+
+impl Input {
+    /// Gets the type of the input.
+    pub fn ty(&self) -> Type {
+        self.ty
+    }
+
+    /// Whether or not the input is required.
+    pub fn required(&self) -> bool {
+        self.required
+    }
+}
+
+/// Represents a task or workflow output.
+#[derive(Debug, Clone, Copy)]
+pub struct Output {
+    /// The type of the output.
+    ty: Type,
+}
+
+impl Output {
+    /// Creates a new output with the given type.
+    pub(crate) fn new(ty: Type) -> Self {
+        Self { ty }
+    }
+
+    /// Gets the type of the output.
+    pub fn ty(&self) -> Type {
+        self.ty
     }
 }
 
 /// Represents a task in a document.
 #[derive(Debug)]
-struct Task {
+pub struct Task {
     /// The span of the task name.
     name_span: Span,
-    /// The root scope index for the task.
-    scope: ScopeIndex,
+    /// The name of the task.
+    name: String,
+    /// The scopes contained in the task.
+    ///
+    /// The first scope will always be the task's scope.
+    ///
+    /// The scopes will be in sorted order by span start.
+    scopes: Vec<Scope>,
     /// The inputs of the task.
-    ///
-    /// The value is the pair of the input type and whether or not the input is
-    /// required.
-    inputs: HashMap<String, (Type, bool)>,
+    inputs: HashMap<String, Input>,
     /// The outputs of the task.
-    ///
-    /// The value is the output type.
-    outputs: HashMap<String, Type>,
+    outputs: HashMap<String, Output>,
+}
+
+impl Task {
+    /// Gets the name of the task.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Gets the scope of the task.
+    pub fn scope(&self) -> ScopeRef<'_> {
+        ScopeRef::new(&self.scopes, ScopeIndex(0))
+    }
+
+    /// Gets the inputs of the task.
+    pub fn inputs(&self) -> &HashMap<String, Input> {
+        &self.inputs
+    }
+
+    /// Gets the outputs of the task.
+    pub fn outputs(&self) -> &HashMap<String, Output> {
+        &self.outputs
+    }
 }
 
 /// Represents a workflow in a document.
 #[derive(Debug)]
-struct Workflow {
+pub struct Workflow {
     /// The span of the workflow name.
     name_span: Span,
     /// The name of the workflow.
     name: String,
-    /// The scope index of the workflow.
-    scope: ScopeIndex,
+    /// The scopes contained in the workflow.
+    ///
+    /// The first scope will always be the workflow's scope.
+    ///
+    /// The scopes will be in sorted order by span start.
+    scopes: Vec<Scope>,
     /// The inputs of the workflow.
-    ///
-    /// The value is the pair of the input type and whether or not the input is
-    /// required.
-    inputs: HashMap<String, (Type, bool)>,
+    inputs: HashMap<String, Input>,
     /// The outputs of the workflow.
-    ///
-    /// The value is the output type.
-    outputs: HashMap<String, Type>,
+    outputs: HashMap<String, Output>,
 }
 
-/// Represents the scope of a document.
+impl Workflow {
+    /// Gets the name of the workflow.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Gets the scope of the workflow.
+    pub fn scope(&self) -> ScopeRef<'_> {
+        ScopeRef::new(&self.scopes, ScopeIndex(0))
+    }
+
+    /// Gets the inputs of the workflow.
+    pub fn inputs(&self) -> &HashMap<String, Input> {
+        &self.inputs
+    }
+
+    /// Gets the outputs of the workflow.
+    pub fn outputs(&self) -> &HashMap<String, Output> {
+        &self.outputs
+    }
+}
+
+/// Represents an analyzed WDL document.
 #[derive(Debug, Default)]
-pub struct DocumentScope {
+pub struct Document {
     /// The version of the document.
     version: Option<SupportedVersion>,
     /// The namespaces in the document.
@@ -393,17 +524,12 @@ pub struct DocumentScope {
     workflow: Option<Workflow>,
     /// The structs in the document.
     structs: IndexMap<String, Struct>,
-    /// The scopes contained in the document.
-    ///
-    /// The scopes are in document order, so increasing by the start of their
-    /// spans.
-    scopes: Vec<Scope>,
     /// The collection of types for the document.
     types: Types,
 }
 
-impl DocumentScope {
-    /// Creates a new document scope for a given document.
+impl Document {
+    /// Creates a new analyzed document.
     pub(crate) fn new(
         config: DiagnosticsConfig,
         graph: &DocumentGraph,
@@ -431,29 +557,22 @@ impl DocumentScope {
         let config =
             config.excepted_for_node(&version.syntax().parent().expect("token should have parent"));
 
-        let mut scope = match document.ast() {
+        let document = match document.ast() {
             Ast::Unsupported => Default::default(),
             Ast::V1(ast) => {
-                v1::scope_from_ast(config, graph, index, &ast, &version, &mut diagnostics)
+                v1::create_document(config, graph, index, &ast, &version, &mut diagnostics)
             }
         };
 
         // Check for unused imports
         if let Some(severity) = config.unused_import {
-            for (name, ns) in scope
+            for (name, ns) in document
                 .namespaces()
                 .filter(|(_, ns)| !ns.used && !ns.excepted)
             {
                 diagnostics.push(unused_import(name, ns.span()).with_severity(severity));
             }
         }
-
-        // Sort the scopes by their start position so that we can do a binary search by
-        // position; this works without having to remap a task's or workflow's scope
-        // index because those are always added in order
-        scope
-            .scopes
-            .sort_by(|a, b| a.span.start().cmp(&b.span.start()));
 
         // Sort the diagnostics by start
         diagnostics.sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
@@ -464,7 +583,7 @@ impl DocumentScope {
         });
 
         // Perform a type check
-        (scope, diagnostics)
+        (document, diagnostics)
     }
 
     /// Gets the supported version of the document.
@@ -474,48 +593,39 @@ impl DocumentScope {
         self.version
     }
 
-    /// Gets the namespaces in the document scope.
+    /// Gets the namespaces in the document.
     pub fn namespaces(&self) -> impl Iterator<Item = (&str, &Namespace)> {
         self.namespaces.iter().map(|(n, ns)| (n.as_str(), ns))
     }
 
-    /// Gets a namespace in the document scope by name.
+    /// Gets a namespace in the document by name.
     pub fn namespace(&self, name: &str) -> Option<&Namespace> {
         self.namespaces.get(name)
     }
 
-    /// Gets the task scopes in the document scope.
-    pub fn tasks(&self) -> impl Iterator<Item = (&str, ScopeRef<'_>)> {
-        self.tasks
-            .iter()
-            .map(|(n, t)| (n.as_str(), ScopeRef::new(&self.scopes, t.scope)))
+    /// Gets the tasks in the document.
+    pub fn tasks(&self) -> impl Iterator<Item = &Task> {
+        self.tasks.iter().map(|(_, t)| t)
     }
 
-    /// Gets a task's scope in the document scope by name.
-    pub fn task_by_name(&self, name: &str) -> Option<ScopeRef<'_>> {
-        self.tasks
-            .get(name)
-            .map(|t| ScopeRef::new(&self.scopes, t.scope))
+    /// Gets a task in the document by name.
+    pub fn task_by_name(&self, name: &str) -> Option<&Task> {
+        self.tasks.get(name)
     }
 
-    /// Gets the workflow scope in the document scope.
-    ///
-    /// Returns the workflow name and scope if a workflow is present in the
-    /// document.
+    /// Gets a workflow in the document.
     ///
     /// Returns `None` if the document did not contain a workflow.
-    pub fn workflow(&self) -> Option<(&str, ScopeRef<'_>)> {
-        self.workflow
-            .as_ref()
-            .map(|w| (w.name.as_str(), ScopeRef::new(&self.scopes, w.scope)))
+    pub fn workflow(&self) -> Option<&Workflow> {
+        self.workflow.as_ref()
     }
 
-    /// Gets the structs in the document scope.
+    /// Gets the structs in the document.
     pub fn structs(&self) -> impl Iterator<Item = (&str, &Struct)> {
         self.structs.iter().map(|(n, s)| (n.as_str(), s))
     }
 
-    /// Gets a struct in the document scope by name.
+    /// Gets a struct in the document by name.
     pub fn struct_by_name(&self, name: &str) -> Option<&Struct> {
         self.structs.get(name)
     }
@@ -527,60 +637,65 @@ impl DocumentScope {
 
     /// Finds a scope based on a position within the document.
     pub fn find_scope_by_position(&self, position: usize) -> Option<ScopeRef<'_>> {
-        let mut index = match self
-            .scopes
-            .binary_search_by_key(&position, |s| s.span.start())
-        {
-            Ok(index) => index,
-            Err(index) => {
-                // This indicates that we couldn't find a match and the match would go _before_
-                // the first scope, so there is no corresponding scope.
+        /// Finds a scope within a collection of sorted scopes by position.
+        fn find_scope(scopes: &[Scope], position: usize) -> Option<ScopeRef<'_>> {
+            let mut index = match scopes.binary_search_by_key(&position, |s| s.span.start()) {
+                Ok(index) => index,
+                Err(index) => {
+                    // This indicates that we couldn't find a match and the match would go _before_
+                    // the first scope, so there is no containing scope.
+                    if index == 0 {
+                        return None;
+                    }
+
+                    index - 1
+                }
+            };
+
+            // We now have the index to start looking up the list of scopes
+            // We walk up the list to try to find a span that contains the position
+            loop {
+                let scope = &scopes[index];
+                if scope.span.contains(position) {
+                    return Some(ScopeRef::new(scopes, ScopeIndex(index)));
+                }
+
                 if index == 0 {
                     return None;
                 }
 
-                index - 1
+                index -= 1;
+            }
+        }
+
+        // Check to see if the position is contained in the workflow
+        if let Some(workflow) = &self.workflow {
+            if workflow.scope().span().contains(position) {
+                return find_scope(&workflow.scopes, position);
+            }
+        }
+
+        // Search for a task that might contain the position
+        let task = match self
+            .tasks
+            .binary_search_by_key(&position, |_, t| t.scope().span().start())
+        {
+            Ok(index) => &self.tasks[index],
+            Err(index) => {
+                // This indicates that we couldn't find a match and the match would go _before_
+                // the first task, so there is no containing task.
+                if index == 0 {
+                    return None;
+                }
+
+                &self.tasks[index - 1]
             }
         };
 
-        // We now have the index to start looking up the list of scopes
-        // We walk up the list to try to find a span that contains the position
-        loop {
-            let scope = &self.scopes[index];
-            if position >= scope.span.start() && position < scope.span.end() {
-                return Some(ScopeRef::new(&self.scopes, ScopeIndex(index)));
-            }
-
-            if index == 0 {
-                break;
-            }
-
-            index -= 1;
+        if task.scope().span().contains(position) {
+            return find_scope(&task.scopes, position);
         }
 
         None
-    }
-
-    /// Adds an inner scope to the document scope.
-    fn add_scope(&mut self, scope: Scope) -> ScopeIndex {
-        let index = ScopeIndex(self.scopes.len());
-        if let Some(parent) = scope.parent {
-            self.scopes[parent.0].children.push(index);
-        }
-        self.scopes.push(scope);
-        index
-    }
-
-    /// Gets a reference to a scope.
-    pub(crate) fn scope(&self, scope: ScopeIndex) -> ScopeRef<'_> {
-        ScopeRef::new(&self.scopes, scope)
-    }
-
-    /// Gets a mutable reference to a scope.
-    fn scope_mut(&mut self, scope: ScopeIndex) -> ScopeRefMut<'_> {
-        ScopeRefMut {
-            scopes: &mut self.scopes,
-            scope,
-        }
     }
 }

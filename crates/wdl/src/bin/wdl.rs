@@ -38,6 +38,7 @@ use wdl_analysis::Analyzer;
 use wdl_analysis::Rule;
 use wdl_analysis::rules;
 use wdl_ast::Node;
+use wdl_ast::Severity;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
 
@@ -46,14 +47,20 @@ use wdl_format::element::node::AstNodeFormatExt as _;
 /// The use of color is determined by the presence of a terminal.
 ///
 /// In the future, we might want the color choice to be a CLI argument.
-fn emit_diagnostics(path: &str, source: &str, diagnostics: &[Diagnostic]) -> Result<()> {
+fn emit_diagnostics(path: &str, source: &str, diagnostics: &[Diagnostic]) -> Result<usize> {
     let file = SimpleFile::new(path, source);
     let mut stream = StandardStream::stdout(if std::io::stdout().is_terminal() {
         ColorChoice::Auto
     } else {
         ColorChoice::Never
     });
+
+    let mut errors = 0;
     for diagnostic in diagnostics.iter() {
+        if diagnostic.severity() == Severity::Error {
+            errors += 1;
+        }
+
         emit(
             &mut stream,
             &Config::default(),
@@ -63,7 +70,7 @@ fn emit_diagnostics(path: &str, source: &str, diagnostics: &[Diagnostic]) -> Res
         .context("failed to emit diagnostic")?;
     }
 
-    Ok(())
+    Ok(errors)
 }
 
 /// Analyzes a path.
@@ -104,6 +111,7 @@ async fn analyze<T: AsRef<dyn Rule>>(
 
     drop(bar);
 
+    let mut errors = 0;
     let cwd = std::env::current_dir().ok();
     for result in &results {
         let path = result.uri().to_file_path().ok();
@@ -124,7 +132,7 @@ async fn analyze<T: AsRef<dyn Rule>>(
         };
 
         if !diagnostics.is_empty() {
-            emit_diagnostics(
+            errors += emit_diagnostics(
                 &path,
                 &result
                     .parse_result()
@@ -134,6 +142,13 @@ async fn analyze<T: AsRef<dyn Rule>>(
                 &diagnostics,
             )?;
         }
+    }
+
+    if errors > 0 {
+        bail!(
+            "aborting due to previous {errors} error{s}",
+            s = if errors == 1 { "" } else { "s" }
+        );
     }
 
     Ok(results)
