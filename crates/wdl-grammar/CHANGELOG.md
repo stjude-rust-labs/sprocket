@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.10.0 - 10-22-2024
+
+### Changed
+
+* Added a `contains` method to `Span` ([#232](https://github.com/stjude-rust-labs/wdl/pull/232)).
+
 ## 0.9.0 - 10-16-2024
 
 ### Added

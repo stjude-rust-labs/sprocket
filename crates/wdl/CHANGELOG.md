@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.10.0 - 10-22-2024
+
+### Changed
+
+* Updated WDL crate dependencies to latest.
+
 ## 0.9.1 - 10-16-2024
 
 ### Fixed

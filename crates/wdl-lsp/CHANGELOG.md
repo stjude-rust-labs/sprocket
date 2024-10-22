@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.5.0 - 10-22-2024
+
 ### Fixed
 
 * Fixed an issue on Windows where request URIs were not being normalized ([#231](https://github.com/stjude-rust-labs/wdl/pull/231)).
