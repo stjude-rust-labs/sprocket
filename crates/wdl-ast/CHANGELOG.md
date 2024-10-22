@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* Refactored the AST token struct definitions to use macros ([#233](https://github.com/stjude-rust-labs/wdl/pull/233)).
+
 ## 0.8.0 - 10-16-2024
 
 ### Changed
