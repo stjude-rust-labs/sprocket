@@ -33,7 +33,7 @@ pub struct Common {
     #[arg(required = true)]
     pub paths: Vec<PathBuf>,
 
-    /// Lint rules to except from running.
+    /// A single rule ID to except from running. Can be specified multiple times.
     #[arg(short, long, value_name = "RULE")]
     pub except: Vec<String>,
 
