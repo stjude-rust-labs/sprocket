@@ -25,24 +25,26 @@ be out of sync with released packages.
 | `ImportSort`                     | Clarity, Style                | Ensures that imports are sorted lexicographically.                                                |
 | `ImportWhitespace`               | Clarity, Style, Spacing       | Ensures that there is no extraneous whitespace between or within imports.                         |
 | `InconsistentNewlines`           | Clarity, Style                | Ensures that newlines are used consistently within the file.                                      |
-| `InputNotSorted`                 | Style                         | Ensures that input declarations are sorted                                                        |
-| `InputSpacing`                   | Style, Clarity, Spacing       | Ensures proper spacing for call inputs                                                            |
+| `InputSorting`                   | Style                         | Ensures that input declarations are sorted                                                        |
 | `KeyValuePairs`                  | Style                         | Ensures that metadata objects and arrays are properly spaced.                                     |
 | `LineWidth`                      | Clarity, Spacing, Style       | Ensures that lines do not exceed a certain width.                                                 |
+| `MalformedLintDirective`         | Clarity, Correctness          | Ensures there are no malformed lint directives.                                                   |
 | `MatchingParameterMeta`          | Completeness                  | Ensures that inputs have a matching entry in a `parameter_meta` section.                          |
-| `MissingRuntime`                 | Completeness, Portability     | Ensures that tasks have a runtime section.                                                        |
+| `MisplacedLintDirective`         | Clarity, Correctness          | Ensures there are no misplaced lint directives.                                                   |
 | `MissingMetas`                   | Completeness, Clarity         | Ensures that tasks have both a meta and a parameter_meta section.                                 |
 | `MissingOutput`                  | Completeness, Portability     | Ensures that tasks have an output section.                                                        |
+| `MissingRequirements`            | Completeness, Portability     | Ensures that >=v1.2 tasks have a requirements section.                                            |
+| `MissingRuntime`                 | Completeness, Portability     | Ensures that tasks have a runtime section.                                                        |
+| `NonmatchingOutput`              | Completeness                  | Ensures that each output field is documented in the meta section under `meta.outputs`.            |
 | `NoCurlyCommands`                | Clarity                       | Ensures that tasks use heredoc syntax in command sections.                                        |
 | `PascalCase`                     | Clarity, Naming, Style        | Ensures that structs are defined with PascalCase names.                                           |
-| `PreambleComments`               | Clarity, Spacing, Style       | Ensures that documents have correct comments in the preamble.                                     |
-| `PreambleWhitespace`             | Spacing, Style                | Ensures that documents have correct whitespace in the preamble.                                   |
+| `PreambleCommentAfterVersion`    | Clarity                       | Ensures that documents have correct comments in the preamble.                                     |
+| `PreambleFormatting`             | Spacing, Style, Clarity       | Ensures that documents have correct whitespace in the preamble.                                   |
 | `RuntimeSectionKeys`             | Completeness, Deprecated      | Ensures that runtime sections have the appropriate keys.                                          |
 | `SectionOrdering`                | Sorting, Style                | Ensures that sections within tasks and workflows are sorted.                                      |
 | `SnakeCase`                      | Clarity, Naming, Style        | Ensures that tasks, workflows, and variables are defined with snake_case names.                   |
 | `Todo`                           | Completeness                  | Ensures that `TODO` statements are flagged for followup.                                          |
 | `TrailingComma`                  | Style                         | Ensures that lists and objects in meta have a trailing comma.                                     |
-| `Whitespace`                     | Spacing, Style                | Ensures that a document does not contain undesired whitespace.                                    |
 | `UnknownRule`                    | Clarity                       | Ensures there are no unknown rules present in lint directives.                                    |
-| `MisplacedLintDirective`         | Clarity, Correctness          | Ensures there are no misplaced lint directives.                                                   |
-| `MalformedLintDirective`         | Clarity, Correctness          | Ensures there are no malformed lint directives.                                                   |
+| `VersionFormatting`              | Style                         | Ensures correct formatting of the version statement                                               |
+| `Whitespace`                     | Spacing, Style                | Ensures that a document does not contain undesired whitespace.                                    |
