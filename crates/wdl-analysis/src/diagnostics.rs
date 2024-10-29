@@ -13,8 +13,28 @@ use crate::UNUSED_CALL_RULE_ID;
 use crate::UNUSED_DECL_RULE_ID;
 use crate::UNUSED_IMPORT_RULE_ID;
 use crate::UNUSED_INPUT_RULE_ID;
+use crate::types::CallKind;
+use crate::types::CallType;
 use crate::types::Type;
 use crate::types::Types;
+
+/// Utility type to represent an input or an output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Io {
+    /// The I/O is an input.
+    Input,
+    /// The I/O is an output.
+    Output,
+}
+
+impl fmt::Display for Io {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Input => write!(f, "input"),
+            Self::Output => write!(f, "output"),
+        }
+    }
+}
 
 /// Represents the context for diagnostic reporting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -766,20 +786,24 @@ pub fn unknown_task_or_workflow(namespace: Option<Span>, name: &Ident) -> Diagno
     diagnostic
 }
 
-/// Creates an "unknown input/output name" diagnostic.
-pub fn unknown_io_name(
-    name: &str,
-    io_name: &Ident,
-    is_workflow: bool,
-    is_input: bool,
-) -> Diagnostic {
+/// Creates an "unknown call input/output" diagnostic.
+pub fn unknown_call_io(call: &CallType, name: &Ident, io: Io) -> Diagnostic {
     Diagnostic::error(format!(
-        "{kind} `{name}` does not have an {io_kind} named `{io_name}`",
-        kind = if is_workflow { "workflow" } else { "task" },
-        io_name = io_name.as_str(),
-        io_kind = if is_input { "input" } else { "output" }
+        "{kind} `{call}` does not have an {io} named `{name}`",
+        kind = call.kind(),
+        call = call.name(),
+        name = name.as_str(),
     ))
-    .with_highlight(io_name.span())
+    .with_highlight(name.span())
+}
+
+/// Creates an "unknown task input/output name" diagnostic.
+pub fn unknown_task_io(task_name: &str, name: &Ident, io: Io) -> Diagnostic {
+    Diagnostic::error(format!(
+        "task `{task_name}` does not have an {io} named `{name}`",
+        name = name.as_str(),
+    ))
+    .with_highlight(name.span())
 }
 
 /// Creates a "recursive workflow call" diagnostic.
@@ -792,10 +816,9 @@ pub fn recursive_workflow_call(name: &Ident) -> Diagnostic {
 }
 
 /// Creates a "missing call input" diagnostic.
-pub fn missing_call_input(workflow: bool, target: &Ident, input: &str) -> Diagnostic {
+pub fn missing_call_input(kind: CallKind, target: &Ident, input: &str) -> Diagnostic {
     Diagnostic::error(format!(
         "missing required call input `{input}` for {kind} `{target}`",
-        kind = if workflow { "workflow" } else { "task" },
         target = target.as_str(),
     ))
     .with_highlight(target.span())

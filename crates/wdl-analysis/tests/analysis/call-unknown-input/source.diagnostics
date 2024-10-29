@@ -4,19 +4,19 @@ error: task `my_task` does not have an input named `x`
 11 │     call my_task { input: x = 1 }
    │                           ^
 
-error: task `my_task2` does not have an input named `x`
+error: task `my_task` does not have an input named `x`
    ┌─ tests/analysis/call-unknown-input/source.wdl:12:32
    │
 12 │     call my_task as my_task2 { x = 1 }
    │                                ^
 
-error: task `my_task3` does not have an input named `x`
+error: task `my_task` does not have an input named `x`
    ┌─ tests/analysis/call-unknown-input/source.wdl:13:39
    │
 13 │     call my_task as my_task3 { input: x }
    │                                       ^
 
-error: task `my_task4` does not have an input named `x`
+error: task `my_task` does not have an input named `x`
    ┌─ tests/analysis/call-unknown-input/source.wdl:14:32
    │
 14 │     call my_task as my_task4 { x }

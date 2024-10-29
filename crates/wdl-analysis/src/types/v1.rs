@@ -44,6 +44,7 @@ use super::StructType;
 use super::Type;
 use super::TypeEq;
 use super::Types;
+use crate::diagnostics::Io;
 use crate::diagnostics::ambiguous_argument;
 use crate::diagnostics::argument_type_mismatch;
 use crate::diagnostics::cannot_access;
@@ -69,8 +70,9 @@ use crate::diagnostics::too_few_arguments;
 use crate::diagnostics::too_many_arguments;
 use crate::diagnostics::type_mismatch;
 use crate::diagnostics::type_mismatch_custom;
+use crate::diagnostics::unknown_call_io;
 use crate::diagnostics::unknown_function;
-use crate::diagnostics::unknown_io_name;
+use crate::diagnostics::unknown_task_io;
 use crate::diagnostics::unsupported_function;
 use crate::document::ScopeRef;
 use crate::stdlib::FunctionBindError;
@@ -1110,7 +1112,7 @@ where
 
         // Evaluate the items of the literal
         for item in expr.items() {
-            self.evaluate_literal_io_item(scope, item.names(), item.expr(), true);
+            self.evaluate_literal_io_item(scope, item.names(), item.expr(), Io::Input);
         }
 
         Some(Type::Input)
@@ -1129,7 +1131,7 @@ where
 
         // Evaluate the items of the literal
         for item in expr.items() {
-            self.evaluate_literal_io_item(scope, item.names(), item.expr(), false);
+            self.evaluate_literal_io_item(scope, item.names(), item.expr(), Io::Output);
         }
 
         Some(Type::Output)
@@ -1141,7 +1143,7 @@ where
         scope: &ScopeRef<'_>,
         names: impl Iterator<Item = Ident>,
         expr: Expr,
-        input: bool,
+        io: Io,
     ) {
         let mut names = names.enumerate().peekable();
         let expr_ty = self.evaluate_expr(scope, &expr).unwrap_or(Type::Union);
@@ -1155,18 +1157,17 @@ where
             let ty = if i == 0 {
                 span = Some(name.span());
 
-                match if input {
+                match if io == Io::Input {
                     scope.input(name.as_str()).unwrap().map(|i| i.ty())
                 } else {
                     scope.output(name.as_str()).unwrap().map(|o| o.ty())
                 } {
                     Some(ty) => ty,
                     None => {
-                        self.diagnostics.push(unknown_io_name(
+                        self.diagnostics.push(unknown_task_io(
                             scope.task_name().expect("should have task name"),
                             &name,
-                            false,
-                            input,
+                            io,
                         ));
                         break;
                     }
@@ -1707,14 +1708,14 @@ where
                 };
             }
 
-            // Check to see if it's a call output
-            if let CompoundTypeDef::CallOutput(ty) = definition {
+            // Check to see if it's a call
+            if let CompoundTypeDef::Call(ty) = definition {
                 if let Some(output) = ty.outputs().get(name.as_str()) {
                     return Some(output.ty());
                 }
 
                 self.diagnostics
-                    .push(unknown_io_name(ty.name(), &name, ty.is_workflow(), false));
+                    .push(unknown_call_io(ty, &name, Io::Output));
                 return None;
             }
         }

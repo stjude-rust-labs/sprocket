@@ -58,6 +58,7 @@ use crate::UNUSED_DECL_RULE_ID;
 use crate::UNUSED_IMPORT_RULE_ID;
 use crate::UNUSED_INPUT_RULE_ID;
 use crate::diagnostics::Context;
+use crate::diagnostics::Io;
 use crate::diagnostics::call_input_type_mismatch;
 use crate::diagnostics::duplicate_workflow;
 use crate::diagnostics::if_conditional_mismatch;
@@ -78,7 +79,7 @@ use crate::diagnostics::struct_conflicts_with_import;
 use crate::diagnostics::struct_not_in_document;
 use crate::diagnostics::type_is_not_array;
 use crate::diagnostics::type_mismatch;
-use crate::diagnostics::unknown_io_name;
+use crate::diagnostics::unknown_call_io;
 use crate::diagnostics::unknown_namespace;
 use crate::diagnostics::unknown_task_or_workflow;
 use crate::diagnostics::unknown_type;
@@ -93,12 +94,13 @@ use crate::eval::v1::WorkflowGraphBuilder;
 use crate::eval::v1::WorkflowGraphNode;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
-use crate::types::ArrayType;
-use crate::types::CallOutputType;
+use crate::types::CallKind;
+use crate::types::CallType;
 use crate::types::Coercible;
 use crate::types::CompoundTypeDef;
 use crate::types::Optional;
 use crate::types::PrimitiveTypeKind;
+use crate::types::PromotionKind;
 use crate::types::Type;
 use crate::types::Types;
 use crate::types::v1::AstTypeConverter;
@@ -451,7 +453,7 @@ fn create_input_type_map(
     document: &mut Document,
     declarations: impl Iterator<Item = Decl>,
     diagnostics: &mut Vec<Diagnostic>,
-) -> HashMap<String, Input> {
+) -> Arc<HashMap<String, Input>> {
     let mut map = HashMap::new();
     for decl in declarations {
         let name = decl.name();
@@ -467,7 +469,7 @@ fn create_input_type_map(
         });
     }
 
-    map
+    map.into()
 }
 
 /// Creates an output type map.
@@ -475,7 +477,7 @@ fn create_output_type_map(
     document: &mut Document,
     declarations: impl Iterator<Item = Decl>,
     diagnostics: &mut Vec<Diagnostic>,
-) -> HashMap<String, Output> {
+) -> Arc<HashMap<String, Output>> {
     let mut map = HashMap::new();
     for decl in declarations {
         let name = decl.name();
@@ -488,7 +490,7 @@ fn create_output_type_map(
         map.insert(name.as_str().to_string(), Output { ty });
     }
 
-    map
+    map.into()
 }
 
 /// Adds a task to the document.
@@ -797,6 +799,7 @@ fn add_workflow(
         scopes: Default::default(),
         inputs: Default::default(),
         outputs: Default::default(),
+        calls: Default::default(),
     });
 
     true
@@ -1047,7 +1050,7 @@ fn populate_workflow(
                     &mut scopes,
                     scope_index,
                     None,
-                    promote_optional_type,
+                    PromotionKind::Conditional,
                 );
             }
             WorkflowGraphNode::ExitScatter(statement) => {
@@ -1061,7 +1064,7 @@ fn populate_workflow(
                     &mut scopes,
                     scope_index,
                     Some(variable.as_str()),
-                    promote_array_type,
+                    PromotionKind::Scatter,
                 );
             }
         }
@@ -1169,117 +1172,106 @@ fn add_call_statement(
     nested_inputs_allowed: bool,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
+    // Determine the target name
     let target_name = statement
         .target()
         .names()
         .last()
         .expect("expected a last call target name");
 
+    // Determine the name of the call itself
     let name = statement
         .alias()
         .map(|a| a.name())
         .unwrap_or_else(|| target_name.clone());
 
-    let ty = match resolve_call_target(document, workflow_name, statement, diagnostics) {
-        Some(target) => {
-            // Type check the call inputs
-            let mut seen = HashSet::new();
-            for input in statement.inputs() {
-                let input_name = input.name();
+    let ty = if let Some(ty) = resolve_call_type(document, workflow_name, statement, diagnostics) {
+        // Type check the call inputs
+        let mut seen = HashSet::new();
+        for input in statement.inputs() {
+            let input_name = input.name();
 
-                let expected_ty = target
-                    .inputs
-                    .get(input_name.as_str())
-                    .copied()
-                    .map(|i| i.ty)
-                    .unwrap_or_else(|| {
-                        diagnostics.push(unknown_io_name(
-                            name.as_str(),
-                            &input_name,
-                            target.workflow,
-                            true,
-                        ));
-                        Type::Union
-                    });
+            let expected_ty = ty
+                .inputs()
+                .get(input_name.as_str())
+                .copied()
+                .map(|i| i.ty)
+                .unwrap_or_else(|| {
+                    diagnostics.push(unknown_call_io(&ty, &input_name, Io::Input));
+                    Type::Union
+                });
 
-                match input.expr() {
-                    Some(expr) => {
-                        type_check_expr(
-                            document,
-                            ScopeRef::new(scopes, index),
-                            &expr,
-                            expected_ty,
-                            input_name.span(),
-                            diagnostics,
-                        );
-                    }
-                    None => {
-                        if let Some(name) = ScopeRef::new(scopes, index).lookup(input_name.as_str())
+            match input.expr() {
+                Some(expr) => {
+                    type_check_expr(
+                        document,
+                        ScopeRef::new(scopes, index),
+                        &expr,
+                        expected_ty,
+                        input_name.span(),
+                        diagnostics,
+                    );
+                }
+                None => {
+                    if let Some(name) = ScopeRef::new(scopes, index).lookup(input_name.as_str()) {
+                        if expected_ty != Type::Union
+                            && !name.ty.is_coercible_to(&document.types, &expected_ty)
                         {
-                            if expected_ty != Type::Union
-                                && !name.ty.is_coercible_to(&document.types, &expected_ty)
-                            {
-                                diagnostics.push(call_input_type_mismatch(
-                                    &document.types,
-                                    &input_name,
-                                    expected_ty,
-                                    name.ty,
-                                ));
-                            }
+                            diagnostics.push(call_input_type_mismatch(
+                                &document.types,
+                                &input_name,
+                                expected_ty,
+                                name.ty,
+                            ));
                         }
                     }
                 }
-
-                // Don't bother keeping track of seen inputs if nested inputs are allowed
-                if !nested_inputs_allowed {
-                    seen.insert(TokenStrHash::new(input_name));
-                }
             }
 
+            // Don't bother keeping track of seen inputs if nested inputs are allowed
             if !nested_inputs_allowed {
-                for (name, input) in &target.inputs {
-                    if input.required && !seen.contains(name.as_str()) {
-                        diagnostics.push(missing_call_input(target.workflow, &target_name, name));
-                    }
+                seen.insert(TokenStrHash::new(input_name));
+            }
+        }
+
+        if !nested_inputs_allowed {
+            for (name, input) in ty.inputs() {
+                if input.required && !seen.contains(name.as_str()) {
+                    diagnostics.push(missing_call_input(ty.kind(), &target_name, name));
                 }
             }
-
-            document.types.add_call_output(CallOutputType::new(
-                name.as_str(),
-                target.outputs,
-                target.workflow,
-            ))
         }
-        None => Type::Union,
+
+        // Add the call to the workflow
+        let calls = &mut document
+            .workflow
+            .as_mut()
+            .expect("should have workflow")
+            .calls;
+        if !calls.contains_key(name.as_str()) {
+            calls.insert(name.as_str().to_string(), ty.clone());
+        }
+
+        document.types.add_call(ty)
+    } else {
+        Type::Union
     };
 
-    // Don't add if there's a conflict
-    if ScopeRef::new(scopes, index).lookup(name.as_str()).is_some() {
-        return;
+    // Don't modify the scope if there's a conflict
+    if ScopeRef::new(scopes, index).lookup(name.as_str()).is_none() {
+        scopes[index.0].insert(name.as_str(), name.span(), ty);
     }
-
-    scopes[index.0].insert(name.as_str(), name.span(), ty);
 }
 
-/// Represents information about a call target.
-struct CallTarget {
-    /// Whether or not the target is a workflow.
-    workflow: bool,
-    /// The inputs of the call target.
-    inputs: HashMap<String, Input>,
-    /// The outputs of the call target.
-    outputs: HashMap<String, Output>,
-}
-
-/// Resolves the target of a call statement.
+/// Resolves the type of a call statement.
 ///
-/// Returns `None` if the call target could not be resolved.
-fn resolve_call_target(
+/// Returns `None` if the type could not be resolved.
+fn resolve_call_type(
     document: &mut Document,
     workflow_name: &str,
     statement: &CallStatement,
     diagnostics: &mut Vec<Diagnostic>,
-) -> Option<CallTarget> {
+) -> Option<CallType> {
     let mut targets = statement.target().names().peekable();
     let mut namespace = None;
     let mut name = None;
@@ -1313,13 +1305,15 @@ fn resolve_call_target(
         return None;
     }
 
-    let (workflow, mut inputs, mut outputs) = if let Some(task) = target.tasks.get(name.as_str()) {
-        (false, task.inputs.clone(), task.outputs.clone())
+    let (kind, mut inputs, mut outputs) = if let Some(task) = target.tasks.get(name.as_str()) {
+        (CallKind::Task, task.inputs.clone(), task.outputs.clone())
     } else {
         match &target.workflow {
-            Some(workflow) if workflow.name == name.as_str() => {
-                (true, workflow.inputs.clone(), workflow.outputs.clone())
-            }
+            Some(workflow) if workflow.name == name.as_str() => (
+                CallKind::Workflow,
+                workflow.inputs.clone(),
+                workflow.outputs.clone(),
+            ),
             _ => {
                 diagnostics.push(unknown_task_or_workflow(namespace.map(|ns| ns.span), &name));
                 return None;
@@ -1330,32 +1324,34 @@ fn resolve_call_target(
     // If the target is from an import, we need to import its type definitions into
     // the current document's types collection
     if let Some(types) = namespace.map(|ns| &ns.document.types) {
-        for input in inputs.values_mut() {
+        for input in Arc::make_mut(&mut inputs).values_mut() {
             input.ty = document.types.import(types, input.ty);
         }
 
-        for output in outputs.values_mut() {
+        for output in Arc::make_mut(&mut outputs).values_mut() {
             output.ty = document.types.import(types, output.ty);
         }
-    }
 
-    Some(CallTarget {
-        workflow,
-        inputs,
-        outputs,
-    })
+        Some(CallType::namespaced(
+            kind,
+            statement.target().names().next().unwrap().as_str(),
+            name.as_str(),
+            inputs,
+            outputs,
+        ))
+    } else {
+        Some(CallType::new(kind, name.as_str(), inputs, outputs))
+    }
 }
 
 /// Promotes the names in the current to the parent scope.
-fn promote_scope<F>(
+fn promote_scope(
     types: &mut Types,
     scopes: &mut [Scope],
     index: ScopeIndex,
     skip: Option<&str>,
-    transform: F,
-) where
-    F: Fn(&mut Types, Type) -> Type,
-{
+    kind: PromotionKind,
+) {
     // We need to split the scopes as we want to read from one part of the slice and
     // write to another; the left side will contain the parent at it's index and the
     // right side will contain the child scope at it's index minus the parent's
@@ -1371,44 +1367,8 @@ fn promote_scope<F>(
 
         parent.names.entry(name.clone()).or_insert_with(|| Name {
             span: *span,
-            ty: transform(types, *ty),
+            ty: ty.promote(types, kind),
         });
-    }
-}
-
-/// Promotes a type to an array type for scatter statements.
-fn promote_array_type(types: &mut Types, ty: Type) -> Type {
-    match ty {
-        Type::Compound(ty) => match types.type_definition(ty.definition()) {
-            CompoundTypeDef::CallOutput(ty) => {
-                let mut ty = ty.clone();
-                for output in ty.outputs_mut().values_mut() {
-                    output.ty = types.add_array(ArrayType::new(output.ty))
-                }
-
-                types.add_call_output(ty)
-            }
-            _ => types.add_array(ArrayType::new(Type::Compound(ty))),
-        },
-        _ => types.add_array(ArrayType::new(ty)),
-    }
-}
-
-/// Promotes a type to an optional type for conditional statements.
-fn promote_optional_type(types: &mut Types, ty: Type) -> Type {
-    match ty {
-        Type::Compound(ty) => match types.type_definition(ty.definition()) {
-            CompoundTypeDef::CallOutput(ty) => {
-                let mut ty = ty.clone();
-                for output in ty.outputs_mut().values_mut() {
-                    output.ty = output.ty.optional();
-                }
-
-                types.add_call_output(ty)
-            }
-            _ => Type::Compound(ty.optional()),
-        },
-        _ => ty.optional(),
     }
 }
 

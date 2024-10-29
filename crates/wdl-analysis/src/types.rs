@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 
 use id_arena::Arena;
 use id_arena::ArenaBehavior;
@@ -9,6 +10,7 @@ use id_arena::DefaultArenaBehavior;
 use id_arena::Id;
 use indexmap::IndexMap;
 
+use crate::document::Input;
 use crate::document::Output;
 use crate::stdlib::STDLIB;
 
@@ -182,6 +184,15 @@ impl From<PrimitiveTypeKind> for PrimitiveType {
 /// Represents an identifier of a defined compound type.
 pub type CompoundTypeDefId = Id<CompoundTypeDef>;
 
+/// Represents the kind of a promotion of a type from one scope to another.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PromotionKind {
+    /// The type is being promoted as an output of a scatter statement.
+    Scatter,
+    /// The type is being promoted as an output of a conditional statement.
+    Conditional,
+}
+
 /// Represents a WDL type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Type {
@@ -234,6 +245,26 @@ impl Type {
     /// Determines if the type is `None`.
     pub fn is_none(&self) -> bool {
         matches!(self, Type::None)
+    }
+
+    /// Promotes the type from one scope to another.
+    pub fn promote(&self, types: &mut Types, kind: PromotionKind) -> Self {
+        // For calls, the outputs of the call are promoted instead of the call itself
+        if let Type::Compound(ty) = self {
+            if let CompoundTypeDef::Call(ty) = types.type_definition(ty.definition()) {
+                let mut ty = ty.clone();
+                for output in Arc::make_mut(&mut ty.outputs).values_mut() {
+                    *output = Output::new(output.ty().promote(types, kind));
+                }
+
+                return types.add_call(ty);
+            }
+        }
+
+        match kind {
+            PromotionKind::Scatter => types.add_array(ArrayType::new(*self)),
+            PromotionKind::Conditional => self.optional(),
+        }
     }
 
     /// Returns an object that implements `Display` for formatting the type.
@@ -459,7 +490,7 @@ impl CompoundType {
                     CompoundTypeDef::Pair(ty) => ty.display(self.types).fmt(f)?,
                     CompoundTypeDef::Map(ty) => ty.display(self.types).fmt(f)?,
                     CompoundTypeDef::Struct(ty) => ty.fmt(f)?,
-                    CompoundTypeDef::CallOutput(ty) => ty.fmt(f)?,
+                    CompoundTypeDef::Call(ty) => ty.fmt(f)?,
                 }
 
                 if self.optional {
@@ -552,8 +583,8 @@ pub enum CompoundTypeDef {
     Map(MapType),
     /// The type is a struct (e.g. `Foo`).
     Struct(StructType),
-    /// The type is a call output.
-    CallOutput(CallOutputType),
+    /// The type is a call.
+    Call(CallType),
 }
 
 impl CompoundTypeDef {
@@ -572,7 +603,7 @@ impl CompoundTypeDef {
             Self::Struct(ty) => {
                 ty.assert_valid(types);
             }
-            Self::CallOutput(ty) => {
+            Self::Call(ty) => {
                 ty.assert_valid(types);
             }
         }
@@ -995,71 +1026,137 @@ impl fmt::Display for StructType {
     }
 }
 
-/// Represents the type of a call output.
-#[derive(Debug, Clone)]
-pub struct CallOutputType {
-    /// The name of the task or workflow that was called.
-    name: String,
-    /// The outputs from the call.
-    outputs: HashMap<String, Output>,
-    /// Whether or not the call was to a workflow (or a task).
-    workflow: bool,
+/// The kind of call for a call type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CallKind {
+    /// The call is to a task.
+    Task,
+    /// The call is to a workflow.
+    Workflow,
 }
 
-impl CallOutputType {
-    /// Constructs a new call output type.
-    pub fn new(name: impl Into<String>, outputs: HashMap<String, Output>, workflow: bool) -> Self {
+impl fmt::Display for CallKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Task => write!(f, "task"),
+            Self::Workflow => write!(f, "workflow"),
+        }
+    }
+}
+
+/// Represents the type of a call.
+#[derive(Debug, Clone)]
+pub struct CallType {
+    /// The call kind.
+    kind: CallKind,
+    /// The namespace of the call.
+    namespace: Option<Arc<String>>,
+    /// The name of the task or workflow that was called.
+    name: Arc<String>,
+    /// The input types to the call.
+    inputs: Arc<HashMap<String, Input>>,
+    /// The output types from the call.
+    outputs: Arc<HashMap<String, Output>>,
+}
+
+impl CallType {
+    /// Constructs a new call type given the task or workflow name being called.
+    pub fn new(
+        kind: CallKind,
+        name: impl Into<String>,
+        inputs: Arc<HashMap<String, Input>>,
+        outputs: Arc<HashMap<String, Output>>,
+    ) -> Self {
         Self {
-            name: name.into(),
+            kind,
+            namespace: None,
+            name: Arc::new(name.into()),
+            inputs,
             outputs,
-            workflow,
         }
     }
 
-    /// Gets the name of the task or workflow that was called.
+    /// Constructs a new call type given namespace and the task or workflow name
+    /// being called.
+    pub fn namespaced(
+        kind: CallKind,
+        namespace: impl Into<String>,
+        name: impl Into<String>,
+        inputs: Arc<HashMap<String, Input>>,
+        outputs: Arc<HashMap<String, Output>>,
+    ) -> Self {
+        Self {
+            kind,
+            namespace: Some(Arc::new(namespace.into())),
+            name: Arc::new(name.into()),
+            inputs,
+            outputs,
+        }
+    }
+
+    /// Gets the kind of the call.
+    pub fn kind(&self) -> CallKind {
+        self.kind
+    }
+
+    /// Gets the namespace of the call target.
+    ///
+    /// Returns `None` if the call is local to the current document.
+    pub fn namespace(&self) -> Option<&str> {
+        self.namespace.as_ref().map(|ns| ns.as_str())
+    }
+
+    /// Gets the name of the call target.
     pub fn name(&self) -> &str {
         &self.name
     }
 
-    /// Gets the outputs from the call.
+    /// Gets the inputs of the call.
+    pub fn inputs(&self) -> &HashMap<String, Input> {
+        &self.inputs
+    }
+
+    /// Gets the outputs of the call.
     pub fn outputs(&self) -> &HashMap<String, Output> {
         &self.outputs
     }
 
-    /// Gets the mutable outputs from the call.
-    pub(crate) fn outputs_mut(&mut self) -> &mut HashMap<String, Output> {
-        &mut self.outputs
-    }
-
-    /// Whether or not the call output is from a workflow.
-    ///
-    /// If `false`, the output is from a task.
-    pub fn is_workflow(&self) -> bool {
-        self.workflow
-    }
-
     /// Asserts that this type is valid.
     fn assert_valid(&self, types: &Types) {
+        for v in self.inputs.values() {
+            v.ty().assert_valid(types);
+        }
+
         for v in self.outputs.values() {
             v.ty().assert_valid(types);
         }
     }
 }
 
-impl Coercible for CallOutputType {
+impl Coercible for CallType {
     fn is_coercible_to(&self, _: &Types, _: &Self) -> bool {
-        // Call outputs are not coercible to other types
+        // Calls are not coercible to other types
         false
     }
 }
 
-impl fmt::Display for CallOutputType {
+impl fmt::Display for CallType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{kind} call output",
-            kind = if self.workflow { "workflow" } else { "task" },
-        )
+        if let Some(ns) = &self.namespace {
+            write!(
+                f,
+                "call to {kind} `{ns}.{name}`",
+                kind = self.kind,
+                name = self.name,
+            )
+        } else {
+            write!(
+                f,
+                "call to {kind} `{name}`",
+                kind = self.kind,
+                name = self.name,
+            )
+        }
     }
 }
 
@@ -1129,16 +1226,10 @@ impl Types {
         })
     }
 
-    /// Adds a call output type to the type collection.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the provided type contains a type definition identifier from a
-    /// different types collection.
-    pub fn add_call_output(&mut self, ty: CallOutputType) -> Type {
-        ty.assert_valid(self);
+    /// Adds a call type to the type collection.
+    pub fn add_call(&mut self, ty: CallType) -> Type {
         Type::Compound(CompoundType {
-            definition: self.0.alloc(CompoundTypeDef::CallOutput(ty)),
+            definition: self.0.alloc(CompoundTypeDef::Call(ty)),
             optional: false,
         })
     }
@@ -1172,6 +1263,10 @@ impl Types {
     /// Imports a type from a foreign type collection.
     ///
     /// Returns the new type that is local to this type collection.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the specified type is a call, as calls cannot be imported.
     pub fn import(&mut self, types: &Self, ty: Type) -> Type {
         match ty {
             Type::Primitive(ty) => Type::Primitive(ty),
@@ -1210,19 +1305,7 @@ impl Types {
                         members,
                     })
                 }
-                CompoundTypeDef::CallOutput(ty) => {
-                    let members = ty
-                        .outputs
-                        .iter()
-                        .map(|(k, v)| (k.clone(), Output::new(self.import(types, v.ty()))))
-                        .collect();
-
-                    self.add_call_output(CallOutputType::new(
-                        ty.name.as_str(),
-                        members,
-                        ty.workflow,
-                    ))
-                }
+                CompoundTypeDef::Call(_) => panic!("call types cannot be imported"),
             },
             Type::Object => Type::Object,
             Type::OptionalObject => Type::OptionalObject,
