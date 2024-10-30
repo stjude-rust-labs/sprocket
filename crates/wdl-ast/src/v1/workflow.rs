@@ -1,5 +1,8 @@
 //! V1 AST representation for workflows.
 
+use wdl_grammar::SupportedVersion;
+use wdl_grammar::version::V1;
+
 use super::BoundDecl;
 use super::Expr;
 use super::InputSection;
@@ -8,6 +11,7 @@ use super::LiteralFloat;
 use super::LiteralInteger;
 use super::LiteralString;
 use super::MetadataSection;
+use super::MetadataValue;
 use super::OutputSection;
 use super::ParameterMetadataSection;
 use crate::AstChildren;
@@ -70,6 +74,57 @@ impl WorkflowDefinition {
     /// Gets the private declarations of the workflow.
     pub fn declarations(&self) -> AstChildren<BoundDecl> {
         children(&self.0)
+    }
+
+    /// Determines if the workflow definition allows nested inputs.
+    pub fn allows_nested_inputs(&self, version: SupportedVersion) -> bool {
+        match version {
+            SupportedVersion::V1(V1::Zero) => return true,
+            SupportedVersion::V1(V1::One) => {
+                // Fall through to below
+            }
+            SupportedVersion::V1(V1::Two) => {
+                // Check the hints section
+                let allow = self.hints().and_then(|s| {
+                    s.items().find_map(|i| {
+                        if matches!(
+                            i.name().as_str(),
+                            "allow_nested_inputs" | "allowNestedInputs"
+                        ) {
+                            match i.value() {
+                                WorkflowHintsItemValue::Boolean(v) => Some(v.value()),
+                                _ => Some(false),
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                });
+
+                if let Some(allow) = allow {
+                    return allow;
+                }
+
+                // Fall through to below
+            }
+            _ => return false,
+        }
+
+        // Check the metadata section
+        self.metadata()
+            .and_then(|s| {
+                s.items().find_map(|i| {
+                    if i.name().as_str() == "allowNestedInputs" {
+                        match i.value() {
+                            MetadataValue::Boolean(v) => Some(v.value()),
+                            _ => Some(false),
+                        }
+                    } else {
+                        None
+                    }
+                })
+            })
+            .unwrap_or(false)
     }
 }
 

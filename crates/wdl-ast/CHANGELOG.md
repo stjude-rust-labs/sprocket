@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added `allows_nested_inputs` function to `Workflow` (#[241](https://github.com/stjude-rust-labs/wdl/pull/241)).
 * `strip_whitespace()` method to `LiteralString` and `CommandSection` AST nodes ([#238](https://github.com/stjude-rust-labs/wdl/pull/238)).
 
 ## 0.9.0 - 10-22-2024

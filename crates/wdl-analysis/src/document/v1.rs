@@ -31,12 +31,10 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::ImportStatement;
-use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ScatterStatement;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
-use wdl_ast::v1::WorkflowHintsItemValue;
 use wdl_ast::version::V1;
 
 use super::Document;
@@ -800,61 +798,13 @@ fn add_workflow(
         inputs: Default::default(),
         outputs: Default::default(),
         calls: Default::default(),
+        allows_nested_inputs: document
+            .version
+            .map(|v| workflow.allows_nested_inputs(v))
+            .unwrap_or(false),
     });
 
     true
-}
-
-/// Determines if nested inputs are allowed for a workflow.
-fn is_nested_inputs_allowed(document: &Document, workflow: &WorkflowDefinition) -> bool {
-    match document.version() {
-        Some(SupportedVersion::V1(V1::Zero)) => return true,
-        Some(SupportedVersion::V1(V1::One)) => {
-            // Fall through to below
-        }
-        Some(SupportedVersion::V1(V1::Two)) => {
-            // Check the hints section
-            let allow = workflow.hints().and_then(|s| {
-                s.items().find_map(|i| {
-                    if matches!(
-                        i.name().as_str(),
-                        "allow_nested_inputs" | "allowNestedInputs"
-                    ) {
-                        match i.value() {
-                            WorkflowHintsItemValue::Boolean(v) => Some(v.value()),
-                            _ => Some(false),
-                        }
-                    } else {
-                        None
-                    }
-                })
-            });
-
-            if let Some(allow) = allow {
-                return allow;
-            }
-
-            // Fall through to below
-        }
-        _ => return false,
-    }
-
-    // Check the metadata section
-    workflow
-        .metadata()
-        .and_then(|s| {
-            s.items().find_map(|i| {
-                if i.name().as_str() == "allowNestedInputs" {
-                    match i.value() {
-                        MetadataValue::Boolean(v) => Some(v.value()),
-                        _ => Some(false),
-                    }
-                } else {
-                    None
-                }
-            })
-        })
-        .unwrap_or(false)
 }
 
 /// Finishes populating a workflow.
@@ -878,8 +828,6 @@ fn populate_workflow(
             .flat_map(|s| s.declarations().map(Decl::Bound)),
         diagnostics,
     );
-
-    let nested_inputs_allowed = is_nested_inputs_allowed(document, workflow);
 
     // Keep a map of scopes from syntax node that introduced the scope to the scope
     // index
@@ -1012,7 +960,11 @@ fn populate_workflow(
                     &mut scopes,
                     scope_index,
                     &statement,
-                    nested_inputs_allowed,
+                    document
+                        .workflow
+                        .as_ref()
+                        .expect("should have workflow")
+                        .allows_nested_inputs,
                     diagnostics,
                 );
 
@@ -1321,6 +1273,13 @@ fn resolve_call_type(
         }
     };
 
+    let specified = Arc::new(
+        statement
+            .inputs()
+            .map(|i| i.name().as_str().to_string())
+            .collect(),
+    );
+
     // If the target is from an import, we need to import its type definitions into
     // the current document's types collection
     if let Some(types) = namespace.map(|ns| &ns.document.types) {
@@ -1336,11 +1295,18 @@ fn resolve_call_type(
             kind,
             statement.target().names().next().unwrap().as_str(),
             name.as_str(),
+            specified,
             inputs,
             outputs,
         ))
     } else {
-        Some(CallType::new(kind, name.as_str(), inputs, outputs))
+        Some(CallType::new(
+            kind,
+            name.as_str(),
+            specified,
+            inputs,
+            outputs,
+        ))
     }
 }
 

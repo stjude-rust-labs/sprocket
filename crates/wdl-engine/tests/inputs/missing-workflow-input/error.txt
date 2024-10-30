@@ -1,0 +1,4 @@
+failed to validate the inputs to workflow `test`
+
+Caused by:
+    missing required input `y`

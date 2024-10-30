@@ -1,0 +1,4 @@
+failed to open input file `tests/inputs/missing-file/inputs.json`
+
+Caused by:
+    No such file or directory (os error 2)

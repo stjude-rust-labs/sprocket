@@ -2,6 +2,7 @@
 
 use std::fmt;
 use std::fmt::Write;
+use std::sync::LazyLock;
 
 use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
@@ -93,6 +94,141 @@ pub fn task_member_type(name: &str) -> Option<Type> {
         "disks" => Some(STDLIB.map_string_int),
         "end_time" | "return_code" => Some(Type::from(PrimitiveTypeKind::Integer).optional()),
         "meta" | "parameter_meta" | "ext" => Some(Type::Object),
+        _ => None,
+    }
+}
+
+/// Gets the types of a task requirement.
+///
+/// Returns a slice of types or `None` if the given name is not a requirement.
+pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&'static [Type]> {
+    /// The types for the `container` requirement.
+    static CONTAINER_TYPES: LazyLock<Box<[Type]>> =
+        LazyLock::new(|| Box::new([PrimitiveTypeKind::String.into(), STDLIB.array_string]));
+    /// The types for the `cpu` requirement.
+    const CPU_TYPES: &[Type] = &[
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::Integer)),
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::Float)),
+    ];
+    /// The types for the `memory` requirement.
+    const MEMORY_TYPES: &[Type] = &[
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::Integer)),
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::String)),
+    ];
+    /// The types for the `gpu` requirement.
+    const GPU_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::new(
+        PrimitiveTypeKind::Boolean,
+    ))];
+    /// The types for the `fpga` requirement.
+    const FPGA_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::new(
+        PrimitiveTypeKind::Boolean,
+    ))];
+    /// The types for the `disks` requirement.
+    static DISKS_TYPES: LazyLock<Box<[Type]>> = LazyLock::new(|| {
+        Box::new([
+            PrimitiveTypeKind::Integer.into(),
+            PrimitiveTypeKind::String.into(),
+            STDLIB.array_string,
+        ])
+    });
+    /// The types for the `max_retries` requirement.
+    const MAX_RETRIES_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::new(
+        PrimitiveTypeKind::Integer,
+    ))];
+    /// The types for the `return_codes` requirement.
+    static RETURN_CODES_TYPES: LazyLock<Box<[Type]>> = LazyLock::new(|| {
+        Box::new([
+            PrimitiveTypeKind::Integer.into(),
+            PrimitiveTypeKind::String.into(),
+            STDLIB.array_int,
+        ])
+    });
+
+    match name {
+        "container" | "docker" => Some(&CONTAINER_TYPES),
+        "cpu" => Some(CPU_TYPES),
+        "disks" => Some(&DISKS_TYPES),
+        "gpu" => Some(GPU_TYPES),
+        "fpga" if version >= SupportedVersion::V1(V1::Two) => Some(FPGA_TYPES),
+        "max_retries" if version >= SupportedVersion::V1(V1::Two) => Some(MAX_RETRIES_TYPES),
+        "maxRetries" => Some(MAX_RETRIES_TYPES),
+        "memory" => Some(MEMORY_TYPES),
+        "return_codes" if version >= SupportedVersion::V1(V1::Two) => Some(&RETURN_CODES_TYPES),
+        "returnCodes" => Some(&RETURN_CODES_TYPES),
+        _ => None,
+    }
+}
+
+/// Gets the types of a task hint.
+///
+/// Returns a slice of types or `None` if the given name is not a reserved hint.
+pub fn task_hint_types(
+    version: SupportedVersion,
+    name: &str,
+    use_hidden_types: bool,
+) -> Option<&'static [Type]> {
+    /// The types for the `disks` hint.
+    static DISKS_TYPES: LazyLock<Box<[Type]>> =
+        LazyLock::new(|| Box::new([PrimitiveTypeKind::String.into(), STDLIB.map_string_string]));
+    /// The types for the `fpga` hint.
+    const FPGA_TYPES: &[Type] = &[
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::Integer)),
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::String)),
+    ];
+    /// The types for the `gpu` hint.
+    const GPU_TYPES: &[Type] = &[
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::Integer)),
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::String)),
+    ];
+    /// The types for the `inputs` hint.
+    const INPUTS_TYPES: &[Type] = &[Type::Object];
+    /// The types for the `inputs` hint (with hidden types).
+    const INPUTS_HIDDEN_TYPES: &[Type] = &[Type::Input];
+    /// The types for the `localization_optional` hint.
+    const LOCALIZATION_OPTIONAL_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::new(
+        PrimitiveTypeKind::Boolean,
+    ))];
+    /// The types for the `max_cpu` hint.
+    const MAX_CPU_TYPES: &[Type] = &[
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::Integer)),
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::Float)),
+    ];
+    /// The types for the `max_memory` hint.
+    const MAX_MEMORY_TYPES: &[Type] = &[
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::Integer)),
+        Type::Primitive(PrimitiveType::new(PrimitiveTypeKind::String)),
+    ];
+    /// The types for the `outputs` hint.
+    const OUTPUTS_TYPES: &[Type] = &[Type::Object];
+    /// The types for the `outputs` hint (with hidden types).
+    const OUTPUTS_HIDDEN_TYPES: &[Type] = &[Type::Output];
+    /// The types for the `short_task` hint.
+    const SHORT_TASK_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::new(
+        PrimitiveTypeKind::Boolean,
+    ))];
+
+    match name {
+        "disks" => Some(&DISKS_TYPES),
+        "fpga" if version >= SupportedVersion::V1(V1::Two) => Some(FPGA_TYPES),
+        "gpu" => Some(GPU_TYPES),
+        "inputs" if use_hidden_types && version >= SupportedVersion::V1(V1::Two) => {
+            Some(INPUTS_HIDDEN_TYPES)
+        }
+        "inputs" => Some(INPUTS_TYPES),
+        "localization_optional" if version >= SupportedVersion::V1(V1::Two) => {
+            Some(LOCALIZATION_OPTIONAL_TYPES)
+        }
+        "localizationOptional" => Some(LOCALIZATION_OPTIONAL_TYPES),
+        "max_cpu" if version >= SupportedVersion::V1(V1::Two) => Some(MAX_CPU_TYPES),
+        "maxCpu" => Some(MAX_CPU_TYPES),
+        "max_memory" if version >= SupportedVersion::V1(V1::Two) => Some(MAX_MEMORY_TYPES),
+        "maxMemory" => Some(MAX_MEMORY_TYPES),
+        "outputs" if use_hidden_types && version >= SupportedVersion::V1(V1::Two) => {
+            Some(OUTPUTS_HIDDEN_TYPES)
+        }
+        "outputs" => Some(OUTPUTS_TYPES),
+        "short_task" if version >= SupportedVersion::V1(V1::Two) => Some(SHORT_TASK_TYPES),
+        "shortTask" => Some(SHORT_TASK_TYPES),
         _ => None,
     }
 }
@@ -546,7 +682,7 @@ where
                 // first
                 for expr in elements {
                     if let Some(actual) = self.evaluate_expr(scope, &expr) {
-                        if let Some(ty) = self.common_type(actual, expected) {
+                        if let Some(ty) = actual.common_type(self.types, expected) {
                             expected = ty;
                             expected_span = expr.span();
                         } else {
@@ -617,7 +753,7 @@ where
                     let (key, value) = item.key_value();
                     if let Some(actual_key) = self.evaluate_expr(scope, &key) {
                         if let Some(actual_value) = self.evaluate_expr(scope, &value) {
-                            if let Some(ty) = self.common_type(actual_key, expected_key) {
+                            if let Some(ty) = actual_key.common_type(self.types, expected_key) {
                                 expected_key = ty;
                                 expected_key_span = key.span();
                             } else {
@@ -630,7 +766,7 @@ where
                                 ));
                             }
 
-                            if let Some(ty) = self.common_type(actual_value, expected_value) {
+                            if let Some(ty) = actual_value.common_type(self.types, expected_value) {
                                 expected_value = ty;
                                 expected_value_span = value.span();
                             } else {
@@ -772,7 +908,20 @@ where
         if !self.evaluate_requirement(name, expr, expr_ty) {
             // Always use object types for `runtime` section `inputs` and `outputs` keys as
             // only `hints` sections can use input/output hidden types
-            self.evaluate_hint(name, expr, expr_ty, true);
+            if let Some(expected) = task_hint_types(self.version, name.as_str(), false) {
+                if !expected
+                    .iter()
+                    .any(|target| expr_ty.is_coercible_to(self.types, target))
+                {
+                    self.diagnostics.push(type_mismatch_custom(
+                        self.types,
+                        expected,
+                        name.span(),
+                        expr_ty,
+                        expr.span(),
+                    ));
+                }
+            }
         }
     }
 
@@ -793,155 +942,24 @@ where
     /// Returns `true` if the name matched a requirement or `false` if it did
     /// not.
     fn evaluate_requirement(&mut self, name: &Ident, expr: &Expr, expr_ty: Type) -> bool {
-        match name.as_str() {
-            "container" | "docker" => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
-                    && !expr_ty.is_coercible_to(self.types, &STDLIB.array_string)
-                {
-                    self.diagnostics.push(type_mismatch_custom(
-                        self.types,
-                        "type `String` or type `Array[String]`",
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
+        if let Some(expected) = task_requirement_types(self.version, name.as_str()) {
+            if !expected
+                .iter()
+                .any(|target| expr_ty.is_coercible_to(self.types, target))
+            {
+                self.diagnostics.push(type_mismatch_custom(
+                    self.types,
+                    expected,
+                    name.span(),
+                    expr_ty,
+                    expr.span(),
+                ));
+            }
 
-                true
-            }
-            "cpu" => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Float.into()) {
-                    self.diagnostics.push(type_mismatch_custom(
-                        self.types,
-                        "type `Int` or type `Float`",
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-
-                true
-            }
-            "memory" => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
-                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
-                {
-                    self.diagnostics.push(type_mismatch_custom(
-                        self.types,
-                        "type `Int` or type `String`",
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-
-                true
-            }
-            "gpu" => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
-                    self.diagnostics.push(type_mismatch(
-                        self.types,
-                        PrimitiveTypeKind::Boolean.into(),
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-
-                true
-            }
-            "fpga" if self.version >= SupportedVersion::V1(V1::Two) => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
-                    self.diagnostics.push(type_mismatch(
-                        self.types,
-                        PrimitiveTypeKind::Boolean.into(),
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-
-                true
-            }
-            "disks" => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
-                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
-                    && !expr_ty.is_coercible_to(self.types, &STDLIB.array_string)
-                {
-                    self.diagnostics.push(type_mismatch_custom(
-                        self.types,
-                        "type `Int`, type `String`, or type `Array[String]`",
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-
-                true
-            }
-            "max_retries" if self.version >= SupportedVersion::V1(V1::Two) => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into()) {
-                    self.diagnostics.push(type_mismatch(
-                        self.types,
-                        PrimitiveTypeKind::Integer.into(),
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-
-                true
-            }
-            "maxRetries" => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into()) {
-                    self.diagnostics.push(type_mismatch(
-                        self.types,
-                        PrimitiveTypeKind::Integer.into(),
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-
-                true
-            }
-            "return_codes" if self.version >= SupportedVersion::V1(V1::Two) => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
-                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
-                    && !expr_ty.is_coercible_to(self.types, &STDLIB.array_int)
-                {
-                    self.diagnostics.push(type_mismatch_custom(
-                        self.types,
-                        "type `Int`, type `String`, or type `Array[Int]`",
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-
-                true
-            }
-            "returnCodes" => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
-                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
-                    && !expr_ty.is_coercible_to(self.types, &STDLIB.array_int)
-                {
-                    self.diagnostics.push(type_mismatch_custom(
-                        self.types,
-                        "type `Int`, type `String`, or type `Array[Int]`",
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-
-                true
-            }
-            _ => {
-                // Invalid requirements key; we report on this during validation
-                false
-            }
+            return true;
         }
+
+        false
     }
 
     /// Evaluates the type of a literal hints expression.
@@ -965,136 +983,18 @@ where
     /// literal expression.
     pub(crate) fn evaluate_hints_item(&mut self, scope: &ScopeRef<'_>, name: &Ident, expr: &Expr) {
         let expr_ty = self.evaluate_expr(scope, expr).unwrap_or(Type::Union);
-        // For an item in a hints section or literal, the expected types of `inputs` and
-        // `outputs` is `input` and `output` respectively
-        self.evaluate_hint(name, expr, expr_ty, false);
-    }
-
-    /// Evaluates a hint in either a `hints` section or a legacy `runtime`
-    /// section.
-    fn evaluate_hint(&mut self, name: &Ident, expr: &Expr, expr_ty: Type, io_object_type: bool) {
-        match name.as_str() {
-            "max_cpu" if self.version >= SupportedVersion::V1(V1::Two) => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Float.into()) {
-                    self.diagnostics.push(type_mismatch_custom(
-                        self.types,
-                        "type `Int` or type `Float`",
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-            }
-            "maxCpu" => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Float.into()) {
-                    self.diagnostics.push(type_mismatch_custom(
-                        self.types,
-                        "type `Int` or type `Float`",
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-            }
-            "max_memory" | "fpga" if self.version >= SupportedVersion::V1(V1::Two) => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
-                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
-                {
-                    self.diagnostics.push(type_mismatch_custom(
-                        self.types,
-                        "type `Int` or type `String`",
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-            }
-            "maxMemory" | "gpu" => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Integer.into())
-                    && !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
-                {
-                    self.diagnostics.push(type_mismatch_custom(
-                        self.types,
-                        "type `Int` or type `String`",
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-            }
-            "disks" => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::String.into())
-                    && !expr_ty.is_coercible_to(self.types, &STDLIB.map_string_string)
-                {
-                    self.diagnostics.push(type_mismatch_custom(
-                        self.types,
-                        "type `String` or type `Map[String, String]`",
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-            }
-            "short_task" | "localization_optional"
-                if self.version >= SupportedVersion::V1(V1::Two) =>
+        if let Some(expected) = task_hint_types(self.version, name.as_str(), true) {
+            if !expected
+                .iter()
+                .any(|target| expr_ty.is_coercible_to(self.types, target))
             {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
-                    self.diagnostics.push(type_mismatch(
-                        self.types,
-                        PrimitiveTypeKind::Boolean.into(),
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-            }
-            "shortTask" | "localizationOptional" => {
-                if !expr_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
-                    self.diagnostics.push(type_mismatch(
-                        self.types,
-                        PrimitiveTypeKind::Boolean.into(),
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-            }
-            "inputs" => {
-                let expected = if io_object_type {
-                    Type::Object
-                } else {
-                    Type::Input
-                };
-
-                if !expr_ty.is_coercible_to(self.types, &expected) {
-                    self.diagnostics.push(type_mismatch(
-                        self.types,
-                        expected,
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-            }
-            "outputs" => {
-                let expected = if io_object_type {
-                    Type::Object
-                } else {
-                    Type::Output
-                };
-
-                if !expr_ty.is_coercible_to(self.types, &expected) {
-                    self.diagnostics.push(type_mismatch(
-                        self.types,
-                        expected,
-                        name.span(),
-                        expr_ty,
-                        expr.span(),
-                    ));
-                }
-            }
-            _ => {
-                // Accept non-reserved names
+                self.diagnostics.push(type_mismatch_custom(
+                    self.types,
+                    expected,
+                    name.span(),
+                    expr_ty,
+                    expr.span(),
+                ));
             }
         }
     }
@@ -1253,7 +1153,7 @@ where
             (Type::Union, _) => Some(false_ty),
             (_, Type::Union) => Some(true_ty),
             _ => {
-                if let Some(ty) = self.common_type(true_ty, false_ty) {
+                if let Some(ty) = true_ty.common_type(self.types, false_ty) {
                     Some(ty)
                 } else {
                     self.diagnostics.push(type_mismatch(
@@ -1728,35 +1628,6 @@ where
 
         self.diagnostics
             .push(cannot_access(self.types, ty, target.span()));
-        None
-    }
-
-    /// Calculates a common type between two types.
-    ///
-    /// Returns `None` if the types have no common type.
-    fn common_type(&self, first: Type, second: Type) -> Option<Type> {
-        // Check for the first type being coercible to the second type
-        if first.is_coercible_to(self.types, &second) {
-            return Some(second);
-        }
-
-        // Check for the second type being coercible to the first type
-        if second.is_coercible_to(self.types, &first) {
-            return Some(first);
-        }
-
-        // Check for `None` for the first type; the common type would be an optional
-        // second type
-        if first == Type::None {
-            return Some(second.optional());
-        }
-
-        // Check for `None` for the second type; the common type would be an optional
-        // first type
-        if second == Type::None {
-            return Some(first.optional());
-        }
-
         None
     }
 }

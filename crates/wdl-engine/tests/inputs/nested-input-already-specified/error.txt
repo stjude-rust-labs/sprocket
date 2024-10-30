@@ -1,0 +1,5 @@
+failed to parse input file `tests/inputs/nested-input-already-specified/inputs.json`
+
+Caused by:
+    0: invalid input key `bar.foo.x`
+    1: cannot specify nested input `x` for call `foo` as it was explicitly specified in the call itself

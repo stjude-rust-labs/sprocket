@@ -17,6 +17,7 @@ use crate::types::CallKind;
 use crate::types::CallType;
 use crate::types::Type;
 use crate::types::Types;
+use crate::types::display_types;
 
 /// Utility type to represent an input or an output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -433,20 +434,27 @@ pub fn no_common_type(
 /// Creates a custom "type mismatch" diagnostic.
 pub fn type_mismatch_custom(
     types: &Types,
-    expected: &str,
+    expected: &[Type],
     expected_span: Span,
     actual: Type,
     actual_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
         "type mismatch: expected {expected}, but found type `{actual}`",
-        actual = actual.display(types)
+        expected = display_types(types, expected),
+        actual = actual.display(types),
     ))
     .with_label(
         format!("this is type `{actual}`", actual = actual.display(types)),
         actual_span,
     )
-    .with_label(format!("this expects {expected}"), expected_span)
+    .with_label(
+        format!(
+            "this expects {expected}",
+            expected = display_types(types, expected)
+        ),
+        expected_span,
+    )
 }
 
 /// Creates a "not a task member" diagnostic.

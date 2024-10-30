@@ -490,6 +490,8 @@ pub struct Workflow {
     outputs: Arc<HashMap<String, Output>>,
     /// The calls made by the workflow.
     calls: HashMap<String, CallType>,
+    /// Whether or not nested inputs are allowed for the workflow.
+    allows_nested_inputs: bool,
 }
 
 impl Workflow {
@@ -516,6 +518,11 @@ impl Workflow {
     /// Gets the calls made by the workflow.
     pub fn calls(&self) -> &HashMap<String, CallType> {
         &self.calls
+    }
+
+    /// Determines if the workflow allows nested inputs.
+    pub fn allows_nested_inputs(&self) -> bool {
+        self.allows_nested_inputs
     }
 }
 

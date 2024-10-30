@@ -1,6 +1,7 @@
 //! Representation of the WDL type system.
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 use std::sync::Arc;
 
@@ -15,6 +16,41 @@ use crate::document::Output;
 use crate::stdlib::STDLIB;
 
 pub mod v1;
+
+/// Used to display a slice of types.
+pub fn display_types<'a>(types: &'a Types, slice: &'a [Type]) -> impl fmt::Display + use<'a> {
+    /// Used to display a slice of types.
+    struct Display<'a> {
+        /// The types collection.
+        types: &'a Types,
+        /// The slice of types being displayed.
+        slice: &'a [Type],
+    }
+
+    impl fmt::Display for Display<'_> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            for (i, ty) in self.slice.iter().enumerate() {
+                if i > 0 {
+                    if self.slice.len() == 2 {
+                        write!(f, " ")?;
+                    } else {
+                        write!(f, ", ")?;
+                    }
+
+                    if i == self.slice.len() - 1 {
+                        write!(f, "or ")?;
+                    }
+                }
+
+                write!(f, "type `{ty}`", ty = ty.display(self.types))?;
+            }
+
+            Ok(())
+        }
+    }
+
+    Display { types, slice }
+}
 
 /// A trait implemented on types that may be optional.
 pub trait Optional: Copy {
@@ -95,7 +131,7 @@ pub struct PrimitiveType {
 
 impl PrimitiveType {
     /// Constructs a new primitive type.
-    pub fn new(kind: PrimitiveTypeKind) -> Self {
+    pub const fn new(kind: PrimitiveTypeKind) -> Self {
         Self {
             kind,
             optional: false,
@@ -293,6 +329,35 @@ impl Type {
         }
 
         Display { types, ty: *self }
+    }
+
+    /// Calculates a common type between this type and the given type.
+    ///
+    /// Returns `None` if the types have no common type.
+    pub fn common_type(&self, types: &Types, other: Type) -> Option<Type> {
+        // Check for this type being coercible to the other type
+        if self.is_coercible_to(types, &other) {
+            return Some(other);
+        }
+
+        // Check for the other type being coercible to this type
+        if other.is_coercible_to(types, self) {
+            return Some(*self);
+        }
+
+        // Check for `None` for this type; the common type would be an optional other
+        // type
+        if *self == Type::None {
+            return Some(other.optional());
+        }
+
+        // Check for `None` for the other type; the common type would be an optional
+        // this type
+        if other == Type::None {
+            return Some(self.optional());
+        }
+
+        None
     }
 
     /// Asserts that the type is valid.
@@ -1053,6 +1118,8 @@ pub struct CallType {
     namespace: Option<Arc<String>>,
     /// The name of the task or workflow that was called.
     name: Arc<String>,
+    /// The set of specified inputs in the call.
+    specified: Arc<HashSet<String>>,
     /// The input types to the call.
     inputs: Arc<HashMap<String, Input>>,
     /// The output types from the call.
@@ -1064,6 +1131,7 @@ impl CallType {
     pub fn new(
         kind: CallKind,
         name: impl Into<String>,
+        specified: Arc<HashSet<String>>,
         inputs: Arc<HashMap<String, Input>>,
         outputs: Arc<HashMap<String, Output>>,
     ) -> Self {
@@ -1071,6 +1139,7 @@ impl CallType {
             kind,
             namespace: None,
             name: Arc::new(name.into()),
+            specified,
             inputs,
             outputs,
         }
@@ -1082,6 +1151,7 @@ impl CallType {
         kind: CallKind,
         namespace: impl Into<String>,
         name: impl Into<String>,
+        specified: Arc<HashSet<String>>,
         inputs: Arc<HashMap<String, Input>>,
         outputs: Arc<HashMap<String, Output>>,
     ) -> Self {
@@ -1089,6 +1159,7 @@ impl CallType {
             kind,
             namespace: Some(Arc::new(namespace.into())),
             name: Arc::new(name.into()),
+            specified,
             inputs,
             outputs,
         }
@@ -1111,12 +1182,17 @@ impl CallType {
         &self.name
     }
 
-    /// Gets the inputs of the call.
+    /// Gets the set of inputs specified in the call.
+    pub fn specified(&self) -> &HashSet<String> {
+        &self.specified
+    }
+
+    /// Gets the inputs of the called workflow or task.
     pub fn inputs(&self) -> &HashMap<String, Input> {
         &self.inputs
     }
 
-    /// Gets the outputs of the call.
+    /// Gets the outputs of the called workflow or task.
     pub fn outputs(&self) -> &HashMap<String, Output> {
         &self.outputs
     }
@@ -1270,43 +1346,52 @@ impl Types {
     pub fn import(&mut self, types: &Self, ty: Type) -> Type {
         match ty {
             Type::Primitive(ty) => Type::Primitive(ty),
-            Type::Compound(ty) => match &types.0[ty.definition] {
-                CompoundTypeDef::Array(ty) => {
-                    let element_type = self.import(types, ty.element_type);
-                    self.add_array(ArrayType {
-                        element_type,
-                        non_empty: ty.non_empty,
-                    })
+            Type::Compound(ty) => {
+                // Check to see if the compound type already comes from this type collection
+                if DefaultArenaBehavior::arena_id(ty.definition())
+                    == DefaultArenaBehavior::arena_id(self.0.next_id())
+                {
+                    return Type::Compound(ty);
                 }
-                CompoundTypeDef::Pair(ty) => {
-                    let left_type = self.import(types, ty.left_type);
-                    let right_type = self.import(types, ty.right_type);
-                    self.add_pair(PairType {
-                        left_type,
-                        right_type,
-                    })
-                }
-                CompoundTypeDef::Map(ty) => {
-                    let value_type = self.import(types, ty.value_type);
-                    self.add_map(MapType {
-                        key_type: ty.key_type,
-                        value_type,
-                    })
-                }
-                CompoundTypeDef::Struct(ty) => {
-                    let members = ty
-                        .members
-                        .iter()
-                        .map(|(k, v)| (k.clone(), self.import(types, *v)))
-                        .collect();
 
-                    self.add_struct(StructType {
-                        name: ty.name.clone(),
-                        members,
-                    })
+                match &types.0[ty.definition] {
+                    CompoundTypeDef::Array(ty) => {
+                        let element_type = self.import(types, ty.element_type);
+                        self.add_array(ArrayType {
+                            element_type,
+                            non_empty: ty.non_empty,
+                        })
+                    }
+                    CompoundTypeDef::Pair(ty) => {
+                        let left_type = self.import(types, ty.left_type);
+                        let right_type = self.import(types, ty.right_type);
+                        self.add_pair(PairType {
+                            left_type,
+                            right_type,
+                        })
+                    }
+                    CompoundTypeDef::Map(ty) => {
+                        let value_type = self.import(types, ty.value_type);
+                        self.add_map(MapType {
+                            key_type: ty.key_type,
+                            value_type,
+                        })
+                    }
+                    CompoundTypeDef::Struct(ty) => {
+                        let members = ty
+                            .members
+                            .iter()
+                            .map(|(k, v)| (k.clone(), self.import(types, *v)))
+                            .collect();
+
+                        self.add_struct(StructType {
+                            name: ty.name.clone(),
+                            members,
+                        })
+                    }
+                    CompoundTypeDef::Call(_) => panic!("call types cannot be imported"),
                 }
-                CompoundTypeDef::Call(_) => panic!("call types cannot be imported"),
-            },
+            }
             Type::Object => Type::Object,
             Type::OptionalObject => Type::OptionalObject,
             Type::Union => Type::Union,
