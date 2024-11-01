@@ -8,7 +8,7 @@ on:
 
 jobs:
   format:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Update Rust
@@ -18,7 +18,7 @@ jobs:
       - run: cargo fmt -- --check
 
   lint:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Update Rust
@@ -28,7 +28,11 @@ jobs:
       - run: cargo clippy --all-features -- --deny warnings
 
   test:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v3
       - name: Update Rust
@@ -36,7 +40,7 @@ jobs:
       - run: cargo test --all-features
 
   docs:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Update Rust
