@@ -40,16 +40,16 @@ workflow foo {
 
 
     call bar { input:
-        s = s
+        s
 
     }  # following whitespace duplication is caught be Whitespace rule
 
 
     call bar as baz { input:
-        s = s
+        s
     }
     call bar as qux { input:  # Calls may optionally be separated by whitespace.
-        s = s
+        s
     }
 
     output {

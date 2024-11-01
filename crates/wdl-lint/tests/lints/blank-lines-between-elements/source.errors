@@ -128,10 +128,10 @@ note[Whitespace]: more than one blank line in a row
    = fix: remove the unnecessary blank lines
 
 note[BlankLinesBetweenElements]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:43:14
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:43:10
    │  
-43 │           s = s
-   │ ╭─────────────^
+43 │           s
+   │ ╭─────────^
 44 │ │ 
 45 │ │     }  # following whitespace duplication is caught be Whitespace rule
    │ ╰────^

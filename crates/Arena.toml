@@ -4052,8 +4052,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
+message = "dnaseq-core.wdl:79:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/dnaseq/dnaseq-core.wdl/#L79"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
 message = "dnaseq-core.wdl:79:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/dnaseq/dnaseq-core.wdl/#L79"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
+message = "dnaseq-core.wdl:84:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/dnaseq/dnaseq-core.wdl/#L84"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
@@ -4201,6 +4211,11 @@ message = "bam-to-fastqs.wdl:11:13: note[TrailingComma]: item missing trailing c
 permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/general/bam-to-fastqs.wdl/#L11"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/workflows/general/bam-to-fastqs.wdl"
+message = "bam-to-fastqs.wdl:28:39: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/general/bam-to-fastqs.wdl/#L28"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/general/samtools-merge.wdl"
 message = "samtools-merge.wdl:15:5: note[BlankLinesBetweenElements]: missing blank line"
 permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/general/samtools-merge.wdl/#L15"
@@ -4237,8 +4252,28 @@ permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
+message = "quality-check-standard.wdl:266:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/qc/quality-check-standard.wdl/#L266"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
+message = "quality-check-standard.wdl:292:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/qc/quality-check-standard.wdl/#L292"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
+message = "quality-check-standard.wdl:308:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/qc/quality-check-standard.wdl/#L308"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
 message = "quality-check-standard.wdl:34:17: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/qc/quality-check-standard.wdl/#L34"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
+message = "quality-check-standard.wdl:366:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/qc/quality-check-standard.wdl/#L366"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
@@ -4562,6 +4597,26 @@ permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:112:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L112"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:113:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L113"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:114:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L114"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:115:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L115"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
 message = "rnaseq-variant-calling.wdl:115:9: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L115"
 
@@ -4577,8 +4632,53 @@ permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:53:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L53"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
 message = "rnaseq-variant-calling.wdl:54:13: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L54"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:61:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L61"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:62:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L62"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:63:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L63"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:69:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L69"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:70:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L70"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:71:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L71"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:74:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L74"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:75:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L75"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
@@ -4587,13 +4687,48 @@ permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:82:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L82"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
 message = "rnaseq-variant-calling.wdl:82:9: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L82"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:87:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L87"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
 message = "rnaseq-variant-calling.wdl:87:9: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L87"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:94:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L94"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:95:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L95"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:96:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L96"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:98:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L98"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:99:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/a56ad9b8c7de5c9b13350f465c1543d0cb0b6b1a/workflows/rnaseq/rnaseq-variant-calling.wdl/#L99"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
