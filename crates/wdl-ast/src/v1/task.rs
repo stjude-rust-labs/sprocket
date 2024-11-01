@@ -793,6 +793,7 @@ impl CommandSection {
                                 leading_spaces = 0;
                                 leading_tabs = 0;
                             }
+                            '\r' => {}
                             _ => {
                                 if parsing_leading_whitespace {
                                     parsing_leading_whitespace = false;
@@ -912,6 +913,15 @@ impl CommandSection {
         if let Some(StrippedCommandPart::Text(text)) = result.last_mut() {
             if text.ends_with('\n') {
                 text.pop();
+            }
+            if text.lines().last().map_or(false, |l| l.trim().is_empty()) {
+                while let Some(last) = text.lines().last() {
+                    if last.trim().is_empty() {
+                        text.pop();
+                    } else {
+                        break;
+                    }
+                }
             }
         }
 
@@ -2302,5 +2312,41 @@ task test {
 
         let stripped = command.strip_whitespace();
         assert!(stripped.is_none());
+    }
+
+    #[test]
+    fn whitespace_stripping_with_funky_indentation() {
+        let (document, diagnostics) = Document::parse(
+            r#"
+version 1.2
+
+task test {
+    command <<<
+    echo "hello"
+        echo "world"
+    echo \
+            "goodbye"
+                >>>
+        }"#,
+        );
+
+        assert!(diagnostics.is_empty());
+        let ast = document.ast();
+        let ast = ast.as_v1().expect("should be a V1 AST");
+        let tasks: Vec<_> = ast.tasks().collect();
+        assert_eq!(tasks.len(), 1);
+
+        let command = tasks[0].command().expect("should have a command section");
+
+        let stripped = command.strip_whitespace().unwrap();
+        assert_eq!(stripped.len(), 1);
+        let text = match &stripped[0] {
+            StrippedCommandPart::Text(text) => text,
+            _ => panic!("expected text"),
+        };
+        assert_eq!(
+            text,
+            "echo \"hello\"\n    echo \"world\"\necho \\\n        \"goodbye\"\n"
+        );
     }
 }

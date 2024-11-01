@@ -109,7 +109,8 @@ task test_task {
         String bowchicka
     }
 
-    command <<<>>>
+    command <<<
+    >>>
 }
 
 struct SpliceJunctionMotifs {
