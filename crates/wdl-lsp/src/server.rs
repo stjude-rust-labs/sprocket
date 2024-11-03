@@ -382,6 +382,7 @@ impl LanguageServer for Server {
                         ..Default::default()
                     },
                 )),
+                document_formatting_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -668,5 +669,43 @@ impl LanguageServer for Server {
                 error!("failed to remove documents from analyzer: {e}");
             }
         }
+    }
+
+    async fn formatting(
+        &self,
+        mut params: DocumentFormattingParams,
+    ) -> RpcResult<Option<Vec<TextEdit>>> {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/formatting` request: {params:#?}");
+
+        let result = self
+            .analyzer
+            .format_document(params.text_document.uri)
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?
+            .map(|(end_line, end_col, formatted)| {
+                vec![TextEdit {
+                    range: Range {
+                        // NOTE: always replace the full set of text starting at the
+                        // very first position.
+                        start: Position {
+                            line: 0,
+                            character: 0,
+                        },
+                        end: Position {
+                            line: end_line,
+                            character: end_col,
+                        },
+                    },
+                    new_text: formatted,
+                }]
+            });
+
+        Ok(result)
     }
 }

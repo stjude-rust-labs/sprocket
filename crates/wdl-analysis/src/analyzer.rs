@@ -44,6 +44,7 @@ use crate::graph::ParseState;
 use crate::queue::AddRequest;
 use crate::queue::AnalysisQueue;
 use crate::queue::AnalyzeRequest;
+use crate::queue::FormatRequest;
 use crate::queue::NotifyChangeRequest;
 use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::RemoveRequest;
@@ -723,6 +724,23 @@ where
         rx.await.map_err(|_| {
             anyhow!("failed to receive response from analysis queue because the channel has closed")
         })?
+    }
+
+    /// Formats a document.
+    pub async fn format_document(&self, document: Url) -> Result<Option<(u32, u32, String)>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::Format(FormatRequest {
+                document,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!("failed to send format request to the queue because the channel has closed")
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!("failed to send format request to the queue because the channel has closed")
+        })
     }
 }
 

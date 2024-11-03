@@ -9,17 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added functions for getting type information of task requirements and hints (#[241](https://github.com/stjude-rust-labs/wdl/pull/241)).
-* Exposed information about workflow calls from an analyzed document (#[239](https://github.com/stjude-rust-labs/wdl/pull/239)).
+* Added functions for getting type information of task requirements and hints ([#241](https://github.com/stjude-rust-labs/wdl/pull/241)).
+* Exposed information about workflow calls from an analyzed document ([#239](https://github.com/stjude-rust-labs/wdl/pull/239)).
+* Added formatting to the analyzer ([#247](https://github.com/stjude-rust-labs/wdl/pull/247)).
 
 ## 0.5.0 - 10-22-2024
 
 ### Changed
 
 * Refactored the `DocumentScope` API to simply `Document` and exposed more
-  information about tasks and workflows such as their inputs and outputs (#[232](https://github.com/stjude-rust-labs/wdl/pull/232)).
+  information about tasks and workflows such as their inputs and outputs ([#232](https://github.com/stjude-rust-labs/wdl/pull/232)).
 * Switched to `rustls-tls` for TLS implementation rather than relying on
-  OpenSSL for Linux builds (#[228](https://github.com/stjude-rust-labs/wdl/pull/228)).
+  OpenSSL for Linux builds ([#228](https://github.com/stjude-rust-labs/wdl/pull/228)).
 
 ## 0.4.0 - 10-16-2024
 
