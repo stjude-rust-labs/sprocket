@@ -28,6 +28,7 @@ use wdl_analysis::IncrementalChange;
 use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
 use wdl_analysis::SourcePositionEncoding;
+use wdl_analysis::path_to_uri;
 use wdl_analysis::rules;
 use wdl_ast::Validator;
 use wdl_lint::LintVisitor;
@@ -436,7 +437,7 @@ impl LanguageServer for Server {
         debug!("received `textDocument/didOpen` request: {params:#?}");
 
         if let Ok(path) = params.text_document.uri.to_file_path() {
-            if let Err(e) = self.analyzer.add_documents(vec![path]).await {
+            if let Err(e) = self.analyzer.add_directory(path).await {
                 error!(
                     "failed to add document {uri}: {e}",
                     uri = params.text_document.uri
@@ -591,19 +592,14 @@ impl LanguageServer for Server {
 
         // Progress the added folders
         if !params.event.added.is_empty() {
-            if let Err(e) = self
-                .analyzer
-                .add_documents(
-                    params
-                        .event
-                        .added
-                        .iter()
-                        .filter_map(|f| f.uri.to_file_path().ok())
-                        .collect(),
-                )
-                .await
-            {
-                error!("failed to add documents to analyzer: {e}");
+            for folder in &params.event.added {
+                if let Err(e) = self
+                    .analyzer
+                    .add_directory(folder.uri.to_file_path().expect("should be a file path"))
+                    .await
+                {
+                    error!("failed to add documents from directory to analyzer: {e}");
+                }
             }
         }
     }
@@ -655,8 +651,14 @@ impl LanguageServer for Server {
 
         // Add any documents to the analyzer
         if !added.is_empty() {
-            if let Err(e) = self.analyzer.add_documents(added).await {
-                error!("failed to add documents to analyzer: {e}");
+            for file in added {
+                if let Err(e) = self
+                    .analyzer
+                    .add_document(path_to_uri(&file).expect("should convert to uri"))
+                    .await
+                {
+                    error!("failed to add documents to analyzer: {e}");
+                }
             }
         }
 

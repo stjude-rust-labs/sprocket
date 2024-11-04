@@ -194,10 +194,12 @@ async fn main() {
 
     // Start with a single analysis pass over all the test files
     let analyzer = Analyzer::new(rules(), |_, _, _, _| async {});
-    analyzer
-        .add_documents(tests.clone())
-        .await
-        .expect("should add documents");
+    for test in &tests {
+        analyzer
+            .add_directory(test.clone())
+            .await
+            .expect("should add directory");
+    }
     let results = analyzer
         .analyze(())
         .await

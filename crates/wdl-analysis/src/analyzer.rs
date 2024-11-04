@@ -69,7 +69,7 @@ impl fmt::Display for ProgressKind {
 }
 
 /// Converts a local path to a file schemed URI.
-pub fn path_to_uri(path: &Path) -> Option<Url> {
+pub fn path_to_uri(path: impl AsRef<Path>) -> Option<Url> {
     Url::from_file_path(clean(absolute(path).ok()?)).ok()
 }
 
@@ -519,52 +519,67 @@ where
         }
     }
 
-    /// Adds documents to the analyzer.
+    /// Adds a document to the analyzer. Document can be a local file or a URL.
     ///
-    /// If a specified path is a directory, it is recursively searched for WDL
-    /// documents.
+    /// Returns an error if the document could not be added.
+    pub async fn add_document(&self, uri: Url) -> Result<()> {
+        let mut documents = IndexSet::new();
+        documents.insert(uri);
+
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::Add(AddRequest {
+                documents,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!("failed to send request to analysis queue because the channel has closed")
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!("failed to receive response from analysis queue because the channel has closed")
+        })?;
+
+        Ok(())
+    }
+
+    /// Adds a directory to the analyzer. It will recursively search for WDL
+    /// documents in the supplied directory.
     ///
     /// Returns an error if there was a problem discovering documents for the
-    /// specified paths.
-    pub async fn add_documents(&self, paths: Vec<PathBuf>) -> Result<()> {
+    /// specified path.
+    pub async fn add_directory(&self, path: PathBuf) -> Result<()> {
         // Start by searching for documents
         let documents = RayonHandle::spawn(move || -> Result<IndexSet<Url>> {
             let mut documents = IndexSet::new();
-            for path in paths {
-                let metadata = path.metadata().with_context(|| {
-                    format!(
-                        "failed to read metadata for `{path}`",
-                        path = path.display()
-                    )
-                })?;
 
-                if metadata.is_file() {
-                    documents.insert(path_to_uri(&path).with_context(|| {
-                        format!(
-                            "failed to convert path `{path}` to a URI",
-                            path = path.display()
-                        )
-                    })?);
+            let metadata = path.metadata().with_context(|| {
+                format!(
+                    "failed to read metadata for `{path}`",
+                    path = path.display()
+                )
+            })?;
+
+            if metadata.is_file() {
+                bail!("`{path}` is a file, not a directory", path = path.display());
+            }
+
+            for result in WalkDir::new(&path).follow_links(true) {
+                let entry = result.with_context(|| {
+                    format!("failed to read directory `{path}`", path = path.display())
+                })?;
+                if !entry.file_type().is_file()
+                    || entry.path().extension().and_then(OsStr::to_str) != Some("wdl")
+                {
                     continue;
                 }
 
-                for result in WalkDir::new(&path).follow_links(true) {
-                    let entry = result.with_context(|| {
-                        format!("failed to read directory `{path}`", path = path.display())
-                    })?;
-                    if !entry.file_type().is_file()
-                        || entry.path().extension().and_then(OsStr::to_str) != Some("wdl")
-                    {
-                        continue;
-                    }
-
-                    documents.insert(path_to_uri(entry.path()).with_context(|| {
-                        format!(
-                            "failed to convert path `{path}` to a URI",
-                            path = entry.path().display()
-                        )
-                    })?);
-                }
+                documents.insert(path_to_uri(entry.path()).with_context(|| {
+                    format!(
+                        "failed to convert path `{path}` to a URI",
+                        path = entry.path().display()
+                    )
+                })?);
             }
 
             Ok(documents)
@@ -766,7 +781,7 @@ workflow test {
         // Analyze the file and check the resulting diagnostic
         let analyzer = Analyzer::new(rules(), |_: (), _, _, _| async {});
         analyzer
-            .add_documents(vec![path])
+            .add_document(path_to_uri(&path).expect("should convert to URI"))
             .await
             .expect("should add document");
 
@@ -815,7 +830,7 @@ workflow test {
         // Analyze the file and check the resulting diagnostic
         let analyzer = Analyzer::new(rules(), |_: (), _, _, _| async {});
         analyzer
-            .add_documents(vec![path.clone()])
+            .add_document(path_to_uri(&path).expect("should convert to URI"))
             .await
             .expect("should add document");
 
@@ -884,7 +899,7 @@ workflow test {
         // Analyze the file and check the resulting diagnostic
         let analyzer = Analyzer::new(rules(), |_: (), _, _, _| async {});
         analyzer
-            .add_documents(vec![path.clone()])
+            .add_document(path_to_uri(&path).expect("should convert to URI"))
             .await
             .expect("should add document");
 
@@ -957,7 +972,7 @@ workflow test {
         // Add all three documents to the analyzer
         let analyzer = Analyzer::new(rules(), |_: (), _, _, _| async {});
         analyzer
-            .add_documents(vec![dir.path().to_path_buf()])
+            .add_directory(dir.path().to_path_buf())
             .await
             .expect("should add documents");
 

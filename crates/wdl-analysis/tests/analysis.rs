@@ -169,10 +169,12 @@ async fn main() {
 
     // Start with a single analysis pass over all the test files
     let analyzer = Analyzer::new(rules(), |_, _, _, _| async {});
-    analyzer
-        .add_documents(tests.clone())
-        .await
-        .expect("should add documents");
+    for test in &tests {
+        analyzer
+            .add_directory(test.clone())
+            .await
+            .expect("should add directory");
+    }
     let results = analyzer
         .analyze(())
         .await
@@ -222,9 +224,9 @@ async fn main() {
         let document = test.join("source.wdl");
         let uri = path_to_uri(&document).expect("should be valid URI");
         analyzer
-            .add_documents(vec![document])
+            .add_document(path_to_uri(&document).expect("should be valid URI"))
             .await
-            .expect("should add documents");
+            .expect("should add document");
         let results = analyzer
             .analyze_document((), uri)
             .await
