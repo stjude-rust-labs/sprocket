@@ -79,6 +79,7 @@ use crate::diagnostics::unsupported_function;
 use crate::document::Input;
 use crate::document::Output;
 use crate::stdlib::FunctionBindError;
+use crate::stdlib::MAX_PARAMETERS;
 use crate::stdlib::STDLIB;
 use crate::types::Coercible;
 
@@ -1411,62 +1412,90 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         let target = expr.target();
         match STDLIB.function(target.as_str()) {
             Some(f) => {
-                let arguments: Vec<_> = expr
-                    .arguments()
-                    .map(|expr| self.evaluate_expr(&expr).unwrap_or(Type::Union))
-                    .collect();
+                // Evaluate the argument expressions
+                let mut count = 0;
+                let mut arguments = [Type::Union; MAX_PARAMETERS];
+                for arg in expr.arguments() {
+                    if count < MAX_PARAMETERS {
+                        arguments[count] = self.evaluate_expr(&arg)?;
+                    }
 
-                let minimum_version = f.minimum_version();
-                if minimum_version > self.context.version() {
-                    self.diagnostics.push(unsupported_function(
-                        minimum_version,
-                        target.as_str(),
-                        target.span(),
-                    ));
+                    count += 1;
                 }
 
-                match f.bind(self.context.types_mut(), &arguments) {
-                    Ok(ty) => return Some(ty),
-                    Err(FunctionBindError::TooFewArguments(minimum)) => {
-                        self.diagnostics.push(too_few_arguments(
-                            target.as_str(),
-                            target.span(),
-                            minimum,
-                            arguments.len(),
-                        ));
+                let arguments = &arguments[..count.min(MAX_PARAMETERS)];
+                if count <= MAX_PARAMETERS {
+                    match f.bind(self.context.version(), self.context.types_mut(), arguments) {
+                        Ok(binding) => return Some(binding.return_type()),
+                        Err(FunctionBindError::RequiresVersion(minimum)) => {
+                            self.diagnostics.push(unsupported_function(
+                                minimum,
+                                target.as_str(),
+                                target.span(),
+                            ));
+                        }
+                        Err(FunctionBindError::TooFewArguments(minimum)) => {
+                            self.diagnostics.push(too_few_arguments(
+                                target.as_str(),
+                                target.span(),
+                                minimum,
+                                count,
+                            ));
+                        }
+                        Err(FunctionBindError::TooManyArguments(maximum)) => {
+                            self.diagnostics.push(too_many_arguments(
+                                target.as_str(),
+                                target.span(),
+                                maximum,
+                                arguments.len(),
+                                expr.arguments().skip(maximum).map(|e| e.span()),
+                            ));
+                        }
+                        Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
+                            self.diagnostics.push(argument_type_mismatch(
+                                self.context.types(),
+                                target.as_str(),
+                                &expected,
+                                arguments[index],
+                                expr.arguments()
+                                    .nth(index)
+                                    .map(|e| e.span())
+                                    .expect("should have span"),
+                            ));
+                        }
+                        Err(FunctionBindError::Ambiguous { first, second }) => {
+                            self.diagnostics.push(ambiguous_argument(
+                                target.as_str(),
+                                target.span(),
+                                &first,
+                                &second,
+                            ));
+                        }
                     }
-                    Err(FunctionBindError::TooManyArguments(maximum)) => {
-                        self.diagnostics.push(too_many_arguments(
-                            target.as_str(),
-                            target.span(),
-                            maximum,
-                            arguments.len(),
-                            expr.arguments().skip(maximum).map(|e| e.span()),
-                        ));
-                    }
-                    Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
-                        self.diagnostics.push(argument_type_mismatch(
-                            self.context.types(),
-                            target.as_str(),
-                            &expected,
-                            arguments[index],
-                            expr.arguments()
-                                .nth(index)
-                                .map(|e| e.span())
-                                .expect("should have span"),
-                        ));
-                    }
-                    Err(FunctionBindError::Ambiguous { first, second }) => {
-                        self.diagnostics.push(ambiguous_argument(
-                            target.as_str(),
-                            target.span(),
-                            &first,
-                            &second,
-                        ));
+                } else {
+                    // Exceeded the maximum number of arguments to any function
+                    match f.param_min_max(self.context.version()) {
+                        Some((_, max)) => {
+                            assert!(max <= MAX_PARAMETERS);
+                            self.diagnostics.push(too_many_arguments(
+                                target.as_str(),
+                                target.span(),
+                                max,
+                                count,
+                                expr.arguments().skip(max).map(|e| e.span()),
+                            ));
+                        }
+                        None => {
+                            self.diagnostics.push(unsupported_function(
+                                f.minimum_version(),
+                                target.as_str(),
+                                target.span(),
+                            ));
+                        }
                     }
                 }
 
-                Some(f.realize_unconstrained_return_type(self.context.types_mut(), &arguments))
+                Some(f.realize_unconstrained_return_type(self.context.types_mut(), arguments))
             }
             None => {
                 self.diagnostics

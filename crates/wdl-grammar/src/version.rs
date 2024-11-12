@@ -18,9 +18,9 @@ pub enum V1 {
 impl std::fmt::Display for V1 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            V1::Zero => write!(f, "WDL v1.0"),
-            V1::One => write!(f, "WDL v1.1"),
-            V1::Two => write!(f, "WDL v1.2"),
+            V1::Zero => write!(f, "1.0"),
+            V1::One => write!(f, "1.1"),
+            V1::Two => write!(f, "1.2"),
         }
     }
 }

@@ -31,7 +31,6 @@ use wdl_analysis::diagnostics::unknown_function;
 use wdl_analysis::diagnostics::unsupported_function;
 use wdl_analysis::stdlib::FunctionBindError;
 use wdl_analysis::stdlib::MAX_PARAMETERS;
-use wdl_analysis::stdlib::STDLIB;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::CompoundTypeDef;
@@ -97,6 +96,7 @@ use crate::diagnostics::multiline_string_requirement;
 use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::struct_member_coercion_failed;
+use crate::stdlib::STDLIB;
 
 /// Represents context to an expression evaluator.
 pub trait EvaluationContext {
@@ -1059,65 +1059,86 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
     /// Evaluates a call expression.
     fn evaluate_call_expr(&mut self, expr: &CallExpr) -> Result<Value, Diagnostic> {
         let target = expr.target();
-        match STDLIB.function(target.as_str()) {
+        match wdl_analysis::stdlib::STDLIB.function(target.as_str()) {
             Some(f) => {
-                let minimum_version = f.minimum_version();
-                if minimum_version > self.context.version() {
-                    return Err(unsupported_function(
-                        minimum_version,
-                        target.as_str(),
-                        target.span(),
-                    ));
-                }
-
+                // Evaluate the argument expressions
                 let mut count = 0;
                 let mut types = [Type::Union; MAX_PARAMETERS];
                 let mut arguments = [const { Value::None }; MAX_PARAMETERS];
+                for arg in expr.arguments() {
+                    if count < MAX_PARAMETERS {
+                        let v = self.evaluate_expr(&arg)?;
+                        types[count] = v.ty();
+                        arguments[count] = v;
+                    }
 
-                // Evaluate the argument expressions
-                for expr in expr.arguments() {
-                    let value = self.evaluate_expr(&expr)?;
-                    types[count] = value.ty();
-                    arguments[count] = value;
                     count += 1;
                 }
 
-                // Bind the function based on the argument types
-                match f.bind(self.context.types_mut(), &types[0..count]) {
-                    Ok(_) => {
-                        todo!("implement function calls")
-                    }
-                    Err(FunctionBindError::TooFewArguments(minimum)) => Err(too_few_arguments(
-                        target.as_str(),
-                        target.span(),
-                        minimum,
-                        arguments.len(),
-                    )),
-                    Err(FunctionBindError::TooManyArguments(maximum)) => Err(too_many_arguments(
-                        target.as_str(),
-                        target.span(),
-                        maximum,
-                        arguments.len(),
-                        expr.arguments().skip(maximum).map(|e| e.span()),
-                    )),
-                    Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
-                        Err(argument_type_mismatch(
-                            self.context.types(),
+                // First bind the function based on the argument types, then dispatch the call
+                let types = &types[..count.min(MAX_PARAMETERS)];
+                let arguments = &arguments[..count.min(MAX_PARAMETERS)];
+                if count <= MAX_PARAMETERS {
+                    match f.bind(self.context.version(), self.context.types_mut(), types) {
+                        Ok(binding) => STDLIB
+                            .get(target.as_str())
+                            .expect("should have implementation")
+                            .call(binding, self.context.types(), arguments),
+                        Err(FunctionBindError::RequiresVersion(minimum)) => Err(
+                            unsupported_function(minimum, target.as_str(), target.span()),
+                        ),
+                        Err(FunctionBindError::TooFewArguments(minimum)) => Err(too_few_arguments(
                             target.as_str(),
-                            &expected,
-                            types[index],
-                            expr.arguments()
-                                .nth(index)
-                                .map(|e| e.span())
-                                .expect("should have span"),
-                        ))
+                            target.span(),
+                            minimum,
+                            arguments.len(),
+                        )),
+                        Err(FunctionBindError::TooManyArguments(maximum)) => {
+                            Err(too_many_arguments(
+                                target.as_str(),
+                                target.span(),
+                                maximum,
+                                arguments.len(),
+                                expr.arguments().skip(maximum).map(|e| e.span()),
+                            ))
+                        }
+                        Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
+                            Err(argument_type_mismatch(
+                                self.context.types(),
+                                target.as_str(),
+                                &expected,
+                                types[index],
+                                expr.arguments()
+                                    .nth(index)
+                                    .map(|e| e.span())
+                                    .expect("should have span"),
+                            ))
+                        }
+                        Err(FunctionBindError::Ambiguous { first, second }) => Err(
+                            ambiguous_argument(target.as_str(), target.span(), &first, &second),
+                        ),
                     }
-                    Err(FunctionBindError::Ambiguous { first, second }) => Err(ambiguous_argument(
-                        target.as_str(),
-                        target.span(),
-                        &first,
-                        &second,
-                    )),
+                } else {
+                    // Exceeded the maximum number of arguments to any function
+                    match f.param_min_max(self.context.version()) {
+                        Some((_, max)) => {
+                            assert!(max <= MAX_PARAMETERS);
+                            return Err(too_many_arguments(
+                                target.as_str(),
+                                target.span(),
+                                max,
+                                count,
+                                expr.arguments().skip(max).map(|e| e.span()),
+                            ));
+                        }
+                        None => {
+                            return Err(unsupported_function(
+                                f.minimum_version(),
+                                target.as_str(),
+                                target.span(),
+                            ));
+                        }
+                    }
                 }
             }
             None => Err(unknown_function(target.as_str(), target.span())),
@@ -1219,7 +1240,7 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
 }
 
 #[cfg(test)]
-mod test {
+pub(crate) mod test {
     use std::collections::HashMap;
 
     use pretty_assertions::assert_eq;
@@ -1303,7 +1324,7 @@ mod test {
 
     /// Evaluates a WDL v1 expression and returns the value or a
     /// parse/evaluation diagnostic.
-    fn eval_v1_expr(
+    pub fn eval_v1_expr(
         version: V1,
         source: &str,
         types: &mut Types,
@@ -2823,6 +2844,64 @@ mod test {
         assert_eq!(
             diagnostic.message(),
             "evaluation of arithmetic expression resulted in overflow"
+        );
+    }
+
+    #[test]
+    fn call_expr() {
+        let scopes = &[Scope::new(None)];
+        let scope = ScopeRef::new(scopes, 0);
+
+        // This test will just check for errors; testing of the function implementations
+        // is in `stdlib.rs`
+        let mut types = Types::default();
+        let diagnostic = eval_v1_expr(V1::Zero, "min(1, 2)", &mut types, scope).unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "this use of function `min` requires a minimum WDL version of 1.1"
+        );
+
+        let diagnostic = eval_v1_expr(
+            V1::Zero,
+            "min(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)",
+            &mut types,
+            scope,
+        )
+        .unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "this use of function `min` requires a minimum WDL version of 1.1"
+        );
+
+        let diagnostic = eval_v1_expr(V1::One, "min(1)", &mut types, scope).unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "function `min` requires at least 2 arguments but 1 was supplied"
+        );
+
+        let diagnostic = eval_v1_expr(V1::One, "min(1, 2, 3)", &mut types, scope).unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "function `min` requires no more than 2 arguments but 3 were supplied"
+        );
+
+        let diagnostic = eval_v1_expr(
+            V1::One,
+            "min(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)",
+            &mut types,
+            scope,
+        )
+        .unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "function `min` requires no more than 2 arguments but 10 were supplied"
+        );
+
+        let diagnostic = eval_v1_expr(V1::One, "min('1', 2)", &mut types, scope).unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "type mismatch: argument to function `min` expects type `Int` or `Float`, but found \
+             type `String`"
         );
     }
 

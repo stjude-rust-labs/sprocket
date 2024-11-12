@@ -5,6 +5,7 @@ mod engine;
 mod eval;
 mod inputs;
 mod outputs;
+mod stdlib;
 mod value;
 
 pub use engine::*;

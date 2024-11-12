@@ -657,7 +657,7 @@ pub fn unknown_function(name: &str, span: Span) -> Diagnostic {
 /// Creates an "unsupported function" diagnostic.
 pub fn unsupported_function(minimum: SupportedVersion, name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "function `{name}` requires a minimum WDL version of {minimum}"
+        "this use of function `{name}` requires a minimum WDL version of {minimum}"
     ))
     .with_highlight(span)
 }

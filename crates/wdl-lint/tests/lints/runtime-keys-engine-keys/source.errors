@@ -1,4 +1,4 @@
-warning[RuntimeSectionKeys]: the following runtime keys are not reserved in the WDL v1.1 specification: `cromwell` and `miniwdl`; therefore, their inclusion in the `runtime` section is deprecated
+warning[RuntimeSectionKeys]: the following runtime keys are not reserved in the WDL 1.1 specification: `cromwell` and `miniwdl`; therefore, their inclusion in the `runtime` section is deprecated
    ┌─ tests/lints/runtime-keys-engine-keys/source.wdl:12:5
    │  
 12 │ ╭     runtime {

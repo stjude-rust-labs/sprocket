@@ -387,7 +387,7 @@ impl Visitor for RuntimeSectionKeysRule {
                 // SAFETY: the version must always be set before we get to this
                 // point, as document is the root node of the tree.
                 if let SupportedVersion::V1(minor_version) = self.version.unwrap() {
-                    let specification = format!("the {minor_version} specification");
+                    let specification = format!("the WDL {minor_version} specification");
 
                     if !self.non_reserved_keys.is_empty() {
                         state.exceptable_add(

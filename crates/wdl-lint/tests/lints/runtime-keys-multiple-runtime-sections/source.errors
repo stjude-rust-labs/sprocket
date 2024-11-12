@@ -1,4 +1,4 @@
-note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL v1.1 specification: `container`
+note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL 1.1 specification: `container`
    ┌─ tests/lints/runtime-keys-multiple-runtime-sections/source.wdl:12:5
    │  
 12 │ ╭     runtime {
@@ -9,7 +9,7 @@ note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL v1
    │  
    = fix: include an entry for the `container` key in the `runtime` section
 
-warning[RuntimeSectionKeys]: the following runtime keys are not reserved in the WDL v1.1 specification: `baz` and `foo`; therefore, their inclusion in the `runtime` section is deprecated
+warning[RuntimeSectionKeys]: the following runtime keys are not reserved in the WDL 1.1 specification: `baz` and `foo`; therefore, their inclusion in the `runtime` section is deprecated
    ┌─ tests/lints/runtime-keys-multiple-runtime-sections/source.wdl:12:5
    │  
 12 │ ╭     runtime {

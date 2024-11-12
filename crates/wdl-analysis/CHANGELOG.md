@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Refactored function call binding information to aid with call evaluation in
+  `wdl-engine` ([#251](https://github.com/stjude-rust-labs/wdl/pull/251)).
 * Made diagnostic creation functions public ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
 * Refactored expression type evaluator to provide context via a trait ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
 * Removed `PartialEq`, `Eq`, and `Hash` from WDL-type-related types ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).

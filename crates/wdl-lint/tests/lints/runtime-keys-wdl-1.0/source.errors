@@ -1,4 +1,4 @@
-note[RuntimeSectionKeys]: the following runtime keys are recommended by the WDL v1.0 specification: `docker` and `memory`
+note[RuntimeSectionKeys]: the following runtime keys are recommended by the WDL 1.0 specification: `docker` and `memory`
    ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:12:5
    │
 12 │     runtime {}  # Two missing keys: "docker" and "memory"
@@ -6,7 +6,7 @@ note[RuntimeSectionKeys]: the following runtime keys are recommended by the WDL 
    │
    = fix: include entries for the `docker` and `memory` keys in the `runtime` section
 
-note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL v1.0 specification: `memory`
+note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL 1.0 specification: `memory`
    ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:33:5
    │  
 33 │ ╭     runtime {
@@ -24,7 +24,7 @@ warning[ContainerValue]: container URI is missing a tag
    │
    = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
 
-note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL v1.0 specification: `docker`
+note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL 1.0 specification: `docker`
    ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:45:5
    │  
 45 │ ╭     runtime {
