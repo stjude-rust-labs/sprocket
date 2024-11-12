@@ -190,7 +190,7 @@ Contributions, issues, and feature requests are all welcome! Feel free to read o
 ## 📝 License and Legal
 
 This project is licensed as either [Apache 2.0][license-apache] or
-[MIT][license-mit] at your discretion. Additionally, please see our [the
+[MIT][license-mit] at your discretion. Additionally, please see [the
 disclaimer](https://github.com/stjude-rust-labs#disclaimer) that applies to all
 crates and command line tools made available by St. Jude Rust Labs.
 
