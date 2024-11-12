@@ -106,10 +106,12 @@ cargo doc
 Contributions, issues and feature requests are welcome! Feel free to check
 [issues page](https://github.com/stjude-rust-labs/sprocket/issues).
 
-## 📝 License
+## 📝 License and Legal
 
 This project is licensed as either [Apache 2.0][license-apache] or
-[MIT][license-mit] at your discretion.
+[MIT][license-mit] at your discretion. Additionally, please see [the
+disclaimer](https://github.com/stjude-rust-labs#disclaimer) that applies to all
+crates and command line tools made available by St. Jude Rust Labs.
 
 Copyright © 2023-Present [St. Jude Children's Research Hospital](https://github.com/stjude).
 
