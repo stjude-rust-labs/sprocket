@@ -148,3 +148,8 @@ pub fn exponentiation_requirement(span: Span) -> Diagnostic {
 pub fn multiline_string_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("use of multi-line strings requires WDL version 1.2").with_highlight(span)
 }
+
+/// Creates an "invalid regular expression" diagnostic.
+pub fn invalid_regex(error: &regex::Error, span: Span) -> Diagnostic {
+    Diagnostic::error(error.to_string()).with_highlight(span)
+}

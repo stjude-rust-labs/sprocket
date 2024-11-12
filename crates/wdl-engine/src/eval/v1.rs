@@ -1064,12 +1064,12 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                 // Evaluate the argument expressions
                 let mut count = 0;
                 let mut types = [Type::Union; MAX_PARAMETERS];
-                let mut arguments = [const { Value::None }; MAX_PARAMETERS];
+                let mut arguments = [const { (Value::None, Span::new(0, 0)) }; MAX_PARAMETERS];
                 for arg in expr.arguments() {
                     if count < MAX_PARAMETERS {
                         let v = self.evaluate_expr(&arg)?;
                         types[count] = v.ty();
-                        arguments[count] = v;
+                        arguments[count] = (v, arg.span());
                     }
 
                     count += 1;

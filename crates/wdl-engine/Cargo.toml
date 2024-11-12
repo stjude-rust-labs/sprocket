@@ -17,6 +17,7 @@ anyhow = { workspace = true }
 ordered-float = { workspace = true }
 indexmap = { workspace = true }
 serde_json = { workspace = true }
+regex = { workspace = true }
 
 [dev-dependencies]
 wdl-grammar = { version = "0.10.0", path = "../wdl-grammar" }

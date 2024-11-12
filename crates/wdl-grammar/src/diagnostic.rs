@@ -17,7 +17,7 @@ pub struct Span {
 
 impl Span {
     /// Creates a new span from the given start and end.
-    pub fn new(start: usize, len: usize) -> Self {
+    pub const fn new(start: usize, len: usize) -> Self {
         Self {
             start,
             end: start + len,
