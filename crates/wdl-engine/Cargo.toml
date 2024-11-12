@@ -14,19 +14,19 @@ documentation = "https://docs.rs/wdl-engine"
 wdl-ast = { version = "0.9.0", path = "../wdl-ast" }
 wdl-analysis = { version = "0.5.0", path = "../wdl-analysis" }
 anyhow = { workspace = true }
-id-arena = { workspace = true }
 ordered-float = { workspace = true }
-string-interner = { workspace = true }
 indexmap = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
+wdl-grammar = { version = "0.10.0", path = "../wdl-grammar" }
 tokio = { workspace = true }
 pretty_assertions = { workspace = true }
 codespan-reporting = { workspace = true }
 path-clean = { workspace = true }
 colored = { workspace = true }
 tempfile = { workspace = true }
+approx = { workspace = true }
 
 [lints]
 workspace = true

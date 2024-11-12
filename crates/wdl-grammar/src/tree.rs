@@ -607,6 +607,54 @@ pub type SyntaxElement = rowan::SyntaxElement<WorkflowDescriptionLanguage>;
 /// Represents node children in the concrete syntax tree.
 pub type SyntaxNodeChildren = rowan::SyntaxNodeChildren<WorkflowDescriptionLanguage>;
 
+/// Constructs a concrete syntax tree from a list of parser events.
+pub fn construct_tree(source: &str, mut events: Vec<Event>) -> SyntaxNode {
+    let mut builder = GreenNodeBuilder::default();
+    let mut ancestors = Vec::new();
+
+    for i in 0..events.len() {
+        match std::mem::replace(&mut events[i], Event::abandoned()) {
+            Event::NodeStarted {
+                kind,
+                forward_parent,
+            } => {
+                // Walk the forward parent chain, if there is one, and push
+                // each forward parent to the ancestors list
+                ancestors.push(kind);
+                let mut idx = i;
+                let mut fp: Option<usize> = forward_parent;
+                while let Some(distance) = fp {
+                    idx += distance;
+                    fp = match std::mem::replace(&mut events[idx], Event::abandoned()) {
+                        Event::NodeStarted {
+                            kind,
+                            forward_parent,
+                        } => {
+                            ancestors.push(kind);
+                            forward_parent
+                        }
+                        _ => unreachable!(),
+                    };
+                }
+
+                // As the current node was pushed first and then its ancestors, walk
+                // the list in reverse to start the "oldest" ancestor first
+                for kind in ancestors.drain(..).rev() {
+                    if kind != SyntaxKind::Abandoned {
+                        builder.start_node(kind.into());
+                    }
+                }
+            }
+            Event::NodeFinished => builder.finish_node(),
+            Event::Token { kind, span } => {
+                builder.token(kind.into(), &source[span.start()..span.end()])
+            }
+        }
+    }
+
+    SyntaxNode::new_root(builder.finish())
+}
+
 /// Represents an untyped concrete syntax tree.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct SyntaxTree(SyntaxNode);
@@ -634,60 +682,7 @@ impl SyntaxTree {
         let parser = Parser::new(Lexer::new(source));
         let (events, mut diagnostics) = grammar::document(source, parser);
         diagnostics.sort();
-
-        Self::build(source, events, diagnostics)
-    }
-
-    /// Builds the concrete syntax tree from a list of parser events.
-    fn build(
-        source: &str,
-        mut events: Vec<Event>,
-        diagnostics: Vec<Diagnostic>,
-    ) -> (Self, Vec<Diagnostic>) {
-        let mut builder = GreenNodeBuilder::default();
-        let mut ancestors = Vec::new();
-
-        for i in 0..events.len() {
-            match std::mem::replace(&mut events[i], Event::abandoned()) {
-                Event::NodeStarted {
-                    kind,
-                    forward_parent,
-                } => {
-                    // Walk the forward parent chain, if there is one, and push
-                    // each forward parent to the ancestors list
-                    ancestors.push(kind);
-                    let mut idx = i;
-                    let mut fp: Option<usize> = forward_parent;
-                    while let Some(distance) = fp {
-                        idx += distance;
-                        fp = match std::mem::replace(&mut events[idx], Event::abandoned()) {
-                            Event::NodeStarted {
-                                kind,
-                                forward_parent,
-                            } => {
-                                ancestors.push(kind);
-                                forward_parent
-                            }
-                            _ => unreachable!(),
-                        };
-                    }
-
-                    // As the current node was pushed first and then its ancestors, walk
-                    // the list in reverse to start the "oldest" ancestor first
-                    for kind in ancestors.drain(..).rev() {
-                        if kind != SyntaxKind::Abandoned {
-                            builder.start_node(kind.into());
-                        }
-                    }
-                }
-                Event::NodeFinished => builder.finish_node(),
-                Event::Token { kind, span } => {
-                    builder.token(kind.into(), &source[span.start()..span.end()])
-                }
-            }
-        }
-
-        (Self(SyntaxNode::new_root(builder.finish())), diagnostics)
+        (Self(construct_tree(source, events)), diagnostics)
     }
 
     /// Gets the root syntax node of the tree.

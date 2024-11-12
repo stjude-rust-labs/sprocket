@@ -18,6 +18,8 @@ use crate::types::CallType;
 use crate::types::Type;
 use crate::types::Types;
 use crate::types::display_types;
+use crate::types::v1::ComparisonOperator;
+use crate::types::v1::NumericOperator;
 
 /// Utility type to represent an input or an output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -506,17 +508,12 @@ pub fn missing_struct_members(name: &Ident, count: usize, members: &str) -> Diag
 }
 
 /// Creates a "map key not primitive" diagnostic.
-pub fn map_key_not_primitive(
-    types: &Types,
-    span: Span,
-    actual: Type,
-    actual_span: Span,
-) -> Diagnostic {
+pub fn map_key_not_primitive(types: &Types, span: Span, actual: Type) -> Diagnostic {
     Diagnostic::error("expected map literal to use primitive type keys")
         .with_highlight(span)
         .with_label(
             format!("this is type `{actual}`", actual = actual.display(types)),
-            actual_span,
+            span,
         )
 }
 
@@ -588,7 +585,7 @@ pub fn logical_and_mismatch(types: &Types, actual: Type, actual_span: Span) -> D
 /// Creates a "comparison mismatch" diagnostic.
 pub fn comparison_mismatch(
     types: &Types,
-    op: &impl fmt::Display,
+    op: ComparisonOperator,
     span: Span,
     lhs: Type,
     lhs_span: Span,
@@ -614,7 +611,7 @@ pub fn comparison_mismatch(
 /// Creates a "numeric mismatch" diagnostic.
 pub fn numeric_mismatch(
     types: &Types,
-    op: &impl fmt::Display,
+    op: NumericOperator,
     span: Span,
     lhs: Type,
     lhs_span: Span,

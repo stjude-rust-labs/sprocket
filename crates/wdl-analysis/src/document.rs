@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use indexmap::IndexMap;
 use petgraph::graph::NodeIndex;
+use rowan::GreenNode;
 use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::AstNode;
@@ -14,6 +15,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxNode;
 use wdl_ast::ToSpan;
 use wdl_ast::WorkflowDescriptionLanguage;
 use wdl_ast::support::token;
@@ -209,30 +211,12 @@ pub struct ScopeRef<'a> {
     scopes: &'a [Scope],
     /// The index of the scope in the collection.
     index: ScopeIndex,
-    /// The name of the task associated with the scope.
-    ///
-    /// This is `Some` only when evaluating a task `hints` section.
-    task_name: Option<&'a str>,
-    /// The input type map.
-    ///
-    /// This is `Some` only when evaluating a task `hints` section.
-    inputs: Option<&'a HashMap<String, Input>>,
-    /// The output type map.
-    ///
-    /// This is `Some` only when evaluating a task `hints` section.
-    outputs: Option<&'a HashMap<String, Output>>,
 }
 
 impl<'a> ScopeRef<'a> {
     /// Creates a new scope reference given the scope index.
     fn new(scopes: &'a [Scope], index: ScopeIndex) -> Self {
-        Self {
-            scopes,
-            index,
-            task_name: None,
-            inputs: None,
-            outputs: None,
-        }
+        Self { scopes, index }
     }
 
     /// Gets the span of the scope.
@@ -247,9 +231,6 @@ impl<'a> ScopeRef<'a> {
         self.scopes[self.index.0].parent.map(|p| Self {
             scopes: self.scopes,
             index: p,
-            task_name: self.task_name,
-            inputs: self.inputs,
-            outputs: self.outputs,
         })
     }
 
@@ -283,59 +264,6 @@ impl<'a> ScopeRef<'a> {
         }
 
         None
-    }
-
-    /// Gets an input for the given name.
-    ///
-    /// Returns `Err(())` if input hidden types are not supported by this scope.
-    ///
-    /// Returns `Ok(None)` if input hidden types are supported, but the
-    /// specified name is not a known input.
-    ///
-    /// Returns `Ok(Some)` if input hidden types are supported and the specified
-    /// name is a known input.
-    pub(crate) fn input(&self, name: &str) -> Result<Option<Input>, ()> {
-        match self.inputs {
-            Some(map) => Ok(map.get(name).copied()),
-            None => Err(()),
-        }
-    }
-
-    /// Gets an output for the given name.
-    ///
-    /// Returns `Err(())` if output hidden types are not supported by this
-    /// scope.
-    ///
-    /// Returns `Ok(None)` if input hidden types are supported, but the
-    /// specified name is not a known output.
-    ///
-    /// Returns `Ok(Some)` if input hidden types are supported and the specified
-    /// name is a known output.
-    pub(crate) fn output(&self, name: &str) -> Result<Option<Output>, ()> {
-        match self.outputs {
-            Some(map) => Ok(map.get(name).copied()),
-            None => Err(()),
-        }
-    }
-
-    /// The task name associated with the scope.
-    pub(crate) fn task_name(&self) -> Option<&str> {
-        self.task_name
-    }
-
-    /// Whether or not `hints` hidden types are supported by this scope.
-    pub(crate) fn supports_hints(&self) -> bool {
-        self.task_name.is_some()
-    }
-
-    /// Whether or not `input` hidden types are supported by this scope.
-    pub(crate) fn supports_inputs(&self) -> bool {
-        self.inputs.is_some()
-    }
-
-    /// Whether or not `output` hidden types are supported by this scope.
-    pub(crate) fn supports_outputs(&self) -> bool {
-        self.outputs.is_some()
     }
 }
 
@@ -383,9 +311,6 @@ impl<'a> ScopeRefMut<'a> {
         ScopeRef {
             scopes: self.scopes,
             index: self.index,
-            task_name: None,
-            inputs: None,
-            outputs: None,
         }
     }
 }
@@ -529,6 +454,10 @@ impl Workflow {
 /// Represents an analyzed WDL document.
 #[derive(Debug, Default)]
 pub struct Document {
+    /// The root CST node of the document.
+    ///
+    /// This is `None` when the document could not be parsed.
+    root: Option<GreenNode>,
     /// The version of the document.
     version: Option<SupportedVersion>,
     /// The namespaces in the document.
@@ -601,9 +530,26 @@ impl Document {
         (document, diagnostics)
     }
 
+    /// Gets the AST of the document.
+    ///
+    /// Returns [`Ast::Unsupported`] when the document could not be parsed or
+    /// has an unsupported version.
+    pub fn ast(&self) -> Ast {
+        match &self.version {
+            Some(SupportedVersion::V1(_)) => Ast::V1(
+                wdl_ast::v1::Ast::cast(SyntaxNode::new_root(
+                    self.root.clone().expect("should have a root"),
+                ))
+                .expect("should cast"),
+            ),
+            _ => Ast::Unsupported,
+        }
+    }
+
     /// Gets the supported version of the document.
     ///
-    /// Returns `None` if the document version is not supported.
+    /// Returns `None` if the document could not be parsed or contains an
+    /// unsupported version.
     pub fn version(&self) -> Option<SupportedVersion> {
         self.version
     }

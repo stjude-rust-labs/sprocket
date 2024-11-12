@@ -203,6 +203,7 @@ pub(crate) fn create_document(
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Document {
     let mut document = Document {
+        root: Some(ast.syntax().green().into_owned()),
         version: SupportedVersion::from_str(version.as_str()).ok(),
         ..Default::default()
     };
@@ -434,7 +435,18 @@ fn convert_ast_type(
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Type {
     let mut converter = AstTypeConverter::new(&mut document.types, |name, span| {
-        lookup_type(&mut document.namespaces, &document.structs, name, span)
+        document
+            .structs
+            .get(name)
+            .map(|s| {
+                // Mark the struct's namespace as used
+                if let Some(ns) = &s.namespace {
+                    document.namespaces[ns].used = true;
+                }
+
+                s.ty().expect("struct should have type")
+            })
+            .ok_or_else(|| unknown_type(name, span))
     });
 
     match converter.convert_type(ty) {
@@ -643,78 +655,43 @@ fn add_task(
                     create_section_scope(document.version(), &mut scopes, &name, span)
                 });
 
-                // Perform type checking on the command section's placeholders
-                let mut evaluator = ExprTypeEvaluator::new(
-                    document.version.unwrap(),
-                    &mut document.types,
-                    diagnostics,
-                    |name, span| {
-                        lookup_type(&mut document.namespaces, &document.structs, name, span)
-                    },
-                );
-
-                let scope = ScopeRef::new(&scopes, scope_index);
+                let mut context =
+                    EvaluationContext::new(document, ScopeRef::new(&scopes, scope_index));
+                let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
                 for part in section.parts() {
                     if let CommandPart::Placeholder(p) = part {
-                        evaluator.check_placeholder(&scope, &p);
+                        evaluator.check_placeholder(&p);
                     }
                 }
             }
             TaskGraphNode::Runtime(section) => {
                 // Perform type checking on the runtime section's expressions
-                let mut evaluator = ExprTypeEvaluator::new(
-                    document.version.unwrap(),
-                    &mut document.types,
-                    diagnostics,
-                    |name, span| {
-                        lookup_type(&mut document.namespaces, &document.structs, name, span)
-                    },
-                );
-
-                let scope = ScopeRef::new(&scopes, ScopeIndex(0));
+                let mut context =
+                    EvaluationContext::new(document, ScopeRef::new(&scopes, ScopeIndex(0)));
+                let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
                 for item in section.items() {
-                    evaluator.evaluate_runtime_item(&scope, &item.name(), &item.expr());
+                    evaluator.evaluate_runtime_item(&item.name(), &item.expr());
                 }
             }
             TaskGraphNode::Requirements(section) => {
                 // Perform type checking on the requirements section's expressions
-                let mut evaluator = ExprTypeEvaluator::new(
-                    document.version.unwrap(),
-                    &mut document.types,
-                    diagnostics,
-                    |name, span| {
-                        lookup_type(&mut document.namespaces, &document.structs, name, span)
-                    },
-                );
-
-                let scope = ScopeRef::new(&scopes, ScopeIndex(0));
+                let mut context =
+                    EvaluationContext::new(document, ScopeRef::new(&scopes, ScopeIndex(0)));
+                let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
                 for item in section.items() {
-                    evaluator.evaluate_requirements_item(&scope, &item.name(), &item.expr());
+                    evaluator.evaluate_requirements_item(&item.name(), &item.expr());
                 }
             }
             TaskGraphNode::Hints(section) => {
                 // Perform type checking on the hints section's expressions
-                let mut evaluator = ExprTypeEvaluator::new(
-                    document.version.unwrap(),
-                    &mut document.types,
-                    diagnostics,
-                    |name, span| {
-                        lookup_type(&mut document.namespaces, &document.structs, name, span)
-                    },
+                let mut context = EvaluationContext::new_for_task(
+                    document,
+                    ScopeRef::new(&scopes, ScopeIndex(0)),
+                    TaskEvaluationContext::new(name.as_str(), &inputs, &outputs),
                 );
-
-                // Create a special scope for evaluating the hints section which allows for the
-                // `hints`, `input`, and `output` hidden types
-                let scope = ScopeRef {
-                    scopes: &scopes,
-                    index: ScopeIndex(0),
-                    task_name: Some(name.as_str()),
-                    inputs: Some(&inputs),
-                    outputs: Some(&outputs),
-                };
-
+                let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
                 for item in section.items() {
-                    evaluator.evaluate_hints_item(&scope, &item.name(), &item.expr())
+                    evaluator.evaluate_hints_item(&item.name(), &item.expr())
                 }
             }
         }
@@ -1047,18 +1024,11 @@ fn add_conditional_statement(
     );
     scope_indexes.insert(statement.syntax().clone(), scope_index);
 
-    let mut evaluator = ExprTypeEvaluator::new(
-        document.version.unwrap(),
-        &mut document.types,
-        diagnostics,
-        |name, span| lookup_type(&mut document.namespaces, &document.structs, name, span),
-    );
-
     // Evaluate the statement's expression; it is expected to be a boolean
     let expr = statement.expr();
-    let ty = evaluator
-        .evaluate_expr(&ScopeRef::new(scopes, scope_index), &expr)
-        .unwrap_or(Type::Union);
+    let mut context = EvaluationContext::new(document, ScopeRef::new(scopes, scope_index));
+    let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
+    let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
 
     if !ty.is_coercible_to(&document.types, &PrimitiveTypeKind::Boolean.into()) {
         diagnostics.push(if_conditional_mismatch(&document.types, ty, expr.span()));
@@ -1080,18 +1050,11 @@ fn add_scatter_statement(
     );
     scopes_indexes.insert(statement.syntax().clone(), scope_index);
 
-    let mut evaluator = ExprTypeEvaluator::new(
-        document.version.unwrap(),
-        &mut document.types,
-        diagnostics,
-        |name, span| lookup_type(&mut document.namespaces, &document.structs, name, span),
-    );
-
     // Evaluate the statement expression; it is expected to be an array
     let expr = statement.expr();
-    let ty = evaluator
-        .evaluate_expr(&ScopeRef::new(scopes, scope_index), &expr)
-        .unwrap_or(Type::Union);
+    let mut context = EvaluationContext::new(document, ScopeRef::new(scopes, scope_index));
+    let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
+    let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
     let element_ty = match ty {
         Type::Compound(compound_ty) => {
             match document.types.type_definition(compound_ty.definition()) {
@@ -1166,7 +1129,7 @@ fn add_call_statement(
                 }
                 None => {
                     if let Some(name) = ScopeRef::new(scopes, index).lookup(input_name.as_str()) {
-                        if expected_ty != Type::Union
+                        if !matches!(expected_ty, Type::Union)
                             && !name.ty.is_coercible_to(&document.types, &expected_ty)
                         {
                             diagnostics.push(call_input_type_mismatch(
@@ -1482,24 +1445,132 @@ fn set_struct_types(document: &mut Document, diagnostics: &mut Vec<Diagnostic>) 
     }
 }
 
-/// Looks up a struct type.
-fn lookup_type(
-    namespaces: &mut IndexMap<String, Namespace>,
-    structs: &IndexMap<String, Struct>,
-    name: &str,
-    span: Span,
-) -> Result<Type, Diagnostic> {
-    structs
-        .get(name)
-        .map(|s| {
-            // Mark the struct's namespace as used
-            if let Some(ns) = &s.namespace {
-                namespaces[ns].used = true;
-            }
+/// Represents context of a task being evaluated for an expression type
+/// evaluator.
+#[derive(Clone, Copy, Debug)]
+struct TaskEvaluationContext<'a> {
+    /// The name of the task.
+    name: &'a str,
+    /// The inputs of the task.
+    inputs: &'a HashMap<String, Input>,
+    /// The outputs of the task.
+    outputs: &'a HashMap<String, Output>,
+}
 
-            s.ty().expect("struct should have type")
-        })
-        .ok_or_else(|| unknown_type(name, span))
+impl<'a> TaskEvaluationContext<'a> {
+    /// Constructs a new task evaluation context given the task name, inputs,
+    /// and outputs.
+    fn new(
+        name: &'a str,
+        inputs: &'a HashMap<String, Input>,
+        outputs: &'a HashMap<String, Output>,
+    ) -> Self {
+        Self {
+            name,
+            inputs,
+            outputs,
+        }
+    }
+}
+
+/// Represents context to an expression type evaluator.
+#[derive(Debug)]
+struct EvaluationContext<'a> {
+    /// The document being evaluated.
+    document: &'a mut Document,
+    /// The current evaluation scope.
+    scope: ScopeRef<'a>,
+    /// The context of the task being evaluated.
+    ///
+    /// This is only `Some` when evaluating a task's `hints` section.`
+    task: Option<TaskEvaluationContext<'a>>,
+}
+
+impl<'a> EvaluationContext<'a> {
+    /// Constructs a new expression type evaluation context.
+    pub fn new(document: &'a mut Document, scope: ScopeRef<'a>) -> Self {
+        Self {
+            document,
+            scope,
+            task: None,
+        }
+    }
+
+    /// Constructs a new expression type evaluation context with the given task
+    /// context.
+    ///
+    /// This is used to evaluated the type of expressions inside of a task's
+    /// `hints` section.
+    pub fn new_for_task(
+        document: &'a mut Document,
+        scope: ScopeRef<'a>,
+        task: TaskEvaluationContext<'a>,
+    ) -> Self {
+        Self {
+            document,
+            scope,
+            task: Some(task),
+        }
+    }
+}
+
+impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
+    fn version(&self) -> SupportedVersion {
+        self.document
+            .version
+            .expect("document should have a version")
+    }
+
+    fn types(&self) -> &Types {
+        &self.document.types
+    }
+
+    fn types_mut(&mut self) -> &mut Types {
+        &mut self.document.types
+    }
+
+    fn resolve_name(&self, name: &Ident) -> Option<Type> {
+        self.scope.lookup(name.as_str()).map(|n| n.ty())
+    }
+
+    fn resolve_type_name(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
+        self.document
+            .structs
+            .get(name.as_str())
+            .map(|s| {
+                // Mark the struct's namespace as used
+                if let Some(ns) = &s.namespace {
+                    self.document.namespaces[ns].used = true;
+                }
+
+                s.ty().expect("struct should have type")
+            })
+            .ok_or_else(|| unknown_type(name.as_str(), name.span()))
+    }
+
+    fn input(&self, name: &str) -> Option<Input> {
+        self.task.and_then(|task| task.inputs.get(name).copied())
+    }
+
+    fn output(&self, name: &str) -> Option<Output> {
+        self.task.and_then(|task| task.outputs.get(name).copied())
+    }
+
+    fn task_name(&self) -> Option<&str> {
+        self.task.map(|task| task.name)
+    }
+
+    fn supports_hints_type(&self) -> bool {
+        self.task.is_some()
+    }
+
+    fn supports_input_type(&self) -> bool {
+        self.task.is_some()
+    }
+
+    fn supports_output_type(&self) -> bool {
+        self.task.is_some()
+    }
 }
 
 /// Performs a type check of an expression.
@@ -1511,16 +1582,11 @@ fn type_check_expr(
     expected_span: Span,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let mut evaluator = ExprTypeEvaluator::new(
-        document.version.unwrap(),
-        &mut document.types,
-        diagnostics,
-        |name, span| lookup_type(&mut document.namespaces, &document.structs, name, span),
-    );
+    let mut context = EvaluationContext::new(document, scope);
+    let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
+    let actual = evaluator.evaluate_expr(expr).unwrap_or(Type::Union);
 
-    let actual = evaluator.evaluate_expr(&scope, expr).unwrap_or(Type::Union);
-
-    if expected != Type::Union && !actual.is_coercible_to(&document.types, &expected) {
+    if !matches!(expected, Type::Union) && !actual.is_coercible_to(&document.types, &expected) {
         diagnostics.push(type_mismatch(
             &document.types,
             expected,

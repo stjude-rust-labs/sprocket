@@ -1829,7 +1829,7 @@ fn call_input_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
 
 /// Parses an expression.
 #[inline]
-fn expr(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+pub fn expr(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     expr_with_precedence(parser, marker, 0)?;
     Ok(())
 }

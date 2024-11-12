@@ -32,7 +32,7 @@ impl Constraint for OptionalTypeConstraint {
 
     fn satisfied(&self, _: &Types, ty: Type) -> bool {
         // For the purpose of the constraint, treat `Union` as optional
-        ty == Type::Union || ty.is_optional()
+        ty.is_union() || ty.is_optional()
     }
 }
 

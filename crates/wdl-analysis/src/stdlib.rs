@@ -33,13 +33,23 @@ pub use constraints::*;
 ///
 /// Accessing `STDLIB` will panic if a signature is defined that exceeds this
 /// number.
-const MAX_TYPE_PARAMETERS: usize = 4;
+pub const MAX_TYPE_PARAMETERS: usize = 4;
 
 #[allow(clippy::missing_docs_in_private_items)]
 const _: () = assert!(
     MAX_TYPE_PARAMETERS < usize::BITS as usize,
     "the maximum number of type parameters cannot exceed the number of bits in usize"
 );
+
+/// The maximum number of parameters to any standard library function.
+///
+/// A function cannot be defined with more than this number of parameters and
+/// accessing `STDLIB` will panic if a signature is defined that exceeds this
+/// number.
+///
+/// As new standard library functions are implemented, the maximum will be
+/// increased.
+pub const MAX_PARAMETERS: usize = 4;
 
 /// A helper function for writing uninferred type parameter constraints to a
 /// given writer.
@@ -864,7 +874,7 @@ impl TypeParameter {
 }
 
 /// Represents a successful binding of arguments to a function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy)]
 enum Binding {
     /// The binding was an equivalence binding, meaning all of the provided
     /// arguments had type equivalence with corresponding concrete parameters.
@@ -1063,7 +1073,7 @@ impl FunctionSignature {
                         });
                     }
                 }
-                None if *argument == Type::Union => {
+                None if argument.is_union() => {
                     // If the type is `Union`, accept it as indeterminate
                     continue;
                 }
@@ -1181,6 +1191,11 @@ impl FunctionSignatureBuilder {
         assert!(
             sig.type_parameters.len() <= MAX_TYPE_PARAMETERS,
             "too many type parameters"
+        );
+
+        assert!(
+            sig.parameters.len() <= MAX_PARAMETERS,
+            "too many parameters"
         );
 
         // Ensure any generic type parameters indexes are in range for the parameters

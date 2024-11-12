@@ -10,7 +10,7 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 
 mod analyzer;
-pub(crate) mod diagnostics;
+pub mod diagnostics;
 pub mod document;
 pub mod eval;
 mod graph;

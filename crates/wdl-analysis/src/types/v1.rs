@@ -2,6 +2,7 @@
 
 use std::fmt;
 use std::fmt::Write;
+use std::sync::Arc;
 use std::sync::LazyLock;
 
 use wdl_ast::AstNodeExt;
@@ -75,7 +76,8 @@ use crate::diagnostics::unknown_call_io;
 use crate::diagnostics::unknown_function;
 use crate::diagnostics::unknown_task_io;
 use crate::diagnostics::unsupported_function;
-use crate::document::ScopeRef;
+use crate::document::Input;
+use crate::document::Output;
 use crate::stdlib::FunctionBindError;
 use crate::stdlib::STDLIB;
 use crate::types::Coercible;
@@ -235,7 +237,7 @@ pub fn task_hint_types(
 
 /// Represents a comparison operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ComparisonOperator {
+pub enum ComparisonOperator {
     /// The `==` operator.
     Equality,
     /// The `!=` operator.
@@ -390,7 +392,7 @@ where
         definition: &v1::StructDefinition,
     ) -> Result<StructType, Diagnostic> {
         Ok(StructType {
-            name: definition.name().as_str().into(),
+            name: Arc::new(definition.name().as_str().into()),
             members: definition
                 .members()
                 .map(|d| Ok((d.name().as_str().to_string(), self.convert_type(&d.ty())?)))
@@ -423,15 +425,55 @@ impl From<&v1::PrimitiveType> for PrimitiveType {
     }
 }
 
+/// Represents context to an expression type evaluator.
+pub trait EvaluationContext {
+    /// Gets the supported version of the document being evaluated.
+    fn version(&self) -> SupportedVersion;
+
+    /// Gets the types collection associated with the evaluation.
+    fn types(&self) -> &Types;
+
+    /// Gets the mutable types collection associated with the evaluation.
+    fn types_mut(&mut self) -> &mut Types;
+
+    /// Gets the type of the given name in scope.
+    fn resolve_name(&self, name: &Ident) -> Option<Type>;
+
+    /// Resolves a type name to a type.
+    fn resolve_type_name(&mut self, name: &Ident) -> Result<Type, Diagnostic>;
+
+    /// Gets an input for the given name.
+    ///
+    /// Returns `None` if `input` hidden types are not supported or if the
+    /// specified input isn't known.
+    fn input(&self, name: &str) -> Option<Input>;
+
+    /// Gets an output for the given name.
+    ///
+    /// Returns `None` if `output` hidden types are not supported or if the
+    /// specified output isn't known.
+    fn output(&self, name: &str) -> Option<Output>;
+
+    /// The task name associated with the evaluation.
+    ///
+    /// Returns `None` if no task is visible in this context.
+    fn task_name(&self) -> Option<&str>;
+
+    /// Whether or not `hints` hidden types are supported for the evaluation.
+    fn supports_hints_type(&self) -> bool;
+
+    /// Whether or not `input` hidden types are supported for the evaluation.
+    fn supports_input_type(&self) -> bool;
+
+    /// Whether or not `output` hidden types are supported for the evaluation.
+    fn supports_output_type(&self) -> bool;
+}
+
 /// Represents an evaluator of expression types.
 #[derive(Debug)]
-pub struct ExprTypeEvaluator<'a, L> {
-    /// The supported document version.
-    version: SupportedVersion,
-    /// The types collection to use for the evaluation.
-    types: &'a mut Types,
-    /// A lookup function for looking up type names.
-    lookup: L,
+pub struct ExprTypeEvaluator<'a, C> {
+    /// The context for the evaluator.
+    context: &'a mut C,
     /// The diagnostics collection for adding evaluation diagnostics.
     diagnostics: &'a mut Vec<Diagnostic>,
     /// The nested count of placeholder evaluation.
@@ -444,24 +486,12 @@ pub struct ExprTypeEvaluator<'a, L> {
     placeholders: usize,
 }
 
-impl<'a, L> ExprTypeEvaluator<'a, L>
-where
-    L: FnMut(&str, Span) -> Result<Type, Diagnostic>,
-{
-    /// Constructs a new AST expression type evaluator.
-    ///
-    /// The provided callback is used to look up type name references.
-    pub fn new(
-        version: SupportedVersion,
-        types: &'a mut Types,
-        diagnostics: &'a mut Vec<Diagnostic>,
-        lookup: L,
-    ) -> Self {
+impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
+    /// Constructs a new expression type evaluator.
+    pub fn new(context: &'a mut C, diagnostics: &'a mut Vec<Diagnostic>) -> Self {
         Self {
-            version,
-            types,
+            context,
             diagnostics,
-            lookup,
             placeholders: 0,
         }
     }
@@ -469,31 +499,24 @@ where
     /// Evaluates the type of the given expression in the given scope.
     ///
     /// Returns `None` if the type of the expression is indeterminate.
-    pub fn evaluate_expr(&mut self, scope: &ScopeRef<'_>, expr: &Expr) -> Option<Type> {
+    pub fn evaluate_expr(&mut self, expr: &Expr) -> Option<Type> {
         match expr {
-            Expr::Literal(expr) => self.evaluate_literal_expr(scope, expr),
-            Expr::Name(r) => scope.lookup(r.name().as_str()).map(|n| n.ty()),
-            Expr::Parenthesized(expr) => self.evaluate_expr(scope, &expr.inner()),
-            Expr::If(expr) => self.evaluate_if_expr(scope, expr),
-            Expr::LogicalNot(expr) => self.evaluate_logical_not_expr(scope, expr),
-            Expr::Negation(expr) => self.evaluate_negation_expr(scope, expr),
-            Expr::LogicalOr(expr) => self.evaluate_logical_or_expr(scope, expr),
-            Expr::LogicalAnd(expr) => self.evaluate_logical_and_expr(scope, expr),
+            Expr::Literal(expr) => self.evaluate_literal_expr(expr),
+            Expr::Name(r) => self.context.resolve_name(&r.name()),
+            Expr::Parenthesized(expr) => self.evaluate_expr(&expr.inner()),
+            Expr::If(expr) => self.evaluate_if_expr(expr),
+            Expr::LogicalNot(expr) => self.evaluate_logical_not_expr(expr),
+            Expr::Negation(expr) => self.evaluate_negation_expr(expr),
+            Expr::LogicalOr(expr) => self.evaluate_logical_or_expr(expr),
+            Expr::LogicalAnd(expr) => self.evaluate_logical_and_expr(expr),
             Expr::Equality(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.evaluate_comparison_expr(
-                    ComparisonOperator::Equality,
-                    scope,
-                    &lhs,
-                    &rhs,
-                    expr.span(),
-                )
+                self.evaluate_comparison_expr(ComparisonOperator::Equality, &lhs, &rhs, expr.span())
             }
             Expr::Inequality(expr) => {
                 let (lhs, rhs) = expr.operands();
                 self.evaluate_comparison_expr(
                     ComparisonOperator::Inequality,
-                    scope,
                     &lhs,
                     &rhs,
                     expr.span(),
@@ -501,19 +524,12 @@ where
             }
             Expr::Less(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.evaluate_comparison_expr(
-                    ComparisonOperator::Less,
-                    scope,
-                    &lhs,
-                    &rhs,
-                    expr.span(),
-                )
+                self.evaluate_comparison_expr(ComparisonOperator::Less, &lhs, &rhs, expr.span())
             }
             Expr::LessEqual(expr) => {
                 let (lhs, rhs) = expr.operands();
                 self.evaluate_comparison_expr(
                     ComparisonOperator::LessEqual,
-                    scope,
                     &lhs,
                     &rhs,
                     expr.span(),
@@ -521,19 +537,12 @@ where
             }
             Expr::Greater(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.evaluate_comparison_expr(
-                    ComparisonOperator::Greater,
-                    scope,
-                    &lhs,
-                    &rhs,
-                    expr.span(),
-                )
+                self.evaluate_comparison_expr(ComparisonOperator::Greater, &lhs, &rhs, expr.span())
             }
             Expr::GreaterEqual(expr) => {
                 let (lhs, rhs) = expr.operands();
                 self.evaluate_comparison_expr(
                     ComparisonOperator::GreaterEqual,
-                    scope,
                     &lhs,
                     &rhs,
                     expr.span(),
@@ -541,66 +550,36 @@ where
             }
             Expr::Addition(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(
-                    NumericOperator::Addition,
-                    scope,
-                    expr.span(),
-                    &lhs,
-                    &rhs,
-                )
+                self.evaluate_numeric_expr(NumericOperator::Addition, expr.span(), &lhs, &rhs)
             }
             Expr::Subtraction(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(
-                    NumericOperator::Subtraction,
-                    scope,
-                    expr.span(),
-                    &lhs,
-                    &rhs,
-                )
+                self.evaluate_numeric_expr(NumericOperator::Subtraction, expr.span(), &lhs, &rhs)
             }
             Expr::Multiplication(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(
-                    NumericOperator::Multiplication,
-                    scope,
-                    expr.span(),
-                    &lhs,
-                    &rhs,
-                )
+                self.evaluate_numeric_expr(NumericOperator::Multiplication, expr.span(), &lhs, &rhs)
             }
             Expr::Division(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(
-                    NumericOperator::Division,
-                    scope,
-                    expr.span(),
-                    &lhs,
-                    &rhs,
-                )
+                self.evaluate_numeric_expr(NumericOperator::Division, expr.span(), &lhs, &rhs)
             }
             Expr::Modulo(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(NumericOperator::Modulo, scope, expr.span(), &lhs, &rhs)
+                self.evaluate_numeric_expr(NumericOperator::Modulo, expr.span(), &lhs, &rhs)
             }
             Expr::Exponentiation(expr) => {
                 let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(
-                    NumericOperator::Exponentiation,
-                    scope,
-                    expr.span(),
-                    &lhs,
-                    &rhs,
-                )
+                self.evaluate_numeric_expr(NumericOperator::Exponentiation, expr.span(), &lhs, &rhs)
             }
-            Expr::Call(expr) => self.evaluate_call_expr(scope, expr),
-            Expr::Index(expr) => self.evaluate_index_expr(scope, expr),
-            Expr::Access(expr) => self.evaluate_access_expr(scope, expr),
+            Expr::Call(expr) => self.evaluate_call_expr(expr),
+            Expr::Index(expr) => self.evaluate_index_expr(expr),
+            Expr::Access(expr) => self.evaluate_access_expr(expr),
         }
     }
 
     /// Evaluates the type of a literal expression.
-    fn evaluate_literal_expr(&mut self, scope: &ScopeRef<'_>, expr: &LiteralExpr) -> Option<Type> {
+    fn evaluate_literal_expr(&mut self, expr: &LiteralExpr) -> Option<Type> {
         match expr {
             LiteralExpr::Boolean(_) => Some(PrimitiveTypeKind::Boolean.into()),
             LiteralExpr::Integer(_) => Some(PrimitiveTypeKind::Integer.into()),
@@ -608,32 +587,32 @@ where
             LiteralExpr::String(s) => {
                 for p in s.parts() {
                     if let StringPart::Placeholder(p) = p {
-                        self.check_placeholder(scope, &p);
+                        self.check_placeholder(&p);
                     }
                 }
 
                 Some(PrimitiveTypeKind::String.into())
             }
-            LiteralExpr::Array(expr) => Some(self.evaluate_literal_array(scope, expr)),
-            LiteralExpr::Pair(expr) => Some(self.evaluate_literal_pair(scope, expr)),
-            LiteralExpr::Map(expr) => Some(self.evaluate_literal_map(scope, expr)),
+            LiteralExpr::Array(expr) => Some(self.evaluate_literal_array(expr)),
+            LiteralExpr::Pair(expr) => Some(self.evaluate_literal_pair(expr)),
+            LiteralExpr::Map(expr) => Some(self.evaluate_literal_map(expr)),
             LiteralExpr::Object(_) => Some(Type::Object),
-            LiteralExpr::Struct(expr) => self.evaluate_literal_struct(scope, expr),
+            LiteralExpr::Struct(expr) => self.evaluate_literal_struct(expr),
             LiteralExpr::None(_) => Some(Type::None),
-            LiteralExpr::Hints(expr) => self.evaluate_literal_hints(scope, expr),
-            LiteralExpr::Input(expr) => self.evaluate_literal_inputs(scope, expr),
-            LiteralExpr::Output(expr) => self.evaluate_literal_outputs(scope, expr),
+            LiteralExpr::Hints(expr) => self.evaluate_literal_hints(expr),
+            LiteralExpr::Input(expr) => self.evaluate_literal_input(expr),
+            LiteralExpr::Output(expr) => self.evaluate_literal_output(expr),
         }
     }
 
     /// Checks a placeholder expression.
-    pub(crate) fn check_placeholder(&mut self, scope: &ScopeRef<'_>, placeholder: &Placeholder) {
+    pub(crate) fn check_placeholder(&mut self, placeholder: &Placeholder) {
         self.placeholders += 1;
 
         // Evaluate the placeholder expression and check that the resulting type is
         // coercible to string for interpolation
         let expr = placeholder.expr();
-        if let Some(ty) = self.evaluate_expr(scope, &expr) {
+        if let Some(ty) = self.evaluate_expr(&expr) {
             match ty {
                 Type::Primitive(_) | Type::Union | Type::None => {
                     // OK
@@ -645,7 +624,7 @@ where
                     if let Some(PlaceholderOption::Sep(_)) = placeholder.option() {
                         if let Type::Compound(c) = ty {
                             if let CompoundTypeDef::Array(a) =
-                                self.types.type_definition(c.definition())
+                                self.context.types().type_definition(c.definition())
                             {
                                 if !a.element_type().is_optional()
                                     && a.element_type().as_primitive().is_some()
@@ -658,8 +637,11 @@ where
                     }
 
                     if !coercible {
-                        self.diagnostics
-                            .push(cannot_coerce_to_string(self.types, ty, expr.span()));
+                        self.diagnostics.push(cannot_coerce_to_string(
+                            self.context.types(),
+                            ty,
+                            expr.span(),
+                        ));
                     }
                 }
             }
@@ -669,25 +651,24 @@ where
     }
 
     /// Evaluates the type of a literal array expression.
-    fn evaluate_literal_array(&mut self, scope: &ScopeRef<'_>, expr: &LiteralArray) -> Type {
+    fn evaluate_literal_array(&mut self, expr: &LiteralArray) -> Type {
         // Look at the first array element to determine the element type
-        // The remaining elements must match the first type
+        // The remaining elements must have a common type
         let mut elements = expr.elements();
         match elements
             .next()
-            .and_then(|e| Some((self.evaluate_expr(scope, &e)?, e.span())))
+            .and_then(|e| Some((self.evaluate_expr(&e)?, e.span())))
         {
             Some((mut expected, mut expected_span)) => {
-                // Ensure the remaining element types are the same as (or coercible to) the
-                // first
+                // Ensure the remaining element types share a common type
                 for expr in elements {
-                    if let Some(actual) = self.evaluate_expr(scope, &expr) {
-                        if let Some(ty) = actual.common_type(self.types, expected) {
+                    if let Some(actual) = self.evaluate_expr(&expr) {
+                        if let Some(ty) = actual.common_type(self.context.types(), expected) {
                             expected = ty;
                             expected_span = expr.span();
                         } else {
                             self.diagnostics.push(no_common_type(
-                                self.types,
+                                self.context.types(),
                                 expected,
                                 expected_span,
                                 actual,
@@ -697,36 +678,42 @@ where
                     }
                 }
 
-                self.types.add_array(ArrayType::non_empty(expected))
+                self.context
+                    .types_mut()
+                    .add_array(ArrayType::non_empty(expected))
             }
             // Treat empty array as `Array[Union]`
-            None => self.types.add_array(ArrayType::new(Type::Union)),
+            None => self
+                .context
+                .types_mut()
+                .add_array(ArrayType::new(Type::Union)),
         }
     }
 
     /// Evaluates the type of a literal pair expression.
-    fn evaluate_literal_pair(&mut self, scope: &ScopeRef<'_>, expr: &LiteralPair) -> Type {
+    fn evaluate_literal_pair(&mut self, expr: &LiteralPair) -> Type {
         let (left, right) = expr.exprs();
-        let left = self.evaluate_expr(scope, &left).unwrap_or(Type::Union);
-        let right = self.evaluate_expr(scope, &right).unwrap_or(Type::Union);
-        self.types.add_pair(PairType::new(left, right))
+        let left = self.evaluate_expr(&left).unwrap_or(Type::Union);
+        let right = self.evaluate_expr(&right).unwrap_or(Type::Union);
+        self.context
+            .types_mut()
+            .add_pair(PairType::new(left, right))
     }
 
     /// Evaluates the type of a literal map expression.
-    fn evaluate_literal_map(&mut self, scope: &ScopeRef<'_>, expr: &LiteralMap) -> Type {
+    fn evaluate_literal_map(&mut self, expr: &LiteralMap) -> Type {
         let map_item_type = |item: LiteralMapItem| {
             let (key, value) = item.key_value();
-            let expected_key = self.evaluate_expr(scope, &key)?;
+            let expected_key = self.evaluate_expr(&key)?;
             match expected_key {
                 Type::Primitive(_) | Type::None | Type::Union => {
                     // OK
                 }
                 _ => {
                     self.diagnostics.push(map_key_not_primitive(
-                        self.types,
+                        self.context.types(),
                         key.span(),
                         expected_key,
-                        key.span(),
                     ));
                     return None;
                 }
@@ -735,7 +722,7 @@ where
             Some((
                 expected_key,
                 key.span(),
-                self.evaluate_expr(scope, &value)?,
+                self.evaluate_expr(&value)?,
                 value.span(),
             ))
         };
@@ -748,17 +735,19 @@ where
                 mut expected_value,
                 mut expected_value_span,
             )) => {
-                // Ensure the remaining items types are the same as the first
+                // Ensure the remaining items types share common types
                 for item in items {
                     let (key, value) = item.key_value();
-                    if let Some(actual_key) = self.evaluate_expr(scope, &key) {
-                        if let Some(actual_value) = self.evaluate_expr(scope, &value) {
-                            if let Some(ty) = actual_key.common_type(self.types, expected_key) {
+                    if let Some(actual_key) = self.evaluate_expr(&key) {
+                        if let Some(actual_value) = self.evaluate_expr(&value) {
+                            if let Some(ty) =
+                                actual_key.common_type(self.context.types(), expected_key)
+                            {
                                 expected_key = ty;
                                 expected_key_span = key.span();
                             } else {
                                 self.diagnostics.push(no_common_type(
-                                    self.types,
+                                    self.context.types(),
                                     expected_key,
                                     expected_key_span,
                                     actual_key,
@@ -766,12 +755,14 @@ where
                                 ));
                             }
 
-                            if let Some(ty) = actual_value.common_type(self.types, expected_value) {
+                            if let Some(ty) =
+                                actual_value.common_type(self.context.types(), expected_value)
+                            {
                                 expected_value = ty;
                                 expected_value_span = value.span();
                             } else {
                                 self.diagnostics.push(no_common_type(
-                                    self.types,
+                                    self.context.types(),
                                     expected_value,
                                     expected_value_span,
                                     actual_value,
@@ -782,22 +773,22 @@ where
                     }
                 }
 
-                self.types
+                self.context
+                    .types_mut()
                     .add_map(MapType::new(expected_key, expected_value))
             }
             // Treat as `Map[Union, Union]`
-            None => self.types.add_map(MapType::new(Type::Union, Type::Union)),
+            None => self
+                .context
+                .types_mut()
+                .add_map(MapType::new(Type::Union, Type::Union)),
         }
     }
 
     /// Evaluates the type of a literal struct expression.
-    fn evaluate_literal_struct(
-        &mut self,
-        scope: &ScopeRef<'_>,
-        expr: &LiteralStruct,
-    ) -> Option<Type> {
+    fn evaluate_literal_struct(&mut self, expr: &LiteralStruct) -> Option<Type> {
         let name = expr.name();
-        match (self.lookup)(name.as_str(), name.span()) {
+        match self.context.resolve_type_name(&name) {
             Ok(ty) => {
                 let id = match ty {
                     Type::Compound(ty) => ty.definition(),
@@ -807,7 +798,8 @@ where
                 // Keep track of which members are present in the expression
                 let mut present = vec![
                     false;
-                    self.types
+                    self.context
+                        .types()
                         .type_definition(id)
                         .as_struct()
                         .expect("should be a struct")
@@ -819,7 +811,8 @@ where
                 for item in expr.items() {
                     let (n, v) = item.name_value();
                     if let Some((index, _, expected)) = self
-                        .types
+                        .context
+                        .types()
                         .type_definition(id)
                         .as_struct()
                         .expect("should be a struct")
@@ -828,10 +821,10 @@ where
                     {
                         let expected = *expected;
                         present[index] = true;
-                        if let Some(actual) = self.evaluate_expr(scope, &v) {
-                            if !actual.is_coercible_to(self.types, &expected) {
+                        if let Some(actual) = self.evaluate_expr(&v) {
+                            if !actual.is_coercible_to(self.context.types(), &expected) {
                                 self.diagnostics.push(type_mismatch(
-                                    self.types,
+                                    self.context.types(),
                                     expected,
                                     n.span(),
                                     actual,
@@ -848,7 +841,8 @@ where
 
                 // Find the first unspecified member that is required, if any
                 let struct_type = self
-                    .types
+                    .context
+                    .types()
                     .type_definition(id)
                     .as_struct()
                     .expect("should be a struct");
@@ -898,23 +892,18 @@ where
     }
 
     /// Evaluates a `runtime` section item.
-    pub(crate) fn evaluate_runtime_item(
-        &mut self,
-        scope: &ScopeRef<'_>,
-        name: &Ident,
-        expr: &Expr,
-    ) {
-        let expr_ty = self.evaluate_expr(scope, expr).unwrap_or(Type::Union);
+    pub(crate) fn evaluate_runtime_item(&mut self, name: &Ident, expr: &Expr) {
+        let expr_ty = self.evaluate_expr(expr).unwrap_or(Type::Union);
         if !self.evaluate_requirement(name, expr, expr_ty) {
             // Always use object types for `runtime` section `inputs` and `outputs` keys as
             // only `hints` sections can use input/output hidden types
-            if let Some(expected) = task_hint_types(self.version, name.as_str(), false) {
+            if let Some(expected) = task_hint_types(self.context.version(), name.as_str(), false) {
                 if !expected
                     .iter()
-                    .any(|target| expr_ty.is_coercible_to(self.types, target))
+                    .any(|target| expr_ty.is_coercible_to(self.context.types(), target))
                 {
                     self.diagnostics.push(type_mismatch_custom(
-                        self.types,
+                        self.context.types(),
                         expected,
                         name.span(),
                         expr_ty,
@@ -926,13 +915,8 @@ where
     }
 
     /// Evaluates a `requirements` section item.
-    pub(crate) fn evaluate_requirements_item(
-        &mut self,
-        scope: &ScopeRef<'_>,
-        name: &Ident,
-        expr: &Expr,
-    ) {
-        let expr_ty = self.evaluate_expr(scope, expr).unwrap_or(Type::Union);
+    pub(crate) fn evaluate_requirements_item(&mut self, name: &Ident, expr: &Expr) {
+        let expr_ty = self.evaluate_expr(expr).unwrap_or(Type::Union);
         self.evaluate_requirement(name, expr, expr_ty);
     }
 
@@ -942,13 +926,13 @@ where
     /// Returns `true` if the name matched a requirement or `false` if it did
     /// not.
     fn evaluate_requirement(&mut self, name: &Ident, expr: &Expr, expr_ty: Type) -> bool {
-        if let Some(expected) = task_requirement_types(self.version, name.as_str()) {
+        if let Some(expected) = task_requirement_types(self.context.version(), name.as_str()) {
             if !expected
                 .iter()
-                .any(|target| expr_ty.is_coercible_to(self.types, target))
+                .any(|target| expr_ty.is_coercible_to(self.context.types(), target))
             {
                 self.diagnostics.push(type_mismatch_custom(
-                    self.types,
+                    self.context.types(),
                     expected,
                     name.span(),
                     expr_ty,
@@ -963,17 +947,13 @@ where
     }
 
     /// Evaluates the type of a literal hints expression.
-    fn evaluate_literal_hints(
-        &mut self,
-        scope: &ScopeRef<'_>,
-        expr: &LiteralHints,
-    ) -> Option<Type> {
-        if !scope.supports_hints() {
+    fn evaluate_literal_hints(&mut self, expr: &LiteralHints) -> Option<Type> {
+        if !self.context.supports_hints_type() {
             return None;
         }
 
         for item in expr.items() {
-            self.evaluate_hints_item(scope, &item.name(), &item.expr())
+            self.evaluate_hints_item(&item.name(), &item.expr())
         }
 
         Some(Type::Hints)
@@ -981,15 +961,15 @@ where
 
     /// Evaluates a hints item, whether in task `hints` section or a `hints`
     /// literal expression.
-    pub(crate) fn evaluate_hints_item(&mut self, scope: &ScopeRef<'_>, name: &Ident, expr: &Expr) {
-        let expr_ty = self.evaluate_expr(scope, expr).unwrap_or(Type::Union);
-        if let Some(expected) = task_hint_types(self.version, name.as_str(), true) {
+    pub(crate) fn evaluate_hints_item(&mut self, name: &Ident, expr: &Expr) {
+        let expr_ty = self.evaluate_expr(expr).unwrap_or(Type::Union);
+        if let Some(expected) = task_hint_types(self.context.version(), name.as_str(), true) {
             if !expected
                 .iter()
-                .any(|target| expr_ty.is_coercible_to(self.types, target))
+                .any(|target| expr_ty.is_coercible_to(self.context.types(), target))
             {
                 self.diagnostics.push(type_mismatch_custom(
-                    self.types,
+                    self.context.types(),
                     expected,
                     name.span(),
                     expr_ty,
@@ -999,54 +979,40 @@ where
         }
     }
 
-    /// Evaluates the type of a literal inputs expression.
-    fn evaluate_literal_inputs(
-        &mut self,
-        scope: &ScopeRef<'_>,
-        expr: &LiteralInput,
-    ) -> Option<Type> {
+    /// Evaluates the type of a literal input expression.
+    fn evaluate_literal_input(&mut self, expr: &LiteralInput) -> Option<Type> {
         // Check to see if inputs literals are supported in the evaluation scope
-        if !scope.supports_inputs() {
+        if !self.context.supports_input_type() {
             return None;
         }
 
         // Evaluate the items of the literal
         for item in expr.items() {
-            self.evaluate_literal_io_item(scope, item.names(), item.expr(), Io::Input);
+            self.evaluate_literal_io_item(item.names(), item.expr(), Io::Input);
         }
 
         Some(Type::Input)
     }
 
-    /// Evaluates the type of a literal outputs expression.
-    fn evaluate_literal_outputs(
-        &mut self,
-        scope: &ScopeRef<'_>,
-        expr: &LiteralOutput,
-    ) -> Option<Type> {
+    /// Evaluates the type of a literal output expression.
+    fn evaluate_literal_output(&mut self, expr: &LiteralOutput) -> Option<Type> {
         // Check to see if output literals are supported in the evaluation scope
-        if !scope.supports_outputs() {
+        if !self.context.supports_output_type() {
             return None;
         }
 
         // Evaluate the items of the literal
         for item in expr.items() {
-            self.evaluate_literal_io_item(scope, item.names(), item.expr(), Io::Output);
+            self.evaluate_literal_io_item(item.names(), item.expr(), Io::Output);
         }
 
         Some(Type::Output)
     }
 
     /// Evaluates a literal input/output item.
-    fn evaluate_literal_io_item(
-        &mut self,
-        scope: &ScopeRef<'_>,
-        names: impl Iterator<Item = Ident>,
-        expr: Expr,
-        io: Io,
-    ) {
+    fn evaluate_literal_io_item(&mut self, names: impl Iterator<Item = Ident>, expr: Expr, io: Io) {
         let mut names = names.enumerate().peekable();
-        let expr_ty = self.evaluate_expr(scope, &expr).unwrap_or(Type::Union);
+        let expr_ty = self.evaluate_expr(&expr).unwrap_or(Type::Union);
 
         // The first name should be an input/output and then the remainder should be a
         // struct member
@@ -1058,14 +1024,14 @@ where
                 span = Some(name.span());
 
                 match if io == Io::Input {
-                    scope.input(name.as_str()).unwrap().map(|i| i.ty())
+                    self.context.input(name.as_str()).map(|i| i.ty())
                 } else {
-                    scope.output(name.as_str()).unwrap().map(|o| o.ty())
+                    self.context.output(name.as_str()).map(|o| o.ty())
                 } {
                     Some(ty) => ty,
                     None => {
                         self.diagnostics.push(unknown_task_io(
-                            scope.task_name().expect("should have task name"),
+                            self.context.task_name().expect("should have task name"),
                             &name,
                             io,
                         ));
@@ -1089,12 +1055,13 @@ where
             match ty {
                 Type::Compound(ty)
                     if matches!(
-                        self.types.type_definition(ty.definition()),
+                        self.context.types().type_definition(ty.definition()),
                         CompoundTypeDef::Struct(_)
                     ) =>
                 {
                     s = Some(
-                        self.types
+                        self.context
+                            .types()
                             .type_definition(ty.definition())
                             .as_struct()
                             .unwrap(),
@@ -1117,9 +1084,9 @@ where
         }
 
         // The type of every item should be `hints`
-        if !expr_ty.is_coercible_to(self.types, &Type::Hints) {
+        if !expr_ty.is_coercible_to(self.context.types(), &Type::Hints) {
             self.diagnostics.push(type_mismatch(
-                self.types,
+                self.context.types(),
                 Type::Hints,
                 span.expect("should have span"),
                 expr_ty,
@@ -1129,35 +1096,33 @@ where
     }
 
     /// Evaluates the type of an `if` expression.
-    fn evaluate_if_expr(&mut self, scope: &ScopeRef<'_>, expr: &IfExpr) -> Option<Type> {
+    fn evaluate_if_expr(&mut self, expr: &IfExpr) -> Option<Type> {
         let (cond_expr, true_expr, false_expr) = expr.exprs();
 
         // The conditional should be a boolean
-        let cond_ty = self.evaluate_expr(scope, &cond_expr).unwrap_or(Type::Union);
-        if !cond_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
+        let cond_ty = self.evaluate_expr(&cond_expr).unwrap_or(Type::Union);
+        if !cond_ty.is_coercible_to(self.context.types(), &PrimitiveTypeKind::Boolean.into()) {
             self.diagnostics.push(if_conditional_mismatch(
-                self.types,
+                self.context.types(),
                 cond_ty,
                 cond_expr.span(),
             ));
         }
 
         // Check that the two expressions have the same type
-        let true_ty = self.evaluate_expr(scope, &true_expr).unwrap_or(Type::Union);
-        let false_ty = self
-            .evaluate_expr(scope, &false_expr)
-            .unwrap_or(Type::Union);
+        let true_ty = self.evaluate_expr(&true_expr).unwrap_or(Type::Union);
+        let false_ty = self.evaluate_expr(&false_expr).unwrap_or(Type::Union);
 
         match (true_ty, false_ty) {
             (Type::Union, Type::Union) => None,
             (Type::Union, _) => Some(false_ty),
             (_, Type::Union) => Some(true_ty),
             _ => {
-                if let Some(ty) = true_ty.common_type(self.types, false_ty) {
+                if let Some(ty) = true_ty.common_type(self.context.types(), false_ty) {
                     Some(ty)
                 } else {
                     self.diagnostics.push(type_mismatch(
-                        self.types,
+                        self.context.types(),
                         true_ty,
                         true_expr.span(),
                         false_ty,
@@ -1171,41 +1136,36 @@ where
     }
 
     /// Evaluates the type of a `logical not` expression.
-    fn evaluate_logical_not_expr(
-        &mut self,
-        scope: &ScopeRef<'_>,
-        expr: &LogicalNotExpr,
-    ) -> Option<Type> {
+    fn evaluate_logical_not_expr(&mut self, expr: &LogicalNotExpr) -> Option<Type> {
         // The operand should be a boolean
         let operand = expr.operand();
-        let ty = self.evaluate_expr(scope, &operand).unwrap_or(Type::Union);
-        if !ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
-            self.diagnostics
-                .push(logical_not_mismatch(self.types, ty, operand.span()));
+        let ty = self.evaluate_expr(&operand).unwrap_or(Type::Union);
+        if !ty.is_coercible_to(self.context.types(), &PrimitiveTypeKind::Boolean.into()) {
+            self.diagnostics.push(logical_not_mismatch(
+                self.context.types(),
+                ty,
+                operand.span(),
+            ));
         }
 
         Some(PrimitiveTypeKind::Boolean.into())
     }
 
     /// Evaluates the type of a negation expression.
-    fn evaluate_negation_expr(
-        &mut self,
-        scope: &ScopeRef<'_>,
-        expr: &NegationExpr,
-    ) -> Option<Type> {
+    fn evaluate_negation_expr(&mut self, expr: &NegationExpr) -> Option<Type> {
         // The operand should be a int or float
         let operand = expr.operand();
-        let ty = self.evaluate_expr(scope, &operand)?;
+        let ty = self.evaluate_expr(&operand)?;
 
         // If the type is `Int`, treat it as `Int`
         // This is checked first as `Int` is coercible to `Float`
-        if ty.type_eq(self.types, &PrimitiveTypeKind::Integer.into()) {
+        if ty.type_eq(self.context.types(), &PrimitiveTypeKind::Integer.into()) {
             return Some(PrimitiveTypeKind::Integer.into());
         }
 
-        if !ty.is_coercible_to(self.types, &PrimitiveTypeKind::Float.into()) {
+        if !ty.is_coercible_to(self.context.types(), &PrimitiveTypeKind::Float.into()) {
             self.diagnostics
-                .push(negation_mismatch(self.types, ty, operand.span()));
+                .push(negation_mismatch(self.context.types(), ty, operand.span()));
             // Type is indeterminate as the expression may evaluate to more than one type
             return None;
         }
@@ -1214,48 +1174,40 @@ where
     }
 
     /// Evaluates the type of a `logical or` expression.
-    fn evaluate_logical_or_expr(
-        &mut self,
-        scope: &ScopeRef<'_>,
-        expr: &LogicalOrExpr,
-    ) -> Option<Type> {
+    fn evaluate_logical_or_expr(&mut self, expr: &LogicalOrExpr) -> Option<Type> {
         // Both operands should be booleans
         let (lhs, rhs) = expr.operands();
 
-        let ty = self.evaluate_expr(scope, &lhs).unwrap_or(Type::Union);
-        if !ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
+        let ty = self.evaluate_expr(&lhs).unwrap_or(Type::Union);
+        if !ty.is_coercible_to(self.context.types(), &PrimitiveTypeKind::Boolean.into()) {
             self.diagnostics
-                .push(logical_or_mismatch(self.types, ty, lhs.span()));
+                .push(logical_or_mismatch(self.context.types(), ty, lhs.span()));
         }
 
-        let ty = self.evaluate_expr(scope, &rhs).unwrap_or(Type::Union);
-        if !ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
+        let ty = self.evaluate_expr(&rhs).unwrap_or(Type::Union);
+        if !ty.is_coercible_to(self.context.types(), &PrimitiveTypeKind::Boolean.into()) {
             self.diagnostics
-                .push(logical_or_mismatch(self.types, ty, rhs.span()));
+                .push(logical_or_mismatch(self.context.types(), ty, rhs.span()));
         }
 
         Some(PrimitiveTypeKind::Boolean.into())
     }
 
     /// Evaluates the type of a `logical and` expression.
-    fn evaluate_logical_and_expr(
-        &mut self,
-        scope: &ScopeRef<'_>,
-        expr: &LogicalAndExpr,
-    ) -> Option<Type> {
+    fn evaluate_logical_and_expr(&mut self, expr: &LogicalAndExpr) -> Option<Type> {
         // Both operands should be booleans
         let (lhs, rhs) = expr.operands();
 
-        let ty = self.evaluate_expr(scope, &lhs).unwrap_or(Type::Union);
-        if !ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
+        let ty = self.evaluate_expr(&lhs).unwrap_or(Type::Union);
+        if !ty.is_coercible_to(self.context.types(), &PrimitiveTypeKind::Boolean.into()) {
             self.diagnostics
-                .push(logical_and_mismatch(self.types, ty, lhs.span()));
+                .push(logical_and_mismatch(self.context.types(), ty, lhs.span()));
         }
 
-        let ty = self.evaluate_expr(scope, &rhs).unwrap_or(Type::Union);
-        if !ty.is_coercible_to(self.types, &PrimitiveTypeKind::Boolean.into()) {
+        let ty = self.evaluate_expr(&rhs).unwrap_or(Type::Union);
+        if !ty.is_coercible_to(self.context.types(), &PrimitiveTypeKind::Boolean.into()) {
             self.diagnostics
-                .push(logical_and_mismatch(self.types, ty, rhs.span()));
+                .push(logical_and_mismatch(self.context.types(), ty, rhs.span()));
         }
 
         Some(PrimitiveTypeKind::Boolean.into())
@@ -1265,16 +1217,15 @@ where
     fn evaluate_comparison_expr(
         &mut self,
         op: ComparisonOperator,
-        scope: &ScopeRef<'_>,
         lhs: &Expr,
         rhs: &Expr,
         span: Span,
     ) -> Option<Type> {
-        let lhs_ty = self.evaluate_expr(scope, lhs).unwrap_or(Type::Union);
-        let rhs_ty = self.evaluate_expr(scope, rhs).unwrap_or(Type::Union);
+        let lhs_ty = self.evaluate_expr(lhs).unwrap_or(Type::Union);
+        let rhs_ty = self.evaluate_expr(rhs).unwrap_or(Type::Union);
 
         // Check for comparison to `None` or `Union` and allow it
-        if lhs_ty.is_union() || lhs_ty.is_none() || (rhs_ty.is_union() && rhs_ty.is_none()) {
+        if lhs_ty.is_union() || lhs_ty.is_none() || rhs_ty.is_union() || rhs_ty.is_none() {
             return Some(PrimitiveTypeKind::Boolean.into());
         }
 
@@ -1301,15 +1252,15 @@ where
                 continue;
             }
 
-            if lhs_ty.is_coercible_to(self.types, &expected)
-                && rhs_ty.is_coercible_to(self.types, &expected)
+            if lhs_ty.is_coercible_to(self.context.types(), &expected)
+                && rhs_ty.is_coercible_to(self.context.types(), &expected)
             {
                 return Some(PrimitiveTypeKind::Boolean.into());
             }
 
             let expected = expected.optional();
-            if lhs_ty.is_coercible_to(self.types, &expected)
-                && rhs_ty.is_coercible_to(self.types, &expected)
+            if lhs_ty.is_coercible_to(self.context.types(), &expected)
+                && rhs_ty.is_coercible_to(self.context.types(), &expected)
             {
                 return Some(PrimitiveTypeKind::Boolean.into());
             }
@@ -1318,10 +1269,10 @@ where
         // For equality comparisons, check LHS and RHS being compound types
         if op == ComparisonOperator::Equality || op == ComparisonOperator::Inequality {
             // Check for object
-            if (lhs_ty.is_coercible_to(self.types, &Type::Object)
-                && rhs_ty.is_coercible_to(self.types, &Type::Object))
-                || (lhs_ty.is_coercible_to(self.types, &Type::OptionalObject)
-                    && rhs_ty.is_coercible_to(self.types, &Type::OptionalObject))
+            if (lhs_ty.is_coercible_to(self.context.types(), &Type::Object)
+                && rhs_ty.is_coercible_to(self.context.types(), &Type::Object))
+                || (lhs_ty.is_coercible_to(self.context.types(), &Type::OptionalObject)
+                    && rhs_ty.is_coercible_to(self.context.types(), &Type::OptionalObject))
             {
                 return Some(PrimitiveTypeKind::Boolean.into());
             }
@@ -1333,17 +1284,17 @@ where
                         return Some(PrimitiveTypeKind::Boolean.into());
                     }
 
-                    let lhs = self.types.type_definition(lhs.definition());
-                    let rhs = self.types.type_definition(rhs.definition());
+                    let lhs = self.context.types().type_definition(lhs.definition());
+                    let rhs = self.context.types().type_definition(rhs.definition());
                     let equal = match (lhs, rhs) {
                         (CompoundTypeDef::Array(a), CompoundTypeDef::Array(b)) => {
-                            a.type_eq(self.types, b)
+                            a.type_eq(self.context.types(), b)
                         }
                         (CompoundTypeDef::Pair(a), CompoundTypeDef::Pair(b)) => {
-                            a.type_eq(self.types, b)
+                            a.type_eq(self.context.types(), b)
                         }
                         (CompoundTypeDef::Map(a), CompoundTypeDef::Map(b)) => {
-                            a.type_eq(self.types, b)
+                            a.type_eq(self.context.types(), b)
                         }
                         // Struct is handled in the above definition id comparison
                         _ => false,
@@ -1358,8 +1309,8 @@ where
 
         // A type mismatch at this point
         self.diagnostics.push(comparison_mismatch(
-            self.types,
-            &op,
+            self.context.types(),
+            op,
             span,
             lhs_ty,
             lhs.span(),
@@ -1373,26 +1324,25 @@ where
     fn evaluate_numeric_expr(
         &mut self,
         op: NumericOperator,
-        scope: &ScopeRef<'_>,
         span: Span,
         lhs: &Expr,
         rhs: &Expr,
     ) -> Option<Type> {
-        let lhs_ty = self.evaluate_expr(scope, lhs).unwrap_or(Type::Union);
-        let rhs_ty = self.evaluate_expr(scope, rhs).unwrap_or(Type::Union);
+        let lhs_ty = self.evaluate_expr(lhs).unwrap_or(Type::Union);
+        let rhs_ty = self.evaluate_expr(rhs).unwrap_or(Type::Union);
 
         // If both sides are `Int`, the result is `Int`
-        if lhs_ty.type_eq(self.types, &PrimitiveTypeKind::Integer.into())
-            && rhs_ty.type_eq(self.types, &PrimitiveTypeKind::Integer.into())
+        if lhs_ty.type_eq(self.context.types(), &PrimitiveTypeKind::Integer.into())
+            && rhs_ty.type_eq(self.context.types(), &PrimitiveTypeKind::Integer.into())
         {
             return Some(PrimitiveTypeKind::Integer.into());
         }
 
         // If both sides are coercible to `Float`, the result is `Float`
-        if lhs_ty != Type::Union
-            && lhs_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Float.into())
-            && rhs_ty != Type::Union
-            && rhs_ty.is_coercible_to(self.types, &PrimitiveTypeKind::Float.into())
+        if !lhs_ty.is_union()
+            && lhs_ty.is_coercible_to(self.context.types(), &PrimitiveTypeKind::Float.into())
+            && !rhs_ty.is_union()
+            && rhs_ty.is_coercible_to(self.context.types(), &PrimitiveTypeKind::Float.into())
         {
             return Some(PrimitiveTypeKind::Float.into());
         }
@@ -1425,7 +1375,7 @@ where
                     && other
                         .as_primitive()
                         .map(|p| p.kind() != PrimitiveTypeKind::Boolean)
-                        .unwrap_or(other == Type::Union || (allow_optional && other == Type::None))
+                        .unwrap_or(other.is_union() || (allow_optional && other.is_none()))
                 {
                     let ty: Type = PrimitiveTypeKind::String.into();
                     if optional || other.is_optional() {
@@ -1436,15 +1386,15 @@ where
                 }
 
                 self.diagnostics
-                    .push(string_concat_mismatch(self.types, other, span));
+                    .push(string_concat_mismatch(self.context.types(), other, span));
                 return None;
             }
         }
 
-        if lhs_ty != Type::Union && rhs_ty != Type::Union {
+        if !lhs_ty.is_union() && !rhs_ty.is_union() {
             self.diagnostics.push(numeric_mismatch(
-                self.types,
-                &op,
+                self.context.types(),
+                op,
                 span,
                 lhs_ty,
                 lhs.span(),
@@ -1457,17 +1407,17 @@ where
     }
 
     /// Evaluates the type of a call expression.
-    fn evaluate_call_expr(&mut self, scope: &ScopeRef<'_>, expr: &CallExpr) -> Option<Type> {
+    fn evaluate_call_expr(&mut self, expr: &CallExpr) -> Option<Type> {
         let target = expr.target();
         match STDLIB.function(target.as_str()) {
             Some(f) => {
                 let arguments: Vec<_> = expr
                     .arguments()
-                    .map(|expr| self.evaluate_expr(scope, &expr).unwrap_or(Type::Union))
+                    .map(|expr| self.evaluate_expr(&expr).unwrap_or(Type::Union))
                     .collect();
 
                 let minimum_version = f.minimum_version();
-                if minimum_version > self.version {
+                if minimum_version > self.context.version() {
                     self.diagnostics.push(unsupported_function(
                         minimum_version,
                         target.as_str(),
@@ -1475,7 +1425,7 @@ where
                     ));
                 }
 
-                match f.bind(self.types, &arguments) {
+                match f.bind(self.context.types_mut(), &arguments) {
                     Ok(ty) => return Some(ty),
                     Err(FunctionBindError::TooFewArguments(minimum)) => {
                         self.diagnostics.push(too_few_arguments(
@@ -1496,7 +1446,7 @@ where
                     }
                     Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
                         self.diagnostics.push(argument_type_mismatch(
-                            self.types,
+                            self.context.types(),
                             target.as_str(),
                             &expected,
                             arguments[index],
@@ -1516,7 +1466,7 @@ where
                     }
                 }
 
-                Some(f.realize_unconstrained_return_type(self.types, &arguments))
+                Some(f.realize_unconstrained_return_type(self.context.types_mut(), &arguments))
             }
             None => {
                 self.diagnostics
@@ -1527,13 +1477,13 @@ where
     }
 
     /// Evaluates the type of an index expression.
-    fn evaluate_index_expr(&mut self, scope: &ScopeRef<'_>, expr: &IndexExpr) -> Option<Type> {
+    fn evaluate_index_expr(&mut self, expr: &IndexExpr) -> Option<Type> {
         let (target, index) = expr.operands();
 
         // Determine the expected index type and result type of the expression
-        let target_ty = self.evaluate_expr(scope, &target)?;
+        let target_ty = self.evaluate_expr(&target)?;
         let (expected_index_ty, result_ty) = match target_ty {
-            Type::Compound(ty) => match self.types.type_definition(ty.definition()) {
+            Type::Compound(ty) => match self.context.types().type_definition(ty.definition()) {
                 CompoundTypeDef::Array(ty) => (
                     Some(PrimitiveTypeKind::Integer.into()),
                     Some(ty.element_type()),
@@ -1546,10 +1496,10 @@ where
 
         // Check that the index type is the expected one
         if let Some(expected_index_ty) = expected_index_ty {
-            let index_ty = self.evaluate_expr(scope, &index).unwrap_or(Type::Union);
-            if !index_ty.is_coercible_to(self.types, &expected_index_ty) {
+            let index_ty = self.evaluate_expr(&index).unwrap_or(Type::Union);
+            if !index_ty.is_coercible_to(self.context.types(), &expected_index_ty) {
                 self.diagnostics.push(index_type_mismatch(
-                    self.types,
+                    self.context.types(),
                     expected_index_ty,
                     index_ty,
                     index.span(),
@@ -1561,18 +1511,18 @@ where
             Some(ty) => Some(ty),
             None => {
                 self.diagnostics
-                    .push(cannot_index(self.types, target_ty, target.span()));
+                    .push(cannot_index(self.context.types(), target_ty, target.span()));
                 None
             }
         }
     }
 
     /// Evaluates the type of an access expression.
-    fn evaluate_access_expr(&mut self, scope: &ScopeRef<'_>, expr: &AccessExpr) -> Option<Type> {
+    fn evaluate_access_expr(&mut self, expr: &AccessExpr) -> Option<Type> {
         let (target, name) = expr.operands();
-        let ty = self.evaluate_expr(scope, &target)?;
+        let ty = self.evaluate_expr(&target)?;
 
-        if Type::Task == ty {
+        if matches!(ty, Type::Task) {
             return match task_member_type(name.as_str()) {
                 Some(ty) => Some(ty),
                 None => {
@@ -1585,7 +1535,7 @@ where
         // Check to see if it's a compound type
         if let Type::Compound(ty) = &ty {
             // Check to see if it's a struct.
-            let definition = self.types.type_definition(ty.definition());
+            let definition = self.context.types().type_definition(ty.definition());
             if let CompoundTypeDef::Struct(ty) = definition {
                 if let Some(ty) = ty.members.get(name.as_str()) {
                     return Some(*ty);
@@ -1622,12 +1572,12 @@ where
 
         // Check to see if it's coercible to object; if so, treat as `Union` as it's
         // indeterminate
-        if ty.is_coercible_to(self.types, &Type::OptionalObject) {
+        if ty.is_coercible_to(self.context.types(), &Type::OptionalObject) {
             return Some(Type::Union);
         }
 
         self.diagnostics
-            .push(cannot_access(self.types, ty, target.span()));
+            .push(cannot_access(self.context.types(), ty, target.span()));
         None
     }
 }

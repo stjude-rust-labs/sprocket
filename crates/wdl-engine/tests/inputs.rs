@@ -149,12 +149,12 @@ fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
 
     let mut engine = Engine::default();
     let document = result.document();
-    let result = match InputsFile::parse(&mut engine, document, test.join("inputs.json")) {
+    let result = match InputsFile::parse(engine.types_mut(), document, test.join("inputs.json")) {
         Ok(inputs) => {
             if let Some((task, inputs)) = inputs.as_task_inputs() {
                 match inputs
                     .validate(
-                        &mut engine,
+                        engine.types_mut(),
                         document,
                         document.task_by_name(task).expect("task should be present"),
                     )
@@ -166,7 +166,7 @@ fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
             } else if let Some(inputs) = inputs.as_workflow_inputs() {
                 let workflow = document.workflow().expect("workflow should be present");
                 match inputs
-                    .validate(&mut engine, document, workflow)
+                    .validate(engine.types_mut(), document, workflow)
                     .with_context(|| {
                         format!(
                             "failed to validate the inputs to workflow `{workflow}`",

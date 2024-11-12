@@ -16,11 +16,11 @@ use wdl_analysis::document::Task;
 use wdl_analysis::document::Workflow;
 use wdl_analysis::types::CallKind;
 use wdl_analysis::types::Coercible;
+use wdl_analysis::types::Types;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
 
-use crate::Engine;
 use crate::Value;
 
 /// A type alias to a JSON map (object).
@@ -69,7 +69,7 @@ impl TaskInputs {
     }
 
     /// Validates the inputs for the given task.
-    pub fn validate(&self, engine: &mut Engine, document: &Document, task: &Task) -> Result<()> {
+    pub fn validate(&self, types: &mut Types, document: &Document, task: &Task) -> Result<()> {
         let version = document
             .version()
             .ok_or_else(|| anyhow!("missing document version"))?;
@@ -80,13 +80,13 @@ impl TaskInputs {
                 .inputs()
                 .get(name)
                 .ok_or_else(|| anyhow!("unknown input `{name}`"))?;
-            let expected_ty = engine.types_mut().import(document.types(), input.ty());
-            let ty = value.ty(engine);
-            if !ty.is_coercible_to(engine.types(), &expected_ty) {
+            let expected_ty = types.import(document.types(), input.ty());
+            let ty = value.ty();
+            if !ty.is_coercible_to(types, &expected_ty) {
                 bail!(
                     "expected type `{expected_ty}` for input `{name}`, but found `{ty}`",
-                    expected_ty = expected_ty.display(engine.types()),
-                    ty = ty.display(engine.types())
+                    expected_ty = expected_ty.display(types),
+                    ty = ty.display(types)
                 );
             }
         }
@@ -100,16 +100,16 @@ impl TaskInputs {
 
         // Check the types of the specified requirements
         for (name, value) in &self.requirements {
-            let ty = value.ty(engine);
+            let ty = value.ty();
             if let Some(expected) = task_requirement_types(version, name.as_str()) {
                 if !expected
                     .iter()
-                    .any(|target| ty.is_coercible_to(engine.types(), target))
+                    .any(|target| ty.is_coercible_to(types, target))
                 {
                     bail!(
                         "expected {expected} for requirement `{name}`, but found type `{ty}`",
-                        expected = display_types(engine.types(), expected),
-                        ty = ty.display(engine.types())
+                        expected = display_types(types, expected),
+                        ty = ty.display(types)
                     );
                 }
 
@@ -121,16 +121,16 @@ impl TaskInputs {
 
         // Check the types of the specified hints
         for (name, value) in &self.hints {
-            let ty = value.ty(engine);
+            let ty = value.ty();
             if let Some(expected) = task_hint_types(version, name.as_str(), false) {
                 if !expected
                     .iter()
-                    .any(|target| ty.is_coercible_to(engine.types(), target))
+                    .any(|target| ty.is_coercible_to(types, target))
                 {
                     bail!(
                         "expected {expected} for hint `{name}`, but found type `{ty}`",
-                        expected = display_types(engine.types(), expected),
-                        ty = ty.display(engine.types())
+                        expected = display_types(types, expected),
+                        ty = ty.display(types)
                     );
                 }
             }
@@ -142,7 +142,7 @@ impl TaskInputs {
     /// Sets a value with dotted path notation.
     fn set_path_value(
         &mut self,
-        engine: &mut Engine,
+        types: &mut Types,
         document: &Document,
         task: &Task,
         path: &str,
@@ -181,7 +181,7 @@ impl TaskInputs {
 
                 if let Some((requirement, expected)) = matched {
                     for ty in expected {
-                        if value.ty(engine).is_coercible_to(engine.types(), ty) {
+                        if value.ty().is_coercible_to(types, ty) {
                             if requirement {
                                 self.requirements.insert(remainder.to_string(), value);
                             } else {
@@ -193,8 +193,8 @@ impl TaskInputs {
 
                     bail!(
                         "expected {expected} for {key} key `{remainder}`, but found type `{ty}`",
-                        expected = display_types(engine.types(), expected),
-                        ty = value.ty(engine).display(engine.types())
+                        expected = display_types(types, expected),
+                        ty = value.ty().display(types)
                     );
                 } else if must_match {
                     bail!("unsupported {key} key `{remainder}`");
@@ -211,12 +211,12 @@ impl TaskInputs {
                     )
                 })?;
 
-                let ty = engine.types_mut().import(document.types(), input.ty());
-                if !value.ty(engine).is_coercible_to(engine.types(), &ty) {
+                let ty = types.import(document.types(), input.ty());
+                if !value.ty().is_coercible_to(types, &ty) {
                     bail!(
                         "expected type `{expected}` for input `{path}`, but found type `{actual}`",
-                        expected = ty.display(engine.types()),
-                        actual = value.ty(engine).display(engine.types())
+                        expected = ty.display(types),
+                        actual = value.ty().display(types)
                     );
                 }
                 self.inputs.insert(path.to_string(), value);
@@ -276,7 +276,7 @@ impl WorkflowInputs {
     /// Validates the inputs for the given workflow.
     pub fn validate(
         &self,
-        engine: &mut Engine,
+        types: &mut Types,
         document: &Document,
         workflow: &Workflow,
     ) -> Result<()> {
@@ -286,13 +286,13 @@ impl WorkflowInputs {
                 .inputs()
                 .get(name)
                 .ok_or_else(|| anyhow!("unknown input `{name}`"))?;
-            let expected_ty = engine.types_mut().import(document.types(), input.ty());
-            let ty = value.ty(engine);
-            if !ty.is_coercible_to(engine.types(), &expected_ty) {
+            let expected_ty = types.import(document.types(), input.ty());
+            let ty = value.ty();
+            if !ty.is_coercible_to(types, &expected_ty) {
                 bail!(
                     "expected type `{expected_ty}` for input `{name}`, but found type `{ty}`",
-                    expected_ty = expected_ty.display(engine.types()),
-                    ty = ty.display(engine.types())
+                    expected_ty = expected_ty.display(types),
+                    ty = ty.display(types)
                 );
             }
         }
@@ -343,7 +343,7 @@ impl WorkflowInputs {
                         anyhow!("`{name}` is a call to a task, but workflow inputs were supplied")
                     })?;
 
-                    task_inputs.validate(engine, document, task)?;
+                    task_inputs.validate(types, document, task)?;
                     task_inputs.inputs()
                 }
                 CallKind::Workflow => {
@@ -357,7 +357,7 @@ impl WorkflowInputs {
                         anyhow!("`{name}` is a call to a workflow, but task inputs were supplied")
                     })?;
 
-                    workflow_inputs.validate(engine, document, workflow)?;
+                    workflow_inputs.validate(types, document, workflow)?;
                     workflow_inputs.inputs()
                 }
             };
@@ -399,7 +399,7 @@ impl WorkflowInputs {
     /// Sets a value with dotted path notation.
     fn set_path_value(
         &mut self,
-        engine: &mut Engine,
+        types: &mut Types,
         document: &Document,
         workflow: &Workflow,
         path: &str,
@@ -465,7 +465,7 @@ impl WorkflowInputs {
                         inputs
                             .as_task_inputs_mut()
                             .expect("should be a task input")
-                            .set_path_value(engine, document, task, remainder, value)
+                            .set_path_value(types, document, task, remainder, value)
                     }
                     CallKind::Workflow => {
                         let workflow = document.workflow().expect("should have a workflow");
@@ -477,7 +477,7 @@ impl WorkflowInputs {
                         inputs
                             .as_workflow_inputs_mut()
                             .expect("should be a task input")
-                            .set_path_value(engine, document, workflow, remainder, value)
+                            .set_path_value(types, document, workflow, remainder, value)
                     }
                 }
             }
@@ -489,12 +489,12 @@ impl WorkflowInputs {
                     )
                 })?;
 
-                let ty = engine.types_mut().import(document.types(), input.ty());
-                if !value.ty(engine).is_coercible_to(engine.types(), &ty) {
+                let ty = types.import(document.types(), input.ty());
+                if !value.ty().is_coercible_to(types, &ty) {
                     bail!(
                         "expected type `{expected}` for input `{path}`, but found type `{actual}`",
-                        expected = ty.display(engine.types()),
-                        actual = value.ty(engine).display(engine.types())
+                        expected = ty.display(types),
+                        actual = value.ty().display(types)
                     );
                 }
                 self.inputs.insert(path.to_string(), value);
@@ -610,7 +610,7 @@ impl InputsFile {
     ///
     /// The parse uses the provided document to validate the input keys within
     /// the file.
-    pub fn parse(engine: &mut Engine, document: &Document, path: impl AsRef<Path>) -> Result<Self> {
+    pub fn parse(types: &mut Types, document: &Document, path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let file = File::open(path).with_context(|| {
             format!("failed to open input file `{path}`", path = path.display())
@@ -632,7 +632,7 @@ impl InputsFile {
                 })?,
         );
 
-        Self::parse_object(engine, document, object)
+        Self::parse_object(types, document, object)
             .with_context(|| format!("failed to parse input file `{path}`", path = path.display()))
     }
 
@@ -659,7 +659,7 @@ impl InputsFile {
     }
 
     /// Parses the root object in an input file.
-    fn parse_object(engine: &mut Engine, document: &Document, object: JsonMap) -> Result<Self> {
+    fn parse_object(types: &mut Types, document: &Document, object: JsonMap) -> Result<Self> {
         // Determine the root workflow or task name
         let (key, name) = match object.iter().next() {
             Some((key, _)) => match key.split_once('.') {
@@ -681,9 +681,9 @@ impl InputsFile {
         };
 
         match (document.task_by_name(name), document.workflow()) {
-            (Some(task), _) => Self::parse_task_inputs(engine, document, task, object),
+            (Some(task), _) => Self::parse_task_inputs(types, document, task, object),
             (None, Some(workflow)) if workflow.name() == name => {
-                Self::parse_workflow_inputs(engine, document, workflow, object)
+                Self::parse_workflow_inputs(types, document, workflow, object)
             }
             _ => bail!(
                 "invalid input key `{key}`: a task or workflow named `{name}` does not exist in \
@@ -694,20 +694,20 @@ impl InputsFile {
 
     /// Parses the inputs for a task.
     fn parse_task_inputs(
-        engine: &mut Engine,
+        types: &mut Types,
         document: &Document,
         task: &Task,
         object: JsonMap,
     ) -> Result<Self> {
         let mut inputs = TaskInputs::default();
         for (key, value) in object {
-            let value = Value::from_json(engine, value)
+            let value = Value::from_json(types, value)
                 .with_context(|| format!("invalid input key `{key}`"))?;
 
             match key.split_once(".") {
                 Some((prefix, remainder)) if prefix == task.name() => {
                     inputs
-                        .set_path_value(engine, document, task, remainder, value)
+                        .set_path_value(types, document, task, remainder, value)
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {
@@ -727,20 +727,20 @@ impl InputsFile {
 
     /// Parses the inputs for a workflow.
     fn parse_workflow_inputs(
-        engine: &mut Engine,
+        types: &mut Types,
         document: &Document,
         workflow: &Workflow,
         object: JsonMap,
     ) -> Result<Self> {
         let mut inputs = WorkflowInputs::default();
         for (key, value) in object {
-            let value = Value::from_json(engine, value)
+            let value = Value::from_json(types, value)
                 .with_context(|| format!("invalid input key `{key}`"))?;
 
             match key.split_once(".") {
                 Some((prefix, remainder)) if prefix == workflow.name() => {
                     inputs
-                        .set_path_value(engine, document, workflow, remainder, value)
+                        .set_path_value(types, document, workflow, remainder, value)
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {

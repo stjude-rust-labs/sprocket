@@ -249,15 +249,17 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                         .unwrap_or_default();
                     // The `+1` here is because line_index() is 0-based.
                     let line_no = file.line_index((), byte_start).unwrap_or_default() + 1;
-                    assert!(
-                        actual.insert((
-                            std::str::from_utf8(buffer.as_slice())
-                                .context("diagnostic should be UTF-8")?
-                                .trim()
-                                .to_string(),
-                            line_no,
-                        ))
-                    );
+                    let message = std::str::from_utf8(buffer.as_slice())
+                        .context("diagnostic should be UTF-8")?
+                        .trim()
+                        .to_string();
+
+                    if !actual.insert((message.clone(), line_no)) {
+                        panic!(
+                            "duplicate diagnostic: `{message}` at {path}:{line_no}",
+                            path = document_identifier.path()
+                        );
+                    }
                 }
             }
 
