@@ -1651,14 +1651,22 @@ pub struct StandardLibrary {
     types: Types,
     /// A map of function name to function definition.
     functions: IndexMap<&'static str, Function>,
-    /// The type for `Array[String]`.
-    pub(crate) array_string: Type,
     /// The type for `Array[Int]`.
-    pub(crate) array_int: Type,
-    /// The type for `Map[String, Int]`.
-    pub(crate) map_string_int: Type,
+    array_int: Type,
+    /// The type for `Array[String]`.
+    array_string: Type,
+    /// The type for `Array[File]`.
+    array_file: Type,
+    /// The type for `Array[Object]`.
+    array_object: Type,
+    /// The type for `Array[String]+`.
+    array_string_non_empty: Type,
+    /// The type for `Array[Array[String]]`.
+    array_array_string: Type,
     /// The type for `Map[String, String]`.
-    pub(crate) map_string_string: Type,
+    map_string_string: Type,
+    /// The type for `Map[String, Int]`.
+    map_string_int: Type,
 }
 
 impl StandardLibrary {
@@ -1675,6 +1683,46 @@ impl StandardLibrary {
     /// Gets an iterator over all the functions in the standard library.
     pub fn functions(&self) -> impl ExactSizeIterator<Item = (&'static str, &Function)> {
         self.functions.iter().map(|(n, f)| (*n, f))
+    }
+
+    /// Gets the type for `Array[Int]`.
+    pub fn array_int_type(&self) -> Type {
+        self.array_int
+    }
+
+    /// Gets the type for `Array[String]`.
+    pub fn array_string_type(&self) -> Type {
+        self.array_string
+    }
+
+    /// Gets the type for `Array[File]`.
+    pub fn array_file_type(&self) -> Type {
+        self.array_file
+    }
+
+    /// Gets the type for `Array[Object]`.
+    pub fn array_object_type(&self) -> Type {
+        self.array_object
+    }
+
+    /// Gets the type for `Array[String]+`.
+    pub fn array_string_non_empty_type(&self) -> Type {
+        self.array_string_non_empty
+    }
+
+    /// Gets the type for `Array[Array[String]]`.
+    pub fn array_array_string_type(&self) -> Type {
+        self.array_array_string
+    }
+
+    /// Gets the type for `Map[String, String]`.
+    pub fn map_string_string_type(&self) -> Type {
+        self.map_string_string
+    }
+
+    /// Gets the type for `Map[String, Int]`.
+    pub fn map_string_int_type(&self) -> Type {
+        self.map_string_int
     }
 }
 
@@ -1958,6 +2006,15 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
             .insert(
                 "size",
                 PolymorphicFunction::new(vec![
+                    // This overload isn't explicitly in the spec, but it fixes an ambiguity in 1.2
+                    // when passed a literal `None` value.
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Two))
+                        .required(1)
+                        .parameter(Type::None)
+                        .parameter(PrimitiveTypeKind::String)
+                        .ret(PrimitiveTypeKind::Float)
+                        .build(),
                     FunctionSignature::builder()
                         .required(1)
                         .parameter(PrimitiveType::optional(PrimitiveTypeKind::File))
@@ -1969,6 +2026,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     // `String` overload is required as `String` may coerce to either `File` or
                     // `Directory`, which is ambiguous.
                     FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
                         .parameter(PrimitiveType::optional(PrimitiveTypeKind::String))
                         .parameter(PrimitiveTypeKind::String)
@@ -2131,11 +2189,13 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .ret(array_array_string)
                         .build(),
                     FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(PrimitiveTypeKind::File)
                         .parameter(PrimitiveTypeKind::Boolean)
                         .ret(array_object)
                         .build(),
                     FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(PrimitiveTypeKind::File)
                         .parameter(PrimitiveTypeKind::Boolean)
                         .parameter(array_string)
@@ -2158,18 +2218,16 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .ret(PrimitiveTypeKind::File)
                         .build(),
                     FunctionSignature::builder()
-                        .type_parameter("S", StructConstraint)
-                        .parameter(GenericArrayType::new(GenericType::Parameter("S")))
-                        .ret(PrimitiveTypeKind::File)
-                        .build(),
-                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(array_array_string)
                         .parameter(PrimitiveTypeKind::Boolean)
                         .parameter(array_string)
                         .ret(PrimitiveTypeKind::File)
                         .build(),
                     FunctionSignature::builder()
-                        .type_parameter("S", StructConstraint)
+                        .min_version(SupportedVersion::V1(V1::Two))
+                        .type_parameter("S", PrimitiveStructConstraint)
+                        .required(1)
                         .parameter(GenericArrayType::new(GenericType::Parameter("S")))
                         .parameter(PrimitiveTypeKind::Boolean)
                         .parameter(array_string)
@@ -2289,7 +2347,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .ret(PrimitiveTypeKind::File)
                         .build(),
                     FunctionSignature::builder()
-                        .type_parameter("S", StructConstraint)
+                        .min_version(SupportedVersion::V1(V1::One))
+                        .type_parameter("S", PrimitiveStructConstraint)
                         .parameter(GenericType::Parameter("S"))
                         .ret(PrimitiveTypeKind::File)
                         .build(),
@@ -2310,7 +2369,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .ret(PrimitiveTypeKind::File)
                         .build(),
                     FunctionSignature::builder()
-                        .type_parameter("S", StructConstraint)
+                        .min_version(SupportedVersion::V1(V1::One))
+                        .type_parameter("S", PrimitiveStructConstraint)
                         .parameter(GenericArrayType::new(GenericType::Parameter("S")))
                         .ret(PrimitiveTypeKind::File)
                         .build(),
@@ -2853,10 +2913,14 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
     StandardLibrary {
         types,
         functions,
-        array_string,
         array_int,
-        map_string_int,
+        array_string,
+        array_file,
+        array_object,
+        array_string_non_empty,
+        array_array_string,
         map_string_string,
+        map_string_int,
     }
 });
 
@@ -2912,6 +2976,7 @@ mod test {
             "join_paths(File, Array[String]+) -> File",
             "join_paths(Array[String]+) -> File",
             "glob(String) -> Array[File]",
+            "size(None, <String>) -> Float",
             "size(File?, <String>) -> Float",
             "size(String?, <String>) -> Float",
             "size(Directory?, <String>) -> Float",
@@ -2929,9 +2994,9 @@ mod test {
             "read_tsv(File, Boolean) -> Array[Object]",
             "read_tsv(File, Boolean, Array[String]) -> Array[Object]",
             "write_tsv(Array[Array[String]]) -> File",
-            "write_tsv(Array[S]) -> File where `S`: any structure",
             "write_tsv(Array[Array[String]], Boolean, Array[String]) -> File",
-            "write_tsv(Array[S], Boolean, Array[String]) -> File where `S`: any structure",
+            "write_tsv(Array[S], <Boolean>, <Array[String]>) -> File where `S`: any structure \
+             containing only primitive types",
             "read_map(File) -> Map[String, String]",
             "write_map(Map[String, String]) -> File",
             "read_json(File) -> Union",
@@ -2939,9 +3004,10 @@ mod test {
             "read_object(File) -> Object",
             "read_objects(File) -> Array[Object]",
             "write_object(Object) -> File",
-            "write_object(S) -> File where `S`: any structure",
+            "write_object(S) -> File where `S`: any structure containing only primitive types",
             "write_objects(Array[Object]) -> File",
-            "write_objects(Array[S]) -> File where `S`: any structure",
+            "write_objects(Array[S]) -> File where `S`: any structure containing only primitive \
+             types",
             "prefix(String, Array[P]) -> Array[String] where `P`: any required primitive type",
             "suffix(String, Array[P]) -> Array[String] where `P`: any required primitive type",
             "quote(Array[P]) -> Array[String] where `P`: any required primitive type",

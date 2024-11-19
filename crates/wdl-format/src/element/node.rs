@@ -1,4 +1,4 @@
-//! A wrapper for formatting [`AstNode`]s.
+//! A wrapper for formatting [`Node`]s.
 
 use wdl_ast::Element;
 use wdl_ast::Node;

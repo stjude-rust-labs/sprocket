@@ -1,10 +1,51 @@
 //! Module for expression evaluation.
 
+use std::path::Path;
+
 use indexmap::IndexMap;
+use wdl_analysis::types::Type;
+use wdl_analysis::types::Types;
+use wdl_ast::Diagnostic;
+use wdl_ast::Ident;
+use wdl_ast::SupportedVersion;
 
 use crate::Value;
 
 pub mod v1;
+
+/// Represents context to an expression evaluator.
+pub trait EvaluationContext {
+    /// Gets the supported version of the document being evaluated.
+    fn version(&self) -> SupportedVersion;
+
+    /// Gets the types collection associated with the evaluation.
+    fn types(&self) -> &Types;
+
+    /// Gets the mutable types collection associated with the evaluation.
+    fn types_mut(&mut self) -> &mut Types;
+
+    /// Gets the value of the given name in scope.
+    fn resolve_name(&self, name: &Ident) -> Result<Value, Diagnostic>;
+
+    /// Resolves a type name to a type.
+    fn resolve_type_name(&self, name: &Ident) -> Result<Type, Diagnostic>;
+
+    /// Gets the current working directory for the evaluation.
+    fn cwd(&self) -> &Path;
+
+    /// Gets the temp directory for the evaluation.
+    fn tmp(&self) -> &Path;
+
+    /// Gets the value to return for a call to the `stdout` function.
+    ///
+    /// This is `Some` only when evaluating task outputs.
+    fn stdout(&self) -> Option<Value>;
+
+    /// Gets the value to return for a call to the `stderr` function.
+    ///
+    /// This is `Some` only when evaluating task outputs.
+    fn stderr(&self) -> Option<Value>;
+}
 
 /// Represents an index of a scope in a collection of scopes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

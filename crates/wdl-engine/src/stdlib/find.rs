@@ -1,0 +1,72 @@
+//! Implements the `find` function from the WDL standard library.
+
+use regex::Regex;
+use wdl_analysis::types::Optional;
+use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::Type;
+use wdl_ast::Diagnostic;
+
+use super::CallContext;
+use super::Function;
+use super::Signature;
+use crate::PrimitiveValue;
+use crate::Value;
+use crate::diagnostics::invalid_regex;
+
+/// Given two String parameters `input` and `pattern`, searches for the
+/// occurrence of `pattern` within `input` and returns the first match or `None`
+/// if there are no matches.
+///
+/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-find
+fn find(context: CallContext<'_>) -> Result<Value, Diagnostic> {
+    debug_assert_eq!(context.arguments.len(), 2);
+    debug_assert!(context.return_type_eq(Type::from(PrimitiveTypeKind::String).optional()));
+
+    let input = context
+        .coerce_argument(0, PrimitiveTypeKind::String)
+        .unwrap_string();
+    let pattern = context
+        .coerce_argument(1, PrimitiveTypeKind::String)
+        .unwrap_string();
+
+    let regex =
+        Regex::new(pattern.as_str()).map_err(|e| invalid_regex(&e, context.arguments[1].span))?;
+
+    match regex.find(input.as_str()) {
+        Some(m) => Ok(PrimitiveValue::new_string(m.as_str()).into()),
+        None => Ok(Value::None),
+    }
+}
+
+/// Gets the function describing `find`.
+pub const fn descriptor() -> Function {
+    Function::new(const { &[Signature::new("(String, String) -> String?", find)] })
+}
+
+#[cfg(test)]
+mod test {
+    use pretty_assertions::assert_eq;
+    use wdl_ast::version::V1;
+
+    use crate::v1::test::TestEnv;
+    use crate::v1::test::eval_v1_expr;
+
+    #[test]
+    fn find() {
+        let mut env = TestEnv::default();
+        let diagnostic = eval_v1_expr(&mut env, V1::Two, "find('foo bar baz', '?')").unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "regex parse error:\n    ?\n    ^\nerror: repetition operator missing expression"
+        );
+
+        let value = eval_v1_expr(&mut env, V1::Two, "find('hello world', 'e..o')").unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "ello");
+
+        let value = eval_v1_expr(&mut env, V1::Two, "find('hello world', 'goodbye')").unwrap();
+        assert!(value.is_none());
+
+        let value = eval_v1_expr(&mut env, V1::Two, "find('hello\tBob', '\\t')").unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "\t");
+    }
+}

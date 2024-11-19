@@ -11,6 +11,16 @@ use crate::parser::Parser;
 use crate::parser::ParserToken;
 use crate::tree::SyntaxKind;
 
+/// Determines if the given string is a valid WDL identifier.
+pub fn is_ident(s: &str) -> bool {
+    let mut lexer = Token::lexer(s);
+    if !lexer.next().map(|r| r.is_ok()).unwrap_or(false) {
+        return false;
+    }
+
+    lexer.next().is_none()
+}
+
 /// Represents a token for supported escape sequences.
 #[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed accepting directories for the `check` and `analyze` commands for the
+  `wdl` binary ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
+
 ## 0.10.0 - 10-22-2024
 
 ### Changed

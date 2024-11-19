@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use crate::types::Coercible;
 use crate::types::CompoundType;
 use crate::types::CompoundTypeDef;
 use crate::types::Optional;
@@ -114,6 +115,27 @@ impl Constraint for StructConstraint {
     }
 }
 
+/// Represents a constraint that ensures the type is any structure that contains
+/// only primitive types.
+#[derive(Debug, Copy, Clone)]
+pub struct PrimitiveStructConstraint;
+
+impl Constraint for PrimitiveStructConstraint {
+    fn description(&self) -> &'static str {
+        "any structure containing only primitive types"
+    }
+
+    fn satisfied(&self, types: &Types, ty: Type) -> bool {
+        if let Type::Compound(ty) = ty {
+            if let CompoundTypeDef::Struct(s) = types.type_definition(ty.definition()) {
+                return s.members().values().all(|ty| ty.as_primitive().is_some());
+            }
+        }
+
+        false
+    }
+}
+
 /// Represents a constraint that ensures the type is JSON serializable.
 #[derive(Debug, Copy, Clone)]
 pub struct JsonSerializableConstraint;
@@ -130,8 +152,8 @@ impl Constraint for JsonSerializableConstraint {
                 CompoundTypeDef::Array(ty) => type_is_serializable(types, ty.element_type()),
                 CompoundTypeDef::Pair(_) => false,
                 CompoundTypeDef::Map(ty) => {
-                    !ty.key_type().is_optional()
-                        && matches!(ty.key_type(), Type::Primitive(ty) if ty.kind() == PrimitiveTypeKind::String)
+                    ty.key_type()
+                        .is_coercible_to(types, &PrimitiveTypeKind::String.into())
                         && type_is_serializable(types, ty.value_type())
                 }
                 CompoundTypeDef::Struct(s) => s

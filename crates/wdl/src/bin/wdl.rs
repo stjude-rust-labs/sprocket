@@ -105,15 +105,19 @@ async fn analyze<T: AsRef<dyn Rule>>(
         },
     );
 
-    let file = if let Ok(url) = Url::parse(&file) {
-        url
+    if let Ok(url) = Url::parse(&file) {
+        analyzer.add_document(url).await?;
+    } else if fs::metadata(&file)
+        .with_context(|| format!("failed to read metadata for file `{file}`"))?
+        .is_dir()
+    {
+        analyzer.add_directory(file.into()).await?;
     } else if let Some(url) = path_to_uri(&file) {
-        url
+        analyzer.add_document(url).await?;
     } else {
         bail!("failed to convert `{file}` to a URI", file = file)
-    };
+    }
 
-    analyzer.add_document(file).await?;
     let results = analyzer
         .analyze(bar.clone())
         .await

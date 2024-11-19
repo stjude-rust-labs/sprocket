@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Refactored expression type evaluator to provide context via a trait ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
 * Removed `PartialEq`, `Eq`, and `Hash` from WDL-type-related types ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
 
+### Fixed
+
+* Static analysis of expressions within object literal members now takes place ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
+* Certain standard library functions with an existing constraint on generic
+  parameters that take structs are further constrained to take structs
+  containing only primitive members ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
+* Fixed signatures and minimum required versions for certain standard library
+  functions ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
+
 ## 0.5.0 - 10-22-2024
 
 ### Changed

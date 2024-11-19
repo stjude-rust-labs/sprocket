@@ -312,7 +312,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
             };
 
             report
-                .register(document_identifier, status, elapsed)
+                .register(document_identifier, status)
                 .context("failed to register report status")?;
         }
 
@@ -330,7 +330,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
             .next_section()
             .context("failed to transition to next report section")?;
         report
-            .footer(repository_identifier)
+            .footer(repository_identifier, elapsed)
             .context("failed to write report footer")?;
         report
             .next_section()

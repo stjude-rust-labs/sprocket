@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Replaced the `Value::from_json` method with `Value::deserialize` which allows
+  for deserialization from any self-describing data format; a method for
+  serializing a value was also added ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
+* Implemented the file functions from the WDL standard library ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
 * Implemented the string functions from the WDL standard library ([#252](https://github.com/stjude-rust-labs/wdl/pull/252)).
 * Implemented call evaluation and the numeric functions from the WDL standard
   library ([#251](https://github.com/stjude-rust-labs/wdl/pull/251)).

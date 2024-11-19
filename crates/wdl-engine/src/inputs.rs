@@ -701,7 +701,7 @@ impl InputsFile {
     ) -> Result<Self> {
         let mut inputs = TaskInputs::default();
         for (key, value) in object {
-            let value = Value::from_json(types, value)
+            let value = Value::deserialize(types, value)
                 .with_context(|| format!("invalid input key `{key}`"))?;
 
             match key.split_once(".") {
@@ -734,7 +734,7 @@ impl InputsFile {
     ) -> Result<Self> {
         let mut inputs = WorkflowInputs::default();
         for (key, value) in object {
-            let value = Value::from_json(types, value)
+            let value = Value::deserialize(types, value)
                 .with_context(|| format!("invalid input key `{key}`"))?;
 
             match key.split_once(".") {

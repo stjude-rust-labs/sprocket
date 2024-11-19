@@ -40,7 +40,6 @@ use wdl_analysis::types::PairType;
 use wdl_analysis::types::PrimitiveTypeKind;
 use wdl_analysis::types::Type;
 use wdl_analysis::types::TypeEq;
-use wdl_analysis::types::Types;
 use wdl_analysis::types::v1::ComparisonOperator;
 use wdl_analysis::types::v1::ExprTypeEvaluator;
 use wdl_analysis::types::v1::NumericOperator;
@@ -48,7 +47,6 @@ use wdl_ast::AstNode;
 use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
@@ -75,6 +73,7 @@ use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StrippedStringPart;
 use wdl_ast::version::V1;
 
+use super::EvaluationContext;
 use crate::Array;
 use crate::Coercible;
 use crate::CompoundValue;
@@ -96,35 +95,9 @@ use crate::diagnostics::multiline_string_requirement;
 use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::struct_member_coercion_failed;
+use crate::stdlib::CallArgument;
+use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
-
-/// Represents context to an expression evaluator.
-pub trait EvaluationContext {
-    /// Gets the supported version of the document being evaluated.
-    fn version(&self) -> SupportedVersion;
-
-    /// Gets the types collection associated with the evaluation.
-    fn types(&self) -> &Types;
-
-    /// Gets the mutable types collection associated with the evaluation.
-    fn types_mut(&mut self) -> &mut Types;
-
-    /// Gets the value of the given name in scope.
-    fn resolve_name(&self, name: &Ident) -> Result<Value, Diagnostic>;
-
-    /// Resolves a type name to a type.
-    fn resolve_type_name(&self, name: &Ident) -> Result<Type, Diagnostic>;
-
-    /// Gets the value to return for a call to the `stdout` function.
-    ///
-    /// This is `Some` only when evaluating task outputs.
-    fn stdout(&self) -> Option<Value>;
-
-    /// Gets the value to return for a call to the `stderr` function.
-    ///
-    /// This is `Some` only when evaluating task outputs.
-    fn stderr(&self) -> Option<Value>;
-}
 
 /// Represents a WDL expression evaluator.
 #[derive(Debug)]
@@ -1064,12 +1037,12 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                 // Evaluate the argument expressions
                 let mut count = 0;
                 let mut types = [Type::Union; MAX_PARAMETERS];
-                let mut arguments = [const { (Value::None, Span::new(0, 0)) }; MAX_PARAMETERS];
+                let mut arguments = [const { CallArgument::none() }; MAX_PARAMETERS];
                 for arg in expr.arguments() {
                     if count < MAX_PARAMETERS {
                         let v = self.evaluate_expr(&arg)?;
                         types[count] = v.ty();
-                        arguments[count] = (v, arg.span());
+                        arguments[count] = CallArgument::new(v, arg.span());
                     }
 
                     count += 1;
@@ -1080,10 +1053,19 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                 let arguments = &arguments[..count.min(MAX_PARAMETERS)];
                 if count <= MAX_PARAMETERS {
                     match f.bind(self.context.version(), self.context.types_mut(), types) {
-                        Ok(binding) => STDLIB
-                            .get(target.as_str())
-                            .expect("should have implementation")
-                            .call(binding, self.context.types(), arguments),
+                        Ok(binding) => {
+                            let context = CallContext::new(
+                                self.context,
+                                target.span(),
+                                arguments,
+                                binding.return_type(),
+                            );
+
+                            STDLIB
+                                .get(target.as_str())
+                                .expect("should have implementation")
+                                .call(binding, context)
+                        }
                         Err(FunctionBindError::RequiresVersion(minimum)) => Err(
                             unsupported_function(minimum, target.as_str(), target.span()),
                         ),
@@ -1242,11 +1224,16 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
 #[cfg(test)]
 pub(crate) mod test {
     use std::collections::HashMap;
+    use std::fs;
+    use std::path::Path;
 
     use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
     use wdl_analysis::diagnostics::unknown_name;
     use wdl_analysis::diagnostics::unknown_type;
     use wdl_analysis::types::StructType;
+    use wdl_analysis::types::Types;
+    use wdl_ast::Ident;
     use wdl_grammar::construct_tree;
     use wdl_grammar::grammar::v1;
     use wdl_grammar::lexer::Lexer;
@@ -1255,17 +1242,71 @@ pub(crate) mod test {
     use crate::ScopeRef;
     use crate::eval::Scope;
 
+    /// Represents a test environment.
+    pub struct TestEnv {
+        /// The types collection for the test.
+        types: Types,
+        /// The scopes for the test.
+        scopes: Vec<Scope>,
+        /// The structs for the test.
+        structs: HashMap<&'static str, Type>,
+        /// The temporary directory.
+        tmp: TempDir,
+        /// The current directory.
+        cwd: TempDir,
+    }
+
+    impl TestEnv {
+        pub fn types(&self) -> &Types {
+            &self.types
+        }
+
+        pub fn types_mut(&mut self) -> &mut Types {
+            &mut self.types
+        }
+
+        pub fn scope(&self) -> ScopeRef<'_> {
+            ScopeRef::new(&self.scopes, 0)
+        }
+
+        pub fn insert_name(&mut self, name: impl Into<String>, value: impl Into<Value>) {
+            self.scopes[0].insert(name, value);
+        }
+
+        pub fn insert_struct(&mut self, name: &'static str, ty: impl Into<Type>) {
+            self.structs.insert(name, ty.into());
+        }
+
+        pub fn cwd(&self) -> &Path {
+            self.cwd.path()
+        }
+
+        pub fn tmp(&self) -> &Path {
+            self.tmp.path()
+        }
+
+        pub fn write_file(&self, name: &str, bytes: impl AsRef<[u8]>) {
+            fs::write(self.cwd().join(name), bytes).expect("failed to create temp file");
+        }
+    }
+
+    impl Default for TestEnv {
+        fn default() -> Self {
+            Self {
+                types: Default::default(),
+                scopes: vec![Scope::new(None)],
+                structs: Default::default(),
+                tmp: TempDir::new().expect("failed to create temp directory"),
+                cwd: TempDir::new().expect("failed to create temp directory"),
+            }
+        }
+    }
+
     /// Represents test evaluation context to an expression evaluator.
-    #[derive(Debug)]
     pub struct TestEvaluationContext<'a> {
-        /// The types collection.
-        types: &'a mut Types,
+        env: &'a mut TestEnv,
         /// The supported version of WDL being evaluated.
         version: SupportedVersion,
-        /// The map of known struct types.
-        structs: HashMap<&'static str, Type>,
-        /// The current evaluation scope.
-        scope: ScopeRef<'a>,
         /// The stdout value from a task's execution.
         stdout: Option<Value>,
         /// The stderr value from a task's execution.
@@ -1273,16 +1314,25 @@ pub(crate) mod test {
     }
 
     impl<'a> TestEvaluationContext<'a> {
-        /// Constructs a test evaluation context.
-        pub fn new(version: SupportedVersion, types: &'a mut Types, scope: ScopeRef<'a>) -> Self {
+        pub fn new(env: &'a mut TestEnv, version: SupportedVersion) -> Self {
             Self {
-                types,
+                env,
                 version,
-                structs: HashMap::new(),
-                scope,
                 stdout: None,
                 stderr: None,
             }
+        }
+
+        /// Sets the stdout to use for the evaluation context.
+        pub fn with_stdout(mut self, stdout: impl Into<Value>) -> Self {
+            self.stdout = Some(stdout.into());
+            self
+        }
+
+        /// Sets the stderr to use for the evaluation context.
+        pub fn with_stderr(mut self, stderr: impl Into<Value>) -> Self {
+            self.stderr = Some(stderr.into());
+            self
         }
     }
 
@@ -1292,25 +1342,35 @@ pub(crate) mod test {
         }
 
         fn types(&self) -> &Types {
-            &self.types
+            &self.env.types
         }
 
         fn types_mut(&mut self) -> &mut Types {
-            &mut self.types
+            &mut self.env.types
         }
 
         fn resolve_name(&self, name: &Ident) -> Result<Value, Diagnostic> {
-            self.scope
+            self.env
+                .scope()
                 .lookup(name.as_str())
                 .map(|v| v.clone())
                 .ok_or_else(|| unknown_name(name.as_str(), name.span()))
         }
 
         fn resolve_type_name(&self, name: &Ident) -> Result<Type, Diagnostic> {
-            self.structs
+            self.env
+                .structs
                 .get(name.as_str())
                 .copied()
                 .ok_or_else(|| unknown_type(name.as_str(), name.span()))
+        }
+
+        fn cwd(&self) -> &Path {
+            self.env.cwd()
+        }
+
+        fn tmp(&self) -> &Path {
+            self.env.tmp()
         }
 
         fn stdout(&self) -> Option<Value> {
@@ -1322,25 +1382,31 @@ pub(crate) mod test {
         }
     }
 
-    /// Evaluates a WDL v1 expression and returns the value or a
-    /// parse/evaluation diagnostic.
-    pub fn eval_v1_expr(
-        version: V1,
-        source: &str,
-        types: &mut Types,
-        scope: ScopeRef<'_>,
-    ) -> Result<Value, Diagnostic> {
+    pub fn eval_v1_expr(env: &mut TestEnv, version: V1, source: &str) -> Result<Value, Diagnostic> {
         eval_v1_expr_with_context(
+            TestEvaluationContext::new(env, SupportedVersion::V1(version)),
             source,
-            &mut TestEvaluationContext::new(SupportedVersion::V1(version), types, scope),
         )
     }
 
-    /// Evaluates a WDL v1 expression and returns the value or a
-    /// parse/evaluation diagnostic.
-    fn eval_v1_expr_with_context(
+    pub fn eval_v1_expr_with_stdio(
+        env: &mut TestEnv,
+        version: V1,
         source: &str,
-        context: &mut TestEvaluationContext<'_>,
+        stdout: impl Into<Value>,
+        stderr: impl Into<Value>,
+    ) -> Result<Value, Diagnostic> {
+        eval_v1_expr_with_context(
+            TestEvaluationContext::new(env, SupportedVersion::V1(version))
+                .with_stdout(stdout)
+                .with_stderr(stderr),
+            source,
+        )
+    }
+
+    fn eval_v1_expr_with_context(
+        mut context: TestEvaluationContext<'_>,
+        source: &str,
     ) -> Result<Value, Diagnostic> {
         let source = source.trim();
         let mut parser = v1::Parser::new(Lexer::new(source));
@@ -1360,7 +1426,8 @@ pub(crate) mod test {
                 );
                 let expr = Expr::cast(construct_tree(source, output.events))
                     .expect("should be an expression");
-                let mut evaluator = ExprEvaluator::new(context);
+
+                let mut evaluator = ExprEvaluator::new(&mut context);
                 evaluator.evaluate_expr(&expr)
             }
             Err((marker, diagnostic)) => {
@@ -1372,58 +1439,49 @@ pub(crate) mod test {
 
     #[test]
     fn literal_none_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "None", &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Two, "None").unwrap();
         assert_eq!(value.to_string(), "None");
     }
 
     #[test]
     fn literal_bool_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "true", &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Two, "true").unwrap();
         assert_eq!(value.unwrap_boolean(), true);
 
-        let value = eval_v1_expr(V1::Two, "false", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "false").unwrap();
         assert_eq!(value.unwrap_boolean(), false);
     }
 
     #[test]
     fn literal_int_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "12345", &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Two, "12345").unwrap();
         assert_eq!(value.unwrap_integer(), 12345);
 
-        let value = eval_v1_expr(V1::Two, "-54321", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "-54321").unwrap();
         assert_eq!(value.unwrap_integer(), -54321);
 
-        let value = eval_v1_expr(V1::Two, "0xdeadbeef", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "0xdeadbeef").unwrap();
         assert_eq!(value.unwrap_integer(), 0xDEADBEEF);
 
-        let value = eval_v1_expr(V1::Two, "0777", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "0777").unwrap();
         assert_eq!(value.unwrap_integer(), 0o777);
 
-        let value = eval_v1_expr(V1::Two, "-9223372036854775808", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "-9223372036854775808").unwrap();
         assert_eq!(value.unwrap_integer(), -9223372036854775808);
 
-        let diagnostic = eval_v1_expr(V1::Two, "9223372036854775808", &mut types, scope)
-            .expect_err("should fail");
+        let diagnostic =
+            eval_v1_expr(&mut env, V1::Two, "9223372036854775808").expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
             "literal integer exceeds the range for a 64-bit signed integer \
              (-9223372036854775808..=9223372036854775807)"
         );
 
-        let diagnostic = eval_v1_expr(V1::Two, "-9223372036854775809", &mut types, scope)
-            .expect_err("should fail");
+        let diagnostic =
+            eval_v1_expr(&mut env, V1::Two, "-9223372036854775809").expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
             "literal integer exceeds the range for a 64-bit signed integer \
@@ -1433,35 +1491,29 @@ pub(crate) mod test {
 
     #[test]
     fn literal_float_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "12345.6789", &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Two, "12345.6789").unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 12345.6789);
 
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "-12345.6789", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "-12345.6789").unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -12345.6789);
 
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "1.7976931348623157E+308", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "1.7976931348623157E+308").unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 1.7976931348623157E+308);
 
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "-1.7976931348623157E+308", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "-1.7976931348623157E+308").unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -1.7976931348623157E+308);
 
-        let diagnostic = eval_v1_expr(V1::Two, "2.7976931348623157E+308", &mut types, scope)
-            .expect_err("should fail");
+        let diagnostic =
+            eval_v1_expr(&mut env, V1::Two, "2.7976931348623157E+308").expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
             "literal float exceeds the range for a 64-bit float \
              (-1.7976931348623157e308..=+1.7976931348623157e308)"
         );
 
-        let diagnostic = eval_v1_expr(V1::Two, "-2.7976931348623157E+308", &mut types, scope)
-            .expect_err("should fail");
+        let diagnostic =
+            eval_v1_expr(&mut env, V1::Two, "-2.7976931348623157E+308").expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
             "literal float exceeds the range for a 64-bit float \
@@ -1471,24 +1523,20 @@ pub(crate) mod test {
 
     #[test]
     fn literal_string_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "'hello\nworld'", &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Two, "'hello\nworld'").unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hello\nworld");
 
-        let value = eval_v1_expr(V1::Two, r#""hello world""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#""hello world""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hello world");
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Two,
             r#"<<<
         hello  \
             world
     >>>"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hello  world");
@@ -1496,87 +1544,70 @@ pub(crate) mod test {
 
     #[test]
     fn string_placeholders() {
-        let mut root_scope = Scope::new(None);
-        root_scope.insert("str", PrimitiveValue::new_string("foo"));
-        root_scope.insert("file", PrimitiveValue::new_file("bar"));
-        root_scope.insert("dir", PrimitiveValue::new_directory("baz"));
-        root_scope.insert("salutation", PrimitiveValue::new_string("hello"));
-        root_scope.insert("name1", Value::None);
-        root_scope.insert("name2", PrimitiveValue::new_string("Fred"));
-        root_scope.insert("spaces", PrimitiveValue::new_string("  "));
-        root_scope.insert("name", PrimitiveValue::new_string("Henry"));
-        root_scope.insert("company", PrimitiveValue::new_string("Acme"));
+        let mut env = TestEnv::default();
+        env.insert_name("str", PrimitiveValue::new_string("foo"));
+        env.insert_name("file", PrimitiveValue::new_file("bar"));
+        env.insert_name("dir", PrimitiveValue::new_directory("baz"));
+        env.insert_name("salutation", PrimitiveValue::new_string("hello"));
+        env.insert_name("name1", Value::None);
+        env.insert_name("name2", PrimitiveValue::new_string("Fred"));
+        env.insert_name("spaces", PrimitiveValue::new_string("  "));
+        env.insert_name("name", PrimitiveValue::new_string("Henry"));
+        env.insert_name("company", PrimitiveValue::new_string("Acme"));
 
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, r#""~{None}""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#""~{None}""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "");
 
-        let value = eval_v1_expr(V1::Two, r#""~{default="hi" None}""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#""~{default="hi" None}""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hi");
 
-        let value = eval_v1_expr(V1::Two, r#""~{true}""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#""~{true}""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "true");
 
-        let value = eval_v1_expr(V1::Two, r#""~{false}""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#""~{false}""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "false");
 
-        let value = eval_v1_expr(
-            V1::Two,
-            r#""~{true="yes" false="no" false}""#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#""~{true="yes" false="no" false}""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "no");
 
-        let value = eval_v1_expr(V1::Two, r#""~{12345}""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#""~{12345}""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "12345");
 
-        let value = eval_v1_expr(V1::Two, r#""~{12345.6789}""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#""~{12345.6789}""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "12345.6789");
 
-        let value = eval_v1_expr(V1::Two, r#""~{str}""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#""~{str}""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foo");
 
-        let value = eval_v1_expr(V1::Two, r#""~{file}""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#""~{file}""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "bar");
 
-        let value = eval_v1_expr(V1::Two, r#""~{dir}""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#""~{dir}""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "baz");
 
-        let value = eval_v1_expr(
-            V1::Two,
-            r#""~{sep="+" [1,2,3]} = ~{1 + 2 + 3}""#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value =
+            eval_v1_expr(&mut env, V1::Two, r#""~{sep="+" [1,2,3]} = ~{1 + 2 + 3}""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "1+2+3 = 6");
 
         let diagnostic =
-            eval_v1_expr(V1::Two, r#""~{[1, 2, 3]}""#, &mut types, scope).expect_err("should fail");
+            eval_v1_expr(&mut env, V1::Two, r#""~{[1, 2, 3]}""#).expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
             "cannot coerce type `Array[Int]` to `String`"
         );
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Two,
             r#""~{salutation + ' ' + name1 + ', '}nice to meet you!""#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "nice to meet you!");
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Two,
             r#""${salutation + ' ' + name2 + ', '}nice to meet you!""#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert_eq!(
@@ -1585,14 +1616,13 @@ pub(crate) mod test {
         );
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Two,
             r#"
     <<<
         ~{spaces}Hello ~{name},
         ~{spaces}Welcome to ~{company}!
     >>>"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert_eq!(
@@ -1601,10 +1631,9 @@ pub(crate) mod test {
         );
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Two,
             r#""~{1 + 2 + 3 + 4 * 10 * 10} ~{"~{<<<~{'!' + '='}>>>}"} ~{10**3}""#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "406 != 1000");
@@ -1612,80 +1641,58 @@ pub(crate) mod test {
 
     #[test]
     fn literal_array_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "[]", &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Two, "[]").unwrap();
         assert_eq!(value.unwrap_array().to_string(), "[]");
 
-        let value = eval_v1_expr(V1::Two, "[1, 2, 3]", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "[1, 2, 3]").unwrap();
         assert_eq!(value.unwrap_array().to_string(), "[1, 2, 3]");
 
-        let value = eval_v1_expr(V1::Two, "[[1], [2], [3.0]]", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "[[1], [2], [3.0]]").unwrap();
         assert_eq!(value.unwrap_array().to_string(), "[[1.0], [2.0], [3.0]]");
 
-        let value = eval_v1_expr(V1::Two, r#"["foo", "bar", "baz"]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#"["foo", "bar", "baz"]"#).unwrap();
         assert_eq!(value.unwrap_array().to_string(), r#"["foo", "bar", "baz"]"#);
     }
 
     #[test]
     fn literal_pair_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "(true, false)", &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Two, "(true, false)").unwrap();
         assert_eq!(value.unwrap_pair().to_string(), "(true, false)");
 
-        let value = eval_v1_expr(V1::Two, "([1, 2, 3], [4, 5, 6])", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "([1, 2, 3], [4, 5, 6])").unwrap();
         assert_eq!(value.unwrap_pair().to_string(), "([1, 2, 3], [4, 5, 6])");
 
-        let value = eval_v1_expr(V1::Two, "([], {})", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "([], {})").unwrap();
         assert_eq!(value.unwrap_pair().to_string(), "([], {})");
 
-        let value = eval_v1_expr(V1::Two, r#"("foo", "bar")"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#"("foo", "bar")"#).unwrap();
         assert_eq!(value.unwrap_pair().to_string(), r#"("foo", "bar")"#);
     }
 
     #[test]
     fn literal_map_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "{}", &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Two, "{}").unwrap();
         assert_eq!(value.unwrap_map().to_string(), "{}");
 
-        let value = eval_v1_expr(V1::Two, "{ 1: 2, 3: 4, 5: 6 }", &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "{ 1: 2, 3: 4, 5: 6 }").unwrap();
         assert_eq!(value.unwrap_map().to_string(), "{1: 2, 3: 4, 5: 6}");
 
-        let value = eval_v1_expr(
-            V1::Two,
-            r#"{"foo": "bar", "baz": "qux"}"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#"{"foo": "bar", "baz": "qux"}"#).unwrap();
         assert_eq!(
             value.unwrap_map().to_string(),
             r#"{"foo": "bar", "baz": "qux"}"#
         );
 
-        let value = eval_v1_expr(
-            V1::Two,
-            r#"{"foo": { 1: 2 }, "baz": {}}"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#"{"foo": { 1: 2 }, "baz": {}}"#).unwrap();
         assert_eq!(
             value.unwrap_map().to_string(),
             r#"{"foo": {1: 2}, "baz": {}}"#
         );
 
-        let value =
-            eval_v1_expr(V1::Two, r#"{"foo": 100, "baz": 2.5}"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#"{"foo": 100, "baz": 2.5}"#).unwrap();
         assert_eq!(
             value.unwrap_map().to_string(),
             r#"{"foo": 100.0, "baz": 2.5}"#
@@ -1694,42 +1701,26 @@ pub(crate) mod test {
 
     #[test]
     fn literal_object_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Two, "object {}", &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Two, "object {}").unwrap();
         assert_eq!(value.unwrap_object().to_string(), "object {}");
 
-        let value = eval_v1_expr(
-            V1::Two,
-            "object { foo: 2, bar: 4, baz: 6 }",
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, "object { foo: 2, bar: 4, baz: 6 }").unwrap();
         assert_eq!(
             value.unwrap_object().to_string(),
             "object {foo: 2, bar: 4, baz: 6}"
         );
 
-        let value = eval_v1_expr(
-            V1::Two,
-            r#"object {foo: "bar", baz: "qux"}"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#"object {foo: "bar", baz: "qux"}"#).unwrap();
         assert_eq!(
             value.unwrap_object().to_string(),
             r#"object {foo: "bar", baz: "qux"}"#
         );
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Two,
             r#"object {foo: { 1: 2 }, bar: [], qux: "jam"}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert_eq!(
@@ -1738,10 +1729,9 @@ pub(crate) mod test {
         );
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Two,
             r#"object {foo: 1.0, bar: object { baz: "qux" }}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert_eq!(
@@ -1752,16 +1742,13 @@ pub(crate) mod test {
 
     #[test]
     fn literal_struct_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let bar_ty = types.add_struct(StructType::new("Bar", [
+        let mut env = TestEnv::default();
+        let bar_ty = env.types_mut().add_struct(StructType::new("Bar", [
             ("foo", PrimitiveTypeKind::File),
             ("bar", PrimitiveTypeKind::Integer),
         ]));
 
-        let foo_ty = types.add_struct(StructType::new("Foo", [
+        let foo_ty = env.types_mut().add_struct(StructType::new("Foo", [
             ("foo", PrimitiveTypeKind::Float.into()),
             (
                 "bar",
@@ -1769,14 +1756,13 @@ pub(crate) mod test {
             ),
         ]));
 
-        let mut context =
-            TestEvaluationContext::new(SupportedVersion::V1(V1::Two), &mut types, scope);
-        context.structs.insert("Foo", foo_ty);
-        context.structs.insert("Bar", bar_ty);
+        env.insert_struct("Foo", foo_ty);
+        env.insert_struct("Bar", bar_ty);
 
-        let value = eval_v1_expr_with_context(
+        let value = eval_v1_expr(
+            &mut env,
+            V1::Two,
             r#"Foo { foo: 1.0, bar: Bar { foo: "baz", bar: 2 }}"#,
-            &mut context,
         )
         .unwrap();
         assert_eq!(
@@ -1784,346 +1770,263 @@ pub(crate) mod test {
             r#"Foo {foo: 1.0, bar: Bar {foo: "baz", bar: 2}}"#
         );
 
-        let value = eval_v1_expr_with_context(r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} == Foo { foo: 1.0, bar: Bar { foo: "baz", bar: 2 }}"#, &mut context)
+        let value = eval_v1_expr(&mut env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} == Foo { foo: 1.0, bar: Bar { foo: "baz", bar: 2 }}"#)
             .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr_with_context(r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} == Foo { foo: 1.0, bar: Bar { foo: "jam", bar: 2 }}"#, &mut context)
+        let value = eval_v1_expr(&mut env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} == Foo { foo: 1.0, bar: Bar { foo: "jam", bar: 2 }}"#)
             .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr_with_context(r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} != Foo { foo: 1.0, bar: Bar { foo: "baz", bar: 2 }}"#, &mut context)
+        let value = eval_v1_expr(&mut env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} != Foo { foo: 1.0, bar: Bar { foo: "baz", bar: 2 }}"#)
             .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr_with_context(r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} != Foo { foo: 1.0, bar: Bar { foo: "jam", bar: 2 }}"#, &mut context)
+        let value = eval_v1_expr(&mut env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} != Foo { foo: 1.0, bar: Bar { foo: "jam", bar: 2 }}"#)
             .unwrap();
         assert!(value.unwrap_boolean());
     }
 
     #[test]
     fn name_ref_expr() {
-        let mut root_scope = Scope::new(None);
-        root_scope.insert("foo", 1234);
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"foo"#, &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        env.insert_name("foo", 1234);
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo"#).unwrap();
         assert_eq!(value.unwrap_integer(), 1234);
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"bar"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"bar"#).unwrap_err();
         assert_eq!(diagnostic.message(), "unknown name `bar`");
     }
 
     #[test]
     fn parenthesized_expr() {
-        let mut root_scope = Scope::new(None);
-        root_scope.insert("foo", 1234);
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value =
-            eval_v1_expr(V1::Zero, r#"(foo - foo) + (1234 - foo)"#, &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        env.insert_name("foo", 1234);
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"(foo - foo) + (1234 - foo)"#).unwrap();
         assert_eq!(value.unwrap_integer(), 0);
     }
 
     #[test]
     fn if_expr() {
-        let mut root_scope = Scope::new(None);
-        root_scope.insert("foo", true);
-        root_scope.insert("bar", false);
-        root_scope.insert("baz", PrimitiveValue::new_file("file"));
+        let mut env = TestEnv::default();
+        env.insert_name("foo", true);
+        env.insert_name("bar", false);
+        env.insert_name("baz", PrimitiveValue::new_file("file"));
 
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"if (foo) then "foo" else "bar""#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (foo) then "foo" else "bar""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foo");
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"if (bar) then "foo" else "bar""#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (bar) then "foo" else "bar""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "bar");
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"if (foo) then 1234 else 0.5"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (foo) then 1234 else 0.5"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 1234.0);
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"if (bar) then 1234 else 0.5"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (bar) then 1234 else 0.5"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.5);
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"if (foo) then baz else "str""#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (foo) then baz else "str""#).unwrap();
         assert_eq!(value.unwrap_file().as_str(), "file");
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"if (bar) then baz else "path""#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (bar) then baz else "path""#).unwrap();
         assert_eq!(value.unwrap_file().as_str(), "path");
     }
 
     #[test]
     fn logical_not_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"!true"#, &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"!true"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"!false"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"!false"#).unwrap();
         assert!(value.unwrap_boolean());
     }
 
     #[test]
     fn negation_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"-1234"#, &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"-1234"#).unwrap();
         assert_eq!(value.unwrap_integer(), -1234);
 
-        let value = eval_v1_expr(V1::Zero, r#"-(1234)"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"-(1234)"#).unwrap();
         assert_eq!(value.unwrap_integer(), -1234);
 
-        let value = eval_v1_expr(V1::Zero, r#"----1234"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"----1234"#).unwrap();
         assert_eq!(value.unwrap_integer(), 1234);
 
-        let value = eval_v1_expr(V1::Zero, r#"-1234.5678"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"-1234.5678"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -1234.5678);
 
-        let value = eval_v1_expr(V1::Zero, r#"-(1234.5678)"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"-(1234.5678)"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -1234.5678);
 
-        let value = eval_v1_expr(V1::Zero, r#"----1234.5678"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"----1234.5678"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 1234.5678);
     }
 
     #[test]
     fn logical_or_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"false || false"#, &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"false || false"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"false || true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"false || true"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true || false"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true || false"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true || true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true || true"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true || nope"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true || nope"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"false || nope"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"false || nope"#).unwrap_err();
         assert_eq!(diagnostic.message(), "unknown name `nope`");
     }
 
     #[test]
     fn logical_and_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"false && false"#, &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"false && false"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"false && true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"false && true"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true && false"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true && false"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true && true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true && true"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"false && nope"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"false && nope"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"true && nope"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"true && nope"#).unwrap_err();
         assert_eq!(diagnostic.message(), "unknown name `nope`");
     }
 
     #[test]
     fn equality_expr() {
-        let mut root_scope = Scope::new(None);
-        root_scope.insert("foo", PrimitiveValue::new_file("foo"));
-        root_scope.insert("bar", PrimitiveValue::new_directory("bar"));
+        let mut env = TestEnv::default();
+        env.insert_name("foo", PrimitiveValue::new_file("foo"));
+        env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"None == None"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"None == None"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true == true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true == true"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234 == 1234"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 == 1234"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234 == 4321"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 == 4321"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234 == 1234.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 == 1234.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"4321 == 1234.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"4321 == 1234.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234.0 == 1234"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.0 == 1234"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234.0 == 4321"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.0 == 4321"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234.5678 == 1234.5678"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.5678 == 1234.5678"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234.5678 == 8765.4321"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.5678 == 8765.4321"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" == "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" == "foo""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" == "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" == "bar""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" == foo"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" == foo"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" == bar"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" == bar"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo == "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo == "foo""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo == "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo == "bar""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar == "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar == "bar""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar == "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar == "foo""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"(1234, "bar") == (1234, "bar")"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"(1234, "bar") == (1234, "bar")"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"(1234, "bar") == (1234, "baz")"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"(1234, "bar") == (1234, "baz")"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"[1, 2, 3] == [1, 2, 3]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1, 2, 3] == [1, 2, 3]"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"[1] == [2, 3]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1] == [2, 3]"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"[1] == [2]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1] == [2]"#).unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} == {"foo": 1, "bar": 2, "baz": 3}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} == {"foo": 1, "baz": 3}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} == {"foo": 3, "bar": 2, "baz": 1}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} == object {foo: 1, bar: 2, baz: "3"}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} == object {foo: 1, baz: "3"}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} == object {foo: 3, bar: 2, baz: "1"}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(!value.unwrap_boolean());
@@ -2133,145 +2036,123 @@ pub(crate) mod test {
 
     #[test]
     fn inequality_expr() {
-        let mut root_scope = Scope::new(None);
-        root_scope.insert("foo", PrimitiveValue::new_file("foo"));
-        root_scope.insert("bar", PrimitiveValue::new_directory("bar"));
+        let mut env = TestEnv::default();
+        env.insert_name("foo", PrimitiveValue::new_file("foo"));
+        env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"None != None"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"None != None"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true != true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true != true"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234 != 1234"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 != 1234"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234 != 4321"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 != 4321"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234 != 1234.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 != 1234.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"4321 != 1234.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"4321 != 1234.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234.0 != 1234"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.0 != 1234"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234.0 != 4321"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.0 != 4321"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234.5678 != 1234.5678"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.5678 != 1234.5678"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1234.5678 != 8765.4321"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.5678 != 8765.4321"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" != "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" != "foo""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" != "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" != "bar""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" != foo"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" != foo"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" != bar"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" != bar"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo != "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo != "foo""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo != "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo != "bar""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar != "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar != "bar""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar != "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar != "foo""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"(1234, "bar") != (1234, "bar")"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"(1234, "bar") != (1234, "bar")"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"(1234, "bar") != (1234, "baz")"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"(1234, "bar") != (1234, "baz")"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"[1, 2, 3] != [1, 2, 3]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1, 2, 3] != [1, 2, 3]"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"[1] != [2, 3]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1] != [2, 3]"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"[1] != [2]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1] != [2]"#).unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} != {"foo": 1, "bar": 2, "baz": 3}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} != {"foo": 1, "baz": 3}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} != {"foo": 3, "bar": 2, "baz": 1}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} != object {foo: 1, bar: 2, baz: "3"}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} != object {foo: 1, baz: "3"}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
+            &mut env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} != object {foo: 3, bar: 2, baz: "1"}"#,
-            &mut types,
-            scope,
         )
         .unwrap();
         assert!(value.unwrap_boolean());
@@ -2281,416 +2162,371 @@ pub(crate) mod test {
 
     #[test]
     fn less_expr() {
-        let mut root_scope = Scope::new(None);
-        root_scope.insert("foo", PrimitiveValue::new_file("foo"));
-        root_scope.insert("bar", PrimitiveValue::new_directory("bar"));
+        let mut env = TestEnv::default();
+        env.insert_name("foo", PrimitiveValue::new_file("foo"));
+        env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"false < true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"false < true"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true < false"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true < false"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true < true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true < true"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0 < 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 < 1"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 < 0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 < 0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 < 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 < 1"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0 < 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 < 1.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 < 0.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 < 0.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 < 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 < 1.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0.0 < 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 < 1"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 < 0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 < 0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 < 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 < 1"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0.0 < 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 < 1.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 < 0.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 < 0.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 < 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 < 1.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""bar" < "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" < "foo""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" < "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" < "bar""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" < "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" < "foo""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar < "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar < "foo""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar < bar"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar < bar"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo < "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo < "bar""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo < foo"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo < foo"#).unwrap();
         assert!(!value.unwrap_boolean());
     }
 
     #[test]
     fn less_equal_expr() {
-        let mut root_scope = Scope::new(None);
-        root_scope.insert("foo", PrimitiveValue::new_file("foo"));
-        root_scope.insert("bar", PrimitiveValue::new_directory("bar"));
+        let mut env = TestEnv::default();
+        env.insert_name("foo", PrimitiveValue::new_file("foo"));
+        env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"false <= true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"false <= true"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true <= false"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true <= false"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true <= true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true <= true"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0 <= 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 <= 1"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 <= 0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 <= 0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 <= 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 <= 1"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0 <= 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 <= 1.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 <= 0.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 <= 0.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 <= 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 <= 1.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0.0 <= 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 <= 1"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 <= 0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 <= 0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 <= 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 <= 1"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0.0 <= 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 <= 1.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 <= 0.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 <= 0.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 <= 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 <= 1.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""bar" <= "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" <= "foo""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" <= "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" <= "bar""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" <= "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" <= "foo""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar <= "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar <= "foo""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar <= bar"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar <= bar"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo <= "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo <= "bar""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo <= foo"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo <= foo"#).unwrap();
         assert!(value.unwrap_boolean());
     }
 
     #[test]
     fn greater_expr() {
-        let mut root_scope = Scope::new(None);
-        root_scope.insert("foo", PrimitiveValue::new_file("foo"));
-        root_scope.insert("bar", PrimitiveValue::new_directory("bar"));
+        let mut env = TestEnv::default();
+        env.insert_name("foo", PrimitiveValue::new_file("foo"));
+        env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"false > true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"false > true"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true > false"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true > false"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true > true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true > true"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0 > 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 > 1"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 > 0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 > 0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 > 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 > 1"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0 > 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 > 1.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 > 0.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 > 0.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 > 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 > 1.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0.0 > 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 > 1"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 > 0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 > 0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 > 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 > 1"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0.0 > 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 > 1.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 > 0.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 > 0.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 > 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 > 1.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""bar" > "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" > "foo""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" > "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" > "bar""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" > "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" > "foo""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar > "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar > "foo""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar > bar"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar > bar"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo > "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo > "bar""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo > foo"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo > foo"#).unwrap();
         assert!(!value.unwrap_boolean());
     }
 
     #[test]
     fn greater_equal_expr() {
-        let mut root_scope = Scope::new(None);
-        root_scope.insert("foo", PrimitiveValue::new_file("foo"));
-        root_scope.insert("bar", PrimitiveValue::new_directory("bar"));
+        let mut env = TestEnv::default();
+        env.insert_name("foo", PrimitiveValue::new_file("foo"));
+        env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"false >= true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"false >= true"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true >= false"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true >= false"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"true >= true"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"true >= true"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0 >= 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 >= 1"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 >= 0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 >= 0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 >= 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 >= 1"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0 >= 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 >= 1.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 >= 0.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 >= 0.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1 >= 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 >= 1.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0.0 >= 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 >= 1"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 >= 0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 >= 0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 >= 1"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 >= 1"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"0.0 >= 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 >= 1.0"#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 >= 0.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 >= 0.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"1.0 >= 1.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 >= 1.0"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""bar" >= "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" >= "foo""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" >= "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" >= "bar""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" >= "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" >= "foo""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar >= "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar >= "foo""#).unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"bar >= bar"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar >= bar"#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo >= "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo >= "bar""#).unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(V1::Zero, r#"foo >= foo"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo >= foo"#).unwrap();
         assert!(value.unwrap_boolean());
     }
 
     #[test]
     fn addition_expr() {
-        let mut root_scope = Scope::new(None);
-        root_scope.insert("foo", PrimitiveValue::new_file("foo"));
-        root_scope.insert("bar", PrimitiveValue::new_directory("bar"));
+        let mut env = TestEnv::default();
+        env.insert_name("foo", PrimitiveValue::new_file("foo"));
+        env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"1 + 2 + 3 + 4"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 + 2 + 3 + 4"#).unwrap();
         assert_eq!(value.unwrap_integer(), 10);
 
-        let value = eval_v1_expr(V1::Zero, r#"10 + 20.0 + 30 + 40.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"10 + 20.0 + 30 + 40.0"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 100.0);
 
-        let value =
-            eval_v1_expr(V1::Zero, r#"100.0 + 200 + 300.0 + 400"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"100.0 + 200 + 300.0 + 400"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 1000.0);
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"1000.5 + 2000.5 + 3000.5 + 4000.5"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value =
+            eval_v1_expr(&mut env, V1::Zero, r#"1000.5 + 2000.5 + 3000.5 + 4000.5"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 10002.0);
 
-        let diagnostic = eval_v1_expr(
-            V1::Zero,
-            &format!(r#"{max} + 1"#, max = i64::MAX),
-            &mut types,
-            scope,
-        )
-        .unwrap_err();
+        let diagnostic =
+            eval_v1_expr(&mut env, V1::Zero, &format!(r#"{max} + 1"#, max = i64::MAX)).unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "evaluation of arithmetic expression resulted in overflow"
         );
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" + 1234"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" + 1234"#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foo1234");
 
-        let value = eval_v1_expr(V1::Zero, r#"1234 + "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 + "foo""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "1234foo");
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" + 1234.456"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" + 1234.456"#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foo1234.456");
 
-        let value = eval_v1_expr(V1::Zero, r#"1234.456 + "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.456 + "foo""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "1234.456foo");
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" + "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" + "bar""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foobar");
 
-        let value = eval_v1_expr(V1::Zero, r#""bar" + "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" + "foo""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "barfoo");
 
-        let value = eval_v1_expr(V1::Zero, r#"foo + "bar""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo + "bar""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foobar");
 
-        let value = eval_v1_expr(V1::Zero, r#""bar" + foo"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" + foo"#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "barfoo");
 
-        let value = eval_v1_expr(V1::Zero, r#""foo" + bar"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" + bar"#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foobar");
 
-        let value = eval_v1_expr(V1::Zero, r#"bar + "foo""#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar + "foo""#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "barfoo");
     }
 
     #[test]
     fn subtraction_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"-1 - 2 - 3 - 4"#, &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"-1 - 2 - 3 - 4"#).unwrap();
         assert_eq!(value.unwrap_integer(), -10);
 
-        let value = eval_v1_expr(V1::Zero, r#"-10 - 20.0 - 30 - 40.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"-10 - 20.0 - 30 - 40.0"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -100.0);
 
-        let value =
-            eval_v1_expr(V1::Zero, r#"-100.0 - 200 - 300.0 - 400"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"-100.0 - 200 - 300.0 - 400"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -1000.0);
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"-1000.5 - 2000.5 - 3000.5 - 4000.5"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value =
+            eval_v1_expr(&mut env, V1::Zero, r#"-1000.5 - 2000.5 - 3000.5 - 4000.5"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -10002.0);
 
-        let diagnostic = eval_v1_expr(
-            V1::Zero,
-            &format!(r#"{min} - 1"#, min = i64::MIN),
-            &mut types,
-            scope,
-        )
-        .unwrap_err();
+        let diagnostic =
+            eval_v1_expr(&mut env, V1::Zero, &format!(r#"{min} - 1"#, min = i64::MIN)).unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "evaluation of arithmetic expression resulted in overflow"
@@ -2699,36 +2535,22 @@ pub(crate) mod test {
 
     #[test]
     fn multiplication_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"1 * 2 * 3 * 4"#, &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 * 2 * 3 * 4"#).unwrap();
         assert_eq!(value.unwrap_integer(), 24);
 
-        let value = eval_v1_expr(V1::Zero, r#"10 * 20.0 * 30 * 40.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"10 * 20.0 * 30 * 40.0"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 240000.0);
 
-        let value =
-            eval_v1_expr(V1::Zero, r#"100.0 * 200 * 300.0 * 400"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"100.0 * 200 * 300.0 * 400"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 2400000000.0);
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"1000.5 * 2000.5 * 3000.5 * 4000.5"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value =
+            eval_v1_expr(&mut env, V1::Zero, r#"1000.5 * 2000.5 * 3000.5 * 4000.5"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 24025008751250.063);
 
-        let diagnostic = eval_v1_expr(
-            V1::Zero,
-            &format!(r#"{max} * 2"#, max = i64::MAX),
-            &mut types,
-            scope,
-        )
-        .unwrap_err();
+        let diagnostic =
+            eval_v1_expr(&mut env, V1::Zero, &format!(r#"{max} * 2"#, max = i64::MAX)).unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "evaluation of arithmetic expression resulted in overflow"
@@ -2737,37 +2559,27 @@ pub(crate) mod test {
 
     #[test]
     fn division_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"5 / 2"#, &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"5 / 2"#).unwrap();
         assert_eq!(value.unwrap_integer(), 2);
 
-        let value = eval_v1_expr(V1::Zero, r#"10 / 20.0 / 30 / 40.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"10 / 20.0 / 30 / 40.0"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.00041666666666666664);
 
-        let value =
-            eval_v1_expr(V1::Zero, r#"100.0 / 200 / 300.0 / 400"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"100.0 / 200 / 300.0 / 400"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 4.166666666666667e-6);
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"1000.5 / 2000.5 / 3000.5 / 4000.5"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value =
+            eval_v1_expr(&mut env, V1::Zero, r#"1000.5 / 2000.5 / 3000.5 / 4000.5"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 4.166492759125078e-8);
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"10 / 0"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"10 / 0"#).unwrap_err();
         assert_eq!(diagnostic.message(), "attempt to divide by zero");
 
         let diagnostic = eval_v1_expr(
+            &mut env,
             V1::Zero,
             &format!(r#"{min} / -1"#, min = i64::MIN),
-            &mut types,
-            scope,
         )
         .unwrap_err();
         assert_eq!(
@@ -2778,30 +2590,26 @@ pub(crate) mod test {
 
     #[test]
     fn modulo_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let value = eval_v1_expr(V1::Zero, r#"5 % 2"#, &mut types, scope).unwrap();
+        let mut env = TestEnv::default();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"5 % 2"#).unwrap();
         assert_eq!(value.unwrap_integer(), 1);
 
-        let value = eval_v1_expr(V1::Zero, r#"5.5 % 2"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"5.5 % 2"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 1.5);
 
-        let value = eval_v1_expr(V1::Zero, r#"5 % 2.5"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"5 % 2.5"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.0);
 
-        let value = eval_v1_expr(V1::Zero, r#"5.25 % 1.3"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"5.25 % 1.3"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.04999999999999982);
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"5 % 0"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"5 % 0"#).unwrap_err();
         assert_eq!(diagnostic.message(), "attempt to divide by zero");
 
         let diagnostic = eval_v1_expr(
+            &mut env,
             V1::Zero,
             &format!(r#"{min} % -1"#, min = i64::MIN),
-            &mut types,
-            scope,
         )
         .unwrap_err();
         assert_eq!(
@@ -2812,35 +2620,27 @@ pub(crate) mod test {
 
     #[test]
     fn exponentiation_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let mut types = Types::default();
-        let diagnostic = eval_v1_expr(V1::Zero, r#"10 ** 0"#, &mut types, scope).unwrap_err();
+        let mut env = TestEnv::default();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"10 ** 0"#).unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "use of the exponentiation operator requires WDL version 1.2"
         );
 
-        let value = eval_v1_expr(V1::Two, r#"5 ** 2 ** 2"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#"5 ** 2 ** 2"#).unwrap();
         assert_eq!(value.unwrap_integer(), 625);
 
-        let value = eval_v1_expr(V1::Two, r#"5 ** 2.0 ** 2"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#"5 ** 2.0 ** 2"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 625.0);
 
-        let value = eval_v1_expr(V1::Two, r#"5 ** 2 ** 2.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#"5 ** 2 ** 2.0"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 625.0);
 
-        let value = eval_v1_expr(V1::Two, r#"5.0 ** 2.0 ** 2.0"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Two, r#"5.0 ** 2.0 ** 2.0"#).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 625.0);
 
-        let diagnostic = eval_v1_expr(
-            V1::Two,
-            &format!(r#"{max} ** 2"#, max = i64::MAX),
-            &mut types,
-            scope,
-        )
-        .unwrap_err();
+        let diagnostic =
+            eval_v1_expr(&mut env, V1::Two, &format!(r#"{max} ** 2"#, max = i64::MAX)).unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "evaluation of arithmetic expression resulted in overflow"
@@ -2849,55 +2649,42 @@ pub(crate) mod test {
 
     #[test]
     fn call_expr() {
-        let scopes = &[Scope::new(None)];
-        let scope = ScopeRef::new(scopes, 0);
-
         // This test will just check for errors; testing of the function implementations
         // is in `stdlib.rs`
-        let mut types = Types::default();
-        let diagnostic = eval_v1_expr(V1::Zero, "min(1, 2)", &mut types, scope).unwrap_err();
+        let mut env = TestEnv::default();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, "min(1, 2)").unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "this use of function `min` requires a minimum WDL version of 1.1"
         );
 
-        let diagnostic = eval_v1_expr(
-            V1::Zero,
-            "min(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)",
-            &mut types,
-            scope,
-        )
-        .unwrap_err();
+        let diagnostic =
+            eval_v1_expr(&mut env, V1::Zero, "min(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)").unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "this use of function `min` requires a minimum WDL version of 1.1"
         );
 
-        let diagnostic = eval_v1_expr(V1::One, "min(1)", &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::One, "min(1)").unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "function `min` requires at least 2 arguments but 1 was supplied"
         );
 
-        let diagnostic = eval_v1_expr(V1::One, "min(1, 2, 3)", &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::One, "min(1, 2, 3)").unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "function `min` requires no more than 2 arguments but 3 were supplied"
         );
 
-        let diagnostic = eval_v1_expr(
-            V1::One,
-            "min(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)",
-            &mut types,
-            scope,
-        )
-        .unwrap_err();
+        let diagnostic =
+            eval_v1_expr(&mut env, V1::One, "min(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)").unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "function `min` requires no more than 2 arguments but 10 were supplied"
         );
 
-        let diagnostic = eval_v1_expr(V1::One, "min('1', 2)", &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::One, "min('1', 2)").unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "type mismatch: argument to function `min` expects type `Int` or `Float`, but found \
@@ -2907,69 +2694,66 @@ pub(crate) mod test {
 
     #[test]
     fn index_expr() {
-        let mut types = Types::default();
-        let array_ty = types.add_array(ArrayType::new(PrimitiveTypeKind::Integer));
-        let map_ty = types.add_map(MapType::new(
+        let mut env = TestEnv::default();
+        let array_ty = env
+            .types_mut()
+            .add_array(ArrayType::new(PrimitiveTypeKind::Integer));
+        let map_ty = env.types_mut().add_map(MapType::new(
             PrimitiveTypeKind::String,
             PrimitiveTypeKind::Integer,
         ));
 
-        let mut root_scope = Scope::new(None);
-        root_scope.insert(
+        env.insert_name(
             "foo",
-            Array::new(&types, array_ty, [1, 2, 3, 4, 5]).unwrap(),
+            Array::new(env.types(), array_ty, [1, 2, 3, 4, 5]).unwrap(),
         );
-        root_scope.insert(
+        env.insert_name(
             "bar",
-            Map::new(&types, map_ty, [
+            Map::new(env.types(), map_ty, [
                 (PrimitiveValue::new_string("foo"), 1),
                 (PrimitiveValue::new_string("bar"), 2),
             ])
             .unwrap(),
         );
-        root_scope.insert("baz", PrimitiveValue::new_file("bar"));
+        env.insert_name("baz", PrimitiveValue::new_file("bar"));
 
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let value = eval_v1_expr(V1::Zero, r#"foo[1]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo[1]"#).unwrap();
         assert_eq!(value.unwrap_integer(), 2);
 
-        let value = eval_v1_expr(V1::Zero, r#"foo[foo[[1, 2, 3][0]]]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo[foo[[1, 2, 3][0]]]"#).unwrap();
         assert_eq!(value.unwrap_integer(), 3);
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"foo[10]"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"foo[10]"#).unwrap_err();
         assert_eq!(diagnostic.message(), "array index 10 is out of range");
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"foo["10"]"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"foo["10"]"#).unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "type mismatch: expected index to be type `Int`, but found type `String`"
         );
 
-        let value = eval_v1_expr(V1::Zero, r#"bar["foo"]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar["foo"]"#).unwrap();
         assert_eq!(value.unwrap_integer(), 1);
 
-        let value = eval_v1_expr(V1::Zero, r#"bar[baz]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar[baz]"#).unwrap();
         assert_eq!(value.unwrap_integer(), 2);
 
-        let value = eval_v1_expr(V1::Zero, r#"foo[bar["foo"]]"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo[bar["foo"]]"#).unwrap();
         assert_eq!(value.unwrap_integer(), 2);
 
-        let diagnostic =
-            eval_v1_expr(V1::Zero, r#"bar["does not exist"]"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"bar["does not exist"]"#).unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "the map does not contain an entry for the specified key"
         );
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"bar[1]"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"bar[1]"#).unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "type mismatch: expected index to be type `String`, but found type `Int`"
         );
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"1[0]"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"1[0]"#).unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "indexing is only allowed on `Array` and `Map` types"
@@ -2978,86 +2762,67 @@ pub(crate) mod test {
 
     #[test]
     fn access_expr() {
-        let mut types = Types::default();
-        let pair_ty = types.add_pair(PairType::new(
+        let mut env = TestEnv::default();
+        let pair_ty = env.types_mut().add_pair(PairType::new(
             PrimitiveTypeKind::Integer,
             PrimitiveTypeKind::String,
         ));
-        let struct_ty = types.add_struct(StructType::new("Foo", [
+        let struct_ty = env.types_mut().add_struct(StructType::new("Foo", [
             ("foo", PrimitiveTypeKind::Integer),
             ("bar", PrimitiveTypeKind::String),
         ]));
 
-        let mut root_scope = Scope::new(None);
-        root_scope.insert(
+        env.insert_name(
             "foo",
-            Pair::new(&types, pair_ty, 1, PrimitiveValue::new_string("foo")).unwrap(),
+            Pair::new(env.types(), pair_ty, 1, PrimitiveValue::new_string("foo")).unwrap(),
         );
-        root_scope.insert(
+        env.insert_name(
             "bar",
-            Struct::new(&types, struct_ty, [
+            Struct::new(env.types(), struct_ty, [
                 ("foo", 1.into()),
                 ("bar", PrimitiveValue::new_string("bar")),
             ])
             .unwrap(),
         );
-        root_scope.insert("baz", 1);
+        env.insert_name("baz", 1);
 
-        let scopes = &[root_scope];
-        let scope = ScopeRef::new(scopes, 0);
-
-        let value = eval_v1_expr(V1::Zero, r#"foo.left"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo.left"#).unwrap();
         assert_eq!(value.unwrap_integer(), 1);
 
-        let value = eval_v1_expr(V1::Zero, r#"foo.right"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo.right"#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foo");
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"foo.bar"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"foo.bar"#).unwrap_err();
         assert_eq!(diagnostic.message(), "cannot access a pair with name `bar`");
 
-        let value = eval_v1_expr(V1::Zero, r#"bar.foo"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar.foo"#).unwrap();
         assert_eq!(value.unwrap_integer(), 1);
 
-        let value = eval_v1_expr(V1::Zero, r#"bar.bar"#, &mut types, scope).unwrap();
+        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar.bar"#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "bar");
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"bar.baz"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"bar.baz"#).unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "struct `Foo` does not have a member named `baz`"
         );
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"object { foo: 1, bar: "bar" }.foo"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value =
+            eval_v1_expr(&mut env, V1::Zero, r#"object { foo: 1, bar: "bar" }.foo"#).unwrap();
         assert_eq!(value.unwrap_integer(), 1);
 
-        let value = eval_v1_expr(
-            V1::Zero,
-            r#"object { foo: 1, bar: "bar" }.bar"#,
-            &mut types,
-            scope,
-        )
-        .unwrap();
+        let value =
+            eval_v1_expr(&mut env, V1::Zero, r#"object { foo: 1, bar: "bar" }.bar"#).unwrap();
         assert_eq!(value.unwrap_string().as_str(), "bar");
 
-        let diagnostic = eval_v1_expr(
-            V1::Zero,
-            r#"object { foo: 1, bar: "bar" }.baz"#,
-            &mut types,
-            scope,
-        )
-        .unwrap_err();
+        let diagnostic =
+            eval_v1_expr(&mut env, V1::Zero, r#"object { foo: 1, bar: "bar" }.baz"#).unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "object does not have a member named `baz`"
         );
 
-        let diagnostic = eval_v1_expr(V1::Zero, r#"baz.foo"#, &mut types, scope).unwrap_err();
+        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"baz.foo"#).unwrap_err();
         assert_eq!(diagnostic.message(), "cannot access type `Int`");
     }
 }

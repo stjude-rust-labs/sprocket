@@ -176,7 +176,6 @@ impl<T: std::io::Write> Report<T> {
         &mut self,
         identifier: document::Identifier,
         status: Status,
-        elapsed: Duration,
     ) -> std::io::Result<()> {
         if self.section != Section::Summary {
             panic!(
@@ -185,7 +184,7 @@ impl<T: std::io::Write> Report<T> {
             );
         }
 
-        writeln!(self.inner, "{status} {identifier} ({elapsed:?})")?;
+        writeln!(self.inner, "{status} {identifier}")?;
         self.results.insert(identifier, status);
         self.printed = true;
 
@@ -238,6 +237,7 @@ impl<T: std::io::Write> Report<T> {
     pub fn footer(
         &mut self,
         repository_identifier: &repository::Identifier,
+        elapsed: Duration,
     ) -> std::io::Result<()> {
         if self.section != Section::Footer {
             panic!(
@@ -292,7 +292,7 @@ impl<T: std::io::Write> Report<T> {
 
         writeln!(
             self.inner,
-            " ({:.1}%)",
+            " ({:.1}%) analyzed in {elapsed:?}",
             (passed as f64 / considered as f64) * 100.0
         )?;
         self.printed = true;

@@ -12,14 +12,17 @@ use anyhow::anyhow;
 use anyhow::bail;
 use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
-use serde_json::Value as JsonValue;
+use serde::ser::SerializeMap;
+use serde::ser::SerializeSeq;
 use wdl_analysis::types::ArrayType;
+use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::CompoundTypeDef;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveTypeKind;
 use wdl_analysis::types::Type;
 use wdl_analysis::types::TypeEq;
 use wdl_analysis::types::Types;
+use wdl_grammar::lexer::v1::is_ident;
 
 /// Implemented on coercible values.
 pub trait Coercible: Sized {
@@ -46,63 +49,6 @@ pub enum Value {
 }
 
 impl Value {
-    /// Converts a JSON value into a WDL value.
-    ///
-    /// Returns an error if the JSON value cannot be represented as a WDL value.
-    pub fn from_json(types: &mut Types, value: JsonValue) -> Result<Self> {
-        match value {
-            JsonValue::Null => Ok(Value::None),
-            JsonValue::Bool(value) => Ok(value.into()),
-            JsonValue::Number(number) => {
-                if let Some(value) = number.as_i64() {
-                    Ok(value.into())
-                } else if let Some(value) = number.as_f64() {
-                    Ok(value.into())
-                } else {
-                    bail!("number `{number}` is out of range for a WDL value")
-                }
-            }
-            JsonValue::String(s) => Ok(PrimitiveValue::new_string(s).into()),
-            JsonValue::Array(elements) => {
-                let elements = elements
-                    .into_iter()
-                    .map(|v| Self::from_json(types, v))
-                    .collect::<Result<Vec<_>>>()?;
-
-                let element_ty = elements
-                    .iter()
-                    .try_fold(None, |mut ty, element| {
-                        let element_ty = element.ty();
-                        let ty = ty.get_or_insert(element_ty);
-                        ty.common_type(types, element_ty).map(Some).ok_or_else(|| {
-                            anyhow!(
-                                "a common element type does not exist between `{ty}` and \
-                                 `{element_ty}`",
-                                ty = ty.display(types),
-                                element_ty = element_ty.display(types)
-                            )
-                        })
-                    })
-                    .context("invalid WDL array value")?
-                    .unwrap_or(Type::Union);
-
-                let ty = types.add_array(ArrayType::new(element_ty));
-                Ok(Array::new(types, ty, elements)
-                    .with_context(|| {
-                        format!("cannot coerce value to `{ty}`", ty = ty.display(types))
-                    })?
-                    .into())
-            }
-            JsonValue::Object(elements) => Ok(Object::new(
-                elements
-                    .into_iter()
-                    .map(|(k, v)| Ok((k, Self::from_json(types, v)?)))
-                    .collect::<Result<Vec<_>>>()?,
-            )
-            .into()),
-        }
-    }
-
     /// Gets the type of the value.
     pub fn ty(&self) -> Type {
         match self {
@@ -189,7 +135,7 @@ impl Value {
     pub fn as_string(&self) -> Option<&Arc<String>> {
         match self {
             Self::Primitive(PrimitiveValue::String(s)) => Some(s),
-            _ => panic!("value is not a string"),
+            _ => None,
         }
     }
 
@@ -375,6 +321,183 @@ impl Value {
             }
             _ => None,
         }
+    }
+
+    /// Serializes the value to the given serializer.
+    pub fn serialize<S>(&self, types: &Types, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::Serialize;
+
+        match self {
+            Self::None => serializer.serialize_none(),
+            Self::Primitive(v) => v.serialize(serializer),
+            Self::Compound(v) => v.serialize(types, serializer),
+        }
+    }
+
+    /// Deserializes a value from the given deserializer.
+    pub fn deserialize<'de, D>(
+        types: &mut Types,
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        /// Helper for deserializing the elements of sequences and maps
+        struct Deserialize<'a>(&'a mut Types);
+
+        impl<'de> serde::de::DeserializeSeed<'de> for Deserialize<'_> {
+            type Value = Value;
+
+            fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                deserializer.deserialize_any(Visitor(self.0))
+            }
+        }
+
+        /// Visitor for deserialization.
+        struct Visitor<'a>(&'a mut Types);
+
+        impl<'de> serde::de::Visitor<'de> for Visitor<'_> {
+            type Value = Value;
+
+            fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::None)
+            }
+
+            fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::None)
+            }
+
+            fn visit_some<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                Value::deserialize(self.0, deserializer)
+            }
+
+            fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Boolean(v)))
+            }
+
+            fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Integer(v)))
+            }
+
+            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Integer(
+                    v.try_into().map_err(|_| {
+                        E::custom("integer not in range for a 64-bit signed integer")
+                    })?,
+                )))
+            }
+
+            fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Float(v.into())))
+            }
+
+            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::new_string(v)))
+            }
+
+            fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::new_string(v)))
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                use serde::de::Error;
+
+                let mut elements = Vec::new();
+                while let Some(v) = seq.next_element_seed(Deserialize(self.0))? {
+                    elements.push(v);
+                }
+
+                let element_ty = elements
+                    .iter()
+                    .try_fold(None, |mut ty, element| {
+                        let element_ty = element.ty();
+                        let ty = ty.get_or_insert(element_ty);
+                        ty.common_type(self.0, element_ty).map(Some).ok_or_else(|| {
+                            A::Error::custom(format!(
+                                "a common element type does not exist between `{ty}` and \
+                                 `{element_ty}`",
+                                ty = ty.display(self.0),
+                                element_ty = element_ty.display(self.0)
+                            ))
+                        })
+                    })?
+                    .unwrap_or(Type::Union);
+
+                let ty = self.0.add_array(ArrayType::new(element_ty));
+                Ok(Array::new(self.0, ty, elements)
+                    .map_err(|e| {
+                        A::Error::custom(format!(
+                            "cannot coerce value to `{ty}`: {e:#}",
+                            ty = ty.display(self.0)
+                        ))
+                    })?
+                    .into())
+            }
+
+            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                use serde::de::Error;
+
+                let mut members = IndexMap::new();
+                while let Some(key) = map.next_key::<String>()? {
+                    if !is_ident(&key) {
+                        return Err(A::Error::custom(format!(
+                            "object key `{key}` is not a valid WDL identifier"
+                        )));
+                    }
+
+                    members.insert(key, map.next_value_seed(Deserialize(self.0))?);
+                }
+
+                Ok(Value::Compound(CompoundValue::Object(Object {
+                    members: Arc::new(members),
+                })))
+            }
+
+            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "a WDL value")
+            }
+        }
+
+        deserializer.deserialize_any(Visitor(types))
     }
 }
 
@@ -588,7 +711,7 @@ impl PrimitiveValue {
     pub fn as_string(&self) -> Option<&Arc<String>> {
         match self {
             Self::String(s) => Some(s),
-            _ => panic!("value is not a string"),
+            _ => None,
         }
     }
 
@@ -861,6 +984,20 @@ impl Coercible for PrimitiveValue {
     }
 }
 
+impl serde::Serialize for PrimitiveValue {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Boolean(v) => v.serialize(serializer),
+            Self::Integer(v) => v.serialize(serializer),
+            Self::Float(v) => v.serialize(serializer),
+            Self::String(s) | Self::File(s) | Self::Directory(s) => s.serialize(serializer),
+        }
+    }
+}
+
 /// Represents a `Pair` value.
 #[derive(Debug, Clone)]
 pub struct Pair {
@@ -940,7 +1077,7 @@ pub struct Array {
     /// The type of the array.
     ty: Type,
     /// The array's elements.
-    elements: Arc<[Value]>,
+    elements: Arc<Vec<Value>>,
 }
 
 impl Array {
@@ -963,21 +1100,29 @@ impl Array {
                 let element_type = array_ty.element_type();
                 return Ok(Self {
                     ty,
-                    elements: elements
-                        .into_iter()
-                        .enumerate()
-                        .map(|(i, v)| {
-                            let v = v.into();
-                            v.coerce(types, element_type).with_context(|| {
-                                format!("failed to coerce array element at index {i}")
+                    elements: Arc::new(
+                        elements
+                            .into_iter()
+                            .enumerate()
+                            .map(|(i, v)| {
+                                let v = v.into();
+                                v.coerce(types, element_type).with_context(|| {
+                                    format!("failed to coerce array element at index {i}")
+                                })
                             })
-                        })
-                        .collect::<Result<_>>()?,
+                            .collect::<Result<Vec<_>>>()?,
+                    ),
                 });
             }
         }
 
         panic!("type `{ty}` is not an array type", ty = ty.display(types));
+    }
+
+    /// Constructs a new array without checking the given elements conform to
+    /// the given type.
+    pub(crate) fn new_unchecked(ty: Type, elements: Arc<Vec<Value>>) -> Self {
+        Self { ty, elements }
     }
 
     /// Gets the type of the `Array` value.
@@ -1069,6 +1214,12 @@ impl Map {
         panic!("type `{ty}` is not a map type", ty = ty.display(types));
     }
 
+    /// Constructs a new map without checking the given elements conform to the
+    /// given type.
+    pub(crate) fn new_unchecked(ty: Type, elements: Arc<IndexMap<PrimitiveValue, Value>>) -> Self {
+        Self { ty, elements }
+    }
+
     /// Gets the type of the `Map` value.
     pub fn ty(&self) -> Type {
         self.ty
@@ -1100,7 +1251,7 @@ impl fmt::Display for Map {
 #[derive(Debug, Clone)]
 pub struct Object {
     /// The members of the object.
-    members: Arc<IndexMap<String, Value>>,
+    pub(crate) members: Arc<IndexMap<String, Value>>,
 }
 
 impl Object {
@@ -1167,7 +1318,7 @@ pub struct Struct {
     /// The name of the struct.
     name: Arc<String>,
     /// The members of the struct value.
-    members: Arc<IndexMap<String, Value>>,
+    pub(crate) members: Arc<IndexMap<String, Value>>,
 }
 
 impl Struct {
@@ -1458,6 +1609,76 @@ impl CompoundValue {
                     }),
             ),
             _ => None,
+        }
+    }
+
+    /// Serializes the value to the given serializer.
+    pub fn serialize<S>(&self, types: &Types, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+
+        /// Helper `Serialize` implementation for serializing element values.
+        struct Serialize<'a> {
+            /// The types collection.
+            types: &'a Types,
+            /// The value being serialized.
+            value: &'a Value,
+        }
+
+        impl serde::Serialize for Serialize<'_> {
+            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                self.value.serialize(self.types, serializer)
+            }
+        }
+
+        match self {
+            Self::Pair(_) => Err(S::Error::custom("a pair cannot be serialized")),
+            Self::Array(v) => {
+                let mut s = serializer.serialize_seq(Some(v.elements.len()))?;
+                for e in v.elements.iter() {
+                    s.serialize_element(&Serialize { types, value: e })?;
+                }
+
+                s.end()
+            }
+            Self::Map(v) => {
+                if !types
+                    .type_definition(
+                        v.ty()
+                            .as_compound()
+                            .expect("type should be compound")
+                            .definition(),
+                    )
+                    .as_map()
+                    .expect("type should be a map")
+                    .key_type()
+                    .is_coercible_to(types, &PrimitiveTypeKind::String.into())
+                {
+                    return Err(S::Error::custom(
+                        "only maps with `String` key types may be serialized",
+                    ));
+                }
+
+                let mut s = serializer.serialize_map(Some(v.elements.len()))?;
+                for (k, v) in v.elements.iter() {
+                    s.serialize_entry(k, &Serialize { types, value: v })?;
+                }
+
+                s.end()
+            }
+            Self::Object(Object { members, .. }) | Self::Struct(Struct { members, .. }) => {
+                let mut s = serializer.serialize_map(Some(members.len()))?;
+                for (k, v) in members.iter() {
+                    s.serialize_entry(k, &Serialize { types, value: v })?;
+                }
+
+                s.end()
+            }
         }
     }
 }
