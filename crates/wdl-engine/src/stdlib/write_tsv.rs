@@ -31,25 +31,16 @@ pub(crate) fn write_tsv_value<W: Write>(
     value: &PrimitiveValue,
 ) -> Result<bool, std::io::Error> {
     match value {
-        PrimitiveValue::Boolean(v) => {
-            write!(&mut writer, "{v}")?;
+        PrimitiveValue::String(v) | PrimitiveValue::File(v) | PrimitiveValue::Directory(v)
+            if v.contains('\t') =>
+        {
+            Ok(false)
         }
-        PrimitiveValue::Integer(v) => {
-            write!(&mut writer, "{v}")?;
-        }
-        PrimitiveValue::Float(v) => {
-            write!(&mut writer, "{v}")?;
-        }
-        PrimitiveValue::String(v) | PrimitiveValue::File(v) | PrimitiveValue::Directory(v) => {
-            if v.contains('\t') {
-                return Ok(false);
-            }
-
-            write!(&mut writer, "{v}")?;
+        v => {
+            write!(&mut writer, "{v}", v = v.raw())?;
+            Ok(true)
         }
     }
-
-    Ok(true)
 }
 
 /// Helper for writing a `Array[Array[String]]` to a TSV file.

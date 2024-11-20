@@ -24,6 +24,8 @@ mod join_paths;
 mod matches;
 mod max;
 mod min;
+mod prefix;
+mod quote;
 mod read_boolean;
 mod read_float;
 mod read_int;
@@ -35,10 +37,13 @@ mod read_objects;
 mod read_string;
 mod read_tsv;
 mod round;
+mod sep;
 mod size;
+mod squote;
 mod stderr;
 mod stdout;
 mod sub;
+mod suffix;
 mod write_json;
 mod write_lines;
 mod write_map;
@@ -255,6 +260,11 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
             func!(read_objects),
             func!(write_object),
             func!(write_objects),
+            func!(prefix),
+            func!(suffix),
+            func!(quote),
+            func!(squote),
+            func!(sep),
         ]),
     }
 });

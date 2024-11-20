@@ -779,40 +779,60 @@ impl PrimitiveValue {
     /// Returns `None` if the values cannot be compared based on their types.
     pub fn compare(left: &Self, right: &Self) -> Option<Ordering> {
         match (left, right) {
-            (PrimitiveValue::Boolean(left), PrimitiveValue::Boolean(right)) => {
-                Some(left.cmp(right))
-            }
-            (PrimitiveValue::Integer(left), PrimitiveValue::Integer(right)) => {
-                Some(left.cmp(right))
-            }
-            (PrimitiveValue::Integer(left), PrimitiveValue::Float(right)) => {
+            (Self::Boolean(left), Self::Boolean(right)) => Some(left.cmp(right)),
+            (Self::Integer(left), Self::Integer(right)) => Some(left.cmp(right)),
+            (Self::Integer(left), Self::Float(right)) => {
                 Some(OrderedFloat(*left as f64).cmp(right))
             }
-            (PrimitiveValue::Float(left), PrimitiveValue::Integer(right)) => {
+            (Self::Float(left), Self::Integer(right)) => {
                 Some(left.cmp(&OrderedFloat(*right as f64)))
             }
-            (PrimitiveValue::Float(left), PrimitiveValue::Float(right)) => Some(left.cmp(right)),
-            (PrimitiveValue::String(left), PrimitiveValue::String(right))
-            | (PrimitiveValue::String(left), PrimitiveValue::File(right))
-            | (PrimitiveValue::String(left), PrimitiveValue::Directory(right))
-            | (PrimitiveValue::File(left), PrimitiveValue::File(right))
-            | (PrimitiveValue::File(left), PrimitiveValue::String(right))
-            | (PrimitiveValue::Directory(left), PrimitiveValue::Directory(right))
-            | (PrimitiveValue::Directory(left), PrimitiveValue::String(right)) => {
-                Some(left.cmp(right))
-            }
+            (Self::Float(left), Self::Float(right)) => Some(left.cmp(right)),
+            (Self::String(left), Self::String(right))
+            | (Self::String(left), Self::File(right))
+            | (Self::String(left), Self::Directory(right))
+            | (Self::File(left), Self::File(right))
+            | (Self::File(left), Self::String(right))
+            | (Self::Directory(left), Self::Directory(right))
+            | (Self::Directory(left), Self::String(right)) => Some(left.cmp(right)),
             _ => None,
         }
+    }
+
+    /// Gets a raw display of the value.
+    ///
+    /// This differs from the [Display][fmt::Display] implementation in that
+    /// strings, files, and directories are not quoted and not escaped.
+    pub fn raw(&self) -> impl fmt::Display + use<'_> {
+        /// Helper for displaying a raw value.
+        struct Display<'a>(&'a PrimitiveValue);
+
+        impl fmt::Display for Display<'_> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self.0 {
+                    PrimitiveValue::Boolean(v) => write!(f, "{v}"),
+                    PrimitiveValue::Integer(v) => write!(f, "{v}"),
+                    PrimitiveValue::Float(v) => write!(f, "{v:?}"),
+                    PrimitiveValue::String(v)
+                    | PrimitiveValue::File(v)
+                    | PrimitiveValue::Directory(v) => {
+                        write!(f, "{v}")
+                    }
+                }
+            }
+        }
+
+        Display(self)
     }
 }
 
 impl fmt::Display for PrimitiveValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PrimitiveValue::Boolean(v) => write!(f, "{v}"),
-            PrimitiveValue::Integer(v) => write!(f, "{v}"),
-            PrimitiveValue::Float(v) => write!(f, "{v:?}"),
-            PrimitiveValue::String(s) | PrimitiveValue::File(s) | PrimitiveValue::Directory(s) => {
+            Self::Boolean(v) => write!(f, "{v}"),
+            Self::Integer(v) => write!(f, "{v}"),
+            Self::Float(v) => write!(f, "{v:?}"),
+            Self::String(s) | Self::File(s) | Self::Directory(s) => {
                 // TODO: handle necessary escape sequences
                 write!(f, "\"{s}\"")
             }

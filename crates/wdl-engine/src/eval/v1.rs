@@ -283,11 +283,7 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                     }
                 }
             }
-            Value::Primitive(PrimitiveValue::Integer(v)) => write!(buffer, "{v}").unwrap(),
-            Value::Primitive(PrimitiveValue::Float(v)) => write!(buffer, "{v}").unwrap(),
-            Value::Primitive(PrimitiveValue::String(s))
-            | Value::Primitive(PrimitiveValue::File(s))
-            | Value::Primitive(PrimitiveValue::Directory(s)) => buffer.push_str(&s),
+            Value::Primitive(v) => write!(buffer, "{v}", v = v.raw()).unwrap(),
             Value::Compound(CompoundValue::Array(v))
                 if matches!(placeholder.option(), Some(PlaceholderOption::Sep(_)))
                     && v.elements()
@@ -980,31 +976,16 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                 if op == NumericOperator::Addition
                     && !matches!(right, PrimitiveValue::Boolean(_)) =>
             {
-                let s = match right {
-                    PrimitiveValue::Boolean(_) => unreachable!(),
-                    PrimitiveValue::Integer(v) => format!("{left}{v}"),
-                    PrimitiveValue::Float(v) => format!("{left}{v}"),
-                    PrimitiveValue::String(v)
-                    | PrimitiveValue::File(v)
-                    | PrimitiveValue::Directory(v) => format!("{left}{v}"),
-                };
-
-                Some(PrimitiveValue::new_string(s).into())
+                Some(
+                    PrimitiveValue::new_string(format!("{left}{right}", right = right.raw()))
+                        .into(),
+                )
             }
             (Value::Primitive(left), Value::Primitive(PrimitiveValue::String(right)))
                 if op == NumericOperator::Addition
                     && !matches!(left, PrimitiveValue::Boolean(_)) =>
             {
-                let s = match left {
-                    PrimitiveValue::Boolean(_) => unreachable!(),
-                    PrimitiveValue::Integer(v) => format!("{v}{right}"),
-                    PrimitiveValue::Float(v) => format!("{v}{right}"),
-                    PrimitiveValue::String(v)
-                    | PrimitiveValue::File(v)
-                    | PrimitiveValue::Directory(v) => format!("{v}{right}"),
-                };
-
-                Some(PrimitiveValue::new_string(s).into())
+                Some(PrimitiveValue::new_string(format!("{left}{right}", left = left.raw())).into())
             }
             (Value::Primitive(PrimitiveValue::String(_)), Value::None)
             | (Value::None, Value::Primitive(PrimitiveValue::String(_)))
