@@ -101,6 +101,6 @@ mod test {
         assert_eq!(elements, ["foobar", "foobaz", "fooqux"]);
 
         let value = eval_v1_expr(&mut env, V1::One, "prefix('foo', [])").unwrap();
-        assert!(value.unwrap_array().elements().is_empty());
+        assert!(value.unwrap_array().is_empty());
     }
 }

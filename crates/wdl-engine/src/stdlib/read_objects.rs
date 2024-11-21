@@ -161,10 +161,10 @@ mod test {
         env.write_file("invalid-name.tsv", "foo\tbar-wrong\tfoo\nbaz\tqux\tfoo\n");
 
         let value = eval_v1_expr(&mut env, V1::Two, "read_objects('empty.tsv')").unwrap();
-        assert!(value.unwrap_array().elements().is_empty());
+        assert!(value.unwrap_array().is_empty());
 
         let value = eval_v1_expr(&mut env, V1::Two, "read_objects('only-header.tsv')").unwrap();
-        assert!(value.unwrap_array().elements().is_empty());
+        assert!(value.unwrap_array().is_empty());
 
         let diagnostic =
             eval_v1_expr(&mut env, V1::Two, "read_objects('too-many-columns.tsv')").unwrap_err();

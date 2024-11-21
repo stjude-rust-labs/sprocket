@@ -496,8 +496,8 @@ impl Coercible for Type {
                 }
             }
 
-            // Union is always coercible to the target
-            (Self::Union, _) => true,
+            // Union is always coercible to the target (and vice versa)
+            (Self::Union, _) | (_, Self::Union) => true,
 
             // None is coercible to an optional type
             (Self::None, ty) if ty.is_optional() => true,
@@ -2195,7 +2195,7 @@ mod test {
         ] {
             assert!(Type::Union.is_coercible_to(&types, &kind.into()));
             assert!(Type::Union.is_coercible_to(&types, &PrimitiveType::optional(kind).into()));
-            assert!(!Type::from(kind).is_coercible_to(&types, &Type::Union));
+            assert!(Type::from(kind).is_coercible_to(&types, &Type::Union));
         }
 
         for optional in [true, false] {

@@ -112,6 +112,6 @@ mod test {
         assert_eq!(elements, ["", "hello!", "world!", "", "hi!", "there!"]);
 
         let value = eval_v1_expr(&mut env, V1::Two, "read_lines('empty')").unwrap();
-        assert!(value.unwrap_array().elements().is_empty());
+        assert!(value.unwrap_array().is_empty());
     }
 }

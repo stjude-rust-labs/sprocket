@@ -1069,6 +1069,12 @@ impl Pair {
         panic!("type `{ty}` is not a pair type", ty = ty.display(types));
     }
 
+    /// Constructs a new pair without checking the given left and right conform
+    /// to the given type.
+    pub(crate) fn new_unchecked(ty: Type, left: Arc<Value>, right: Arc<Value>) -> Self {
+        Self { ty, left, right }
+    }
+
     /// Gets the type of the `Pair`.
     pub fn ty(&self) -> Type {
         self.ty
@@ -1153,6 +1159,16 @@ impl Array {
     /// Gets the elements of the `Array` value.
     pub fn elements(&self) -> &[Value] {
         &self.elements
+    }
+
+    /// Returns the number of elements in the array.
+    pub fn len(&self) -> usize {
+        self.elements.len()
+    }
+
+    /// Returns `true` if the array has no elements.
+    pub fn is_empty(&self) -> bool {
+        self.elements.is_empty()
     }
 }
 

@@ -90,7 +90,7 @@ fn write_array_tsv_file(
         }
 
         writeln!(&mut writer).map_err(write_error)?;
-        Some(header.elements().len())
+        Some(header.len())
     } else {
         None
     };
@@ -99,14 +99,14 @@ fn write_array_tsv_file(
     for (index, row) in rows.elements().iter().enumerate() {
         let row = row.as_array().unwrap();
         if let Some(column_count) = column_count {
-            if row.elements().len() != column_count {
+            if row.len() != column_count {
                 return Err(function_call_failed(
                     "write_tsv",
                     format!(
                         "expected {column_count} column{s1} for every row but array at index \
                          {index} has length {len}",
                         s1 = if column_count == 1 { "s" } else { "" },
-                        len = row.elements().len(),
+                        len = row.len(),
                     ),
                     call_site,
                 ));
@@ -279,7 +279,7 @@ fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     if write_header {
         if let Some(header) = header {
             // Ensure the header count matches the element count
-            if header.elements().len() != ty.members().len() {
+            if header.len() != ty.members().len() {
                 return Err(function_call_failed(
                     "write_tsv",
                     format!(
@@ -287,12 +287,8 @@ fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
                          but only given {actual} header{s2}",
                         expected = ty.members().len(),
                         s1 = if ty.members().len() == 1 { "" } else { "s" },
-                        actual = header.elements().len(),
-                        s2 = if header.elements().len() == 1 {
-                            ""
-                        } else {
-                            "s"
-                        },
+                        actual = header.len(),
+                        s2 = if header.len() == 1 { "" } else { "s" },
                     ),
                     context.arguments[2].span,
                 ));

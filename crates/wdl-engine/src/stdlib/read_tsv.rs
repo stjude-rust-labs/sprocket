@@ -286,7 +286,7 @@ mod test {
         );
 
         let value = eval_v1_expr(&mut env, V1::Two, "read_tsv('empty.tsv')").unwrap();
-        assert!(value.unwrap_array().elements().is_empty());
+        assert!(value.unwrap_array().is_empty());
 
         let diagnostic = eval_v1_expr(&mut env, V1::Two, "read_tsv('foo.tsv', false)").unwrap_err();
         assert_eq!(

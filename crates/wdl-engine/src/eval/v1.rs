@@ -1118,7 +1118,7 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                         Ok(Some(value)) => Ok(value.clone()),
                         _ => Err(array_index_out_of_range(
                             i,
-                            array.elements().len(),
+                            array.len(),
                             index.span(),
                             target.span(),
                         )),

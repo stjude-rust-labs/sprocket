@@ -17,7 +17,11 @@ use crate::Value;
 
 mod basename;
 mod ceil;
+mod chunk;
+mod contains;
+mod cross;
 mod find;
+mod flatten;
 mod floor;
 mod glob;
 mod join_paths;
@@ -26,6 +30,7 @@ mod max;
 mod min;
 mod prefix;
 mod quote;
+mod range;
 mod read_boolean;
 mod read_float;
 mod read_int;
@@ -37,6 +42,8 @@ mod read_objects;
 mod read_string;
 mod read_tsv;
 mod round;
+mod select_all;
+mod select_first;
 mod sep;
 mod size;
 mod squote;
@@ -44,12 +51,15 @@ mod stderr;
 mod stdout;
 mod sub;
 mod suffix;
+mod transpose;
+mod unzip;
 mod write_json;
 mod write_lines;
 mod write_map;
 mod write_object;
 mod write_objects;
 mod write_tsv;
+mod zip;
 
 /// Represents a function call argument.
 pub struct CallArgument {
@@ -265,6 +275,16 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
             func!(quote),
             func!(squote),
             func!(sep),
+            func!(range),
+            func!(transpose),
+            func!(cross),
+            func!(zip),
+            func!(unzip),
+            func!(contains),
+            func!(chunk),
+            func!(flatten),
+            func!(select_first),
+            func!(select_all),
         ]),
     }
 });

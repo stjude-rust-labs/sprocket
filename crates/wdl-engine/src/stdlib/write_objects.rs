@@ -78,7 +78,7 @@ fn write_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     // If it's an array of objects, we need to ensure each object has the exact same
     // member names
-    let mut empty = array.elements().is_empty();
+    let mut empty = array.is_empty();
     if matches!(element_type, Type::Object) {
         let mut iter = array.elements().iter();
         let expected = iter
