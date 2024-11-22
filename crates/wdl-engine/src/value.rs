@@ -513,7 +513,7 @@ impl fmt::Display for Value {
 
 impl Coercible for Value {
     fn coerce(&self, types: &Types, target: Type) -> Result<Self> {
-        if self.ty().type_eq(types, &target) {
+        if target.is_union() || target.is_none() || self.ty().type_eq(types, &target) {
             return Ok(self.clone());
         }
 
@@ -555,6 +555,15 @@ impl From<f64> for Value {
 impl From<PrimitiveValue> for Value {
     fn from(value: PrimitiveValue) -> Self {
         Self::Primitive(value)
+    }
+}
+
+impl From<Option<PrimitiveValue>> for Value {
+    fn from(value: Option<PrimitiveValue>) -> Self {
+        match value {
+            Some(v) => v.into(),
+            None => Self::None,
+        }
     }
 }
 
@@ -895,7 +904,7 @@ impl From<f64> for PrimitiveValue {
 
 impl Coercible for PrimitiveValue {
     fn coerce(&self, types: &Types, target: Type) -> Result<Self> {
-        if self.ty().type_eq(types, &target) {
+        if target.is_union() || target.is_none() || self.ty().type_eq(types, &target) {
             return Ok(self.clone());
         }
 
@@ -1194,13 +1203,13 @@ pub struct Map {
     /// The type of the map value.
     ty: Type,
     /// The elements of the map value.
-    elements: Arc<IndexMap<PrimitiveValue, Value>>,
+    elements: Arc<IndexMap<Option<PrimitiveValue>, Value>>,
 }
 
 impl Map {
     /// Creates a new `Map` value.
     ///
-    /// Returns an error if an key or value did not coerce to the map's key or
+    /// Returns an error if a key or value did not coerce to the map's key or
     /// value type, respectively.
     ///
     /// # Panics
@@ -1213,7 +1222,7 @@ impl Map {
         elements: impl IntoIterator<Item = (K, V)>,
     ) -> Result<Self>
     where
-        K: Into<PrimitiveValue>,
+        K: Into<Value>,
         V: Into<Value>,
     {
         if let Type::Compound(compound_ty) = ty {
@@ -1231,9 +1240,21 @@ impl Map {
                                 let k = k.into();
                                 let v = v.into();
                                 Ok((
-                                    k.coerce(types, key_type).with_context(|| {
-                                        format!("failed to coerce map key for element at index {i}")
-                                    })?,
+                                    if k.is_none() {
+                                        None
+                                    } else {
+                                        match k.coerce(types, key_type).with_context(|| {
+                                            format!(
+                                                "failed to coerce map key for element at index {i}"
+                                            )
+                                        })? {
+                                            Value::None => None,
+                                            Value::Primitive(v) => Some(v),
+                                            Value::Compound(_) => {
+                                                bail!("not all key values are primitive")
+                                            }
+                                        }
+                                    },
                                     v.coerce(types, value_type).with_context(|| {
                                         format!(
                                             "failed to coerce map value for element at index {i}"
@@ -1252,7 +1273,10 @@ impl Map {
 
     /// Constructs a new map without checking the given elements conform to the
     /// given type.
-    pub(crate) fn new_unchecked(ty: Type, elements: Arc<IndexMap<PrimitiveValue, Value>>) -> Self {
+    pub(crate) fn new_unchecked(
+        ty: Type,
+        elements: Arc<IndexMap<Option<PrimitiveValue>, Value>>,
+    ) -> Self {
         Self { ty, elements }
     }
 
@@ -1262,8 +1286,18 @@ impl Map {
     }
 
     /// Gets the elements of the `Map` value.
-    pub fn elements(&self) -> &IndexMap<PrimitiveValue, Value> {
+    pub fn elements(&self) -> &IndexMap<Option<PrimitiveValue>, Value> {
         &self.elements
+    }
+
+    /// Returns the number of elements in the map.
+    pub fn len(&self) -> usize {
+        self.elements.len()
+    }
+
+    /// Returns `true` if the map has no elements.
+    pub fn is_empty(&self) -> bool {
+        self.elements.is_empty()
     }
 }
 
@@ -1276,7 +1310,10 @@ impl fmt::Display for Map {
                 write!(f, ", ")?;
             }
 
-            write!(f, "{k}: {v}")?;
+            match k {
+                Some(k) => write!(f, "{k}: {v}")?,
+                None => write!(f, "None: {v}")?,
+            }
         }
 
         write!(f, "}}")
@@ -1733,7 +1770,7 @@ impl fmt::Display for CompoundValue {
 
 impl Coercible for CompoundValue {
     fn coerce(&self, types: &Types, target: Type) -> Result<Self> {
-        if self.ty().type_eq(types, &target) {
+        if target.is_union() || target.is_none() || self.ty().type_eq(types, &target) {
             return Ok(self.clone());
         }
 
@@ -1761,7 +1798,9 @@ impl Coercible for CompoundValue {
                     return Ok(Self::Map(Map::new(
                         types,
                         target,
-                        v.elements.iter().map(|(k, v)| (k.clone(), v.clone())),
+                        v.elements.iter().map(|(k, v)| {
+                            (k.clone().map(Into::into).unwrap_or(Value::None), v.clone())
+                        }),
                     )?));
                 }
                 // Pair[W, Y] -> Pair[X, Z] where W -> X and Y -> Z
@@ -1796,7 +1835,8 @@ impl Coercible for CompoundValue {
                                 .iter()
                                 .map(|(k, v)| {
                                     let k: String = k
-                                        .as_string()
+                                        .as_ref()
+                                        .and_then(|k| k.as_string())
                                         .ok_or_else(|| {
                                             anyhow!(
                                                 "cannot coerce a map with a non-string key type \
@@ -1847,7 +1887,7 @@ impl Coercible for CompoundValue {
                                     let v = v.coerce(types, value_ty).with_context(|| {
                                         format!("failed to coerce member `{n}`")
                                     })?;
-                                    Ok((PrimitiveValue::new_string(n), v))
+                                    Ok((PrimitiveValue::new_string(n).into(), v))
                                 })
                                 .collect::<Result<_>>()?,
                         ),
@@ -1949,7 +1989,8 @@ impl Coercible for CompoundValue {
                                 .iter()
                                 .map(|(k, v)| {
                                     let k = k
-                                        .as_string()
+                                        .as_ref()
+                                        .and_then(|k| k.as_string())
                                         .ok_or_else(|| {
                                             anyhow!(
                                                 "cannot coerce a map with a non-string key type \

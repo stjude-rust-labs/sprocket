@@ -47,7 +47,7 @@ fn read_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .with_context(|| format!("failed to open file `{path}`", path = path.display()))
         .map_err(|e| function_call_failed("read_map", format!("{e:?}"), context.call_site))?;
 
-    let mut map: IndexMap<PrimitiveValue, Value> = IndexMap::new();
+    let mut map: IndexMap<Option<PrimitiveValue>, Value> = IndexMap::new();
     for (i, line) in BufReader::new(file).lines().enumerate() {
         let line = line
             .with_context(|| format!("failed to read file `{path}`", path = path.display()))
@@ -70,7 +70,7 @@ fn read_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
         if map
             .insert(
-                PrimitiveValue::new_string(key),
+                Some(PrimitiveValue::new_string(key)),
                 PrimitiveValue::new_string(value).into(),
             )
             .is_some()

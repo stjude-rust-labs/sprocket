@@ -2387,7 +2387,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "prefix",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .type_parameter("P", RequiredPrimitiveTypeConstraint)
+                        .type_parameter("P", PrimitiveTypeConstraint)
                         .parameter(PrimitiveTypeKind::String)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .ret(array_string)
@@ -2406,7 +2406,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("P", RequiredPrimitiveTypeConstraint)
+                        .type_parameter("P", PrimitiveTypeConstraint)
                         .parameter(PrimitiveTypeKind::String)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .ret(array_string)
@@ -2425,7 +2425,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("P", RequiredPrimitiveTypeConstraint)
+                        .type_parameter("P", PrimitiveTypeConstraint)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .ret(array_string)
                         .build(),
@@ -2443,7 +2443,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("P", RequiredPrimitiveTypeConstraint)
+                        .type_parameter("P", PrimitiveTypeConstraint)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .ret(array_string)
                         .build(),
@@ -2461,7 +2461,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("P", RequiredPrimitiveTypeConstraint)
+                        .type_parameter("P", PrimitiveTypeConstraint)
                         .parameter(PrimitiveTypeKind::String)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .ret(PrimitiveTypeKind::String)
@@ -2586,7 +2586,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .type_parameter("P", AnyPrimitiveTypeConstraint)
+                        .type_parameter("P", PrimitiveTypeConstraint)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .parameter(GenericType::Parameter("P"))
                         .ret(PrimitiveTypeKind::Boolean)
@@ -2685,7 +2685,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("K", RequiredPrimitiveTypeConstraint)
+                        .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
                         .parameter(GenericMapType::new(
                             GenericType::Parameter("K"),
@@ -2710,7 +2710,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("K", RequiredPrimitiveTypeConstraint)
+                        .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
                         .parameter(GenericArrayType::new(GenericPairType::new(
                             GenericType::Parameter("K"),
@@ -2735,7 +2735,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("K", RequiredPrimitiveTypeConstraint)
+                        .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
                         .parameter(GenericMapType::new(
                             GenericType::Parameter("K"),
@@ -2744,13 +2744,13 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .ret(GenericArrayType::new(GenericType::Parameter("K")))
                         .build(),
                     FunctionSignature::builder()
-                        .min_version(SupportedVersion::V1(V1::One))
+                        .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("S", StructConstraint)
                         .parameter(GenericType::Parameter("S"))
                         .ret(array_string)
                         .build(),
                     FunctionSignature::builder()
-                        .min_version(SupportedVersion::V1(V1::One))
+                        .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(Type::Object)
                         .ret(array_string)
                         .build(),
@@ -2768,7 +2768,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .type_parameter("K", RequiredPrimitiveTypeConstraint)
+                        .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
                         .parameter(GenericMapType::new(
                             GenericType::Parameter("K"),
@@ -2820,7 +2820,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .type_parameter("K", RequiredPrimitiveTypeConstraint)
+                        .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
                         .parameter(GenericMapType::new(
                             GenericType::Parameter("K"),
@@ -2842,7 +2842,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("K", RequiredPrimitiveTypeConstraint)
+                        .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
                         .parameter(GenericArrayType::new(GenericPairType::new(
                             GenericType::Parameter("K"),
@@ -3008,11 +3008,11 @@ mod test {
             "write_objects(Array[Object]) -> File",
             "write_objects(Array[S]) -> File where `S`: any structure containing only primitive \
              types",
-            "prefix(String, Array[P]) -> Array[String] where `P`: any required primitive type",
-            "suffix(String, Array[P]) -> Array[String] where `P`: any required primitive type",
-            "quote(Array[P]) -> Array[String] where `P`: any required primitive type",
-            "squote(Array[P]) -> Array[String] where `P`: any required primitive type",
-            "sep(String, Array[P]) -> String where `P`: any required primitive type",
+            "prefix(String, Array[P]) -> Array[String] where `P`: any primitive type",
+            "suffix(String, Array[P]) -> Array[String] where `P`: any primitive type",
+            "quote(Array[P]) -> Array[String] where `P`: any primitive type",
+            "squote(Array[P]) -> Array[String] where `P`: any primitive type",
+            "sep(String, Array[P]) -> String where `P`: any primitive type",
             "range(Int) -> Array[Int]",
             "transpose(Array[Array[X]]) -> Array[Array[X]]",
             "cross(Array[X], Array[Y]) -> Array[Pair[X, Y]]",
@@ -3023,19 +3023,18 @@ mod test {
             "flatten(Array[Array[X]]) -> Array[X]",
             "select_first(Array[X], <X>) -> X where `X`: any optional type",
             "select_all(Array[X]) -> Array[X] where `X`: any optional type",
-            "as_pairs(Map[K, V]) -> Array[Pair[K, V]] where `K`: any required primitive type",
-            "as_map(Array[Pair[K, V]]) -> Map[K, V] where `K`: any required primitive type",
-            "keys(Map[K, V]) -> Array[K] where `K`: any required primitive type",
+            "as_pairs(Map[K, V]) -> Array[Pair[K, V]] where `K`: any primitive type",
+            "as_map(Array[Pair[K, V]]) -> Map[K, V] where `K`: any primitive type",
+            "keys(Map[K, V]) -> Array[K] where `K`: any primitive type",
             "keys(S) -> Array[String] where `S`: any structure",
             "keys(Object) -> Array[String]",
-            "contains_key(Map[K, V], K) -> Boolean where `K`: any required primitive type",
+            "contains_key(Map[K, V], K) -> Boolean where `K`: any primitive type",
             "contains_key(Object, String) -> Boolean",
             "contains_key(Map[String, V], Array[String]) -> Boolean",
             "contains_key(S, Array[String]) -> Boolean where `S`: any structure",
             "contains_key(Object, Array[String]) -> Boolean",
-            "values(Map[K, V]) -> Array[V] where `K`: any required primitive type",
-            "collect_by_key(Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any required \
-             primitive type",
+            "values(Map[K, V]) -> Array[V] where `K`: any primitive type",
+            "collect_by_key(Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any primitive type",
             "defined(X) -> Boolean where `X`: any optional type",
             "length(Array[X]) -> Int",
             "length(Map[K, V]) -> Int",
@@ -3135,7 +3134,7 @@ mod test {
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
             index: 0,
-            expected: "`Map[K, V]` where `K`: any required primitive type".into()
+            expected: "`Map[K, V]` where `K`: any primitive type".into()
         });
 
         // Check for Union (i.e. indeterminate)
@@ -3178,13 +3177,14 @@ mod test {
             PrimitiveType::optional(PrimitiveTypeKind::String),
             PrimitiveTypeKind::Boolean,
         ));
-        let e = f
+        let binding = f
             .bind(SupportedVersion::V1(V1::Two), &mut types, &[ty])
-            .expect_err("bind should fail");
-        assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
-            index: 0,
-            expected: "`Map[K, Boolean]` where `K`: any required primitive type".into()
-        });
+            .expect("bind should succeed");
+        assert_eq!(binding.index(), 0);
+        assert_eq!(
+            binding.return_type().display(&types).to_string(),
+            "Array[Boolean]"
+        );
     }
 
     #[test]

@@ -15,16 +15,21 @@ use crate::Coercible;
 use crate::EvaluationContext;
 use crate::Value;
 
+mod as_map;
+mod as_pairs;
 mod basename;
 mod ceil;
 mod chunk;
+mod collect_by_key;
 mod contains;
+mod contains_key;
 mod cross;
 mod find;
 mod flatten;
 mod floor;
 mod glob;
 mod join_paths;
+mod keys;
 mod matches;
 mod max;
 mod min;
@@ -53,6 +58,7 @@ mod sub;
 mod suffix;
 mod transpose;
 mod unzip;
+mod values;
 mod write_json;
 mod write_lines;
 mod write_map;
@@ -285,6 +291,12 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
             func!(flatten),
             func!(select_first),
             func!(select_all),
+            func!(as_pairs),
+            func!(as_map),
+            func!(keys),
+            func!(contains_key),
+            func!(values),
+            func!(collect_by_key),
         ]),
     }
 });

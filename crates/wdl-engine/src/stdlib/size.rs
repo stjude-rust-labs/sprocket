@@ -116,7 +116,12 @@ fn compound_disk_size(value: &CompoundValue, unit: StorageUnit, cwd: &Path) -> R
             anyhow::Ok(t + calculate_disk_size(e, unit, cwd)?)
         })?),
         CompoundValue::Map(map) => Ok(map.elements().iter().try_fold(0.0, |t, (k, v)| {
-            anyhow::Ok(t + primitive_disk_size(k, unit, cwd)? + calculate_disk_size(v, unit, cwd)?)
+            anyhow::Ok(
+                t + match k {
+                    Some(k) => primitive_disk_size(k, unit, cwd)?,
+                    None => 0.0,
+                } + calculate_disk_size(v, unit, cwd)?,
+            )
         })?),
         CompoundValue::Object(object) => {
             Ok(object.members().iter().try_fold(0.0, |t, (_, v)| {

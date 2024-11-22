@@ -36,6 +36,7 @@ fn prefix(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .elements()
         .iter()
         .map(|v| match v {
+            Value::None => PrimitiveValue::String(prefix.clone()).into(),
             Value::Primitive(v) => {
                 PrimitiveValue::new_string(format!("{prefix}{v}", v = v.raw())).into()
             }
@@ -51,7 +52,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(String, Array[P]) -> Array[String] where `P`: any required primitive type",
+                "(String, Array[P]) -> Array[String] where `P`: any primitive type",
                 prefix,
             )]
         },
@@ -99,6 +100,16 @@ mod test {
             .map(|v| v.as_string().unwrap().as_str())
             .collect();
         assert_eq!(elements, ["foobar", "foobaz", "fooqux"]);
+
+        let value = eval_v1_expr(&mut env, V1::Zero, "prefix('foo', [1, None, 3])").unwrap();
+        let elements: Vec<_> = value
+            .as_array()
+            .unwrap()
+            .elements()
+            .iter()
+            .map(|v| v.as_string().unwrap().as_str())
+            .collect();
+        assert_eq!(elements, ["foo1", "foo", "foo3"]);
 
         let value = eval_v1_expr(&mut env, V1::One, "prefix('foo', [])").unwrap();
         assert!(value.unwrap_array().is_empty());

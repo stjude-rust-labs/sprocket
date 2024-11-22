@@ -397,7 +397,7 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                     let value = self.evaluate_expr(&expr)?;
                     let actual = value.ty();
 
-                    if let Some(ty) = actual.common_type(self.context.types(), expected) {
+                    if let Some(ty) = expected.common_type(self.context.types_mut(), actual) {
                         expected = ty;
                         expected_span = expr.span();
                     } else {
@@ -458,10 +458,9 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                 let mut expected_value_span = value.span();
 
                 // The key type must be primitive
-                match expected_key {
-                    Value::Primitive(key) => {
-                        elements.push((key, expected_value));
-                    }
+                let key = match expected_key {
+                    Value::None => None,
+                    Value::Primitive(key) => Some(key),
                     _ => {
                         return Err(map_key_not_primitive(
                             self.context.types(),
@@ -469,7 +468,9 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                             expected_key.ty(),
                         ));
                     }
-                }
+                };
+
+                elements.push((key, expected_value));
 
                 // Ensure the remaining items types share common types
                 for item in items {
@@ -480,7 +481,7 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                     let actual_value_ty = actual_value.ty();
 
                     if let Some(ty) =
-                        actual_key_ty.common_type(self.context.types(), expected_key_ty)
+                        expected_key_ty.common_type(self.context.types_mut(), actual_key_ty)
                     {
                         expected_key_ty = ty;
                         expected_key_span = key.span();
@@ -496,7 +497,7 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                     }
 
                     if let Some(ty) =
-                        actual_value_ty.common_type(self.context.types(), expected_value_ty)
+                        expected_value_ty.common_type(self.context.types_mut(), actual_value_ty)
                     {
                         expected_value_ty = ty;
                         expected_value_span = value.span();
@@ -511,12 +512,13 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                         ));
                     }
 
-                    match actual_key {
-                        Value::Primitive(key) => {
-                            elements.push((key, actual_value));
-                        }
+                    let key = match actual_key {
+                        Value::None => None,
+                        Value::Primitive(key) => Some(key),
                         _ => panic!("the key type is not primitive, but had a common type"),
-                    }
+                    };
+
+                    elements.push((key, actual_value));
                 }
 
                 (expected_key_ty, expected_value_ty, elements)
@@ -718,8 +720,8 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
 
         // Determine the common type of the true and false expressions
         // The value must be coerced to that type
-        let ty = false_ty
-            .common_type(self.context.types(), true_ty)
+        let ty = true_ty
+            .common_type(self.context.types_mut(), false_ty)
             .ok_or_else(|| {
                 no_common_type(
                     self.context.types(),
@@ -1141,22 +1143,31 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                     _ => panic!("expected a map type"),
                 };
 
-                match self.evaluate_expr(&index)? {
+                let i = match self.evaluate_expr(&index)? {
+                    Value::None
+                        if Type::None.is_coercible_to(self.context.types(), &key_type.into()) =>
+                    {
+                        None
+                    }
                     Value::Primitive(i)
                         if i.ty()
                             .is_coercible_to(self.context.types(), &key_type.into()) =>
                     {
-                        match map.elements().get(&i) {
-                            Some(value) => Ok(value.clone()),
-                            None => Err(map_key_not_found(index.span())),
-                        }
+                        Some(i)
                     }
-                    value => Err(index_type_mismatch(
-                        self.context.types(),
-                        key_type.into(),
-                        value.ty(),
-                        index.span(),
-                    )),
+                    value => {
+                        return Err(index_type_mismatch(
+                            self.context.types(),
+                            key_type.into(),
+                            value.ty(),
+                            index.span(),
+                        ));
+                    }
+                };
+
+                match map.elements().get(&i) {
+                    Some(value) => Ok(value.clone()),
+                    None => Err(map_key_not_found(index.span())),
                 }
             }
             value => Err(cannot_index(

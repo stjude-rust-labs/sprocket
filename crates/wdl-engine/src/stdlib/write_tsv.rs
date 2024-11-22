@@ -334,6 +334,7 @@ fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             }
 
             match column {
+                Value::None => {}
                 Value::Primitive(v) => {
                     if !write_tsv_value(&mut writer, v).map_err(write_error)? {
                         return Err(function_call_failed(
@@ -403,6 +404,8 @@ mod test {
     use std::fs;
 
     use pretty_assertions::assert_eq;
+    use wdl_analysis::types::Optional;
+    use wdl_analysis::types::PrimitiveType;
     use wdl_analysis::types::PrimitiveTypeKind;
     use wdl_analysis::types::StructType;
     use wdl_ast::version::V1;
@@ -415,9 +418,12 @@ mod test {
         let mut env = TestEnv::default();
 
         let ty = env.types_mut().add_struct(StructType::new("Foo", [
-            ("foo", PrimitiveTypeKind::Integer),
-            ("bar", PrimitiveTypeKind::String),
-            ("baz", PrimitiveTypeKind::Boolean),
+            ("foo", PrimitiveType::from(PrimitiveTypeKind::Integer)),
+            ("bar", PrimitiveType::from(PrimitiveTypeKind::String)),
+            (
+                "baz",
+                PrimitiveType::from(PrimitiveTypeKind::Boolean).optional(),
+            ),
         ]));
 
         env.insert_struct("Foo", ty);
@@ -530,8 +536,8 @@ mod test {
         let value = eval_v1_expr(
             &mut env,
             V1::Two,
-            "write_tsv([Foo { foo: 1, bar: 'hi', baz: true }, Foo { foo: 1234, bar: 'there', baz: \
-             false }], false)",
+            "write_tsv([Foo { foo: 1, bar: 'hi', baz: false }, Foo { foo: 1234, bar: 'there' }], \
+             false)",
         )
         .unwrap();
         assert!(
@@ -544,7 +550,7 @@ mod test {
         );
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
-            "1\thi\ttrue\n1234\tthere\tfalse\n",
+            "1\thi\tfalse\n1234\tthere\t\n",
         );
 
         let value = eval_v1_expr(
@@ -570,8 +576,8 @@ mod test {
         let value = eval_v1_expr(
             &mut env,
             V1::Two,
-            "write_tsv([Foo { foo: 1, bar: 'hi', baz: true }, Foo { foo: 1234, bar: 'there', baz: \
-             false }], true, ['qux', 'jam', 'cakes'])",
+            "write_tsv([Foo { foo: 1, bar: 'hi' }, Foo { foo: 1234, bar: 'there', baz: false }], \
+             true, ['qux', 'jam', 'cakes'])",
         )
         .unwrap();
         assert!(
@@ -584,7 +590,7 @@ mod test {
         );
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
-            "qux\tjam\tcakes\n1\thi\ttrue\n1234\tthere\tfalse\n",
+            "qux\tjam\tcakes\n1\thi\t\n1234\tthere\tfalse\n",
         );
 
         let diagnostic = eval_v1_expr(

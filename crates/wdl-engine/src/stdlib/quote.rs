@@ -31,6 +31,7 @@ fn quote(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .elements()
         .iter()
         .map(|v| match v {
+            Value::None => PrimitiveValue::new_string("\"\"").into(),
             Value::Primitive(v) => {
                 PrimitiveValue::new_string(format!("\"{v}\"", v = v.raw())).into()
             }
@@ -46,7 +47,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(Array[P]) -> Array[String] where `P`: any required primitive type",
+                "(Array[P]) -> Array[String] where `P`: any primitive type",
                 quote,
             )]
         },
@@ -93,6 +94,16 @@ mod test {
             .map(|v| v.as_string().unwrap().as_str())
             .collect();
         assert_eq!(elements, [r#""bar""#, r#""baz""#, r#""qux""#]);
+
+        let value = eval_v1_expr(&mut env, V1::One, "quote(['bar', None, 'qux'])").unwrap();
+        let elements: Vec<_> = value
+            .as_array()
+            .unwrap()
+            .elements()
+            .iter()
+            .map(|v| v.as_string().unwrap().as_str())
+            .collect();
+        assert_eq!(elements, [r#""bar""#, r#""""#, r#""qux""#]);
 
         let value = eval_v1_expr(&mut env, V1::One, "quote([])").unwrap();
         assert!(value.unwrap_array().is_empty());

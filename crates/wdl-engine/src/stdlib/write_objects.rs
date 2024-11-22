@@ -137,6 +137,7 @@ fn write_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
                 }
 
                 match v {
+                    Value::None => {}
                     Value::Primitive(v) => {
                         if !write_tsv_value(&mut writer, v).map_err(write_error)? {
                             return Err(function_call_failed(
@@ -259,6 +260,26 @@ mod test {
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             "foo\tbar\tbaz\nbar\t1\t3.5\nfoo\t101\t1234\n",
+        );
+
+        let value = eval_v1_expr(
+            &mut env,
+            V1::Two,
+            "write_objects([object { foo: 'bar', bar: 1, baz: 3.5 }, object { foo: 'foo', bar: \
+             None, baz: 1234 }, ])",
+        )
+        .unwrap();
+        assert!(
+            value
+                .as_file()
+                .expect("should be file")
+                .as_str()
+                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+            "file should be in temp directory"
+        );
+        assert_eq!(
+            fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
+            "foo\tbar\tbaz\nbar\t1\t3.5\nfoo\t\t1234\n",
         );
 
         let value = eval_v1_expr(

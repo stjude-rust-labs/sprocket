@@ -182,37 +182,11 @@ impl Constraint for JsonSerializableConstraint {
     }
 }
 
-/// Represents a constraint that ensures the type is a required primitive type.
+/// Represents a constraint that ensures the type is a primitive type.
 #[derive(Debug, Copy, Clone)]
-pub struct RequiredPrimitiveTypeConstraint;
+pub struct PrimitiveTypeConstraint;
 
-impl Constraint for RequiredPrimitiveTypeConstraint {
-    fn description(&self) -> &'static str {
-        "any required primitive type"
-    }
-
-    fn satisfied(&self, _: &Types, ty: Type) -> bool {
-        match ty {
-            Type::Primitive(ty) => !ty.is_optional(),
-            // Treat unions as primitive as they can only be checked at runtime
-            Type::Union => true,
-            Type::Compound(_)
-            | Type::Object
-            | Type::OptionalObject
-            | Type::None
-            | Type::Task
-            | Type::Hints
-            | Type::Input
-            | Type::Output => false,
-        }
-    }
-}
-
-/// Represents a constraint that ensures the type is any primitive type.
-#[derive(Debug, Copy, Clone)]
-pub struct AnyPrimitiveTypeConstraint;
-
-impl Constraint for AnyPrimitiveTypeConstraint {
+impl Constraint for PrimitiveTypeConstraint {
     fn description(&self) -> &'static str {
         "any primitive type"
     }
@@ -542,71 +516,8 @@ mod test {
     }
 
     #[test]
-    fn test_required_primitive_constraint() {
-        let constraint = RequiredPrimitiveTypeConstraint;
-        let mut types = Types::default();
-
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Boolean).into()
-        ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Integer).into()
-        ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Float).into()
-        ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::String).into()
-        ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::File).into()
-        ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Directory).into()
-        ));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Boolean.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Integer.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Float.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::String.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::File.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Directory.into()));
-        assert!(!constraint.satisfied(&types, Type::Object));
-        assert!(!constraint.satisfied(&types, Type::OptionalObject));
-        assert!(constraint.satisfied(&types, Type::Union));
-        assert!(!constraint.satisfied(&types, Type::None));
-
-        let ty = types.add_array(ArrayType::non_empty(PrimitiveTypeKind::String));
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_pair(PairType::new(
-                PrimitiveTypeKind::String,
-                PrimitiveTypeKind::String,
-            ))
-            .optional();
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types.add_map(MapType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::String,
-        ));
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_struct(StructType::new("Foo", [("foo", PrimitiveTypeKind::String)]))
-            .optional();
-        assert!(!constraint.satisfied(&types, ty));
-    }
-
-    #[test]
-    fn test_any_primitive_constraint() {
-        let constraint = AnyPrimitiveTypeConstraint;
+    fn test_primitive_constraint() {
+        let constraint = PrimitiveTypeConstraint;
         let mut types = Types::default();
 
         assert!(constraint.satisfied(

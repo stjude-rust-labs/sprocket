@@ -59,7 +59,11 @@ fn write_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         writeln!(
             &mut writer,
             "{key}\t{value}",
-            key = key.as_string().unwrap(),
+            key = key
+                .as_ref()
+                .expect("key should not be optional")
+                .as_string()
+                .unwrap(),
             value = value.as_string().unwrap()
         )
         .map_err(write_error)?;

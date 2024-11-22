@@ -669,7 +669,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 // Ensure the remaining element types share a common type
                 for expr in elements {
                     if let Some(actual) = self.evaluate_expr(&expr) {
-                        if let Some(ty) = actual.common_type(self.context.types(), expected) {
+                        if let Some(ty) = expected.common_type(self.context.types_mut(), actual) {
                             expected = ty;
                             expected_span = expr.span();
                         } else {
@@ -747,7 +747,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     if let Some(actual_key) = self.evaluate_expr(&key) {
                         if let Some(actual_value) = self.evaluate_expr(&value) {
                             if let Some(ty) =
-                                actual_key.common_type(self.context.types(), expected_key)
+                                expected_key.common_type(self.context.types_mut(), actual_key)
                             {
                                 expected_key = ty;
                                 expected_key_span = key.span();
@@ -762,7 +762,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                             }
 
                             if let Some(ty) =
-                                actual_value.common_type(self.context.types(), expected_value)
+                                expected_value.common_type(self.context.types_mut(), actual_value)
                             {
                                 expected_value = ty;
                                 expected_value_span = value.span();
@@ -1135,7 +1135,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             (Type::Union, _) => Some(false_ty),
             (_, Type::Union) => Some(true_ty),
             _ => {
-                if let Some(ty) = true_ty.common_type(self.context.types(), false_ty) {
+                if let Some(ty) = true_ty.common_type(self.context.types_mut(), false_ty) {
                     Some(ty)
                 } else {
                     self.diagnostics.push(type_mismatch(

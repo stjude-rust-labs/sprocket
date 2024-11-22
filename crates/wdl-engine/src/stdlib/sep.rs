@@ -45,6 +45,7 @@ fn sep(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             }
 
             match v {
+                Value::None => {}
                 Value::Primitive(v) => {
                     write!(&mut s, "{v}", v = v.raw()).expect("failed to write to a string")
                 }
@@ -62,7 +63,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(String, Array[P]) -> String where `P`: any required primitive type",
+                "(String, Array[P]) -> String where `P`: any primitive type",
                 sep,
             )]
         },
@@ -93,6 +94,9 @@ mod test {
 
         let value = eval_v1_expr(&mut env, V1::One, "sep(' ', ['a', 'b', 'c'])").unwrap();
         assert_eq!(value.unwrap_string().as_str(), "a b c");
+
+        let value = eval_v1_expr(&mut env, V1::One, "sep(' ', ['a', None, 'c'])").unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "a  c");
 
         let value = eval_v1_expr(&mut env, V1::One, "sep(',', [1])").unwrap();
         assert_eq!(value.unwrap_string().as_str(), "1");

@@ -72,6 +72,7 @@ fn write_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             }
 
             match value {
+                Value::None => {}
                 Value::Primitive(v) => {
                     if !write_tsv_value(&mut writer, v).map_err(write_error)? {
                         return Err(function_call_failed(
@@ -211,6 +212,25 @@ mod test {
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             "foo\tbar\tbaz\n1\tfoo\ttrue\n",
+        );
+
+        let value = eval_v1_expr(
+            &mut env,
+            V1::Two,
+            "write_object(object { foo: 1, bar: None, baz: true })",
+        )
+        .unwrap();
+        assert!(
+            value
+                .as_file()
+                .expect("should be file")
+                .as_str()
+                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+            "file should be in temp directory"
+        );
+        assert_eq!(
+            fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
+            "foo\tbar\tbaz\n1\t\ttrue\n",
         );
 
         let diagnostic =

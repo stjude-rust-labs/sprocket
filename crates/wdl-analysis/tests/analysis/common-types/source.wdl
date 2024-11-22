@@ -28,4 +28,14 @@ workflow test {
     String? n = if (true) then "foo" else file
     String? o = if (false) then None else file
     String? p = if (true) then file else None
+
+    # Tests for compound types
+    Array[String?] q = ["foo", None, "baz"]
+    Array[String?] r = ["foo", "bar", "baz"]
+    Array[Pair[String?, Float]] s = [("foo", 1.0), (None, 2), ("baz", 3)]
+    Map[String?, Float] t = { "foo": 1, None: 1.0 }
+    Map[String?, String] u = { None: "bar", "foo": "baz" }
+    Map[String?, Pair[Array[String?]?, Int]] v = { None: (["foo", None], 1), "foo": (None, 2) }
+    Array[File]? w = ["foo"]
+    Array[String] x = select_first([w, ["foo"]])
 }

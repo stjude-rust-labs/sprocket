@@ -344,10 +344,26 @@ impl Type {
     /// Calculates a common type between this type and the given type.
     ///
     /// Returns `None` if the types have no common type.
-    pub fn common_type(&self, types: &Types, other: Type) -> Option<Type> {
-        // Check for this type being coercible to the other type
-        if self.is_coercible_to(types, &other) {
+    pub fn common_type(&self, types: &mut Types, other: Type) -> Option<Type> {
+        // If the other type is union, then the common type would be this type
+        if other.is_union() {
+            return Some(*self);
+        }
+
+        // If this type is union, then the common type would be the other type
+        if self.is_union() {
             return Some(other);
+        }
+
+        // If the other type is `None`, then the common type would be an optional this
+        // type
+        if other.is_none() {
+            return Some(self.optional());
+        }
+
+        // If this type is `None`, then the common type would be an optional other type
+        if self.is_none() {
+            return Some(other.optional());
         }
 
         // Check for the other type being coercible to this type
@@ -355,16 +371,16 @@ impl Type {
             return Some(*self);
         }
 
-        // Check for `None` for this type; the common type would be an optional other
-        // type
-        if self.is_none() {
-            return Some(other.optional());
+        // Check for this type being coercible to the other type
+        if self.is_coercible_to(types, &other) {
+            return Some(other);
         }
 
-        // Check for `None` for the other type; the common type would be an optional
-        // this type
-        if other.is_none() {
-            return Some(self.optional());
+        // Check for a compound type that might have a common type within it
+        if let (Some(this), Some(other)) = (self.as_compound(), other.as_compound()) {
+            if let Some(ty) = this.common_type(types, other) {
+                return Some(ty);
+            }
         }
 
         None
@@ -584,6 +600,41 @@ impl CompoundType {
             types,
             ty: types.type_definition(self.definition),
             optional: self.optional,
+        }
+    }
+
+    /// Calculates a common type between two compound types.
+    ///
+    /// This method does not attempt coercion; it only attempts to find common
+    /// inner types for the same outer type.
+    fn common_type(&self, types: &mut Types, other: Self) -> Option<Type> {
+        // Check to see if the types are both `Array`, `Pair`, or `Map`; if so, attempt
+        // to find a common type for their inner types
+        match (
+            types.type_definition(self.definition),
+            types.type_definition(other.definition),
+        ) {
+            (CompoundTypeDef::Array(this), CompoundTypeDef::Array(other)) => {
+                let this = *this;
+                let other = *other;
+                let element_type = this.element_type.common_type(types, other.element_type)?;
+                Some(types.add_array(ArrayType::new(element_type)))
+            }
+            (CompoundTypeDef::Pair(this), CompoundTypeDef::Pair(other)) => {
+                let this = *this;
+                let other = *other;
+                let left_type = this.left_type.common_type(types, other.left_type)?;
+                let right_type = this.right_type.common_type(types, other.right_type)?;
+                Some(types.add_pair(PairType::new(left_type, right_type)))
+            }
+            (CompoundTypeDef::Map(this), CompoundTypeDef::Map(other)) => {
+                let this = *this;
+                let other = *other;
+                let key_type = this.key_type.common_type(types, other.key_type)?;
+                let value_type = this.value_type.common_type(types, other.value_type)?;
+                Some(types.add_map(MapType::new(key_type, value_type)))
+            }
+            _ => None,
         }
     }
 
