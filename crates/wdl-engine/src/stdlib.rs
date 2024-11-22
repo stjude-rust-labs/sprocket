@@ -24,12 +24,14 @@ mod collect_by_key;
 mod contains;
 mod contains_key;
 mod cross;
+mod defined;
 mod find;
 mod flatten;
 mod floor;
 mod glob;
 mod join_paths;
 mod keys;
+mod length;
 mod matches;
 mod max;
 mod min;
@@ -297,6 +299,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
             func!(contains_key),
             func!(values),
             func!(collect_by_key),
+            func!(defined),
+            func!(length),
         ]),
     }
 });
@@ -352,10 +356,9 @@ mod test {
                         }
                     }
                 },
-                None => {
-                    // TODO: make this a failure in the future once the entire STDLIB is implemented
-                    continue;
-                }
+                None => panic!(
+                    "missing function `{name}` in the engine's standard library implementation"
+                ),
             }
         }
     }

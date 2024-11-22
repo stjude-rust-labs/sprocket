@@ -571,6 +571,7 @@ fn add_task(
         match graph[index].clone() {
             TaskGraphNode::Input(decl) => {
                 if !add_decl(
+                    config,
                     document,
                     ScopeRefMut::new(&mut scopes, ScopeIndex(0)),
                     &decl,
@@ -603,6 +604,7 @@ fn add_task(
             }
             TaskGraphNode::Decl(decl) => {
                 if !add_decl(
+                    config,
                     document,
                     ScopeRefMut::new(&mut scopes, ScopeIndex(0)),
                     &decl,
@@ -637,6 +639,7 @@ fn add_task(
                     )
                 });
                 add_decl(
+                    config,
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &decl,
@@ -656,7 +659,7 @@ fn add_task(
                 });
 
                 let mut context =
-                    EvaluationContext::new(document, ScopeRef::new(&scopes, scope_index));
+                    EvaluationContext::new(document, ScopeRef::new(&scopes, scope_index), config);
                 let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
                 for part in section.parts() {
                     if let CommandPart::Placeholder(p) = part {
@@ -667,7 +670,7 @@ fn add_task(
             TaskGraphNode::Runtime(section) => {
                 // Perform type checking on the runtime section's expressions
                 let mut context =
-                    EvaluationContext::new(document, ScopeRef::new(&scopes, ScopeIndex(0)));
+                    EvaluationContext::new(document, ScopeRef::new(&scopes, ScopeIndex(0)), config);
                 let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
                 for item in section.items() {
                     evaluator.evaluate_runtime_item(&item.name(), &item.expr());
@@ -676,7 +679,7 @@ fn add_task(
             TaskGraphNode::Requirements(section) => {
                 // Perform type checking on the requirements section's expressions
                 let mut context =
-                    EvaluationContext::new(document, ScopeRef::new(&scopes, ScopeIndex(0)));
+                    EvaluationContext::new(document, ScopeRef::new(&scopes, ScopeIndex(0)), config);
                 let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
                 for item in section.items() {
                     evaluator.evaluate_requirements_item(&item.name(), &item.expr());
@@ -687,6 +690,7 @@ fn add_task(
                 let mut context = EvaluationContext::new_for_task(
                     document,
                     ScopeRef::new(&scopes, ScopeIndex(0)),
+                    config,
                     TaskEvaluationContext::new(name.as_str(), &inputs, &outputs),
                 );
                 let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
@@ -711,6 +715,7 @@ fn add_task(
 
 /// Adds a declaration to a scope.
 fn add_decl(
+    config: DiagnosticsConfig,
     document: &mut Document,
     mut scope: ScopeRefMut<'_>,
     decl: &Decl,
@@ -729,8 +734,9 @@ fn add_decl(
 
     if let Some(expr) = expr {
         type_check_expr(
+            config,
             document,
-            scope.into_scope_ref(),
+            scope.as_scope_ref(),
             &expr,
             ty,
             name.span(),
@@ -817,6 +823,7 @@ fn populate_workflow(
         match graph[index].clone() {
             WorkflowGraphNode::Input(decl) => {
                 if !add_decl(
+                    config,
                     document,
                     ScopeRefMut::new(&mut scopes, ScopeIndex(0)),
                     &decl,
@@ -854,6 +861,7 @@ fn populate_workflow(
                     .unwrap_or(ScopeIndex(0));
 
                 if !add_decl(
+                    config,
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &decl,
@@ -891,6 +899,7 @@ fn populate_workflow(
                     )
                 });
                 add_decl(
+                    config,
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &decl,
@@ -904,6 +913,7 @@ fn populate_workflow(
                     .copied()
                     .unwrap_or(ScopeIndex(0));
                 add_conditional_statement(
+                    config,
                     document,
                     &mut scopes,
                     parent,
@@ -918,6 +928,7 @@ fn populate_workflow(
                     .copied()
                     .unwrap_or(ScopeIndex(0));
                 add_scatter_statement(
+                    config,
                     document,
                     &mut scopes,
                     parent,
@@ -932,10 +943,10 @@ fn populate_workflow(
                     .copied()
                     .unwrap_or(ScopeIndex(0));
                 add_call_statement(
+                    config,
                     document,
                     workflow.name().as_str(),
-                    &mut scopes,
-                    scope_index,
+                    ScopeRefMut::new(&mut scopes, scope_index),
                     &statement,
                     document
                         .workflow
@@ -1011,6 +1022,7 @@ fn populate_workflow(
 
 /// Adds a conditional statement to the current scope.
 fn add_conditional_statement(
+    config: DiagnosticsConfig,
     document: &mut Document,
     scopes: &mut Vec<Scope>,
     parent: ScopeIndex,
@@ -1026,7 +1038,7 @@ fn add_conditional_statement(
 
     // Evaluate the statement's expression; it is expected to be a boolean
     let expr = statement.expr();
-    let mut context = EvaluationContext::new(document, ScopeRef::new(scopes, scope_index));
+    let mut context = EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config);
     let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
     let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
 
@@ -1037,6 +1049,7 @@ fn add_conditional_statement(
 
 /// Adds a scatter statement to the current scope.
 fn add_scatter_statement(
+    config: DiagnosticsConfig,
     document: &mut Document,
     scopes: &mut Vec<Scope>,
     parent: ScopeIndex,
@@ -1052,7 +1065,7 @@ fn add_scatter_statement(
 
     // Evaluate the statement expression; it is expected to be an array
     let expr = statement.expr();
-    let mut context = EvaluationContext::new(document, ScopeRef::new(scopes, scope_index));
+    let mut context = EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config);
     let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
     let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
     let element_ty = match ty {
@@ -1079,10 +1092,10 @@ fn add_scatter_statement(
 
 /// Adds a call statement to the current scope.
 fn add_call_statement(
+    config: DiagnosticsConfig,
     document: &mut Document,
     workflow_name: &str,
-    scopes: &mut [Scope],
-    index: ScopeIndex,
+    mut scope: ScopeRefMut<'_>,
     statement: &CallStatement,
     nested_inputs_allowed: bool,
     diagnostics: &mut Vec<Diagnostic>,
@@ -1119,8 +1132,9 @@ fn add_call_statement(
             match input.expr() {
                 Some(expr) => {
                     type_check_expr(
+                        config,
                         document,
-                        ScopeRef::new(scopes, index),
+                        scope.as_scope_ref(),
                         &expr,
                         expected_ty,
                         input_name.span(),
@@ -1128,7 +1142,7 @@ fn add_call_statement(
                     );
                 }
                 None => {
-                    if let Some(name) = ScopeRef::new(scopes, index).lookup(input_name.as_str()) {
+                    if let Some(name) = scope.lookup(input_name.as_str()) {
                         if !matches!(expected_ty, Type::Union)
                             && !name.ty.is_coercible_to(&document.types, &expected_ty)
                         {
@@ -1173,8 +1187,8 @@ fn add_call_statement(
     };
 
     // Don't modify the scope if there's a conflict
-    if ScopeRef::new(scopes, index).lookup(name.as_str()).is_none() {
-        scopes[index.0].insert(name.as_str(), name.span(), ty);
+    if scope.lookup(name.as_str()).is_none() {
+        scope.insert(name.as_str(), name.span(), ty);
     }
 }
 
@@ -1480,6 +1494,8 @@ struct EvaluationContext<'a> {
     document: &'a mut Document,
     /// The current evaluation scope.
     scope: ScopeRef<'a>,
+    /// The diagnostics configuration to use for expression evaluation.
+    config: DiagnosticsConfig,
     /// The context of the task being evaluated.
     ///
     /// This is only `Some` when evaluating a task's `hints` section.`
@@ -1488,10 +1504,11 @@ struct EvaluationContext<'a> {
 
 impl<'a> EvaluationContext<'a> {
     /// Constructs a new expression type evaluation context.
-    pub fn new(document: &'a mut Document, scope: ScopeRef<'a>) -> Self {
+    pub fn new(document: &'a mut Document, scope: ScopeRef<'a>, config: DiagnosticsConfig) -> Self {
         Self {
             document,
             scope,
+            config,
             task: None,
         }
     }
@@ -1504,11 +1521,13 @@ impl<'a> EvaluationContext<'a> {
     pub fn new_for_task(
         document: &'a mut Document,
         scope: ScopeRef<'a>,
+        config: DiagnosticsConfig,
         task: TaskEvaluationContext<'a>,
     ) -> Self {
         Self {
             document,
             scope,
+            config,
             task: Some(task),
         }
     }
@@ -1571,10 +1590,15 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     fn supports_output_type(&self) -> bool {
         self.task.is_some()
     }
+
+    fn diagnostics_config(&self) -> DiagnosticsConfig {
+        self.config
+    }
 }
 
 /// Performs a type check of an expression.
 fn type_check_expr(
+    config: DiagnosticsConfig,
     document: &mut Document,
     scope: ScopeRef<'_>,
     expr: &Expr,
@@ -1582,7 +1606,7 @@ fn type_check_expr(
     expected_span: Span,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let mut context = EvaluationContext::new(document, scope);
+    let mut context = EvaluationContext::new(document, scope, config);
     let mut evaluator = ExprTypeEvaluator::new(&mut context, diagnostics);
     let actual = evaluator.evaluate_expr(expr).unwrap_or(Type::Union);
 

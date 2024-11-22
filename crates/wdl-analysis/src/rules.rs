@@ -14,6 +14,9 @@ pub const UNUSED_DECL_RULE_ID: &str = "UnusedDeclaration";
 /// The rule identifier for unused call warnings.
 pub const UNUSED_CALL_RULE_ID: &str = "UnusedCall";
 
+/// The rule identifier for unnecessary function call warnings.
+pub const UNNECESSARY_FUNCTION_CALL: &str = "UnnecessaryFunctionCall";
+
 /// A trait implemented by analysis rules.
 pub trait Rule: Send + Sync {
     /// The unique identifier for the rule.
@@ -44,6 +47,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<UnusedInputRule>::default(),
         Box::<UnusedDeclarationRule>::default(),
         Box::<UnusedCallRule>::default(),
+        Box::<UnnecessaryFunctionCall>::default(),
     ];
 
     // Ensure all the rule ids are unique and pascal case
@@ -215,6 +219,45 @@ impl Rule for UnusedCallRule {
 
     fn explanation(&self) -> &'static str {
         "Unused calls may cause unnecessary consumption of compute resources."
+    }
+
+    fn deny(&mut self) {
+        self.0 = Severity::Error;
+    }
+
+    fn severity(&self) -> Severity {
+        self.0
+    }
+}
+
+/// Represents the unnecessary call rule.
+#[derive(Debug, Clone, Copy)]
+pub struct UnnecessaryFunctionCall(Severity);
+
+impl UnnecessaryFunctionCall {
+    /// Creates a new unnecessary function call rule.
+    pub fn new() -> Self {
+        Self(Severity::Warning)
+    }
+}
+
+impl Default for UnnecessaryFunctionCall {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Rule for UnnecessaryFunctionCall {
+    fn id(&self) -> &'static str {
+        UNNECESSARY_FUNCTION_CALL
+    }
+
+    fn description(&self) -> &'static str {
+        "Ensures that function calls are necessary."
+    }
+
+    fn explanation(&self) -> &'static str {
+        "Unnecessary function calls may impact evaluation performance."
     }
 
     fn deny(&mut self) {

@@ -2646,7 +2646,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 // signature of `X select_first(Array[X?], [X])`.
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .type_parameter("X", OptionalTypeConstraint)
+                        .any_type_parameter("X")
                         .required(1)
                         .parameter(GenericArrayType::new(GenericType::Parameter("X")))
                         .parameter(GenericType::UnqualifiedParameter("X"))
@@ -2665,7 +2665,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "select_all",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .type_parameter("X", OptionalTypeConstraint)
+                        .any_type_parameter("X")
                         .parameter(GenericArrayType::new(GenericType::Parameter("X")))
                         .ret(GenericArrayType::new(GenericType::UnqualifiedParameter(
                             "X"
@@ -2866,7 +2866,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "defined",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .type_parameter("X", OptionalTypeConstraint)
+                        .any_type_parameter("X")
                         .parameter(GenericType::Parameter("X"))
                         .ret(PrimitiveTypeKind::Boolean)
                         .build(),
@@ -3021,8 +3021,8 @@ mod test {
             "contains(Array[P], P) -> Boolean where `P`: any primitive type",
             "chunk(Array[X], Int) -> Array[Array[X]]",
             "flatten(Array[Array[X]]) -> Array[X]",
-            "select_first(Array[X], <X>) -> X where `X`: any optional type",
-            "select_all(Array[X]) -> Array[X] where `X`: any optional type",
+            "select_first(Array[X], <X>) -> X",
+            "select_all(Array[X]) -> Array[X]",
             "as_pairs(Map[K, V]) -> Array[Pair[K, V]] where `K`: any primitive type",
             "as_map(Array[Pair[K, V]]) -> Map[K, V] where `K`: any primitive type",
             "keys(Map[K, V]) -> Array[K] where `K`: any primitive type",
@@ -3035,7 +3035,7 @@ mod test {
             "contains_key(Object, Array[String]) -> Boolean",
             "values(Map[K, V]) -> Array[V] where `K`: any primitive type",
             "collect_by_key(Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any primitive type",
-            "defined(X) -> Boolean where `X`: any optional type",
+            "defined(X) -> Boolean",
             "length(Array[X]) -> Int",
             "length(Map[K, V]) -> Int",
             "length(Object) -> Int",
@@ -3194,15 +3194,16 @@ mod test {
 
         let mut types = Types::new();
 
-        // Check for a Array[String] (type mismatch due to constraint)
+        // Check for a Array[String]
         let array_string = types.add_array(ArrayType::new(PrimitiveTypeKind::String));
-        let e = f
-            .bind(SupportedVersion::V1(V1::Zero), &mut types, &[array_string])
-            .expect_err("bind should fail");
-        assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
-            index: 0,
-            expected: "`Array[X]` where `X`: any optional type".into()
-        });
+        let binding = f
+            .bind(SupportedVersion::V1(V1::One), &mut types, &[array_string])
+            .expect("bind should succeed");
+        assert_eq!(binding.index(), 0);
+        assert_eq!(
+            binding.return_type().display(&types).to_string(),
+            "Array[String]"
+        );
 
         // Check for a Array[String?] -> Array[String]
         let array_optional_string = types.add_array(ArrayType::new(PrimitiveType::optional(
@@ -3385,7 +3386,7 @@ mod test {
             .expect_err("binding should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
             index: 0,
-            expected: "`Array[X]` where `X`: any optional type".into()
+            expected: "`Array[X]`".into()
         });
 
         // Check `Array[String?]+`

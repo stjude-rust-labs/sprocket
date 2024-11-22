@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use indexmap::IndexMap;
 use ordered_float::Pow;
+use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::diagnostics::ambiguous_argument;
 use wdl_analysis::diagnostics::argument_type_mismatch;
 use wdl_analysis::diagnostics::cannot_access;
@@ -679,6 +680,10 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
 
             fn supports_output_type(&self) -> bool {
                 todo!("implement for WDL 1.2 support")
+            }
+
+            fn diagnostics_config(&self) -> DiagnosticsConfig {
+                DiagnosticsConfig::except_all()
             }
         }
 

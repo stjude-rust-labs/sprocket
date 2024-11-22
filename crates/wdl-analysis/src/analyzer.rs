@@ -34,6 +34,7 @@ use wdl_ast::SyntaxNodeExt;
 use wdl_ast::Validator;
 
 use crate::Rule;
+use crate::UNNECESSARY_FUNCTION_CALL;
 use crate::UNUSED_CALL_RULE_ID;
 use crate::UNUSED_DECL_RULE_ID;
 use crate::UNUSED_IMPORT_RULE_ID;
@@ -373,7 +374,7 @@ pub struct IncrementalChange {
 ///
 /// These diagnostics default to a warning severity.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct DiagnosticsConfig {
+pub struct DiagnosticsConfig {
     /// The severity for the "unused import" diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
@@ -390,6 +391,10 @@ pub(crate) struct DiagnosticsConfig {
     ///
     /// A value of `None` disables the diagnostic.
     pub unused_call: Option<Severity>,
+    /// The severity for the "unnecessary function call" diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    pub unnecessary_function_call: Option<Severity>,
 }
 
 impl DiagnosticsConfig {
@@ -399,6 +404,7 @@ impl DiagnosticsConfig {
         let mut unused_input = None;
         let mut unused_declaration = None;
         let mut unused_call = None;
+        let mut unnecessary_function_call = None;
 
         for rule in rules {
             let rule = rule.as_ref();
@@ -407,6 +413,7 @@ impl DiagnosticsConfig {
                 UNUSED_INPUT_RULE_ID => unused_input = Some(rule.severity()),
                 UNUSED_DECL_RULE_ID => unused_declaration = Some(rule.severity()),
                 UNUSED_CALL_RULE_ID => unused_call = Some(rule.severity()),
+                UNNECESSARY_FUNCTION_CALL => unnecessary_function_call = Some(rule.severity()),
                 _ => {}
             }
         }
@@ -416,6 +423,7 @@ impl DiagnosticsConfig {
             unused_input,
             unused_declaration,
             unused_call,
+            unnecessary_function_call,
         }
     }
 
@@ -440,7 +448,22 @@ impl DiagnosticsConfig {
             self.unused_call = None;
         }
 
+        if exceptions.contains(UNNECESSARY_FUNCTION_CALL) {
+            self.unnecessary_function_call = None;
+        }
+
         self
+    }
+
+    /// Excepts all of the diagnostics.
+    pub fn except_all() -> Self {
+        Self {
+            unused_import: None,
+            unused_input: None,
+            unused_declaration: None,
+            unused_call: None,
+            unnecessary_function_call: None,
+        }
     }
 }
 

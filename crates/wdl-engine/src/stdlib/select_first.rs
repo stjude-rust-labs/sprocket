@@ -52,14 +52,7 @@ fn select_first(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `select_first`.
 pub const fn descriptor() -> Function {
-    Function::new(
-        const {
-            &[Signature::new(
-                "(Array[X], <X>) -> X where `X`: any optional type",
-                select_first,
-            )]
-        },
-    )
+    Function::new(const { &[Signature::new("(Array[X], <X>) -> X", select_first)] })
 }
 
 #[cfg(test)]
@@ -109,5 +102,8 @@ mod test {
         let value =
             eval_v1_expr(&mut env, V1::One, "select_first([None, 2, None], 12345)").unwrap();
         assert_eq!(value.unwrap_integer(), 2);
+
+        let value = eval_v1_expr(&mut env, V1::One, "select_first([1, 2, 3])").unwrap();
+        assert_eq!(value.unwrap_integer(), 1);
     }
 }

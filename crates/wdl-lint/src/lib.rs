@@ -48,6 +48,7 @@ pub const RESERVED_RULE_IDS: &[&str] = &[
     "UnusedInput",
     "UnusedDeclaration",
     "UnusedCall",
+    "UnnecessaryFunctionCall",
 ];
 
 /// A trait implemented by lint rules.

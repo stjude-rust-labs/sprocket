@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Removed the "optional type" constraint for the `select_first`, `select_all`,
+  and `defined` functions; instead, these functions now accepted non-optional
+  types and analysis emits a warning when the functions are called with
+  non-optional types ([#258](https://github.com/stjude-rust-labs/wdl/pull/258)).
 * The "required primitive type" constraint has been removed as every place the
   constraint was used should allow for optional primitive types as well;
   consequently, the AnyPrimitiveTypeConstraint was renamed to simply

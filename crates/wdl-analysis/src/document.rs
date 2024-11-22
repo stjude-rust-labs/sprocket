@@ -307,7 +307,7 @@ impl<'a> ScopeRefMut<'a> {
     }
 
     /// Converts the mutable scope reference to an immutable scope reference.
-    pub fn into_scope_ref(self) -> ScopeRef<'a> {
+    pub fn as_scope_ref(&'a self) -> ScopeRef<'a> {
         ScopeRef {
             scopes: self.scopes,
             index: self.index,

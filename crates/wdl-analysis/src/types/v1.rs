@@ -5,12 +5,15 @@ use std::fmt::Write;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
+use wdl_ast::AstNode;
 use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxNodeExt;
 use wdl_ast::v1;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
@@ -47,6 +50,8 @@ use super::StructType;
 use super::Type;
 use super::TypeEq;
 use super::Types;
+use crate::DiagnosticsConfig;
+use crate::UNNECESSARY_FUNCTION_CALL;
 use crate::diagnostics::Io;
 use crate::diagnostics::ambiguous_argument;
 use crate::diagnostics::argument_type_mismatch;
@@ -76,6 +81,7 @@ use crate::diagnostics::type_mismatch_custom;
 use crate::diagnostics::unknown_call_io;
 use crate::diagnostics::unknown_function;
 use crate::diagnostics::unknown_task_io;
+use crate::diagnostics::unnecessary_function_call;
 use crate::diagnostics::unsupported_function;
 use crate::document::Input;
 use crate::document::Output;
@@ -473,6 +479,9 @@ pub trait EvaluationContext {
 
     /// Whether or not `output` hidden types are supported for the evaluation.
     fn supports_output_type(&self) -> bool;
+
+    /// Gets the diagnostics configuration for the evaluation.
+    fn diagnostics_config(&self) -> DiagnosticsConfig;
 }
 
 /// Represents an evaluator of expression types.
@@ -1442,7 +1451,21 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 let arguments = &arguments[..count.min(MAX_PARAMETERS)];
                 if count <= MAX_PARAMETERS {
                     match f.bind(self.context.version(), self.context.types_mut(), arguments) {
-                        Ok(binding) => return Some(binding.return_type()),
+                        Ok(binding) => {
+                            if let Some(severity) =
+                                self.context.diagnostics_config().unnecessary_function_call
+                            {
+                                if !expr.syntax().is_rule_excepted(UNNECESSARY_FUNCTION_CALL) {
+                                    self.check_unnecessary_call(
+                                        &target,
+                                        arguments,
+                                        expr.arguments().map(|e| e.span()),
+                                        severity,
+                                    );
+                                }
+                            }
+                            return Some(binding.return_type());
+                        }
                         Err(FunctionBindError::RequiresVersion(minimum)) => {
                             self.diagnostics.push(unsupported_function(
                                 minimum,
@@ -1624,5 +1647,90 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         self.diagnostics
             .push(cannot_access(self.context.types(), ty, target.span()));
         None
+    }
+
+    /// Checks for unnecessary function calls.
+    fn check_unnecessary_call(
+        &mut self,
+        target: &Ident,
+        arguments: &[Type],
+        mut spans: impl Iterator<Item = Span>,
+        severity: Severity,
+    ) {
+        let (label, span, fix) = match target.as_str() {
+            "select_first" => {
+                let ty = self
+                    .context
+                    .types()
+                    .type_definition(
+                        arguments[0]
+                            .as_compound()
+                            .expect("type should be compound")
+                            .definition,
+                    )
+                    .as_array()
+                    .expect("type should be an array")
+                    .element_type;
+                if ty.is_optional() {
+                    return;
+                }
+
+                (
+                    format!(
+                        "array element type `{ty}` is not optional",
+                        ty = ty.display(self.context.types())
+                    ),
+                    spans.next().expect("should have span"),
+                    "replace the function call with the array's first element",
+                )
+            }
+            "select_all" => {
+                let ty = self
+                    .context
+                    .types()
+                    .type_definition(
+                        arguments[0]
+                            .as_compound()
+                            .expect("type should be compound")
+                            .definition,
+                    )
+                    .as_array()
+                    .expect("type should be an array")
+                    .element_type;
+                if ty.is_optional() {
+                    return;
+                }
+
+                (
+                    format!(
+                        "array element type `{ty}` is not optional",
+                        ty = ty.display(self.context.types())
+                    ),
+                    spans.next().expect("should have span"),
+                    "replace the function call with the array itself",
+                )
+            }
+            "defined" => {
+                if arguments[0].is_optional() {
+                    return;
+                }
+
+                (
+                    format!(
+                        "type `{ty}` is not optional",
+                        ty = arguments[0].display(self.context.types())
+                    ),
+                    spans.next().expect("should have span"),
+                    "replace the function call with `true`",
+                )
+            }
+            _ => return,
+        };
+
+        self.diagnostics.push(
+            unnecessary_function_call(target.as_str(), target.span(), &label, span)
+                .with_severity(severity)
+                .with_fix(fix),
+        )
     }
 }

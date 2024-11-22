@@ -9,6 +9,7 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::Version;
 
+use crate::UNNECESSARY_FUNCTION_CALL;
 use crate::UNUSED_CALL_RULE_ID;
 use crate::UNUSED_DECL_RULE_ID;
 use crate::UNUSED_IMPORT_RULE_ID;
@@ -855,4 +856,17 @@ pub fn unused_call(name: &str, span: Span) -> Diagnostic {
     Diagnostic::warning(format!("unused call `{name}`"))
         .with_rule(UNUSED_CALL_RULE_ID)
         .with_highlight(span)
+}
+
+/// Creates an "unnecessary function call" diagnostic.
+pub fn unnecessary_function_call(
+    name: &str,
+    span: Span,
+    label: &str,
+    label_span: Span,
+) -> Diagnostic {
+    Diagnostic::warning(format!("unnecessary call to function `{name}`"))
+        .with_rule(UNNECESSARY_FUNCTION_CALL)
+        .with_highlight(span)
+        .with_label(label.to_string(), label_span)
 }

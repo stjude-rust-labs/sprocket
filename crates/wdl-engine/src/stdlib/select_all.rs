@@ -50,14 +50,7 @@ fn select_all(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `select_all`.
 pub const fn descriptor() -> Function {
-    Function::new(
-        const {
-            &[Signature::new(
-                "(Array[X]) -> Array[X] where `X`: any optional type",
-                select_all,
-            )]
-        },
-    )
+    Function::new(const { &[Signature::new("(Array[X]) -> Array[X]", select_all)] })
 }
 
 #[cfg(test)]
@@ -99,6 +92,16 @@ mod test {
         assert_eq!(elements, [1, 2]);
 
         let value = eval_v1_expr(&mut env, V1::One, "select_all([1, 2, 3, None])").unwrap();
+        let elements: Vec<_> = value
+            .as_array()
+            .unwrap()
+            .elements()
+            .iter()
+            .map(|v| v.as_integer().unwrap())
+            .collect();
+        assert_eq!(elements, [1, 2, 3]);
+
+        let value = eval_v1_expr(&mut env, V1::One, "select_all([1, 2, 3])").unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
