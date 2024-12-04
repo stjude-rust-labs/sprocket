@@ -637,7 +637,7 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
         /// Used to translate an expression evaluation context to an expression
         /// type evaluation context.
         struct TypeContext<'a, C: EvaluationContext>(&'a mut C);
-        impl<'a, C: EvaluationContext> wdl_analysis::types::v1::EvaluationContext for TypeContext<'a, C> {
+        impl<C: EvaluationContext> wdl_analysis::types::v1::EvaluationContext for TypeContext<'_, C> {
             fn version(&self) -> SupportedVersion {
                 self.0.version()
             }
@@ -1093,21 +1093,19 @@ impl<'a, C: EvaluationContext> ExprEvaluator<'a, C> {
                     match f.param_min_max(self.context.version()) {
                         Some((_, max)) => {
                             assert!(max <= MAX_PARAMETERS);
-                            return Err(too_many_arguments(
+                            Err(too_many_arguments(
                                 target.as_str(),
                                 target.span(),
                                 max,
                                 count,
                                 expr.arguments().skip(max).map(|e| e.span()),
-                            ));
+                            ))
                         }
-                        None => {
-                            return Err(unsupported_function(
-                                f.minimum_version(),
-                                target.as_str(),
-                                target.span(),
-                            ));
-                        }
+                        None => Err(unsupported_function(
+                            f.minimum_version(),
+                            target.as_str(),
+                            target.span(),
+                        )),
                     }
                 }
             }
@@ -1350,7 +1348,7 @@ pub(crate) mod test {
             self.env
                 .scope()
                 .lookup(name.as_str())
-                .map(|v| v.clone())
+                .cloned()
                 .ok_or_else(|| unknown_name(name.as_str(), name.span()))
         }
 
@@ -1417,7 +1415,7 @@ pub(crate) mod test {
                 );
                 let output = parser.finish();
                 assert_eq!(
-                    output.diagnostics.iter().next(),
+                    output.diagnostics.first(),
                     None,
                     "the provided WDL source failed to parse"
                 );
@@ -1496,10 +1494,10 @@ pub(crate) mod test {
         approx::assert_relative_eq!(value.unwrap_float(), -12345.6789);
 
         let value = eval_v1_expr(&mut env, V1::Two, "1.7976931348623157E+308").unwrap();
-        approx::assert_relative_eq!(value.unwrap_float(), 1.7976931348623157E+308);
+        approx::assert_relative_eq!(value.unwrap_float(), 1.797_693_134_862_315_7E308);
 
         let value = eval_v1_expr(&mut env, V1::Two, "-1.7976931348623157E+308").unwrap();
-        approx::assert_relative_eq!(value.unwrap_float(), -1.7976931348623157E+308);
+        approx::assert_relative_eq!(value.unwrap_float(), -1.797_693_134_862_315_7E308);
 
         let diagnostic =
             eval_v1_expr(&mut env, V1::Two, "2.7976931348623157E+308").expect_err("should fail");

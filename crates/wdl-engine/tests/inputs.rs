@@ -132,7 +132,7 @@ fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
             .parse_result()
             .root()
             .map(|n| SyntaxNode::new_root(n.clone()).text().to_string())
-            .unwrap_or(String::new());
+            .unwrap_or_default();
         let file = SimpleFile::new(&path, &source);
 
         term::emit(
@@ -221,7 +221,7 @@ async fn main() {
         });
 
         let result = results.next().expect("should have a result");
-        if !results.next().is_none() {
+        if results.next().is_some() {
             println!("test {test_name} ... {failed}", failed = "failed".red());
             errors.push((
                 test_name,

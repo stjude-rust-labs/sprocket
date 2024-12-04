@@ -107,7 +107,7 @@ pub enum PreambleToken {
 /// Asserts that PreambleToken can fit in a TokenSet.
 const _: () = assert!(PreambleToken::MAX as u8 <= 128);
 
-impl<'a> ParserToken<'a> for PreambleToken {
+impl ParserToken<'_> for PreambleToken {
     fn into_syntax(self) -> SyntaxKind {
         match self {
             Self::Whitespace => SyntaxKind::Whitespace,
@@ -170,7 +170,7 @@ pub enum VersionStatementToken {
 /// Asserts that VersionStatementToken can fit in a TokenSet.
 const _: () = assert!(VersionStatementToken::MAX as u8 <= 128);
 
-impl<'a> ParserToken<'a> for VersionStatementToken {
+impl ParserToken<'_> for VersionStatementToken {
     fn into_syntax(self) -> SyntaxKind {
         match self {
             Self::Whitespace => SyntaxKind::Whitespace,

@@ -665,10 +665,10 @@ fn skip_preceding_comments(syntax: &SyntaxNode) -> NodeOrToken<SyntaxNode, Synta
         prev = cur.prev_token()
     }
 
-    return preceding_comments.last().map_or_else(
+    preceding_comments.last().map_or_else(
         || SyntaxElement::from(syntax.clone()),
         |c| SyntaxElement::from(c.clone()),
-    );
+    )
 }
 
 /// Is first body element?

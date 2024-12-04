@@ -101,12 +101,17 @@ pub struct Args {
     #[arg(short, long)]
     pub quiet: bool,
 
-    /// Overwrites the configuration file with new expected diagnostics and the
-    /// latest commit hashes. This will create temporary shallow clones of every
-    /// test repository. Normally, there is only one repository on disk at a
-    /// time. The difference in disk space usage should be negligible.
-    #[arg(long)]
-    pub refresh: bool,
+    /// Overwrites the configuration file with new expected diagnostics.
+    ///
+    /// Mutually exclusive with `--update`.
+    #[arg(long, group = "action")]
+    pub bless: bool,
+
+    /// Updates the commit hashes for all repositories.
+    ///
+    /// Mutually exclusive with `--bless`.
+    #[arg(long, group = "action")]
+    pub update: bool,
 
     /// Displays warnings as part of the report output.
     #[arg(long)]
@@ -137,8 +142,8 @@ pub async fn gauntlet(args: Args) -> Result<()> {
 
     let mut work_dir = WorkDir::default();
 
-    if args.refresh {
-        info!("refreshing repository commit hashes.");
+    if args.update {
+        info!("updating repository commit hashes.");
         config.inner_mut().update_repositories(work_dir.root());
     }
 
@@ -356,7 +361,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
         };
 
         // Don't bother rebuilding the diagnostics
-        if !args.refresh {
+        if !args.bless && !args.update {
             continue;
         }
 
@@ -380,7 +385,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
 
     println!("\nTotal analysis time: {total_time:?}");
 
-    if args.refresh {
+    if args.bless || args.update {
         info!("adding {unexpected} new expected diagnostics.");
         info!("removing {missing} outdated expected diagnostics.");
 
@@ -391,7 +396,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
         println!(
             "\n{}\n",
             "missing but expected diagnostics remain: you should remove these from your \
-             configuration file or run the command with the `--refresh` option!"
+             configuration file or run the command with the `--bless` option!"
                 .red()
                 .bold()
         );

@@ -110,7 +110,7 @@ pub struct NonmatchingOutputRule<'a> {
     prior_objects: Vec<String>,
 }
 
-impl<'a> Rule for NonmatchingOutputRule<'a> {
+impl Rule for NonmatchingOutputRule<'_> {
     fn id(&self) -> &'static str {
         ID
     }
@@ -233,7 +233,7 @@ fn handle_meta_outputs_and_reset(
     rule.meta_outputs_keys.clear();
 }
 
-impl<'a> Visitor for NonmatchingOutputRule<'a> {
+impl Visitor for NonmatchingOutputRule<'_> {
     type State = Diagnostics;
 
     fn document(

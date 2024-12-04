@@ -45,13 +45,13 @@ We also appreciate feedback on our documentation. Feel free to look over any of 
 
 [Gauntlet](https://github.com/stjude-rust-labs/wdl/tree/main/gauntlet) is the main driver of our CI. Take a look at the file [`Gauntlet.toml`](https://github.com/stjude-rust-labs/wdl/blob/main/Gauntlet.toml). The entries at the top are all GitHub repositories of WDL code. The remaining entries are diagnostics emitted while analyzing those repositories. These should remain relatively static between PRs, and any change in emitted diagnostics should be reviewed carefully.
 
-In order to turn the Gauntlet CI green, run `cargo run --release --bin gauntlet -- --refresh`. The `--refresh` flag will save any changes to the `Gauntlet.toml` file. This should then be committed and included in your PR.
+In order to turn the Gauntlet CI green, run `cargo run --release --bin gauntlet -- --bless`. The `--bless` flag will save any changes to the `Gauntlet.toml` file. This should then be committed and included in your PR.
 
 ### What is arena?
 
 Arena is the alternate run mode of `gauntlet`. [`Arena.toml`](https://github.com/stjude-rust-labs/wdl/blob/main/Arena.toml) is very similar to `Gauntlet.toml`, except it has fewer repository entries and instead of analysis diagnostics it contains only lint diagnostics (which are not included in `Gauntlet.toml`).
 
-In order to turn the Arena CI green, run `cargo run --release --bin gauntlet -- --arena --refresh`. The `--refresh` flag (in conjunction with the `--arena` flag) will save any changes to the `Arena.toml` file. This should then be committed and included in your PR.
+In order to turn the Arena CI green, run `cargo run --release --bin gauntlet -- --arena --bless`. The `--bless` flag (in conjunction with the `--arena` flag) will save any changes to the `Arena.toml` file. This should then be committed and included in your PR.
 
 ### The CI has turned red. How do I make it green again?
 
@@ -61,9 +61,9 @@ There are a handful of reasons the CI may have turned red. Try the following fix
 - `cargo clippy --all-features` and then fix any warnings emitted
 - `BLESS=1 cargo test --all-features` to "bless" any test changes
     - Please review any changes this causes to make sure they seem right!
-- `cargo run --release --bin gauntlet -- --refresh`
+- `cargo run --release --bin gauntlet -- --bless`
     - see the `What is gauntlet?` question for more information
-- `cargo run --release --bin gauntlet -- --refresh --arena`
+- `cargo run --release --bin gauntlet -- --bless --arena`
     - see the `What is arena?` question for more information
 - `rustup update` to update your local toolchains
 
