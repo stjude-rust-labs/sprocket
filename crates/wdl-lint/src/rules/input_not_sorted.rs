@@ -3,7 +3,6 @@
 use std::cmp::Ordering;
 
 use wdl_ast::AstNode;
-use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
@@ -12,6 +11,7 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1;
@@ -272,8 +272,14 @@ impl Visitor for InputNotSortedRule {
                 }
             });
         if errors > 0 {
+            let span = input
+                .syntax()
+                .first_token()
+                .expect("input section should have tokens")
+                .text_range()
+                .to_span();
             state.exceptable_add(
-                input_not_sorted(input.span(), input_string),
+                input_not_sorted(span, input_string),
                 SyntaxElement::from(input.syntax().clone()),
                 &self.exceptable_nodes(),
             );

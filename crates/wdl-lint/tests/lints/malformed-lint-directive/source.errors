@@ -10,13 +10,17 @@ warning[MalformedLintDirective]: expected exactly one space before lint directiv
    ┌─ tests/lints/malformed-lint-directive/source.wdl:11:7
    │
 11 │     #@except: this should be flagged for missing a space
-   │       ^ expected a single space before this
+   │       ^ expected a space before this
+   │
+   = fix: add a single space
 
 warning[MalformedLintDirective]: expected a colon to follow a lint directive
    ┌─ tests/lints/malformed-lint-directive/source.wdl:28:14
    │
 28 │     #@ except this should be flagged for missing a colon
    │              ^ expected a colon here
+   │
+   = fix: add a colon after the lint directive
 
 warning[MalformedLintDirective]: lint directive must be on its own line
    ┌─ tests/lints/malformed-lint-directive/source.wdl:33:15
@@ -30,11 +34,15 @@ warning[MalformedLintDirective]: expected exactly one space before lint directiv
    ┌─ tests/lints/malformed-lint-directive/source.wdl:48:7
    │
 48 │     #@     except: this should be flagged for excessive whitespace
-   │       ^^^^^ replace this whitespace with a single space
+   │       ^^^^^ this whitespace is unexpected
+   │
+   = fix: replace this whitespace with a single space
 
 warning[MalformedLintDirective]: lint directive not found
    ┌─ tests/lints/malformed-lint-directive/source.wdl:59:7
    │
 59 │     #@
    │       ^ missing lint directive
+   │
+   = fix: add a lint directive or change `#@` prefix
 

@@ -1,15 +1,9 @@
 note[InputSorting]: input not sorted
    ┌─ tests/lints/input-not-sorted/source.wdl:42:5
-   │  
-42 │ ╭     input {
-43 │ │         String g = "hello"
-44 │ │         Int? f = 2
-45 │ │         Int? e
-   · │
-67 │ │         mystruct u
-68 │ │     }
-   │ ╰─────^ input section must be sorted
-   │  
+   │
+42 │     input {
+   │     ^^^^^ input section must be sorted
+   │
    = fix: sort input statements as: 
      File t
      File b
@@ -38,16 +32,10 @@ note[InputSorting]: input not sorted
 
 note[InputSorting]: input not sorted
     ┌─ tests/lints/input-not-sorted/source.wdl:102:5
-    │  
-102 │ ╭     input {
-103 │ │         String g = "hello"
-104 │ │         Int? f = 2
-105 │ │         Int? e
-    · │
-124 │ │         Array[String]+ p
-125 │ │     }
-    │ ╰─────^ input section must be sorted
-    │  
+    │
+102 │     input {
+    │     ^^^^^ input section must be sorted
+    │
     = fix: sort input statements as: 
       File t
       File b

@@ -27,7 +27,7 @@ fn prefix_whitespace(span: Span) -> Diagnostic {
     Diagnostic::note("prefix operators may not contain whitespace")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("remove the internal whitespace")
+        .with_fix("remove the whitespace")
 }
 
 /// Reports missing following whitespace around operators
@@ -35,7 +35,7 @@ fn missing_surrounding_whitespace(span: Span) -> Diagnostic {
     Diagnostic::note("operators must be surrounded by whitespace")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("add a space before and after this operator")
+        .with_fix("add whitespace around this operator")
 }
 
 /// Reports missing preceding whitespace around operators
@@ -43,7 +43,7 @@ fn missing_preceding_whitespace(span: Span) -> Diagnostic {
     Diagnostic::note("operators must be preceded by whitespace")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("add a space before this operator")
+        .with_fix("add whitespace before this operator")
 }
 
 /// Reports missing following whitespace around operators
@@ -51,7 +51,7 @@ fn missing_following_whitespace(span: Span) -> Diagnostic {
     Diagnostic::note("operators must be followed by whitespace")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("add a space after this operator")
+        .with_fix("add whitespace after this operator")
 }
 
 /// Report disallowed space
@@ -67,7 +67,7 @@ fn assignment_missing_preceding_whitespace(span: Span) -> Diagnostic {
     Diagnostic::note("assignments must be preceded by whitespace")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("add a space before this assignment")
+        .with_fix("add whitespace before this assignment")
 }
 
 /// Reports missing following whitespace around assignments
@@ -75,15 +75,15 @@ fn assignment_missing_following_whitespace(span: Span) -> Diagnostic {
     Diagnostic::note("assignments must be followed by whitespace")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("add a space after this assignment")
+        .with_fix("add whitespace after this assignment")
 }
 
-/// Reports missing following whitespace around assignments
+/// Reports missing surrounding whitespace around assignments
 fn assignment_missing_surrounding_whitespace(span: Span) -> Diagnostic {
     Diagnostic::note("assignments must be surrounded by whitespace")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("add a space before and after this assignment")
+        .with_fix("add whitespace around this assignment")
 }
 
 /// Reports missing open paren for multiline if...then...else constructs
@@ -128,7 +128,7 @@ fn multiline_literal_open_newline(span: Span) -> Diagnostic {
     )
     .with_rule(ID)
     .with_highlight(span)
-    .with_fix("add a newline after this token")
+    .with_fix("add a newline after the opening brace/bracket/parenthesis")
 }
 
 /// Reports missing newline before close brace/bracket/paren for multiline
@@ -139,7 +139,7 @@ fn multiline_literal_close_newline(span: Span) -> Diagnostic {
     )
     .with_rule(ID)
     .with_highlight(span)
-    .with_fix("add a newline before this token")
+    .with_fix("add a newline before the closing brace/bracket/parenthesis")
 }
 
 /// Detects improperly spaced expressions.

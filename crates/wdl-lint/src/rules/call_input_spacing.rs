@@ -41,7 +41,7 @@ fn call_input_missing_newline(span: Span) -> Diagnostic {
     Diagnostic::note("call inputs must be separated by newline")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("add newline before the input")
+        .with_fix("add a newline after each input")
 }
 
 /// Creates call input assignment diagnostic.

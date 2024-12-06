@@ -2,33 +2,30 @@ warning[NonmatchingOutput]: `outputs` key missing in `meta` section for the task
    ┌─ tests/lints/nonmatching-output/source.wdl:22:5
    │
 22 │     meta {}
-   │     ^^^^^^^
+   │     ^^^^
    │
    = fix: add an `outputs` key to `meta` section describing the outputs
 
 warning[NonmatchingOutput]: output `t` is missing from `meta.outputs` section in task `baz`
-   ┌─ tests/lints/nonmatching-output/source.wdl:43:9
+   ┌─ tests/lints/nonmatching-output/source.wdl:43:16
    │
 43 │         String t = "world"
-   │         ^^^^^^^^^^^^^^^^^^
+   │                ^
    │
    = fix: add a description of output `t` to documentation in `meta.outputs`
 
 note[NonmatchingOutput]: `outputs` section of `meta` for the task `qux` is out of order
    ┌─ tests/lints/nonmatching-output/source.wdl:50:9
-   │    
-50 │ ╭           outputs: {
-51 │ │               t: "t",
-52 │ │               s: "s",
-53 │ │           }
-   │ ╰───────────^
-   · │  
-58 │   ╭     output {
-59 │   │         String s = "hello"
-60 │   │         String t = "world"
-61 │   │     }
-   │   ╰─────'
-   │    
+   │  
+50 │ ╭         outputs: {
+51 │ │             t: "t",
+52 │ │             s: "s",
+53 │ │         }
+   │ ╰─────────^
+   · │
+58 │       output {
+   │       ------
+   │  
    = fix: ensure the keys within `meta.outputs` have the same order as they appear in `output`
 
 warning[NonmatchingOutput]: `v` appears in `outputs` section of the task `quux` but is not a declared `output`
@@ -48,26 +45,26 @@ warning[NonmatchingOutput]: task `corge` has a `meta.outputs` key that is not an
    = fix: ensure `meta.outputs` is an object containing descriptions for each output
 
 warning[NonmatchingOutput]: output `s` is missing from `meta.outputs` section in task `corge`
-   ┌─ tests/lints/nonmatching-output/source.wdl:92:9
+   ┌─ tests/lints/nonmatching-output/source.wdl:92:16
    │
 92 │         String s = "hello"
-   │         ^^^^^^^^^^^^^^^^^^
+   │                ^
    │
    = fix: add a description of output `s` to documentation in `meta.outputs`
 
 warning[NonmatchingOutput]: output `t` is missing from `meta.outputs` section in task `corge`
-   ┌─ tests/lints/nonmatching-output/source.wdl:93:9
+   ┌─ tests/lints/nonmatching-output/source.wdl:93:16
    │
 93 │         String t = "world"
-   │         ^^^^^^^^^^^^^^^^^^
+   │                ^
    │
    = fix: add a description of output `t` to documentation in `meta.outputs`
 
 warning[NonmatchingOutput]: output `v` is missing from `meta.outputs` section in task `corge`
-   ┌─ tests/lints/nonmatching-output/source.wdl:94:9
+   ┌─ tests/lints/nonmatching-output/source.wdl:94:16
    │
 94 │         String v = "!"
-   │         ^^^^^^^^^^^^^^
+   │                ^
    │
    = fix: add a description of output `v` to documentation in `meta.outputs`
 

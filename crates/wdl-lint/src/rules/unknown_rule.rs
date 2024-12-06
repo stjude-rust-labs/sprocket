@@ -26,7 +26,7 @@ fn unknown_rule(id: &str, span: Span) -> Diagnostic {
     Diagnostic::note(format!("unknown lint rule `{id}`"))
         .with_rule(ID)
         .with_label("cannot make an exception for this rule", span)
-        .with_fix("remove the rule from the exception list")
+        .with_fix("remove the unknown rule from the exception list")
 }
 
 /// Detects unknown rules within lint directives.

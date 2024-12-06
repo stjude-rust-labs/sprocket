@@ -2,39 +2,31 @@ note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL 1.
    ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:12:5
    │
 12 │     runtime {}  # Missing `container` key
-   │     ^^^^^^^^^^
+   │     ^^^^^^^
    │
    = fix: include an entry for the `container` key in the `runtime` section
 
 warning[RuntimeSectionKeys]: the following runtime key is not reserved in the WDL 1.1 specification: `foo`; therefore, its inclusion in the `runtime` section is deprecated
    ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:51:5
-   │  
-51 │ ╭     runtime {
-52 │ │         container: "ubuntu"
-53 │ │         cpu: 1
-54 │ │         memory: "2 GiB"
-   · │
-59 │ │         foo: "bar"
-   │ │         --- the `foo` key should be removed
-60 │ │     }
-   │ ╰─────^
-   │  
+   │
+51 │     runtime {
+   │     ^^^^^^^
+   ·
+59 │         foo: "bar"
+   │         --- the `foo` key should be removed
+   │
    = fix: if a reserved key name was intended, correct the spelling; otherwise, remove the `foo` key
 
 warning[RuntimeSectionKeys]: the following runtime keys are not reserved in the WDL 1.1 specification: `baz` and `foo`; therefore, their inclusion in the `runtime` section is deprecated
    ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:70:5
-   │  
-70 │ ╭     runtime {
-71 │ │         container: "ubuntu"
-72 │ │         cpu: 1
-73 │ │         memory: "2 GiB"
-   · │
-78 │ │         foo: "bar"
-   │ │         --- the `foo` key should be removed
-79 │ │         baz: "quux"
-   │ │         --- the `baz` key should be removed
-80 │ │     }
-   │ ╰─────^
-   │  
+   │
+70 │     runtime {
+   │     ^^^^^^^
+   ·
+78 │         foo: "bar"
+   │         --- the `foo` key should be removed
+79 │         baz: "quux"
+   │         --- the `baz` key should be removed
+   │
    = fix: if reserved key names were intended, correct the spelling of each key; otherwise, remove the `baz` and `foo` keys
 

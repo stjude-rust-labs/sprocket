@@ -32,9 +32,7 @@ fn todo_comment(comment: &str, comment_span: Span, offset: usize) -> Diagnostic 
     Diagnostic::note(format!("remaining `{TODO}` item found"))
         .with_rule(ID)
         .with_highlight(Span::new(start, comment.len()))
-        .with_fix(format!(
-            "implement this todo item and remove the `{TODO}` statement"
-        ))
+        .with_fix("remove the `TODO` item once it has been implemented")
 }
 
 impl Rule for TodoRule {

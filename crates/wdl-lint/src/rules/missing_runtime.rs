@@ -26,7 +26,7 @@ fn missing_runtime_section(task: &str, span: Span) -> Diagnostic {
     Diagnostic::warning(format!("task `{task}` is missing a `runtime` section"))
         .with_rule(ID)
         .with_label("this task is missing a `runtime` section", span)
-        .with_fix("add a `runtime` section to the task")
+        .with_fix("add a `runtime` section")
 }
 
 /// Detects missing `runtime` section for tasks.

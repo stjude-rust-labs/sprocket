@@ -9,4 +9,6 @@ note[PreambleFormatting]: preamble comments must start with `##` and have at lea
 10 │ │ ###### as a single diagnostic
 11 │ │ # warning
    │ ╰─────────^
+   │  
+   = fix: either move this comment out of the preamble or change it to a preamble comment (i.e. a comment that starts with `##`)
 

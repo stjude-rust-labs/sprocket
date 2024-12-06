@@ -192,7 +192,7 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:44:11: note[TrailingComma]: item missing trailing comma"
+message = "ww-fastq-to-cram.wdl:44:20: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L44"
 
 [[diagnostics]]
@@ -217,7 +217,7 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:53:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-fastq-to-cram.wdl:53:19: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L53"
 
 [[diagnostics]]
@@ -242,7 +242,7 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:60:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-fastq-to-cram.wdl:60:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L60"
 
 [[diagnostics]]
@@ -522,7 +522,7 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:26:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-star-deseq2.wdl:26:22: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L26"
 
 [[diagnostics]]
@@ -562,7 +562,7 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:33:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-star-deseq2.wdl:33:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L33"
 
 [[diagnostics]]
@@ -597,7 +597,7 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:42:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-star-deseq2.wdl:42:20: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L42"
 
 [[diagnostics]]
@@ -627,7 +627,7 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:50:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-star-deseq2.wdl:50:17: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L50"
 
 [[diagnostics]]
@@ -792,7 +792,7 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:106:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:106:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L106"
 
 [[diagnostics]]
@@ -807,7 +807,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:115:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:115:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L115"
 
 [[diagnostics]]
@@ -822,7 +822,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:132:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:132:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L132"
 
 [[diagnostics]]
@@ -837,7 +837,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:141:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:141:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L141"
 
 [[diagnostics]]
@@ -852,7 +852,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:151:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:151:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L151"
 
 [[diagnostics]]
@@ -867,7 +867,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:166:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:166:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L166"
 
 [[diagnostics]]
@@ -887,12 +887,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:17:10: note[MissingMetas]: workflow `ww_vc_trio` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:17:10: note[MissingMetas]: workflow `ww_vc_trio` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L17"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:181:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:181:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L181"
 
 [[diagnostics]]
@@ -912,7 +912,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:195:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:195:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L195"
 
 [[diagnostics]]
@@ -932,12 +932,17 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:1:12: note[BlankLinesBetweenElements]: missing blank line"
+permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L1"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
 message = "ww-vc-trio.wdl:1:12: note[VersionFormatting]: expected exactly one blank line after the version statement"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L1"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:205:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:205:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L205"
 
 [[diagnostics]]
@@ -957,7 +962,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:215:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:215:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L215"
 
 [[diagnostics]]
@@ -977,7 +982,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:225:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:225:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L225"
 
 [[diagnostics]]
@@ -987,7 +992,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:234:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:234:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L234"
 
 [[diagnostics]]
@@ -1092,7 +1097,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:262:6: note[MissingMetas]: task `annovar` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:262:6: note[MissingMetas]: task `annovar` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L262"
 
 [[diagnostics]]
@@ -1127,7 +1132,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:298:6: note[MissingMetas]: task `ApplyBaseRecalibrator` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:298:6: note[MissingMetas]: task `ApplyBaseRecalibrator` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L298"
 
 [[diagnostics]]
@@ -1139,11 +1144,6 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
 message = "ww-vc-trio.wdl:299:3: note[InputSorting]: input not sorted"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L299"
-
-[[diagnostics]]
-document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:2:1: note[BlankLinesBetweenElements]: missing blank line"
-permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L2"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
@@ -1192,7 +1192,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:353:6: note[MissingMetas]: task `bcftoolsMpileup` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:353:6: note[MissingMetas]: task `bcftoolsMpileup` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L353"
 
 [[diagnostics]]
@@ -1237,7 +1237,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:392:6: note[MissingMetas]: task `bedToolsQC` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:392:6: note[MissingMetas]: task `bedToolsQC` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L392"
 
 [[diagnostics]]
@@ -1267,7 +1267,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:420:6: note[MissingMetas]: task `BwaMem` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:420:6: note[MissingMetas]: task `BwaMem` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L420"
 
 [[diagnostics]]
@@ -1297,7 +1297,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:456:6: note[MissingMetas]: task `CollectHsMetrics` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:456:6: note[MissingMetas]: task `CollectHsMetrics` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L456"
 
 [[diagnostics]]
@@ -1347,7 +1347,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:492:6: note[MissingMetas]: task `consensusProcessingR` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:492:6: note[MissingMetas]: task `consensusProcessingR` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L492"
 
 [[diagnostics]]
@@ -1402,7 +1402,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:518:6: note[MissingMetas]: task `HaplotypeCaller` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:518:6: note[MissingMetas]: task `HaplotypeCaller` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L518"
 
 [[diagnostics]]
@@ -1462,7 +1462,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:558:6: note[MissingMetas]: task `MergeBamAlignment` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:558:6: note[MissingMetas]: task `MergeBamAlignment` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L558"
 
 [[diagnostics]]
@@ -1497,7 +1497,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:596:6: note[MissingMetas]: task `Mutect2TumorOnly` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:596:6: note[MissingMetas]: task `Mutect2TumorOnly` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L596"
 
 [[diagnostics]]
@@ -1532,7 +1532,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:61:7: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:61:16: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L61"
 
 [[diagnostics]]
@@ -1547,7 +1547,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:643:6: note[MissingMetas]: task `SamToFastq` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:643:6: note[MissingMetas]: task `SamToFastq` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L643"
 
 [[diagnostics]]
@@ -1592,7 +1592,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:680:6: note[MissingMetas]: task `SortBed` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:680:6: note[MissingMetas]: task `SortBed` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L680"
 
 [[diagnostics]]
@@ -1602,7 +1602,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:709:6: note[MissingMetas]: task `MarkDuplicates` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:709:6: note[MissingMetas]: task `MarkDuplicates` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L709"
 
 [[diagnostics]]
@@ -1672,7 +1672,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:745:6: note[MissingMetas]: task `SortSam` is missing both meta and parameter_meta sections"
+message = "ww-vc-trio.wdl:745:6: note[MissingMetas]: task `SortSam` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L745"
 
 [[diagnostics]]
@@ -1692,7 +1692,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:76:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:76:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L76"
 
 [[diagnostics]]
@@ -1717,7 +1717,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:94:9: note[TrailingComma]: item missing trailing comma"
+message = "ww-vc-trio.wdl:94:18: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L94"
 
 [[diagnostics]]
@@ -1777,12 +1777,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:80:17: note[TrailingComma]: item missing trailing comma"
+message = "arriba.wdl:80:45: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/arriba.wdl/#L80"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:97:17: note[TrailingComma]: item missing trailing comma"
+message = "arriba.wdl:97:25: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/arriba.wdl/#L97"
 
 [[diagnostics]]
@@ -1827,12 +1827,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
-message = "fq.wdl:40:17: note[TrailingComma]: item missing trailing comma"
+message = "fq.wdl:40:22: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/fq.wdl/#L40"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
-message = "fq.wdl:48:17: note[TrailingComma]: item missing trailing comma"
+message = "fq.wdl:48:22: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/fq.wdl/#L48"
 
 [[diagnostics]]
@@ -1862,17 +1862,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:399:17: note[TrailingComma]: item missing trailing comma"
+message = "gatk4.wdl:399:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L399"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:408:17: note[TrailingComma]: item missing trailing comma"
+message = "gatk4.wdl:408:21: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L408"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:416:17: note[TrailingComma]: item missing trailing comma"
+message = "gatk4.wdl:416:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L416"
 
 [[diagnostics]]
@@ -1897,12 +1897,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:22:17: note[TrailingComma]: item missing trailing comma"
+message = "htseq.wdl:22:20: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/htseq.wdl/#L22"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:40:17: note[TrailingComma]: item missing trailing comma"
+message = "htseq.wdl:40:39: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/htseq.wdl/#L40"
 
 [[diagnostics]]
@@ -1932,7 +1932,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:73:17: note[TrailingComma]: item missing trailing comma"
+message = "kraken2.wdl:73:29: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/kraken2.wdl/#L73"
 
 [[diagnostics]]
@@ -1997,7 +1997,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:153:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:153:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L153"
 
 [[diagnostics]]
@@ -2007,17 +2007,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:273:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:273:27: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L273"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:283:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:283:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L283"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:29:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:29:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L29"
 
 [[diagnostics]]
@@ -2027,17 +2027,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:358:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:358:27: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L358"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:367:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:367:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L367"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:38:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:38:21: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L38"
 
 [[diagnostics]]
@@ -2047,12 +2047,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:444:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:444:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L444"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:46:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:46:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L46"
 
 [[diagnostics]]
@@ -2062,7 +2062,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:514:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:514:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L514"
 
 [[diagnostics]]
@@ -2072,7 +2072,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:577:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:577:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L577"
 
 [[diagnostics]]
@@ -2082,7 +2082,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:644:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:644:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L644"
 
 [[diagnostics]]
@@ -2092,7 +2092,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:710:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:710:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L710"
 
 [[diagnostics]]
@@ -2102,7 +2102,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:769:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:769:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L769"
 
 [[diagnostics]]
@@ -2122,7 +2122,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:933:17: note[TrailingComma]: item missing trailing comma"
+message = "picard.wdl:933:56: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L933"
 
 [[diagnostics]]
@@ -2177,7 +2177,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1194:17: note[TrailingComma]: item missing trailing comma"
+message = "samtools.wdl:1194:20: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L1194"
 
 [[diagnostics]]
@@ -2242,7 +2242,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:986:17: note[TrailingComma]: item missing trailing comma"
+message = "samtools.wdl:986:23: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L986"
 
 [[diagnostics]]
@@ -2287,7 +2287,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:392:17: note[TrailingComma]: item missing trailing comma"
+message = "util.wdl:392:32: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L392"
 
 [[diagnostics]]
@@ -2317,12 +2317,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
-message = "dnaseq-core.wdl:33:17: note[TrailingComma]: item missing trailing comma"
+message = "dnaseq-core.wdl:33:21: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-core.wdl/#L33"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:124:17: note[TrailingComma]: item missing trailing comma"
+message = "dnaseq-standard-fastq.wdl:124:21: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L124"
 
 [[diagnostics]]
@@ -2332,12 +2332,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:33:17: note[TrailingComma]: item missing trailing comma"
+message = "dnaseq-standard-fastq.wdl:33:21: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L33"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
-message = "dnaseq-standard.wdl:111:17: note[TrailingComma]: item missing trailing comma"
+message = "dnaseq-standard.wdl:111:21: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-standard.wdl/#L111"
 
 [[diagnostics]]
@@ -2347,12 +2347,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
-message = "dnaseq-standard.wdl:30:17: note[TrailingComma]: item missing trailing comma"
+message = "dnaseq-standard.wdl:30:21: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-standard.wdl/#L30"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/general/alignment-post.wdl"
-message = "alignment-post.wdl:30:17: note[TrailingComma]: item missing trailing comma"
+message = "alignment-post.wdl:30:22: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/general/alignment-post.wdl/#L30"
 
 [[diagnostics]]
@@ -2387,37 +2387,37 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/make-qc-reference.wdl"
-message = "make-qc-reference.wdl:35:17: note[TrailingComma]: item missing trailing comma"
+message = "make-qc-reference.wdl:35:29: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/reference/make-qc-reference.wdl/#L35"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/make-qc-reference.wdl"
-message = "make-qc-reference.wdl:49:17: note[TrailingComma]: item missing trailing comma"
+message = "make-qc-reference.wdl:49:32: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/reference/make-qc-reference.wdl/#L49"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:48:17: note[TrailingComma]: item missing trailing comma"
+message = "rnaseq-core.wdl:48:22: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-core.wdl/#L48"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:57:17: note[TrailingComma]: item missing trailing comma"
+message = "rnaseq-core.wdl:57:28: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-core.wdl/#L57"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
-message = "rnaseq-standard-fastq.wdl:73:17: note[TrailingComma]: item missing trailing comma"
+message = "rnaseq-standard-fastq.wdl:73:22: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L73"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
-message = "rnaseq-standard-fastq.wdl:82:17: note[TrailingComma]: item missing trailing comma"
+message = "rnaseq-standard-fastq.wdl:82:28: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L82"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:145:17: note[TrailingComma]: item missing trailing comma"
+message = "rnaseq-standard.wdl:145:28: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-standard.wdl/#L145"
 
 [[diagnostics]]
@@ -2427,10 +2427,10 @@ permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaa
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:36:17: note[TrailingComma]: item missing trailing comma"
+message = "rnaseq-standard.wdl:36:22: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-standard.wdl/#L36"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:45:17: note[TrailingComma]: item missing trailing comma"
+message = "rnaseq-standard.wdl:45:28: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-standard.wdl/#L45"

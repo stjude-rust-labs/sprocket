@@ -12,5 +12,5 @@ note[MatchingParameterMeta]: struct `Text` has an extraneous parameter metadata 
 23 │         extra: "this should not be here"
    │         ^^^^^ this key does not correspond to any input declaration
    │
-   = fix: remove the extraneous parameter metadata entry
+   = fix: remove the extraneous key from the `parameter_meta` section
 

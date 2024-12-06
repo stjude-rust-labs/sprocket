@@ -3,6 +3,8 @@ note[PreambleFormatting]: unnecessary whitespace in document preamble
   │
 2 │        ## Bad leading whitespace!
   │ ^^^^^^^
+  │
+  = fix: remove the leading whitespace
 
 error[PreambleCommentAfterVersion]: preamble comment after the version statement
    ┌─ tests/lints/preamble-comment-after-version/source.wdl:6:1
@@ -13,10 +15,14 @@ error[PreambleCommentAfterVersion]: preamble comment after the version statement
  9 │ │ 
 10 │ │ ## And this one is bad too!
    │ ╰───────────────────────────^
+   │  
+   = fix: do not use `##` comments outside the preamble
 
 error[PreambleCommentAfterVersion]: preamble comment after the version statement
    ┌─ tests/lints/preamble-comment-after-version/source.wdl:19:5
    │
 19 │     ## This one is bad!
    │     ^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: do not use `##` comments outside the preamble
 

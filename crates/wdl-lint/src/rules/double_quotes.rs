@@ -26,7 +26,7 @@ fn use_double_quotes(span: Span) -> Diagnostic {
     Diagnostic::note("string defined with single quotes")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("change the single quotes to double quotes")
+        .with_fix("change the string to use double quotes")
 }
 
 /// Detects strings that are not defined with double quotes.

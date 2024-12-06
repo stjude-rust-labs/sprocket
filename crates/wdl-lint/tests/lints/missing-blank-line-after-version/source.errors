@@ -5,16 +5,6 @@ note[VersionFormatting]: expected exactly one blank line after the version state
   │ ╭───────────^
 6 │ │ workflow test {
   │ ╰^
-
-note[BlankLinesBetweenElements]: missing blank line
-   ┌─ tests/lints/missing-blank-line-after-version/source.wdl:6:1
-   │  
- 6 │ ╭ workflow test {
- 7 │ │     meta {}
- 8 │ │ 
- 9 │ │     output {}
-10 │ │ }
-   │ ╰─^
-   │  
-   = fix: add a blank line before this element
+  │  
+  = fix: ensure there is exactly one blank line after the version statement
 

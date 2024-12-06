@@ -4,7 +4,7 @@ note[Todo]: remaining `TODO` item found
 7 │ # TODO: this should be flagged
   │   ^^^^
   │
-  = fix: implement this todo item and remove the `TODO` statement
+  = fix: remove the `TODO` item once it has been implemented
 
 note[Todo]: remaining `TODO` item found
   ┌─ tests/lints/todo/source.wdl:8:4
@@ -12,7 +12,7 @@ note[Todo]: remaining `TODO` item found
 8 │ # [TODO] this should be flagged
   │    ^^^^
   │
-  = fix: implement this todo item and remove the `TODO` statement
+  = fix: remove the `TODO` item once it has been implemented
 
 note[Todo]: remaining `TODO` item found
    ┌─ tests/lints/todo/source.wdl:11:31
@@ -20,5 +20,5 @@ note[Todo]: remaining `TODO` item found
 11 │     # This should be flagged (TODO).
    │                               ^^^^
    │
-   = fix: implement this todo item and remove the `TODO` statement
+   = fix: remove the `TODO` item once it has been implemented
 

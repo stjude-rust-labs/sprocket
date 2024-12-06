@@ -45,7 +45,10 @@ fn missing_output_section(name: &str, context: Context, span: Span) -> Diagnosti
     Diagnostic::warning(format!("{context} `{name}` is missing an output section"))
         .with_rule(ID)
         .with_label(format!("this {context} is missing an output section"), span)
-        .with_fix(format!("add an output section to the {context}"))
+        .with_fix(format!(
+            "add an output section to the {context} to enable call-caching",
+            context = context,
+        ))
 }
 
 /// Detects missing `output` section for tasks and workflows.

@@ -23,7 +23,7 @@ fn missing_ending_newline(span: Span) -> Diagnostic {
     Diagnostic::note("missing newline at the end of the file")
         .with_rule(ID)
         .with_label("expected a newline to follow this", span)
-        .with_fix("add an empty line at the end of the file")
+        .with_fix("add a newline at the end of the file")
 }
 
 /// Creates a "multiple ending newline" diagnostic.

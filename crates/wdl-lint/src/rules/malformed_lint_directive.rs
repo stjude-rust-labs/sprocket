@@ -23,7 +23,8 @@ const ACCEPTED_LINT_DIRECTIVES: [&str; 1] = ["except"];
 fn excessive_whitespace(span: Span) -> Diagnostic {
     Diagnostic::warning("expected exactly one space before lint directive")
         .with_rule(ID)
-        .with_label("replace this whitespace with a single space", span)
+        .with_label("this whitespace is unexpected", span)
+        .with_fix("replace this whitespace with a single space")
 }
 
 /// Creates an "Inline Lint Directive" diagnostic.
@@ -51,13 +52,15 @@ fn missing_lint_directive(span: Span) -> Diagnostic {
     Diagnostic::warning("lint directive not found")
         .with_rule(ID)
         .with_label("missing lint directive", span)
+        .with_fix("add a lint directive or change `#@` prefix")
 }
 
 /// Creates a "Missing Whitespace" diagnostic.
 fn missing_whitespace(span: Span) -> Diagnostic {
     Diagnostic::warning("expected exactly one space before lint directive")
         .with_rule(ID)
-        .with_label("expected a single space before this", span)
+        .with_label("expected a space before this", span)
+        .with_fix("add a single space")
 }
 
 /// Creates a "No Colon Detected" diagnostic.
@@ -65,6 +68,7 @@ fn no_colon_detected(span: Span) -> Diagnostic {
     Diagnostic::warning("expected a colon to follow a lint directive")
         .with_rule(ID)
         .with_label("expected a colon here", span)
+        .with_fix("add a colon after the lint directive")
 }
 
 /// Detects a malformed lint directive.

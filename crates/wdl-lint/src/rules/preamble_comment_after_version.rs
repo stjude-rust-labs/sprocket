@@ -23,6 +23,7 @@ fn preamble_comment_outside_preamble(span: Span) -> Diagnostic {
     Diagnostic::error("preamble comment after the version statement")
         .with_rule(ID)
         .with_highlight(span)
+        .with_fix("do not use `##` comments outside the preamble")
 }
 
 /// A lint rule for flagging preamble comments which are outside the preamble.

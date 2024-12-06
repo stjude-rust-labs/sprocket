@@ -19,10 +19,16 @@ const ID: &str = "InconsistentNewlines";
 
 /// Creates an inconsistent newlines diagnostic.
 fn inconsistent_newlines(span: Span) -> Diagnostic {
-    Diagnostic::note("inconsistent newlines detected")
+    Diagnostic::note("inconsistent line endings detected")
         .with_rule(ID)
-        .with_label("the first occurrence of a mismatched newline is here", span)
-        .with_fix("use either \"\\n\" or \"\\r\\n\" consistently in the file")
+        .with_label(
+            "the first occurrence of a mismatched line ending is here",
+            span,
+        )
+        .with_fix(
+            "ensure that the same line endings (e.g., `\\n` or `\\r\\n`) are used throughout the \
+             file",
+        )
 }
 
 /// Detects imports that are not sorted lexicographically.
@@ -46,8 +52,8 @@ impl Rule for InconsistentNewlinesRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Files should not mix \\n and \\r\\n line breaks. Pick one and use it consistently in your \
-         project."
+        "Files should not mix `\\n` and `\\r\\n` line breaks. Pick one and use it consistently in \
+         your project."
     }
 
     fn tags(&self) -> TagSet {

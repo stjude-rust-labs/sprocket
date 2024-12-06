@@ -30,7 +30,7 @@ fn missing_trailing_newline(span: Span) -> Diagnostic {
     Diagnostic::note("item should be followed by a newline")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("add a newline after this element")
+        .with_fix("add a newline after this item")
 }
 
 /// Diagnostic message for all on one line.
@@ -38,7 +38,7 @@ fn all_on_one_line(span: Span) -> Diagnostic {
     Diagnostic::note("all items in an array or object should be on separate lines")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("move each item to a new line")
+        .with_fix("put each item on a separate line")
 }
 
 /// Diagnostic for incorrect indentation.

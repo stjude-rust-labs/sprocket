@@ -27,7 +27,7 @@ fn decl_identifier_too_short(span: Span) -> Diagnostic {
     Diagnostic::note("declaration identifier must be at least 3 characters")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("rename the declaration to a name with at least 3 characters")
+        .with_fix("rename the identifier to be at least 3 characters long")
 }
 
 /// Diagnostic for input names that start with [iI]n[A-Z_]
@@ -35,7 +35,7 @@ fn decl_identifier_starts_with_in(span: Span) -> Diagnostic {
     Diagnostic::note("declaration identifier starts with 'in'")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("rename the declaration to a name that does not start with 'in'")
+        .with_fix("rename the identifier to not start with 'in'")
 }
 
 /// Diagnostic for input names that start with "input"
@@ -43,7 +43,7 @@ fn decl_identifier_starts_with_input(span: Span) -> Diagnostic {
     Diagnostic::note("declaration identifier starts with 'input'")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("rename the declaration to a name that does not start with 'input'")
+        .with_fix("rename the identifier to not start with 'input'")
 }
 
 /// A lint rule for disallowed input names.

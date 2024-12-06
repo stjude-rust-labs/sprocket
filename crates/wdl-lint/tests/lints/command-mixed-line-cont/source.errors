@@ -7,7 +7,7 @@ warning[CommandSectionMixedIndentation]: mixed indentation within a command
 14 │            and should be a warning
    │  ^^^ indented with spaces until this tab
    │
-   = fix: use the same whitespace character for indentation
+   = fix: use either tabs or spaces exclusively for indentation
 
 warning[CommandSectionMixedIndentation]: mixed indentation within a command
    ┌─ tests/lints/command-mixed-line-cont/source.wdl:30:2
@@ -18,5 +18,5 @@ warning[CommandSectionMixedIndentation]: mixed indentation within a command
 30 │            and should be a warning
    │  ^^^ indented with spaces until this tab
    │
-   = fix: use the same whitespace character for indentation
+   = fix: use either tabs or spaces exclusively for indentation
 

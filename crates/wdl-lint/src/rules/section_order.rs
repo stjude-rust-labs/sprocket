@@ -174,7 +174,11 @@ impl Visitor for SectionOrderingRule {
                         task_section_order(
                             task.name().span(),
                             task.name().as_str(),
-                            item.syntax().first_token().unwrap().text_range().to_span(),
+                            item.syntax()
+                                .first_token()
+                                .expect("task item should have tokens")
+                                .text_range()
+                                .to_span(),
                         ),
                         SyntaxElement::from(task.syntax().clone()),
                         &self.exceptable_nodes(),
@@ -226,7 +230,11 @@ impl Visitor for SectionOrderingRule {
                         workflow_section_order(
                             workflow.name().span(),
                             workflow.name().as_str(),
-                            item.syntax().first_token().unwrap().text_range().to_span(),
+                            item.syntax()
+                                .first_token()
+                                .expect("workflow item should have tokens")
+                                .text_range()
+                                .to_span(),
                         ),
                         SyntaxElement::from(workflow.syntax().clone()),
                         &self.exceptable_nodes(),

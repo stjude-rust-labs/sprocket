@@ -4,5 +4,5 @@ warning[MissingOutput]: workflow `test` is missing an output section
 3 │ workflow test {
   │          ^^^^ this workflow is missing an output section
   │
-  = fix: add an output section to the workflow
+  = fix: add an output section to the workflow to enable call-caching
 

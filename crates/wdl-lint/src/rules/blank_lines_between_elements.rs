@@ -44,7 +44,7 @@ fn excess_blank_line(span: Span) -> Diagnostic {
     Diagnostic::note("extra blank line(s) found")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("remove the blank line(s)")
+        .with_fix("remove extra blank line(s)")
 }
 
 /// Creates a missing blank line diagnostic.
@@ -52,7 +52,7 @@ fn missing_blank_line(span: Span) -> Diagnostic {
     Diagnostic::note("missing blank line")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("add a blank line before this element")
+        .with_fix("add a blank line")
 }
 
 /// Track the position within a document
@@ -492,14 +492,21 @@ impl Visitor for BlankLinesBetweenElementsRule {
 /// Check if the given syntax node is the first element in the block.
 fn is_first_element(syntax: &SyntaxNode) -> bool {
     let mut prev = syntax.prev_sibling_or_token();
+    let mut comment_seen = false;
     while let Some(ref cur) = prev {
         match cur {
             NodeOrToken::Token(t) => {
                 if t.kind() == SyntaxKind::OpenBrace {
                     return true;
                 }
+                if t.kind() == SyntaxKind::Comment {
+                    comment_seen = true;
+                }
             }
-            NodeOrToken::Node(_) => {
+            NodeOrToken::Node(n) => {
+                if n.kind() == SyntaxKind::VersionStatementNode {
+                    return !comment_seen;
+                }
                 return false;
             }
         }
@@ -546,6 +553,25 @@ fn check_prior_spacing(
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
     if let Some(prior) = syntax.prev_sibling_or_token() {
+        let span = match prior {
+            NodeOrToken::Token(ref t) => Span::new(
+                t.text_range().start().into(),
+                (syntax.text_range().start() - t.text_range().start()).into(),
+            ),
+            NodeOrToken::Node(ref n) => Span::new(
+                n.last_token()
+                    .expect("node should have tokens")
+                    .text_range()
+                    .start()
+                    .into(),
+                (syntax.text_range().start()
+                    - n.last_token()
+                        .expect("node should have tokens")
+                        .text_range()
+                        .start())
+                .into(),
+            ),
+        };
         match prior.kind() {
             SyntaxKind::Whitespace => {
                 let count = prior
@@ -572,7 +598,7 @@ fn check_prior_spacing(
                     }
                 } else if count < 2 && element_spacing_required {
                     state.exceptable_add(
-                        missing_blank_line(syntax.text_range().to_span()),
+                        missing_blank_line(span),
                         SyntaxElement::from(syntax.clone()),
                         exceptable_nodes,
                     );
@@ -584,7 +610,7 @@ fn check_prior_spacing(
                 // we're missing a blank line.
                 if element_spacing_required && !first {
                     state.exceptable_add(
-                        missing_blank_line(syntax.text_range().to_span()),
+                        missing_blank_line(span),
                         SyntaxElement::from(syntax.clone()),
                         exceptable_nodes,
                     );

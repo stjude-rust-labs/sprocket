@@ -9,7 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Added
 
-* Added a `RedundantInputAssignment` rule ([#244](https://github.com/stjude-rust-labs/wdl/pull/244))
+* Added a `RedundantInputAssignment` rule ([#244](https://github.com/stjude-rust-labs/wdl/pull/244)).
+
+## Changed
+
+* Upgraded some `note` diagnostics to `warning` in `ContainerValue` rule  ([#244](https://github.com/stjude-rust-labs/wdl/pull/244)).
+
+## Fixed
+
+* Shortened many reported spans and ensured all lint diagnostics use a `fix` message ([#260](https://github.com/stjude-rust-labs/wdl/pull/260)).
+* `BlankLinesBetweenElements` logic was tweaked to prevent firing a redundant message with `VersionFormatting` rule ([#260](https://github.com/stjude-rust-labs/wdl/pull/260)).
 
 ## 0.8.0 - 10-22-2024
 
@@ -21,28 +30,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Change how some rules report whitespace spans ([#206](https://github.com/stjude-rust-labs/wdl/pull/206))
-* Cover a missing case in `BlankLinesBetweenElements` ([#206](https://github.com/stjude-rust-labs/wdl/pull/206))
-* Don't redundantly report the same issue from different rules or checks ([#206](https://github.com/stjude-rust-labs/wdl/pull/206))
-* `PreambleComments` and `PreambleWhitespace` have been refactored into 3 rules: `PreambleFormatting`, `VersionFormatting`, and `PreambleCommentAfterVersion` ([#187](https://github.com/stjude-rust-labs/wdl/pull/187))
-* test files have been cleaned up ([#187](https://github.com/stjude-rust-labs/wdl/pull/187))
-* Some `warning` diagnostics are now `note` diagnostics ([#187](https://github.com/stjude-rust-labs/wdl/pull/187))
+* Change how some rules report whitespace spans ([#206](https://github.com/stjude-rust-labs/wdl/pull/206)).
+* Cover a missing case in `BlankLinesBetweenElements` ([#206](https://github.com/stjude-rust-labs/wdl/pull/206)).
+* Don't redundantly report the same issue from different rules or checks ([#206](https://github.com/stjude-rust-labs/wdl/pull/206)).
+* `PreambleComments` and `PreambleWhitespace` have been refactored into 3 rules: `PreambleFormatting`, `VersionFormatting`, and `PreambleCommentAfterVersion` ([#187](https://github.com/stjude-rust-labs/wdl/pull/187)).
+* test files have been cleaned up ([#187](https://github.com/stjude-rust-labs/wdl/pull/187)).
+* Some `warning` diagnostics are now `note` diagnostics ([#187](https://github.com/stjude-rust-labs/wdl/pull/187)).
 
 ### Added
 
-* Added comments to the trailing whitespace check of the `Whitespace` rule ([#177](https://github.com/stjude-rust-labs/wdl/pull/177))
-* Added a `MalformedLintDirective` rule ([#194](https://github.com/stjude-rust-labs/wdl/pull/194))
+* Added comments to the trailing whitespace check of the `Whitespace` rule ([#177](https://github.com/stjude-rust-labs/wdl/pull/177)).
+* Added a `MalformedLintDirective` rule ([#194](https://github.com/stjude-rust-labs/wdl/pull/194)).
 
 ### Fixed
 
-* Fixed inline comment detection edge case ([#219](https://github.com/stjude-rust-labs/wdl/pull/219))
+* Fixed inline comment detection edge case ([#219](https://github.com/stjude-rust-labs/wdl/pull/219)).
 
 ## 0.6.0 - 09-16-2024
 
 ### Fixed
 
-* Lint directives finally work :tada: ([#162](https://github.com/stjude-rust-labs/wdl/pull/162))
-* Updated iter method in lines_with_offset util function to apply new clippy lint ([#172](https://github.com/stjude-rust-labs/wdl/pull/172))
+* Lint directives finally work :tada: ([#162](https://github.com/stjude-rust-labs/wdl/pull/162)).
+* Updated iter method in lines_with_offset util function to apply new clippy lint ([#172](https://github.com/stjude-rust-labs/wdl/pull/172)).
 
 ## 0.5.0 - 08-22-2024
 

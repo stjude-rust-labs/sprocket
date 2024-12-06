@@ -301,7 +301,14 @@ impl Visitor for NonmatchingOutputRule<'_> {
     ) {
         match reason {
             VisitReason::Enter => {
-                self.current_meta_span = Some(section.syntax().text_range().to_span());
+                self.current_meta_span = Some(
+                    section
+                        .syntax()
+                        .first_token()
+                        .expect("metadata section should have tokens")
+                        .text_range()
+                        .to_span(),
+                );
                 self.in_meta = true;
             }
             VisitReason::Exit => {
@@ -318,7 +325,14 @@ impl Visitor for NonmatchingOutputRule<'_> {
     ) {
         match reason {
             VisitReason::Enter => {
-                self.current_output_span = Some(section.syntax().text_range().to_span());
+                self.current_output_span = Some(
+                    section
+                        .syntax()
+                        .first_token()
+                        .expect("output section should have tokens")
+                        .text_range()
+                        .to_span(),
+                );
                 self.in_output = true;
             }
             VisitReason::Exit => {
@@ -336,7 +350,7 @@ impl Visitor for NonmatchingOutputRule<'_> {
         if reason == VisitReason::Enter && self.in_output {
             self.output_keys.insert(
                 decl.name().as_str().to_string(),
-                decl.syntax().text_range().to_span(),
+                decl.name().syntax().text_range().to_span(),
             );
         }
     }

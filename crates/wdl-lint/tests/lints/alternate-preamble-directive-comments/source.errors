@@ -4,6 +4,8 @@ note[PreambleFormatting]: lint directives must come before preamble comments
 3 │ ╭ #@ except: UnknownRule
 4 │ │ #@ except: Foo
   │ ╰──────────────^
+  │  
+  = fix: move the lint directive to the beginning of the document
 
 note[PreambleFormatting]: lint directives must come before preamble comments
   ┌─ tests/lints/alternate-preamble-directive-comments/source.wdl:8:1
@@ -11,4 +13,6 @@ note[PreambleFormatting]: lint directives must come before preamble comments
 8 │ ╭ #@ except: Bar
 9 │ │ #@ except: Baz
   │ ╰──────────────^
+  │  
+  = fix: move the lint directive to the beginning of the document
 

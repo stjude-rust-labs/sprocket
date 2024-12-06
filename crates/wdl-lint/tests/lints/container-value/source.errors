@@ -38,7 +38,7 @@ note[ContainerValue]: an array with a single value should be a string literal
     │
     = fix: change the array to a string literal representing the first value
 
-note[ContainerValue]: arrays containing any are ambiguous
+warning[ContainerValue]: container arrays containing `*` are ambiguous
     ┌─ tests/lints/container-value/source.wdl:159:21
     │
 159 │         container: ["*", "foo", "*", "*"]
@@ -54,7 +54,7 @@ warning[ContainerValue]: container URI is missing a tag
     │
     = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
 
-note[ContainerValue]: empty arrays are ambiguous and should contain at least one entry
+warning[ContainerValue]: empty arrays are ambiguous and should contain at least one entry
     ┌─ tests/lints/container-value/source.wdl:176:20
     │
 176 │         container: []

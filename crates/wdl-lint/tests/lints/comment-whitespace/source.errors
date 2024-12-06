@@ -4,13 +4,13 @@ note[CommentWhitespace]: comment delimiter should be followed by a single space
 5 │ #a bad comment
   │ ^
   │
-  = fix: follow this comment delimiter with a single space
+  = fix: add a single space after the comment delimiter
 
 note[CommentWhitespace]: comment has too much indentation
   ┌─ tests/lints/comment-whitespace/source.wdl:6:5
   │
 6 │     # another bad comment
-  │     ^^^^^^^^^^^^^^^^^^^^^
+  │     ^
   │
   = fix: this comment has 1 levels of indentation. It should have 0 levels of indentation.
 
@@ -20,37 +20,37 @@ note[Whitespace]: line contains trailing whitespace
 9 │ # a comment with trailing whitespace          
   │                                     ^^^^^^^^^^
   │
-  = fix: remove this trailing whitespace
+  = fix: remove the trailing whitespace
 
 note[CommentWhitespace]: in-line comments should be preceded by two spaces
    ┌─ tests/lints/comment-whitespace/source.wdl:12:15
    │
 12 │ workflow foo {# test in-line comment without preceding whitespace
-   │               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │               ^
    │
-   = fix: this comment must be preceded with two spaces
+   = fix: add two spaces before the comment delimiter
 
 note[CommentWhitespace]: in-line comments should be preceded by two spaces
    ┌─ tests/lints/comment-whitespace/source.wdl:14:11
    │
 14 │     meta {# this is a problematic comment
-   │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │           ^
    │
-   = fix: this comment must be preceded with two spaces
+   = fix: add two spaces before the comment delimiter
 
 note[CommentWhitespace]: in-line comments should be preceded by two spaces
    ┌─ tests/lints/comment-whitespace/source.wdl:17:13
    │
 17 │     input { # a bad comment
-   │             ^^^^^^^^^^^^^^^
+   │             ^
    │
-   = fix: this comment must be preceded with two spaces
+   = fix: add two spaces before the comment delimiter
 
 note[CommentWhitespace]: comment not sufficiently indented
    ┌─ tests/lints/comment-whitespace/source.wdl:19:5
    │
 19 │     # another bad comment
-   │     ^^^^^^^^^^^^^^^^^^^^^
+   │     ^
    │
    = fix: this comment has 1 levels of indentation. It should have 2 levels of indentation.
 
@@ -58,7 +58,7 @@ note[CommentWhitespace]: comment has too much indentation
    ┌─ tests/lints/comment-whitespace/source.wdl:20:13
    │
 20 │             # yet another bad comment
-   │             ^^^^^^^^^^^^^^^^^^^^^^^^^
+   │             ^
    │
    = fix: this comment has 3 levels of indentation. It should have 2 levels of indentation.
 
@@ -66,15 +66,15 @@ note[CommentWhitespace]: in-line comments should be preceded by two spaces
    ┌─ tests/lints/comment-whitespace/source.wdl:21:34
    │
 21 │         String foo = "bar"       # too much space for an inline comment
-   │                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │                                  ^
    │
-   = fix: this comment must be preceded with two spaces
+   = fix: add two spaces before the comment delimiter
 
 note[CommentWhitespace]: comment has too much indentation
    ┌─ tests/lints/comment-whitespace/source.wdl:26:15
    │
 26 │               # what about this one?
-   │               ^^^^^^^^^^^^^^^^^^^^^^
+   │               ^
    │
    = fix: this comment has 3 levels of indentation. It should have 2 levels of indentation.
 
@@ -82,7 +82,7 @@ note[CommentWhitespace]: comment has too much indentation
    ┌─ tests/lints/comment-whitespace/source.wdl:48:17
    │
 48 │                 # even more comment
-   │                 ^^^^^^^^^^^^^^^^^^^
+   │                 ^
    │
    = fix: this comment has 4 levels of indentation. It should have 3 levels of indentation.
 
@@ -90,7 +90,7 @@ note[CommentWhitespace]: comment not sufficiently indented
    ┌─ tests/lints/comment-whitespace/source.wdl:95:13
    │
 95 │             # This comment will flag, because the  `] == [` expression is incorrect.
-   │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │             ^
    │
    = fix: this comment has 3 levels of indentation. It should have 4 levels of indentation.
 
@@ -98,7 +98,7 @@ note[CommentWhitespace]: comment not sufficiently indented
     ┌─ tests/lints/comment-whitespace/source.wdl:129:13
     │
 129 │             # This comment will flag, because the  `} == {` expression is incorrect.
-    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    │             ^
     │
     = fix: this comment has 3 levels of indentation. It should have 4 levels of indentation.
 

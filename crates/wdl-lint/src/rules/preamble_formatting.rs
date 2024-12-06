@@ -30,6 +30,10 @@ fn invalid_preamble_comment(span: Span) -> Diagnostic {
     )
     .with_rule(ID)
     .with_highlight(span)
+    .with_fix(
+        "either move this comment out of the preamble or change it to a preamble comment (i.e. a \
+         comment that starts with `##`)",
+    )
 }
 
 /// Creates a "directive after preamble comment" diagnostic.
@@ -37,6 +41,7 @@ fn directive_after_preamble_comment(span: Span) -> Diagnostic {
     Diagnostic::note("lint directives must come before preamble comments")
         .with_rule(ID)
         .with_highlight(span)
+        .with_fix("move the lint directive to the beginning of the document")
 }
 
 /// Creates an "unnecessary whitespace" diagnostic.
@@ -44,6 +49,7 @@ fn leading_whitespace(span: Span) -> Diagnostic {
     Diagnostic::note("unnecessary whitespace in document preamble")
         .with_rule(ID)
         .with_highlight(span)
+        .with_fix("remove the leading whitespace")
 }
 
 /// Creates an "expected a blank line before preamble comment" diagnostic.
@@ -53,6 +59,7 @@ fn expected_blank_line_before_preamble_comment(span: Span) -> Diagnostic {
     )
     .with_rule(ID)
     .with_highlight(span)
+    .with_fix("add a blank line between any lint directives and preamble comments")
 }
 
 /// Detects if a comment is a lint directive.
