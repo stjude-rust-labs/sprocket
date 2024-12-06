@@ -1,6 +1,6 @@
 <p align="center">
   <h1 align="center">
-    wdl
+    <code>wdl</code>
   </h1>
 
   <p align="center">
