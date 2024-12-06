@@ -10,7 +10,7 @@
     <a href="https://crates.io/crates/wdl" target="_blank">
       <img alt="crates.io version" src="https://img.shields.io/crates/v/wdl">
     </a>
-    <a href="https://rustseq.zulipchat.com" target="_blank">
+    <a href="https://rustseq.zulipchat.com/join/coxb7c7b3bbahlfx7poeqqrd/" target="_blank">
       <img alt="CI: Status" src="https://img.shields.io/badge/chat-%23workflows--lib--wdl-blue?logo=zulip&logoColor=f6f6f6" />
     </a>
     <img alt="crates.io downloads" src="https://img.shields.io/crates/d/wdl">
