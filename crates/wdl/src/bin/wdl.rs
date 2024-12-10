@@ -41,6 +41,7 @@ use wdl_analysis::path_to_uri;
 use wdl_analysis::rules;
 use wdl_ast::Node;
 use wdl_ast::Severity;
+use wdl_doc::document_workspace;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
 
@@ -391,6 +392,22 @@ impl FormatCommand {
     }
 }
 
+/// Document a workspace.
+#[derive(Args)]
+#[clap(disable_version_flag = true)]
+pub struct DocCommand {
+    /// The path to the workspace.
+    #[clap(value_name = "PATH")]
+    pub path: PathBuf,
+}
+
+impl DocCommand {
+    /// Executes the `document` subcommand.
+    async fn exec(self) -> Result<()> {
+        document_workspace(self.path).await
+    }
+}
+
 /// A tool for parsing, validating, and linting WDL source code.
 ///
 /// This command line tool is intended as an entrypoint to work with and develop
@@ -433,6 +450,9 @@ enum Command {
 
     /// Formats a WDL file.
     Format(FormatCommand),
+
+    /// Documents a workspace.
+    Doc(DocCommand),
 }
 
 #[tokio::main]
@@ -452,6 +472,7 @@ async fn main() -> Result<()> {
         Command::Lint(cmd) => cmd.exec().await,
         Command::Analyze(cmd) => cmd.exec().await,
         Command::Format(cmd) => cmd.exec().await,
+        Command::Doc(cmd) => cmd.exec().await,
     } {
         eprintln!(
             "{error}: {e:?}",

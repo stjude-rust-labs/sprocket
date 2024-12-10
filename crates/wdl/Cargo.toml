@@ -18,6 +18,7 @@ wdl-lint = { path = "../wdl-lint", version = "0.8.0", optional = true }
 wdl-analysis = { path = "../wdl-analysis", version = "0.5.0", optional = true }
 wdl-lsp = { path = "../wdl-lsp", version = "0.5.0", optional = true }
 wdl-format = { path = "../wdl-format", version = "0.3.0", optional = true }
+wdl-doc = { version = "0.0.0", path = "../wdl-doc", optional = true }
 # TODO: uncomment this when `wdl-engine` is ready for release
 #wdl-engine = { path = "../wdl-engine", version = "0.0.0", optional = true }
 tracing-subscriber = { workspace = true, optional = true }
@@ -42,6 +43,7 @@ default = ["ast", "grammar", "lint", "format"]
 analysis = ["dep:wdl-analysis"]
 ast = ["dep:wdl-ast"]
 format = ["dep:wdl-format"]
+doc = ["dep:wdl-doc"]
 grammar = ["dep:wdl-grammar"]
 lint = ["dep:wdl-lint"]
 lsp = ["dep:wdl-lsp"]
@@ -53,6 +55,7 @@ cli = [
     "codespan",
     "lint",
     "format",
+    "doc",
     "dep:clap",
     "dep:tracing-subscriber",
     "dep:anyhow",

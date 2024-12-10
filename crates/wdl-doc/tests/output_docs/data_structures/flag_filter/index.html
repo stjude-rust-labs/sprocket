@@ -1,0 +1,50 @@
+<h1>flag_filter</h1><p>WDL Version: 1.1</p><h1>FlagFilter</h1>
+<p>A struct to represent the filtering flags used in various <code>samtools</code> commands.
+The order of precedence is <code>include_if_all</code>, <code>exclude_if_any</code>, <code>include_if_any</code>,
+and <code>exclude_if_all</code>.
+These four fields correspond to the samtools flags
+<code>-f</code>, <code>-F</code>, <code>--rf</code>, and <code>-G</code> respectively.
+The values of these fields are strings that represent a 12bit bitwise flag.
+These strings must evaluate to an integer less than 4096 (2^12).
+They can be in octal, decimal, or hexadecimal format.
+Please see the <code>meta.help</code> of <code>validate_string_is_12bit_oct_dec_or_hex</code>
+for more information on the valid formats.</p>
+<p>The <code>validate_flag_filter</code> workflow can be used to validate a <code>FlagFilter</code> struct.
+<strong>WARNING</strong> The <code>validate_flag_filter</code> workflow will only check that all the fields
+can be parsed as integers less than 4096. It will not check if the flags are
+sensible input to <code>samtools fastq</code>.
+<code>samtools fastq</code> also employs very little error checking on the flags.
+So it is possible to pass in flags that produce nonsensical output.
+For example, it is possible to pass in flags that produce no output.
+<strong>Please exhibit caution while modifying any default values of a <code>FlagFilter</code>.</strong></p>
+<p>We suggest using the Broad Institute's SAM flag explainer to construct the flags.
+Find it <a href="https://broadinstitute.github.io/picard/explain-flags.html">here</a>.</p>
+<h2>Example input JSON</h2>
+<pre><code class="language-json">{
+   "flags": {
+       "include_if_all": "0x3",
+       "exclude_if_any": "0xF04",
+       "include_if_any": "0x0",
+       "exclude_if_all": "0x0"
+   }
+}
+</code></pre>
+<h3>Explanation</h3>
+<p>The above example JSON represents a <code>FlagFilter</code> struct
+being passed to parameter named <code>flags</code>.
+The <code>include_if_all</code> field is set to <code>0x3</code> which is <code>3</code> in decimal.
+The <code>exclude_if_any</code> field is set to <code>0xF04</code> which is <code>3844</code> in decimal.
+The <code>include_if_any</code> field is set to <code>0x0</code> which is <code>0</code> in decimal.
+The <code>exclude_if_all</code> field is set to <code>0x0</code> which is <code>0</code> in decimal.</p>
+<p><code>3</code> in decimal can be represented as <code>000000000011</code> in 12bit binary.
+This number means that to be included a read must have the 1st and 2nd bits set.
+Those bits correspond to the <code>read paired</code> and <code>read mapped in proper pair</code> flags.</p>
+<p><code>3844</code> in decimal can be represented as <code>111100000100</code> in 12bit binary.
+This number means that to be excluded a read must have <strong>any</strong> of the
+3rd, 9th, 10th, 11th, or 12th bits set.
+We won't go through what all those bits mean here, but you can find
+the meanings of the bits in the
+<a href="https://broadinstitute.github.io/picard/explain-flags.html">SAM flag explainer</a>.
+In short, those are all flags corresponding to the quality of the read
+and them being <code>true</code> may indicate that the read is of low quality and
+should be excluded.</p>

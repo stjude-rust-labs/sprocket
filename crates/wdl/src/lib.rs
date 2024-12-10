@@ -82,6 +82,9 @@ pub use wdl_ast as ast;
 // #[cfg(feature = "engine")]
 // #[doc(inline)]
 // pub use wdl_engine as engine;
+#[cfg(feature = "doc")]
+#[doc(inline)]
+pub use wdl_doc as doc;
 #[cfg(feature = "format")]
 #[doc(inline)]
 pub use wdl_format as format;

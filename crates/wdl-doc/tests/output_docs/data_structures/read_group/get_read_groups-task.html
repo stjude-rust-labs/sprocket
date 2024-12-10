@@ -1,0 +1,6 @@
+<h1>get_read_groups</h1><ul><li>Meta:meta {
+        description: "Gets read group information from a BAM file and writes it out as JSON which is converted to a WDL struct."
+        outputs: {
+            read_groups: "An array of ReadGroup structs containing read group information."
+        }
+    }</li><li>Inputs:<ul><li><h2>bam</h2><p>Type: File</p><p>Expr: None</p></li><li><h2>modify_disk_size_gb</h2><p>Type: Int</p><p>Expr: 0</p></li></ul></li><li>Outputs:<ul><li><h2>read_groups</h2><p>Type: Array[ReadGroup]</p><p>Expr: read_json("read_groups.json")</p></li></ul></li></ul>

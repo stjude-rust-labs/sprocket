@@ -5,6 +5,7 @@ members = [
     "wdl",
     "wdl-analysis",
     "wdl-ast",
+    "wdl-doc",
     "wdl-engine",
     "wdl-format",
     "wdl-grammar",

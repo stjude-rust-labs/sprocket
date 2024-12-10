@@ -7,3 +7,5 @@ target/
 rustc-ice*
 
 .idea
+
+**/docs/
