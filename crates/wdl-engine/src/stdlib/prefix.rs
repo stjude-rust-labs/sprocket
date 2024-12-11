@@ -1,7 +1,5 @@
 //! Implements the `prefix` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveTypeKind;
 use wdl_ast::Diagnostic;
@@ -33,7 +31,7 @@ fn prefix(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .expect("value should be an array");
 
     let elements = array
-        .elements()
+        .as_slice()
         .iter()
         .map(|v| match v {
             Value::None => PrimitiveValue::String(prefix.clone()).into(),
@@ -44,7 +42,7 @@ fn prefix(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         })
         .collect();
 
-    Ok(Array::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `prefix`.
@@ -74,7 +72,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_string().unwrap().as_str())
             .collect();
@@ -84,18 +82,18 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_string().unwrap().as_str())
             .collect();
-        assert_eq!(elements, ["foo1.0", "foo1.1", "foo1.2"]);
+        assert_eq!(elements, ["foo1.000000", "foo1.100000", "foo1.200000"]);
 
         let value =
             eval_v1_expr(&mut env, V1::Zero, "prefix('foo', ['bar', 'baz', 'qux'])").unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_string().unwrap().as_str())
             .collect();
@@ -105,7 +103,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_string().unwrap().as_str())
             .collect();

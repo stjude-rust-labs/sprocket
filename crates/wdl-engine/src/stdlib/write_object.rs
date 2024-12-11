@@ -45,7 +45,7 @@ fn write_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     let object = context.coerce_argument(0, Type::Object).unwrap_object();
 
     // Create a temporary file that will be persisted after writing the map
-    let mut file = NamedTempFile::new_in(context.tmp()).map_err(|e| {
+    let mut file = NamedTempFile::with_prefix_in("tmp", context.temp_dir()).map_err(|e| {
         function_call_failed(
             "write_object",
             format!("failed to create temporary file: {e}"),
@@ -54,9 +54,9 @@ fn write_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     })?;
 
     let mut writer = BufWriter::new(file.as_file_mut());
-    if !object.members().is_empty() {
+    if !object.is_empty() {
         // Write the header first
-        for (i, key) in object.members().keys().enumerate() {
+        for (i, key) in object.keys().enumerate() {
             if i > 0 {
                 writer.write(b"\t").map_err(write_error)?;
             }
@@ -66,7 +66,7 @@ fn write_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
         writeln!(&mut writer).map_err(write_error)?;
 
-        for (i, (key, value)) in object.members().iter().enumerate() {
+        for (i, (key, value)) in object.iter().enumerate() {
             if i > 0 {
                 writer.write(b"\t").map_err(write_error)?;
             }
@@ -168,7 +168,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -187,12 +187,12 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
-            "foo\tbar\tbaz\nbar\t1\t3.5\n",
+            "foo\tbar\tbaz\nbar\t1\t3.500000\n",
         );
 
         let value = eval_v1_expr(
@@ -206,7 +206,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -225,7 +225,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(

@@ -1,7 +1,5 @@
 //! Implements the `select_all` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -40,12 +38,12 @@ fn select_all(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .expect("argument should be an array");
 
     let elements = array
-        .elements()
+        .as_slice()
         .iter()
         .filter(|v| !v.is_none())
         .cloned()
         .collect();
-    Ok(Array::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `select_all`.
@@ -75,7 +73,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_integer().unwrap())
             .collect();
@@ -85,7 +83,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_integer().unwrap())
             .collect();
@@ -95,7 +93,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_integer().unwrap())
             .collect();
@@ -105,7 +103,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_integer().unwrap())
             .collect();

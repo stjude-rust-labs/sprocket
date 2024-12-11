@@ -81,16 +81,22 @@ pub fn call_failed(target: &Ident, error: &anyhow::Error) -> Diagnostic {
     .with_highlight(target.span())
 }
 
-/// Creates a "struct member coercion failed" diagnostic.
-pub fn struct_member_coercion_failed(
+/// Creates a "runtime type mismatch" diagnostic.
+pub fn runtime_type_mismatch(
     types: &Types,
-    e: &anyhow::Error,
+    e: anyhow::Error,
     expected: Type,
     expected_span: Span,
     actual: Type,
     actual_span: Span,
 ) -> Diagnostic {
-    Diagnostic::error(format!("type mismatch: {e:?}"))
+    let e = e.context(format!(
+        "type mismatch: expected type `{expected}`, but found type `{actual}`",
+        expected = expected.display(types),
+        actual = actual.display(types)
+    ));
+
+    Diagnostic::error(format!("{e:?}"))
         .with_label(
             format!("this is type `{actual}`", actual = actual.display(types)),
             actual_span,
@@ -112,15 +118,16 @@ pub fn array_index_out_of_range(
     target_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!("array index {index} is out of range"))
+        .with_highlight(span)
         .with_label(
-            format!("expected an index value between 0 and {count}"),
-            span,
-        )
-        .with_label(
-            format!(
-                "this array has {count} element{s}",
-                s = if count == 1 { "" } else { "s" }
-            ),
+            if count == 0 {
+                "this array is empty".to_string()
+            } else {
+                format!(
+                    "this array has only {count} element{s}",
+                    s = if count == 1 { "" } else { "s" }
+                )
+            },
             target_span,
         )
 }
@@ -192,4 +199,14 @@ pub fn invalid_storage_unit(unit: &str, span: Span) -> Diagnostic {
 /// Creates a "function call failed" diagnostic.
 pub fn function_call_failed(name: &str, error: impl fmt::Display, span: Span) -> Diagnostic {
     Diagnostic::error(format!("call to function `{name}` failed: {error}")).with_highlight(span)
+}
+
+/// Creates a "missing task output" diagnostic.
+pub fn missing_task_output(e: anyhow::Error, task: &str, output: &Ident) -> Diagnostic {
+    let e = e.context(format!(
+        "failed to evaluate output `{output}` for task `{task}`",
+        output = output.as_str(),
+    ));
+
+    Diagnostic::error(format!("{e:?}")).with_highlight(output.span())
 }

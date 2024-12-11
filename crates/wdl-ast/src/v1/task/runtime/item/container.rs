@@ -5,11 +5,10 @@ use wdl_grammar::WorkflowDescriptionLanguage;
 
 use crate::AstToken;
 use crate::v1::RuntimeItem;
+use crate::v1::TASK_REQUIREMENT_CONTAINER;
+use crate::v1::TASK_REQUIREMENT_CONTAINER_ALIAS;
 use crate::v1::common::container::value;
 use crate::v1::common::container::value::Value;
-
-/// The key name for a container runtime item.
-const CONTAINER_KEYS: &[&str] = &["container", "docker"];
 
 /// The `container` item within a `runtime` block.
 #[derive(Debug)]
@@ -48,7 +47,7 @@ impl TryFrom<RuntimeItem> for Container {
     type Error = ();
 
     fn try_from(value: RuntimeItem) -> Result<Self, Self::Error> {
-        if CONTAINER_KEYS
+        if [TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS]
             .iter()
             .any(|key| value.name().as_str() == *key)
         {

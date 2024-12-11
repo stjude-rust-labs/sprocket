@@ -1,7 +1,5 @@
 //! Implements the `keys` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -9,7 +7,6 @@ use super::Function;
 use super::Signature;
 use crate::Array;
 use crate::CompoundValue;
-use crate::Object;
 use crate::PrimitiveValue;
 use crate::Struct;
 use crate::Value;
@@ -44,18 +41,19 @@ fn keys(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     );
 
     let elements = match &context.arguments[0].value {
-        Value::Compound(CompoundValue::Map(map)) => {
-            map.elements().keys().map(|k| k.clone().into()).collect()
-        }
-        Value::Compound(CompoundValue::Object(Object { members, .. }))
-        | Value::Compound(CompoundValue::Struct(Struct { members, .. })) => members
+        Value::Compound(CompoundValue::Map(map)) => map.keys().map(|k| k.clone().into()).collect(),
+        Value::Compound(CompoundValue::Object(object)) => object
+            .keys()
+            .map(|k| PrimitiveValue::new_string(k).into())
+            .collect(),
+        Value::Compound(CompoundValue::Struct(Struct { members, .. })) => members
             .keys()
             .map(|k| PrimitiveValue::new_string(k).into())
             .collect(),
         _ => unreachable!("expected a map, object, or struct"),
     };
 
-    Ok(Array::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `keys`.
@@ -105,7 +103,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_string().unwrap().as_str())
             .collect();
@@ -115,7 +113,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| match v {
                 Value::None => None,
@@ -130,7 +128,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_string().unwrap().as_str())
             .collect();
@@ -141,7 +139,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_string().unwrap().as_str())
             .collect();

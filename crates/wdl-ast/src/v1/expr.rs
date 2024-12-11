@@ -1,5 +1,8 @@
 //! V1 AST representation for expressions.
 
+use wdl_grammar::lexer::v1::EscapeToken;
+use wdl_grammar::lexer::v1::Logos;
+
 use crate::AstChildren;
 use crate::AstNode;
 use crate::AstToken;
@@ -2086,34 +2089,52 @@ pub enum StrippedStringPart {
     Placeholder(Placeholder),
 }
 
-/// Removes line continuations from a string.
+/// Unescapes a multiline string.
 ///
-/// A line continuation is a backslash immediately preceding a newline
-/// character. This function will remove the backslash and newline, and any
-/// spaces or tabs that follow the newline character.
-fn remove_line_continuations(s: &str) -> String {
+/// This unescapes both line continuations and `\>` sequences.
+fn unescape_multiline_string(s: &str) -> String {
     let mut result = String::new();
     let mut chars = s.chars().peekable();
-    let mut push_c;
     while let Some(c) = chars.next() {
-        push_c = true;
-        if c == '\\' {
-            if let Some(next) = chars.next() {
-                if next == '\n' {
-                    push_c = false;
-                    let inner_chars = chars.by_ref();
-                    while let Some(&c) = inner_chars.peek() {
-                        if c == ' ' || c == '\t' {
-                            inner_chars.next();
-                        } else {
+        match c {
+            '\\' => match chars.peek() {
+                Some('\r') => {
+                    chars.next();
+                    if chars.peek() == Some(&'\n') {
+                        chars.next();
+                        while let Some(&next) = chars.peek() {
+                            if next == ' ' || next == '\t' {
+                                chars.next();
+                                continue;
+                            }
+
                             break;
                         }
+                    } else {
+                        result.push_str("\\\r");
                     }
                 }
+                Some('\n') => {
+                    chars.next();
+                    while let Some(&next) = chars.peek() {
+                        if next == ' ' || next == '\t' {
+                            chars.next();
+                            continue;
+                        }
+
+                        break;
+                    }
+                }
+                Some('\\') | Some('>') | Some('~') | Some('$') => {
+                    result.push(chars.next().unwrap());
+                }
+                _ => {
+                    result.push('\\');
+                }
+            },
+            _ => {
+                result.push(c);
             }
-        }
-        if push_c {
-            result.push(c);
         }
     }
     result
@@ -2172,36 +2193,23 @@ impl LiteralString {
 
     /// Strips leading whitespace from a multi-line string.
     ///
-    /// This function will remove leading whitespace from each line of a
-    /// multi-line string and parse line continuations. Single or double
-    /// quoted strings will return `None`.
+    /// This function will remove leading and trailing whitespace and handle
+    /// unescaping the string.
+    ///
+    /// Returns `None` if not a multi-line string.
     pub fn strip_whitespace(&self) -> Option<Vec<StrippedStringPart>> {
         if self.kind() != LiteralStringKind::Multiline {
             return None;
         }
 
+        // Unescape each line
         let mut result = Vec::new();
-
-        // Parse the string parts and remove line continuations.
-        // We also remove the first and last lines of the string.
-        // Placeholders are copied as-is.
-        for (i, part) in self.parts().enumerate() {
+        for part in self.parts() {
             match part {
                 StringPart::Text(text) => {
-                    let parsed = remove_line_continuations(text.as_str());
-                    let mut reconstructed = Vec::new();
-                    for (j, line) in parsed.lines().enumerate() {
-                        if i == 0 && j == 0 {
-                            let trimmed = line.trim_start();
-                            if !trimmed.is_empty() {
-                                reconstructed.push(trimmed.to_string());
-                            }
-                            continue;
-                        }
-                        reconstructed.push(line.to_string());
-                    }
-
-                    result.push(StrippedStringPart::Text(reconstructed.join("\n")));
+                    result.push(StrippedStringPart::Text(unescape_multiline_string(
+                        text.as_str(),
+                    )));
                 }
                 StringPart::Placeholder(placeholder) => {
                     result.push(StrippedStringPart::Placeholder(placeholder));
@@ -2209,28 +2217,40 @@ impl LiteralString {
             }
         }
 
+        // Trim the first line
+        if let Some(StrippedStringPart::Text(text)) = result.first_mut() {
+            let end = text.find('\n').map(|p| p + 1).unwrap_or(text.len());
+            let line = &text[..end];
+            let len = line.len() - line.trim_start().len();
+            text.replace_range(..len, "");
+        }
+
+        // Trim the last line
         if let Some(StrippedStringPart::Text(text)) = result.last_mut() {
             if let Some(index) = text.rfind(|c| !matches!(c, ' ' | '\t')) {
                 text.truncate(index + 1);
             } else {
                 text.clear();
             }
+
             if text.ends_with('\n') {
                 text.pop();
             }
         }
 
-        // Now that the string has had line continuations parsed and the first and last
-        // lines removed, we can detect any leading whitespace and trim it.
+        // Now that the string has been unescaped and the first and last lines trimmed,
+        // we can detect any leading whitespace and trim it.
         let mut leading_whitespace = usize::MAX;
         let mut parsing_leading_whitespace = true;
-        for part in &result {
+        let mut iter = result.iter().peekable();
+        while let Some(part) = iter.next() {
             match part {
                 StrippedStringPart::Text(text) => {
                     for (i, line) in text.lines().enumerate() {
                         if i > 0 {
                             parsing_leading_whitespace = true;
                         }
+
                         if parsing_leading_whitespace {
                             let mut ws_count = 0;
                             for c in line.chars() {
@@ -2240,6 +2260,18 @@ impl LiteralString {
                                     break;
                                 }
                             }
+
+                            // Don't include blank lines in determining leading whitespace, unless
+                            // the next part is a placeholder
+                            if ws_count == line.len()
+                                && iter
+                                    .peek()
+                                    .map(|p| !matches!(p, StrippedStringPart::Placeholder(_)))
+                                    .unwrap_or(true)
+                            {
+                                continue;
+                            }
+
                             leading_whitespace = leading_whitespace.min(ws_count);
                         }
                     }
@@ -2250,29 +2282,42 @@ impl LiteralString {
             }
         }
 
-        let mut parsing_leading_whitespace = true;
+        // Finally, strip the leading whitespace on each line
+        // This is done in place using the `replace_range` method; the method will
+        // internally do moves without allocations
+        let mut strip_leading_whitespace = true;
         for part in &mut result {
             match part {
                 StrippedStringPart::Text(text) => {
-                    let mut lines = Vec::new();
-                    for (i, line) in text.lines().enumerate() {
-                        if i > 0 {
-                            parsing_leading_whitespace = true;
+                    let mut offset = 0;
+                    while let Some(next) = text[offset..].find('\n') {
+                        let next = next + offset;
+                        if offset > 0 {
+                            strip_leading_whitespace = true;
                         }
-                        if !parsing_leading_whitespace {
-                            lines.push(line);
+
+                        if !strip_leading_whitespace {
+                            offset = next + 1;
                             continue;
                         }
-                        if line.len() < leading_whitespace {
-                            lines.push("");
-                        } else {
-                            lines.push(&line[leading_whitespace..]);
-                        }
+
+                        let line = &text[offset..next];
+                        let line = line.strip_suffix('\r').unwrap_or(line);
+                        let len = line.len().min(leading_whitespace);
+                        text.replace_range(offset..offset + len, "");
+                        offset = next + 1 - len;
                     }
-                    *text = lines.join("\n");
+
+                    // Replace any remaining text
+                    if strip_leading_whitespace || offset > 0 {
+                        let line = &text[offset..];
+                        let line = line.strip_suffix('\r').unwrap_or(line);
+                        let len = line.len().min(leading_whitespace);
+                        text.replace_range(offset..offset + len, "");
+                    }
                 }
                 StrippedStringPart::Placeholder(_) => {
-                    parsing_leading_whitespace = false;
+                    strip_leading_whitespace = false;
                 }
             }
         }
@@ -2352,6 +2397,65 @@ impl StringPart {
 /// Represents a textual part of a string.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StringText(pub(crate) SyntaxToken);
+
+impl StringText {
+    /// Unescapes the string text to the given buffer.
+    ///
+    /// If the string text contains invalid escape sequences, they are left
+    /// as-is.
+    pub fn unescape_to(&self, buffer: &mut String) {
+        let text = self.0.text();
+        let lexer = EscapeToken::lexer(text).spanned();
+        for (token, span) in lexer {
+            match token.expect("should lex") {
+                EscapeToken::Valid => {
+                    match &text[span] {
+                        r"\\" => buffer.push('\\'),
+                        r"\n" => buffer.push('\n'),
+                        r"\r" => buffer.push('\r'),
+                        r"\t" => buffer.push('\t'),
+                        r"\'" => buffer.push('\''),
+                        r#"\""# => buffer.push('"'),
+                        r"\~" => buffer.push('~'),
+                        r"\$" => buffer.push('$'),
+                        _ => unreachable!("unexpected escape token"),
+                    }
+                    continue;
+                }
+                EscapeToken::ValidOctal => {
+                    if let Some(c) = char::from_u32(
+                        u32::from_str_radix(&text[span.start + 1..span.end], 8)
+                            .expect("should be a valid octal number"),
+                    ) {
+                        buffer.push(c);
+                        continue;
+                    }
+                }
+                EscapeToken::ValidHex => {
+                    buffer.push(
+                        u8::from_str_radix(&text[span.start + 2..span.end], 16)
+                            .expect("should be a valid hex number") as char,
+                    );
+                    continue;
+                }
+                EscapeToken::ValidUnicode => {
+                    if let Some(c) = char::from_u32(
+                        u32::from_str_radix(&text[span.start + 2..span.end], 16)
+                            .expect("should be a valid hex number"),
+                    ) {
+                        buffer.push(c);
+                        continue;
+                    }
+                }
+                _ => {
+                    // Write the token to the buffer below
+                }
+            }
+
+            buffer.push_str(&text[span]);
+        }
+    }
+}
 
 impl AstToken for StringText {
     fn can_cast(kind: SyntaxKind) -> bool

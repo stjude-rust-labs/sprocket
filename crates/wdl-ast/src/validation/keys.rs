@@ -21,7 +21,21 @@ use crate::v1::MetadataSection;
 use crate::v1::ParameterMetadataSection;
 use crate::v1::RequirementsSection;
 use crate::v1::RuntimeSection;
+use crate::v1::TASK_HINT_LOCALIZATION_OPTIONAL;
+use crate::v1::TASK_HINT_LOCALIZATION_OPTIONAL_ALIAS;
+use crate::v1::TASK_HINT_MAX_CPU;
+use crate::v1::TASK_HINT_MAX_CPU_ALIAS;
+use crate::v1::TASK_HINT_MAX_MEMORY;
+use crate::v1::TASK_HINT_MAX_MEMORY_ALIAS;
+use crate::v1::TASK_REQUIREMENT_CONTAINER;
+use crate::v1::TASK_REQUIREMENT_CONTAINER_ALIAS;
+use crate::v1::TASK_REQUIREMENT_MAX_RETRIES;
+use crate::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
+use crate::v1::TASK_REQUIREMENT_RETURN_CODES;
+use crate::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use crate::v1::TaskHintsSection;
+use crate::v1::WORKFLOW_HINT_ALLOW_NESTED_INPUTS;
+use crate::v1::WORKFLOW_HINT_ALLOW_NESTED_INPUTS_ALIAS;
 use crate::v1::WorkflowHintsSection;
 
 /// Represents context about a unique key validation error.
@@ -167,9 +181,15 @@ impl Visitor for UniqueKeysVisitor {
         check_duplicate_keys(
             &mut self.0,
             &[
-                ("container", "docker"),
-                ("max_retries", "maxRetries"),
-                ("return_codes", "returnCodes"),
+                (TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS),
+                (
+                    TASK_REQUIREMENT_MAX_RETRIES,
+                    TASK_REQUIREMENT_MAX_RETRIES_ALIAS,
+                ),
+                (
+                    TASK_REQUIREMENT_RETURN_CODES,
+                    TASK_REQUIREMENT_RETURN_CODES_ALIAS,
+                ),
             ],
             section.items().map(|i| i.name()),
             Context::RequirementsSection,
@@ -190,9 +210,12 @@ impl Visitor for UniqueKeysVisitor {
         check_duplicate_keys(
             &mut self.0,
             &[
-                ("max_cpu", "maxCpu"),
-                ("max_memory", "maxMemory"),
-                ("localization_optional", "localizationOptional"),
+                (TASK_HINT_MAX_CPU, TASK_HINT_MAX_CPU_ALIAS),
+                (TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS),
+                (
+                    TASK_HINT_LOCALIZATION_OPTIONAL,
+                    TASK_HINT_LOCALIZATION_OPTIONAL_ALIAS,
+                ),
             ],
             section.items().map(|i| i.name()),
             Context::HintsSection,
@@ -212,7 +235,10 @@ impl Visitor for UniqueKeysVisitor {
 
         check_duplicate_keys(
             &mut self.0,
-            &[("allow_nested_inputs", "allowNestedInputs")],
+            &[(
+                WORKFLOW_HINT_ALLOW_NESTED_INPUTS,
+                WORKFLOW_HINT_ALLOW_NESTED_INPUTS_ALIAS,
+            )],
             section.items().map(|i| i.name()),
             Context::HintsSection,
             state,
@@ -231,7 +257,7 @@ impl Visitor for UniqueKeysVisitor {
 
         check_duplicate_keys(
             &mut self.0,
-            &[("container", "docker")],
+            &[(TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS)],
             section.items().map(|i| i.name()),
             Context::RuntimeSection,
             state,

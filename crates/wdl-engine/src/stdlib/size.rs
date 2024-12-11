@@ -45,7 +45,7 @@ fn size(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     // If the first argument is a string, we need to check if it's a file or
     // directory and treat it as such.
     let value = if let Some(s) = context.arguments[0].value.as_string() {
-        let path = context.cwd().join(s.as_str());
+        let path = context.work_dir().join(s.as_str());
         let metadata = path
             .metadata()
             .with_context(|| {
@@ -64,7 +64,7 @@ fn size(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         context.arguments[0].value.clone()
     };
 
-    calculate_disk_size(&value, unit, context.cwd())
+    calculate_disk_size(&value, unit, context.work_dir())
         .map_err(|e| function_call_failed("size", format!("{e:?}"), context.call_site))
         .map(Into::into)
 }
@@ -81,6 +81,10 @@ fn calculate_disk_size(value: &Value, unit: StorageUnit, cwd: &Path) -> Result<f
         Value::None => Ok(0.0),
         Value::Primitive(v) => primitive_disk_size(v, unit, cwd),
         Value::Compound(v) => compound_disk_size(v, unit, cwd),
+        Value::Task(_) => bail!("the size of a task variable cannot be calculated"),
+        Value::Hints(_) => bail!("the size of a hints value cannot be calculated"),
+        Value::Input(_) => bail!("the size of an input value cannot be calculated"),
+        Value::Output(_) => bail!("the size of an output value cannot be calculated"),
     }
 }
 
@@ -100,7 +104,7 @@ fn primitive_disk_size(value: &PrimitiveValue, unit: StorageUnit, cwd: &Path) ->
                 bail!("path `{path}` is not a file", path = path.display());
             }
 
-            Ok(unit.convert(metadata.len()))
+            Ok(unit.units(metadata.len()))
         }
         PrimitiveValue::Directory(path) => calculate_directory_size(&cwd.join(path.as_str()), unit),
         _ => Ok(0.0),
@@ -112,10 +116,10 @@ fn compound_disk_size(value: &CompoundValue, unit: StorageUnit, cwd: &Path) -> R
     match value {
         CompoundValue::Pair(pair) => Ok(calculate_disk_size(pair.left(), unit, cwd)?
             + calculate_disk_size(pair.right(), unit, cwd)?),
-        CompoundValue::Array(array) => Ok(array.elements().iter().try_fold(0.0, |t, e| {
+        CompoundValue::Array(array) => Ok(array.as_slice().iter().try_fold(0.0, |t, e| {
             anyhow::Ok(t + calculate_disk_size(e, unit, cwd)?)
         })?),
-        CompoundValue::Map(map) => Ok(map.elements().iter().try_fold(0.0, |t, (k, v)| {
+        CompoundValue::Map(map) => Ok(map.iter().try_fold(0.0, |t, (k, v)| {
             anyhow::Ok(
                 t + match k {
                     Some(k) => primitive_disk_size(k, unit, cwd)?,
@@ -123,12 +127,10 @@ fn compound_disk_size(value: &CompoundValue, unit: StorageUnit, cwd: &Path) -> R
                 } + calculate_disk_size(v, unit, cwd)?,
             )
         })?),
-        CompoundValue::Object(object) => {
-            Ok(object.members().iter().try_fold(0.0, |t, (_, v)| {
-                anyhow::Ok(t + calculate_disk_size(v, unit, cwd)?)
-            })?)
-        }
-        CompoundValue::Struct(s) => Ok(s.members().iter().try_fold(0.0, |t, (_, v)| {
+        CompoundValue::Object(object) => Ok(object.iter().try_fold(0.0, |t, (_, v)| {
+            anyhow::Ok(t + calculate_disk_size(v, unit, cwd)?)
+        })?),
+        CompoundValue::Struct(s) => Ok(s.iter().try_fold(0.0, |t, (_, v)| {
             anyhow::Ok(t + calculate_disk_size(v, unit, cwd)?)
         })?),
     }
@@ -173,7 +175,7 @@ fn calculate_directory_size(path: &Path, unit: StorageUnit) -> Result<f64> {
             if metadata.is_dir() {
                 queue.push(entry.path().into());
             } else {
-                size += unit.convert(metadata.len());
+                size += unit.units(metadata.len());
             }
         }
     }
@@ -222,11 +224,16 @@ mod test {
 
         env.insert_name(
             "file",
-            PrimitiveValue::new_file(env.cwd().join("bar").to_str().expect("should be UTF-8")),
+            PrimitiveValue::new_file(
+                env.work_dir()
+                    .join("bar")
+                    .to_str()
+                    .expect("should be UTF-8"),
+            ),
         );
         env.insert_name(
             "dir",
-            PrimitiveValue::new_directory(env.cwd().to_str().expect("should be UTF-8")),
+            PrimitiveValue::new_directory(env.work_dir().to_str().expect("should be UTF-8")),
         );
 
         let diagnostic = eval_v1_expr(&mut env, V1::Two, "size('foo', 'invalid')").unwrap_err();
@@ -244,7 +251,7 @@ mod test {
                 .starts_with("call to function `size` failed: failed to read metadata for file")
         );
 
-        let source = format!("size('{path}', 'B')", path = env.cwd().display());
+        let source = format!("size('{path}', 'B')", path = env.work_dir().display());
         let value = eval_v1_expr(&mut env, V1::Two, &source).unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 60.0);
 

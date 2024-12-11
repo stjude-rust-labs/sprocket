@@ -1,0 +1,9 @@
+{
+  "optional_output.example1": "work/example1.txt",
+  "optional_output.example2": null,
+  "optional_output.file_array": [
+    "work/example1.txt",
+    null
+  ],
+  "optional_output.file_array_len": 1
+}

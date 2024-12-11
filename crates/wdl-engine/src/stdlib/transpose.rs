@@ -1,7 +1,5 @@
 //! Implements the `transpose` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
@@ -46,13 +44,13 @@ fn transpose(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     let rows = outer.len();
     let (columns, ty) = outer
-        .elements()
+        .as_slice()
         .first()
         .map(|v| {
             (
                 v.as_array()
                     .expect("element should be an array")
-                    .elements()
+                    .as_slice()
                     .len(),
                 v.ty(),
             )
@@ -63,7 +61,7 @@ fn transpose(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     for i in 0..columns {
         let mut transposed_inner: Vec<Value> = Vec::with_capacity(rows);
         for j in 0..rows {
-            let inner = outer.elements()[j]
+            let inner = outer.as_slice()[j]
                 .as_array()
                 .expect("element should be an array");
             if inner.len() != columns {
@@ -74,13 +72,13 @@ fn transpose(context: CallContext<'_>) -> Result<Value, Diagnostic> {
                 ));
             }
 
-            transposed_inner.push(inner.elements()[i].clone())
+            transposed_inner.push(inner.as_slice()[i].clone())
         }
 
-        transposed_outer.push(Array::new_unchecked(ty, Arc::new(transposed_inner)).into());
+        transposed_outer.push(Array::new_unchecked(ty, transposed_inner).into());
     }
 
-    Ok(Array::new_unchecked(context.return_type, Arc::new(transposed_outer)).into())
+    Ok(Array::new_unchecked(context.return_type, transposed_outer).into())
 }
 
 /// Gets the function describing `transpose`.
@@ -117,12 +115,12 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_array()
                     .unwrap()
-                    .elements()
+                    .as_slice()
                     .iter()
                     .map(|v| v.as_integer().unwrap())
                     .collect::<Vec<_>>()
@@ -139,12 +137,12 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_array()
                     .unwrap()
-                    .elements()
+                    .as_slice()
                     .iter()
                     .map(|v| v.as_string().unwrap().as_str())
                     .collect::<Vec<_>>()

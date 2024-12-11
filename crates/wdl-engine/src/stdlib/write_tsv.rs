@@ -60,7 +60,7 @@ fn write_array_tsv_file(
     };
 
     // Create a temporary file that will be persisted after writing
-    let mut file = NamedTempFile::new_in(tmp).map_err(|e| {
+    let mut file = NamedTempFile::with_prefix_in("tmp", tmp).map_err(|e| {
         function_call_failed(
             "write_tsv",
             format!("failed to create temporary file: {e}"),
@@ -72,7 +72,7 @@ fn write_array_tsv_file(
 
     // Start by writing the header, if one was provided
     let column_count = if let Some(header) = header {
-        for (i, name) in header.elements().iter().enumerate() {
+        for (i, name) in header.as_slice().iter().enumerate() {
             let name = name.as_string().unwrap();
             if name.contains('\t') {
                 return Err(function_call_failed(
@@ -96,7 +96,7 @@ fn write_array_tsv_file(
     };
 
     // Write the rows
-    for (index, row) in rows.elements().iter().enumerate() {
+    for (index, row) in rows.as_slice().iter().enumerate() {
         let row = row.as_array().unwrap();
         if let Some(column_count) = column_count {
             if row.len() != column_count {
@@ -113,7 +113,7 @@ fn write_array_tsv_file(
             }
         }
 
-        for (i, column) in row.elements().iter().enumerate() {
+        for (i, column) in row.as_slice().iter().enumerate() {
             let column = column.as_string().unwrap();
             if column.contains('\t') {
                 return Err(function_call_failed(
@@ -177,7 +177,7 @@ fn write_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(0, ANALYSIS_STDLIB.array_array_string_type())
         .unwrap_array();
 
-    write_array_tsv_file(context.tmp(), rows, None, context.call_site)
+    write_array_tsv_file(context.temp_dir(), rows, None, context.call_site)
 }
 
 /// Given an Array of elements, writes a tab-separated value (TSV) file with one
@@ -205,7 +205,7 @@ fn write_tsv_with_header(context: CallContext<'_>) -> Result<Value, Diagnostic> 
         .unwrap_array();
 
     write_array_tsv_file(
-        context.tmp(),
+        context.temp_dir(),
         rows,
         if write_header { Some(header) } else { None },
         context.call_site,
@@ -255,7 +255,7 @@ fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     };
 
     // Create a temporary file that will be persisted after writing
-    let mut file = NamedTempFile::new_in(context.tmp()).map_err(|e| {
+    let mut file = NamedTempFile::with_prefix_in("tmp", context.temp_dir()).map_err(|e| {
         function_call_failed(
             "write_tsv",
             format!("failed to create temporary file: {e}"),
@@ -295,7 +295,7 @@ fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             }
 
             // Header was explicitly specified, write out the values
-            for (i, name) in header.elements().iter().enumerate() {
+            for (i, name) in header.as_slice().iter().enumerate() {
                 let name = name.as_string().unwrap();
                 if name.contains('\t') {
                     return Err(function_call_failed(
@@ -326,9 +326,9 @@ fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     }
 
     // Write the rows
-    for row in rows.elements() {
+    for row in rows.as_slice() {
         let row = row.as_struct().unwrap();
-        for (i, (name, column)) in row.members().iter().enumerate() {
+        for (i, (name, column)) in row.iter().enumerate() {
             if i > 0 {
                 writer.write(b"\t").map_err(write_error)?;
             }
@@ -434,7 +434,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -453,7 +453,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -472,7 +472,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -505,7 +505,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -525,7 +525,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -545,7 +545,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -565,7 +565,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -585,7 +585,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(

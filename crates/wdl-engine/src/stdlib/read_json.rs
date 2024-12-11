@@ -22,7 +22,7 @@ fn read_json(mut context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
     debug_assert!(context.return_type_eq(Type::Union));
 
-    let path = context.cwd().join(
+    let path = context.work_dir().join(
         context
             .coerce_argument(0, PrimitiveTypeKind::File)
             .unwrap_file()
@@ -124,7 +124,7 @@ mod test {
         assert_eq!(
             value
                 .unwrap_array()
-                .elements()
+                .as_slice()
                 .iter()
                 .cloned()
                 .map(Value::unwrap_integer)
@@ -148,13 +148,18 @@ mod test {
         let value = eval_v1_expr(&mut env, V1::One, "read_json('object.json')")
             .unwrap()
             .unwrap_object();
-        assert_eq!(value.members()["foo"].as_string().unwrap().as_str(), "bar");
-        assert_eq!(value.members()["bar"].as_integer().unwrap(), 12345);
         assert_eq!(
-            value.members()["baz"]
+            value.get("foo").unwrap().as_string().unwrap().as_str(),
+            "bar"
+        );
+        assert_eq!(value.get("bar").unwrap().as_integer().unwrap(), 12345);
+        assert_eq!(
+            value
+                .get("baz")
+                .unwrap()
                 .as_array()
                 .unwrap()
-                .elements()
+                .as_slice()
                 .iter()
                 .cloned()
                 .map(Value::unwrap_integer)

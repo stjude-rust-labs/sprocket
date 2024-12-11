@@ -147,6 +147,7 @@ pub async fn document_workspace(path: PathBuf) -> Result<()> {
 
     for result in results {
         let cur_path = result
+            .document()
             .uri()
             .to_file_path()
             .expect("URI should have a file path");
@@ -162,10 +163,7 @@ pub async fn document_workspace(path: PathBuf) -> Result<()> {
             .file_name()
             .expect("current directory should have a file name")
             .to_string_lossy();
-        let ast_doc = result
-            .parse_result()
-            .document()
-            .expect("document should be parsable");
+        let ast_doc = result.document().node();
         let version = ast_doc
             .version_statement()
             .expect("document should have a version statement")

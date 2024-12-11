@@ -1,0 +1,2 @@
+mkdir -p my/path/to
+printf "something" > my/path/to/something.txt

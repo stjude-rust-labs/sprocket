@@ -1,7 +1,5 @@
 //! Implements the `collect_by_key` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use indexmap::IndexMap;
 use wdl_ast::Diagnostic;
 
@@ -63,7 +61,7 @@ fn collect_by_key(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     // Start by collecting duplicate keys into a `Vec<Value>`
     let mut map: IndexMap<_, Vec<_>> = IndexMap::new();
-    for v in array.elements() {
+    for v in array.as_slice() {
         let pair = v.as_pair().expect("value should be a pair");
         map.entry(match pair.left() {
             Value::None => None,
@@ -77,15 +75,10 @@ fn collect_by_key(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     // Transform each `Vec<Value>` into an array value
     let elements = map
         .into_iter()
-        .map(|(k, v)| {
-            (
-                k,
-                Array::new_unchecked(map_ty.value_type(), Arc::new(v)).into(),
-            )
-        })
+        .map(|(k, v)| (k, Array::new_unchecked(map_ty.value_type(), v).into()))
         .collect();
 
-    Ok(Map::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Map::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `collect_by_key`.

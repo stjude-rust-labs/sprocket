@@ -3,7 +3,6 @@
 use std::fs;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::sync::Arc;
 
 use anyhow::Context;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
@@ -33,7 +32,7 @@ fn read_lines(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
     debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_string_type()));
 
-    let path = context.cwd().join(
+    let path = context.work_dir().join(
         context
             .coerce_argument(0, PrimitiveTypeKind::File)
             .unwrap_file()
@@ -59,7 +58,7 @@ fn read_lines(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         })
         .collect::<Result<Vec<Value>, _>>()?;
 
-    Ok(Array::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `read_lines`.
@@ -95,7 +94,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_string().unwrap().as_str())
             .collect();
@@ -105,7 +104,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_string().unwrap().as_str())
             .collect();

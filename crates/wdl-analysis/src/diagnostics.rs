@@ -434,8 +434,8 @@ pub fn no_common_type(
     )
 }
 
-/// Creates a custom "type mismatch" diagnostic.
-pub fn type_mismatch_custom(
+/// Creates a "multiple type mismatch" diagnostic.
+pub fn multiple_type_mismatch(
     types: &Types,
     expected: &[Type],
     expected_span: Span,

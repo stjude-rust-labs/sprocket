@@ -26,6 +26,13 @@ use crate::support::child;
 use crate::support::children;
 use crate::token;
 
+/// The name of the `allow_nested_inputs` workflow hint.
+pub const WORKFLOW_HINT_ALLOW_NESTED_INPUTS: &str = "allow_nested_inputs";
+
+/// The alias of the `allow_nested_inputs` workflow hint (e.g.
+/// `allowNestedInputs`).
+pub const WORKFLOW_HINT_ALLOW_NESTED_INPUTS_ALIAS: &str = "allowNestedInputs";
+
 /// Represents a workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorkflowDefinition(pub(crate) SyntaxNode);
@@ -87,10 +94,10 @@ impl WorkflowDefinition {
                 // Check the hints section
                 let allow = self.hints().and_then(|s| {
                     s.items().find_map(|i| {
-                        if matches!(
-                            i.name().as_str(),
-                            "allow_nested_inputs" | "allowNestedInputs"
-                        ) {
+                        let name = i.name();
+                        if name.as_str() == WORKFLOW_HINT_ALLOW_NESTED_INPUTS
+                            || name.as_str() == WORKFLOW_HINT_ALLOW_NESTED_INPUTS_ALIAS
+                        {
                             match i.value() {
                                 WorkflowHintsItemValue::Boolean(v) => Some(v.value()),
                                 _ => Some(false),

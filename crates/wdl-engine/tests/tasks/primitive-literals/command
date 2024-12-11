@@ -1,0 +1,2 @@
+mkdir -p testdir
+printf "hello" > testdir/hello.txt

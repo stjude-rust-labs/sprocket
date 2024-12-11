@@ -130,23 +130,23 @@ impl<'a> CallContext<'a> {
         self.context.types_mut()
     }
 
-    /// Gets the current working directory for the call.
-    pub fn cwd(&self) -> &Path {
-        self.context.cwd()
+    /// Gets the working directory for the call.
+    pub fn work_dir(&self) -> &Path {
+        self.context.work_dir()
     }
 
     /// Gets the temp directory for the call.
-    pub fn tmp(&self) -> &Path {
-        self.context.tmp()
+    pub fn temp_dir(&self) -> &Path {
+        self.context.temp_dir()
     }
 
     /// Gets the stdout value for the call.
-    pub fn stdout(&self) -> Option<Value> {
+    pub fn stdout(&self) -> Option<&Value> {
         self.context.stdout()
     }
 
     /// Gets the stderr value for the call.
-    pub fn stderr(&self) -> Option<Value> {
+    pub fn stderr(&self) -> Option<&Value> {
         self.context.stderr()
     }
 
@@ -167,7 +167,7 @@ impl<'a> CallContext<'a> {
     /// Checks to see if the calculated return type equals the given type.
     ///
     /// This is only used in assertions made by the function implementations.
-    #[cfg(debug_assertions)]
+    #[allow(unused)]
     fn return_type_eq(&self, ty: impl Into<Type>) -> bool {
         self.return_type.type_eq(self.context.types(), &ty.into())
     }

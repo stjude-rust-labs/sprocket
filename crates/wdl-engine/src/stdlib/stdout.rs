@@ -23,7 +23,7 @@ fn stdout(context: CallContext<'_>) -> Result<Value, Diagnostic> {
                 stdout.as_file().is_some(),
                 "expected the value to be a file"
             );
-            Ok(stdout)
+            Ok(stdout.clone())
         }
         None => Err(function_call_failed(
             "stdout",

@@ -19,13 +19,13 @@ wdl-analysis = { path = "../wdl-analysis", version = "0.5.0", optional = true }
 wdl-lsp = { path = "../wdl-lsp", version = "0.5.0", optional = true }
 wdl-format = { path = "../wdl-format", version = "0.3.0", optional = true }
 wdl-doc = { version = "0.0.0", path = "../wdl-doc", optional = true }
-# TODO: uncomment this when `wdl-engine` is ready for release
-#wdl-engine = { path = "../wdl-engine", version = "0.0.0", optional = true }
+wdl-engine = { path = "../wdl-engine", version = "0.0.0", optional = true }
 tracing-subscriber = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 colored = { workspace = true, optional = true }
 codespan-reporting = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 indicatif = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 clap-verbosity-flag =  { workspace = true, optional = true }
@@ -39,20 +39,20 @@ anyhow = { workspace = true }
 codespan-reporting = { workspace = true }
 
 [features]
-default = ["ast", "grammar", "lint", "format"]
+default = ["ast", "grammar", "lint", "format", "engine"]
 analysis = ["dep:wdl-analysis"]
 ast = ["dep:wdl-ast"]
+engine = ["dep:wdl-engine"]
 format = ["dep:wdl-format"]
 doc = ["dep:wdl-doc"]
 grammar = ["dep:wdl-grammar"]
 lint = ["dep:wdl-lint"]
 lsp = ["dep:wdl-lsp"]
-# TOOD: uncomment this when `wdl-engine` is ready for release.
-#engine = ["dep:wdl-engine"]
 codespan = ["ast", "wdl-ast/codespan", "dep:codespan-reporting"]
 cli = [
     "analysis",
     "codespan",
+    "engine",
     "lint",
     "format",
     "doc",
@@ -66,6 +66,7 @@ cli = [
     "dep:tracing-log",
     "dep:tracing",
     "dep:url",
+    "dep:serde_json",
 ]
 
 [lints]

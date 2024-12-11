@@ -1,7 +1,5 @@
 //! Implements the `as_pairs` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -39,14 +37,11 @@ fn as_pairs(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .element_type();
 
     let elements = map
-        .elements()
         .iter()
-        .map(|(k, v)| {
-            Pair::new_unchecked(element_ty, Arc::new(k.clone().into()), Arc::new(v.clone())).into()
-        })
+        .map(|(k, v)| Pair::new_unchecked(element_ty, k.clone().into(), v.clone()).into())
         .collect();
 
-    Ok(Array::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `as_pairs`.
@@ -87,7 +82,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 let pair = v.as_pair().unwrap();
@@ -103,7 +98,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 let pair = v.as_pair().unwrap();
@@ -119,7 +114,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 let pair = v.as_pair().unwrap();

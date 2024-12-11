@@ -9,8 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added constants for the task variable fields, task requirement names, and
+  task hint names ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
 * Added `allows_nested_inputs` function to `Workflow` (#[241](https://github.com/stjude-rust-labs/wdl/pull/241)).
 * `strip_whitespace()` method to `LiteralString` and `CommandSection` AST nodes ([#238](https://github.com/stjude-rust-labs/wdl/pull/238)).
+
+### Changed
+
+* Reduced allocations in stripping whitespace from commands and multiline
+  strings and provided unescaping of escape sequences ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
 
 ## 0.9.0 - 10-22-2024
 

@@ -1,7 +1,5 @@
 //! Implements the `flatten` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -42,18 +40,18 @@ fn flatten(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .expect("argument should be an array");
 
     let elements = array
-        .elements()
+        .as_slice()
         .iter()
         .flat_map(|v| {
             v.as_array()
                 .expect("array element should be an array")
-                .elements()
+                .as_slice()
                 .iter()
                 .cloned()
         })
         .collect();
 
-    Ok(Array::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `flatten`.
@@ -88,7 +86,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_integer().unwrap())
             .collect();
@@ -103,7 +101,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_integer().unwrap())
             .collect();

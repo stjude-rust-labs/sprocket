@@ -3,7 +3,6 @@
 use std::fs;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::sync::Arc;
 
 use anyhow::Context;
 use indexmap::IndexMap;
@@ -40,7 +39,7 @@ impl TsvHeader {
     /// Panics if a specified header contains a value that is not a string.
     pub fn columns(&self) -> impl Iterator<Item = &str> {
         match self {
-            Self::Specified(array) => Either::Left(array.elements().iter().map(|v| {
+            Self::Specified(array) => Either::Left(array.as_slice().iter().map(|v| {
                 v.as_string()
                     .expect("header value must be a string")
                     .as_str()
@@ -64,7 +63,7 @@ fn read_tsv_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
     debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_array_string_type()));
 
-    let path = context.cwd().join(
+    let path = context.work_dir().join(
         context
             .coerce_argument(0, PrimitiveTypeKind::File)
             .unwrap_file()
@@ -84,12 +83,10 @@ fn read_tsv_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             .split('\t')
             .map(|s| PrimitiveValue::new_string(s).into())
             .collect::<Vec<Value>>();
-        rows.push(
-            Array::new_unchecked(ANALYSIS_STDLIB.array_string_type(), Arc::new(values)).into(),
-        );
+        rows.push(Array::new_unchecked(ANALYSIS_STDLIB.array_string_type(), values).into());
     }
 
-    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_array_string_type(), Arc::new(rows)).into())
+    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_array_string_type(), rows).into())
 }
 
 /// Reads a tab-separated value (TSV) file as an Array[Object] representing a
@@ -116,7 +113,7 @@ fn read_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() >= 2 && context.arguments.len() <= 3);
     debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type()));
 
-    let path = context.cwd().join(
+    let path = context.work_dir().join(
         context
             .coerce_argument(0, PrimitiveTypeKind::File)
             .unwrap_file()
@@ -228,7 +225,7 @@ fn read_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         rows.push(CompoundValue::Object(members.into()).into());
     }
 
-    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type(), Arc::new(rows)).into())
+    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type(), rows).into())
 }
 
 /// Gets the function describing `read_tsv`.
@@ -299,12 +296,12 @@ mod test {
         let elements = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_array()
                     .unwrap()
-                    .elements()
+                    .as_slice()
                     .iter()
                     .map(|v| v.as_string().unwrap().as_str())
                     .collect::<Vec<_>>()
@@ -320,14 +317,13 @@ mod test {
         let elements = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_object()
                     .unwrap()
-                    .members()
                     .iter()
-                    .map(|(k, v)| (k.as_str(), v.as_string().unwrap().as_str()))
+                    .map(|(k, v)| (k, v.as_string().unwrap().as_str()))
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -346,14 +342,13 @@ mod test {
         let elements = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_object()
                     .unwrap()
-                    .members()
                     .iter()
-                    .map(|(k, v)| (k.as_str(), v.as_string().unwrap().as_str()))
+                    .map(|(k, v)| (k, v.as_string().unwrap().as_str()))
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -398,14 +393,13 @@ mod test {
         let elements = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_object()
                     .unwrap()
-                    .members()
                     .iter()
-                    .map(|(k, v)| (k.as_str(), v.as_string().unwrap().as_str()))
+                    .map(|(k, v)| (k, v.as_string().unwrap().as_str()))
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();

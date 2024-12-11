@@ -140,6 +140,8 @@ The `wdl` CLI tool currently supports the following subcommands:
 - `format` - Parses, validates, and then formats a single WDL document, printing
   the result to STDOUT.
 - `doc` - Builds documentation for a WDL workspace.
+- `run` - Parses, validates, and then runs a workflow or task from a single WDL
+  document using a local (i.e. not in a container) executor.
 
 Each of the subcommands supports passing `-` as the file path to denote reading
 from STDIN instead of a file on disk.

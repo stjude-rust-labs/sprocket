@@ -3,7 +3,6 @@
 use std::fs;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::sync::Arc;
 
 use anyhow::Context;
 use indexmap::IndexMap;
@@ -37,7 +36,7 @@ fn read_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
     debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.map_string_string_type()));
 
-    let path = context.cwd().join(
+    let path = context.work_dir().join(
         context
             .coerce_argument(0, PrimitiveTypeKind::File)
             .unwrap_file()
@@ -87,7 +86,7 @@ fn read_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         }
     }
 
-    Ok(Map::new_unchecked(ANALYSIS_STDLIB.map_string_string_type(), Arc::new(map)).into())
+    Ok(Map::new_unchecked(ANALYSIS_STDLIB.map_string_string_type(), map).into())
 }
 
 /// Gets the function describing `read_map`.

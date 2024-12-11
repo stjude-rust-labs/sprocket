@@ -11,7 +11,6 @@ use super::CallContext;
 use super::Function;
 use super::Signature;
 use crate::CompoundValue;
-use crate::Object;
 use crate::PrimitiveValue;
 use crate::Struct;
 use crate::Value;
@@ -39,7 +38,7 @@ fn contains_key_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         _ => unreachable!("expected a primitive value for second argument"),
     };
 
-    Ok(map.elements().contains_key(&key).into())
+    Ok(map.contains_key(&key).into())
 }
 
 /// Given an object and a key, tests whether the object contains an entry with
@@ -61,10 +60,7 @@ fn contains_key_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     let object = context.coerce_argument(0, Type::Object).unwrap_object();
     let key = context.coerce_argument(1, PrimitiveTypeKind::String);
-    Ok(object
-        .members()
-        .contains_key(key.unwrap_string().as_str())
-        .into())
+    Ok(object.contains_key(key.unwrap_string().as_str()).into())
 }
 
 /// Given a key-value type collection (Map, Struct, or Object) and a key, tests
@@ -82,12 +78,11 @@ fn contains_key_recursive(context: CallContext<'_>) -> Result<Value, Diagnostic>
     /// key.
     fn get(value: &Value, key: &Arc<String>) -> Option<Value> {
         match value {
-            Value::Compound(CompoundValue::Map(map)) => map
-                .elements()
-                .get(&Some(PrimitiveValue::String(key.clone())))
-                .cloned(),
-            Value::Compound(CompoundValue::Object(Object { members, .. }))
-            | Value::Compound(CompoundValue::Struct(Struct { members, .. })) => {
+            Value::Compound(CompoundValue::Map(map)) => {
+                map.get(&Some(PrimitiveValue::String(key.clone()))).cloned()
+            }
+            Value::Compound(CompoundValue::Object(object)) => object.get(key.as_str()).cloned(),
+            Value::Compound(CompoundValue::Struct(Struct { members, .. })) => {
                 members.get(key.as_str()).cloned()
             }
             _ => None,
@@ -100,7 +95,7 @@ fn contains_key_recursive(context: CallContext<'_>) -> Result<Value, Diagnostic>
         .unwrap_array();
 
     for key in keys
-        .elements()
+        .as_slice()
         .iter()
         .map(|v| v.as_string().expect("element should be a string"))
     {

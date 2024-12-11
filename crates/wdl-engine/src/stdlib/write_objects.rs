@@ -4,6 +4,7 @@ use std::io::BufWriter;
 use std::io::Write;
 use std::path::Path;
 
+use itertools::Either;
 use tempfile::NamedTempFile;
 use wdl_analysis::types::CompoundTypeDef;
 use wdl_analysis::types::PrimitiveTypeKind;
@@ -14,9 +15,7 @@ use super::CallContext;
 use super::Function;
 use super::Signature;
 use crate::CompoundValue;
-use crate::Object;
 use crate::PrimitiveValue;
-use crate::Struct;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 use crate::stdlib::write_tsv::write_tsv_value;
@@ -60,7 +59,7 @@ fn write_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .expect("argument should be an array");
 
     // Create a temporary file that will be persisted after writing the map
-    let mut file = NamedTempFile::new_in(context.tmp()).map_err(|e| {
+    let mut file = NamedTempFile::with_prefix_in("tmp", context.temp_dir()).map_err(|e| {
         function_call_failed(
             "write_objects",
             format!("failed to create temporary file: {e}"),
@@ -80,20 +79,17 @@ fn write_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     // member names
     let mut empty = array.is_empty();
     if matches!(element_type, Type::Object) {
-        let mut iter = array.elements().iter();
+        let mut iter = array.as_slice().iter();
         let expected = iter
             .next()
             .expect("should be non-empty")
             .as_object()
-            .expect("should be object")
-            .members();
+            .expect("should be object");
 
         empty = expected.is_empty();
         for v in iter {
-            let next = v
-                .as_object()
-                .expect("element should be an object")
-                .members();
+            let next = v.as_object().expect("element should be an object");
+
             if next.len() != expected.len() || next.keys().any(|k| !expected.contains_key(k)) {
                 return Err(function_call_failed(
                     "write_objects",
@@ -107,9 +103,9 @@ fn write_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     let mut writer = BufWriter::new(file.as_file_mut());
     if !empty {
         // Write the header first
-        let keys = match array.elements().first().expect("array should not be empty") {
-            Value::Compound(CompoundValue::Object(Object { members, .. }))
-            | Value::Compound(CompoundValue::Struct(Struct { members, .. })) => members.keys(),
+        let keys = match array.as_slice().first().expect("array should not be empty") {
+            Value::Compound(CompoundValue::Object(object)) => Either::Left(object.keys()),
+            Value::Compound(CompoundValue::Struct(s)) => Either::Right(s.keys()),
             _ => unreachable!("value should either be an object or struct"),
         };
 
@@ -124,14 +120,14 @@ fn write_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         writeln!(&mut writer).map_err(write_error)?;
 
         // Next, write a row for each object/struct
-        for v in array.elements().iter() {
-            let members = match v {
-                Value::Compound(CompoundValue::Object(Object { members, .. }))
-                | Value::Compound(CompoundValue::Struct(Struct { members, .. })) => members,
+        for v in array.as_slice().iter() {
+            let iter = match v {
+                Value::Compound(CompoundValue::Object(object)) => Either::Left(object.iter()),
+                Value::Compound(CompoundValue::Struct(s)) => Either::Right(s.iter()),
                 _ => unreachable!("value should either be an object or struct"),
             };
 
-            for (i, (k, v)) in members.iter().enumerate() {
+            for (i, (k, v)) in iter.enumerate() {
                 if i > 0 {
                     writer.write(b"\t").map_err(write_error)?;
                 }
@@ -234,7 +230,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -254,12 +250,12 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
-            "foo\tbar\tbaz\nbar\t1\t3.5\nfoo\t101\t1234\n",
+            "foo\tbar\tbaz\nbar\t1\t3.500000\nfoo\t101\t1234\n",
         );
 
         let value = eval_v1_expr(
@@ -274,12 +270,12 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
-            "foo\tbar\tbaz\nbar\t1\t3.5\nfoo\t\t1234\n",
+            "foo\tbar\tbaz\nbar\t1\t3.500000\nfoo\t\t1234\n",
         );
 
         let value = eval_v1_expr(
@@ -294,7 +290,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(

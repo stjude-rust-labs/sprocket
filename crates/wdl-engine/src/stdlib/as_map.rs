@@ -1,7 +1,6 @@
 //! Implements the `as_map` function from the WDL standard library.
 
 use std::fmt;
-use std::sync::Arc;
 
 use indexmap::IndexMap;
 use wdl_ast::Diagnostic;
@@ -62,7 +61,7 @@ fn as_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .expect("argument should be an array");
 
     let mut elements = IndexMap::with_capacity(array.len());
-    for e in array.elements() {
+    for e in array.as_slice() {
         let pair = e.as_pair().expect("element should be a pair");
         let key = match pair.left() {
             Value::None => None,
@@ -79,7 +78,7 @@ fn as_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         }
     }
 
-    Ok(Map::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Map::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `as_map`.
@@ -118,7 +117,6 @@ mod test {
         let elements: Vec<_> = value
             .as_map()
             .unwrap()
-            .elements()
             .iter()
             .map(|(k, v)| {
                 (
@@ -134,7 +132,6 @@ mod test {
         let elements: Vec<_> = value
             .as_map()
             .unwrap()
-            .elements()
             .iter()
             .map(|(k, v)| {
                 (
@@ -150,7 +147,6 @@ mod test {
         let elements: Vec<_> = value
             .as_map()
             .unwrap()
-            .elements()
             .iter()
             .map(|(k, v)| {
                 (
@@ -170,7 +166,6 @@ mod test {
         let elements: Vec<_> = value
             .as_map()
             .unwrap()
-            .elements()
             .iter()
             .map(|(k, v)| {
                 (

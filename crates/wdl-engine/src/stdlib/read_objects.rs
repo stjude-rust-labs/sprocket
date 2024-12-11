@@ -3,7 +3,6 @@
 use std::fs;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::sync::Arc;
 
 use anyhow::Context;
 use indexmap::IndexMap;
@@ -45,7 +44,7 @@ fn read_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
     debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type()));
 
-    let path = context.cwd().join(
+    let path = context.work_dir().join(
         context
             .coerce_argument(0, PrimitiveTypeKind::File)
             .unwrap_file()
@@ -64,11 +63,9 @@ fn read_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
                 function_call_failed("read_objects", format!("{e:?}"), context.call_site)
             })?,
         None => {
-            return Ok(Array::new_unchecked(
-                ANALYSIS_STDLIB.array_object_type(),
-                Arc::new(Vec::new()),
-            )
-            .into());
+            return Ok(
+                Array::new_unchecked(ANALYSIS_STDLIB.array_object_type(), Vec::new()).into(),
+            );
         }
     };
 
@@ -130,7 +127,7 @@ fn read_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         objects.push(Object::from(members).into());
     }
 
-    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type(), Arc::new(objects)).into())
+    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type(), objects).into())
 }
 
 /// Gets the function describing `read_objects`.

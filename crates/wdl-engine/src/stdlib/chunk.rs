@@ -1,7 +1,5 @@
 //! Implements the `chunk` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -53,14 +51,12 @@ fn chunk(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .element_type();
 
     let elements = array
-        .elements()
+        .as_slice()
         .chunks(size as usize)
-        .map(|chunk| {
-            Array::new_unchecked(element_ty, Arc::new(Vec::from_iter(chunk.iter().cloned()))).into()
-        })
+        .map(|chunk| Array::new_unchecked(element_ty, Vec::from_iter(chunk.iter().cloned())).into())
         .collect();
 
-    Ok(Array::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `chunk`.
@@ -87,12 +83,12 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_array()
                     .unwrap()
-                    .elements()
+                    .as_slice()
                     .iter()
                     .map(|v| v.as_integer().unwrap())
                     .collect::<Vec<_>>()
@@ -104,12 +100,12 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_array()
                     .unwrap()
-                    .elements()
+                    .as_slice()
                     .iter()
                     .map(|v| v.as_integer().unwrap())
                     .collect::<Vec<_>>()
@@ -121,12 +117,12 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_array()
                     .unwrap()
-                    .elements()
+                    .as_slice()
                     .iter()
                     .map(|v| v.as_integer().unwrap())
                     .collect::<Vec<_>>()
@@ -138,12 +134,12 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_array()
                     .unwrap()
-                    .elements()
+                    .as_slice()
                     .iter()
                     .map(|v| v.as_integer().unwrap())
                     .collect::<Vec<_>>()
@@ -155,12 +151,12 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_array()
                     .unwrap()
-                    .elements()
+                    .as_slice()
                     .iter()
                     .map(|v| v.as_integer().unwrap())
                     .collect::<Vec<_>>()
@@ -172,12 +168,12 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 v.as_array()
                     .unwrap()
-                    .elements()
+                    .as_slice()
                     .iter()
                     .map(|v| v.as_integer().unwrap())
                     .collect::<Vec<_>>()

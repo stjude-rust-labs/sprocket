@@ -28,6 +28,112 @@ pub mod common;
 pub mod requirements;
 pub mod runtime;
 
+/// The name of the `name` task variable field.
+pub const TASK_FIELD_NAME: &str = "name";
+/// The name of the `id` task variable field.
+pub const TASK_FIELD_ID: &str = "id";
+/// The name of the `container` task variable field.
+pub const TASK_FIELD_CONTAINER: &str = "container";
+/// The name of the `cpu` task variable field.
+pub const TASK_FIELD_CPU: &str = "cpu";
+/// The name of the `memory` task variable field.
+pub const TASK_FIELD_MEMORY: &str = "memory";
+/// The name of the `attempt` task variable field.
+pub const TASK_FIELD_ATTEMPT: &str = "attempt";
+/// The name of the `gpu` task variable field.
+pub const TASK_FIELD_GPU: &str = "gpu";
+/// The name of the `fpga` task variable field.
+pub const TASK_FIELD_FPGA: &str = "fpga";
+/// The name of the `disks` task variable field.
+pub const TASK_FIELD_DISKS: &str = "disks";
+/// The name of the `end_time` task variable field.
+pub const TASK_FIELD_END_TIME: &str = "end_time";
+/// The name of the `return_code` task variable field.
+pub const TASK_FIELD_RETURN_CODE: &str = "return_code";
+/// The name of the `meta` task variable field.
+pub const TASK_FIELD_META: &str = "meta";
+/// The name of the `parameter_meta` task variable field.
+pub const TASK_FIELD_PARAMETER_META: &str = "parameter_meta";
+/// The name of the `ext` task variable field.
+pub const TASK_FIELD_EXT: &str = "ext";
+
+/// The name of the `container` task requirement.
+pub const TASK_REQUIREMENT_CONTAINER: &str = "container";
+/// The alias of the `container` task requirement (i.e. `docker`).
+pub const TASK_REQUIREMENT_CONTAINER_ALIAS: &str = "docker";
+/// The name of the `cpu` task requirement.
+pub const TASK_REQUIREMENT_CPU: &str = "cpu";
+/// The name of the `disks` task requirement.
+pub const TASK_REQUIREMENT_DISKS: &str = "disks";
+/// The name of the `gpu` task requirement.
+pub const TASK_REQUIREMENT_GPU: &str = "gpu";
+/// The name of the `fpga` task requirement.
+pub const TASK_REQUIREMENT_FPGA: &str = "fpga";
+/// The name of the `max_retries` task requirement.
+pub const TASK_REQUIREMENT_MAX_RETRIES: &str = "max_retries";
+/// The alias of the `max_retries` task requirement (i.e. `maxRetries``).
+pub const TASK_REQUIREMENT_MAX_RETRIES_ALIAS: &str = "maxRetries";
+/// The name of the `memory` task requirement.
+pub const TASK_REQUIREMENT_MEMORY: &str = "memory";
+/// The name of the `return_codes` task requirement.
+pub const TASK_REQUIREMENT_RETURN_CODES: &str = "return_codes";
+/// The alias of the `return_codes` task requirement (i.e. `returnCodes`).
+pub const TASK_REQUIREMENT_RETURN_CODES_ALIAS: &str = "returnCodes";
+
+/// The name of the `disks` task hint.
+pub const TASK_HINT_DISKS: &str = "disks";
+/// The name of the `gpu` task hint.
+pub const TASK_HINT_GPU: &str = "gpu";
+/// The name of the `fpga` task hint.
+pub const TASK_HINT_FPGA: &str = "fpga";
+/// The name of the `inputs` task hint.
+pub const TASK_HINT_INPUTS: &str = "inputs";
+/// The name of the `localization_optional` task hint.
+pub const TASK_HINT_LOCALIZATION_OPTIONAL: &str = "localization_optional";
+/// The alias of the `localization_optional` task hint (i.e.
+/// `localizationOptional`).
+pub const TASK_HINT_LOCALIZATION_OPTIONAL_ALIAS: &str = "localizationOptional";
+/// The name of the `max_cpu` task hint.
+pub const TASK_HINT_MAX_CPU: &str = "max_cpu";
+/// The alias of the `max_cpu` task hint (i.e. `maxCpu`).
+pub const TASK_HINT_MAX_CPU_ALIAS: &str = "maxCpu";
+/// The name of the `max_memory` task hint.
+pub const TASK_HINT_MAX_MEMORY: &str = "max_memory";
+/// The alias of the `max_memory` task hin (e.g. `maxMemory`).
+pub const TASK_HINT_MAX_MEMORY_ALIAS: &str = "maxMemory";
+/// The name of the `outputs` task hint.
+pub const TASK_HINT_OUTPUTS: &str = "outputs";
+/// The name of the `short_task` task hint.
+pub const TASK_HINT_SHORT_TASK: &str = "short_task";
+/// The alias of the `short_task` task hint (e.g. `shortTask`).
+pub const TASK_HINT_SHORT_TASK_ALIAS: &str = "shortTask";
+
+/// Unescapes command text.
+fn unescape_command_text(s: &str, heredoc: bool, buffer: &mut String) {
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => match chars.peek() {
+                Some('\\') | Some('~') => {
+                    buffer.push(chars.next().unwrap());
+                }
+                Some('>') if heredoc => {
+                    buffer.push(chars.next().unwrap());
+                }
+                Some('$') | Some('}') if !heredoc => {
+                    buffer.push(chars.next().unwrap());
+                }
+                _ => {
+                    buffer.push('\\');
+                }
+            },
+            _ => {
+                buffer.push(c);
+            }
+        }
+    }
+}
+
 /// Represents a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TaskDefinition(pub(crate) SyntaxNode);
@@ -766,10 +872,10 @@ impl CommandSection {
         None
     }
 
-    /// Strips leading whitespace from the command. If the command has mixed
-    /// indentation, this will return `None`.
+    /// Strips leading whitespace from the command.
+    ///
+    /// If the command has mixed indentation, this will return `None`.
     pub fn strip_whitespace(&self) -> Option<Vec<StrippedCommandPart>> {
-        let mut result = Vec::new();
         let mut min_leading_spaces = usize::MAX;
         let mut min_leading_tabs = usize::MAX;
         let mut parsing_leading_whitespace = false; // init to false so that the first line is skipped
@@ -820,46 +926,46 @@ impl CommandSection {
             }
         }
 
-        // Check for no indentation or all whitespace, in which cases the first and last
-        // line must be trimmed.
+        let mut result = Vec::new();
+        let heredoc = self.is_heredoc();
+        for part in self.parts() {
+            match part {
+                CommandPart::Text(text) => {
+                    let mut s = String::new();
+                    unescape_command_text(text.as_str(), heredoc, &mut s);
+                    result.push(StrippedCommandPart::Text(s));
+                }
+                CommandPart::Placeholder(p) => {
+                    result.push(StrippedCommandPart::Placeholder(p));
+                }
+            }
+        }
+
+        // Trim the first line
+        if let Some(StrippedCommandPart::Text(text)) = result.first_mut() {
+            let end = text.find('\n').map(|p| p + 1).unwrap_or(text.len());
+            let line = &text[..end];
+            let len = line.len() - line.trim_start().len();
+            text.replace_range(..len, "");
+        }
+
+        // Trim the last line
+        if let Some(StrippedCommandPart::Text(text)) = result.last_mut() {
+            if let Some(index) = text.rfind(|c| !matches!(c, ' ' | '\t')) {
+                text.truncate(index + 1);
+            } else {
+                text.clear();
+            }
+
+            if text.ends_with('\n') {
+                text.pop();
+            }
+        }
+
+        // Check for no indentation or all whitespace, in which case we're done
         if (min_leading_spaces == 0 && min_leading_tabs == 0)
             || (min_leading_spaces == usize::MAX && min_leading_tabs == usize::MAX)
         {
-            for (i, part) in self.parts().enumerate() {
-                match part {
-                    CommandPart::Text(text) => {
-                        let mut stripped_text = Vec::new();
-                        for (j, line) in text.as_str().lines().enumerate() {
-                            if i == 0 && j == 0 {
-                                let trimmed = line.trim_start();
-                                if !trimmed.is_empty() {
-                                    stripped_text.push(trimmed);
-                                }
-                                continue;
-                            }
-                            stripped_text.push(line);
-                        }
-                        let stripped_text = stripped_text.join("\n");
-
-                        result.push(StrippedCommandPart::Text(stripped_text));
-                    }
-                    CommandPart::Placeholder(p) => {
-                        result.push(StrippedCommandPart::Placeholder(p));
-                    }
-                }
-            }
-
-            if let Some(StrippedCommandPart::Text(text)) = result.last_mut() {
-                if let Some(index) = text.rfind(|c| !matches!(c, ' ' | '\t')) {
-                    text.truncate(index + 1);
-                } else {
-                    text.clear();
-                }
-                if text.ends_with('\n') {
-                    text.pop();
-                }
-            }
-
             return Some(result);
         }
 
@@ -878,49 +984,42 @@ impl CommandSection {
             min_leading_tabs
         };
 
-        for (i, part) in self.parts().enumerate() {
+        // Finally, strip the leading whitespace on each line
+        // This is done in place using the `replace_range` method; the method will
+        // internally do moves without allocations
+        let mut strip_leading_whitespace = true;
+        for part in &mut result {
             match part {
-                CommandPart::Text(text) => {
-                    let mut stripped_text = Vec::new();
-                    for (j, line) in text.as_str().lines().enumerate() {
-                        if i == 0 && j == 0 {
-                            let trimmed = line.trim_start();
-                            if !trimmed.is_empty() {
-                                stripped_text.push(trimmed);
-                            }
+                StrippedCommandPart::Text(text) => {
+                    let mut offset = 0;
+                    while let Some(next) = text[offset..].find('\n') {
+                        let next = next + offset;
+                        if offset > 0 {
+                            strip_leading_whitespace = true;
+                        }
+
+                        if !strip_leading_whitespace {
+                            offset = next + 1;
                             continue;
                         }
-                        if j == 0 {
-                            stripped_text.push(line);
-                            continue;
-                        }
-                        if line.len() >= num_stripped_chars {
-                            stripped_text.push(&line[num_stripped_chars..]);
-                        } else {
-                            stripped_text.push("");
-                        }
-                    }
-                    let stripped_text = stripped_text.join("\n");
 
-                    result.push(StrippedCommandPart::Text(stripped_text));
-                }
-                CommandPart::Placeholder(p) => {
-                    result.push(StrippedCommandPart::Placeholder(p));
-                }
-            }
-        }
-
-        if let Some(StrippedCommandPart::Text(text)) = result.last_mut() {
-            if text.ends_with('\n') {
-                text.pop();
-            }
-            if text.lines().last().map_or(false, |l| l.trim().is_empty()) {
-                while let Some(last) = text.lines().last() {
-                    if last.trim().is_empty() {
-                        text.pop();
-                    } else {
-                        break;
+                        let line = &text[offset..next];
+                        let line = line.strip_suffix('\r').unwrap_or(line);
+                        let len = line.len().min(num_stripped_chars);
+                        text.replace_range(offset..offset + len, "");
+                        offset = next + 1 - len;
                     }
+
+                    // Replace any remaining text
+                    if strip_leading_whitespace || offset > 0 {
+                        let line = &text[offset..];
+                        let line = line.strip_suffix('\r').unwrap_or(line);
+                        let len = line.len().min(num_stripped_chars);
+                        text.replace_range(offset..offset + len, "");
+                    }
+                }
+                StrippedCommandPart::Placeholder(_) => {
+                    strip_leading_whitespace = false;
                 }
             }
         }
@@ -963,6 +1062,17 @@ impl AstNode for CommandSection {
 /// Represents a textual part of a command.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CommandText(pub(crate) SyntaxToken);
+
+impl CommandText {
+    /// Unescapes the command text to the given buffer.
+    ///
+    /// When `heredoc` is true, only heredoc escape sequences are allowed.
+    ///
+    /// Otherwise, brace command sequences are accepted.
+    pub fn unescape_to(&self, heredoc: bool, buffer: &mut String) {
+        unescape_command_text(self.0.text(), heredoc, buffer);
+    }
+}
 
 impl AstToken for CommandText {
     fn can_cast(kind: SyntaxKind) -> bool
@@ -1688,6 +1798,8 @@ impl AstNode for ParameterMetadataSection {
 
 #[cfg(test)]
 mod test {
+    use pretty_assertions::assert_eq;
+
     use super::*;
     use crate::Document;
     use crate::SupportedVersion;
@@ -1801,7 +1913,7 @@ task test {
         assert_eq!(requirements.parent().name().as_str(), "test");
         let items: Vec<_> = requirements.items().collect();
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].name().as_str(), "container");
+        assert_eq!(items[0].name().as_str(), TASK_REQUIREMENT_CONTAINER);
         assert_eq!(
             items[0]
                 .expr()
@@ -1835,7 +1947,7 @@ task test {
         assert_eq!(runtime.parent().name().as_str(), "test");
         let items: Vec<_> = runtime.items().collect();
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].name().as_str(), "container");
+        assert_eq!(items[0].name().as_str(), TASK_REQUIREMENT_CONTAINER);
         assert_eq!(
             items[0]
                 .expr()
@@ -2346,7 +2458,7 @@ task test {
         };
         assert_eq!(
             text,
-            "echo \"hello\"\n    echo \"world\"\necho \\\n        \"goodbye\"\n"
+            "echo \"hello\"\n    echo \"world\"\necho \\\n        \"goodbye\""
         );
     }
 }

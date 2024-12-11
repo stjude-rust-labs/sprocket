@@ -1,7 +1,5 @@
 //! Implements the `values` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -37,11 +35,10 @@ fn values(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .value
         .as_map()
         .expect("value should be a map")
-        .elements()
         .values()
         .cloned()
         .collect();
-    Ok(Array::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `values`.
@@ -87,7 +84,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_integer().unwrap())
             .collect();
@@ -102,7 +99,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| match v {
                 Value::None => None,

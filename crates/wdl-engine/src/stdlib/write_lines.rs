@@ -42,7 +42,7 @@ fn write_lines(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .unwrap_array();
 
     // Create a temporary file that will be persisted after writing the lines
-    let mut file = NamedTempFile::new_in(context.tmp()).map_err(|e| {
+    let mut file = NamedTempFile::with_prefix_in("tmp", context.temp_dir()).map_err(|e| {
         function_call_failed(
             "write_lines",
             format!("failed to create temporary file: {e}"),
@@ -52,7 +52,7 @@ fn write_lines(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     // Write the lines
     let mut writer = BufWriter::new(file.as_file_mut());
-    for line in lines.elements() {
+    for line in lines.as_slice() {
         writer
             .write(line.as_string().unwrap().as_bytes())
             .map_err(write_error)?;
@@ -112,7 +112,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -131,7 +131,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(

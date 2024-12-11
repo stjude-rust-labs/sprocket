@@ -1,7 +1,5 @@
 //! Implements the `unzip` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -71,7 +69,7 @@ fn unzip(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     let mut left = Vec::with_capacity(array.len());
     let mut right = Vec::with_capacity(array.len());
-    for v in array.elements() {
+    for v in array.as_slice() {
         let p = v.as_pair().expect("element should be a pair");
         left.push(p.left().clone());
         right.push(p.right().clone());
@@ -79,8 +77,8 @@ fn unzip(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     Ok(Pair::new_unchecked(
         context.return_type,
-        Arc::new(Array::new_unchecked(left_ty, Arc::new(left)).into()),
-        Arc::new(Array::new_unchecked(right_ty, Arc::new(right)).into()),
+        Array::new_unchecked(left_ty, left).into(),
+        Array::new_unchecked(right_ty, right).into(),
     )
     .into())
 }
@@ -122,7 +120,7 @@ mod test {
             .left()
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_integer().unwrap())
             .collect();
@@ -131,7 +129,7 @@ mod test {
             .right()
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_string().unwrap().as_str())
             .collect();

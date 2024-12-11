@@ -1,0 +1,8 @@
+{
+  "write_file_task.b": true,
+  "write_file_task.i": 0,
+  "write_file_task.f": 27.3,
+  "write_file_task.s": "hello, world",
+  "write_file_task.x": "work/testdir/hello.txt",
+  "write_file_task.d": "work/testdir"
+}

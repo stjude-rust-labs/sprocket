@@ -8,23 +8,54 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::anyhow;
 use anyhow::bail;
 use serde_json::Value as JsonValue;
 use wdl_analysis::document::Document;
 use wdl_analysis::document::Task;
 use wdl_analysis::document::Workflow;
 use wdl_analysis::types::CallKind;
-use wdl_analysis::types::Coercible;
+use wdl_analysis::types::Coercible as _;
+use wdl_analysis::types::Type;
 use wdl_analysis::types::Types;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
 
+use crate::Coercible;
 use crate::Value;
 
 /// A type alias to a JSON map (object).
 type JsonMap = serde_json::Map<String, JsonValue>;
+
+/// Helper for replacing input paths with a path derived from joining the
+/// specified path with the input path.
+fn join_paths(
+    inputs: &mut HashMap<String, Value>,
+    types: &mut Types,
+    path: &Path,
+    ty: impl Fn(&mut Types, &str) -> Option<Type>,
+) {
+    for (name, value) in inputs.iter_mut() {
+        let ty = if let Some(ty) = ty(types, name) {
+            ty
+        } else {
+            continue;
+        };
+
+        // Replace the value with `None` temporarily
+        // This is useful when this value is the only reference to shared data as this
+        // would prevent internal cloning
+        let mut replacement = std::mem::replace(value, Value::None);
+        if let Ok(mut v) = replacement.coerce(types, ty) {
+            drop(replacement);
+            v.join_paths(types, path, false, false)
+                .expect("joining should not fail");
+            replacement = v;
+        }
+
+        *value = replacement;
+    }
+}
 
 /// Represents inputs to a task.
 #[derive(Default, Debug, Clone)]
@@ -38,48 +69,66 @@ pub struct TaskInputs {
 }
 
 impl TaskInputs {
-    /// Gets the inputs to the task.
-    pub fn inputs(&self) -> &HashMap<String, Value> {
-        &self.inputs
+    /// Iterates the inputs to the task.
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> + use<'_> {
+        self.inputs.iter().map(|(k, v)| (k.as_str(), v))
     }
 
-    /// Gets the overridden requirements.
-    pub fn requirements(&self) -> &HashMap<String, Value> {
-        &self.requirements
-    }
-
-    /// Gets the overridden hints.
-    pub fn hints(&self) -> &HashMap<String, Value> {
-        &self.hints
+    /// Gets an input by name.
+    pub fn get(&self, name: &str) -> Option<&Value> {
+        self.inputs.get(name)
     }
 
     /// Sets a task input.
-    pub fn set_input(&mut self, name: impl Into<String>, value: impl Into<Value>) {
+    pub fn set(&mut self, name: impl Into<String>, value: impl Into<Value>) {
         self.inputs.insert(name.into(), value.into());
     }
 
-    /// Overrides a task requirement.
+    /// Gets an overridden requirement by name.
+    pub fn requirement(&self, name: &str) -> Option<&Value> {
+        self.requirements.get(name)
+    }
+
+    /// Overrides a requirement by name.
     pub fn override_requirement(&mut self, name: impl Into<String>, value: impl Into<Value>) {
         self.requirements.insert(name.into(), value.into());
     }
 
-    /// Overrides a task hint.
+    /// Gets an overridden hint by name.
+    pub fn hint(&self, name: &str) -> Option<&Value> {
+        self.hints.get(name)
+    }
+
+    /// Overrides a hint by name.
     pub fn override_hint(&mut self, name: impl Into<String>, value: impl Into<Value>) {
         self.hints.insert(name.into(), value.into());
     }
 
+    /// Replaces any `File` or `Directory` input values with joining the
+    /// specified path with the value.
+    ///
+    /// This method will attempt to coerce matching input values to their
+    /// expected types.
+    pub fn join_paths(&mut self, types: &mut Types, document: &Document, task: &Task, path: &Path) {
+        join_paths(&mut self.inputs, types, path, |types, name| {
+            task.inputs()
+                .get(name)
+                .map(|input| types.import(document.types(), input.ty()))
+        });
+    }
+
     /// Validates the inputs for the given task.
+    ///
+    /// Note that this alters the inputs
     pub fn validate(&self, types: &mut Types, document: &Document, task: &Task) -> Result<()> {
-        let version = document
-            .version()
-            .ok_or_else(|| anyhow!("missing document version"))?;
+        let version = document.version().context("missing document version")?;
 
         // Start by validating all the specified inputs and their types
         for (name, value) in &self.inputs {
             let input = task
                 .inputs()
                 .get(name)
-                .ok_or_else(|| anyhow!("unknown input `{name}`"))?;
+                .with_context(|| format!("unknown input `{name}`"))?;
             let expected_ty = types.import(document.types(), input.ty());
             let ty = value.ty();
             if !ty.is_coercible_to(types, &expected_ty) {
@@ -204,8 +253,8 @@ impl TaskInputs {
             }
             // The path is to an input
             None => {
-                let input = task.inputs().get(path).ok_or_else(|| {
-                    anyhow!(
+                let input = task.inputs().get(path).with_context(|| {
+                    format!(
                         "task `{name}` does not have an input named `{path}`",
                         name = task.name()
                     )
@@ -253,9 +302,14 @@ pub struct WorkflowInputs {
 }
 
 impl WorkflowInputs {
-    /// Gets the inputs to the workflow.
-    pub fn inputs(&self) -> &HashMap<String, Value> {
-        &self.inputs
+    /// Iterates the inputs to the workflow.
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> + use<'_> {
+        self.inputs.iter().map(|(k, v)| (k.as_str(), v))
+    }
+
+    /// Gets an input by name.
+    pub fn get(&self, name: &str) -> Option<&Value> {
+        self.inputs.get(name)
     }
 
     /// Gets the nested call inputs.
@@ -263,14 +317,34 @@ impl WorkflowInputs {
         &self.calls
     }
 
+    /// Gets the nested call inputs.
+    pub fn calls_mut(&mut self) -> &mut HashMap<String, Inputs> {
+        &mut self.calls
+    }
+
     /// Sets a workflow input.
-    pub fn set_input(&mut self, name: impl Into<String>, value: impl Into<Value>) {
+    pub fn set(&mut self, name: impl Into<String>, value: impl Into<Value>) {
         self.inputs.insert(name.into(), value.into());
     }
 
-    /// Sets a nested call inputs.
-    pub fn set_call_inputs(&mut self, name: impl Into<String>, inputs: impl Into<Inputs>) {
-        self.calls.insert(name.into(), inputs.into());
+    /// Replaces any `File` or `Directory` input values with joining the
+    /// specified path with the value.
+    ///
+    /// This method will attempt to coerce matching input values to their
+    /// expected types.
+    pub fn join_paths(
+        &mut self,
+        types: &mut Types,
+        document: &Document,
+        workflow: &Workflow,
+        path: &Path,
+    ) {
+        join_paths(&mut self.inputs, types, path, |types, name| {
+            workflow
+                .inputs()
+                .get(name)
+                .map(|input| types.import(document.types(), input.ty()))
+        });
     }
 
     /// Validates the inputs for the given workflow.
@@ -285,7 +359,7 @@ impl WorkflowInputs {
             let input = workflow
                 .inputs()
                 .get(name)
-                .ok_or_else(|| anyhow!("unknown input `{name}`"))?;
+                .with_context(|| format!("unknown input `{name}`"))?;
             let expected_ty = types.import(document.types(), input.ty());
             let ty = value.ty();
             if !ty.is_coercible_to(types, &expected_ty) {
@@ -318,7 +392,7 @@ impl WorkflowInputs {
             let call = workflow
                 .calls()
                 .get(name)
-                .ok_or_else(|| anyhow!("unknown call `{name}`"))?;
+                .with_context(|| format!("unknown call `{name}`"))?;
 
             // Resolve the target document; the namespace is guaranteed to be present in the
             // document.
@@ -339,12 +413,12 @@ impl WorkflowInputs {
                         .task_by_name(call.name())
                         .expect("task should be present");
 
-                    let task_inputs = inputs.as_task_inputs().ok_or_else(|| {
-                        anyhow!("`{name}` is a call to a task, but workflow inputs were supplied")
+                    let task_inputs = inputs.as_task_inputs().with_context(|| {
+                        format!("`{name}` is a call to a task, but workflow inputs were supplied")
                     })?;
 
                     task_inputs.validate(types, document, task)?;
-                    task_inputs.inputs()
+                    &task_inputs.inputs
                 }
                 CallKind::Workflow => {
                     let workflow = document.workflow().expect("should have a workflow");
@@ -353,12 +427,12 @@ impl WorkflowInputs {
                         call.name(),
                         "call name does not match workflow name"
                     );
-                    let workflow_inputs = inputs.as_workflow_inputs().ok_or_else(|| {
-                        anyhow!("`{name}` is a call to a workflow, but task inputs were supplied")
+                    let workflow_inputs = inputs.as_workflow_inputs().with_context(|| {
+                        format!("`{name}` is a call to a workflow, but task inputs were supplied")
                     })?;
 
                     workflow_inputs.validate(types, document, workflow)?;
-                    workflow_inputs.inputs()
+                    &workflow_inputs.inputs
                 }
             };
 
@@ -383,10 +457,7 @@ impl WorkflowInputs {
                     .iter()
                     .filter(|(n, i)| i.required() && !ty.specified().contains(*n))
                 {
-                    if !inputs
-                        .map(|i| i.inputs().contains_key(input))
-                        .unwrap_or(false)
-                    {
+                    if !inputs.map(|i| i.get(input).is_some()).unwrap_or(false) {
                         bail!("missing required input `{input}` for call `{call}`");
                     }
                 }
@@ -417,8 +488,8 @@ impl WorkflowInputs {
                 }
 
                 // Resolve the call by name
-                let call = workflow.calls().get(name).ok_or_else(|| {
-                    anyhow!(
+                let call = workflow.calls().get(name).with_context(|| {
+                    format!(
                         "workflow `{workflow}` does not have a call named `{name}`",
                         workflow = workflow.name()
                     )
@@ -482,8 +553,8 @@ impl WorkflowInputs {
                 }
             }
             None => {
-                let input = workflow.inputs().get(path).ok_or_else(|| {
-                    anyhow!(
+                let input = workflow.inputs().get(path).with_context(|| {
+                    format!(
                         "workflow `{workflow}` does not have an input named `{path}`",
                         workflow = workflow.name()
                     )
@@ -530,11 +601,49 @@ pub enum Inputs {
 }
 
 impl Inputs {
-    /// Gets the input values.
-    pub fn inputs(&self) -> &HashMap<String, Value> {
+    /// Parses a JSON inputs file from the given file path.
+    ///
+    /// The parse uses the provided document to validate the input keys within
+    /// the file.
+    ///
+    /// Returns `Ok(Some(_))` if the file is a non-empty inputs.
+    ///
+    /// Returns `Ok(None)` if the file contains an empty input.
+    pub fn parse(
+        types: &mut Types,
+        document: &Document,
+        path: impl AsRef<Path>,
+    ) -> Result<Option<(String, Self)>> {
+        let path = path.as_ref();
+        let file = File::open(path).with_context(|| {
+            format!("failed to open input file `{path}`", path = path.display())
+        })?;
+
+        // Parse the JSON (should be an object)
+        let reader = BufReader::new(file);
+        let object = mem::take(
+            serde_json::from_reader::<_, JsonValue>(reader)
+                .with_context(|| {
+                    format!("failed to parse input file `{path}`", path = path.display())
+                })?
+                .as_object_mut()
+                .with_context(|| {
+                    format!(
+                        "expected input file `{path}` to contain a JSON object",
+                        path = path.display()
+                    )
+                })?,
+        );
+
+        Self::parse_object(types, document, object)
+            .with_context(|| format!("failed to parse input file `{path}`", path = path.display()))
+    }
+
+    /// Gets an input value.
+    pub fn get(&self, name: &str) -> Option<&Value> {
         match self {
-            Self::Task(t) => &t.inputs,
-            Self::Workflow(w) => &w.inputs,
+            Self::Task(t) => t.inputs.get(name),
+            Self::Workflow(w) => w.inputs.get(name),
         }
     }
 
@@ -577,89 +686,13 @@ impl Inputs {
             Self::Workflow(inputs) => Some(inputs),
         }
     }
-}
-
-impl From<TaskInputs> for Inputs {
-    fn from(inputs: TaskInputs) -> Self {
-        Self::Task(inputs)
-    }
-}
-
-impl From<WorkflowInputs> for Inputs {
-    fn from(inputs: WorkflowInputs) -> Self {
-        Self::Workflow(inputs)
-    }
-}
-
-/// Represents a WDL JSON inputs file.
-///
-/// The expected file format is described in the [WDL specification][1].
-///
-/// [1]: https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#json-input-format
-pub struct InputsFile {
-    /// The name of the task to evaluate.
-    ///
-    /// This is `None` for workflows.
-    task: Option<String>,
-    /// The inputs to the workflow or task.
-    inputs: Inputs,
-}
-
-impl InputsFile {
-    /// Parses a JSON inputs file from the given file path.
-    ///
-    /// The parse uses the provided document to validate the input keys within
-    /// the file.
-    pub fn parse(types: &mut Types, document: &Document, path: impl AsRef<Path>) -> Result<Self> {
-        let path = path.as_ref();
-        let file = File::open(path).with_context(|| {
-            format!("failed to open input file `{path}`", path = path.display())
-        })?;
-
-        // Parse the JSON (should be an object)
-        let reader = BufReader::new(file);
-        let object = mem::take(
-            serde_json::from_reader::<_, JsonValue>(reader)
-                .with_context(|| {
-                    format!("failed to parse input file `{path}`", path = path.display())
-                })?
-                .as_object_mut()
-                .ok_or_else(|| {
-                    anyhow!(
-                        "expected input file `{path}` to contain a JSON object",
-                        path = path.display()
-                    )
-                })?,
-        );
-
-        Self::parse_object(types, document, object)
-            .with_context(|| format!("failed to parse input file `{path}`", path = path.display()))
-    }
-
-    /// Gets the file as inputs to a task.
-    ///
-    /// Returns `None` if the inputs are to a workflow.
-    pub fn as_task_inputs(&self) -> Option<(&str, &TaskInputs)> {
-        match &self.inputs {
-            Inputs::Task(inputs) => {
-                Some((self.task.as_deref().expect("should have task name"), inputs))
-            }
-            Inputs::Workflow(_) => None,
-        }
-    }
-
-    /// Gets the file as inputs to a workflow.
-    ///
-    /// Returns `None` if the inputs are to a task.
-    pub fn as_workflow_inputs(&self) -> Option<&WorkflowInputs> {
-        match &self.inputs {
-            Inputs::Task(_) => None,
-            Inputs::Workflow(inputs) => Some(inputs),
-        }
-    }
 
     /// Parses the root object in an input file.
-    fn parse_object(types: &mut Types, document: &Document, object: JsonMap) -> Result<Self> {
+    fn parse_object(
+        types: &mut Types,
+        document: &Document,
+        object: JsonMap,
+    ) -> Result<Option<(String, Self)>> {
         // Determine the root workflow or task name
         let (key, name) = match object.iter().next() {
             Some((key, _)) => match key.split_once('.') {
@@ -673,18 +706,17 @@ impl InputsFile {
             },
             // If the object is empty, treat it as a workflow evaluation without any inputs
             None => {
-                return Ok(Self {
-                    task: None,
-                    inputs: Inputs::Workflow(Default::default()),
-                });
+                return Ok(None);
             }
         };
 
         match (document.task_by_name(name), document.workflow()) {
-            (Some(task), _) => Self::parse_task_inputs(types, document, task, object),
-            (None, Some(workflow)) if workflow.name() == name => {
-                Self::parse_workflow_inputs(types, document, workflow, object)
-            }
+            (Some(task), _) => Ok(Some(Self::parse_task_inputs(
+                types, document, task, object,
+            )?)),
+            (None, Some(workflow)) if workflow.name() == name => Ok(Some(
+                Self::parse_workflow_inputs(types, document, workflow, object)?,
+            )),
             _ => bail!(
                 "invalid input key `{key}`: a task or workflow named `{name}` does not exist in \
                  the document"
@@ -698,7 +730,7 @@ impl InputsFile {
         document: &Document,
         task: &Task,
         object: JsonMap,
-    ) -> Result<Self> {
+    ) -> Result<(String, Self)> {
         let mut inputs = TaskInputs::default();
         for (key, value) in object {
             let value = Value::deserialize(types, value)
@@ -719,10 +751,7 @@ impl InputsFile {
             }
         }
 
-        Ok(Self {
-            task: Some(task.name().to_string()),
-            inputs: Inputs::Task(inputs),
-        })
+        Ok((task.name().to_string(), Inputs::Task(inputs)))
     }
 
     /// Parses the inputs for a workflow.
@@ -731,7 +760,7 @@ impl InputsFile {
         document: &Document,
         workflow: &Workflow,
         object: JsonMap,
-    ) -> Result<Self> {
+    ) -> Result<(String, Self)> {
         let mut inputs = WorkflowInputs::default();
         for (key, value) in object {
             let value = Value::deserialize(types, value)
@@ -752,9 +781,18 @@ impl InputsFile {
             }
         }
 
-        Ok(Self {
-            task: None,
-            inputs: Inputs::Workflow(inputs),
-        })
+        Ok((workflow.name().to_string(), Inputs::Workflow(inputs)))
+    }
+}
+
+impl From<TaskInputs> for Inputs {
+    fn from(inputs: TaskInputs) -> Self {
+        Self::Task(inputs)
+    }
+}
+
+impl From<WorkflowInputs> for Inputs {
+    fn from(inputs: WorkflowInputs) -> Self {
+        Self::Workflow(inputs)
     }
 }

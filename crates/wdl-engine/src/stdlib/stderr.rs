@@ -23,7 +23,7 @@ fn stderr(context: CallContext<'_>) -> Result<Value, Diagnostic> {
                 stderr.as_file().is_some(),
                 "expected the value to be a file"
             );
-            Ok(stderr)
+            Ok(stderr.clone())
         }
         None => Err(function_call_failed(
             "stderr",

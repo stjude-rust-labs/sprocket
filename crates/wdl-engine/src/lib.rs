@@ -1,5 +1,6 @@
 //! Execution engine for Workflow Description Language (WDL) documents.
 
+mod backend;
 pub mod diagnostics;
 mod engine;
 mod eval;
@@ -9,6 +10,7 @@ mod stdlib;
 mod units;
 mod value;
 
+pub use backend::*;
 pub use engine::*;
 pub use eval::*;
 pub use inputs::*;

@@ -23,14 +23,20 @@ glob = { workspace = true }
 tempfile = { workspace = true }
 itertools = { workspace = true }
 serde = { workspace = true }
+tracing = { workspace = true }
+petgraph = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true }
+sysinfo = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true }
 pretty_assertions = { workspace = true }
 codespan-reporting = { workspace = true }
 path-clean = { workspace = true }
 colored = { workspace = true }
 approx = { workspace = true }
+walkdir = { workspace = true }
+rayon = { workspace = true }
 
 [lints]
 workspace = true
@@ -41,5 +47,10 @@ codespan = ["wdl-ast/codespan"]
 
 [[test]]
 name = "inputs"
+required-features = ["codespan"]
+harness = false
+
+[[test]]
+name = "tasks"
 required-features = ["codespan"]
 harness = false

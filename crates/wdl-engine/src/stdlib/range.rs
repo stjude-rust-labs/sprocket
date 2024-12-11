@@ -1,7 +1,5 @@
 //! Implements the `range` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveTypeKind;
 use wdl_ast::Diagnostic;
@@ -35,11 +33,7 @@ fn range(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         ));
     }
 
-    Ok(Array::new_unchecked(
-        context.return_type,
-        Arc::new((0..n).map(Into::into).collect()),
-    )
-    .into())
+    Ok(Array::new_unchecked(context.return_type, (0..n).map(Into::into).collect()).into())
 }
 
 /// Gets the function describing `range`.
@@ -65,7 +59,7 @@ mod test {
         assert_eq!(
             value
                 .unwrap_array()
-                .elements()
+                .as_slice()
                 .iter()
                 .cloned()
                 .map(|v| v.unwrap_integer())

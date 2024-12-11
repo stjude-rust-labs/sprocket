@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Refactored the `AnalysisResult` and `Document` types to move properties of
+  the former into the latter; this will assist in evaluation of documents in
+  that the `Document` alone can be passed into evaluation ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
 * Removed the "optional type" constraint for the `select_first`, `select_all`,
   and `defined` functions; instead, these functions now accepted non-optional
   types and analysis emits a warning when the functions are called with
@@ -35,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed an issue where imported structs weren't always checked correctly for
+  type equivalence with local structs ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
 * Common type calculation now supports discovering common types between the
   compound types containing Union and None as inner types, e.g.
   `Array[String] | Array[None] -> Array[String?]` ([#257](https://github.com/stjude-rust-labs/wdl/pull/257)).

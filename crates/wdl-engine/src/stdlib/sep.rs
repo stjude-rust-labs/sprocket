@@ -36,7 +36,7 @@ fn sep(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .expect("value should be an array");
 
     let s = array
-        .elements()
+        .as_slice()
         .iter()
         .enumerate()
         .fold(String::new(), |mut s, (i, v)| {

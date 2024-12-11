@@ -1,6 +1,5 @@
 //! Representation of the WDL type system.
 
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::sync::Arc;
@@ -10,6 +9,8 @@ use id_arena::ArenaBehavior;
 use id_arena::DefaultArenaBehavior;
 use id_arena::Id;
 use indexmap::IndexMap;
+use wdl_ast::Diagnostic;
+use wdl_ast::Ident;
 
 use crate::document::Input;
 use crate::document::Output;
@@ -50,6 +51,15 @@ pub fn display_types<'a>(types: &'a Types, slice: &'a [Type]) -> impl fmt::Displ
     }
 
     Display { types, slice }
+}
+
+/// A trait implemented on type name resolvers.
+pub trait TypeNameResolver {
+    /// Gets a reference mutable type names collection.
+    fn types_mut(&mut self) -> &mut Types;
+
+    /// Resolves the given type name to a type.
+    fn resolve_type_name(&mut self, name: &Ident) -> Result<Type, Diagnostic>;
 }
 
 /// A trait implemented on types that may be optional.
@@ -1186,9 +1196,9 @@ pub struct CallType {
     /// The set of specified inputs in the call.
     specified: Arc<HashSet<String>>,
     /// The input types to the call.
-    inputs: Arc<HashMap<String, Input>>,
+    inputs: Arc<IndexMap<String, Input>>,
     /// The output types from the call.
-    outputs: Arc<HashMap<String, Output>>,
+    outputs: Arc<IndexMap<String, Output>>,
 }
 
 impl CallType {
@@ -1197,8 +1207,8 @@ impl CallType {
         kind: CallKind,
         name: impl Into<String>,
         specified: Arc<HashSet<String>>,
-        inputs: Arc<HashMap<String, Input>>,
-        outputs: Arc<HashMap<String, Output>>,
+        inputs: Arc<IndexMap<String, Input>>,
+        outputs: Arc<IndexMap<String, Output>>,
     ) -> Self {
         Self {
             kind,
@@ -1217,8 +1227,8 @@ impl CallType {
         namespace: impl Into<String>,
         name: impl Into<String>,
         specified: Arc<HashSet<String>>,
-        inputs: Arc<HashMap<String, Input>>,
-        outputs: Arc<HashMap<String, Output>>,
+        inputs: Arc<IndexMap<String, Input>>,
+        outputs: Arc<IndexMap<String, Output>>,
     ) -> Self {
         Self {
             kind,
@@ -1253,12 +1263,12 @@ impl CallType {
     }
 
     /// Gets the inputs of the called workflow or task.
-    pub fn inputs(&self) -> &HashMap<String, Input> {
+    pub fn inputs(&self) -> &IndexMap<String, Input> {
         &self.inputs
     }
 
     /// Gets the outputs of the called workflow or task.
-    pub fn outputs(&self) -> &HashMap<String, Output> {
+    pub fn outputs(&self) -> &IndexMap<String, Output> {
         &self.outputs
     }
 
@@ -1388,6 +1398,51 @@ impl Types {
             .expect("invalid type identifier")
     }
 
+    /// Gets a pair type from the type collection.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given type is not a pair type.
+    pub fn pair_type(&self, ty: Type) -> &PairType {
+        if let Type::Compound(ty) = ty {
+            if let CompoundTypeDef::Pair(ty) = self.type_definition(ty.definition()) {
+                return ty;
+            }
+        }
+
+        panic!("type `{ty}` is not a pair type", ty = ty.display(self))
+    }
+
+    /// Gets an array type from the type collection.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given type is not an array type.
+    pub fn array_type(&self, ty: Type) -> &ArrayType {
+        if let Type::Compound(ty) = ty {
+            if let CompoundTypeDef::Array(ty) = self.type_definition(ty.definition()) {
+                return ty;
+            }
+        }
+
+        panic!("type `{ty}` is not an array type", ty = ty.display(self))
+    }
+
+    /// Gets a map type from the type collection.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given type is not a map type.
+    pub fn map_type(&self, ty: Type) -> &MapType {
+        if let Type::Compound(ty) = ty {
+            if let CompoundTypeDef::Map(ty) = self.type_definition(ty.definition()) {
+                return ty;
+            }
+        }
+
+        panic!("type `{ty}` is not a map type", ty = ty.display(self))
+    }
+
     /// Gets a struct type from the type collection.
     ///
     /// # Panics
@@ -1395,8 +1450,8 @@ impl Types {
     /// Panics if the given type is not a struct type.
     pub fn struct_type(&self, ty: Type) -> &StructType {
         if let Type::Compound(ty) = ty {
-            if let CompoundTypeDef::Struct(s) = &self.0[ty.definition()] {
-                return s;
+            if let CompoundTypeDef::Struct(ty) = self.type_definition(ty.definition()) {
+                return ty;
             }
         }
 

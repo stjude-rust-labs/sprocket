@@ -80,7 +80,7 @@ fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             .unwrap_array();
 
         (
-            array.elements()[0].clone().unwrap_string(),
+            array.as_slice()[0].clone().unwrap_string(),
             array,
             true,
             context.arguments[0].span,
@@ -100,7 +100,7 @@ fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     let mut path = PathBuf::from(Arc::unwrap_or_clone(first));
 
     for (i, element) in array
-        .elements()
+        .as_slice()
         .iter()
         .enumerate()
         .skip(if skip { 1 } else { 0 })

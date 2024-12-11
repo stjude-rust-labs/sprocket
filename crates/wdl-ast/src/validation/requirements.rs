@@ -9,6 +9,17 @@ use crate::SupportedVersion;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::v1;
+use crate::v1::TASK_REQUIREMENT_CONTAINER;
+use crate::v1::TASK_REQUIREMENT_CONTAINER_ALIAS;
+use crate::v1::TASK_REQUIREMENT_CPU;
+use crate::v1::TASK_REQUIREMENT_DISKS;
+use crate::v1::TASK_REQUIREMENT_FPGA;
+use crate::v1::TASK_REQUIREMENT_GPU;
+use crate::v1::TASK_REQUIREMENT_MAX_RETRIES;
+use crate::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
+use crate::v1::TASK_REQUIREMENT_MEMORY;
+use crate::v1::TASK_REQUIREMENT_RETURN_CODES;
+use crate::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 
 /// Creates an "unsupported requirements key" diagnostic.
 fn unsupported_requirements_key(name: &Ident) -> Diagnostic {
@@ -50,17 +61,17 @@ impl Visitor for RequirementsVisitor {
     ) {
         /// The supported set of requirement keys as of 1.2
         const SUPPORTED_KEYS: &[&str] = &[
-            "container",
-            "docker", // alias of `container` to be removed in 2.0
-            "cpu",
-            "memory",
-            "gpu",
-            "fpga",
-            "disks",
-            "max_retries",
-            "maxRetries", // alias of `max_retries`
-            "return_codes",
-            "returnCodes", // alias of `return_codes`
+            TASK_REQUIREMENT_CONTAINER,
+            TASK_REQUIREMENT_CONTAINER_ALIAS,
+            TASK_REQUIREMENT_CPU,
+            TASK_REQUIREMENT_MEMORY,
+            TASK_REQUIREMENT_GPU,
+            TASK_REQUIREMENT_FPGA,
+            TASK_REQUIREMENT_DISKS,
+            TASK_REQUIREMENT_MAX_RETRIES,
+            TASK_REQUIREMENT_MAX_RETRIES_ALIAS,
+            TASK_REQUIREMENT_RETURN_CODES,
+            TASK_REQUIREMENT_RETURN_CODES_ALIAS,
         ];
 
         if reason == VisitReason::Exit {

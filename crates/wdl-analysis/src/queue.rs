@@ -34,7 +34,6 @@ use crate::DiagnosticsConfig;
 use crate::IncrementalChange;
 use crate::ProgressKind;
 use crate::document::Document;
-use crate::graph::Analysis;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
@@ -469,9 +468,9 @@ where
                 };
 
             let mut graph = self.graph.write();
-            results.extend(analyzed.into_iter().filter_map(|(index, analysis)| {
+            results.extend(analyzed.into_iter().filter_map(|(index, document)| {
                 let node = graph.get_mut(index);
-                node.analysis_completed(analysis);
+                node.analysis_completed(document);
 
                 if graph.include_result(index) {
                     Some(AnalysisResult::new(graph.get(index)))
@@ -481,7 +480,7 @@ where
             }));
         }
 
-        results.sort_by(|a, b| a.uri().cmp(b.uri()));
+        results.sort_by(|a, b| a.document().uri().cmp(b.document().uri()));
         Cancelable::Completed(Ok(results))
     }
 
@@ -675,10 +674,10 @@ where
         config: DiagnosticsConfig,
         graph: Arc<RwLock<DocumentGraph>>,
         index: NodeIndex,
-    ) -> (NodeIndex, Analysis) {
+    ) -> (NodeIndex, Document) {
         let start = Instant::now();
         let graph = graph.read();
-        let (document, diagnostics) = Document::new(config, &graph, index);
+        let document = Document::from_graph_node(config, &graph, index);
 
         info!(
             "analysis of `{uri}` completed in {elapsed:?}",
@@ -686,6 +685,6 @@ where
             elapsed = start.elapsed()
         );
 
-        (index, Analysis::new(document, diagnostics))
+        (index, document)
     }
 }

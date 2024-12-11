@@ -1,7 +1,5 @@
 //! Implements the `zip` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -74,15 +72,13 @@ fn zip(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     );
 
     let elements = left
-        .elements()
+        .as_slice()
         .iter()
-        .zip(right.elements().iter())
-        .map(|(l, r)| {
-            Pair::new_unchecked(element_ty, Arc::new(l.clone()), Arc::new(r.clone())).into()
-        })
+        .zip(right.as_slice())
+        .map(|(l, r)| Pair::new_unchecked(element_ty, l.clone(), r.clone()).into())
         .collect();
 
-    Ok(Array::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `zip`.
@@ -116,7 +112,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 let p = v.as_pair().unwrap();

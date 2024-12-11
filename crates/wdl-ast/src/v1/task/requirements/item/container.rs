@@ -5,11 +5,9 @@ use wdl_grammar::WorkflowDescriptionLanguage;
 
 use crate::AstToken;
 use crate::v1::RequirementsItem;
+use crate::v1::TASK_REQUIREMENT_CONTAINER;
 use crate::v1::common::container::value;
 use crate::v1::common::container::value::Value;
-
-/// The key name for a container requirements item.
-const CONTAINER_KEY: &str = "container";
 
 /// The `container` item within a `requirements` block.
 #[derive(Debug)]
@@ -48,7 +46,7 @@ impl TryFrom<RequirementsItem> for Container {
     type Error = ();
 
     fn try_from(value: RequirementsItem) -> Result<Self, Self::Error> {
-        if value.name().as_str() == CONTAINER_KEY {
+        if value.name().as_str() == TASK_REQUIREMENT_CONTAINER {
             return Ok(Self(value));
         }
 

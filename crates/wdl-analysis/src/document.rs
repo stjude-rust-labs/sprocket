@@ -2,12 +2,14 @@
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
 use petgraph::graph::NodeIndex;
 use rowan::GreenNode;
 use url::Url;
+use uuid::Uuid;
 use wdl_ast::Ast;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
@@ -32,7 +34,7 @@ mod v1;
 
 /// The `task` variable name available in task command sections and outputs in
 /// WDL 1.2.
-pub(crate) const TASK_VAR_NAME: &str = "task";
+pub const TASK_VAR_NAME: &str = "task";
 
 /// Calculates the span of a scope given a braced node.
 fn braced_scope_span(parent: &impl AstNode<Language = WorkflowDescriptionLanguage>) -> Span {
@@ -369,9 +371,9 @@ pub struct Task {
     /// The scopes will be in sorted order by span start.
     scopes: Vec<Scope>,
     /// The inputs of the task.
-    inputs: Arc<HashMap<String, Input>>,
+    inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the task.
-    outputs: Arc<HashMap<String, Output>>,
+    outputs: Arc<IndexMap<String, Output>>,
 }
 
 impl Task {
@@ -386,12 +388,12 @@ impl Task {
     }
 
     /// Gets the inputs of the task.
-    pub fn inputs(&self) -> &HashMap<String, Input> {
+    pub fn inputs(&self) -> &IndexMap<String, Input> {
         &self.inputs
     }
 
     /// Gets the outputs of the task.
-    pub fn outputs(&self) -> &HashMap<String, Output> {
+    pub fn outputs(&self) -> &IndexMap<String, Output> {
         &self.outputs
     }
 }
@@ -410,9 +412,9 @@ pub struct Workflow {
     /// The scopes will be in sorted order by span start.
     scopes: Vec<Scope>,
     /// The inputs of the workflow.
-    inputs: Arc<HashMap<String, Input>>,
+    inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the workflow.
-    outputs: Arc<HashMap<String, Output>>,
+    outputs: Arc<IndexMap<String, Output>>,
     /// The calls made by the workflow.
     calls: HashMap<String, CallType>,
     /// Whether or not nested inputs are allowed for the workflow.
@@ -431,12 +433,12 @@ impl Workflow {
     }
 
     /// Gets the inputs of the workflow.
-    pub fn inputs(&self) -> &HashMap<String, Input> {
+    pub fn inputs(&self) -> &IndexMap<String, Input> {
         &self.inputs
     }
 
     /// Gets the outputs of the workflow.
-    pub fn outputs(&self) -> &HashMap<String, Output> {
+    pub fn outputs(&self) -> &IndexMap<String, Output> {
         &self.outputs
     }
 
@@ -452,12 +454,18 @@ impl Workflow {
 }
 
 /// Represents an analyzed WDL document.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Document {
     /// The root CST node of the document.
     ///
     /// This is `None` when the document could not be parsed.
     root: Option<GreenNode>,
+    /// The document identifier.
+    ///
+    /// The identifier changes every time the document is analyzed.
+    id: Arc<String>,
+    /// The URI of the analyzed document.
+    uri: Arc<Url>,
     /// The version of the document.
     version: Option<SupportedVersion>,
     /// The namespaces in the document.
@@ -470,80 +478,124 @@ pub struct Document {
     structs: IndexMap<String, Struct>,
     /// The collection of types for the document.
     types: Types,
+    /// The diagnostics for the document.
+    diagnostics: Vec<Diagnostic>,
 }
 
 impl Document {
-    /// Creates a new analyzed document.
-    pub(crate) fn new(
+    /// Creates a new analyzed document from a document graph node.
+    pub(crate) fn from_graph_node(
         config: DiagnosticsConfig,
         graph: &DocumentGraph,
         index: NodeIndex,
-    ) -> (Self, Vec<Diagnostic>) {
+    ) -> Self {
         let node = graph.get(index);
 
-        let mut diagnostics = match node.parse_state() {
+        let diagnostics = match node.parse_state() {
             ParseState::NotParsed => panic!("node should have been parsed"),
-            ParseState::Error(_) => return (Default::default(), Default::default()),
+            ParseState::Error(_) => {
+                return Self::new(node.uri().clone(), None, None, Default::default());
+            }
             ParseState::Parsed { diagnostics, .. } => {
                 Vec::from_iter(diagnostics.as_ref().iter().cloned())
             }
         };
 
-        let document = node.document().expect("node should have been parsed");
-        let version = match document.version_statement() {
-            Some(stmt) => stmt.version(),
+        let root = node.document().expect("node should have been parsed");
+        let (version, config) = match root.version_statement() {
+            Some(stmt) => (stmt.version(), config.excepted_for_node(stmt.syntax())),
             None => {
                 // Don't process a document with a missing version
-                return (Default::default(), diagnostics);
+                return Self::new(
+                    node.uri().clone(),
+                    Some(root.syntax().green().into()),
+                    None,
+                    diagnostics,
+                );
             }
         };
 
-        let config =
-            config.excepted_for_node(&version.syntax().parent().expect("token should have parent"));
-
-        let document = match document.ast() {
-            Ast::Unsupported => Default::default(),
+        let mut document = Self::new(
+            node.uri().clone(),
+            Some(root.syntax().green().into()),
+            SupportedVersion::from_str(version.as_str()).ok(),
+            diagnostics,
+        );
+        match root.ast() {
+            Ast::Unsupported => {}
             Ast::V1(ast) => {
-                v1::create_document(config, graph, index, &ast, &version, &mut diagnostics)
+                v1::populate_document(&mut document, config, graph, index, &ast, &version)
             }
-        };
+        }
 
         // Check for unused imports
         if let Some(severity) = config.unused_import {
-            for (name, ns) in document
-                .namespaces()
-                .filter(|(_, ns)| !ns.used && !ns.excepted)
-            {
-                diagnostics.push(unused_import(name, ns.span()).with_severity(severity));
-            }
+            let Document {
+                namespaces,
+                diagnostics,
+                ..
+            } = &mut document;
+
+            diagnostics.extend(
+                namespaces
+                    .iter()
+                    .filter(|(_, ns)| !ns.used && !ns.excepted)
+                    .map(|(name, ns)| unused_import(name, ns.span()).with_severity(severity)),
+            );
         }
 
         // Sort the diagnostics by start
-        diagnostics.sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
-            (None, None) => Ordering::Equal,
-            (None, Some(_)) => Ordering::Less,
-            (Some(_), None) => Ordering::Greater,
-            (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
-        });
+        document
+            .diagnostics
+            .sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
+                (None, None) => Ordering::Equal,
+                (None, Some(_)) => Ordering::Less,
+                (Some(_), None) => Ordering::Greater,
+                (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
+            });
 
-        // Perform a type check
-        (document, diagnostics)
+        document
     }
 
-    /// Gets the AST of the document.
-    ///
-    /// Returns [`Ast::Unsupported`] when the document could not be parsed or
-    /// has an unsupported version.
-    pub fn ast(&self) -> Ast {
-        match &self.version {
-            Some(SupportedVersion::V1(_)) => Ast::V1(
-                wdl_ast::v1::Ast::cast(SyntaxNode::new_root(
-                    self.root.clone().expect("should have a root"),
-                ))
-                .expect("should cast"),
-            ),
-            _ => Ast::Unsupported,
+    /// Constructs a new analysis document.
+    fn new(
+        uri: Arc<Url>,
+        root: Option<GreenNode>,
+        version: Option<SupportedVersion>,
+        diagnostics: Vec<Diagnostic>,
+    ) -> Self {
+        Self {
+            root,
+            id: Uuid::new_v4().to_string().into(),
+            uri,
+            version,
+            namespaces: Default::default(),
+            tasks: Default::default(),
+            workflow: Default::default(),
+            structs: Default::default(),
+            types: Default::default(),
+            diagnostics,
         }
+    }
+
+    /// Gets the root AST document node.
+    pub fn node(&self) -> wdl_ast::Document {
+        wdl_ast::Document::cast(SyntaxNode::new_root(
+            self.root.clone().expect("should have a root"),
+        ))
+        .expect("should cast")
+    }
+
+    /// Gets the identifier of the document.
+    ///
+    /// This value changes when a document is reanalyzed.
+    pub fn id(&self) -> &Arc<String> {
+        &self.id
+    }
+
+    /// Gets the URI of the document.
+    pub fn uri(&self) -> &Arc<Url> {
+        &self.uri
     }
 
     /// Gets the supported version of the document.
@@ -594,6 +646,11 @@ impl Document {
     /// Gets the types of the document.
     pub fn types(&self) -> &Types {
         &self.types
+    }
+
+    /// Gets the analysis diagnostics for the document.
+    pub fn diagnostics(&self) -> &[Diagnostic] {
+        &self.diagnostics
     }
 
     /// Finds a scope based on a position within the document.

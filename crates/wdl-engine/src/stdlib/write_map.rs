@@ -45,7 +45,7 @@ fn write_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .unwrap_map();
 
     // Create a temporary file that will be persisted after writing the map
-    let mut file = NamedTempFile::new_in(context.tmp()).map_err(|e| {
+    let mut file = NamedTempFile::with_prefix_in("tmp", context.temp_dir()).map_err(|e| {
         function_call_failed(
             "write_map",
             format!("failed to create temporary file: {e}"),
@@ -55,7 +55,7 @@ fn write_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     // Write the lines
     let mut writer = BufWriter::new(file.as_file_mut());
-    for (key, value) in map.elements() {
+    for (key, value) in map.iter() {
         writeln!(
             &mut writer,
             "{key}\t{value}",
@@ -122,7 +122,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(
@@ -141,7 +141,7 @@ mod test {
                 .as_file()
                 .expect("should be file")
                 .as_str()
-                .starts_with(env.tmp().to_str().expect("should be UTF-8")),
+                .starts_with(env.temp_dir().to_str().expect("should be UTF-8")),
             "file should be in temp directory"
         );
         assert_eq!(

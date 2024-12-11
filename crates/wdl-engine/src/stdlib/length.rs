@@ -70,7 +70,7 @@ fn object_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.return_type_eq(PrimitiveTypeKind::Integer));
     let object = context.coerce_argument(0, Type::Object).unwrap_object();
 
-    Ok(i64::try_from(object.members.len())
+    Ok(i64::try_from(object.len())
         .map_err(|_| {
             function_call_failed(
                 "length",

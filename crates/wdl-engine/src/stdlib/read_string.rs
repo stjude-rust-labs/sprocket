@@ -23,7 +23,7 @@ fn read_string(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
     debug_assert!(context.return_type_eq(PrimitiveTypeKind::String));
 
-    let path = context.cwd().join(
+    let path = context.work_dir().join(
         context
             .coerce_argument(0, PrimitiveTypeKind::File)
             .unwrap_file()
@@ -58,7 +58,12 @@ mod test {
         env.write_file("foo", "hello\nworld!\n\r\n");
         env.insert_name(
             "file",
-            PrimitiveValue::new_file(env.cwd().join("foo").to_str().expect("should be UTF-8")),
+            PrimitiveValue::new_file(
+                env.work_dir()
+                    .join("foo")
+                    .to_str()
+                    .expect("should be UTF-8"),
+            ),
         );
 
         let diagnostic =

@@ -1,26 +1,58 @@
 //! Implementation of the WDL evaluation engine.
 
-use anyhow::Context;
-use anyhow::Result;
-use anyhow::anyhow;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use sysinfo::CpuRefreshKind;
+use sysinfo::MemoryRefreshKind;
+use sysinfo::System;
+use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::document::Document;
+use wdl_analysis::types::Type;
 use wdl_analysis::types::Types;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::Ident;
 
-use crate::Outputs;
-use crate::TaskInputs;
-use crate::WorkflowInputs;
+use crate::TaskExecutionBackend;
 
-/// Represents a WDL evaluation engine.
+/// Represents a cache of imported types for a specific document.
+///
+/// Maps a document-specific type name to a previously imported type.
 #[derive(Debug, Default)]
+struct DocumentTypeCache(HashMap<String, Type>);
+
+/// Represents a cache of imported types for all evaluated documents.
+///
+/// Maps a document identifier to that document's type cache.
+#[derive(Debug, Default)]
+struct TypeCache(HashMap<Arc<String>, DocumentTypeCache>);
+
+/// Represents an evaluation engine.
 pub struct Engine {
-    /// The engine's type collection.
-    pub(crate) types: Types,
+    /// The types collection for evaluation.
+    types: Types,
+    /// The type cache for evaluation.
+    cache: TypeCache,
+    /// The task execution backend to use.
+    backend: Box<dyn TaskExecutionBackend>,
+    /// Information about the current system.
+    system: System,
 }
 
 impl Engine {
-    /// Constructs a new WDL evaluation engine.
-    pub fn new() -> Self {
-        Self::default()
+    /// Constructs a new engine for the given task execution backend.
+    pub fn new<B: TaskExecutionBackend + 'static>(backend: B) -> Self {
+        let mut system = System::new();
+        system.refresh_cpu_list(CpuRefreshKind::new());
+        system.refresh_memory_specifics(MemoryRefreshKind::new().with_ram());
+
+        Self {
+            types: Default::default(),
+            cache: Default::default(),
+            backend: Box::new(backend),
+            system,
+        }
     }
 
     /// Gets the engine's type collection.
@@ -33,50 +65,40 @@ impl Engine {
         &mut self.types
     }
 
-    /// Evaluates a workflow.
-    ///
-    /// Returns the workflow outputs upon success.
-    pub async fn evaluate_workflow(
-        &mut self,
-        document: &Document,
-        inputs: &WorkflowInputs,
-    ) -> Result<Outputs> {
-        let workflow = document
-            .workflow()
-            .ok_or_else(|| anyhow!("document does not contain a workflow"))?;
-        inputs
-            .validate(&mut self.types, document, workflow)
-            .with_context(|| {
-                format!(
-                    "failed to validate the inputs to workflow `{workflow}`",
-                    workflow = workflow.name()
-                )
-            })?;
-
-        todo!("not yet implemented")
+    /// Gets a reference to the task execution backend.
+    pub fn backend(&self) -> &dyn TaskExecutionBackend {
+        self.backend.as_ref()
     }
 
-    /// Evaluates a task with the given name.
+    /// Gets information about the system the engine is running on.
+    pub fn system(&self) -> &System {
+        &self.system
+    }
+
+    /// Resolves a type name from a document.
     ///
-    /// Returns the task outputs upon success.
-    pub async fn evaluate_task(
+    /// This function will import the type into the engine's type collection if
+    /// not already cached.
+    pub(crate) fn resolve_type_name(
         &mut self,
         document: &Document,
-        name: &str,
-        inputs: &TaskInputs,
-    ) -> Result<Outputs> {
-        let task = document
-            .task_by_name(name)
-            .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
-        inputs
-            .validate(&mut self.types, document, task)
-            .with_context(|| {
-                format!(
-                    "failed to validate the inputs to task `{task}`",
-                    task = task.name()
-                )
-            })?;
+        name: &Ident,
+    ) -> Result<Type, Diagnostic> {
+        let cache = self.cache.0.entry(document.id().clone()).or_default();
 
-        todo!("not yet implemented")
+        match cache.0.get(name.as_str()) {
+            Some(ty) => Ok(*ty),
+            None => {
+                let ty = document
+                    .struct_by_name(name.as_str())
+                    .map(|s| s.ty().expect("struct should have type"))
+                    .ok_or_else(|| unknown_type(name.as_str(), name.span()))?;
+
+                // Cache the imported type for future expression evaluations
+                let ty = self.types.import(document.types(), ty);
+                cache.0.insert(name.as_str().into(), ty);
+                Ok(ty)
+            }
+        }
     }
 }

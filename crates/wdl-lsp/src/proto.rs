@@ -119,10 +119,10 @@ pub fn document_diagnostic_report(
 ) -> Option<DocumentDiagnosticReportResult> {
     let result = results
         .iter()
-        .find(|r| r.uri().as_ref() == &params.text_document.uri)?;
+        .find(|r| r.document().uri().as_ref() == &params.text_document.uri)?;
 
     if let Some(previous) = params.previous_result_id {
-        if &previous == result.id().as_ref() {
+        if &previous == result.document().id().as_ref() {
             debug!(
                 "diagnostics for document `{uri}` have not changed (client has latest)",
                 uri = params.text_document.uri,
@@ -144,15 +144,13 @@ pub fn document_diagnostic_report(
     }
 
     let items = result
+        .document()
         .diagnostics()
         .iter()
         .map(|d| {
             diagnostic(
-                result.uri(),
-                result
-                    .parse_result()
-                    .lines()
-                    .expect("should have line index"),
+                result.document().uri(),
+                result.lines().expect("should have line index"),
                 source,
                 d,
             )
@@ -164,7 +162,7 @@ pub fn document_diagnostic_report(
         DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport {
             related_documents: None,
             full_document_diagnostic_report: FullDocumentDiagnosticReport {
-                result_id: Some(result.id().as_ref().clone()),
+                result_id: Some(result.document().id().as_ref().clone()),
                 items,
             },
         }),
@@ -186,23 +184,23 @@ pub fn workspace_diagnostic_report(
     let mut items = Vec::new();
     for result in results {
         // Only store local file results
-        if result.uri().scheme() != "file" {
+        if result.document().uri().scheme() != "file" {
             continue;
         }
 
-        if let Some(previous) = ids.get(result.uri()) {
-            if previous == result.id().as_ref() {
+        if let Some(previous) = ids.get(result.document().uri()) {
+            if previous == result.document().id().as_ref() {
                 debug!(
                     "diagnostics for document `{uri}` have not changed (client has latest)",
-                    uri = result.uri(),
+                    uri = result.document().uri(),
                 );
 
                 items.push(WorkspaceDocumentDiagnosticReport::Unchanged(
                     WorkspaceUnchangedDocumentDiagnosticReport {
-                        uri: result.uri().as_ref().clone(),
-                        version: result.parse_result().version().map(|v| v as i64),
+                        uri: result.document().uri().as_ref().clone(),
+                        version: result.version().map(|v| v as i64),
                         unchanged_document_diagnostic_report: UnchangedDocumentDiagnosticReport {
-                            result_id: result.id().as_ref().clone(),
+                            result_id: result.document().id().as_ref().clone(),
                         },
                     },
                 ));
@@ -212,19 +210,17 @@ pub fn workspace_diagnostic_report(
 
         debug!(
             "diagnostics for document `{uri}` have changed since last client request",
-            uri = result.uri()
+            uri = result.document().uri()
         );
 
         let diagnostics = result
+            .document()
             .diagnostics()
             .iter()
             .filter_map(|d| {
                 diagnostic(
-                    result.uri(),
-                    result
-                        .parse_result()
-                        .lines()
-                        .expect("should have line index"),
+                    result.document().uri(),
+                    result.lines().expect("should have line index"),
                     source,
                     d,
                 )
@@ -234,10 +230,10 @@ pub fn workspace_diagnostic_report(
 
         items.push(WorkspaceDocumentDiagnosticReport::Full(
             WorkspaceFullDocumentDiagnosticReport {
-                uri: result.uri().as_ref().clone(),
-                version: result.parse_result().version().map(|v| v as i64),
+                uri: result.document().uri().as_ref().clone(),
+                version: result.version().map(|v| v as i64),
                 full_document_diagnostic_report: FullDocumentDiagnosticReport {
-                    result_id: Some(result.id().as_ref().clone()),
+                    result_id: Some(result.document().id().as_ref().clone()),
                     items: diagnostics,
                 },
             },

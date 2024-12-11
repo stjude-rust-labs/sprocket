@@ -26,7 +26,6 @@ use tokio::runtime::Handle;
 use tracing::debug;
 use tracing::info;
 use url::Url;
-use uuid::Uuid;
 use wdl_ast::Diagnostic;
 use wdl_ast::SyntaxNode;
 use wdl_ast::Validator;
@@ -82,45 +81,6 @@ pub enum ParseState {
     },
 }
 
-/// Represents the analysis state of a document graph node.
-#[derive(Debug)]
-pub struct Analysis {
-    /// The unique identifier of the analysis.
-    id: Arc<String>,
-    /// The analyzed document.
-    document: Arc<Document>,
-    /// The analysis diagnostics.
-    diagnostics: Arc<[Diagnostic]>,
-}
-
-impl Analysis {
-    /// Constructs a new analysis.
-    pub fn new(document: Document, diagnostics: impl Into<Arc<[Diagnostic]>>) -> Self {
-        Self {
-            id: Arc::new(Uuid::new_v4().to_string()),
-            document: Arc::new(document),
-            diagnostics: diagnostics.into(),
-        }
-    }
-
-    /// Gets the analysis result id.
-    ///
-    /// The identifier changes every time the document is analyzed.
-    pub fn id(&self) -> &Arc<String> {
-        &self.id
-    }
-
-    /// Gets the analyzed document.
-    pub fn document(&self) -> &Arc<Document> {
-        &self.document
-    }
-
-    /// Gets the diagnostics from the analysis.
-    pub fn diagnostics(&self) -> &Arc<[Diagnostic]> {
-        &self.diagnostics
-    }
-}
-
 /// Represents a node in a document graph.
 #[derive(Debug)]
 pub struct DocumentGraphNode {
@@ -132,10 +92,10 @@ pub struct DocumentGraphNode {
     change: Option<IncrementalChange>,
     /// The parse state of the document.
     parse_state: ParseState,
-    /// The analysis of the document.
+    /// The analyzed document for the node.
     ///
     /// If `None`, an analysis does not exist for the current state of the node.
-    analysis: Option<Analysis>,
+    analysis: Option<Arc<Document>>,
 }
 
 impl DocumentGraphNode {
@@ -216,14 +176,14 @@ impl DocumentGraphNode {
         self.change = None;
     }
 
-    /// Gets the analysis of the document node.
-    pub fn analysis(&self) -> Option<&Analysis> {
+    /// Gets the analyzed document for the node.
+    pub fn analysis(&self) -> Option<&Arc<Document>> {
         self.analysis.as_ref()
     }
 
     /// Marks the analysis as completed.
-    pub fn analysis_completed(&mut self, analysis: Analysis) {
-        self.analysis = Some(analysis);
+    pub fn analysis_completed(&mut self, document: Document) {
+        self.analysis = Some(Arc::new(document));
     }
 
     /// Marks the document node for reanalysis.
@@ -425,7 +385,7 @@ impl DocumentGraphNode {
     }
 }
 
-/// Represents a document graph.
+/// Represents a graph of WDL analyzed documents.
 #[derive(Debug, Default)]
 pub struct DocumentGraph {
     /// The inner directional graph.

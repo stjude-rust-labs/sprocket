@@ -29,7 +29,7 @@ pub enum StorageUnit {
 impl StorageUnit {
     /// Converts the given number of bytes into a float representing the number
     /// of units.
-    pub fn convert(&self, bytes: u64) -> f64 {
+    pub fn units(&self, bytes: u64) -> f64 {
         let bytes = bytes as f64;
         match self {
             Self::Bytes => bytes,
@@ -41,6 +41,22 @@ impl StorageUnit {
             Self::Mebibytes => bytes / 1048576.0,
             Self::Gibibytes => bytes / 1073741824.0,
             Self::Tebibytes => bytes / 1099511627776.0,
+        }
+    }
+
+    /// Converts the given number of bytes into the corresponding number of
+    /// bytes based on the unit.
+    pub fn bytes(&self, bytes: u64) -> Option<u64> {
+        match self {
+            Self::Bytes => Some(bytes),
+            Self::Kilobytes => bytes.checked_mul(1000),
+            Self::Megabytes => bytes.checked_mul(1000000),
+            Self::Gigabytes => bytes.checked_mul(1000000000),
+            Self::Terabytes => bytes.checked_mul(1000000000000),
+            Self::Kibibytes => bytes.checked_mul(1024),
+            Self::Mebibytes => bytes.checked_mul(1048576),
+            Self::Gibibytes => bytes.checked_mul(1073741824),
+            Self::Tebibytes => bytes.checked_mul(1099511627776),
         }
     }
 }
@@ -62,4 +78,26 @@ impl FromStr for StorageUnit {
             _ => Err(()),
         }
     }
+}
+
+/// Converts a unit string (e.g. `2 GiB`) to bytes.
+///
+/// The string is expected to contain a single integer followed by the unit.
+///
+/// Returns `None` if the string is not a valid unit string or if the resulting
+/// byte count exceeds an unsigned 64-bit integer.
+pub fn convert_unit_string(s: &str) -> Option<u64> {
+    // No space, so try splitting on first alpha
+    let (n, unit) = match s.chars().position(|c| c.is_ascii_alphabetic()) {
+        Some(index) => {
+            let (n, unit) = s.split_at(index);
+            (
+                n.trim().parse::<u64>().ok()?,
+                unit.trim().parse::<StorageUnit>().ok()?,
+            )
+        }
+        None => return None,
+    };
+
+    unit.bytes(n)
 }

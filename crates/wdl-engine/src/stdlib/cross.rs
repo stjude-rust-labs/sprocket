@@ -1,7 +1,5 @@
 //! Implements the `cross` function from the WDL standard library.
 
-use std::sync::Arc;
-
 use itertools::Itertools;
 use wdl_ast::Diagnostic;
 
@@ -64,14 +62,12 @@ fn cross(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .element_type();
 
     let elements = left
-        .elements()
+        .as_slice()
         .iter()
-        .cartesian_product(right.elements().iter())
-        .map(|(l, r)| {
-            Pair::new_unchecked(element_ty, Arc::new(l.clone()), Arc::new(r.clone())).into()
-        })
+        .cartesian_product(right.as_slice().iter())
+        .map(|(l, r)| Pair::new_unchecked(element_ty, l.clone(), r.clone()).into())
         .collect();
-    Ok(Array::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `cross`.
@@ -111,7 +107,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| {
                 let p = v.as_pair().unwrap();

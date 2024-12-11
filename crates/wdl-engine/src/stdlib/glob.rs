@@ -1,7 +1,6 @@
 //! Implements the `glob` function from the WDL standard library.
 
 use std::path::Path;
-use std::sync::Arc;
 
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveTypeKind;
@@ -28,8 +27,9 @@ fn glob(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(0, PrimitiveTypeKind::String)
         .unwrap_string();
 
+    // TODO: replace glob with walkpath and globmatch
     let mut elements: Vec<Value> = Vec::new();
-    for path in glob::glob(&context.cwd().join(path.as_str()).to_string_lossy())
+    for path in glob::glob(&context.work_dir().join(path.as_str()).to_string_lossy())
         .map_err(|e| invalid_glob_pattern(&e, context.arguments[0].span))?
     {
         let path = path.map_err(|e| function_call_failed("glob", &e, context.call_site))?;
@@ -40,7 +40,7 @@ fn glob(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         }
 
         // Strip the CWD prefix if there is one
-        let path = match path.strip_prefix(context.cwd()) {
+        let path = match path.strip_prefix(context.work_dir()) {
             Ok(path) => {
                 // Create a string from the stripped path
                 path.to_str()
@@ -74,7 +74,7 @@ fn glob(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         elements.push(PrimitiveValue::new_file(path).into());
     }
 
-    Ok(Array::new_unchecked(context.return_type, Arc::new(elements)).into())
+    Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
 /// Gets the function describing `glob`.
@@ -105,7 +105,7 @@ mod test {
         env.write_file("baz", "baz");
         env.write_file("foo", "foo");
         env.write_file("bar", "bar");
-        fs::create_dir_all(env.cwd().join("nested")).expect("failed to create directory");
+        fs::create_dir_all(env.work_dir().join("nested")).expect("failed to create directory");
         env.write_file("nested/bar", "bar");
         env.write_file("nested/baz", "baz");
 
@@ -113,7 +113,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_file().unwrap().as_str())
             .collect();
@@ -123,7 +123,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_file().unwrap().as_str())
             .collect();
@@ -133,7 +133,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_file().unwrap().as_str())
             .collect();
@@ -143,7 +143,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_file().unwrap().as_str())
             .collect();
@@ -153,7 +153,7 @@ mod test {
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
-            .elements()
+            .as_slice()
             .iter()
             .map(|v| v.as_file().unwrap().as_str().replace('\\', "/"))
             .collect();

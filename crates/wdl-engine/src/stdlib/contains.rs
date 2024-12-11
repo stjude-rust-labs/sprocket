@@ -24,7 +24,7 @@ fn contains(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     let item = &context.arguments[1].value;
 
     Ok(array
-        .elements()
+        .as_slice()
         .iter()
         .any(|e| Value::equals(context.types(), e, item).unwrap_or(false))
         .into())
