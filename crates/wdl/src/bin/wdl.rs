@@ -394,6 +394,25 @@ impl FormatCommand {
     }
 }
 
+/// Finds a file matching the given name in the given directory.
+///
+/// This function will return the first match it finds, at any depth.
+fn find_file_in_directory(name: &str, dir: &Path) -> Option<PathBuf> {
+    fs::read_dir(dir)
+        .ok()?
+        .filter_map(|entry| entry.ok())
+        .find_map(|entry| {
+            let path = entry.path();
+            if path.is_dir() {
+                find_file_in_directory(name, &path)
+            } else if path.file_name().map(|f| f == name).unwrap_or(false) {
+                Some(path)
+            } else {
+                None
+            }
+        })
+}
+
 /// Document a workspace.
 #[derive(Args)]
 #[clap(disable_version_flag = true)]
@@ -401,12 +420,30 @@ pub struct DocCommand {
     /// The path to the workspace.
     #[clap(value_name = "PATH")]
     pub path: PathBuf,
+
+    /// Whether or not to open the generated documentation in the default
+    /// browser.
+    #[clap(long)]
+    pub open: bool,
 }
 
 impl DocCommand {
     /// Executes the `document` subcommand.
     async fn exec(self) -> Result<()> {
-        document_workspace(self.path).await
+        document_workspace(self.path.clone()).await?;
+
+        if self.open {
+            // find the first `$path/docs/**/index.html` file in the workspace
+            // TODO: once we have a homepage, open that instead.
+            if let Some(index) = find_file_in_directory("index.html", &self.path.join("docs")) {
+                webbrowser::open(&index.as_path().to_string_lossy())
+                    .context("failed to open browser")?;
+            } else {
+                eprintln!("failed to find `index.html` in workspace");
+            }
+        }
+
+        Ok(())
     }
 }
 
