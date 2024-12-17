@@ -942,10 +942,12 @@ impl CommandSection {
         }
 
         // Trim the first line
+        let mut whole_first_line_trimmed = false;
         if let Some(StrippedCommandPart::Text(text)) = result.first_mut() {
-            let end = text.find('\n').map(|p| p + 1).unwrap_or(text.len());
-            let line = &text[..end];
+            let end_of_first_line = text.find('\n').map(|p| p + 1).unwrap_or(text.len());
+            let line = &text[..end_of_first_line];
             let len = line.len() - line.trim_start().len();
+            whole_first_line_trimmed = len == line.len();
             text.replace_range(..len, "");
         }
 
@@ -987,7 +989,7 @@ impl CommandSection {
         // Finally, strip the leading whitespace on each line
         // This is done in place using the `replace_range` method; the method will
         // internally do moves without allocations
-        let mut strip_leading_whitespace = true;
+        let mut strip_leading_whitespace = whole_first_line_trimmed;
         for part in &mut result {
             match part {
                 StrippedCommandPart::Text(text) => {
@@ -2460,5 +2462,52 @@ task test {
             text,
             "echo \"hello\"\n    echo \"world\"\necho \\\n        \"goodbye\""
         );
+    }
+
+    /// Regression test for issue [#268](https://github.com/stjude-rust-labs/wdl/issues/268).
+    #[test]
+    fn whitespace_stripping_with_content_on_first_line() {
+        let (document, diagnostics) = Document::parse(
+            r#"
+version 1.2
+
+task test {
+    command <<<      weird stuff $firstlinelint
+            # other weird whitespace
+      somecommand.py $line120 ~{placeholder}
+    >>>
+        }"#,
+        );
+
+        assert!(diagnostics.is_empty());
+        let ast = document.ast();
+        let ast = ast.as_v1().expect("should be a V1 AST");
+        let tasks: Vec<_> = ast.tasks().collect();
+        assert_eq!(tasks.len(), 1);
+
+        let command = tasks[0].command().expect("should have a command section");
+
+        let stripped = command.strip_whitespace().unwrap();
+        assert_eq!(stripped.len(), 3);
+        let text = match &stripped[0] {
+            StrippedCommandPart::Text(text) => text,
+            _ => panic!("expected text"),
+        };
+        assert_eq!(
+            text,
+            "weird stuff $firstlinelint\n      # other weird whitespace\nsomecommand.py $line120 "
+        );
+
+        let _placeholder = match &stripped[1] {
+            StrippedCommandPart::Placeholder(p) => p,
+            _ => panic!("expected placeholder"),
+        };
+        // not testing anything with the placeholder, just making sure it's there
+
+        let text = match &stripped[2] {
+            StrippedCommandPart::Text(text) => text,
+            _ => panic!("expected text"),
+        };
+        assert_eq!(text, "");
     }
 }

@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Reduced allocations in stripping whitespace from commands and multiline
   strings and provided unescaping of escape sequences ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
 
+### Fixed
+* Fixed bug in `strip_whitespace()` that erroneously stripped characters from the first line when it had content.
+  Closed [issue #268](https://github.com/stjude-rust-labs/wdl/issues/268) ([#271](https://github.com/stjude-rust-labs/wdl/pull/271)).
+
 ## 0.9.0 - 10-22-2024
 
 ### Changed
