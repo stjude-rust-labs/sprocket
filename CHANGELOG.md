@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* Updated WDL crate to latest (by pointing to `wdl:main`
+  as the latest crates haven't been released yet).
+  This adds support for checking/linting remote URLs ([#46](https://github.com/stjude-rust-labs/sprocket/pull/46)).
+* Only allow one `file` argument to `check/lint` instead of any number of local files and directories
+  ([#46](https://github.com/stjude-rust-labs/sprocket/pull/46)).
+
+### Added
+
+* Added `--local-only` and `--single-document` args to `check/lint` ([#46](https://github.com/stjude-rust-labs/sprocket/pull/46)).
+
 ## 0.9.0 - 10-22-2024
 
 ### Changed
