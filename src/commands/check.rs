@@ -1,31 +1,20 @@
 //! Implementation of the check and lint commands.
 
 use std::fs;
-use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::bail;
 use clap::Parser;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::emit;
-use indicatif::ProgressBar;
-use indicatif::ProgressStyle;
 use url::Url;
-use wdl::analysis::Analyzer;
-use wdl::analysis::path_to_uri;
-use wdl::analysis::rules;
 use wdl::ast::Diagnostic;
 use wdl::ast::Severity;
 use wdl::ast::SyntaxNode;
-use wdl::ast::Validator;
-use wdl::lint::LintVisitor;
 
+use crate::analyze;
 use crate::Mode;
 use crate::get_display_config;
-
-/// The delay in showing the progress bar.
-const PROGRESS_BAR_DELAY: Duration = Duration::from_secs(2);
 
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
@@ -98,53 +87,18 @@ pub struct LintArgs {
 /// Checks WDL source files for diagnostics.
 pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let (config, mut stream) = get_display_config(args.common.report_mode, args.common.no_color);
-    let exceptions = Arc::new(args.common.except);
-    let excepts = exceptions.clone();
-    let rules = rules()
-        .into_iter()
-        .filter(|r| !excepts.iter().any(|e| e == r.id()));
-    let lint = args.lint;
-    let analyzer = Analyzer::new_with_validator(
-        rules,
-        move |bar: ProgressBar, kind, completed, total| async move {
-            if bar.elapsed() < PROGRESS_BAR_DELAY {
-                return;
-            }
-
-            if completed == 0 || bar.length() == Some(0) {
-                bar.set_length(total.try_into().unwrap());
-                bar.set_message(format!("{kind}"));
-            }
-
-            bar.set_position(completed.try_into().unwrap());
-        },
-        move || {
-            let mut validator = Validator::empty();
-
-            if lint {
-                let visitor = LintVisitor::new(wdl::lint::rules().into_iter().filter_map(|rule| {
-                    if exceptions.iter().any(|e| e == rule.id()) {
-                        None
-                    } else {
-                        Some(rule)
-                    }
-                }));
-                validator.add_visitor(visitor);
-            }
-
-            validator
-        },
-    );
-
+    
     let file = args.common.file;
-    if let Ok(url) = Url::parse(&file) {
+
+    // Check if the file is a URL, a directory, or a file
+    // and bail if that result conflicts with any arguments.
+    if let Ok(_url) = Url::parse(&file) {
         if args.common.local_only {
             bail!(
                 "`--local-only` was specified, but `{file}` is a remote URL",
                 file = file
             );
         }
-        analyzer.add_document(url).await?;
     } else if fs::metadata(&file)
         .with_context(|| format!("failed to read metadata for file `{file}`"))?
         .is_dir()
@@ -155,26 +109,9 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                 file = file
             );
         }
-        analyzer.add_directory(file.clone().into()).await?;
-    } else if let Some(url) = path_to_uri(&file) {
-        analyzer.add_document(url).await?;
-    } else {
-        bail!("failed to convert `{file}` to a URI", file = file)
     }
 
-    let bar = ProgressBar::new(0);
-    bar.set_style(
-        ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {msg} {pos}/{len}")
-            .unwrap(),
-    );
-
-    let results = analyzer
-        .analyze(bar.clone())
-        .await
-        .context("failed to analyze documents")?;
-
-    // Drop (hide) the progress bar before emitting any diagnostics
-    drop(bar);
+    let results = analyze(&file, args.common.except, args.lint).await?;
 
     let cwd = std::env::current_dir().ok();
     let mut error_count = 0;
