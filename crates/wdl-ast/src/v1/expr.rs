@@ -2218,10 +2218,12 @@ impl LiteralString {
         }
 
         // Trim the first line
+        let mut whole_first_line_trimmed = false;
         if let Some(StrippedStringPart::Text(text)) = result.first_mut() {
-            let end = text.find('\n').map(|p| p + 1).unwrap_or(text.len());
-            let line = &text[..end];
+            let end_of_first_line = text.find('\n').map(|p| p + 1).unwrap_or(text.len());
+            let line = &text[..end_of_first_line];
             let len = line.len() - line.trim_start().len();
+            whole_first_line_trimmed = len == line.len();
             text.replace_range(..len, "");
         }
 
@@ -2285,7 +2287,7 @@ impl LiteralString {
         // Finally, strip the leading whitespace on each line
         // This is done in place using the `replace_range` method; the method will
         // internally do moves without allocations
-        let mut strip_leading_whitespace = true;
+        let mut strip_leading_whitespace = whole_first_line_trimmed;
         for part in &mut result {
             match part {
                 StrippedStringPart::Text(text) => {
@@ -7833,6 +7835,40 @@ task test {
         match &stripped[0] {
             StrippedStringPart::Text(text) => {
                 assert_eq!(text.as_str(), "hello world my name is Jeff.")
+            }
+            _ => panic!("expected text part"),
+        }
+    }
+
+    #[test]
+    fn strip_whitespace_with_content_on_first_line() {
+        let (document, diagnostics) = Document::parse(
+            r#"
+version 1.2
+
+task test {
+    String hw = <<<    hello world
+    my name is Jeff.
+    >>>
+}"#,
+        );
+
+        assert!(diagnostics.is_empty());
+        let ast = document.ast();
+        let ast = ast.as_v1().expect("should be a V1 AST");
+
+        let tasks: Vec<_> = ast.tasks().collect();
+        assert_eq!(tasks.len(), 1);
+
+        let decls: Vec<_> = tasks[0].declarations().collect();
+        assert_eq!(decls.len(), 1);
+
+        let expr = decls[0].expr().unwrap_literal().unwrap_string();
+        let stripped = expr.strip_whitespace().unwrap();
+        assert_eq!(stripped.len(), 1);
+        match &stripped[0] {
+            StrippedStringPart::Text(text) => {
+                assert_eq!(text.as_str(), "hello world\n    my name is Jeff.")
             }
             _ => panic!("expected text part"),
         }
