@@ -30,10 +30,10 @@ const PROGRESS_BAR_DELAY: Duration = Duration::from_secs(2);
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Common {
-    /// The files or directories to check.
+    /// The file, URL, or directory to check.
     #[arg(required = true)]
-    #[clap(value_name = "PATHs and/or URLs")]
-    pub files: Vec<String>,
+    #[clap(value_name = "PATH or URL")]
+    pub file: String,
 
     /// A single rule ID to except from running.
     ///
@@ -48,6 +48,20 @@ pub struct Common {
     /// Causes the command to fail if notes were reported.
     #[clap(long)]
     pub deny_notes: bool,
+
+    /// Only display diagnostics for local files.
+    ///
+    /// This is useful when you want to ignore diagnostics for remote imports.
+    /// If specified with a remote file, an error will be raised.
+    #[arg(long)]
+    pub local_only: bool,
+
+    /// Supress diagnostics from imported documents.
+    ///
+    /// This will only display diagnostics for the document specified by `file`.
+    /// If specified with a directory, an error will be raised.
+    #[arg(long)]
+    pub single_document: bool,
 
     /// Disables color output.
     #[arg(long)]
@@ -82,10 +96,6 @@ pub struct LintArgs {
 
 /// Checks WDL source files for diagnostics.
 pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
-    if !args.lint && !args.common.except.is_empty() {
-        bail!("cannot specify `--except` without `--lint`");
-    }
-
     let (config, mut stream) = get_display_config(args.common.report_mode, args.common.no_color);
     let exceptions = Arc::new(args.common.except);
     let excepts = exceptions.clone();
@@ -125,19 +135,30 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         },
     );
 
-    for file in &args.common.files {
-        if let Ok(url) = Url::parse(file) {
-            analyzer.add_document(url).await?;
-        } else if fs::metadata(file)
-            .with_context(|| format!("failed to read metadata for file `{file}`"))?
-            .is_dir()
-        {
-            analyzer.add_directory(file.into()).await?;
-        } else if let Some(url) = path_to_uri(file) {
-            analyzer.add_document(url).await?;
-        } else {
-            bail!("failed to convert `{file}` to a URI", file = file)
+    let file = args.common.file;
+    if let Ok(url) = Url::parse(&file) {
+        if args.common.local_only {
+            bail!(
+                "`--local-only` was specified, but `{file}` is a remote URL",
+                file = file
+            );
         }
+        analyzer.add_document(url).await?;
+    } else if fs::metadata(&file)
+        .with_context(|| format!("failed to read metadata for file `{file}`"))?
+        .is_dir()
+    {
+        if args.common.single_document {
+            bail!(
+                "`--single-document` was specified, but `{file}` is a directory",
+                file = file
+            );
+        }
+        analyzer.add_directory(file.clone().into()).await?;
+    } else if let Some(url) = path_to_uri(&file) {
+        analyzer.add_document(url).await?;
+    } else {
+        bail!("failed to convert `{file}` to a URI", file = file)
     }
 
     let bar = ProgressBar::new(0);
@@ -161,6 +182,9 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     for result in &results {
         // Attempt to strip the CWD from the result path
         let uri = result.document().uri();
+        if args.common.single_document && !uri.as_str().contains(&file) {
+            continue;
+        }
         let scheme = uri.scheme();
         let uri = match (cwd.clone(), scheme) {
             (Some(cwd), "file") => uri
@@ -178,7 +202,12 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                 .expect("failed to convert file URI to file path")
                 .to_string_lossy()
                 .to_string(),
-            _ => uri.to_string(),
+            _ => {
+                if args.common.local_only {
+                    continue;
+                }
+                uri.to_string()
+            }
         };
 
         let diagnostics = match result.error() {
