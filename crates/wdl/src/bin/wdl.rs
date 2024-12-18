@@ -37,6 +37,7 @@ use wdl::ast::Validator;
 use wdl::lint::LintVisitor;
 use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
+use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::Rule;
 use wdl_analysis::path_to_uri;
 use wdl_analysis::rules;
@@ -95,7 +96,7 @@ async fn analyze<T: AsRef<dyn Rule>>(
     );
 
     let analyzer = Analyzer::new_with_validator(
-        rules,
+        DiagnosticsConfig::new(rules),
         move |bar: ProgressBar, kind, completed, total| async move {
             bar.set_position(completed.try_into().unwrap());
             if completed == 0 {

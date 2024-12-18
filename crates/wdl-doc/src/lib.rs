@@ -25,6 +25,7 @@ use pulldown_cmark::Options;
 use pulldown_cmark::Parser;
 use tokio::io::AsyncWriteExt;
 use wdl_analysis::Analyzer;
+use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::rules;
 use wdl_ast::AstToken;
 use wdl_ast::Document as AstDocument;
@@ -141,7 +142,7 @@ pub async fn document_workspace(path: PathBuf) -> Result<()> {
         std::fs::create_dir(&docs_dir)?;
     }
 
-    let analyzer = Analyzer::new(rules(), |_: (), _, _, _| async {});
+    let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
     analyzer.add_directory(abs_path.clone()).await?;
     let results = analyzer.analyze(()).await?;
 

@@ -24,6 +24,7 @@ use tracing::error;
 use tracing::info;
 use uuid::Uuid;
 use wdl_analysis::Analyzer;
+use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::IncrementalChange;
 use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
@@ -252,7 +253,7 @@ impl Server {
                 client,
                 options,
                 analyzer: Analyzer::<ProgressToken>::new_with_validator(
-                    rules(),
+                    DiagnosticsConfig::new(rules()),
                     move |token, kind, current, total| {
                         let client = analyzer_client.clone();
                         async move {

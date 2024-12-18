@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Changed the `new` and `new_with_validator` methods of `Analyzer` to take the 
+  diagnostics configuration rather than a rule iterator ([#274](https://github.com/stjude-rust-labs/wdl/pull/274)).
 * Refactored the `AnalysisResult` and `Document` types to move properties of
   the former into the latter; this will assist in evaluation of documents in
   that the `Document` alone can be passed into evaluation ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).

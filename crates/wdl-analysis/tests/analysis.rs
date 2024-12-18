@@ -33,6 +33,7 @@ use path_clean::clean;
 use pretty_assertions::StrComparison;
 use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
+use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::path_to_uri;
 use wdl_analysis::rules;
 use wdl_ast::Diagnostic;
@@ -164,7 +165,7 @@ async fn main() {
     println!("\nrunning {} tests\n", tests.len());
 
     // Start with a single analysis pass over all the test files
-    let analyzer = Analyzer::new(rules(), |_, _, _, _| async {});
+    let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_, _, _, _| async {});
     for test in &tests {
         analyzer
             .add_directory(test.clone())
@@ -215,7 +216,7 @@ async fn main() {
     // Some tests are sensitive to the order in which files are parsed (e.g.
     // detecting cycles) For those, use a new analyzer and analyze the
     // `source.wdl` directly
-    let analyzer = Analyzer::new(rules(), |_, _, _, _| async {});
+    let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_, _, _, _| async {});
     for test_name in single_file {
         let test = Path::new("tests/analysis").join(test_name);
         let document = test.join("source.wdl");

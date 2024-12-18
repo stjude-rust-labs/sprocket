@@ -309,7 +309,7 @@ pub struct DiagnosticsConfig {
 
 impl DiagnosticsConfig {
     /// Creates a new diagnostics configuration from a rule set.
-    pub fn new<T: AsRef<dyn Rule>>(rules: impl Iterator<Item = T>) -> Self {
+    pub fn new<T: AsRef<dyn Rule>>(rules: impl IntoIterator<Item = T>) -> Self {
         let mut unused_import = None;
         let mut unused_input = None;
         let mut unused_declaration = None;
@@ -402,26 +402,23 @@ impl<Context> Analyzer<Context>
 where
     Context: Send + Clone + 'static,
 {
-    /// Constructs a new analyzer with the given analysis rules.
+    /// Constructs a new analyzer with the given diagnostics config.
     ///
     /// The provided progress callback will be invoked during analysis.
     ///
     /// The analyzer will use a default validator for validation.
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
-    pub fn new<T: AsRef<dyn Rule>, Progress, Return>(
-        rules: impl IntoIterator<Item = T>,
-        progress: Progress,
-    ) -> Self
+    pub fn new<Progress, Return>(config: DiagnosticsConfig, progress: Progress) -> Self
     where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
     {
-        Self::new_with_validator(rules, progress, Validator::default)
+        Self::new_with_validator(config, progress, Validator::default)
     }
 
-    /// Constructs a new analyzer with the given analysis rules and validator
-    /// function.
+    /// Constructs a new analyzer with the given diagnostics config and
+    /// validator function.
     ///
     /// The provided progress callback will be invoked during analysis.
     ///
@@ -429,8 +426,8 @@ where
     /// initialize a thread-local validator.
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
-    pub fn new_with_validator<T: AsRef<dyn Rule>, Progress, Return, Validator>(
-        rules: impl IntoIterator<Item = T>,
+    pub fn new_with_validator<Progress, Return, Validator>(
+        config: DiagnosticsConfig,
         progress: Progress,
         validator: Validator,
     ) -> Self
@@ -441,7 +438,6 @@ where
     {
         let (tx, rx) = mpsc::unbounded_channel();
         let tokio = Handle::current();
-        let config = DiagnosticsConfig::new(rules.into_iter());
         let handle = std::thread::spawn(move || {
             let queue = AnalysisQueue::new(config, tokio, progress, validator);
             queue.run(rx);
@@ -706,7 +702,7 @@ mod test {
 
     #[tokio::test]
     async fn it_returns_empty_results() {
-        let analyzer = Analyzer::new(rules(), |_: (), _, _, _| async {});
+        let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
         let results = analyzer.analyze(()).await.unwrap();
         assert!(results.is_empty());
     }
@@ -730,7 +726,7 @@ workflow test {
         .expect("failed to create test file");
 
         // Analyze the file and check the resulting diagnostic
-        let analyzer = Analyzer::new(rules(), |_: (), _, _, _| async {});
+        let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
         analyzer
             .add_document(path_to_uri(&path).expect("should convert to URI"))
             .await
@@ -785,7 +781,7 @@ workflow test {
         .expect("failed to create test file");
 
         // Analyze the file and check the resulting diagnostic
-        let analyzer = Analyzer::new(rules(), |_: (), _, _, _| async {});
+        let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
         analyzer
             .add_document(path_to_uri(&path).expect("should convert to URI"))
             .await
@@ -857,7 +853,7 @@ workflow test {
         .expect("failed to create test file");
 
         // Analyze the file and check the resulting diagnostic
-        let analyzer = Analyzer::new(rules(), |_: (), _, _, _| async {});
+        let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
         analyzer
             .add_document(path_to_uri(&path).expect("should convert to URI"))
             .await
@@ -933,7 +929,7 @@ workflow test {
         .expect("failed to create test file");
 
         // Add all three documents to the analyzer
-        let analyzer = Analyzer::new(rules(), |_: (), _, _, _| async {});
+        let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
         analyzer
             .add_directory(dir.path().to_path_buf())
             .await
