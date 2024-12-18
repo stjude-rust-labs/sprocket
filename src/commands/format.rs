@@ -25,8 +25,8 @@ use wdl::format::config::Builder;
 use wdl::format::config::Indent;
 use wdl::format::element::node::AstNodeFormatExt;
 
-use super::Mode;
-use crate::commands::get_display_config;
+use crate::Mode;
+use crate::get_display_config;
 
 /// The maximum acceptable indentation size.
 const MAX_INDENT_SIZE: usize = 16;

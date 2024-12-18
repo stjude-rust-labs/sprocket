@@ -21,11 +21,12 @@ use wdl::ast::SyntaxNode;
 use wdl::ast::Validator;
 use wdl::lint::LintVisitor;
 
-use super::Mode;
-use super::get_display_config;
+use crate::Mode;
+use crate::get_display_config;
 
 /// The delay in showing the progress bar.
 const PROGRESS_BAR_DELAY: Duration = Duration::from_secs(2);
+
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
