@@ -76,10 +76,12 @@ fn get_display_config(report_mode: Mode, no_color: bool) -> (Config, StandardStr
 /// Analyze the document or directory, returning [`AnalysisResult`]s.
 pub async fn analyze(
     file: &str,
-    exceptions: &[String],
+    exceptions: Vec<String>,
     lint: bool,
 ) -> anyhow::Result<Vec<AnalysisResult>> {
-    let rules = wdl::analysis::rules().iter().filter_map(|rule| {
+    let rules= wdl::analysis::rules();
+    let exceptions_clone = exceptions.clone();
+    let rules = rules.iter().filter_map(|rule| {
         if exceptions.iter().any(|e| e == rule.id()) {
             None
         } else {
@@ -106,7 +108,7 @@ pub async fn analyze(
 
             if lint {
                 let visitor = LintVisitor::new(wdl::lint::rules().into_iter().filter_map(|rule| {
-                    if exceptions.iter().any(|e| e == rule.id()) {
+                    if exceptions_clone.iter().any(|e| e == rule.id()) {
                         None
                     } else {
                         Some(rule)
@@ -125,7 +127,7 @@ pub async fn analyze(
         .await?
         .is_dir()
     {
-        analyzer.add_directory(file.clone().into()).await?;
+        analyzer.add_directory(file.into()).await?;
     } else if let Some(url) = path_to_uri(&file) {
         analyzer.add_document(url).await?;
     } else {
