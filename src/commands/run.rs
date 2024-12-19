@@ -1,13 +1,13 @@
 //! Implementation of the run command.
 
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
-use std::fs;
 
+use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use anyhow::Context;
 use anyhow::bail;
 use clap::Parser;
 use codespan_reporting::files::SimpleFile;
@@ -15,14 +15,14 @@ use codespan_reporting::term::emit;
 use tracing_log::log;
 use url::Url;
 use wdl::analysis::path_to_uri;
-use wdl::engine::local::LocalTaskExecutionBackend;
 use wdl::engine::Engine;
-use wdl::engine::Inputs;
 use wdl::engine::EvaluationError;
+use wdl::engine::Inputs;
+use wdl::engine::local::LocalTaskExecutionBackend;
 use wdl::engine::v1::TaskEvaluator;
 
-use crate::analyze;
 use crate::Mode;
+use crate::analyze;
 use crate::get_display_config;
 
 /// Arguments for the run command.
@@ -65,8 +65,8 @@ pub struct RunArgs {
 /// Creates the output directory for the task.
 fn create_output_dir(output_dir: Option<PathBuf>, name: &str, overwrite: bool) -> Result<PathBuf> {
     let output_dir_specified = output_dir.is_some();
-    let output_dir = output_dir
-        .unwrap_or_else(|| Path::new(&format!("sprocket_run-{}-0", &name)).to_path_buf());
+    let output_dir =
+        output_dir.unwrap_or_else(|| Path::new(&format!("sprocket_run-{}-0", &name)).to_path_buf());
 
     let output_dir = if output_dir.exists() {
         if overwrite {
@@ -79,7 +79,8 @@ fn create_output_dir(output_dir: Option<PathBuf>, name: &str, overwrite: bool) -
             output_dir
         } else if output_dir_specified {
             bail!(
-                "output directory `{dir}` already exists; use the `--overwrite` option to overwrite it",
+                "output directory `{dir}` already exists; use the `--overwrite` option to \
+                 overwrite it",
                 dir = output_dir.display()
             );
         } else {
@@ -90,10 +91,8 @@ fn create_output_dir(output_dir: Option<PathBuf>, name: &str, overwrite: bool) -
             let mut run_number: usize = 1;
             let mut new_output_dir = output_dir.clone();
             while new_output_dir.exists() {
-                new_output_dir = output_dir.with_file_name(format!(
-                    "sprocket_run-{}-{}",
-                    &name, run_number
-                ));
+                new_output_dir =
+                    output_dir.with_file_name(format!("sprocket_run-{}-{}", &name, run_number));
                 run_number += 1;
             }
             new_output_dir
@@ -147,8 +146,8 @@ pub async fn run(args: RunArgs) -> Result<()> {
         match Inputs::parse(engine.types_mut(), document, &abs_path)? {
             Some((name, inputs)) => (Some(path), name, inputs),
             None => bail!(
-                "inputs file `{path}` is empty; use the `--name` option to specify the name \
-                 of the task or workflow to run",
+                "inputs file `{path}` is empty; use the `--name` option to specify the name of \
+                 the task or workflow to run",
                 path = path.display()
             ),
         }
@@ -170,9 +169,7 @@ pub async fn run(args: RunArgs) -> Result<()> {
                     .workflow()
                     .map(|w| (w.name().to_string(), Inputs::Workflow(Default::default())))
             })
-            .context(
-                "inputs file is empty and the WDL document contains no tasks or workflow",
-            )?;
+            .context("inputs file is empty and the WDL document contains no tasks or workflow")?;
 
         if iter.next().is_some() {
             bail!("inputs file is empty and the WDL document contains more than one task");
@@ -211,8 +208,8 @@ pub async fn run(args: RunArgs) -> Result<()> {
                             outputs.serialize(engine.types(), &mut serializer)?;
                             println!(
                                 "{buffer}\n",
-                                buffer = std::str::from_utf8(&buffer)
-                                    .expect("output should be UTF-8")
+                                buffer =
+                                    std::str::from_utf8(&buffer).expect("output should be UTF-8")
                             );
                         }
                         Err(e) => match e {

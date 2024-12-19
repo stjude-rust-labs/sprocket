@@ -10,21 +10,21 @@
 use std::time::Duration;
 
 use anyhow::bail;
-use url::Url;
-use tokio::fs;
-use indicatif::ProgressBar;
-use indicatif::ProgressStyle;
 use clap::ValueEnum;
 use codespan_reporting::term::Config;
 use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
+use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
+use tokio::fs;
+use url::Url;
 use wdl::analysis::AnalysisResult;
 use wdl::analysis::Analyzer;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::analysis::path_to_uri;
-use wdl::lint::LintVisitor;
 use wdl::ast::Validator;
+use wdl::lint::LintVisitor;
 
 pub mod commands;
 
@@ -80,7 +80,7 @@ pub async fn analyze(
     exceptions: Vec<String>,
     lint: bool,
 ) -> anyhow::Result<Vec<AnalysisResult>> {
-    let rules= wdl::analysis::rules();
+    let rules = wdl::analysis::rules();
     let rules = rules.iter().filter_map(|rule| {
         if exceptions.iter().any(|e| e == rule.id()) {
             None
@@ -124,10 +124,7 @@ pub async fn analyze(
 
     if let Ok(url) = Url::parse(&file) {
         analyzer.add_document(url).await?;
-    } else if fs::metadata(&file)
-        .await?
-        .is_dir()
-    {
+    } else if fs::metadata(&file).await?.is_dir() {
         analyzer.add_directory(file.into()).await?;
     } else if let Some(url) = path_to_uri(&file) {
         analyzer.add_document(url).await?;
@@ -141,9 +138,7 @@ pub async fn analyze(
             .unwrap(),
     );
 
-    let results = analyzer
-        .analyze(bar.clone())
-        .await?;
+    let results = analyzer.analyze(bar.clone()).await?;
 
     // Drop (hide) the progress bar before emitting any diagnostics
     drop(bar);

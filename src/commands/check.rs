@@ -12,8 +12,8 @@ use wdl::ast::Diagnostic;
 use wdl::ast::Severity;
 use wdl::ast::SyntaxNode;
 
-use crate::analyze;
 use crate::Mode;
+use crate::analyze;
 use crate::get_display_config;
 
 /// Common arguments for the `check` and `lint` subcommands.
@@ -87,7 +87,7 @@ pub struct LintArgs {
 /// Checks WDL source files for diagnostics.
 pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let (config, mut stream) = get_display_config(args.common.report_mode, args.common.no_color);
-    
+
     let file = args.common.file;
 
     // Check if the file is a URL, a directory, or a file
