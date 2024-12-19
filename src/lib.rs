@@ -81,13 +81,9 @@ pub async fn analyze(
     lint: bool,
 ) -> anyhow::Result<Vec<AnalysisResult>> {
     let rules = wdl::analysis::rules();
-    let rules = rules.iter().filter_map(|rule| {
-        if exceptions.iter().any(|e| e == rule.id()) {
-            None
-        } else {
-            Some(rule)
-        }
-    });
+    let rules = rules
+        .iter()
+        .filter(|rule| !exceptions.iter().any(|e| e == rule.id()));
     let rules_config = DiagnosticsConfig::new(rules);
 
     let analyzer = Analyzer::new_with_validator(
@@ -122,11 +118,11 @@ pub async fn analyze(
         },
     );
 
-    if let Ok(url) = Url::parse(&file) {
+    if let Ok(url) = Url::parse(file) {
         analyzer.add_document(url).await?;
     } else if fs::metadata(&file).await?.is_dir() {
         analyzer.add_directory(file.into()).await?;
-    } else if let Some(url) = path_to_uri(&file) {
+    } else if let Some(url) = path_to_uri(file) {
         analyzer.add_document(url).await?;
     } else {
         bail!("failed to convert `{file}` to a URI", file = file)
