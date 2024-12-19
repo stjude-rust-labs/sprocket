@@ -101,14 +101,11 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         }
     } else if fs::metadata(&file)
         .with_context(|| format!("failed to read metadata for file `{file}`"))?
-        .is_dir()
-    {
-        if args.common.single_document {
-            bail!(
-                "`--single-document` was specified, but `{file}` is a directory",
-                file = file
-            );
-        }
+        .is_dir() && args.common.single_document {
+        bail!(
+            "`--single-document` was specified, but `{file}` is a directory",
+            file = file
+        );
     }
 
     let results = analyze(&file, args.common.except, args.lint).await?;
