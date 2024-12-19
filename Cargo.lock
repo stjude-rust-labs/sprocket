@@ -1752,6 +1752,7 @@ dependencies = [
  "nonempty",
  "pest",
  "pretty_assertions",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-log",
