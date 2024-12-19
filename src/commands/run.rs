@@ -12,6 +12,7 @@ use anyhow::bail;
 use clap::Parser;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::emit;
+use tracing_log::log;
 use url::Url;
 use wdl::analysis::path_to_uri;
 use wdl::engine::local::LocalTaskExecutionBackend;
@@ -129,28 +130,44 @@ pub async fn run(args: RunArgs) -> Result<()> {
     };
 
 
+    let output_dir_specified = args.output.is_some();
     let output_dir = args
         .output
-        .unwrap_or_else(|| Path::new(&name).to_path_buf());
+        .unwrap_or_else(|| Path::new(&format!("sprocket_run-{}-0", &name)).to_path_buf());
 
-    // Check to see if the output directory already exists and if it should be
-    // removed
-    if output_dir.exists() {
-        if !args.overwrite {
+    let output_dir = if output_dir.exists() {
+        if args.overwrite {
+            fs::remove_dir_all(&output_dir).with_context(|| {
+                format!(
+                    "failed to remove output directory `{dir}`",
+                    dir = output_dir.display()
+                )
+            })?;
+            output_dir
+        } else if output_dir_specified {
             bail!(
-                "output directory `{dir}` exists; use the `--overwrite` option to overwrite \
-                its contents",
+                "output directory `{dir}` already exists; use the `--overwrite` option to overwrite it",
                 dir = output_dir.display()
             );
-        }
-
-        fs::remove_dir_all(&output_dir).with_context(|| {
-            format!(
-                "failed to remove output directory `{dir}`",
+        } else {
+            log::warn!(
+                "output directory `{dir}` already exists; incrementing the run number",
                 dir = output_dir.display()
-            )
-        })?;
-    }
+            );
+            let mut run_number: usize = 1;
+            let mut new_output_dir = output_dir.clone();
+            while new_output_dir.exists() {
+                new_output_dir = output_dir.with_file_name(format!(
+                    "sprocket_run-{}-{}",
+                    &name, run_number
+                ));
+                run_number += 1;
+            }
+            new_output_dir
+        }
+    } else {
+        output_dir
+    };
 
     match inputs {
         Inputs::Task(mut inputs) => {
