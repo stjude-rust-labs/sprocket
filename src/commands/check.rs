@@ -15,6 +15,7 @@ use url::Url;
 use wdl::analysis::Analyzer;
 use wdl::analysis::path_to_uri;
 use wdl::analysis::rules;
+use wdl::analysis::DiagnosticsConfig;
 use wdl::ast::Diagnostic;
 use wdl::ast::Severity;
 use wdl::ast::SyntaxNode;
@@ -102,9 +103,10 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let rules = rules()
         .into_iter()
         .filter(|r| !excepts.iter().any(|e| e == r.id()));
+    let rules_config = DiagnosticsConfig::new(rules);
     let lint = args.lint;
     let analyzer = Analyzer::new_with_validator(
-        rules,
+        rules_config,
         move |bar: ProgressBar, kind, completed, total| async move {
             if bar.elapsed() < PROGRESS_BAR_DELAY {
                 return;
