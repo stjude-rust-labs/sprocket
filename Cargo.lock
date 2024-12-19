@@ -1735,6 +1735,7 @@ dependencies = [
  "indicatif",
  "nonempty",
  "pest",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-log",
