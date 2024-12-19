@@ -62,6 +62,58 @@ pub struct RunArgs {
     pub report_mode: Mode,
 }
 
+/// Creates the output directory for the task.
+fn create_output_dir(output_dir: Option<PathBuf>, name: &str, overwrite: bool) -> Result<PathBuf> {
+    let output_dir_specified = output_dir.is_some();
+    let output_dir = output_dir
+        .unwrap_or_else(|| Path::new(&format!("sprocket_run-{}-0", &name)).to_path_buf());
+
+    let output_dir = if output_dir.exists() {
+        if overwrite {
+            fs::remove_dir_all(&output_dir).with_context(|| {
+                format!(
+                    "failed to remove output directory `{dir}`",
+                    dir = output_dir.display()
+                )
+            })?;
+            output_dir
+        } else if output_dir_specified {
+            bail!(
+                "output directory `{dir}` already exists; use the `--overwrite` option to overwrite it",
+                dir = output_dir.display()
+            );
+        } else {
+            log::warn!(
+                "output directory `{dir}` already exists; incrementing the run number",
+                dir = output_dir.display()
+            );
+            let mut run_number: usize = 1;
+            let mut new_output_dir = output_dir.clone();
+            while new_output_dir.exists() {
+                new_output_dir = output_dir.with_file_name(format!(
+                    "sprocket_run-{}-{}",
+                    &name, run_number
+                ));
+                run_number += 1;
+            }
+            new_output_dir
+        }
+    } else {
+        output_dir
+    };
+
+    fs::create_dir_all(&output_dir).with_context(|| {
+        format!(
+            "failed to create output directory `{dir}`",
+            dir = output_dir.display()
+        )
+    })?;
+
+    log::info!("output directory: `{dir}`", dir = output_dir.display());
+
+    Ok(output_dir)
+}
+
 /// Runs a task.
 pub async fn run(args: RunArgs) -> Result<()> {
     let file = args.file;
@@ -129,45 +181,7 @@ pub async fn run(args: RunArgs) -> Result<()> {
         (None, name, inputs)
     };
 
-
-    let output_dir_specified = args.output.is_some();
-    let output_dir = args
-        .output
-        .unwrap_or_else(|| Path::new(&format!("sprocket_run-{}-0", &name)).to_path_buf());
-
-    let output_dir = if output_dir.exists() {
-        if args.overwrite {
-            fs::remove_dir_all(&output_dir).with_context(|| {
-                format!(
-                    "failed to remove output directory `{dir}`",
-                    dir = output_dir.display()
-                )
-            })?;
-            output_dir
-        } else if output_dir_specified {
-            bail!(
-                "output directory `{dir}` already exists; use the `--overwrite` option to overwrite it",
-                dir = output_dir.display()
-            );
-        } else {
-            log::warn!(
-                "output directory `{dir}` already exists; incrementing the run number",
-                dir = output_dir.display()
-            );
-            let mut run_number: usize = 1;
-            let mut new_output_dir = output_dir.clone();
-            while new_output_dir.exists() {
-                new_output_dir = output_dir.with_file_name(format!(
-                    "sprocket_run-{}-{}",
-                    &name, run_number
-                ));
-                run_number += 1;
-            }
-            new_output_dir
-        }
-    } else {
-        output_dir
-    };
+    let output_dir = create_output_dir(args.output, &name, args.overwrite)?;
 
     match inputs {
         Inputs::Task(mut inputs) => {
