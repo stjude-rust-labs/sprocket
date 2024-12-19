@@ -36,6 +36,9 @@ enum Commands {
 
     /// Runs a task.
     Run(commands::run::RunArgs),
+
+    /// Validates the input JSON file against a task or workflow input schema.
+    ValidateInputs(commands::validate::ValidateInputsArgs),
 }
 
 #[derive(Parser)]
@@ -67,6 +70,7 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
         Commands::Format(args) => commands::format::format(args),
         Commands::Run(args) => commands::run::run(args).await,
+        Commands::ValidateInputs(args) => commands::validate::validate_inputs(args).await,
     }
 }
 
