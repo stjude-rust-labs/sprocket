@@ -21,6 +21,7 @@ use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
 use wdl::analysis::AnalysisResult;
 use wdl::analysis::Analyzer;
+use wdl::analysis::DiagnosticsConfig;
 use wdl::analysis::path_to_uri;
 use wdl::lint::LintVisitor;
 use wdl::ast::Validator;
@@ -80,7 +81,6 @@ pub async fn analyze(
     lint: bool,
 ) -> anyhow::Result<Vec<AnalysisResult>> {
     let rules= wdl::analysis::rules();
-    let exceptions_clone = exceptions.clone();
     let rules = rules.iter().filter_map(|rule| {
         if exceptions.iter().any(|e| e == rule.id()) {
             None
@@ -88,9 +88,10 @@ pub async fn analyze(
             Some(rule)
         }
     });
+    let rules_config = DiagnosticsConfig::new(rules);
 
     let analyzer = Analyzer::new_with_validator(
-        rules,
+        rules_config,
         move |bar: ProgressBar, kind, completed, total| async move {
             if bar.elapsed() < PROGRESS_BAR_DELAY {
                 return;
@@ -108,7 +109,7 @@ pub async fn analyze(
 
             if lint {
                 let visitor = LintVisitor::new(wdl::lint::rules().into_iter().filter_map(|rule| {
-                    if exceptions_clone.iter().any(|e| e == rule.id()) {
+                    if exceptions.iter().any(|e| e == rule.id()) {
                         None
                     } else {
                         Some(rule)
