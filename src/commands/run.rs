@@ -9,6 +9,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use chrono;
 use clap::Parser;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::emit;
@@ -63,10 +64,15 @@ pub struct RunArgs {
 }
 
 /// Creates the output directory for the task.
+///
+/// If no output directory is provided, a default nested directory is created
+/// based on the task name and the current time in the form
+/// `sprocket_runs/<task_name>/<timestamp>/`.
 fn create_output_dir(output_dir: Option<PathBuf>, name: &str, overwrite: bool) -> Result<PathBuf> {
-    let output_dir_specified = output_dir.is_some();
-    let output_dir =
-        output_dir.unwrap_or_else(|| Path::new(&format!("sprocket_run-{}-0", &name)).to_path_buf());
+    let output_dir = output_dir.unwrap_or_else(|| {
+        let timestamp = chrono::Utc::now().format("%Y%m%d_%H-%M-%S");
+        PathBuf::from(format!("sprocket_runs/{}/{}", name, timestamp))
+    });
 
     let output_dir = if output_dir.exists() {
         if overwrite {
@@ -77,25 +83,12 @@ fn create_output_dir(output_dir: Option<PathBuf>, name: &str, overwrite: bool) -
                 )
             })?;
             output_dir
-        } else if output_dir_specified {
+        } else {
             bail!(
                 "output directory `{dir}` already exists; use the `--overwrite` option to \
                  overwrite it",
                 dir = output_dir.display()
             );
-        } else {
-            log::warn!(
-                "output directory `{dir}` already exists; incrementing the run number",
-                dir = output_dir.display()
-            );
-            let mut run_number: usize = 1;
-            let mut new_output_dir = output_dir.clone();
-            while new_output_dir.exists() {
-                new_output_dir =
-                    output_dir.with_file_name(format!("sprocket_run-{}-{}", &name, run_number));
-                run_number += 1;
-            }
-            new_output_dir
         }
     } else {
         output_dir
@@ -108,7 +101,10 @@ fn create_output_dir(output_dir: Option<PathBuf>, name: &str, overwrite: bool) -
         )
     })?;
 
-    log::info!("output directory: `{dir}`", dir = output_dir.display());
+    log::info!(
+        "output directory created: `{dir}`",
+        dir = output_dir.display()
+    );
 
     Ok(output_dir)
 }
