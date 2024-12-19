@@ -5,3 +5,5 @@ target/
 **/Cargo.lock
 
 rustc-ice*
+
+sprocket_run*/
