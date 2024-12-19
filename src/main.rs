@@ -33,6 +33,9 @@ enum Commands {
     /// Formats a WDL document.
     #[clap(alias = "fmt")]
     Format(commands::format::FormatArgs),
+
+    /// Runs a task.
+    Run(commands::run::RunArgs),
 }
 
 #[derive(Parser)]
@@ -63,6 +66,7 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
         Commands::Format(args) => commands::format::format(args),
+        Commands::Run(args) => commands::run::run(args).await,
     }
 }
 
