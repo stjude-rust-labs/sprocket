@@ -53,6 +53,13 @@ pub struct Common {
     #[arg(long)]
     pub single_document: bool,
 
+    /// Run the `shellcheck` program on command sections.
+    ///
+    /// Requires linting to be enabled.
+    /// If `shellcheck` is not installed, an error will be raised.
+    #[arg(long)]
+    pub shellcheck: bool,
+
     /// Disables color output.
     #[arg(long)]
     pub no_color: bool,
@@ -86,6 +93,10 @@ pub struct LintArgs {
 
 /// Checks WDL source files for diagnostics.
 pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
+    if args.common.shellcheck && !args.lint {
+        bail!("`--shellcheck` requires `--lint` to be enabled");
+    }
+
     let (config, mut stream) = get_display_config(args.common.report_mode, args.common.no_color);
 
     let file = args.common.file;
