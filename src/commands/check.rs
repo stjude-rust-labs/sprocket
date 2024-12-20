@@ -59,7 +59,8 @@ pub struct Common {
 
     /// Run the `shellcheck` program on command sections.
     ///
-    /// Requires linting to be enabled.
+    /// Requires linting to be enabled. This feature is experimental.
+    /// False positives may be reported.
     /// If `shellcheck` is not installed, an error will be raised.
     #[arg(long)]
     pub shellcheck: bool,
