@@ -121,7 +121,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         );
     }
 
-    let results = analyze(&file, args.common.except, args.lint).await?;
+    let results = analyze(&file, args.common.except, args.lint, args.common.shellcheck).await?;
 
     let cwd = std::env::current_dir().ok();
     let mut error_count = 0;
