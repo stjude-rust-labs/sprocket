@@ -1,0 +1,748 @@
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:17:22
+   │
+17 │       somecommand.py $line17 ~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                      more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line17 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:17:22
+   │
+17 │       somecommand.py $line17 ~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2154[warning]: line17 is referenced but not assigned.
+   │                      more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:18:37
+   │
+18 │       somecommand.py ~{placeholder} $line18
+   │                                     ^^^^^^^
+   │                                     │
+   │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                                     more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line18 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:18:37
+   │
+18 │       somecommand.py ~{placeholder} $line18
+   │                                     ^^^^^^^
+   │                                     │
+   │                                     SC2154[warning]: line18 is referenced but not assigned.
+   │                                     more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:19:36
+   │
+19 │       somecommand.py ~{placeholder}$line19
+   │                                    ^^^^^^^
+   │                                    │
+   │                                    SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                                    more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line19 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:19:36
+   │
+19 │       somecommand.py ~{placeholder}$line19
+   │                                    ^^^^^^^
+   │                                    │
+   │                                    SC2154[warning]: line19 is referenced but not assigned.
+   │                                    more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:30:22
+   │
+30 │       somecommand.py $line30~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                      more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line30 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:30:22
+   │
+30 │       somecommand.py $line30~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2154[warning]: line30 is referenced but not assigned.
+   │                      more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:31:27
+   │
+31 │       somecommand.py [ -f $line31 ] ~{placeholder}
+   │                           ^^^^^^^
+   │                           │
+   │                           SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                           more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line31 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:31:27
+   │
+31 │       somecommand.py [ -f $line31 ] ~{placeholder}
+   │                           ^^^^^^^
+   │                           │
+   │                           SC2154[warning]: line31 is referenced but not assigned.
+   │                           more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:49:22
+   │
+49 │       somecommand.py $line49 ~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                      more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line49 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:49:22
+   │
+49 │       somecommand.py $line49 ~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2154[warning]: line49 is referenced but not assigned.
+   │                      more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:50:37
+   │
+50 │       somecommand.py ~{placeholder} $line50
+   │                                     ^^^^^^^
+   │                                     │
+   │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                                     more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line50 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:50:37
+   │
+50 │       somecommand.py ~{placeholder} $line50
+   │                                     ^^^^^^^
+   │                                     │
+   │                                     SC2154[warning]: line50 is referenced but not assigned.
+   │                                     more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:51:36
+   │
+51 │       somecommand.py ~{placeholder}$line51
+   │                                    ^^^^^^^
+   │                                    │
+   │                                    SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                                    more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line51 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:51:36
+   │
+51 │       somecommand.py ~{placeholder}$line51
+   │                                    ^^^^^^^
+   │                                    │
+   │                                    SC2154[warning]: line51 is referenced but not assigned.
+   │                                    more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:52:22
+   │
+52 │       somecommand.py $line52~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                      more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line52 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:52:22
+   │
+52 │       somecommand.py $line52~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2154[warning]: line52 is referenced but not assigned.
+   │                      more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:53:27
+   │
+53 │       somecommand.py [ -f $bad_test ] ~{placeholder}
+   │                           ^^^^^^^^^
+   │                           │
+   │                           SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                           more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: bad_test is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:53:27
+   │
+53 │       somecommand.py [ -f $bad_test ] ~{placeholder}
+   │                           ^^^^^^^^^
+   │                           │
+   │                           SC2154[warning]: bad_test is referenced but not assigned.
+   │                           more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:54:27
+   │
+54 │       somecommand.py [ -f $trailing_space ] ~{placeholder}
+   │                           ^^^^^^^^^^^^^^^
+   │                           │
+   │                           SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                           more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: trailing_space is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:54:27
+   │
+54 │       somecommand.py [ -f $trailing_space ] ~{placeholder}
+   │                           ^^^^^^^^^^^^^^^
+   │                           │
+   │                           SC2154[warning]: trailing_space is referenced but not assigned.
+   │                           more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:72:22
+   │
+72 │       somecommand.py $line72 ~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                      more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line72 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:72:22
+   │
+72 │       somecommand.py $line72 ~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2154[warning]: line72 is referenced but not assigned.
+   │                      more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:73:37
+   │
+73 │       somecommand.py ~{placeholder} $line73
+   │                                     ^^^^^^^
+   │                                     │
+   │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                                     more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line73 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:73:37
+   │
+73 │       somecommand.py ~{placeholder} $line73
+   │                                     ^^^^^^^
+   │                                     │
+   │                                     SC2154[warning]: line73 is referenced but not assigned.
+   │                                     more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:74:36
+   │
+74 │       somecommand.py ~{placeholder}$line74
+   │                                    ^^^^^^^
+   │                                    │
+   │                                    SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                                    more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line74 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:74:36
+   │
+74 │       somecommand.py ~{placeholder}$line74
+   │                                    ^^^^^^^
+   │                                    │
+   │                                    SC2154[warning]: line74 is referenced but not assigned.
+   │                                    more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:75:22
+   │
+75 │       somecommand.py $line75~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                      more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line75 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:75:22
+   │
+75 │       somecommand.py $line75~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2154[warning]: line75 is referenced but not assigned.
+   │                      more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:76:22
+   │
+76 │       ~{placeholder} $line76_trailing_pholder ~{placeholder}
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^
+   │                      │
+   │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                      more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line76_trailing_pholder is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:76:22
+   │
+76 │       ~{placeholder} $line76_trailing_pholder ~{placeholder}
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^
+   │                      │
+   │                      SC2154[warning]: line76_trailing_pholder is referenced but not assigned.
+   │                      more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:77:37
+   │
+77 │       ~{placeholder} somecommand.py $leading_pholder
+   │                                     ^^^^^^^^^^^^^^^^
+   │                                     │
+   │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                                     more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: leading_pholder is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:77:37
+   │
+77 │       ~{placeholder} somecommand.py $leading_pholder
+   │                                     ^^^^^^^^^^^^^^^^
+   │                                     │
+   │                                     SC2154[warning]: leading_pholder is referenced but not assigned.
+   │                                     more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:96:22
+   │
+96 │       somecommand.py $line96 ~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                      more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line96 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:96:22
+   │
+96 │       somecommand.py $line96 ~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2154[warning]: line96 is referenced but not assigned.
+   │                      more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:97:37
+   │
+97 │       somecommand.py ~{placeholder} $line97
+   │                                     ^^^^^^^
+   │                                     │
+   │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                                     more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line97 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:97:37
+   │
+97 │       somecommand.py ~{placeholder} $line97
+   │                                     ^^^^^^^
+   │                                     │
+   │                                     SC2154[warning]: line97 is referenced but not assigned.
+   │                                     more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:98:36
+   │
+98 │       somecommand.py ~{placeholder}$line98
+   │                                    ^^^^^^^
+   │                                    │
+   │                                    SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                                    more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line98 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:98:36
+   │
+98 │       somecommand.py ~{placeholder}$line98
+   │                                    ^^^^^^^
+   │                                    │
+   │                                    SC2154[warning]: line98 is referenced but not assigned.
+   │                                    more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:99:22
+   │
+99 │       somecommand.py $line99~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+   │                      more info: https://www.shellcheck.net/wiki/SC2086
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line99 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:99:22
+   │
+99 │       somecommand.py $line99~{placeholder}
+   │                      ^^^^^^^
+   │                      │
+   │                      SC2154[warning]: line99 is referenced but not assigned.
+   │                      more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:100:22
+    │
+100 │       ~{placeholder} $line100_trailing_pholder ~{placeholder}
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+    │                      │
+    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                      more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line100_trailing_pholder is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:100:22
+    │
+100 │       ~{placeholder} $line100_trailing_pholder ~{placeholder}
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+    │                      │
+    │                      SC2154[warning]: line100_trailing_pholder is referenced but not assigned.
+    │                      more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:101:37
+    │
+101 │       ~{placeholder} somecommand.py $leading_pholder
+    │                                     ^^^^^^^^^^^^^^^^
+    │                                     │
+    │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                                     more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: leading_pholder is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:101:37
+    │
+101 │       ~{placeholder} somecommand.py $leading_pholder
+    │                                     ^^^^^^^^^^^^^^^^
+    │                                     │
+    │                                     SC2154[warning]: leading_pholder is referenced but not assigned.
+    │                                     more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:118:34
+    │
+118 │     command <<<      weird stuff $firstlinelint
+    │                                  ^^^^^^^^^^^^^^
+    │                                  │
+    │                                  SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                                  more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: firstlinelint is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:118:34
+    │
+118 │     command <<<      weird stuff $firstlinelint
+    │                                  ^^^^^^^^^^^^^^
+    │                                  │
+    │                                  SC2154[warning]: firstlinelint is referenced but not assigned.
+    │                                  more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:120:22
+    │
+120 │       somecommand.py $line120 ~{placeholder}
+    │                      ^^^^^^^^
+    │                      │
+    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                      more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line120 is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:120:22
+    │
+120 │       somecommand.py $line120 ~{placeholder}
+    │                      ^^^^^^^^
+    │                      │
+    │                      SC2154[warning]: line120 is referenced but not assigned.
+    │                      more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:121:37
+    │
+121 │       somecommand.py ~{placeholder} $line121
+    │                                     ^^^^^^^^
+    │                                     │
+    │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                                     more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line121 is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:121:37
+    │
+121 │       somecommand.py ~{placeholder} $line121
+    │                                     ^^^^^^^^
+    │                                     │
+    │                                     SC2154[warning]: line121 is referenced but not assigned.
+    │                                     more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:122:36
+    │
+122 │       somecommand.py ~{placeholder}$line122
+    │                                    ^^^^^^^^
+    │                                    │
+    │                                    SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                                    more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line122 is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:122:36
+    │
+122 │       somecommand.py ~{placeholder}$line122
+    │                                    ^^^^^^^^
+    │                                    │
+    │                                    SC2154[warning]: line122 is referenced but not assigned.
+    │                                    more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:123:22
+    │
+123 │       somecommand.py $line123~{placeholder}
+    │                      ^^^^^^^^
+    │                      │
+    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                      more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line123 is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:123:22
+    │
+123 │       somecommand.py $line123~{placeholder}
+    │                      ^^^^^^^^
+    │                      │
+    │                      SC2154[warning]: line123 is referenced but not assigned.
+    │                      more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:124:22
+    │
+124 │       ~{placeholder} $line124_trailing_pholder ~{placeholder}
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+    │                      │
+    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                      more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: line124_trailing_pholder is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:124:22
+    │
+124 │       ~{placeholder} $line124_trailing_pholder ~{placeholder}
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+    │                      │
+    │                      SC2154[warning]: line124_trailing_pholder is referenced but not assigned.
+    │                      more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:126:37
+    │
+126 │       ~{placeholder} somecommand.py $leading_pholder
+    │                                     ^^^^^^^^^^^^^^^^
+    │                                     │
+    │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                                     more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: leading_pholder is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:126:37
+    │
+126 │       ~{placeholder} somecommand.py $leading_pholder
+    │                                     ^^^^^^^^^^^^^^^^
+    │                                     │
+    │                                     SC2154[warning]: leading_pholder is referenced but not assigned.
+    │                                     more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: occurs_after_multiline is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:132:7
+    │
+132 │       $occurs_after_multiline
+    │       ^^^^^^^^^^^^^^^^^^^^^^^
+    │       │
+    │       SC2154[warning]: occurs_after_multiline is referenced but not assigned.
+    │       more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    ┌─ tests/lints/shellcheck-warn/source.wdl:134:7
+    │    
+134 │ ╭ ╭       $(echo This is a 
+135 │ │ │         very long string that should be quoted)
+    │ ╰─│───────────────────────────────────────────────^ SC2091[warning]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    │   ╰───────────────────────────────────────────────' more info: https://www.shellcheck.net/wiki/SC2091
+    │    
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    ┌─ tests/lints/shellcheck-warn/source.wdl:137:7
+    │    
+137 │ ╭ ╭       $(echo This is an
+138 │ │ │         even longer very long string that should really 
+139 │ │ │         be quoted)
+    │ ╰─│──────────────────^ SC2091[warning]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    │   ╰──────────────────' more info: https://www.shellcheck.net/wiki/SC2091
+    │    
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    ┌─ tests/lints/shellcheck-warn/source.wdl:141:7
+    │    
+141 │ ╭ ╭       $(echo This is an
+142 │ │ │         even longer very long string that should really
+143 │ │ │         really really really 
+144 │ │ │         ought to be quoted)
+    │ ╰─│───────────────────────────^ SC2091[warning]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    │   ╰───────────────────────────' more info: https://www.shellcheck.net/wiki/SC2091
+    │    
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    ┌─ tests/lints/shellcheck-warn/source.wdl:146:7
+    │    
+146 │ ╭ ╭       $(echo this is a $lint146 that occurs in a /
+147 │ │ │         multiline command /
+148 │ │ │         with line breaks)
+    │ ╰─│─────────────────────────^ SC2091[warning]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    │   ╰─────────────────────────' more info: https://www.shellcheck.net/wiki/SC2091
+    │    
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Useless echo? Instead of 'cmd $(echo foo)', just use 'cmd foo'.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:146:7
+    │    
+146 │ ╭ ╭       $(echo this is a $lint146 that occurs in a /
+147 │ │ │         multiline command /
+148 │ │ │         with line breaks)
+    │ ╰─│─────────────────────────^ SC2116[style]: Useless echo? Instead of 'cmd $(echo foo)', just use 'cmd foo'.
+    │   ╰─────────────────────────' more info: https://www.shellcheck.net/wiki/SC2116
+    │    
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:146:24
+    │
+146 │       $(echo this is a $lint146 that occurs in a /
+    │                        ^^^^^^^^
+    │                        │
+    │                        SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                        more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: lint146 is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:146:24
+    │
+146 │       $(echo this is a $lint146 that occurs in a /
+    │                        ^^^^^^^^
+    │                        │
+    │                        SC2154[warning]: lint146 is referenced but not assigned.
+    │                        more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+

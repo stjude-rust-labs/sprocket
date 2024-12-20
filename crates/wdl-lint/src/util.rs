@@ -1,8 +1,18 @@
 //! A module for utility functions for the lint rules.
 
+use std::process::Command;
+use std::process::Stdio;
+
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::SyntaxKind;
+
+/// Counts the amount of leading whitespace in a string slice.
+///
+/// Returns when the first non-whitespace character is encountered.
+pub fn count_leading_whitespace(input: &str) -> usize {
+    input.chars().take_while(|ch| ch.is_whitespace()).count()
+}
 
 /// Detect if a comment is in-line or not by looking for `\n` in the prior
 /// whitespace.
@@ -22,6 +32,23 @@ pub fn is_inline_comment(token: &Comment) -> bool {
         return !contains_newline && !first;
     }
     false
+}
+
+/// Determines whether or not a string containing embedded quotes is properly
+/// quoted.
+pub fn is_properly_quoted(s: &str, quote_char: char) -> bool {
+    let mut closed = true;
+    let mut escaped = false;
+    s.chars().for_each(|c| {
+        if c == '\\' {
+            escaped = true;
+        } else if !escaped && c == quote_char {
+            closed = !closed;
+        } else {
+            escaped = false;
+        }
+    });
+    closed
 }
 
 /// Iterates over the lines of a string and returns the line, starting offset,
@@ -58,6 +85,21 @@ pub fn lines_with_offset(s: &str) -> impl Iterator<Item = (&str, usize, usize)> 
             }
         }
     })
+}
+
+/// Check whether or not a program exists.
+///
+/// On unix-like OSes, uses `which`.
+/// On Windows, uses `where.exe`.
+pub fn program_exists(exec: &str) -> bool {
+    let finder = if cfg!(windows) { "where.exe" } else { "which" };
+    Command::new(finder)
+        .arg(exec)
+        .stdout(Stdio::null())
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|r| r.success())
 }
 
 /// Strips a single newline from the end of a string.
@@ -144,5 +186,46 @@ task foo {  # an in-line comment
             ("", 51, 53),
             ("and even a \r that should not be a newline", 53, 95),
         ]);
+    }
+
+    #[test]
+    fn test_count_leading_whitespace() {
+        let s = "    this string has four leading spaces";
+        assert_eq!(count_leading_whitespace(s), 4);
+        let s = "\t\t\t\tthis string has four leading tabs";
+        assert_eq!(count_leading_whitespace(s), 4);
+        let s = "\r\r\r\rthis has four leading carriage returns";
+        assert_eq!(count_leading_whitespace(s), 4);
+        let s = "\n starts with a newline";
+        assert_eq!(count_leading_whitespace(s), 2);
+        let s = "I have no leading whitespace";
+        assert_eq!(count_leading_whitespace(s), 0);
+    }
+
+    #[test]
+    fn test_program_exists() {
+        if cfg!(windows) {
+            assert!(program_exists("where.exe"));
+        } else {
+            assert!(program_exists("which"));
+        }
+    }
+
+    #[test]
+    fn test_is_properly_quoted() {
+        let s = "\"this string is quoted properly.\"";
+        assert!(is_properly_quoted(s, '"'));
+        let s = "\"this string has an escaped \\\" quote.\"";
+        assert!(is_properly_quoted(s, '"'));
+        let s = "\"this string is missing an end quote";
+        assert_eq!(is_properly_quoted(s, '"'), false);
+        let s = "this string is missing an open quote\"";
+        assert_eq!(is_properly_quoted(s, '"'), false);
+        let s = "\"this string has an irrelevant escape \\ \"";
+        assert!(is_properly_quoted(s, '"'));
+        let s = "'this string has single quotes'";
+        assert!(is_properly_quoted(s, '\''));
+        let s = "this string has unclosed single quotes'";
+        assert_eq!(is_properly_quoted(s, '\''), false);
     }
 }

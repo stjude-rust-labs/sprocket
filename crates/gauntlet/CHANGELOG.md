@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* `--shellcheck` flag to run shellcheck lints in arena mode ([#264](https://github.com/stjude-rust-labs/wdl/pull/264))
 * Full analysis instead of basic validation ([#207](https://github.com/stjude-rust-labs/wdl/pull/172))
 * Checkout submodules ([#207](https://github.com/stjude-rust-labs/wdl/pull/172))
 

@@ -45,6 +45,7 @@ use wdl::analysis::rules;
 use wdl::ast::Diagnostic;
 use wdl::lint::LintVisitor;
 use wdl::lint::ast::Validator;
+use wdl::lint::rules::ShellCheckRule;
 
 use crate::repository::WorkDir;
 
@@ -125,6 +126,10 @@ pub struct Args {
     /// Additional information is logged in the console.
     #[arg(short, long)]
     pub verbose: bool,
+
+    /// Enable shellcheck lints.
+    #[arg(long, action, requires = "arena")]
+    pub shellcheck: bool,
 }
 
 /// Main function for this subcommand.
@@ -185,6 +190,9 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                 };
                 if args.arena {
                     validator.add_visitor(LintVisitor::default());
+                    if args.shellcheck {
+                        validator.add_visitor(ShellCheckRule);
+                    }
                 }
 
                 validator
