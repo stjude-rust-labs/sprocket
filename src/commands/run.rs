@@ -117,7 +117,7 @@ pub async fn run(args: RunArgs) -> Result<()> {
     }
     let (config, mut stream) = get_display_config(args.report_mode, args.no_color);
 
-    let results = analyze(&file, vec![], false).await?;
+    let results = analyze(&file, vec![], false, false).await?;
 
     let uri = if let Ok(uri) = Url::parse(&file) {
         uri

@@ -79,6 +79,7 @@ pub async fn analyze(
     file: &str,
     exceptions: Vec<String>,
     lint: bool,
+    shellcheck: bool,
 ) -> anyhow::Result<Vec<AnalysisResult>> {
     let rules = wdl::analysis::rules();
     let rules = rules
@@ -112,6 +113,11 @@ pub async fn analyze(
                     }
                 }));
                 validator.add_visitor(visitor);
+
+                if shellcheck {
+                    let visitor = LintVisitor::new(wdl::lint::optional_rules());
+                    validator.add_visitor(visitor);
+                }
             }
 
             validator
