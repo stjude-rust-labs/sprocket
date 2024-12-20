@@ -36,10 +36,7 @@ pub struct ValidateInputsArgs {
 
 /// Validates the inputs for a task or workflow.
 pub async fn validate_inputs(args: ValidateInputsArgs) -> anyhow::Result<()> {
-    let ValidateInputsArgs {
-        document,
-        inputs,
-    } = args;
+    let ValidateInputsArgs { document, inputs } = args;
 
     if Path::new(&document).is_dir() {
         bail!("expected a WDL document, found a directory");
@@ -80,8 +77,7 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> anyhow::Result<()> {
         )
         .expect("should emit");
 
-        let diagnostic: String =
-            String::from_utf8(buffer.into_inner()).expect("should be UTF-8");
+        let diagnostic: String = String::from_utf8(buffer.into_inner()).expect("should be UTF-8");
         bail!("document `{document}` contains at least one diagnostic error:\n{diagnostic}");
     }
 
