@@ -94,13 +94,12 @@ use crate::graph::ParseState;
 use crate::types::CallKind;
 use crate::types::CallType;
 use crate::types::Coercible;
-use crate::types::CompoundTypeDef;
+use crate::types::CompoundType;
 use crate::types::Optional;
-use crate::types::PrimitiveTypeKind;
+use crate::types::PrimitiveType;
 use crate::types::PromotionKind;
 use crate::types::Type;
 use crate::types::TypeNameResolver;
-use crate::types::Types;
 use crate::types::v1::AstTypeConverter;
 use crate::types::v1::ExprTypeEvaluator;
 
@@ -125,7 +124,7 @@ use crate::types::v1::ExprTypeEvaluator;
 /// * csi
 /// * fai
 /// * dict
-fn is_input_used(document: &Document, name: &str, ty: Type) -> bool {
+fn is_input_used(name: &str, ty: &Type) -> bool {
     /// The suffixes that cause the input to be "used"
     const SUFFIXES: &[&str] = &[
         "index", "indexes", "indices", "idx", "tbi", "bai", "crai", "csi", "fai", "dict",
@@ -133,12 +132,9 @@ fn is_input_used(document: &Document, name: &str, ty: Type) -> bool {
 
     // Determine if the input is `File` or `Array[File]`
     match ty {
-        Type::Primitive(ty) if ty.kind() == PrimitiveTypeKind::File => {}
-        Type::Compound(ty) => match document.types.type_definition(ty.definition()) {
-            CompoundTypeDef::Array(ty) => match ty.element_type() {
-                Type::Primitive(ty) if ty.kind() == PrimitiveTypeKind::File => {}
-                _ => return false,
-            },
+        Type::Primitive(PrimitiveType::File, _) => {}
+        Type::Compound(CompoundType::Array(ty), _) => match ty.element_type() {
+            Type::Primitive(PrimitiveType::File, _) => {}
             _ => return false,
         },
         _ => return false,
@@ -319,7 +315,6 @@ fn add_namespace(
 
     // Insert the imported document's struct definitions
     for (name, s) in &imported.structs {
-        let namespace = document.namespaces.get(&ns).unwrap();
         let (span, aliased_name, aliased) = aliases
             .get(name)
             .map(|n| (n.span(), n.as_str(), true))
@@ -355,9 +350,7 @@ fn add_namespace(
                     offset: s.offset,
                     node: s.node.clone(),
                     namespace: Some(ns.clone()),
-                    ty: s
-                        .ty
-                        .map(|ty| document.types.import(&namespace.document.types, ty)),
+                    ty: s.ty.clone(),
                 });
             }
         }
@@ -433,11 +426,7 @@ fn convert_ast_type(document: &mut Document, ty: &wdl_ast::v1::Type) -> Type {
     struct Resolver<'a>(&'a mut Document);
 
     impl TypeNameResolver for Resolver<'_> {
-        fn types_mut(&mut self) -> &mut Types {
-            &mut self.0.types
-        }
-
-        fn resolve_type_name(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
+        fn resolve(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
             self.0
                 .structs
                 .get(name.as_str())
@@ -447,7 +436,7 @@ fn convert_ast_type(document: &mut Document, ty: &wdl_ast::v1::Type) -> Type {
                         self.0.namespaces[ns].used = true;
                     }
 
-                    s.ty().expect("struct should have type")
+                    s.ty().expect("struct should have type").clone()
                 })
                 .ok_or_else(|| unknown_type(name.as_str(), name.span()))
         }
@@ -477,9 +466,10 @@ fn create_input_type_map(
         }
 
         let ty = convert_ast_type(document, &decl.ty());
+        let optional = ty.is_optional();
         map.insert(name.as_str().to_string(), Input {
             ty,
-            required: decl.expr().is_none() && !ty.is_optional(),
+            required: decl.expr().is_none() && !optional,
         });
     }
 
@@ -587,7 +577,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut Document, definition: &Tas
                     document,
                     ScopeRefMut::new(&mut task.scopes, ScopeIndex(0)),
                     &decl,
-                    |_, n, _| task.inputs[n].ty,
+                    |_, n, _| task.inputs[n].ty.clone(),
                 ) {
                     continue;
                 }
@@ -601,7 +591,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut Document, definition: &Tas
                         .is_none()
                     {
                         // Determine if the input is really used based on its name and type
-                        if is_input_used(document, name.as_str(), task.inputs[name.as_str()].ty) {
+                        if is_input_used(name.as_str(), &task.inputs[name.as_str()].ty) {
                             continue;
                         }
 
@@ -655,7 +645,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut Document, definition: &Tas
                     document,
                     ScopeRefMut::new(&mut task.scopes, scope_index),
                     &decl,
-                    |_, n, _| task.outputs[n].ty,
+                    |_, n, _| task.outputs[n].ty.clone(),
                 );
             }
             TaskGraphNode::Command(section) => {
@@ -742,7 +732,7 @@ fn add_decl(
 
     let ty = ty(document, name.as_str(), decl);
 
-    scope.insert(name.as_str(), name.span(), ty);
+    scope.insert(name.as_str(), name.span(), ty.clone());
 
     if let Some(expr) = expr {
         type_check_expr(
@@ -750,7 +740,7 @@ fn add_decl(
             document,
             scope.as_scope_ref(),
             &expr,
-            ty,
+            &ty,
             name.span(),
         );
     }
@@ -833,7 +823,7 @@ fn populate_workflow(
                     document,
                     ScopeRefMut::new(&mut scopes, ScopeIndex(0)),
                     &decl,
-                    |_, n, _| inputs[n].ty,
+                    |_, n, _| inputs[n].ty.clone(),
                 ) {
                     continue;
                 }
@@ -847,7 +837,7 @@ fn populate_workflow(
                         .is_none()
                     {
                         // Determine if the input is really used based on its name and type
-                        if is_input_used(document, name.as_str(), inputs[name.as_str()].ty) {
+                        if is_input_used(name.as_str(), &inputs[name.as_str()].ty) {
                             continue;
                         }
 
@@ -907,7 +897,7 @@ fn populate_workflow(
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &decl,
-                    |_, n, _| outputs[n].ty,
+                    |_, n, _| outputs[n].ty.clone(),
                 );
             }
             WorkflowGraphNode::Conditional(statement) => {
@@ -986,13 +976,7 @@ fn populate_workflow(
                     .get(statement.syntax())
                     .copied()
                     .expect("should have scope");
-                promote_scope(
-                    &mut document.types,
-                    &mut scopes,
-                    scope_index,
-                    None,
-                    PromotionKind::Conditional,
-                );
+                promote_scope(&mut scopes, scope_index, None, PromotionKind::Conditional);
             }
             WorkflowGraphNode::ExitScatter(statement) => {
                 let scope_index = scope_indexes
@@ -1001,7 +985,6 @@ fn populate_workflow(
                     .expect("should have scope");
                 let variable = statement.variable();
                 promote_scope(
-                    &mut document.types,
                     &mut scopes,
                     scope_index,
                     Some(variable.as_str()),
@@ -1042,10 +1025,10 @@ fn add_conditional_statement(
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
     let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
 
-    if !ty.is_coercible_to(&document.types, &PrimitiveTypeKind::Boolean.into()) {
+    if !ty.is_coercible_to(&PrimitiveType::Boolean.into()) {
         document
             .diagnostics
-            .push(if_conditional_mismatch(&document.types, ty, expr.span()));
+            .push(if_conditional_mismatch(&ty, expr.span()));
     }
 }
 
@@ -1070,22 +1053,12 @@ fn add_scatter_statement(
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
     let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
     let element_ty = match ty {
-        Type::Compound(compound_ty) => {
-            match document.types.type_definition(compound_ty.definition()) {
-                CompoundTypeDef::Array(ty) => ty.element_type(),
-                _ => {
-                    document
-                        .diagnostics
-                        .push(type_is_not_array(&document.types, ty, expr.span()));
-                    Type::Union
-                }
-            }
-        }
         Type::Union => Type::Union,
+        Type::Compound(CompoundType::Array(ty), _) => ty.element_type().clone(),
         _ => {
             document
                 .diagnostics
-                .push(type_is_not_array(&document.types, ty, expr.span()));
+                .push(type_is_not_array(&ty, expr.span()));
             Type::Union
         }
     };
@@ -1126,8 +1099,7 @@ fn add_call_statement(
             let expected_ty = ty
                 .inputs()
                 .get(input_name.as_str())
-                .copied()
-                .map(|i| i.ty)
+                .map(|i| i.ty.clone())
                 .unwrap_or_else(|| {
                     document
                         .diagnostics
@@ -1142,20 +1114,19 @@ fn add_call_statement(
                         document,
                         scope.as_scope_ref(),
                         &expr,
-                        expected_ty,
+                        &expected_ty,
                         input_name.span(),
                     );
                 }
                 None => {
                     if let Some(name) = scope.lookup(input_name.as_str()) {
                         if !matches!(expected_ty, Type::Union)
-                            && !name.ty.is_coercible_to(&document.types, &expected_ty)
+                            && !name.ty.is_coercible_to(&expected_ty)
                         {
                             document.diagnostics.push(call_input_type_mismatch(
-                                &document.types,
                                 &input_name,
-                                expected_ty,
-                                name.ty,
+                                &expected_ty,
+                                &name.ty,
                             ));
                         }
                     }
@@ -1188,7 +1159,7 @@ fn add_call_statement(
             calls.insert(name.as_str().to_string(), ty.clone());
         }
 
-        document.types.add_call(ty)
+        ty.into()
     } else {
         Type::Union
     };
@@ -1240,7 +1211,7 @@ fn resolve_call_type(
         return None;
     }
 
-    let (kind, mut inputs, mut outputs) = if let Some(task) = target.tasks.get(name.as_str()) {
+    let (kind, inputs, outputs) = if let Some(task) = target.tasks.get(name.as_str()) {
         (CallKind::Task, task.inputs.clone(), task.outputs.clone())
     } else {
         match &target.workflow {
@@ -1265,17 +1236,7 @@ fn resolve_call_type(
             .collect(),
     );
 
-    // If the target is from an import, we need to import its type definitions into
-    // the current document's types collection
-    if let Some(types) = namespace.map(|ns| &ns.document.types) {
-        for input in Arc::make_mut(&mut inputs).values_mut() {
-            input.ty = document.types.import(types, input.ty);
-        }
-
-        for output in Arc::make_mut(&mut outputs).values_mut() {
-            output.ty = document.types.import(types, output.ty);
-        }
-
+    if namespace.is_some() {
         Some(CallType::namespaced(
             kind,
             statement.target().names().next().unwrap().as_str(),
@@ -1296,13 +1257,7 @@ fn resolve_call_type(
 }
 
 /// Promotes the names in the current to the parent scope.
-fn promote_scope(
-    types: &mut Types,
-    scopes: &mut [Scope],
-    index: ScopeIndex,
-    skip: Option<&str>,
-    kind: PromotionKind,
-) {
+fn promote_scope(scopes: &mut [Scope], index: ScopeIndex, skip: Option<&str>, kind: PromotionKind) {
     // We need to split the scopes as we want to read from one part of the slice and
     // write to another; the left side will contain the parent at it's index and the
     // right side will contain the child scope at it's index minus the parent's
@@ -1318,7 +1273,7 @@ fn promote_scope(
 
         parent.names.entry(name.clone()).or_insert_with(|| Name {
             span: *span,
-            ty: ty.promote(types, kind),
+            ty: ty.promote(kind),
         });
     }
 }
@@ -1398,18 +1353,14 @@ fn set_struct_types(document: &mut Document) {
     }
 
     impl TypeNameResolver for Resolver<'_> {
-        fn types_mut(&mut self) -> &mut Types {
-            &mut self.document.types
-        }
-
-        fn resolve_type_name(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
+        fn resolve(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
             if let Some(s) = self.document.structs.get(name.as_str()) {
                 // Mark the struct's namespace as used
                 if let Some(ns) = &s.namespace {
                     self.document.namespaces[ns].used = true;
                 }
 
-                Ok(s.ty().unwrap_or(Type::Union))
+                Ok(s.ty().cloned().unwrap_or(Type::Union))
             } else {
                 let span = name.span();
                 self.document.diagnostics.push(unknown_type(
@@ -1480,7 +1431,7 @@ fn set_struct_types(document: &mut Document) {
 
         let s = &mut document.structs[index];
         assert!(s.ty.is_none(), "type should not already be present");
-        s.ty = Some(document.types.add_struct(ty));
+        s.ty = Some(ty.into());
     }
 }
 
@@ -1536,16 +1487,8 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
             .expect("document should have a version")
     }
 
-    fn types(&self) -> &Types {
-        &self.document.types
-    }
-
-    fn types_mut(&mut self) -> &mut Types {
-        &mut self.document.types
-    }
-
     fn resolve_name(&self, name: &Ident) -> Option<Type> {
-        self.scope.lookup(name.as_str()).map(|n| n.ty())
+        self.scope.lookup(name.as_str()).map(|n| n.ty().clone())
     }
 
     fn resolve_type_name(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
@@ -1558,7 +1501,7 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
                     self.document.namespaces[ns].used = true;
                 }
 
-                s.ty().expect("struct should have type")
+                s.ty().expect("struct should have type").clone()
             })
             .ok_or_else(|| unknown_type(name.as_str(), name.span()))
     }
@@ -1582,31 +1525,25 @@ fn type_check_expr(
     document: &mut Document,
     scope: ScopeRef<'_>,
     expr: &Expr,
-    expected: Type,
+    expected: &Type,
     expected_span: Span,
 ) {
     let mut context = EvaluationContext::new(document, scope, config);
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
     let actual = evaluator.evaluate_expr(expr).unwrap_or(Type::Union);
 
-    if !matches!(expected, Type::Union) && !actual.is_coercible_to(&document.types, &expected) {
-        document.diagnostics.push(type_mismatch(
-            &document.types,
-            expected,
-            expected_span,
-            actual,
-            expr.span(),
-        ));
+    if !matches!(expected, Type::Union) && !actual.is_coercible_to(expected) {
+        document
+            .diagnostics
+            .push(type_mismatch(expected, expected_span, &actual, expr.span()));
     }
     // Check to see if we're assigning an empty array literal to a non-empty type; we can statically
     // flag these as errors; otherwise, non-empty array constraints are checked at runtime
-    else if let Type::Compound(e) = expected {
-        if let CompoundTypeDef::Array(e) = document.types.type_definition(e.definition()) {
-            if e.is_non_empty() && expr.is_empty_array_literal() {
-                document
-                    .diagnostics
-                    .push(non_empty_array_assignment(expected_span, expr.span()));
-            }
+    else if let Type::Compound(CompoundType::Array(ty), _) = expected {
+        if ty.is_non_empty() && expr.is_empty_array_literal() {
+            document
+                .diagnostics
+                .push(non_empty_array_assignment(expected_span, expr.span()));
         }
     }
 }

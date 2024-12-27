@@ -45,29 +45,13 @@ fn zip(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     }
 
     let element_ty = context
-        .types()
-        .type_definition(
-            context
-                .return_type
-                .as_compound()
-                .expect("type should be compound")
-                .definition(),
-        )
+        .return_type
         .as_array()
         .expect("type should be an array")
         .element_type();
 
     debug_assert!(
-        context
-            .types()
-            .type_definition(
-                element_ty
-                    .as_compound()
-                    .expect("type should be compound")
-                    .definition(),
-            )
-            .as_pair()
-            .is_some(),
+        element_ty.as_pair().is_some(),
         "element type should be a pair"
     );
 
@@ -75,7 +59,7 @@ fn zip(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .as_slice()
         .iter()
         .zip(right.as_slice())
-        .map(|(l, r)| Pair::new_unchecked(element_ty, l.clone(), r.clone()).into())
+        .map(|(l, r)| Pair::new_unchecked(element_ty.clone(), l.clone(), r.clone()).into())
         .collect();
 
     Ok(Array::new_unchecked(context.return_type, elements).into())

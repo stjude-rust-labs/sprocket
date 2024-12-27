@@ -517,7 +517,7 @@ impl RunCommand {
                     path = path.display()
                 )
             })?;
-            match Inputs::parse(engine.types_mut(), document, &abs_path)? {
+            match Inputs::parse(document, &abs_path)? {
                 Some((name, inputs)) => (Some(path), name, inputs),
                 None => bail!(
                     "inputs file `{path}` is empty; use the `--name` option to specify the name \
@@ -587,7 +587,7 @@ impl RunCommand {
                 // Ensure all the paths specified in the inputs file are relative to the file's
                 // directory
                 if let Some(path) = path.as_ref().and_then(|p| p.parent()) {
-                    inputs.join_paths(engine.types_mut(), document, task, path);
+                    inputs.join_paths(task, path);
                 }
 
                 let mut evaluator = TaskEvaluator::new(&mut engine);
@@ -602,7 +602,7 @@ impl RunCommand {
                                 // errors during serialization.
                                 let mut buffer = Vec::new();
                                 let mut serializer = serde_json::Serializer::pretty(&mut buffer);
-                                outputs.serialize(engine.types(), &mut serializer)?;
+                                outputs.serialize(&mut serializer)?;
                                 println!(
                                     "{buffer}\n",
                                     buffer = std::str::from_utf8(&buffer)
@@ -648,7 +648,7 @@ impl RunCommand {
                 // Ensure all the paths specified in the inputs file are relative to the file's
                 // directory
                 if let Some(path) = path.as_ref().and_then(|p| p.parent()) {
-                    inputs.join_paths(engine.types_mut(), document, workflow, path);
+                    inputs.join_paths(workflow, path);
                 }
 
                 bail!("running workflows is not yet supported")

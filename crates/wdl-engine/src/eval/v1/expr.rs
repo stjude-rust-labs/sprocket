@@ -41,13 +41,13 @@ use wdl_analysis::stdlib::FunctionBindError;
 use wdl_analysis::stdlib::MAX_PARAMETERS;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::Coercible as _;
-use wdl_analysis::types::CompoundTypeDef;
+use wdl_analysis::types::CompoundType;
 use wdl_analysis::types::MapType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PairType;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
+use wdl_analysis::types::StructType;
 use wdl_analysis::types::Type;
-use wdl_analysis::types::TypeEq;
 use wdl_analysis::types::v1::ComparisonOperator;
 use wdl_analysis::types::v1::ExprTypeEvaluator;
 use wdl_analysis::types::v1::NumericOperator;
@@ -343,21 +343,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                             Value::None => {}
                             Value::Primitive(v) => write!(buffer, "{v}", v = v.raw()).unwrap(),
                             _ => {
-                                return Err(cannot_coerce_to_string(
-                                    evaluator.context.types(),
-                                    v.ty(),
-                                    expr.span(),
-                                ));
+                                return Err(cannot_coerce_to_string(&v.ty(), expr.span()));
                             }
                         }
                     }
                 }
                 v => {
-                    return Err(cannot_coerce_to_string(
-                        evaluator.context.types(),
-                        v.ty(),
-                        expr.span(),
-                    ));
+                    return Err(cannot_coerce_to_string(&v.ty(), expr.span()));
                 }
             }
 
@@ -441,15 +433,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     let value = self.evaluate_expr(&expr)?;
                     let actual = value.ty();
 
-                    if let Some(ty) = expected.common_type(self.context.types_mut(), actual) {
+                    if let Some(ty) = expected.common_type(&actual) {
                         expected = ty;
                         expected_span = expr.span();
                     } else {
                         return Err(no_common_type(
-                            self.context.types(),
-                            expected,
+                            &expected,
                             expected_span,
-                            actual,
+                            &actual,
                             expr.span(),
                         ));
                     }
@@ -462,11 +453,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             None => (Type::Union, Vec::new()),
         };
 
-        let ty = self
-            .context
-            .types_mut()
-            .add_array(ArrayType::new(element_ty));
-        Ok(Array::new(self.context.types(), ty, values)
+        Ok(Array::new(ArrayType::new(element_ty), values)
             .expect("array elements should coerce")
             .into())
     }
@@ -476,11 +463,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let (left, right) = expr.exprs();
         let left = self.evaluate_expr(&left)?;
         let right = self.evaluate_expr(&right)?;
-        let ty = self
-            .context
-            .types_mut()
-            .add_pair(PairType::new(left.ty(), right.ty()));
-        Ok(Pair::new(self.context.types(), ty, left, right)
+        Ok(Pair::new(PairType::new(left.ty(), right.ty()), left, right)
             .expect("types should coerce")
             .into())
     }
@@ -506,11 +489,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     Value::None => None,
                     Value::Primitive(key) => Some(key),
                     _ => {
-                        return Err(map_key_not_primitive(
-                            self.context.types(),
-                            key.span(),
-                            expected_key.ty(),
-                        ));
+                        return Err(map_key_not_primitive(key.span(), &expected_key.ty()));
                     }
                 };
 
@@ -524,34 +503,28 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     let actual_value = self.evaluate_expr(&value)?;
                     let actual_value_ty = actual_value.ty();
 
-                    if let Some(ty) =
-                        expected_key_ty.common_type(self.context.types_mut(), actual_key_ty)
-                    {
+                    if let Some(ty) = expected_key_ty.common_type(&actual_key_ty) {
                         expected_key_ty = ty;
                         expected_key_span = key.span();
                     } else {
                         // No common key type
                         return Err(no_common_type(
-                            self.context.types(),
-                            expected_key_ty,
+                            &expected_key_ty,
                             expected_key_span,
-                            actual_key_ty,
+                            &actual_key_ty,
                             key.span(),
                         ));
                     }
 
-                    if let Some(ty) =
-                        expected_value_ty.common_type(self.context.types_mut(), actual_value_ty)
-                    {
+                    if let Some(ty) = expected_value_ty.common_type(&actual_value_ty) {
                         expected_value_ty = ty;
                         expected_value_span = value.span();
                     } else {
                         // No common value type
                         return Err(no_common_type(
-                            self.context.types(),
-                            expected_value_ty,
+                            &expected_value_ty,
                             expected_value_span,
-                            actual_value_ty,
+                            &actual_value_ty,
                             value.span(),
                         ));
                     }
@@ -570,11 +543,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             None => (Type::Union, Type::Union, Vec::new()),
         };
 
-        let ty = self
-            .context
-            .types_mut()
-            .add_map(MapType::new(key_ty, value_ty));
-        Ok(Map::new(self.context.types(), ty, elements)
+        Ok(Map::new(MapType::new(key_ty, value_ty), elements)
             .expect("map elements should coerce")
             .into())
     }
@@ -596,30 +565,16 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     fn evaluate_literal_struct(&mut self, expr: &LiteralStruct) -> Result<Value, Diagnostic> {
         let name = expr.name();
         let ty = self.context.resolve_type_name(&name)?;
+        let struct_ty = ty.as_struct().expect("should be a struct type");
 
         // Evaluate the members
-        let mut members =
-            IndexMap::with_capacity(self.context.types().struct_type(ty).members().len());
+        let mut members = IndexMap::with_capacity(struct_ty.members().len());
         for item in expr.items() {
             let (n, v) = item.name_value();
-            if let Some(expected) = self
-                .context
-                .types()
-                .struct_type(ty)
-                .members()
-                .get(n.as_str())
-            {
-                let expected = *expected;
+            if let Some(expected) = struct_ty.members().get(n.as_str()) {
                 let value = self.evaluate_expr(&v)?;
-                let value = value.coerce(self.context.types(), expected).map_err(|e| {
-                    runtime_type_mismatch(
-                        self.context.types(),
-                        e,
-                        expected,
-                        n.span(),
-                        value.ty(),
-                        v.span(),
-                    )
+                let value = value.coerce(expected).map_err(|e| {
+                    runtime_type_mismatch(e, expected, n.span(), &value.ty(), v.span())
                 })?;
 
                 members.insert(n.as_str().to_string(), value);
@@ -629,7 +584,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             }
         }
 
-        let mut iter = self.context.types().struct_type(ty).members().iter();
+        let mut iter = struct_ty.members().iter();
         while let Some((n, ty)) = iter.next() {
             // Check for optional members that should be set to `None`
             if ty.is_optional() {
@@ -667,12 +622,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             }
         }
 
-        Ok(Struct::new_unchecked(
-            ty,
-            self.context.types().struct_type(ty).name().clone(),
-            Arc::new(members),
-        )
-        .into())
+        let name = struct_ty.name().clone();
+        Ok(Struct::new_unchecked(ty, name, Arc::new(members)).into())
     }
 
     /// Evaluates a literal hints expression.
@@ -702,17 +653,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     ) -> Result<Value, Diagnostic> {
         let value = self.evaluate_expr(expr)?;
         if let Some(expected) = task_hint_types(self.context.version(), name.as_str(), true) {
-            if let Some(value) = expected
-                .iter()
-                .find_map(|ty| value.coerce(self.context.types(), *ty).ok())
-            {
+            if let Some(value) = expected.iter().find_map(|ty| value.coerce(ty).ok()) {
                 return Ok(value);
             } else {
                 return Err(multiple_type_mismatch(
-                    self.context.types(),
                     expected,
                     name.span(),
-                    value.ty(),
+                    &value.ty(),
                     expr.span(),
                 ));
             }
@@ -758,7 +705,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // The first name should be an input/output and then the remainder should be a
         // struct member
         let mut span = None;
-        let mut struct_ty: Option<Type> = None;
+        let mut struct_ty: Option<&StructType> = None;
         while let Some((i, segment)) = segments.next() {
             if !name.is_empty() {
                 name.push('.');
@@ -798,12 +745,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 // Every other name is a struct member
                 let start = span.unwrap().start();
                 span = Some(Span::new(start, segment.span().end() - start));
-                let s = self
-                    .context
-                    .document_types()
-                    .struct_type(struct_ty.unwrap());
+                let s = struct_ty.unwrap();
                 match s.members().get(segment.as_str()) {
-                    Some(ty) => *ty,
+                    Some(ty) => ty,
                     None => {
                         return Err(not_a_struct_member(s.name(), &segment));
                     }
@@ -811,14 +755,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             };
 
             match ty {
-                Type::Compound(compound_ty)
-                    if matches!(
-                        self.context
-                            .document_types()
-                            .type_definition(compound_ty.definition()),
-                        CompoundTypeDef::Struct(_)
-                    ) =>
-                {
+                Type::Compound(CompoundType::Struct(ty), _) => {
                     struct_ty = Some(ty);
                 }
                 _ if segments.peek().is_some() => {
@@ -833,10 +770,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // The type of every item should be `hints`
         if !matches!(value.ty(), Type::Hints) {
             return Err(type_mismatch(
-                self.context.types(),
-                Type::Hints,
+                &Type::Hints,
                 span.expect("should have span"),
-                value.ty(),
+                &value.ty(),
                 expr.span(),
             ));
         }
@@ -858,14 +794,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         impl<C: EvaluationContext> wdl_analysis::types::v1::EvaluationContext for TypeContext<'_, C> {
             fn version(&self) -> SupportedVersion {
                 self.context.version()
-            }
-
-            fn types(&self) -> &wdl_analysis::types::Types {
-                self.context.types()
-            }
-
-            fn types_mut(&mut self) -> &mut wdl_analysis::types::Types {
-                self.context.types_mut()
             }
 
             fn resolve_name(&self, name: &wdl_ast::Ident) -> Option<Type> {
@@ -895,10 +823,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // expression, depending on the result of the conditional expression
         let cond = self.evaluate_expr(&cond_expr)?;
         let (value, true_ty, false_ty) = if cond
-            .coerce(self.context.types(), PrimitiveTypeKind::Boolean.into())
-            .map_err(|_| {
-                if_conditional_mismatch(self.context.types(), cond.ty(), cond_expr.span())
-            })?
+            .coerce(&PrimitiveType::Boolean.into())
+            .map_err(|_| if_conditional_mismatch(&cond.ty(), cond_expr.span()))?
             .unwrap_boolean()
         {
             // Evaluate the `true` expression and calculate the type of the `false`
@@ -939,21 +865,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
         // Determine the common type of the true and false expressions
         // The value must be coerced to that type
-        let ty = true_ty
-            .common_type(self.context.types_mut(), false_ty)
-            .ok_or_else(|| {
-                no_common_type(
-                    self.context.types(),
-                    true_ty,
-                    true_expr.span(),
-                    false_ty,
-                    false_expr.span(),
-                )
-            })?;
+        let ty = true_ty.common_type(&false_ty).ok_or_else(|| {
+            no_common_type(&true_ty, true_expr.span(), &false_ty, false_expr.span())
+        })?;
 
-        Ok(value
-            .coerce(self.context.types(), ty)
-            .expect("coercion should not fail"))
+        Ok(value.coerce(&ty).expect("coercion should not fail"))
     }
 
     /// Evaluates a `logical not` expression.
@@ -962,8 +878,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let operand = expr.operand();
         let value = self.evaluate_expr(&operand)?;
         Ok((!value
-            .coerce(self.context.types(), PrimitiveTypeKind::Boolean.into())
-            .map_err(|_| logical_not_mismatch(self.context.types(), value.ty(), operand.span()))?
+            .coerce(&PrimitiveType::Boolean.into())
+            .map_err(|_| logical_not_mismatch(&value.ty(), operand.span()))?
             .unwrap_boolean())
         .into())
     }
@@ -975,7 +891,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let ty = value.ty();
 
         // If the type is `Int`, treat it as `Int`
-        if ty.type_eq(self.context.types(), &PrimitiveTypeKind::Integer.into()) {
+        if ty.eq(&PrimitiveType::Integer.into()) {
             return match operand {
                 Expr::Literal(LiteralExpr::Integer(_)) => {
                     // Already negated during integer literal evaluation
@@ -992,20 +908,16 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         }
 
         // If the type is `Float`, treat it as `Float`
-        if ty.type_eq(self.context.types(), &PrimitiveTypeKind::Float.into()) {
+        if ty.eq(&PrimitiveType::Float.into()) {
             let value = value.unwrap_float();
             return Ok((-value).into());
         }
 
         // Expected either `Int` or `Float`
         Err(multiple_type_mismatch(
-            self.context.types(),
-            &[
-                PrimitiveTypeKind::Integer.into(),
-                PrimitiveTypeKind::Float.into(),
-            ],
+            &[PrimitiveType::Integer.into(), PrimitiveType::Float.into()],
             operand.span(),
-            ty,
+            &ty,
             operand.span(),
         ))
     }
@@ -1017,8 +929,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // Evaluate the left-hand side first
         let left = self.evaluate_expr(&lhs)?;
         if left
-            .coerce(self.context.types(), PrimitiveTypeKind::Boolean.into())
-            .map_err(|_| logical_or_mismatch(self.context.types(), left.ty(), lhs.span()))?
+            .coerce(&PrimitiveType::Boolean.into())
+            .map_err(|_| logical_or_mismatch(&left.ty(), lhs.span()))?
             .unwrap_boolean()
         {
             // Short-circuit if the left-hand side is true
@@ -1028,8 +940,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // Otherwise, evaluate the right-hand side
         let right = self.evaluate_expr(&rhs)?;
         right
-            .coerce(self.context.types(), PrimitiveTypeKind::Boolean.into())
-            .map_err(|_| logical_or_mismatch(self.context.types(), right.ty(), rhs.span()))
+            .coerce(&PrimitiveType::Boolean.into())
+            .map_err(|_| logical_or_mismatch(&right.ty(), rhs.span()))
     }
 
     /// Evaluates a `logical and` expression.
@@ -1039,8 +951,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // Evaluate the left-hand side first
         let left = self.evaluate_expr(&lhs)?;
         if !left
-            .coerce(self.context.types(), PrimitiveTypeKind::Boolean.into())
-            .map_err(|_| logical_and_mismatch(self.context.types(), left.ty(), lhs.span()))?
+            .coerce(&PrimitiveType::Boolean.into())
+            .map_err(|_| logical_and_mismatch(&left.ty(), lhs.span()))?
             .unwrap_boolean()
         {
             // Short-circuit if the left-hand side is false
@@ -1050,8 +962,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // Otherwise, evaluate the right-hand side
         let right = self.evaluate_expr(&rhs)?;
         right
-            .coerce(self.context.types(), PrimitiveTypeKind::Boolean.into())
-            .map_err(|_| logical_and_mismatch(self.context.types(), right.ty(), rhs.span()))
+            .coerce(&PrimitiveType::Boolean.into())
+            .map_err(|_| logical_and_mismatch(&right.ty(), rhs.span()))
     }
 
     /// Evaluates a comparison expression.
@@ -1066,10 +978,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let right = self.evaluate_expr(rhs)?;
 
         match op {
-            ComparisonOperator::Equality => Value::equals(self.context.types(), &left, &right),
-            ComparisonOperator::Inequality => {
-                Value::equals(self.context.types(), &left, &right).map(|r| !r)
-            }
+            ComparisonOperator::Equality => Value::equals(&left, &right),
+            ComparisonOperator::Inequality => Value::equals(&left, &right).map(|r| !r),
             ComparisonOperator::Less
             | ComparisonOperator::LessEqual
             | ComparisonOperator::Greater
@@ -1098,15 +1008,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         }
         .map(Into::into)
         .ok_or_else(|| {
-            comparison_mismatch(
-                self.context.types(),
-                op,
-                span,
-                left.ty(),
-                lhs.span(),
-                right.ty(),
-                rhs.span(),
-            )
+            comparison_mismatch(op, span, &left.ty(), lhs.span(), &right.ty(), rhs.span())
         })
     }
 
@@ -1218,17 +1120,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             }
             _ => None,
         }
-        .ok_or_else(|| {
-            numeric_mismatch(
-                self.context.types(),
-                op,
-                span,
-                left.ty(),
-                lhs.span(),
-                right.ty(),
-                rhs.span(),
-            )
-        })
+        .ok_or_else(|| numeric_mismatch(op, span, &left.ty(), lhs.span(), &right.ty(), rhs.span()))
     }
 
     /// Evaluates a call expression.
@@ -1238,7 +1130,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             Some(f) => {
                 // Evaluate the argument expressions
                 let mut count = 0;
-                let mut types = [Type::Union; MAX_PARAMETERS];
+                let mut types = [const { Type::Union }; MAX_PARAMETERS];
                 let mut arguments = [const { CallArgument::none() }; MAX_PARAMETERS];
                 for arg in expr.arguments() {
                     if count < MAX_PARAMETERS {
@@ -1254,13 +1146,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 let types = &types[..count.min(MAX_PARAMETERS)];
                 let arguments = &arguments[..count.min(MAX_PARAMETERS)];
                 if count <= MAX_PARAMETERS {
-                    match f.bind(self.context.version(), self.context.types_mut(), types) {
+                    match f.bind(self.context.version(), types) {
                         Ok(binding) => {
                             let context = CallContext::new(
                                 &mut self.context,
                                 target.span(),
                                 arguments,
-                                binding.return_type(),
+                                binding.return_type().clone(),
                             );
 
                             STDLIB
@@ -1288,10 +1180,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
                         Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
                             Err(argument_type_mismatch(
-                                self.context.types(),
                                 target.as_str(),
                                 &expected,
-                                types[index],
+                                &types[index],
                                 expr.arguments()
                                     .nth(index)
                                     .map(|e| e.span())
@@ -1344,39 +1235,27 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     }
                 }
                 value => Err(index_type_mismatch(
-                    self.context.types(),
-                    PrimitiveTypeKind::Integer.into(),
-                    value.ty(),
+                    &PrimitiveType::Integer.into(),
+                    &value.ty(),
                     index.span(),
                 )),
             },
             Value::Compound(CompoundValue::Map(map)) => {
-                let ty = map.ty().as_compound().expect("type should be compound");
-                let key_type = match self.context.types().type_definition(ty.definition()) {
-                    CompoundTypeDef::Map(ty) => ty
-                        .key_type()
-                        .as_primitive()
-                        .expect("type should be primitive"),
-                    _ => panic!("expected a map type"),
-                };
+                let key_type = map
+                    .ty()
+                    .as_map()
+                    .expect("should be a map type")
+                    .key_type()
+                    .as_primitive()
+                    .expect("key type should be primitive");
 
                 let i = match self.evaluate_expr(&index)? {
-                    Value::None
-                        if Type::None.is_coercible_to(self.context.types(), &key_type.into()) =>
-                    {
-                        None
-                    }
-                    Value::Primitive(i)
-                        if i.ty()
-                            .is_coercible_to(self.context.types(), &key_type.into()) =>
-                    {
-                        Some(i)
-                    }
+                    Value::None if Type::None.is_coercible_to(&key_type.into()) => None,
+                    Value::Primitive(i) if i.ty().is_coercible_to(&key_type.into()) => Some(i),
                     value => {
                         return Err(index_type_mismatch(
-                            self.context.types(),
-                            key_type.into(),
-                            value.ty(),
+                            &key_type.into(),
+                            &value.ty(),
                             index.span(),
                         ));
                     }
@@ -1387,11 +1266,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     None => Err(map_key_not_found(index.span())),
                 }
             }
-            value => Err(cannot_index(
-                self.context.types(),
-                value.ty(),
-                target.span(),
-            )),
+            value => Err(cannot_index(&value.ty(), target.span())),
         }
     }
 
@@ -1410,7 +1285,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             Value::Compound(CompoundValue::Struct(s)) => match s.get(name.as_str()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_struct_member(
-                    self.context.types().struct_type(s.ty()).name(),
+                    s.ty().as_struct().expect("should be a struct type").name(),
                     &name,
                 )),
             },
@@ -1422,11 +1297,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_task_member(&name)),
             },
-            value => Err(cannot_access(
-                self.context.types(),
-                value.ty(),
-                target.span(),
-            )),
+            value => Err(cannot_access(&value.ty(), target.span())),
         }
     }
 }
@@ -1442,7 +1313,6 @@ pub(crate) mod test {
     use wdl_analysis::diagnostics::unknown_name;
     use wdl_analysis::diagnostics::unknown_type;
     use wdl_analysis::types::StructType;
-    use wdl_analysis::types::Types;
     use wdl_ast::Ident;
     use wdl_grammar::construct_tree;
     use wdl_grammar::grammar::v1;
@@ -1454,8 +1324,6 @@ pub(crate) mod test {
 
     /// Represents a test environment.
     pub struct TestEnv {
-        /// The types collection for the test.
-        types: Types,
         /// The scopes for the test.
         scopes: Vec<Scope>,
         /// The structs for the test.
@@ -1467,14 +1335,6 @@ pub(crate) mod test {
     }
 
     impl TestEnv {
-        pub fn types(&self) -> &Types {
-            &self.types
-        }
-
-        pub fn types_mut(&mut self) -> &mut Types {
-            &mut self.types
-        }
-
         pub fn scope(&self) -> ScopeRef<'_> {
             ScopeRef::new(&self.scopes, 0)
         }
@@ -1503,7 +1363,6 @@ pub(crate) mod test {
     impl Default for TestEnv {
         fn default() -> Self {
             Self {
-                types: Default::default(),
                 scopes: vec![Scope::new(None)],
                 structs: Default::default(),
                 temp_dir: TempDir::new().expect("failed to create temp directory"),
@@ -1551,14 +1410,6 @@ pub(crate) mod test {
             self.version
         }
 
-        fn types(&self) -> &Types {
-            &self.env.types
-        }
-
-        fn types_mut(&mut self) -> &mut Types {
-            &mut self.env.types
-        }
-
         fn resolve_name(&self, name: &Ident) -> Result<Value, Diagnostic> {
             self.env
                 .scope()
@@ -1571,7 +1422,7 @@ pub(crate) mod test {
             self.env
                 .structs
                 .get(name.as_str())
-                .copied()
+                .cloned()
                 .ok_or_else(|| unknown_type(name.as_str(), name.span()))
         }
 
@@ -1593,10 +1444,6 @@ pub(crate) mod test {
 
         fn task(&self) -> Option<&Task> {
             None
-        }
-
-        fn document_types(&self) -> &Types {
-            unimplemented!()
         }
     }
 
@@ -1975,18 +1822,16 @@ pub(crate) mod test {
     #[test]
     fn literal_struct_expr() {
         let mut env = TestEnv::default();
-        let bar_ty = env.types_mut().add_struct(StructType::new("Bar", [
-            ("foo", PrimitiveTypeKind::File),
-            ("bar", PrimitiveTypeKind::Integer),
-        ]));
+        let bar_ty: Type = StructType::new("Bar", [
+            ("foo", PrimitiveType::File),
+            ("bar", PrimitiveType::Integer),
+        ])
+        .into();
 
-        let foo_ty = env.types_mut().add_struct(StructType::new("Foo", [
-            ("foo", PrimitiveTypeKind::Float.into()),
-            (
-                "bar",
-                Type::Compound(bar_ty.as_compound().expect("should be a compound type")),
-            ),
-        ]));
+        let foo_ty = StructType::new("Foo", [
+            ("foo", PrimitiveType::Float.into()),
+            ("bar", bar_ty.clone()),
+        ]);
 
         env.insert_struct("Foo", foo_ty);
         env.insert_struct("Bar", bar_ty);
@@ -2935,21 +2780,13 @@ pub(crate) mod test {
     #[test]
     fn index_expr() {
         let mut env = TestEnv::default();
-        let array_ty = env
-            .types_mut()
-            .add_array(ArrayType::new(PrimitiveTypeKind::Integer));
-        let map_ty = env.types_mut().add_map(MapType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::Integer,
-        ));
+        let array_ty = ArrayType::new(PrimitiveType::Integer);
+        let map_ty = MapType::new(PrimitiveType::String, PrimitiveType::Integer);
 
-        env.insert_name(
-            "foo",
-            Array::new(env.types(), array_ty, [1, 2, 3, 4, 5]).unwrap(),
-        );
+        env.insert_name("foo", Array::new(array_ty, [1, 2, 3, 4, 5]).unwrap());
         env.insert_name(
             "bar",
-            Map::new(env.types(), map_ty, [
+            Map::new(map_ty, [
                 (PrimitiveValue::new_string("foo"), 1),
                 (PrimitiveValue::new_string("bar"), 2),
             ])
@@ -3003,22 +2840,19 @@ pub(crate) mod test {
     #[test]
     fn access_expr() {
         let mut env = TestEnv::default();
-        let pair_ty = env.types_mut().add_pair(PairType::new(
-            PrimitiveTypeKind::Integer,
-            PrimitiveTypeKind::String,
-        ));
-        let struct_ty = env.types_mut().add_struct(StructType::new("Foo", [
-            ("foo", PrimitiveTypeKind::Integer),
-            ("bar", PrimitiveTypeKind::String),
-        ]));
+        let pair_ty = PairType::new(PrimitiveType::Integer, PrimitiveType::String);
+        let struct_ty = StructType::new("Foo", [
+            ("foo", PrimitiveType::Integer),
+            ("bar", PrimitiveType::String),
+        ]);
 
         env.insert_name(
             "foo",
-            Pair::new(env.types(), pair_ty, 1, PrimitiveValue::new_string("foo")).unwrap(),
+            Pair::new(pair_ty, 1, PrimitiveValue::new_string("foo")).unwrap(),
         );
         env.insert_name(
             "bar",
-            Struct::new(env.types(), struct_ty, [
+            Struct::new(struct_ty, [
                 ("foo", 1.into()),
                 ("bar", PrimitiveValue::new_string("bar")),
             ])

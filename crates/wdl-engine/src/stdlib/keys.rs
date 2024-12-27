@@ -26,17 +26,7 @@ use crate::Value;
 fn keys(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(
-        context
-            .types()
-            .type_definition(
-                context
-                    .return_type
-                    .as_compound()
-                    .expect("type should be compound")
-                    .definition()
-            )
-            .as_array()
-            .is_some(),
+        context.return_type.as_array().is_some(),
         "return type should be an array"
     );
 
@@ -75,7 +65,7 @@ pub const fn descriptor() -> Function {
 #[cfg(test)]
 mod test {
     use pretty_assertions::assert_eq;
-    use wdl_analysis::types::PrimitiveTypeKind;
+    use wdl_analysis::types::PrimitiveType;
     use wdl_analysis::types::StructType;
     use wdl_ast::version::V1;
 
@@ -87,11 +77,11 @@ mod test {
     fn keys() {
         let mut env = TestEnv::default();
 
-        let ty = env.types_mut().add_struct(StructType::new("Foo", [
-            ("foo", PrimitiveTypeKind::Float),
-            ("bar", PrimitiveTypeKind::String),
-            ("baz", PrimitiveTypeKind::Integer),
-        ]));
+        let ty = StructType::new("Foo", [
+            ("foo", PrimitiveType::Float),
+            ("bar", PrimitiveType::String),
+            ("baz", PrimitiveType::Integer),
+        ]);
 
         env.insert_struct("Foo", ty);
 

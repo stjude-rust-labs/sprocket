@@ -1,6 +1,6 @@
 //! Implements the `min` function from the WDL standard library.
 
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -13,13 +13,13 @@ use crate::Value;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#min
 fn int_min(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Integer));
+    debug_assert!(context.return_type_eq(PrimitiveType::Integer));
 
     let first = context
-        .coerce_argument(0, PrimitiveTypeKind::Integer)
+        .coerce_argument(0, PrimitiveType::Integer)
         .unwrap_integer();
     let second = context
-        .coerce_argument(1, PrimitiveTypeKind::Integer)
+        .coerce_argument(1, PrimitiveType::Integer)
         .unwrap_integer();
     Ok(first.min(second).into())
 }
@@ -29,13 +29,13 @@ fn int_min(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#min
 fn float_min(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Float));
+    debug_assert!(context.return_type_eq(PrimitiveType::Float));
 
     let first = context
-        .coerce_argument(0, PrimitiveTypeKind::Float)
+        .coerce_argument(0, PrimitiveType::Float)
         .unwrap_float();
     let second = context
-        .coerce_argument(1, PrimitiveTypeKind::Float)
+        .coerce_argument(1, PrimitiveType::Float)
         .unwrap_float();
     Ok(first.min(second).into())
 }

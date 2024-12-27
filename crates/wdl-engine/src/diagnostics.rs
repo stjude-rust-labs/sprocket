@@ -3,7 +3,6 @@
 use std::fmt;
 
 use wdl_analysis::types::Type;
-use wdl_analysis::types::Types;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
@@ -83,31 +82,19 @@ pub fn call_failed(target: &Ident, error: &anyhow::Error) -> Diagnostic {
 
 /// Creates a "runtime type mismatch" diagnostic.
 pub fn runtime_type_mismatch(
-    types: &Types,
     e: anyhow::Error,
-    expected: Type,
+    expected: &Type,
     expected_span: Span,
-    actual: Type,
+    actual: &Type,
     actual_span: Span,
 ) -> Diagnostic {
     let e = e.context(format!(
-        "type mismatch: expected type `{expected}`, but found type `{actual}`",
-        expected = expected.display(types),
-        actual = actual.display(types)
+        "type mismatch: expected type `{expected}`, but found type `{actual}`"
     ));
 
     Diagnostic::error(format!("{e:?}"))
-        .with_label(
-            format!("this is type `{actual}`", actual = actual.display(types)),
-            actual_span,
-        )
-        .with_label(
-            format!(
-                "this expects type `{expected}`",
-                expected = expected.display(types)
-            ),
-            expected_span,
-        )
+        .with_label(format!("this is type `{actual}`"), actual_span)
+        .with_label(format!("this expects type `{expected}`"), expected_span)
 }
 
 /// Creates an "array index out of range" diagnostic.

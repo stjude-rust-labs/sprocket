@@ -1,6 +1,6 @@
 //! Implements the `length` function from the WDL standard library.
 
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
@@ -17,7 +17,7 @@ use crate::diagnostics::function_call_failed;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length
 fn array_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Integer));
+    debug_assert!(context.return_type_eq(PrimitiveType::Integer));
     Ok(i64::try_from(
         context.arguments[0]
             .value
@@ -42,7 +42,7 @@ fn array_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length
 fn map_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Integer));
+    debug_assert!(context.return_type_eq(PrimitiveType::Integer));
     Ok(i64::try_from(
         context.arguments[0]
             .value
@@ -67,7 +67,7 @@ fn map_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length
 fn object_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Integer));
+    debug_assert!(context.return_type_eq(PrimitiveType::Integer));
     let object = context.coerce_argument(0, Type::Object).unwrap_object();
 
     Ok(i64::try_from(object.len())
@@ -88,9 +88,9 @@ fn object_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length
 fn string_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Integer));
+    debug_assert!(context.return_type_eq(PrimitiveType::Integer));
     let s = context
-        .coerce_argument(0, PrimitiveTypeKind::String)
+        .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
 
     // Note: the function is defined in terms of characters and not bytes

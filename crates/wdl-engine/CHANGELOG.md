@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Reduced size of the `Value` type ([#277](https://github.com/stjude-rust-labs/wdl/pull/277)).
 * Implement task evaluation with local execution and remaining WDL 1.2
   functionality ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
 * Implement the `defined` and `length` functions from the WDL standard library ([#258](https://github.com/stjude-rust-labs/wdl/pull/258)).

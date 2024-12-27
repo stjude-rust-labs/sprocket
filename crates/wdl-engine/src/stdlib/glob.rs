@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -21,10 +21,10 @@ use crate::diagnostics::invalid_glob_pattern;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#glob
 fn glob(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_file_type()));
+    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_file_type().clone()));
 
     let path = context
-        .coerce_argument(0, PrimitiveTypeKind::String)
+        .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
 
     // TODO: replace glob with walkpath and globmatch

@@ -19,12 +19,10 @@ use serde::ser::SerializeSeq;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::Coercible as _;
-use wdl_analysis::types::CompoundTypeDef;
+use wdl_analysis::types::CompoundType;
 use wdl_analysis::types::Optional;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
-use wdl_analysis::types::TypeEq;
-use wdl_analysis::types::Types;
 use wdl_ast::AstToken;
 use wdl_ast::v1;
 use wdl_ast::v1::TASK_FIELD_ATTEMPT;
@@ -50,12 +48,7 @@ pub trait Coercible: Sized {
     /// Coerces the value into the given type.
     ///
     /// Returns an error if the coercion is not supported.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the provided target type is not from the given types
-    /// collection.
-    fn coerce(&self, types: &Types, target: Type) -> Result<Self>;
+    fn coerce(&self, target: &Type) -> Result<Self>;
 }
 
 /// Represents a WDL runtime value.
@@ -108,7 +101,7 @@ impl Value {
             v1::MetadataValue::Null(_) => Self::None,
             v1::MetadataValue::Object(o) => Object::from_v1_metadata(o.items()).into(),
             v1::MetadataValue::Array(a) => Array::new_unchecked(
-                ANALYSIS_STDLIB.array_object_type(),
+                ANALYSIS_STDLIB.array_object_type().clone(),
                 a.elements().map(|v| Value::from_v1_metadata(&v)).collect(),
             )
             .into(),
@@ -446,7 +439,6 @@ impl Value {
     /// `None`.
     pub(crate) fn join_paths(
         &mut self,
-        types: &Types,
         path: &Path,
         check_existence: bool,
         optional: bool,
@@ -457,7 +449,7 @@ impl Value {
                     *self = Value::None;
                 }
             }
-            Self::Compound(v) => v.join_paths(types, path, check_existence)?,
+            Self::Compound(v) => v.join_paths(path, check_existence)?,
             _ => {}
         }
 
@@ -478,217 +470,36 @@ impl Value {
     /// specification.
     ///
     /// Returns `None` if the two values cannot be compared for equality.
-    pub fn equals(types: &Types, left: &Self, right: &Self) -> Option<bool> {
+    pub fn equals(left: &Self, right: &Self) -> Option<bool> {
         match (left, right) {
             (Value::None, Value::None) => Some(true),
             (Value::None, _) | (_, Value::None) => Some(false),
             (Value::Primitive(left), Value::Primitive(right)) => {
                 Some(PrimitiveValue::compare(left, right)? == Ordering::Equal)
             }
-            (Value::Compound(left), Value::Compound(right)) => {
-                CompoundValue::equals(types, left, right)
-            }
+            (Value::Compound(left), Value::Compound(right)) => CompoundValue::equals(left, right),
             _ => None,
         }
-    }
-
-    /// Serializes the value to the given serializer.
-    pub fn serialize<S>(&self, types: &Types, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::Serialize;
-        use serde::ser::Error;
-
-        match self {
-            Self::None => serializer.serialize_none(),
-            Self::Primitive(v) => v.serialize(serializer),
-            Self::Compound(v) => v.serialize(types, serializer),
-            Self::Task(_) | Self::Hints(_) | Self::Input(_) | Self::Output(_) => {
-                Err(S::Error::custom("value cannot be serialized"))
-            }
-        }
-    }
-
-    /// Deserializes a value from the given deserializer.
-    pub fn deserialize<'de, D>(
-        types: &mut Types,
-        deserializer: D,
-    ) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        /// Helper for deserializing the elements of sequences and maps
-        struct Deserialize<'a>(&'a mut Types);
-
-        impl<'de> serde::de::DeserializeSeed<'de> for Deserialize<'_> {
-            type Value = Value;
-
-            fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                deserializer.deserialize_any(Visitor(self.0))
-            }
-        }
-
-        /// Visitor for deserialization.
-        struct Visitor<'a>(&'a mut Types);
-
-        impl<'de> serde::de::Visitor<'de> for Visitor<'_> {
-            type Value = Value;
-
-            fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::None)
-            }
-
-            fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::None)
-            }
-
-            fn visit_some<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                Value::deserialize(self.0, deserializer)
-            }
-
-            fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::Boolean(v)))
-            }
-
-            fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::Integer(v)))
-            }
-
-            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::Integer(
-                    v.try_into().map_err(|_| {
-                        E::custom("integer not in range for a 64-bit signed integer")
-                    })?,
-                )))
-            }
-
-            fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::Float(v.into())))
-            }
-
-            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::new_string(v)))
-            }
-
-            fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::new_string(v)))
-            }
-
-            fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
-            where
-                A: serde::de::SeqAccess<'de>,
-            {
-                use serde::de::Error;
-
-                let mut elements = Vec::new();
-                while let Some(v) = seq.next_element_seed(Deserialize(self.0))? {
-                    elements.push(v);
-                }
-
-                let element_ty = elements
-                    .iter()
-                    .try_fold(None, |mut ty, element| {
-                        let element_ty = element.ty();
-                        let ty = ty.get_or_insert(element_ty);
-                        ty.common_type(self.0, element_ty).map(Some).ok_or_else(|| {
-                            A::Error::custom(format!(
-                                "a common element type does not exist between `{ty}` and \
-                                 `{element_ty}`",
-                                ty = ty.display(self.0),
-                                element_ty = element_ty.display(self.0)
-                            ))
-                        })
-                    })?
-                    .unwrap_or(Type::Union);
-
-                let ty = self.0.add_array(ArrayType::new(element_ty));
-                Ok(Array::new(self.0, ty, elements)
-                    .map_err(|e| {
-                        A::Error::custom(format!(
-                            "cannot coerce value to `{ty}`: {e:#}",
-                            ty = ty.display(self.0)
-                        ))
-                    })?
-                    .into())
-            }
-
-            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
-            where
-                A: serde::de::MapAccess<'de>,
-            {
-                use serde::de::Error;
-
-                let mut members = IndexMap::new();
-                while let Some(key) = map.next_key::<String>()? {
-                    if !is_ident(&key) {
-                        return Err(A::Error::custom(format!(
-                            "object key `{key}` is not a valid WDL identifier"
-                        )));
-                    }
-
-                    members.insert(key, map.next_value_seed(Deserialize(self.0))?);
-                }
-
-                Ok(Value::Compound(CompoundValue::Object(members.into())))
-            }
-
-            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "a WDL value")
-            }
-        }
-
-        deserializer.deserialize_any(Visitor(types))
     }
 }
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::None => write!(f, "None"),
-            Value::Primitive(v) => v.fmt(f),
-            Value::Compound(v) => v.fmt(f),
-            Value::Task(_) => write!(f, "task"),
-            Value::Hints(v) => v.fmt(f),
-            Value::Input(v) => v.fmt(f),
-            Value::Output(v) => v.fmt(f),
+            Self::None => write!(f, "None"),
+            Self::Primitive(v) => v.fmt(f),
+            Self::Compound(v) => v.fmt(f),
+            Self::Task(_) => write!(f, "task"),
+            Self::Hints(v) => v.fmt(f),
+            Self::Input(v) => v.fmt(f),
+            Self::Output(v) => v.fmt(f),
         }
     }
 }
 
 impl Coercible for Value {
-    fn coerce(&self, types: &Types, target: Type) -> Result<Self> {
-        if target.is_union() || target.is_none() || self.ty().type_eq(types, &target) {
+    fn coerce(&self, target: &Type) -> Result<Self> {
+        if target.is_union() || target.is_none() || self.ty().eq(target) {
             return Ok(self.clone());
         }
 
@@ -697,14 +508,11 @@ impl Coercible for Value {
                 if target.is_optional() {
                     Ok(Self::None)
                 } else {
-                    bail!(
-                        "cannot coerce `None` to non-optional type `{target}`",
-                        target = target.display(types)
-                    );
+                    bail!("cannot coerce `None` to non-optional type `{target}`");
                 }
             }
-            Self::Primitive(v) => v.coerce(types, target).map(Self::Primitive),
-            Self::Compound(v) => v.coerce(types, target).map(Self::Compound),
+            Self::Primitive(v) => v.coerce(target).map(Self::Primitive),
+            Self::Compound(v) => v.coerce(target).map(Self::Compound),
             Self::Task(_) => {
                 if matches!(target, Type::Task) {
                     return Ok(self.clone());
@@ -818,6 +626,178 @@ impl From<CompoundValue> for Value {
     }
 }
 
+impl serde::Serialize for Value {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+
+        match self {
+            Self::None => serializer.serialize_none(),
+            Self::Primitive(v) => v.serialize(serializer),
+            Self::Compound(v) => v.serialize(serializer),
+            Self::Task(_) | Self::Hints(_) | Self::Input(_) | Self::Output(_) => {
+                Err(S::Error::custom("value cannot be serialized"))
+            }
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Value {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::Deserialize as _;
+
+        /// Helper for deserializing the elements of sequences and maps
+        struct Deserialize;
+
+        impl<'de> serde::de::DeserializeSeed<'de> for Deserialize {
+            type Value = Value;
+
+            fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                deserializer.deserialize_any(Visitor)
+            }
+        }
+
+        /// Visitor for deserialization.
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = Value;
+
+            fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::None)
+            }
+
+            fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::None)
+            }
+
+            fn visit_some<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                Value::deserialize(deserializer)
+            }
+
+            fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Boolean(v)))
+            }
+
+            fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Integer(v)))
+            }
+
+            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Integer(
+                    v.try_into().map_err(|_| {
+                        E::custom("integer not in range for a 64-bit signed integer")
+                    })?,
+                )))
+            }
+
+            fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Float(v.into())))
+            }
+
+            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::new_string(v)))
+            }
+
+            fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::new_string(v)))
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                use serde::de::Error;
+
+                let mut elements = Vec::new();
+                while let Some(v) = seq.next_element_seed(Deserialize)? {
+                    elements.push(v);
+                }
+
+                let element_ty = elements
+                    .iter()
+                    .try_fold(None, |mut ty, element| {
+                        let element_ty = element.ty();
+                        let ty = ty.get_or_insert(element_ty.clone());
+                        ty.common_type(&element_ty).map(Some).ok_or_else(|| {
+                            A::Error::custom(format!(
+                                "a common element type does not exist between `{ty}` and \
+                                 `{element_ty}`"
+                            ))
+                        })
+                    })?
+                    .unwrap_or(Type::Union);
+
+                let ty: Type = ArrayType::new(element_ty).into();
+                Ok(Array::new(ty.clone(), elements)
+                    .map_err(|e| A::Error::custom(format!("cannot coerce value to `{ty}`: {e:#}")))?
+                    .into())
+            }
+
+            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                use serde::de::Error;
+
+                let mut members = IndexMap::new();
+                while let Some(key) = map.next_key::<String>()? {
+                    if !is_ident(&key) {
+                        return Err(A::Error::custom(format!(
+                            "object key `{key}` is not a valid WDL identifier"
+                        )));
+                    }
+
+                    members.insert(key, map.next_value_seed(Deserialize)?);
+                }
+
+                Ok(Value::Compound(CompoundValue::Object(members.into())))
+            }
+
+            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "a WDL value")
+            }
+        }
+
+        deserializer.deserialize_any(Visitor)
+    }
+}
+
 /// Represents a primitive WDL value.
 ///
 /// Primitive values are cheap to clone.
@@ -856,12 +836,12 @@ impl PrimitiveValue {
     /// Gets the type of the value.
     pub fn ty(&self) -> Type {
         match self {
-            Self::Boolean(_) => PrimitiveTypeKind::Boolean.into(),
-            Self::Integer(_) => PrimitiveTypeKind::Integer.into(),
-            Self::Float(_) => PrimitiveTypeKind::Float.into(),
-            Self::String(_) => PrimitiveTypeKind::String.into(),
-            Self::File(_) => PrimitiveTypeKind::File.into(),
-            Self::Directory(_) => PrimitiveTypeKind::Directory.into(),
+            Self::Boolean(_) => PrimitiveType::Boolean.into(),
+            Self::Integer(_) => PrimitiveType::Integer.into(),
+            Self::Float(_) => PrimitiveType::Float.into(),
+            Self::String(_) => PrimitiveType::String.into(),
+            Self::File(_) => PrimitiveType::File.into(),
+            Self::Directory(_) => PrimitiveType::Directory.into(),
         }
     }
 
@@ -1168,8 +1148,8 @@ impl From<f64> for PrimitiveValue {
 }
 
 impl Coercible for PrimitiveValue {
-    fn coerce(&self, types: &Types, target: Type) -> Result<Self> {
-        if target.is_union() || target.is_none() || self.ty().type_eq(types, &target) {
+    fn coerce(&self, target: &Type) -> Result<Self> {
+        if target.is_union() || target.is_none() || self.ty().eq(target) {
             return Ok(self.clone());
         }
 
@@ -1177,102 +1157,72 @@ impl Coercible for PrimitiveValue {
             Self::Boolean(v) => {
                 target
                     .as_primitive()
-                    .and_then(|ty| match ty.kind() {
+                    .and_then(|ty| match ty {
                         // Boolean -> Boolean
-                        PrimitiveTypeKind::Boolean => Some(Self::Boolean(*v)),
+                        PrimitiveType::Boolean => Some(Self::Boolean(*v)),
                         _ => None,
                     })
-                    .with_context(|| {
-                        format!(
-                            "cannot coerce type `Boolean` to type `{target}`",
-                            target = target.display(types)
-                        )
-                    })
+                    .with_context(|| format!("cannot coerce type `Boolean` to type `{target}`"))
             }
             Self::Integer(v) => {
                 target
                     .as_primitive()
-                    .and_then(|ty| match ty.kind() {
+                    .and_then(|ty| match ty {
                         // Int -> Int
-                        PrimitiveTypeKind::Integer => Some(Self::Integer(*v)),
+                        PrimitiveType::Integer => Some(Self::Integer(*v)),
                         // Int -> Float
-                        PrimitiveTypeKind::Float => Some(Self::Float((*v as f64).into())),
+                        PrimitiveType::Float => Some(Self::Float((*v as f64).into())),
                         _ => None,
                     })
-                    .with_context(|| {
-                        format!(
-                            "cannot coerce type `Int` to type `{target}`",
-                            target = target.display(types)
-                        )
-                    })
+                    .with_context(|| format!("cannot coerce type `Int` to type `{target}`"))
             }
             Self::Float(v) => {
                 target
                     .as_primitive()
-                    .and_then(|ty| match ty.kind() {
+                    .and_then(|ty| match ty {
                         // Float -> Float
-                        PrimitiveTypeKind::Float => Some(Self::Float(*v)),
+                        PrimitiveType::Float => Some(Self::Float(*v)),
                         _ => None,
                     })
-                    .with_context(|| {
-                        format!(
-                            "cannot coerce type `Float` to type `{target}`",
-                            target = target.display(types)
-                        )
-                    })
+                    .with_context(|| format!("cannot coerce type `Float` to type `{target}`"))
             }
             Self::String(s) => {
                 target
                     .as_primitive()
-                    .and_then(|ty| match ty.kind() {
+                    .and_then(|ty| match ty {
                         // String -> String
-                        PrimitiveTypeKind::String => Some(Self::String(s.clone())),
+                        PrimitiveType::String => Some(Self::String(s.clone())),
                         // String -> File
-                        PrimitiveTypeKind::File => Some(Self::File(s.clone())),
+                        PrimitiveType::File => Some(Self::File(s.clone())),
                         // String -> Directory
-                        PrimitiveTypeKind::Directory => Some(Self::Directory(s.clone())),
+                        PrimitiveType::Directory => Some(Self::Directory(s.clone())),
                         _ => None,
                     })
-                    .with_context(|| {
-                        format!(
-                            "cannot coerce type `String` to type `{target}`",
-                            target = target.display(types)
-                        )
-                    })
+                    .with_context(|| format!("cannot coerce type `String` to type `{target}`"))
             }
             Self::File(s) => {
                 target
                     .as_primitive()
-                    .and_then(|ty| match ty.kind() {
+                    .and_then(|ty| match ty {
                         // File -> File
-                        PrimitiveTypeKind::File => Some(Self::File(s.clone())),
+                        PrimitiveType::File => Some(Self::File(s.clone())),
                         // File -> String
-                        PrimitiveTypeKind::String => Some(Self::String(s.clone())),
+                        PrimitiveType::String => Some(Self::String(s.clone())),
                         _ => None,
                     })
-                    .with_context(|| {
-                        format!(
-                            "cannot coerce type `File` to type `{target}`",
-                            target = target.display(types)
-                        )
-                    })
+                    .with_context(|| format!("cannot coerce type `File` to type `{target}`"))
             }
             Self::Directory(s) => {
                 target
                     .as_primitive()
-                    .and_then(|ty| match ty.kind() {
+                    .and_then(|ty| match ty {
                         // Directory -> Directory
-                        PrimitiveTypeKind::Directory => Some(Self::Directory(s.clone())),
+                        PrimitiveType::Directory => Some(Self::Directory(s.clone())),
                         // Directory -> String
-                        PrimitiveTypeKind::String => Some(Self::String(s.clone())),
+                        PrimitiveType::String => Some(Self::String(s.clone())),
                         _ => None,
                     })
-                    .with_context(|| {
-                        format!(
-                            "cannot coerce type `Directory` to type `{target}`",
-                            target = target.display(types)
-                        )
-                    })
+                    .with_context(|| format!("cannot coerce type `Directory` to type `{target}`"))
             }
         }
     }
@@ -1299,10 +1249,8 @@ impl serde::Serialize for PrimitiveValue {
 pub struct Pair {
     /// The type of the pair.
     ty: Type,
-    /// The left value of the pair.
-    left: Arc<Value>,
-    /// The right value of the pair.
-    right: Arc<Value>,
+    /// The left and right values of the pair.
+    values: Arc<(Value, Value)>,
 }
 
 impl Pair {
@@ -1313,33 +1261,30 @@ impl Pair {
     ///
     /// # Panics
     ///
-    /// Panics if the given type is not a pair type from the given types
-    /// collection.
+    /// Panics if the given type is not a pair type.
     pub fn new(
-        types: &Types,
-        ty: Type,
+        ty: impl Into<Type>,
         left: impl Into<Value>,
         right: impl Into<Value>,
     ) -> Result<Self> {
-        if let Type::Compound(compound_ty) = ty {
-            if let CompoundTypeDef::Pair(pair_ty) = types.type_definition(compound_ty.definition())
-            {
-                let left_ty = pair_ty.left_type();
-                let right_ty = pair_ty.right_type();
-                return Ok(Self::new_unchecked(
-                    ty,
-                    left.into()
-                        .coerce(types, left_ty)
-                        .context("failed to coerce pair's left value")?,
-                    right
-                        .into()
-                        .coerce(types, right_ty)
-                        .context("failed to coerce pair's right value")?,
-                ));
-            }
+        let ty = ty.into();
+        if let Type::Compound(CompoundType::Pair(ty), optional) = ty {
+            let left = left
+                .into()
+                .coerce(ty.left_type())
+                .context("failed to coerce pair's left value")?;
+            let right = right
+                .into()
+                .coerce(ty.right_type())
+                .context("failed to coerce pair's right value")?;
+            return Ok(Self::new_unchecked(
+                Type::Compound(CompoundType::Pair(ty), optional),
+                left,
+                right,
+            ));
         }
 
-        panic!("type `{ty}` is not a pair type", ty = ty.display(types));
+        panic!("type `{ty}` is not a pair type");
     }
 
     /// Constructs a new pair without checking the given left and right conform
@@ -1347,30 +1292,34 @@ impl Pair {
     pub(crate) fn new_unchecked(ty: Type, left: Value, right: Value) -> Self {
         Self {
             ty,
-            left: left.into(),
-            right: right.into(),
+            values: Arc::new((left, right)),
         }
     }
 
     /// Gets the type of the `Pair`.
     pub fn ty(&self) -> Type {
-        self.ty
+        self.ty.clone()
     }
 
     /// Gets the left value of the `Pair`.
     pub fn left(&self) -> &Value {
-        &self.left
+        &self.values.0
     }
 
     /// Gets the right value of the `Pair`.
     pub fn right(&self) -> &Value {
-        &self.right
+        &self.values.1
     }
 }
 
 impl fmt::Display for Pair {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({left}, {right})", left = self.left, right = self.right)
+        write!(
+            f,
+            "({left}, {right})",
+            left = self.values.0,
+            right = self.values.1
+        )
     }
 }
 
@@ -1395,31 +1344,31 @@ impl Array {
     ///
     /// # Panics
     ///
-    /// Panics if the given type is not an array type from the types collection.
-    pub fn new<V>(types: &Types, ty: Type, elements: impl IntoIterator<Item = V>) -> Result<Self>
+    /// Panics if the given type is not an array type.
+    pub fn new<V>(ty: impl Into<Type>, elements: impl IntoIterator<Item = V>) -> Result<Self>
     where
         V: Into<Value>,
     {
-        if let Type::Compound(compound_ty) = ty {
-            if let CompoundTypeDef::Array(array_ty) =
-                types.type_definition(compound_ty.definition())
-            {
-                let element_type = array_ty.element_type();
-                let elements = elements
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, v)| {
-                        let v = v.into();
-                        v.coerce(types, element_type)
-                            .with_context(|| format!("failed to coerce array element at index {i}"))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
+        let ty = ty.into();
+        if let Type::Compound(CompoundType::Array(ty), optional) = ty {
+            let element_type = ty.element_type();
+            let elements = elements
+                .into_iter()
+                .enumerate()
+                .map(|(i, v)| {
+                    let v = v.into();
+                    v.coerce(element_type)
+                        .with_context(|| format!("failed to coerce array element at index {i}"))
+                })
+                .collect::<Result<Vec<_>>>()?;
 
-                return Ok(Self::new_unchecked(ty, elements));
-            }
+            return Ok(Self::new_unchecked(
+                Type::Compound(CompoundType::Array(ty), optional),
+                elements,
+            ));
         }
 
-        panic!("type `{ty}` is not an array type", ty = ty.display(types));
+        panic!("type `{ty}` is not an array type");
     }
 
     /// Constructs a new array without checking the given elements conform to
@@ -1437,7 +1386,7 @@ impl Array {
 
     /// Gets the type of the `Array` value.
     pub fn ty(&self) -> Type {
-        self.ty
+        self.ty.clone()
     }
 
     /// Converts the array value to a slice of values.
@@ -1495,54 +1444,54 @@ impl Map {
     ///
     /// # Panics
     ///
-    /// Panics if the given type is not a map type from the given types
-    /// collection.
+    /// Panics if the given type is not a map type.
     pub fn new<K, V>(
-        types: &Types,
-        ty: Type,
+        ty: impl Into<Type>,
         elements: impl IntoIterator<Item = (K, V)>,
     ) -> Result<Self>
     where
         K: Into<Value>,
         V: Into<Value>,
     {
-        if let Type::Compound(compound_ty) = ty {
-            if let CompoundTypeDef::Map(map_ty) = types.type_definition(compound_ty.definition()) {
-                let key_type = map_ty.key_type();
-                let value_type = map_ty.value_type();
+        let ty = ty.into();
+        if let Type::Compound(CompoundType::Map(ty), optional) = ty {
+            let key_type = ty.key_type();
+            let value_type = ty.value_type();
 
-                let elements = elements
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, (k, v))| {
-                        let k = k.into();
-                        let v = v.into();
-                        Ok((
-                            if k.is_none() {
-                                None
-                            } else {
-                                match k.coerce(types, key_type).with_context(|| {
-                                    format!("failed to coerce map key for element at index {i}")
-                                })? {
-                                    Value::None => None,
-                                    Value::Primitive(v) => Some(v),
-                                    _ => {
-                                        bail!("not all key values are primitive")
-                                    }
+            let elements = elements
+                .into_iter()
+                .enumerate()
+                .map(|(i, (k, v))| {
+                    let k = k.into();
+                    let v = v.into();
+                    Ok((
+                        if k.is_none() {
+                            None
+                        } else {
+                            match k.coerce(key_type).with_context(|| {
+                                format!("failed to coerce map key for element at index {i}")
+                            })? {
+                                Value::None => None,
+                                Value::Primitive(v) => Some(v),
+                                _ => {
+                                    bail!("not all key values are primitive")
                                 }
-                            },
-                            v.coerce(types, value_type).with_context(|| {
-                                format!("failed to coerce map value for element at index {i}")
-                            })?,
-                        ))
-                    })
-                    .collect::<Result<_>>()?;
+                            }
+                        },
+                        v.coerce(value_type).with_context(|| {
+                            format!("failed to coerce map value for element at index {i}")
+                        })?,
+                    ))
+                })
+                .collect::<Result<_>>()?;
 
-                return Ok(Self::new_unchecked(ty, elements));
-            }
+            return Ok(Self::new_unchecked(
+                Type::Compound(CompoundType::Map(ty), optional),
+                elements,
+            ));
         }
 
-        panic!("type `{ty}` is not a map type", ty = ty.display(types));
+        panic!("type `{ty}` is not a map type");
     }
 
     /// Constructs a new map without checking the given elements conform to the
@@ -1563,7 +1512,7 @@ impl Map {
 
     /// Gets the type of the `Map` value.
     pub fn ty(&self) -> Type {
-        self.ty
+        self.ty.clone()
     }
 
     /// Iterates the elements of the map.
@@ -1782,53 +1731,51 @@ impl Struct {
     ///
     /// # Panics
     ///
-    /// Panics if the given type is not a struct type from the given types
-    /// collection.
-    pub fn new<S, V>(
-        types: &Types,
-        ty: Type,
-        members: impl IntoIterator<Item = (S, V)>,
-    ) -> Result<Self>
+    /// Panics if the given type is not a struct type.
+    pub fn new<S, V>(ty: impl Into<Type>, members: impl IntoIterator<Item = (S, V)>) -> Result<Self>
     where
         S: Into<String>,
         V: Into<Value>,
     {
-        let mut members = members
-            .into_iter()
-            .map(|(n, v)| {
-                let n = n.into();
-                let v = v.into();
-                let v = v
-                    .coerce(
-                        types,
-                        *types.struct_type(ty).members().get(&n).ok_or_else(|| {
+        let ty = ty.into();
+        if let Type::Compound(CompoundType::Struct(ty), optional) = ty {
+            let mut members = members
+                .into_iter()
+                .map(|(n, v)| {
+                    let n = n.into();
+                    let v = v.into();
+                    let v = v
+                        .coerce(ty.members().get(&n).ok_or_else(|| {
                             anyhow!("struct does not contain a member named `{n}`")
-                        })?,
-                    )
-                    .with_context(|| format!("failed to coerce struct member `{n}`"))?;
-                Ok((n, v))
-            })
-            .collect::<Result<IndexMap<_, _>>>()?;
+                        })?)
+                        .with_context(|| format!("failed to coerce struct member `{n}`"))?;
+                    Ok((n, v))
+                })
+                .collect::<Result<IndexMap<_, _>>>()?;
 
-        for (name, ty) in types.struct_type(ty).members().iter() {
-            // Check for optional members that should be set to `None`
-            if ty.is_optional() {
-                if !members.contains_key(name) {
-                    members.insert(name.clone(), Value::None);
-                }
-            } else {
-                // Check for a missing required member
-                if !members.contains_key(name) {
-                    bail!("missing a value for struct member `{name}`");
+            for (name, ty) in ty.members().iter() {
+                // Check for optional members that should be set to `None`
+                if ty.is_optional() {
+                    if !members.contains_key(name) {
+                        members.insert(name.clone(), Value::None);
+                    }
+                } else {
+                    // Check for a missing required member
+                    if !members.contains_key(name) {
+                        bail!("missing a value for struct member `{name}`");
+                    }
                 }
             }
+
+            let name = ty.name().to_string();
+            return Ok(Self {
+                ty: Type::Compound(CompoundType::Struct(ty), optional),
+                name: Arc::new(name),
+                members: Arc::new(members),
+            });
         }
 
-        Ok(Self {
-            ty,
-            name: types.struct_type(ty).name().clone(),
-            members: Arc::new(members),
-        })
+        panic!("type `{ty}` is not a struct type");
     }
 
     /// Constructs a new struct without checking the given members conform to
@@ -1843,7 +1790,7 @@ impl Struct {
 
     /// Gets the type of the `Struct` value.
     pub fn ty(&self) -> Type {
-        self.ty
+        self.ty.clone()
     }
 
     /// Gets the name of the struct.
@@ -2037,17 +1984,17 @@ impl CompoundValue {
     ///
     /// Returns `None` if the two compound values cannot be compared for
     /// equality.
-    pub fn equals(types: &Types, left: &Self, right: &Self) -> Option<bool> {
+    pub fn equals(left: &Self, right: &Self) -> Option<bool> {
         // The values must have type equivalence to compare for compound values
         // Coercion doesn't take place for this check
-        if !left.ty().type_eq(types, &right.ty()) {
+        if left.ty() != right.ty() {
             return None;
         }
 
         match (left, right) {
             (Self::Pair(left), Self::Pair(right)) => Some(
-                Value::equals(types, &left.left, &right.left)?
-                    && Value::equals(types, &left.right, &right.right)?,
+                Value::equals(left.left(), right.left())?
+                    && Value::equals(left.right(), right.right())?,
             ),
             (CompoundValue::Array(left), CompoundValue::Array(right)) => Some(
                 left.len() == right.len()
@@ -2055,7 +2002,7 @@ impl CompoundValue {
                         .as_slice()
                         .iter()
                         .zip(right.as_slice())
-                        .all(|(l, r)| Value::equals(types, l, r).unwrap_or(false)),
+                        .all(|(l, r)| Value::equals(l, r).unwrap_or(false)),
             ),
             (CompoundValue::Map(left), CompoundValue::Map(right)) => Some(
                 left.len() == right.len()
@@ -2067,13 +2014,13 @@ impl CompoundValue {
                             _ => return false
                         }
 
-                        Value::equals(types, lv, rv).unwrap_or(false)
+                        Value::equals(lv, rv).unwrap_or(false)
                     }),
             ),
             (CompoundValue::Object(left), CompoundValue::Object(right)) => Some(
                 left.len() == right.len()
                     && left.iter().all(|(k, left)| match right.get(k) {
-                        Some(right) => Value::equals(types, left, right).unwrap_or(false),
+                        Some(right) => Value::equals(left, right).unwrap_or(false),
                         None => false,
                     }),
             ),
@@ -2083,89 +2030,11 @@ impl CompoundValue {
             ) => Some(
                 left.len() == right.len()
                     && left.iter().all(|(k, left)| match right.get(k) {
-                        Some(right) => Value::equals(types, left, right).unwrap_or(false),
+                        Some(right) => Value::equals(left, right).unwrap_or(false),
                         None => false,
                     }),
             ),
             _ => None,
-        }
-    }
-
-    /// Serializes the value to the given serializer.
-    pub fn serialize<S>(&self, types: &Types, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::Error;
-
-        /// Helper `Serialize` implementation for serializing element values.
-        struct Serialize<'a> {
-            /// The types collection.
-            types: &'a Types,
-            /// The value being serialized.
-            value: &'a Value,
-        }
-
-        impl serde::Serialize for Serialize<'_> {
-            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                self.value.serialize(self.types, serializer)
-            }
-        }
-
-        match self {
-            Self::Pair(_) => Err(S::Error::custom("a pair cannot be serialized")),
-            Self::Array(v) => {
-                let mut s = serializer.serialize_seq(Some(v.len()))?;
-                for e in v.as_slice() {
-                    s.serialize_element(&Serialize { types, value: e })?;
-                }
-
-                s.end()
-            }
-            Self::Map(v) => {
-                if !types
-                    .type_definition(
-                        v.ty()
-                            .as_compound()
-                            .expect("type should be compound")
-                            .definition(),
-                    )
-                    .as_map()
-                    .expect("type should be a map")
-                    .key_type()
-                    .is_coercible_to(types, &PrimitiveTypeKind::String.into())
-                {
-                    return Err(S::Error::custom(
-                        "only maps with `String` key types may be serialized",
-                    ));
-                }
-
-                let mut s = serializer.serialize_map(Some(v.len()))?;
-                for (k, v) in v.iter() {
-                    s.serialize_entry(k, &Serialize { types, value: v })?;
-                }
-
-                s.end()
-            }
-            Self::Object(object) => {
-                let mut s = serializer.serialize_map(Some(object.len()))?;
-                for (k, v) in object.iter() {
-                    s.serialize_entry(k, &Serialize { types, value: v })?;
-                }
-
-                s.end()
-            }
-            Self::Struct(Struct { members, .. }) => {
-                let mut s = serializer.serialize_map(Some(members.len()))?;
-                for (k, v) in members.iter() {
-                    s.serialize_entry(k, &Serialize { types, value: v })?;
-                }
-
-                s.end()
-            }
         }
     }
 
@@ -2209,41 +2078,27 @@ impl CompoundValue {
     /// If `check_existence` is `true` and a required path does not exist, an
     /// error is returned. An optional path that does not exist is replaced with
     /// `None`.
-    pub(crate) fn join_paths(
-        &mut self,
-        types: &Types,
-        path: &Path,
-        check_existence: bool,
-    ) -> Result<()> {
+    pub(crate) fn join_paths(&mut self, path: &Path, check_existence: bool) -> Result<()> {
         match self {
             Self::Pair(pair) => {
-                let ty = types.pair_type(pair.ty);
+                let ty = pair.ty.as_pair().expect("should be a pair type");
                 let (left_optional, right_optional) =
                     (ty.left_type().is_optional(), ty.right_type().is_optional());
-                Arc::make_mut(&mut pair.left).join_paths(
-                    types,
-                    path,
-                    check_existence,
-                    left_optional,
-                )?;
-                Arc::make_mut(&mut pair.right).join_paths(
-                    types,
-                    path,
-                    check_existence,
-                    right_optional,
-                )?;
+                let values = Arc::make_mut(&mut pair.values);
+                values.0.join_paths(path, check_existence, left_optional)?;
+                values.1.join_paths(path, check_existence, right_optional)?;
             }
             Self::Array(array) => {
-                let ty = types.array_type(array.ty);
+                let ty = array.ty.as_array().expect("should be an array type");
                 let optional = ty.element_type().is_optional();
                 if let Some(elements) = &mut array.elements {
                     for v in Arc::make_mut(elements) {
-                        v.join_paths(types, path, check_existence, optional)?;
+                        v.join_paths(path, check_existence, optional)?;
                     }
                 }
             }
             Self::Map(map) => {
-                let ty = types.map_type(map.ty);
+                let ty = map.ty.as_map().expect("should be a map type");
                 let (key_optional, value_optional) =
                     (ty.key_type().is_optional(), ty.value_type().is_optional());
                 if let Some(elements) = &mut map.elements {
@@ -2268,7 +2123,7 @@ impl CompoundValue {
                                     }
                                 }
 
-                                v.join_paths(types, path, check_existence, value_optional)?;
+                                v.join_paths(path, check_existence, value_optional)?;
                                 Ok((k, v))
                             })
                             .collect::<Result<Vec<_>>>()?;
@@ -2276,7 +2131,7 @@ impl CompoundValue {
                     } else {
                         // Otherwise, we can just mutable the values in place
                         for v in Arc::make_mut(elements).values_mut() {
-                            v.join_paths(types, path, check_existence, value_optional)?;
+                            v.join_paths(path, check_existence, value_optional)?;
                         }
                     }
                 }
@@ -2284,14 +2139,14 @@ impl CompoundValue {
             Self::Object(object) => {
                 if let Some(members) = &mut object.members {
                     for v in Arc::make_mut(members).values_mut() {
-                        v.join_paths(types, path, check_existence, false)?;
+                        v.join_paths(path, check_existence, false)?;
                     }
                 }
             }
             Self::Struct(s) => {
-                let ty = types.struct_type(s.ty);
+                let ty = s.ty.as_struct().expect("should be a struct type");
                 for (n, v) in Arc::make_mut(&mut s.members).iter_mut() {
-                    v.join_paths(types, path, check_existence, ty.members()[n].is_optional())?;
+                    v.join_paths(path, check_existence, ty.members()[n].is_optional())?;
                 }
             }
         }
@@ -2304,8 +2159,7 @@ impl CompoundValue {
         match self {
             Self::Pair(v) => Self::Pair(Pair {
                 ty: v.ty.require(),
-                left: v.left.clone(),
-                right: v.right.clone(),
+                values: v.values.clone(),
             }),
             Self::Array(v) => Self::Array(Array {
                 ty: v.ty.require(),
@@ -2328,77 +2182,70 @@ impl CompoundValue {
 impl fmt::Display for CompoundValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CompoundValue::Pair(v) => v.fmt(f),
-            CompoundValue::Array(v) => v.fmt(f),
-            CompoundValue::Map(v) => v.fmt(f),
-            CompoundValue::Object(v) => v.fmt(f),
-            CompoundValue::Struct(v) => v.fmt(f),
+            Self::Pair(v) => v.fmt(f),
+            Self::Array(v) => v.fmt(f),
+            Self::Map(v) => v.fmt(f),
+            Self::Object(v) => v.fmt(f),
+            Self::Struct(v) => v.fmt(f),
         }
     }
 }
 
 impl Coercible for CompoundValue {
-    fn coerce(&self, types: &Types, target: Type) -> Result<Self> {
-        if target.is_union() || target.is_none() || self.ty().type_eq(types, &target) {
+    fn coerce(&self, target: &Type) -> Result<Self> {
+        if target.is_union() || target.is_none() || self.ty().eq(target) {
             return Ok(self.clone());
         }
 
-        if let Type::Compound(compound_ty) = target {
-            match (self, types.type_definition(compound_ty.definition())) {
+        if let Type::Compound(target_ty, _) = target {
+            match (self, target_ty) {
                 // Array[X] -> Array[Y](+) where X -> Y
-                (Self::Array(v), CompoundTypeDef::Array(array_ty)) => {
+                (Self::Array(v), CompoundType::Array(target_ty)) => {
                     // Don't allow coercion when the source is empty but the target has the
                     // non-empty qualifier
-                    if v.is_empty() && array_ty.is_non_empty() {
-                        bail!(
-                            "cannot coerce empty array value to non-empty array type `{ty}`",
-                            ty = array_ty.display(types)
-                        );
+                    if v.is_empty() && target_ty.is_non_empty() {
+                        bail!("cannot coerce empty array value to non-empty array type `{target}`",);
                     }
 
                     return Ok(Self::Array(Array::new(
-                        types,
-                        target,
+                        target.clone(),
                         v.as_slice().iter().cloned(),
                     )?));
                 }
                 // Map[W, Y] -> Map[X, Z] where W -> X and Y -> Z
-                (Self::Map(v), CompoundTypeDef::Map(_)) => {
+                (Self::Map(v), CompoundType::Map(_)) => {
                     return Ok(Self::Map(Map::new(
-                        types,
-                        target,
+                        target.clone(),
                         v.iter().map(|(k, v)| {
                             (k.clone().map(Into::into).unwrap_or(Value::None), v.clone())
                         }),
                     )?));
                 }
                 // Pair[W, Y] -> Pair[X, Z] where W -> X and Y -> Z
-                (Self::Pair(v), CompoundTypeDef::Pair(_)) => {
+                (Self::Pair(v), CompoundType::Pair(_)) => {
                     return Ok(Self::Pair(Pair::new(
-                        types,
-                        target,
-                        v.left.as_ref().clone(),
-                        v.right.as_ref().clone(),
+                        target.clone(),
+                        v.values.0.clone(),
+                        v.values.1.clone(),
                     )?));
                 }
                 // Map[String, Y] -> Struct
-                (Self::Map(v), CompoundTypeDef::Struct(struct_ty)) => {
+                (Self::Map(v), CompoundType::Struct(target_ty)) => {
                     let len = v.len();
-                    let expected_len = types.struct_type(target).members().len();
+                    let expected_len = target_ty.members().len();
 
                     if len != expected_len {
                         bail!(
-                            "cannot coerce a map of {len} element{s1} to struct type `{ty}` as \
-                             the struct has {expected_len} member{s2}",
+                            "cannot coerce a map of {len} element{s1} to struct type `{target}` \
+                             as the struct has {expected_len} member{s2}",
                             s1 = if len == 1 { "" } else { "s" },
-                            ty = compound_ty.display(types),
                             s2 = if expected_len == 1 { "" } else { "s" }
                         );
                     }
 
                     return Ok(Self::Struct(Struct {
-                        ty: target,
-                        name: struct_ty.name().clone(),
+                        ty: target.clone(),
+                        name: target_ty.name().clone(),
                         members: Arc::new(
                             v.iter()
                                 .map(|(k, v)| {
@@ -2408,23 +2255,18 @@ impl Coercible for CompoundValue {
                                         .with_context(|| {
                                             format!(
                                                 "cannot coerce a map with a non-string key type \
-                                                 to struct type `{ty}`",
-                                                ty = compound_ty.display(types)
+                                                 to struct type `{target}`"
                                             )
                                         })?
                                         .to_string();
-                                    let ty =
-                                        *types.struct_type(target).members().get(&k).with_context(
-                                            || {
-                                                format!(
-                                                    "cannot coerce a map with key `{k}` to struct \
-                                                     type `{ty}` as the struct does not contain a \
-                                                     member with that name",
-                                                    ty = compound_ty.display(types)
-                                                )
-                                            },
-                                        )?;
-                                    let v = v.coerce(types, ty).with_context(|| {
+                                    let ty = target_ty.members().get(&k).with_context(|| {
+                                        format!(
+                                            "cannot coerce a map with key `{k}` to struct type \
+                                             `{target}` as the struct does not contain a member \
+                                             with that name"
+                                        )
+                                    })?;
+                                    let v = v.coerce(ty).with_context(|| {
                                         format!("failed to coerce value of map key `{k}")
                                     })?;
                                     Ok((k, v))
@@ -2435,46 +2277,44 @@ impl Coercible for CompoundValue {
                 }
                 // Struct -> Map[String, Y]
                 // Object -> Map[String, Y]
-                (Self::Struct(Struct { members, .. }), CompoundTypeDef::Map(map_ty)) => {
-                    if map_ty.key_type().as_primitive() != Some(PrimitiveTypeKind::String.into()) {
+                (Self::Struct(Struct { members, .. }), CompoundType::Map(map_ty)) => {
+                    if map_ty.key_type().as_primitive() != Some(PrimitiveType::String) {
                         bail!(
-                            "cannot coerce a struct or object to type `{ty}` as it requires a \
-                             `String` key type",
-                            ty = compound_ty.display(types)
+                            "cannot coerce a struct or object to type `{target}` as it requires a \
+                             `String` key type"
                         );
                     }
 
                     let value_ty = map_ty.value_type();
                     return Ok(Self::Map(Map::new_unchecked(
-                        target,
+                        target.clone(),
                         members
                             .iter()
                             .map(|(n, v)| {
                                 let v = v
-                                    .coerce(types, value_ty)
+                                    .coerce(value_ty)
                                     .with_context(|| format!("failed to coerce member `{n}`"))?;
                                 Ok((PrimitiveValue::new_string(n).into(), v))
                             })
                             .collect::<Result<_>>()?,
                     )));
                 }
-                (Self::Object(object), CompoundTypeDef::Map(map_ty)) => {
-                    if map_ty.key_type().as_primitive() != Some(PrimitiveTypeKind::String.into()) {
+                (Self::Object(object), CompoundType::Map(map_ty)) => {
+                    if map_ty.key_type().as_primitive() != Some(PrimitiveType::String) {
                         bail!(
-                            "cannot coerce a struct or object to type `{ty}` as it requires a \
+                            "cannot coerce a struct or object to type `{target}` as it requires a \
                              `String` key type",
-                            ty = compound_ty.display(types)
                         );
                     }
 
                     let value_ty = map_ty.value_type();
                     return Ok(Self::Map(Map::new_unchecked(
-                        target,
+                        target.clone(),
                         object
                             .iter()
                             .map(|(n, v)| {
                                 let v = v
-                                    .coerce(types, value_ty)
+                                    .coerce(value_ty)
                                     .with_context(|| format!("failed to coerce member `{n}`"))?;
                                 Ok((PrimitiveValue::new_string(n).into(), v))
                             })
@@ -2482,47 +2322,41 @@ impl Coercible for CompoundValue {
                     )));
                 }
                 // Object -> Struct
-                (Self::Object(v), CompoundTypeDef::Struct(_)) => {
+                (Self::Object(v), CompoundType::Struct(_)) => {
                     return Ok(Self::Struct(Struct::new(
-                        types,
-                        target,
+                        target.clone(),
                         v.iter().map(|(k, v)| (k, v.clone())),
                     )?));
                 }
                 // Struct -> Struct
-                (Self::Struct(v), CompoundTypeDef::Struct(struct_ty)) => {
+                (Self::Struct(v), CompoundType::Struct(struct_ty)) => {
                     let len = v.members.len();
                     let expected_len = struct_ty.members().len();
 
                     if len != expected_len {
                         bail!(
-                            "cannot coerce a struct of {len} members{s1} to struct type `{ty}` as \
-                             the target struct has {expected_len} member{s2}",
+                            "cannot coerce a struct of {len} members{s1} to struct type \
+                             `{target}` as the target struct has {expected_len} member{s2}",
                             s1 = if len == 1 { "" } else { "s" },
-                            ty = compound_ty.display(types),
                             s2 = if expected_len == 1 { "" } else { "s" }
                         );
                     }
 
                     return Ok(Self::Struct(Struct {
-                        ty: target,
+                        ty: target.clone(),
                         name: struct_ty.name().clone(),
                         members: Arc::new(
                             v.members
                                 .iter()
                                 .map(|(k, v)| {
-                                    let ty =
-                                        types.struct_type(target).members().get(k).ok_or_else(
-                                            || {
-                                                anyhow!(
-                                                    "cannot coerce a struct with member `{k}` to \
-                                                     struct type `{ty}` as the target struct does \
-                                                     not contain a member with that name",
-                                                    ty = compound_ty.display(types)
-                                                )
-                                            },
-                                        )?;
-                                    let v = v.coerce(types, *ty).with_context(|| {
+                                    let ty = struct_ty.members().get(k).ok_or_else(|| {
+                                        anyhow!(
+                                            "cannot coerce a struct with member `{k}` to struct \
+                                             type `{target}` as the target struct does not \
+                                             contain a member with that name",
+                                        )
+                                    })?;
+                                    let v = v.coerce(ty).with_context(|| {
                                         format!("failed to coerce member `{k}`")
                                     })?;
                                     Ok((k.clone(), v))
@@ -2532,7 +2366,7 @@ impl Coercible for CompoundValue {
                     }));
                 }
                 _ => {}
-            };
+            }
         }
 
         if let Type::Object = target {
@@ -2567,9 +2401,8 @@ impl Coercible for CompoundValue {
         }
 
         bail!(
-            "cannot coerce a value of type `{ty}` to type `{expected}`",
-            ty = self.ty().display(types),
-            expected = target.display(types)
+            "cannot coerce a value of type `{ty}` to type `{target}`",
+            ty = self.ty()
         );
     }
 }
@@ -2604,11 +2437,66 @@ impl From<Struct> for CompoundValue {
     }
 }
 
-/// Represents a value for `task` variables in WDL 1.2.
-///
-/// Task values are cheap to clone.
-#[derive(Debug, Clone)]
-pub struct TaskValue {
+impl serde::Serialize for CompoundValue {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+
+        match self {
+            Self::Pair(_) => Err(S::Error::custom("a pair cannot be serialized")),
+            Self::Array(v) => {
+                let mut s = serializer.serialize_seq(Some(v.len()))?;
+                for v in v.as_slice() {
+                    s.serialize_element(v)?;
+                }
+
+                s.end()
+            }
+            Self::Map(v) => {
+                if !v
+                    .ty()
+                    .as_map()
+                    .expect("type should be a map")
+                    .key_type()
+                    .is_coercible_to(&PrimitiveType::String.into())
+                {
+                    return Err(S::Error::custom(
+                        "only maps with `String` key types may be serialized",
+                    ));
+                }
+
+                let mut s = serializer.serialize_map(Some(v.len()))?;
+                for (k, v) in v.iter() {
+                    s.serialize_entry(k, v)?;
+                }
+
+                s.end()
+            }
+            Self::Object(object) => {
+                let mut s = serializer.serialize_map(Some(object.len()))?;
+                for (k, v) in object.iter() {
+                    s.serialize_entry(k, v)?;
+                }
+
+                s.end()
+            }
+            Self::Struct(Struct { members, .. }) => {
+                let mut s = serializer.serialize_map(Some(members.len()))?;
+                for (k, v) in members.iter() {
+                    s.serialize_entry(k, v)?;
+                }
+
+                s.end()
+            }
+        }
+    }
+}
+
+/// Immutable data for task values.
+#[derive(Debug)]
+struct TaskData {
     /// The name of the task.
     name: Arc<String>,
     /// The id of the task.
@@ -2636,25 +2524,34 @@ pub struct TaskValue {
     /// The key is the mount point and the value is the initial amount of disk
     /// space allocated, in bytes.
     disks: Map,
-    /// The current task attempt count.
-    ///
-    /// The value must be 0 the first time the task is executed and incremented
-    /// by 1 each time the task is retried (if any).
-    attempt: i64,
     /// The time by which the task must be completed, as a Unix time stamp.
     ///
     /// A value of `None` indicates there is no deadline.
     end_time: Option<i64>,
-    /// The task's return code.
-    ///
-    /// Initially set to `None`, but set after task execution completes.
-    return_code: Option<i64>,
     /// The task's `meta` section as an object.
     meta: Object,
     /// The tasks's `parameter_meta` section as an object.
     parameter_meta: Object,
     /// The task's extension metadata.
     ext: Object,
+}
+
+/// Represents a value for `task` variables in WDL 1.2.
+///
+/// Task values are cheap to clone.
+#[derive(Debug, Clone)]
+pub struct TaskValue {
+    /// The immutable data for task values.
+    data: Arc<TaskData>,
+    /// The current task attempt count.
+    ///
+    /// The value must be 0 the first time the task is executed and incremented
+    /// by 1 each time the task is retried (if any).
+    attempt: i64,
+    /// The task's return code.
+    ///
+    /// Initially set to `None`, but set after task execution completes.
+    return_code: Option<i64>,
 }
 
 impl TaskValue {
@@ -2666,73 +2563,75 @@ impl TaskValue {
         constraints: TaskExecutionConstraints,
     ) -> Self {
         Self {
-            name: Arc::new(name.into()),
-            id: Arc::new(id.into()),
-            container: constraints.container.map(Into::into),
-            cpu: constraints.cpu,
-            memory: constraints.memory,
-            gpu: Array::new_unchecked(
-                ANALYSIS_STDLIB.array_string_type(),
-                constraints
-                    .gpu
-                    .into_iter()
-                    .map(|v| PrimitiveValue::new_string(v).into())
-                    .collect(),
-            ),
-            fpga: Array::new_unchecked(
-                ANALYSIS_STDLIB.array_string_type(),
-                constraints
-                    .fpga
-                    .into_iter()
-                    .map(|v| PrimitiveValue::new_string(v).into())
-                    .collect(),
-            ),
-            disks: Map::new_unchecked(
-                ANALYSIS_STDLIB.map_string_int_type(),
-                constraints
-                    .disks
-                    .into_iter()
-                    .map(|(k, v)| (Some(PrimitiveValue::new_string(k)), v.into()))
-                    .collect(),
-            ),
+            data: Arc::new(TaskData {
+                name: Arc::new(name.into()),
+                id: Arc::new(id.into()),
+                container: constraints.container.map(Into::into),
+                cpu: constraints.cpu,
+                memory: constraints.memory,
+                gpu: Array::new_unchecked(
+                    ANALYSIS_STDLIB.array_string_type().clone(),
+                    constraints
+                        .gpu
+                        .into_iter()
+                        .map(|v| PrimitiveValue::new_string(v).into())
+                        .collect(),
+                ),
+                fpga: Array::new_unchecked(
+                    ANALYSIS_STDLIB.array_string_type().clone(),
+                    constraints
+                        .fpga
+                        .into_iter()
+                        .map(|v| PrimitiveValue::new_string(v).into())
+                        .collect(),
+                ),
+                disks: Map::new_unchecked(
+                    ANALYSIS_STDLIB.map_string_int_type().clone(),
+                    constraints
+                        .disks
+                        .into_iter()
+                        .map(|(k, v)| (Some(PrimitiveValue::new_string(k)), v.into()))
+                        .collect(),
+                ),
+                end_time: None,
+                meta: definition
+                    .metadata()
+                    .map(|s| Object::from_v1_metadata(s.items()))
+                    .unwrap_or_else(Object::empty),
+                parameter_meta: definition
+                    .parameter_metadata()
+                    .map(|s| Object::from_v1_metadata(s.items()))
+                    .unwrap_or_else(Object::empty),
+                ext: Object::empty(),
+            }),
             attempt: 1,
-            end_time: None,
             return_code: None,
-            meta: definition
-                .metadata()
-                .map(|s| Object::from_v1_metadata(s.items()))
-                .unwrap_or_else(Object::empty),
-            parameter_meta: definition
-                .parameter_metadata()
-                .map(|s| Object::from_v1_metadata(s.items()))
-                .unwrap_or_else(Object::empty),
-            ext: Object::empty(),
         }
     }
 
     /// Gets the task name.
     pub fn name(&self) -> &Arc<String> {
-        &self.name
+        &self.data.name
     }
 
     /// Gets the unique ID of the task.
     pub fn id(&self) -> &Arc<String> {
-        &self.id
+        &self.data.id
     }
 
     /// Gets the container in which the task is executing.
     pub fn container(&self) -> Option<&Arc<String>> {
-        self.container.as_ref()
+        self.data.container.as_ref()
     }
 
     /// Gets the allocated number of cpus for the task.
     pub fn cpu(&self) -> f64 {
-        self.cpu
+        self.data.cpu
     }
 
     /// Gets the allocated memory (in bytes) for the task.
     pub fn memory(&self) -> i64 {
-        self.memory
+        self.data.memory
     }
 
     /// Gets the GPU allocations for the task.
@@ -2740,7 +2639,7 @@ impl TaskValue {
     /// An array with one specification per allocated GPU; the specification is
     /// execution engine-specific.
     pub fn gpu(&self) -> &Array {
-        &self.gpu
+        &self.data.gpu
     }
 
     /// Gets the FPGA allocations for the task.
@@ -2748,7 +2647,7 @@ impl TaskValue {
     /// An array with one specification per allocated FPGA; the specification is
     /// execution engine-specific.
     pub fn fpga(&self) -> &Array {
-        &self.fpga
+        &self.data.fpga
     }
 
     /// Gets the disk allocations for the task.
@@ -2758,7 +2657,7 @@ impl TaskValue {
     /// The key is the mount point and the value is the initial amount of disk
     /// space allocated, in bytes.
     pub fn disks(&self) -> &Map {
-        &self.disks
+        &self.data.disks
     }
 
     /// Gets current task attempt count.
@@ -2773,7 +2672,7 @@ impl TaskValue {
     ///
     /// A value of `None` indicates there is no deadline.
     pub fn end_time(&self) -> Option<i64> {
-        self.end_time
+        self.data.end_time
     }
 
     /// Gets the task's return code.
@@ -2785,17 +2684,17 @@ impl TaskValue {
 
     /// Gets the task's `meta` section as an object.
     pub fn meta(&self) -> &Object {
-        &self.meta
+        &self.data.meta
     }
 
     /// Gets the tasks's `parameter_meta` section as an object.
     pub fn parameter_meta(&self) -> &Object {
-        &self.parameter_meta
+        &self.data.parameter_meta
     }
 
     /// Gets the task's extension metadata.
     pub fn ext(&self) -> &Object {
-        &self.ext
+        &self.data.ext
     }
 
     /// Sets the return code after the task execution has completed.
@@ -2808,29 +2707,32 @@ impl TaskValue {
     /// Returns `None` if the name is not a known field name.
     pub fn field(&self, name: &str) -> Option<Value> {
         match name {
-            n if n == TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
-            n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
+            n if n == TASK_FIELD_NAME => {
+                Some(PrimitiveValue::String(self.data.name.clone()).into())
+            }
+            n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.data.id.clone()).into()),
             n if n == TASK_FIELD_CONTAINER => Some(
-                self.container
+                self.data
+                    .container
                     .clone()
                     .map(|c| PrimitiveValue::String(c).into())
                     .unwrap_or(Value::None),
             ),
-            n if n == TASK_FIELD_CPU => Some(self.cpu.into()),
-            n if n == TASK_FIELD_MEMORY => Some(self.memory.into()),
-            n if n == TASK_FIELD_GPU => Some(self.gpu.clone().into()),
-            n if n == TASK_FIELD_FPGA => Some(self.fpga.clone().into()),
-            n if n == TASK_FIELD_DISKS => Some(self.disks.clone().into()),
+            n if n == TASK_FIELD_CPU => Some(self.data.cpu.into()),
+            n if n == TASK_FIELD_MEMORY => Some(self.data.memory.into()),
+            n if n == TASK_FIELD_GPU => Some(self.data.gpu.clone().into()),
+            n if n == TASK_FIELD_FPGA => Some(self.data.fpga.clone().into()),
+            n if n == TASK_FIELD_DISKS => Some(self.data.disks.clone().into()),
             n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
             n if n == TASK_FIELD_END_TIME => {
-                Some(self.end_time.map(Into::into).unwrap_or(Value::None))
+                Some(self.data.end_time.map(Into::into).unwrap_or(Value::None))
             }
             n if n == TASK_FIELD_RETURN_CODE => {
                 Some(self.return_code.map(Into::into).unwrap_or(Value::None))
             }
-            n if n == TASK_FIELD_META => Some(self.meta.clone().into()),
-            n if n == TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
-            n if n == TASK_FIELD_EXT => Some(self.ext.clone().into()),
+            n if n == TASK_FIELD_META => Some(self.data.meta.clone().into()),
+            n if n == TASK_FIELD_PARAMETER_META => Some(self.data.parameter_meta.clone().into()),
+            n if n == TASK_FIELD_EXT => Some(self.data.ext.clone().into()),
             _ => None,
         }
     }
@@ -2954,12 +2856,10 @@ mod test {
 
     #[test]
     fn boolean_coercion() {
-        let types = Types::default();
-
         // Boolean -> Boolean
         assert_eq!(
             Value::from(false)
-                .coerce(&types, PrimitiveTypeKind::Boolean.into())
+                .coerce(&PrimitiveType::Boolean.into())
                 .expect("should coerce")
                 .unwrap_boolean(),
             Value::from(false).unwrap_boolean()
@@ -2969,7 +2869,7 @@ mod test {
             format!(
                 "{e:?}",
                 e = Value::from(true)
-                    .coerce(&types, PrimitiveTypeKind::String.into())
+                    .coerce(&PrimitiveType::String.into())
                     .unwrap_err()
             ),
             "cannot coerce type `Boolean` to type `String`"
@@ -2984,12 +2884,10 @@ mod test {
 
     #[test]
     fn integer_coercion() {
-        let types = Types::default();
-
         // Int -> Int
         assert_eq!(
             Value::from(12345)
-                .coerce(&types, PrimitiveTypeKind::Integer.into())
+                .coerce(&PrimitiveType::Integer.into())
                 .expect("should coerce")
                 .unwrap_integer(),
             Value::from(12345).unwrap_integer()
@@ -2997,7 +2895,7 @@ mod test {
         // Int -> Float
         assert_relative_eq!(
             Value::from(12345)
-                .coerce(&types, PrimitiveTypeKind::Float.into())
+                .coerce(&PrimitiveType::Float.into())
                 .expect("should coerce")
                 .unwrap_float(),
             Value::from(12345.0).unwrap_float()
@@ -3007,7 +2905,7 @@ mod test {
             format!(
                 "{e:?}",
                 e = Value::from(12345)
-                    .coerce(&types, PrimitiveTypeKind::Boolean.into())
+                    .coerce(&PrimitiveType::Boolean.into())
                     .unwrap_err()
             ),
             "cannot coerce type `Int` to type `Boolean`"
@@ -3022,12 +2920,10 @@ mod test {
 
     #[test]
     fn float_coercion() {
-        let types = Types::default();
-
         // Float -> Float
         assert_relative_eq!(
             Value::from(12345.0)
-                .coerce(&types, PrimitiveTypeKind::Float.into())
+                .coerce(&PrimitiveType::Float.into())
                 .expect("should coerce")
                 .unwrap_float(),
             Value::from(12345.0).unwrap_float()
@@ -3037,7 +2933,7 @@ mod test {
             format!(
                 "{e:?}",
                 e = Value::from(12345.0)
-                    .coerce(&types, PrimitiveTypeKind::Integer.into())
+                    .coerce(&PrimitiveType::Integer.into())
                     .unwrap_err()
             ),
             "cannot coerce type `Float` to type `Int`"
@@ -3052,27 +2948,25 @@ mod test {
 
     #[test]
     fn string_coercion() {
-        let types = Types::default();
-
         let value = PrimitiveValue::new_string("foo");
         // String -> String
         assert_eq!(
             value
-                .coerce(&types, PrimitiveTypeKind::String.into())
+                .coerce(&PrimitiveType::String.into())
                 .expect("should coerce"),
             value
         );
         // String -> File
         assert_eq!(
             value
-                .coerce(&types, PrimitiveTypeKind::File.into())
+                .coerce(&PrimitiveType::File.into())
                 .expect("should coerce"),
             PrimitiveValue::File(value.as_string().expect("should be string").clone())
         );
         // String -> Directory
         assert_eq!(
             value
-                .coerce(&types, PrimitiveTypeKind::Directory.into())
+                .coerce(&PrimitiveType::Directory.into())
                 .expect("should coerce"),
             PrimitiveValue::Directory(value.as_string().expect("should be string").clone())
         );
@@ -3080,9 +2974,7 @@ mod test {
         assert_eq!(
             format!(
                 "{e:?}",
-                e = value
-                    .coerce(&types, PrimitiveTypeKind::Boolean.into())
-                    .unwrap_err()
+                e = value.coerce(&PrimitiveType::Boolean.into()).unwrap_err()
             ),
             "cannot coerce type `String` to type `Boolean`"
         );
@@ -3096,21 +2988,19 @@ mod test {
 
     #[test]
     fn file_coercion() {
-        let types = Types::default();
-
         let value = PrimitiveValue::new_file("foo");
 
         // File -> File
         assert_eq!(
             value
-                .coerce(&types, PrimitiveTypeKind::File.into())
+                .coerce(&PrimitiveType::File.into())
                 .expect("should coerce"),
             value
         );
         // File -> String
         assert_eq!(
             value
-                .coerce(&types, PrimitiveTypeKind::String.into())
+                .coerce(&PrimitiveType::String.into())
                 .expect("should coerce"),
             PrimitiveValue::String(value.as_file().expect("should be file").clone())
         );
@@ -3118,9 +3008,7 @@ mod test {
         assert_eq!(
             format!(
                 "{e:?}",
-                e = value
-                    .coerce(&types, PrimitiveTypeKind::Directory.into())
-                    .unwrap_err()
+                e = value.coerce(&PrimitiveType::Directory.into()).unwrap_err()
             ),
             "cannot coerce type `File` to type `Directory`"
         );
@@ -3134,20 +3022,19 @@ mod test {
 
     #[test]
     fn directory_coercion() {
-        let types = Types::default();
         let value = PrimitiveValue::new_directory("foo");
 
         // Directory -> Directory
         assert_eq!(
             value
-                .coerce(&types, PrimitiveTypeKind::Directory.into())
+                .coerce(&PrimitiveType::Directory.into())
                 .expect("should coerce"),
             value
         );
         // Directory -> String
         assert_eq!(
             value
-                .coerce(&types, PrimitiveTypeKind::String.into())
+                .coerce(&PrimitiveType::String.into())
                 .expect("should coerce"),
             PrimitiveValue::String(value.as_directory().expect("should be directory").clone())
         );
@@ -3155,9 +3042,7 @@ mod test {
         assert_eq!(
             format!(
                 "{e:?}",
-                e = value
-                    .coerce(&types, PrimitiveTypeKind::File.into())
-                    .unwrap_err()
+                e = value.coerce(&PrimitiveType::File.into()).unwrap_err()
             ),
             "cannot coerce type `Directory` to type `File`"
         );
@@ -3171,12 +3056,10 @@ mod test {
 
     #[test]
     fn none_coercion() {
-        let types = Types::default();
-
         // None -> String?
         assert!(
             Value::None
-                .coerce(&types, Type::from(PrimitiveTypeKind::String).optional())
+                .coerce(&Type::from(PrimitiveType::String).optional())
                 .expect("should coerce")
                 .is_none(),
         );
@@ -3186,7 +3069,7 @@ mod test {
             format!(
                 "{e:?}",
                 e = Value::None
-                    .coerce(&types, PrimitiveTypeKind::String.into())
+                    .coerce(&PrimitiveType::String.into())
                     .unwrap_err()
             ),
             "cannot coerce `None` to non-optional type `String`"
@@ -3200,25 +3083,23 @@ mod test {
 
     #[test]
     fn array_coercion() {
-        let mut types = Types::default();
-
-        let src_ty = types.add_array(ArrayType::new(PrimitiveTypeKind::Integer));
-        let target_ty = types.add_array(ArrayType::new(PrimitiveTypeKind::Float));
+        let src_ty: Type = ArrayType::new(PrimitiveType::Integer).into();
+        let target_ty: Type = ArrayType::new(PrimitiveType::Float).into();
 
         // Array[Int] -> Array[Float]
-        let src: CompoundValue = Array::new(&types, src_ty, [1, 2, 3])
+        let src: CompoundValue = Array::new(src_ty, [1, 2, 3])
             .expect("should create array value")
             .into();
-        let target = src.coerce(&types, target_ty).expect("should coerce");
+        let target = src.coerce(&target_ty).expect("should coerce");
         assert_eq!(
             target.unwrap_array().to_string(),
             "[1.000000, 2.000000, 3.000000]"
         );
 
         // Array[Int] -> Array[String] (invalid)
-        let target_ty = types.add_array(ArrayType::new(PrimitiveTypeKind::String));
+        let target_ty: Type = ArrayType::new(PrimitiveType::String).into();
         assert_eq!(
-            format!("{e:?}", e = src.coerce(&types, target_ty).unwrap_err()),
+            format!("{e:?}", e = src.coerce(&target_ty).unwrap_err()),
             r#"failed to coerce array element at index 0
 
 Caused by:
@@ -3228,34 +3109,30 @@ Caused by:
 
     #[test]
     fn non_empty_array_coercion() {
-        let mut types = Types::default();
-
-        let ty = types.add_array(ArrayType::new(PrimitiveTypeKind::String));
-        let target_ty = types.add_array(ArrayType::non_empty(PrimitiveTypeKind::String));
+        let ty: Type = ArrayType::new(PrimitiveType::String).into();
+        let target_ty: Type = ArrayType::non_empty(PrimitiveType::String).into();
 
         // Array[String] (non-empty) -> Array[String]+
         let string = PrimitiveValue::new_string("foo");
-        let value: Value = Array::new(&types, ty, [string])
+        let value: Value = Array::new(ty.clone(), [string])
             .expect("should create array")
             .into();
-        assert!(value.coerce(&types, target_ty).is_ok(), "should coerce");
+        assert!(value.coerce(&target_ty).is_ok(), "should coerce");
 
         // Array[String] (empty) -> Array[String]+ (invalid)
-        let value: Value = Array::new::<Value>(&types, ty, [])
+        let value: Value = Array::new::<Value>(ty, [])
             .expect("should create array")
             .into();
         assert_eq!(
-            format!("{e:?}", e = value.coerce(&types, target_ty).unwrap_err()),
+            format!("{e:?}", e = value.coerce(&target_ty).unwrap_err()),
             "cannot coerce empty array value to non-empty array type `Array[String]+`"
         );
     }
 
     #[test]
     fn array_display() {
-        let mut types = Types::default();
-
-        let ty = types.add_array(ArrayType::new(PrimitiveTypeKind::Integer));
-        let value: Value = Array::new(&types, ty, [1, 2, 3])
+        let ty: Type = ArrayType::new(PrimitiveType::Integer).into();
+        let value: Value = Array::new(ty, [1, 2, 3])
             .expect("should create array")
             .into();
 
@@ -3264,36 +3141,25 @@ Caused by:
 
     #[test]
     fn map_coerce() {
-        let mut types = Types::default();
-
         let key1 = PrimitiveValue::new_file("foo");
         let value1 = PrimitiveValue::new_string("bar");
         let key2 = PrimitiveValue::new_file("baz");
         let value2 = PrimitiveValue::new_string("qux");
 
-        let ty = types.add_map(MapType::new(
-            PrimitiveTypeKind::File,
-            PrimitiveTypeKind::String,
-        ));
-        let value: Value = Map::new(&types, ty, [(key1, value1), (key2, value2)])
+        let ty = MapType::new(PrimitiveType::File, PrimitiveType::String);
+        let value: Value = Map::new(ty, [(key1, value1), (key2, value2)])
             .expect("should create map value")
             .into();
 
         // Map[File, String] -> Map[String, File]
-        let ty = types.add_map(MapType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::File,
-        ));
-        let value = value.coerce(&types, ty).expect("value should coerce");
+        let ty = MapType::new(PrimitiveType::String, PrimitiveType::File).into();
+        let value = value.coerce(&ty).expect("value should coerce");
         assert_eq!(value.to_string(), r#"{"foo": "bar", "baz": "qux"}"#);
 
         // Map[String, File] -> Map[Int, File] (invalid)
-        let ty = types.add_map(MapType::new(
-            PrimitiveTypeKind::Integer,
-            PrimitiveTypeKind::File,
-        ));
+        let ty = MapType::new(PrimitiveType::Integer, PrimitiveType::File).into();
         assert_eq!(
-            format!("{e:?}", e = value.coerce(&types, ty).unwrap_err()),
+            format!("{e:?}", e = value.coerce(&ty).unwrap_err()),
             r#"failed to coerce map key for element at index 0
 
 Caused by:
@@ -3301,12 +3167,9 @@ Caused by:
         );
 
         // Map[String, File] -> Map[String, Int] (invalid)
-        let ty = types.add_map(MapType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::Integer,
-        ));
+        let ty = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
         assert_eq!(
-            format!("{e:?}", e = value.coerce(&types, ty).unwrap_err()),
+            format!("{e:?}", e = value.coerce(&ty).unwrap_err()),
             r#"failed to coerce map value for element at index 0
 
 Caused by:
@@ -3314,28 +3177,28 @@ Caused by:
         );
 
         // Map[String, File] -> Struct
-        let ty = types.add_struct(StructType::new("Foo", [
-            ("foo", PrimitiveTypeKind::File),
-            ("baz", PrimitiveTypeKind::File),
-        ]));
-        let struct_value = value.coerce(&types, ty).expect("value should coerce");
+        let ty = StructType::new("Foo", [
+            ("foo", PrimitiveType::File),
+            ("baz", PrimitiveType::File),
+        ])
+        .into();
+        let struct_value = value.coerce(&ty).expect("value should coerce");
         assert_eq!(struct_value.to_string(), r#"Foo {foo: "bar", baz: "qux"}"#);
 
         // Map[String, File] -> Struct (invalid)
-        let ty = types.add_struct(StructType::new("Foo", [
-            ("foo", PrimitiveTypeKind::File),
-            ("baz", PrimitiveTypeKind::File),
-            ("qux", PrimitiveTypeKind::File),
-        ]));
+        let ty = StructType::new("Foo", [
+            ("foo", PrimitiveType::File),
+            ("baz", PrimitiveType::File),
+            ("qux", PrimitiveType::File),
+        ])
+        .into();
         assert_eq!(
-            format!("{e:?}", e = value.coerce(&types, ty).unwrap_err()),
+            format!("{e:?}", e = value.coerce(&ty).unwrap_err()),
             "cannot coerce a map of 2 elements to struct type `Foo` as the struct has 3 members"
         );
 
         // Map[String, File] -> Object
-        let object_value = value
-            .coerce(&types, Type::Object)
-            .expect("value should coerce");
+        let object_value = value.coerce(&Type::Object).expect("value should coerce");
         assert_eq!(
             object_value.to_string(),
             r#"object {foo: "bar", baz: "qux"}"#
@@ -3344,14 +3207,8 @@ Caused by:
 
     #[test]
     fn map_display() {
-        let mut types = Types::default();
-
-        let ty = types.add_map(MapType::new(
-            PrimitiveTypeKind::Integer,
-            PrimitiveTypeKind::Boolean,
-        ));
-
-        let value: Value = Map::new(&types, ty, [(1, true), (2, false)])
+        let ty = MapType::new(PrimitiveType::Integer, PrimitiveType::Boolean);
+        let value: Value = Map::new(ty, [(1, true), (2, false)])
             .expect("should create map value")
             .into();
         assert_eq!(value.to_string(), "{1: true, 2: false}");
@@ -3359,34 +3216,23 @@ Caused by:
 
     #[test]
     fn pair_coercion() {
-        let mut types = Types::default();
-
         let left = PrimitiveValue::new_file("foo");
         let right = PrimitiveValue::new_string("bar");
 
-        let ty = types.add_pair(PairType::new(
-            PrimitiveTypeKind::File,
-            PrimitiveTypeKind::String,
-        ));
-        let value: Value = Pair::new(&types, ty, left, right)
+        let ty = PairType::new(PrimitiveType::File, PrimitiveType::String);
+        let value: Value = Pair::new(ty, left, right)
             .expect("should create map value")
             .into();
 
         // Pair[File, String] -> Pair[String, File]
-        let ty = types.add_pair(PairType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::File,
-        ));
-        let value = value.coerce(&types, ty).expect("value should coerce");
+        let ty = PairType::new(PrimitiveType::String, PrimitiveType::File).into();
+        let value = value.coerce(&ty).expect("value should coerce");
         assert_eq!(value.to_string(), r#"("foo", "bar")"#);
 
         // Pair[String, File] -> Pair[Int, Int]
-        let ty = types.add_pair(PairType::new(
-            PrimitiveTypeKind::Integer,
-            PrimitiveTypeKind::Integer,
-        ));
+        let ty = PairType::new(PrimitiveType::Integer, PrimitiveType::Integer).into();
         assert_eq!(
-            format!("{e:?}", e = value.coerce(&types, ty).unwrap_err()),
+            format!("{e:?}", e = value.coerce(&ty).unwrap_err()),
             r#"failed to coerce pair's left value
 
 Caused by:
@@ -3396,14 +3242,8 @@ Caused by:
 
     #[test]
     fn pair_display() {
-        let mut types = Types::default();
-
-        let ty = types.add_pair(PairType::new(
-            PrimitiveTypeKind::Integer,
-            PrimitiveTypeKind::Boolean,
-        ));
-
-        let value: Value = Pair::new(&types, ty, 12345, false)
+        let ty = PairType::new(PrimitiveType::Integer, PrimitiveType::Boolean);
+        let value: Value = Pair::new(ty, 12345, false)
             .expect("should create pair value")
             .into();
         assert_eq!(value.to_string(), "(12345, false)");
@@ -3411,44 +3251,38 @@ Caused by:
 
     #[test]
     fn struct_coercion() {
-        let mut types = Types::default();
-
-        let ty = types.add_struct(StructType::new("Foo", [
-            ("foo", PrimitiveTypeKind::Float),
-            ("bar", PrimitiveTypeKind::Float),
-            ("baz", PrimitiveTypeKind::Float),
-        ]));
-        let value: Value = Struct::new(&types, ty, [("foo", 1.0), ("bar", 2.0), ("baz", 3.0)])
+        let ty = StructType::new("Foo", [
+            ("foo", PrimitiveType::Float),
+            ("bar", PrimitiveType::Float),
+            ("baz", PrimitiveType::Float),
+        ]);
+        let value: Value = Struct::new(ty, [("foo", 1.0), ("bar", 2.0), ("baz", 3.0)])
             .expect("should create map value")
             .into();
 
         // Struct -> Map[String, Float]
-        let ty = types.add_map(MapType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::Float,
-        ));
-        let map_value = value.coerce(&types, ty).expect("value should coerce");
+        let ty = MapType::new(PrimitiveType::String, PrimitiveType::Float).into();
+        let map_value = value.coerce(&ty).expect("value should coerce");
         assert_eq!(
             map_value.to_string(),
             r#"{"foo": 1.000000, "bar": 2.000000, "baz": 3.000000}"#
         );
 
         // Struct -> Struct
-        let ty = types.add_struct(StructType::new("Bar", [
-            ("foo", PrimitiveTypeKind::Float),
-            ("bar", PrimitiveTypeKind::Float),
-            ("baz", PrimitiveTypeKind::Float),
-        ]));
-        let struct_value = value.coerce(&types, ty).expect("value should coerce");
+        let ty = StructType::new("Bar", [
+            ("foo", PrimitiveType::Float),
+            ("bar", PrimitiveType::Float),
+            ("baz", PrimitiveType::Float),
+        ])
+        .into();
+        let struct_value = value.coerce(&ty).expect("value should coerce");
         assert_eq!(
             struct_value.to_string(),
             r#"Bar {foo: 1.000000, bar: 2.000000, baz: 3.000000}"#
         );
 
         // Struct -> Object
-        let object_value = value
-            .coerce(&types, Type::Object)
-            .expect("value should coerce");
+        let object_value = value.coerce(&Type::Object).expect("value should coerce");
         assert_eq!(
             object_value.to_string(),
             r#"object {foo: 1.000000, bar: 2.000000, baz: 3.000000}"#
@@ -3456,5 +3290,22 @@ Caused by:
     }
 
     #[test]
-    fn struct_display() {}
+    fn struct_display() {
+        let ty = StructType::new("Foo", [
+            ("foo", PrimitiveType::Float),
+            ("bar", PrimitiveType::String),
+            ("baz", PrimitiveType::Integer),
+        ]);
+        let value: Value = Struct::new(ty, [
+            ("foo", Value::from(1.101)),
+            ("bar", PrimitiveValue::new_string("foo").into()),
+            ("baz", 1234.into()),
+        ])
+        .expect("should create map value")
+        .into();
+        assert_eq!(
+            value.to_string(),
+            r#"Foo {foo: 1.101000, bar: "foo", baz: 1234}"#
+        );
+    }
 }

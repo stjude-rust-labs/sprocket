@@ -34,28 +34,11 @@ fn collect_by_key(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .expect("value should be an array");
 
     let map_ty = context
-        .types()
-        .type_definition(
-            context
-                .return_type
-                .as_compound()
-                .expect("type should be compound")
-                .definition(),
-        )
+        .return_type
         .as_map()
         .expect("return type should be a map");
     debug_assert!(
-        context
-            .types()
-            .type_definition(
-                map_ty
-                    .value_type()
-                    .as_compound()
-                    .expect("type should be compound")
-                    .definition(),
-            )
-            .as_array()
-            .is_some(),
+        map_ty.value_type().as_array().is_some(),
         "return type's value type should be an array"
     );
 
@@ -75,7 +58,12 @@ fn collect_by_key(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     // Transform each `Vec<Value>` into an array value
     let elements = map
         .into_iter()
-        .map(|(k, v)| (k, Array::new_unchecked(map_ty.value_type(), v).into()))
+        .map(|(k, v)| {
+            (
+                k,
+                Array::new_unchecked(map_ty.value_type().clone(), v).into(),
+            )
+        })
         .collect();
 
     Ok(Map::new_unchecked(context.return_type, elements).into())

@@ -1,7 +1,7 @@
 //! Implements the `range` function from the WDL standard library.
 
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -19,10 +19,10 @@ use crate::diagnostics::function_call_failed;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#range
 fn range(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
-    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_int_type()));
+    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_int_type().clone()));
 
     let n = context
-        .coerce_argument(0, PrimitiveTypeKind::Integer)
+        .coerce_argument(0, PrimitiveType::Integer)
         .unwrap_integer();
 
     if n < 0 {

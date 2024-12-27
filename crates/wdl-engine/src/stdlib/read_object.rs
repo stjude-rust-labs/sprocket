@@ -8,7 +8,7 @@ use anyhow::Context;
 use indexmap::IndexMap;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 use wdl_grammar::lexer::v1::is_ident;
@@ -42,7 +42,7 @@ fn read_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     let path = context.work_dir().join(
         context
-            .coerce_argument(0, PrimitiveTypeKind::File)
+            .coerce_argument(0, PrimitiveType::File)
             .unwrap_file()
             .as_str(),
     );

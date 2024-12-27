@@ -38,14 +38,7 @@ fn chunk(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     }
 
     let element_ty = context
-        .types()
-        .type_definition(
-            context
-                .return_type
-                .as_compound()
-                .expect("type should be compound")
-                .definition(),
-        )
+        .return_type
         .as_array()
         .expect("type should be an array")
         .element_type();
@@ -53,7 +46,9 @@ fn chunk(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     let elements = array
         .as_slice()
         .chunks(size as usize)
-        .map(|chunk| Array::new_unchecked(element_ty, Vec::from_iter(chunk.iter().cloned())).into())
+        .map(|chunk| {
+            Array::new_unchecked(element_ty.clone(), Vec::from_iter(chunk.iter().cloned())).into()
+        })
         .collect();
 
     Ok(Array::new_unchecked(context.return_type, elements).into())

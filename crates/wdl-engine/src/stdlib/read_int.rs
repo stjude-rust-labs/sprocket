@@ -4,7 +4,7 @@ use std::fs;
 use std::io::BufRead;
 use std::io::BufReader;
 
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -22,11 +22,11 @@ use crate::diagnostics::function_call_failed;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_int
 fn read_int(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Integer));
+    debug_assert!(context.return_type_eq(PrimitiveType::Integer));
 
     let path = context.work_dir().join(
         context
-            .coerce_argument(0, PrimitiveTypeKind::File)
+            .coerce_argument(0, PrimitiveType::File)
             .unwrap_file()
             .as_str(),
     );

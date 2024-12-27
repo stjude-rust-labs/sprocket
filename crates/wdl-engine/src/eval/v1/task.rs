@@ -24,7 +24,6 @@ use wdl_analysis::eval::v1::TaskGraphNode;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::Type;
 use wdl_analysis::types::TypeNameResolver;
-use wdl_analysis::types::Types;
 use wdl_analysis::types::v1::AstTypeConverter;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
@@ -99,14 +98,6 @@ impl EvaluationContext for TaskEvaluationContext<'_> {
             .expect("document should have a version")
     }
 
-    fn types(&self) -> &Types {
-        self.engine.types()
-    }
-
-    fn types_mut(&mut self) -> &mut Types {
-        self.engine.types_mut()
-    }
-
     fn resolve_name(&self, name: &Ident) -> Result<Value, Diagnostic> {
         self.scope
             .lookup(name.as_str())
@@ -136,10 +127,6 @@ impl EvaluationContext for TaskEvaluationContext<'_> {
 
     fn task(&self) -> Option<&Task> {
         self.task
-    }
-
-    fn document_types(&self) -> &Types {
-        self.document.types()
     }
 }
 
@@ -219,14 +206,12 @@ impl<'a> TaskEvaluator<'a> {
             return Err(diagnostic.clone().into());
         }
 
-        inputs
-            .validate(self.engine.types_mut(), document, task)
-            .with_context(|| {
-                format!(
-                    "failed to validate the inputs to task `{task}`",
-                    task = task.name()
-                )
-            })?;
+        inputs.validate(document, task).with_context(|| {
+            format!(
+                "failed to validate the inputs to task `{task}`",
+                task = task.name()
+            )
+        })?;
 
         let mut execution = self.engine.backend().create_execution(root)?;
         match document.node().ast() {
@@ -512,13 +497,12 @@ impl<'a> TaskEvaluator<'a> {
             }
         };
 
-        let value = value.coerce(self.engine.types_mut(), ty).map_err(|e| {
+        let value = value.coerce(&ty).map_err(|e| {
             runtime_type_mismatch(
-                self.engine.types(),
                 e,
-                ty,
+                &ty,
                 decl_ty.syntax().text_range().to_span(),
-                value.ty(),
+                &value.ty(),
                 span,
             )
         })?;
@@ -556,13 +540,12 @@ impl<'a> TaskEvaluator<'a> {
 
         let expr = decl.expr().expect("private decls should have expressions");
         let value = evaluator.evaluate_expr(&expr)?;
-        let value = value.coerce(self.engine.types_mut(), ty).map_err(|e| {
+        let value = value.coerce(&ty).map_err(|e| {
             runtime_type_mismatch(
-                self.engine.types(),
                 e,
-                ty,
+                &ty,
                 decl_ty.syntax().text_range().to_span(),
-                value.ty(),
+                &value.ty(),
                 expr.span(),
             )
         })?;
@@ -621,15 +604,9 @@ impl<'a> TaskEvaluator<'a> {
             if let Some(types) = types {
                 value = types
                     .iter()
-                    .find_map(|ty| value.coerce(self.engine.types_mut(), *ty).ok())
+                    .find_map(|ty| value.coerce(ty).ok())
                     .ok_or_else(|| {
-                        multiple_type_mismatch(
-                            self.engine.types(),
-                            types,
-                            name.span(),
-                            value.ty(),
-                            expr.span(),
-                        )
+                        multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
                     })?;
             }
 
@@ -684,15 +661,9 @@ impl<'a> TaskEvaluator<'a> {
             let value = evaluator.evaluate_expr(&expr)?;
             let value = types
                 .iter()
-                .find_map(|ty| value.coerce(self.engine.types_mut(), *ty).ok())
+                .find_map(|ty| value.coerce(ty).ok())
                 .ok_or_else(|| {
-                    multiple_type_mismatch(
-                        self.engine.types(),
-                        types,
-                        name.span(),
-                        value.ty(),
-                        expr.span(),
-                    )
+                    multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
                 })?;
 
             requirements.insert(name.as_str().to_string(), value);
@@ -837,25 +808,19 @@ impl<'a> TaskEvaluator<'a> {
         let value = evaluator.evaluate_expr(&expr)?;
 
         // First coerce the output value to the expected type
-        let mut value = value.coerce(self.engine.types(), ty).map_err(|e| {
+        let mut value = value.coerce(&ty).map_err(|e| {
             runtime_type_mismatch(
-                self.engine.types(),
                 e,
-                ty,
+                &ty,
                 decl_ty.syntax().text_range().to_span(),
-                value.ty(),
+                &value.ty(),
                 expr.span(),
             )
         })?;
 
         // Finally, join the path with the working directory, checking for existence
         value
-            .join_paths(
-                self.engine.types(),
-                &evaluated.work_dir,
-                true,
-                ty.is_optional(),
-            )
+            .join_paths(&evaluated.work_dir, true, ty.is_optional())
             .map_err(|e| missing_task_output(e, task.name(), &name))?;
 
         scopes[OUTPUT_SCOPE_INDEX].insert(name.as_str(), value);
@@ -877,11 +842,7 @@ impl<'a> TaskEvaluator<'a> {
         }
 
         impl TypeNameResolver for Resolver<'_> {
-            fn types_mut(&mut self) -> &mut Types {
-                self.engine.types_mut()
-            }
-
-            fn resolve_type_name(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
+            fn resolve(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
                 self.engine.resolve_type_name(self.document, name)
             }
         }

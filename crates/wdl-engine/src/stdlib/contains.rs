@@ -1,6 +1,6 @@
 //! Implements the `contains` function from the WDL standard library.
 
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -14,7 +14,7 @@ use crate::Value;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains
 fn contains(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Boolean));
+    debug_assert!(context.return_type_eq(PrimitiveType::Boolean));
 
     let array = context.arguments[0]
         .value
@@ -26,7 +26,7 @@ fn contains(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     Ok(array
         .as_slice()
         .iter()
-        .any(|e| Value::equals(context.types(), e, item).unwrap_or(false))
+        .any(|e| Value::equals(e, item).unwrap_or(false))
         .into())
 }
 

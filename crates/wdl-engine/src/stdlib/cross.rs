@@ -24,17 +24,7 @@ use crate::Value;
 fn cross(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(
-        context
-            .types()
-            .type_definition(
-                context
-                    .return_type
-                    .as_compound()
-                    .expect("type should be compound")
-                    .definition()
-            )
-            .as_array()
-            .is_some(),
+        context.return_type.as_array().is_some(),
         "type should be an array"
     );
 
@@ -48,24 +38,13 @@ fn cross(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .as_array()
         .expect("argument should be an array");
 
-    let element_ty = context
-        .types()
-        .type_definition(
-            context
-                .return_type
-                .as_compound()
-                .expect("type should be compound")
-                .definition(),
-        )
-        .as_array()
-        .unwrap()
-        .element_type();
+    let element_ty = context.return_type.as_array().unwrap().element_type();
 
     let elements = left
         .as_slice()
         .iter()
         .cartesian_product(right.as_slice().iter())
-        .map(|(l, r)| Pair::new_unchecked(element_ty, l.clone(), r.clone()).into())
+        .map(|(l, r)| Pair::new_unchecked(element_ty.clone(), l.clone(), r.clone()).into())
         .collect();
     Ok(Array::new_unchecked(context.return_type, elements).into())
 }

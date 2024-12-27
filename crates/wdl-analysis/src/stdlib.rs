@@ -12,15 +12,12 @@ use wdl_ast::version::V1;
 
 use crate::types::ArrayType;
 use crate::types::Coercible;
-use crate::types::CompoundTypeDef;
+use crate::types::CompoundType;
 use crate::types::MapType;
 use crate::types::Optional;
 use crate::types::PairType;
 use crate::types::PrimitiveType;
-use crate::types::PrimitiveTypeKind;
 use crate::types::Type;
-use crate::types::TypeEq;
-use crate::types::Types;
 
 mod constraints;
 
@@ -131,14 +128,9 @@ pub enum GenericType {
 
 impl GenericType {
     /// Returns an object that implements `Display` for formatting the type.
-    pub fn display<'a>(
-        &'a self,
-        types: &'a Types,
-        params: &'a TypeParameters<'a>,
-    ) -> impl fmt::Display + 'a {
+    pub fn display<'a>(&'a self, params: &'a TypeParameters<'a>) -> impl fmt::Display + 'a {
         #[allow(clippy::missing_docs_in_private_items)]
         struct Display<'a> {
-            types: &'a Types,
             params: &'a TypeParameters<'a>,
             ty: &'a GenericType,
         }
@@ -151,9 +143,9 @@ impl GenericType {
                         match ty {
                             Some(ty) => {
                                 if let GenericType::UnqualifiedParameter(_) = self.ty {
-                                    ty.require().display(self.types).fmt(f)
+                                    ty.require().fmt(f)
                                 } else {
-                                    ty.display(self.types).fmt(f)
+                                    ty.fmt(f)
                                 }
                             }
                             None => {
@@ -161,25 +153,20 @@ impl GenericType {
                             }
                         }
                     }
-                    GenericType::Array(ty) => ty.display(self.types, self.params).fmt(f),
-                    GenericType::Pair(ty) => ty.display(self.types, self.params).fmt(f),
-                    GenericType::Map(ty) => ty.display(self.types, self.params).fmt(f),
+                    GenericType::Array(ty) => ty.display(self.params).fmt(f),
+                    GenericType::Pair(ty) => ty.display(self.params).fmt(f),
+                    GenericType::Map(ty) => ty.display(self.params).fmt(f),
                 }
             }
         }
 
-        Display {
-            types,
-            params,
-            ty: self,
-        }
+        Display { params, ty: self }
     }
 
     /// Infers any type parameters from the generic type.
     fn infer_type_parameters(
         &self,
-        types: &Types,
-        ty: Type,
+        ty: &Type,
         params: &mut TypeParameters<'_>,
         ignore_constraints: bool,
     ) {
@@ -190,39 +177,37 @@ impl GenericType {
 
                 if !ignore_constraints {
                     if let Some(constraint) = param.constraint() {
-                        if !constraint.satisfied(types, ty) {
+                        if !constraint.satisfied(ty) {
                             return;
                         }
                     }
                 }
 
-                params.set_inferred_type(name, ty);
+                params.set_inferred_type(name, ty.clone());
             }
-            Self::Array(array) => {
-                array.infer_type_parameters(types, ty, params, ignore_constraints)
-            }
-            Self::Pair(pair) => pair.infer_type_parameters(types, ty, params, ignore_constraints),
-            Self::Map(map) => map.infer_type_parameters(types, ty, params, ignore_constraints),
+            Self::Array(array) => array.infer_type_parameters(ty, params, ignore_constraints),
+            Self::Pair(pair) => pair.infer_type_parameters(ty, params, ignore_constraints),
+            Self::Map(map) => map.infer_type_parameters(ty, params, ignore_constraints),
         }
     }
 
     /// Realizes the generic type.
-    fn realize(&self, types: &mut Types, params: &TypeParameters<'_>) -> Option<Type> {
+    fn realize(&self, params: &TypeParameters<'_>) -> Option<Type> {
         match self {
-            GenericType::Parameter(name) => {
+            Self::Parameter(name) => {
                 params
                     .get(name)
                     .expect("type parameter should be present")
                     .1
             }
-            GenericType::UnqualifiedParameter(name) => params
+            Self::UnqualifiedParameter(name) => params
                 .get(name)
                 .expect("type parameter should be present")
                 .1
                 .map(|ty| ty.require()),
-            GenericType::Array(ty) => ty.realize(types, params),
-            GenericType::Pair(ty) => ty.realize(types, params),
-            GenericType::Map(ty) => ty.realize(types, params),
+            Self::Array(ty) => ty.realize(params),
+            Self::Pair(ty) => ty.realize(params),
+            Self::Map(ty) => ty.realize(params),
         }
     }
 
@@ -299,14 +284,9 @@ impl GenericArrayType {
     }
 
     /// Returns an object that implements `Display` for formatting the type.
-    pub fn display<'a>(
-        &'a self,
-        types: &'a Types,
-        params: &'a TypeParameters<'a>,
-    ) -> impl fmt::Display + 'a {
+    pub fn display<'a>(&'a self, params: &'a TypeParameters<'a>) -> impl fmt::Display + 'a {
         #[allow(clippy::missing_docs_in_private_items)]
         struct Display<'a> {
-            types: &'a Types,
             params: &'a TypeParameters<'a>,
             ty: &'a GenericArrayType,
         }
@@ -314,10 +294,7 @@ impl GenericArrayType {
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(f, "Array[")?;
-                self.ty
-                    .element_type
-                    .display(self.types, self.params)
-                    .fmt(f)?;
+                self.ty.element_type.display(self.params).fmt(f)?;
                 write!(f, "]")?;
 
                 if self.ty.is_non_empty() {
@@ -328,52 +305,40 @@ impl GenericArrayType {
             }
         }
 
-        Display {
-            types,
-            params,
-            ty: self,
-        }
+        Display { params, ty: self }
     }
 
     /// Infers any type parameters from the generic type.
     fn infer_type_parameters(
         &self,
-        types: &Types,
-        ty: Type,
+        ty: &Type,
         params: &mut TypeParameters<'_>,
         ignore_constraints: bool,
     ) {
         match ty {
             Type::Union => {
+                self.element_type
+                    .infer_type_parameters(&Type::Union, params, ignore_constraints);
+            }
+            Type::Compound(CompoundType::Array(ty), false) => {
                 self.element_type.infer_type_parameters(
-                    types,
-                    Type::Union,
+                    ty.element_type(),
                     params,
                     ignore_constraints,
                 );
-            }
-            Type::Compound(ty) if !ty.is_optional() => {
-                if let CompoundTypeDef::Array(ty) = types.type_definition(ty.definition()) {
-                    self.element_type.infer_type_parameters(
-                        types,
-                        ty.element_type(),
-                        params,
-                        ignore_constraints,
-                    );
-                }
             }
             _ => {}
         }
     }
 
     /// Realizes the generic type to an `Array`.
-    fn realize(&self, types: &mut Types, params: &TypeParameters<'_>) -> Option<Type> {
-        let ty = self.element_type.realize(types, params)?;
-        Some(types.add_array(if self.non_empty {
-            ArrayType::non_empty(ty)
+    fn realize(&self, params: &TypeParameters<'_>) -> Option<Type> {
+        let ty = self.element_type.realize(params)?;
+        if self.non_empty {
+            Some(ArrayType::non_empty(ty).into())
         } else {
-            ArrayType::new(ty)
-        }))
+            Some(ArrayType::new(ty).into())
+        }
     }
 
     /// Asserts that the type parameters referenced by the type are valid.
@@ -418,14 +383,9 @@ impl GenericPairType {
     }
 
     /// Returns an object that implements `Display` for formatting the type.
-    pub fn display<'a>(
-        &'a self,
-        types: &'a Types,
-        params: &'a TypeParameters<'a>,
-    ) -> impl fmt::Display + 'a {
+    pub fn display<'a>(&'a self, params: &'a TypeParameters<'a>) -> impl fmt::Display + 'a {
         #[allow(clippy::missing_docs_in_private_items)]
         struct Display<'a> {
-            types: &'a Types,
             params: &'a TypeParameters<'a>,
             ty: &'a GenericPairType,
         }
@@ -433,68 +393,45 @@ impl GenericPairType {
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(f, "Pair[")?;
-                self.ty.left_type.display(self.types, self.params).fmt(f)?;
+                self.ty.left_type.display(self.params).fmt(f)?;
                 write!(f, ", ")?;
-                self.ty.right_type.display(self.types, self.params).fmt(f)?;
+                self.ty.right_type.display(self.params).fmt(f)?;
                 write!(f, "]")
             }
         }
 
-        Display {
-            types,
-            params,
-            ty: self,
-        }
+        Display { params, ty: self }
     }
 
     /// Infers any type parameters from the generic type.
     fn infer_type_parameters(
         &self,
-        types: &Types,
-        ty: Type,
+        ty: &Type,
         params: &mut TypeParameters<'_>,
         ignore_constraints: bool,
     ) {
         match ty {
             Type::Union => {
-                self.left_type.infer_type_parameters(
-                    types,
-                    Type::Union,
-                    params,
-                    ignore_constraints,
-                );
-                self.right_type.infer_type_parameters(
-                    types,
-                    Type::Union,
-                    params,
-                    ignore_constraints,
-                );
+                self.left_type
+                    .infer_type_parameters(&Type::Union, params, ignore_constraints);
+                self.right_type
+                    .infer_type_parameters(&Type::Union, params, ignore_constraints);
             }
-            Type::Compound(ty) if !ty.is_optional() => {
-                if let CompoundTypeDef::Pair(ty) = types.type_definition(ty.definition()) {
-                    self.left_type.infer_type_parameters(
-                        types,
-                        ty.left_type(),
-                        params,
-                        ignore_constraints,
-                    );
-                    self.right_type.infer_type_parameters(
-                        types,
-                        ty.right_type(),
-                        params,
-                        ignore_constraints,
-                    );
-                }
+            Type::Compound(CompoundType::Pair(ty), false) => {
+                self.left_type
+                    .infer_type_parameters(ty.left_type(), params, ignore_constraints);
+                self.right_type
+                    .infer_type_parameters(ty.right_type(), params, ignore_constraints);
             }
             _ => {}
         }
     }
 
     /// Realizes the generic type to a `Pair`.
-    fn realize(&self, types: &mut Types, params: &TypeParameters<'_>) -> Option<Type> {
-        let left_type = self.left_type.realize(types, params)?;
-        let right_type = self.right_type.realize(types, params)?;
-        Some(types.add_pair(PairType::new(left_type, right_type)))
+    fn realize(&self, params: &TypeParameters<'_>) -> Option<Type> {
+        let left_type = self.left_type.realize(params)?;
+        let right_type = self.right_type.realize(params)?;
+        Some(PairType::new(left_type, right_type).into())
     }
 
     /// Asserts that the type parameters referenced by the type are valid.
@@ -537,14 +474,9 @@ impl GenericMapType {
     }
 
     /// Returns an object that implements `Display` for formatting the type.
-    pub fn display<'a>(
-        &'a self,
-        types: &'a Types,
-        params: &'a TypeParameters<'a>,
-    ) -> impl fmt::Display + 'a {
+    pub fn display<'a>(&'a self, params: &'a TypeParameters<'a>) -> impl fmt::Display + 'a {
         #[allow(clippy::missing_docs_in_private_items)]
         struct Display<'a> {
-            types: &'a Types,
             params: &'a TypeParameters<'a>,
             ty: &'a GenericMapType,
         }
@@ -552,64 +484,45 @@ impl GenericMapType {
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(f, "Map[")?;
-                self.ty.key_type.display(self.types, self.params).fmt(f)?;
+                self.ty.key_type.display(self.params).fmt(f)?;
                 write!(f, ", ")?;
-                self.ty.value_type.display(self.types, self.params).fmt(f)?;
+                self.ty.value_type.display(self.params).fmt(f)?;
                 write!(f, "]")
             }
         }
 
-        Display {
-            types,
-            params,
-            ty: self,
-        }
+        Display { params, ty: self }
     }
 
     /// Infers any type parameters from the generic type.
     fn infer_type_parameters(
         &self,
-        types: &Types,
-        ty: Type,
+        ty: &Type,
         params: &mut TypeParameters<'_>,
         ignore_constraints: bool,
     ) {
         match ty {
             Type::Union => {
                 self.key_type
-                    .infer_type_parameters(types, Type::Union, params, ignore_constraints);
-                self.value_type.infer_type_parameters(
-                    types,
-                    Type::Union,
-                    params,
-                    ignore_constraints,
-                );
+                    .infer_type_parameters(&Type::Union, params, ignore_constraints);
+                self.value_type
+                    .infer_type_parameters(&Type::Union, params, ignore_constraints);
             }
-            Type::Compound(ty) if !ty.is_optional() => {
-                if let CompoundTypeDef::Map(ty) = types.type_definition(ty.definition()) {
-                    self.key_type.infer_type_parameters(
-                        types,
-                        ty.key_type(),
-                        params,
-                        ignore_constraints,
-                    );
-                    self.value_type.infer_type_parameters(
-                        types,
-                        ty.value_type(),
-                        params,
-                        ignore_constraints,
-                    );
-                }
+            Type::Compound(CompoundType::Map(ty), false) => {
+                self.key_type
+                    .infer_type_parameters(ty.key_type(), params, ignore_constraints);
+                self.value_type
+                    .infer_type_parameters(ty.value_type(), params, ignore_constraints);
             }
             _ => {}
         }
     }
 
     /// Realizes the generic type to a `Map`.
-    fn realize(&self, types: &mut Types, params: &TypeParameters<'_>) -> Option<Type> {
-        let key_type = self.key_type.realize(types, params)?;
-        let value_type = self.value_type.realize(types, params)?;
-        Some(types.add_map(MapType::new(key_type, value_type)))
+    fn realize(&self, params: &TypeParameters<'_>) -> Option<Type> {
+        let key_type = self.key_type.realize(params)?;
+        let value_type = self.value_type.realize(params)?;
+        Some(MapType::new(key_type, value_type).into())
     }
 
     /// Asserts that the type parameters referenced by the type are valid.
@@ -651,7 +564,7 @@ impl<'a> TypeParameters<'a> {
 
         Self {
             parameters,
-            inferred_types: [None; MAX_TYPE_PARAMETERS],
+            inferred_types: [const { None }; MAX_TYPE_PARAMETERS],
             referenced: Cell::new(0),
         }
     }
@@ -667,7 +580,7 @@ impl<'a> TypeParameters<'a> {
         // Mark the parameter as referenced
         self.referenced.set(self.referenced.get() | (1 << index));
 
-        Some((&self.parameters[index], self.inferred_types[index]))
+        Some((&self.parameters[index], self.inferred_types[index].clone()))
     }
 
     /// Reset any referenced type parameters.
@@ -686,7 +599,7 @@ impl<'a> TypeParameters<'a> {
 
             let index = bits.trailing_zeros() as usize;
             let parameter = &self.parameters[index];
-            let ty = self.inferred_types[index];
+            let ty = self.inferred_types[index].clone();
             bits ^= bits & bits.overflowing_neg().0;
             Some((parameter, ty))
         })
@@ -729,22 +642,17 @@ impl FunctionalType {
     /// Returns the concrete type.
     ///
     /// Returns `None` if the type is not concrete.
-    pub fn concrete_type(&self) -> Option<Type> {
+    pub fn concrete_type(&self) -> Option<&Type> {
         match self {
-            Self::Concrete(ty) => Some(*ty),
+            Self::Concrete(ty) => Some(ty),
             Self::Generic(_) => None,
         }
     }
 
     /// Returns an object that implements `Display` for formatting the type.
-    pub fn display<'a>(
-        &'a self,
-        types: &'a Types,
-        params: &'a TypeParameters<'a>,
-    ) -> impl fmt::Display + 'a {
+    pub fn display<'a>(&'a self, params: &'a TypeParameters<'a>) -> impl fmt::Display + 'a {
         #[allow(clippy::missing_docs_in_private_items)]
         struct Display<'a> {
-            types: &'a Types,
             params: &'a TypeParameters<'a>,
             ty: &'a FunctionalType,
         }
@@ -752,37 +660,32 @@ impl FunctionalType {
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 match self.ty {
-                    FunctionalType::Concrete(ty) => ty.display(self.types).fmt(f),
-                    FunctionalType::Generic(ty) => ty.display(self.types, self.params).fmt(f),
+                    FunctionalType::Concrete(ty) => ty.fmt(f),
+                    FunctionalType::Generic(ty) => ty.display(self.params).fmt(f),
                 }
             }
         }
 
-        Display {
-            types,
-            params,
-            ty: self,
-        }
+        Display { params, ty: self }
     }
 
     /// Infers any type parameters if the type is generic.
     fn infer_type_parameters(
         &self,
-        types: &Types,
-        ty: Type,
+        ty: &Type,
         params: &mut TypeParameters<'_>,
         ignore_constraints: bool,
     ) {
         if let Self::Generic(generic) = self {
-            generic.infer_type_parameters(types, ty, params, ignore_constraints);
+            generic.infer_type_parameters(ty, params, ignore_constraints);
         }
     }
 
     /// Realizes the type if the type is generic.
-    fn realize(&self, types: &mut Types, params: &TypeParameters<'_>) -> Option<Type> {
+    fn realize(&self, params: &TypeParameters<'_>) -> Option<Type> {
         match self {
-            FunctionalType::Concrete(ty) => Some(*ty),
-            FunctionalType::Generic(ty) => ty.realize(types, params),
+            FunctionalType::Concrete(ty) => Some(ty.clone()),
+            FunctionalType::Generic(ty) => ty.realize(params),
         }
     }
 
@@ -804,15 +707,9 @@ impl From<Type> for FunctionalType {
     }
 }
 
-impl From<PrimitiveTypeKind> for FunctionalType {
-    fn from(value: PrimitiveTypeKind) -> Self {
-        Self::Concrete(value.into())
-    }
-}
-
 impl From<PrimitiveType> for FunctionalType {
     fn from(value: PrimitiveType) -> Self {
-        Self::Concrete(Type::Primitive(value))
+        Self::Concrete(value.into())
     }
 }
 
@@ -878,7 +775,7 @@ impl TypeParameter {
 }
 
 /// Represents the kind of binding for arguments to a function.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum BindingKind {
     /// The binding was an equivalence binding, meaning all of the provided
     /// arguments had type equivalence with corresponding concrete parameters.
@@ -894,9 +791,9 @@ enum BindingKind {
 
 impl BindingKind {
     /// Gets the binding's return type.
-    pub fn ret(&self) -> Type {
+    pub fn ret(&self) -> &Type {
         match self {
-            Self::Equivalence(ty) | Self::Coercion(ty) => *ty,
+            Self::Equivalence(ty) | Self::Coercion(ty) => ty,
         }
     }
 }
@@ -963,14 +860,9 @@ impl FunctionSignature {
 
     /// Returns an object that implements `Display` for formatting the signature
     /// with the given function name.
-    pub fn display<'a>(
-        &'a self,
-        types: &'a Types,
-        params: &'a TypeParameters<'a>,
-    ) -> impl fmt::Display + 'a {
+    pub fn display<'a>(&'a self, params: &'a TypeParameters<'a>) -> impl fmt::Display + 'a {
         #[allow(clippy::missing_docs_in_private_items)]
         struct Display<'a> {
-            types: &'a Types,
             params: &'a TypeParameters<'a>,
             sig: &'a FunctionSignature,
         }
@@ -990,33 +882,21 @@ impl FunctionSignature {
                         f.write_char('<')?;
                     }
 
-                    write!(
-                        f,
-                        "{param}",
-                        param = parameter.display(self.types, self.params)
-                    )?;
+                    write!(f, "{param}", param = parameter.display(self.params))?;
 
                     if i >= required {
                         f.write_char('>')?;
                     }
                 }
 
-                write!(
-                    f,
-                    ") -> {ret}",
-                    ret = self.sig.ret.display(self.types, self.params)
-                )?;
+                write!(f, ") -> {ret}", ret = self.sig.ret.display(self.params))?;
                 write_uninferred_constraints(f, self.params)?;
 
                 Ok(())
             }
         }
 
-        Display {
-            types,
-            params,
-            sig: self,
-        }
+        Display { params, sig: self }
     }
 
     /// Infers the concrete types of any type parameters for the function
@@ -1025,13 +905,12 @@ impl FunctionSignature {
     /// Returns the collection of type parameters.
     fn infer_type_parameters(
         &self,
-        types: &Types,
         arguments: &[Type],
         ignore_constraints: bool,
     ) -> TypeParameters<'_> {
         let mut parameters = TypeParameters::new(&self.type_parameters);
         for (parameter, argument) in self.parameters.iter().zip(arguments.iter()) {
-            parameter.infer_type_parameters(types, *argument, &mut parameters, ignore_constraints);
+            parameter.infer_type_parameters(argument, &mut parameters, ignore_constraints);
         }
 
         parameters
@@ -1055,7 +934,6 @@ impl FunctionSignature {
     fn bind(
         &self,
         version: SupportedVersion,
-        types: &mut Types,
         arguments: &[Type],
     ) -> Result<BindingKind, FunctionBindError> {
         if version < self.minimum_version() {
@@ -1073,24 +951,21 @@ impl FunctionSignature {
 
         // Ensure the argument types are correct for the function
         let mut coerced = false;
-        let type_parameters = self.infer_type_parameters(types, arguments, false);
+        let type_parameters = self.infer_type_parameters(arguments, false);
         for (i, (parameter, argument)) in self.parameters.iter().zip(arguments.iter()).enumerate() {
-            match parameter.realize(types, &type_parameters) {
+            match parameter.realize(&type_parameters) {
                 Some(ty) => {
                     // If a coercion hasn't occurred yet, check for type equivalence
                     // For the purpose of this check, also accept equivalence of `T` if the
                     // parameter type is `T?`; otherwise, fall back to coercion
-                    if !coerced
-                        && !argument.type_eq(types, &ty)
-                        && !argument.type_eq(types, &ty.require())
-                    {
+                    if !coerced && argument != &ty && argument != &ty.require() {
                         coerced = true;
                     }
 
-                    if coerced && !argument.is_coercible_to(types, &ty) {
+                    if coerced && !argument.is_coercible_to(&ty) {
                         return Err(FunctionBindError::ArgumentTypeMismatch {
                             index: i,
-                            expected: format!("`{ty}`", ty = ty.display(types)),
+                            expected: format!("`{ty}`"),
                         });
                     }
                 }
@@ -1107,7 +982,7 @@ impl FunctionSignature {
                     write!(
                         &mut expected,
                         "`{param}`",
-                        param = parameter.display(types, &type_parameters)
+                        param = parameter.display(&type_parameters)
                     )
                     .unwrap();
 
@@ -1120,10 +995,7 @@ impl FunctionSignature {
         // Finally, realize the return type; if it fails to realize, it means there was
         // at least one uninferred type parameter; we return `Union` instead to indicate
         // that the return value is indeterminate.
-        let ret = self
-            .ret()
-            .realize(types, &type_parameters)
-            .unwrap_or(Type::Union);
+        let ret = self.ret().realize(&type_parameters).unwrap_or(Type::Union);
 
         if coerced {
             Ok(BindingKind::Coercion(ret))
@@ -1238,7 +1110,7 @@ impl FunctionSignatureBuilder {
 }
 
 /// Represents information relating to how a function binds to its arguments.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Binding<'a> {
     /// The calculated return type from the function given the argument types.
     return_type: Type,
@@ -1252,8 +1124,8 @@ pub struct Binding<'a> {
 
 impl Binding<'_> {
     /// Gets the calculated return type of the bound function.
-    pub fn return_type(&self) -> Type {
-        self.return_type
+    pub fn return_type(&self) -> &Type {
+        &self.return_type
     }
 
     /// Gets the overload index.
@@ -1302,12 +1174,11 @@ impl Function {
     pub fn bind<'a>(
         &'a self,
         version: SupportedVersion,
-        types: &mut Types,
         arguments: &[Type],
     ) -> Result<Binding<'a>, FunctionBindError> {
         match self {
-            Self::Monomorphic(f) => f.bind(version, types, arguments),
-            Self::Polymorphic(f) => f.bind(version, types, arguments),
+            Self::Monomorphic(f) => f.bind(version, arguments),
+            Self::Polymorphic(f) => f.bind(version, arguments),
         }
     }
 
@@ -1318,13 +1189,13 @@ impl Function {
     ///
     /// As such, it attempts to realize any type parameters without constraints,
     /// as an unsatisfied constraint likely caused the bind failure.
-    pub fn realize_unconstrained_return_type(&self, types: &mut Types, arguments: &[Type]) -> Type {
+    pub fn realize_unconstrained_return_type(&self, arguments: &[Type]) -> Type {
         match self {
             Self::Monomorphic(f) => {
-                let type_parameters = f.signature.infer_type_parameters(types, arguments, true);
+                let type_parameters = f.signature.infer_type_parameters(arguments, true);
                 f.signature
                     .ret()
-                    .realize(types, &type_parameters)
+                    .realize(&type_parameters)
                     .unwrap_or(Type::Union)
             }
             Self::Polymorphic(f) => {
@@ -1333,13 +1204,13 @@ impl Function {
                 // For polymorphic functions, the calculated return type must be the same for
                 // each overload
                 for signature in &f.signatures {
-                    let type_parameters = signature.infer_type_parameters(types, arguments, true);
+                    let type_parameters = signature.infer_type_parameters(arguments, true);
                     let ret_ty = signature
                         .ret()
-                        .realize(types, &type_parameters)
+                        .realize(&type_parameters)
                         .unwrap_or(Type::Union);
 
-                    if !ty.get_or_insert(ret_ty).type_eq(types, &ret_ty) {
+                    if ty.get_or_insert(ret_ty.clone()) != &ret_ty {
                         return Type::Union;
                     }
                 }
@@ -1392,10 +1263,9 @@ impl MonomorphicFunction {
     pub fn bind<'a>(
         &'a self,
         version: SupportedVersion,
-        types: &mut Types,
         arguments: &[Type],
     ) -> Result<Binding<'a>, FunctionBindError> {
-        let return_type = self.signature.bind(version, types, arguments)?.ret();
+        let return_type = self.signature.bind(version, arguments)?.ret().clone();
         Ok(Binding {
             return_type,
             index: 0,
@@ -1483,7 +1353,6 @@ impl PolymorphicFunction {
     pub fn bind<'a>(
         &'a self,
         version: SupportedVersion,
-        types: &mut Types,
         arguments: &[Type],
     ) -> Result<Binding<'a>, FunctionBindError> {
         // Ensure that there is at least one signature with a matching minimum version.
@@ -1522,26 +1391,20 @@ impl PolymorphicFunction {
                     && s.minimum_version() <= version
                     && !s.insufficient_arguments(arguments)
             }) {
-                match signature.bind(version, types, arguments) {
+                match signature.bind(version, arguments) {
                     Ok(BindingKind::Equivalence(ty)) => {
                         // We cannot have more than one exact match
                         if let Some((previous, _)) = exact {
                             return Err(FunctionBindError::Ambiguous {
                                 first: self.signatures[previous]
-                                    .display(
-                                        types,
-                                        &TypeParameters::new(
-                                            &self.signatures[previous].type_parameters,
-                                        ),
-                                    )
+                                    .display(&TypeParameters::new(
+                                        &self.signatures[previous].type_parameters,
+                                    ))
                                     .to_string(),
                                 second: self.signatures[index]
-                                    .display(
-                                        types,
-                                        &TypeParameters::new(
-                                            &self.signatures[index].type_parameters,
-                                        ),
-                                    )
+                                    .display(&TypeParameters::new(
+                                        &self.signatures[index].type_parameters,
+                                    ))
                                     .to_string(),
                             });
                         }
@@ -1591,16 +1454,14 @@ impl PolymorphicFunction {
                 let index = coercion1.unwrap().0;
                 return Err(FunctionBindError::Ambiguous {
                     first: self.signatures[previous]
-                        .display(
-                            types,
-                            &TypeParameters::new(&self.signatures[previous].type_parameters),
-                        )
+                        .display(&TypeParameters::new(
+                            &self.signatures[previous].type_parameters,
+                        ))
                         .to_string(),
                     second: self.signatures[index]
-                        .display(
-                            types,
-                            &TypeParameters::new(&self.signatures[index].type_parameters),
-                        )
+                        .display(&TypeParameters::new(
+                            &self.signatures[index].type_parameters,
+                        ))
                         .to_string(),
                 });
             }
@@ -1647,8 +1508,6 @@ impl From<PolymorphicFunction> for Function {
 /// A representation of the standard library.
 #[derive(Debug)]
 pub struct StandardLibrary {
-    /// The types used to defined the standard library.
-    types: Types,
     /// A map of function name to function definition.
     functions: IndexMap<&'static str, Function>,
     /// The type for `Array[Int]`.
@@ -1670,11 +1529,6 @@ pub struct StandardLibrary {
 }
 
 impl StandardLibrary {
-    /// Gets the types used to define the standard library.
-    pub fn types(&self) -> &Types {
-        &self.types
-    }
-
     /// Gets a standard library function by name.
     pub fn function(&self, name: &str) -> Option<&Function> {
         self.functions.get(name)
@@ -1686,64 +1540,56 @@ impl StandardLibrary {
     }
 
     /// Gets the type for `Array[Int]`.
-    pub fn array_int_type(&self) -> Type {
-        self.array_int
+    pub fn array_int_type(&self) -> &Type {
+        &self.array_int
     }
 
     /// Gets the type for `Array[String]`.
-    pub fn array_string_type(&self) -> Type {
-        self.array_string
+    pub fn array_string_type(&self) -> &Type {
+        &self.array_string
     }
 
     /// Gets the type for `Array[File]`.
-    pub fn array_file_type(&self) -> Type {
-        self.array_file
+    pub fn array_file_type(&self) -> &Type {
+        &self.array_file
     }
 
     /// Gets the type for `Array[Object]`.
-    pub fn array_object_type(&self) -> Type {
-        self.array_object
+    pub fn array_object_type(&self) -> &Type {
+        &self.array_object
     }
 
     /// Gets the type for `Array[String]+`.
-    pub fn array_string_non_empty_type(&self) -> Type {
-        self.array_string_non_empty
+    pub fn array_string_non_empty_type(&self) -> &Type {
+        &self.array_string_non_empty
     }
 
     /// Gets the type for `Array[Array[String]]`.
-    pub fn array_array_string_type(&self) -> Type {
-        self.array_array_string
+    pub fn array_array_string_type(&self) -> &Type {
+        &self.array_array_string
     }
 
     /// Gets the type for `Map[String, String]`.
-    pub fn map_string_string_type(&self) -> Type {
-        self.map_string_string
+    pub fn map_string_string_type(&self) -> &Type {
+        &self.map_string_string
     }
 
     /// Gets the type for `Map[String, Int]`.
-    pub fn map_string_int_type(&self) -> Type {
-        self.map_string_int
+    pub fn map_string_int_type(&self) -> &Type {
+        &self.map_string_int
     }
 }
 
 /// Represents the WDL standard library.
 pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
-    let mut types = Types::new();
-    let array_int = types.add_array(ArrayType::new(PrimitiveTypeKind::Integer));
-    let array_string = types.add_array(ArrayType::new(PrimitiveTypeKind::String));
-    let array_file = types.add_array(ArrayType::new(PrimitiveTypeKind::File));
-    let array_object = types.add_array(ArrayType::new(Type::Object));
-    let array_string_non_empty = types.add_array(ArrayType::non_empty(PrimitiveTypeKind::String));
-    let array_array_string = types.add_array(ArrayType::new(array_string));
-    let map_string_string = types.add_map(MapType::new(
-        PrimitiveTypeKind::String,
-        PrimitiveTypeKind::String,
-    ));
-    let map_string_int = types.add_map(MapType::new(
-        PrimitiveTypeKind::String,
-        PrimitiveTypeKind::Integer,
-    ));
-
+    let array_int: Type = ArrayType::new(PrimitiveType::Integer).into();
+    let array_string: Type = ArrayType::new(PrimitiveType::String).into();
+    let array_file: Type = ArrayType::new(PrimitiveType::File).into();
+    let array_object: Type = ArrayType::new(Type::Object).into();
+    let array_string_non_empty: Type = ArrayType::non_empty(PrimitiveType::String).into();
+    let array_array_string: Type = ArrayType::new(array_string.clone()).into();
+    let map_string_string: Type = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
+    let map_string_int: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
     let mut functions = IndexMap::new();
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#floor
@@ -1753,8 +1599,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "floor",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::Float)
-                        .ret(PrimitiveTypeKind::Integer)
+                        .parameter(PrimitiveType::Float)
+                        .ret(PrimitiveType::Integer)
                         .build(),
                 )
                 .into(),
@@ -1769,8 +1615,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "ceil",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::Float)
-                        .ret(PrimitiveTypeKind::Integer)
+                        .parameter(PrimitiveType::Float)
+                        .ret(PrimitiveType::Integer)
                         .build(),
                 )
                 .into(),
@@ -1785,8 +1631,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "round",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::Float)
-                        .ret(PrimitiveTypeKind::Integer)
+                        .parameter(PrimitiveType::Float)
+                        .ret(PrimitiveType::Integer)
                         .build(),
                 )
                 .into(),
@@ -1802,27 +1648,27 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveTypeKind::Integer)
-                        .parameter(PrimitiveTypeKind::Integer)
-                        .ret(PrimitiveTypeKind::Integer)
+                        .parameter(PrimitiveType::Integer)
+                        .parameter(PrimitiveType::Integer)
+                        .ret(PrimitiveType::Integer)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveTypeKind::Integer)
-                        .parameter(PrimitiveTypeKind::Float)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(PrimitiveType::Integer)
+                        .parameter(PrimitiveType::Float)
+                        .ret(PrimitiveType::Float)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveTypeKind::Float)
-                        .parameter(PrimitiveTypeKind::Integer)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(PrimitiveType::Float)
+                        .parameter(PrimitiveType::Integer)
+                        .ret(PrimitiveType::Float)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveTypeKind::Float)
-                        .parameter(PrimitiveTypeKind::Float)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(PrimitiveType::Float)
+                        .parameter(PrimitiveType::Float)
+                        .ret(PrimitiveType::Float)
                         .build(),
                 ],)
                 .into(),
@@ -1838,27 +1684,27 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveTypeKind::Integer)
-                        .parameter(PrimitiveTypeKind::Integer)
-                        .ret(PrimitiveTypeKind::Integer)
+                        .parameter(PrimitiveType::Integer)
+                        .parameter(PrimitiveType::Integer)
+                        .ret(PrimitiveType::Integer)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveTypeKind::Integer)
-                        .parameter(PrimitiveTypeKind::Float)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(PrimitiveType::Integer)
+                        .parameter(PrimitiveType::Float)
+                        .ret(PrimitiveType::Float)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveTypeKind::Float)
-                        .parameter(PrimitiveTypeKind::Integer)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(PrimitiveType::Float)
+                        .parameter(PrimitiveType::Integer)
+                        .ret(PrimitiveType::Float)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveTypeKind::Float)
-                        .parameter(PrimitiveTypeKind::Float)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(PrimitiveType::Float)
+                        .parameter(PrimitiveType::Float)
+                        .ret(PrimitiveType::Float)
                         .build(),
                 ],)
                 .into(),
@@ -1874,9 +1720,9 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveTypeKind::String)
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveType::optional(PrimitiveTypeKind::String))
+                        .parameter(PrimitiveType::String)
+                        .parameter(PrimitiveType::String)
+                        .ret(Type::from(PrimitiveType::String).optional())
                         .build(),
                 )
                 .into(),
@@ -1892,9 +1738,9 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveTypeKind::String)
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::Boolean)
+                        .parameter(PrimitiveType::String)
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::Boolean)
                         .build(),
                 )
                 .into(),
@@ -1909,10 +1755,10 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "sub",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::String)
-                        .parameter(PrimitiveTypeKind::String)
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::String)
+                        .parameter(PrimitiveType::String)
+                        .parameter(PrimitiveType::String)
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::String)
                         .build(),
                 )
                 .into(),
@@ -1928,9 +1774,9 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .required(1)
-                        .parameter(PrimitiveTypeKind::File)
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::String)
+                        .parameter(PrimitiveType::File)
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::String)
                         .build(),
                     // This overload isn't explicitly specified in the spec, but the spec
                     // allows for `String` where file/directory are accepted; an explicit
@@ -1938,16 +1784,16 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     // `Directory`, which is ambiguous.
                     FunctionSignature::builder()
                         .required(1)
-                        .parameter(PrimitiveTypeKind::String)
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::String)
+                        .parameter(PrimitiveType::String)
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::String)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
-                        .parameter(PrimitiveTypeKind::Directory)
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::String)
+                        .parameter(PrimitiveType::Directory)
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::String)
                         .build(),
                 ],)
                 .into(),
@@ -1963,20 +1809,20 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveTypeKind::File)
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::File)
+                        .parameter(PrimitiveType::File)
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::File)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveTypeKind::File)
-                        .parameter(array_string_non_empty)
-                        .ret(PrimitiveTypeKind::File)
+                        .parameter(PrimitiveType::File)
+                        .parameter(array_string_non_empty.clone())
+                        .ret(PrimitiveType::File)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(array_string_non_empty)
-                        .ret(PrimitiveTypeKind::File)
+                        .parameter(array_string_non_empty.clone())
+                        .ret(PrimitiveType::File)
                         .build(),
                 ],)
                 .into(),
@@ -1991,8 +1837,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "glob",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(array_file)
+                        .parameter(PrimitiveType::String)
+                        .ret(array_file.clone())
                         .build(),
                 )
                 .into(),
@@ -2012,14 +1858,14 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
                         .parameter(Type::None)
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::Float)
                         .build(),
                     FunctionSignature::builder()
                         .required(1)
-                        .parameter(PrimitiveType::optional(PrimitiveTypeKind::File))
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(Type::from(PrimitiveType::File).optional())
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::Float)
                         .build(),
                     // This overload isn't explicitly specified in the spec, but the spec
                     // allows for `String` where file/directory are accepted; an explicit
@@ -2028,23 +1874,23 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
-                        .parameter(PrimitiveType::optional(PrimitiveTypeKind::String))
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(Type::from(PrimitiveType::String).optional())
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::Float)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
-                        .parameter(PrimitiveType::optional(PrimitiveTypeKind::Directory))
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(Type::from(PrimitiveType::Directory).optional())
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::Float)
                         .build(),
                     FunctionSignature::builder()
                         .required(1)
                         .type_parameter("X", SizeableConstraint)
                         .parameter(GenericType::Parameter("X"))
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::Float)
                         .build(),
                 ],)
                 .into(),
@@ -2059,7 +1905,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "stdout",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .ret(PrimitiveTypeKind::File)
+                        .ret(PrimitiveType::File)
                         .build(),
                 )
                 .into(),
@@ -2074,7 +1920,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "stderr",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .ret(PrimitiveTypeKind::File)
+                        .ret(PrimitiveType::File)
                         .build(),
                 )
                 .into(),
@@ -2089,8 +1935,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "read_string",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::File)
-                        .ret(PrimitiveTypeKind::String)
+                        .parameter(PrimitiveType::File)
+                        .ret(PrimitiveType::String)
                         .build(),
                 )
                 .into(),
@@ -2105,8 +1951,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "read_int",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::File)
-                        .ret(PrimitiveTypeKind::Integer)
+                        .parameter(PrimitiveType::File)
+                        .ret(PrimitiveType::Integer)
                         .build(),
                 )
                 .into(),
@@ -2121,8 +1967,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "read_float",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::File)
-                        .ret(PrimitiveTypeKind::Float)
+                        .parameter(PrimitiveType::File)
+                        .ret(PrimitiveType::Float)
                         .build(),
                 )
                 .into(),
@@ -2137,8 +1983,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "read_boolean",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::File)
-                        .ret(PrimitiveTypeKind::Boolean)
+                        .parameter(PrimitiveType::File)
+                        .ret(PrimitiveType::Boolean)
                         .build(),
                 )
                 .into(),
@@ -2153,8 +1999,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "read_lines",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::File)
-                        .ret(array_string)
+                        .parameter(PrimitiveType::File)
+                        .ret(array_string.clone())
                         .build(),
                 )
                 .into(),
@@ -2169,8 +2015,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "write_lines",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(array_string)
-                        .ret(PrimitiveTypeKind::File)
+                        .parameter(array_string.clone())
+                        .ret(PrimitiveType::File)
                         .build(),
                 )
                 .into(),
@@ -2185,21 +2031,21 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "read_tsv",
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::File)
-                        .ret(array_array_string)
+                        .parameter(PrimitiveType::File)
+                        .ret(array_array_string.clone())
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveTypeKind::File)
-                        .parameter(PrimitiveTypeKind::Boolean)
-                        .ret(array_object)
+                        .parameter(PrimitiveType::File)
+                        .parameter(PrimitiveType::Boolean)
+                        .ret(array_object.clone())
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveTypeKind::File)
-                        .parameter(PrimitiveTypeKind::Boolean)
-                        .parameter(array_string)
-                        .ret(array_object)
+                        .parameter(PrimitiveType::File)
+                        .parameter(PrimitiveType::Boolean)
+                        .parameter(array_string.clone())
+                        .ret(array_object.clone())
                         .build(),
                 ],)
                 .into(),
@@ -2214,24 +2060,24 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "write_tsv",
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
-                        .parameter(array_array_string)
-                        .ret(PrimitiveTypeKind::File)
+                        .parameter(array_array_string.clone())
+                        .ret(PrimitiveType::File)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(array_array_string)
-                        .parameter(PrimitiveTypeKind::Boolean)
-                        .parameter(array_string)
-                        .ret(PrimitiveTypeKind::File)
+                        .parameter(array_array_string.clone())
+                        .parameter(PrimitiveType::Boolean)
+                        .parameter(array_string.clone())
+                        .ret(PrimitiveType::File)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("S", PrimitiveStructConstraint)
                         .required(1)
                         .parameter(GenericArrayType::new(GenericType::Parameter("S")))
-                        .parameter(PrimitiveTypeKind::Boolean)
-                        .parameter(array_string)
-                        .ret(PrimitiveTypeKind::File)
+                        .parameter(PrimitiveType::Boolean)
+                        .parameter(array_string.clone())
+                        .ret(PrimitiveType::File)
                         .build(),
                 ],)
                 .into(),
@@ -2246,8 +2092,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "read_map",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::File)
-                        .ret(map_string_string)
+                        .parameter(PrimitiveType::File)
+                        .ret(map_string_string.clone())
                         .build(),
                 )
                 .into(),
@@ -2262,8 +2108,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "write_map",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(map_string_string)
-                        .ret(PrimitiveTypeKind::File)
+                        .parameter(map_string_string.clone())
+                        .ret(PrimitiveType::File)
                         .build(),
                 )
                 .into(),
@@ -2278,7 +2124,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "read_json",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::File)
+                        .parameter(PrimitiveType::File)
                         .ret(Type::Union)
                         .build(),
                 )
@@ -2296,7 +2142,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .type_parameter("X", JsonSerializableConstraint)
                         .parameter(GenericType::Parameter("X"))
-                        .ret(PrimitiveTypeKind::File)
+                        .ret(PrimitiveType::File)
                         .build(),
                 )
                 .into(),
@@ -2311,7 +2157,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "read_object",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::File)
+                        .parameter(PrimitiveType::File)
                         .ret(Type::Object)
                         .build(),
                 )
@@ -2327,8 +2173,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "read_objects",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::File)
-                        .ret(array_object)
+                        .parameter(PrimitiveType::File)
+                        .ret(array_object.clone())
                         .build(),
                 )
                 .into(),
@@ -2344,13 +2190,13 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .parameter(Type::Object)
-                        .ret(PrimitiveTypeKind::File)
+                        .ret(PrimitiveType::File)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("S", PrimitiveStructConstraint)
                         .parameter(GenericType::Parameter("S"))
-                        .ret(PrimitiveTypeKind::File)
+                        .ret(PrimitiveType::File)
                         .build(),
                 ],)
                 .into(),
@@ -2365,14 +2211,14 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "write_objects",
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
-                        .parameter(array_object)
-                        .ret(PrimitiveTypeKind::File)
+                        .parameter(array_object.clone())
+                        .ret(PrimitiveType::File)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("S", PrimitiveStructConstraint)
                         .parameter(GenericArrayType::new(GenericType::Parameter("S")))
-                        .ret(PrimitiveTypeKind::File)
+                        .ret(PrimitiveType::File)
                         .build(),
                 ],)
                 .into(),
@@ -2388,9 +2234,9 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .type_parameter("P", PrimitiveTypeConstraint)
-                        .parameter(PrimitiveTypeKind::String)
+                        .parameter(PrimitiveType::String)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
-                        .ret(array_string)
+                        .ret(array_string.clone())
                         .build(),
                 )
                 .into(),
@@ -2407,9 +2253,9 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("P", PrimitiveTypeConstraint)
-                        .parameter(PrimitiveTypeKind::String)
+                        .parameter(PrimitiveType::String)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
-                        .ret(array_string)
+                        .ret(array_string.clone())
                         .build(),
                 )
                 .into(),
@@ -2427,7 +2273,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("P", PrimitiveTypeConstraint)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
-                        .ret(array_string)
+                        .ret(array_string.clone())
                         .build(),
                 )
                 .into(),
@@ -2445,7 +2291,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("P", PrimitiveTypeConstraint)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
-                        .ret(array_string)
+                        .ret(array_string.clone())
                         .build(),
                 )
                 .into(),
@@ -2462,9 +2308,9 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("P", PrimitiveTypeConstraint)
-                        .parameter(PrimitiveTypeKind::String)
+                        .parameter(PrimitiveType::String)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
-                        .ret(PrimitiveTypeKind::String)
+                        .ret(PrimitiveType::String)
                         .build(),
                 )
                 .into(),
@@ -2479,8 +2325,8 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "range",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::Integer)
-                        .ret(array_int)
+                        .parameter(PrimitiveType::Integer)
+                        .ret(array_int.clone())
                         .build(),
                 )
                 .into(),
@@ -2589,7 +2435,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .type_parameter("P", PrimitiveTypeConstraint)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .parameter(GenericType::Parameter("P"))
-                        .ret(PrimitiveTypeKind::Boolean)
+                        .ret(PrimitiveType::Boolean)
                         .build(),
                 )
                 .into(),
@@ -2607,7 +2453,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .min_version(SupportedVersion::V1(V1::Two))
                         .any_type_parameter("X")
                         .parameter(GenericArrayType::new(GenericType::Parameter("X")))
-                        .parameter(PrimitiveTypeKind::Integer)
+                        .parameter(PrimitiveType::Integer)
                         .ret(GenericArrayType::new(GenericArrayType::new(
                             GenericType::Parameter("X"),
                         )))
@@ -2747,12 +2593,12 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("S", StructConstraint)
                         .parameter(GenericType::Parameter("S"))
-                        .ret(array_string)
+                        .ret(array_string.clone())
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(Type::Object)
-                        .ret(array_string)
+                        .ret(array_string.clone())
                         .build(),
                 ])
                 .into(),
@@ -2775,36 +2621,36 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericType::Parameter("V")
                         ))
                         .parameter(GenericType::Parameter("K"))
-                        .ret(PrimitiveTypeKind::Boolean)
+                        .ret(PrimitiveType::Boolean)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(Type::Object)
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::Boolean)
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::Boolean)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .any_type_parameter("V")
                         .parameter(GenericMapType::new(
-                            PrimitiveTypeKind::String,
+                            PrimitiveType::String,
                             GenericType::Parameter("V")
                         ))
-                        .parameter(array_string)
-                        .ret(PrimitiveTypeKind::Boolean)
+                        .parameter(array_string.clone())
+                        .ret(PrimitiveType::Boolean)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("S", StructConstraint)
                         .parameter(GenericType::Parameter("S"))
-                        .parameter(array_string)
-                        .ret(PrimitiveTypeKind::Boolean)
+                        .parameter(array_string.clone())
+                        .ret(PrimitiveType::Boolean)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(Type::Object)
-                        .parameter(array_string)
-                        .ret(PrimitiveTypeKind::Boolean)
+                        .parameter(array_string.clone())
+                        .ret(PrimitiveType::Boolean)
                         .build(),
                 ])
                 .into(),
@@ -2868,7 +2714,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .any_type_parameter("X")
                         .parameter(GenericType::Parameter("X"))
-                        .ret(PrimitiveTypeKind::Boolean)
+                        .ret(PrimitiveType::Boolean)
                         .build(),
                 )
                 .into(),
@@ -2885,7 +2731,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .any_type_parameter("X")
                         .parameter(GenericArrayType::new(GenericType::Parameter("X")))
-                        .ret(PrimitiveTypeKind::Integer)
+                        .ret(PrimitiveType::Integer)
                         .build(),
                     FunctionSignature::builder()
                         .any_type_parameter("K")
@@ -2894,15 +2740,15 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericType::Parameter("K"),
                             GenericType::Parameter("V")
                         ))
-                        .ret(PrimitiveTypeKind::Integer)
+                        .ret(PrimitiveType::Integer)
                         .build(),
                     FunctionSignature::builder()
                         .parameter(Type::Object)
-                        .ret(PrimitiveTypeKind::Integer)
+                        .ret(PrimitiveType::Integer)
                         .build(),
                     FunctionSignature::builder()
-                        .parameter(PrimitiveTypeKind::String)
-                        .ret(PrimitiveTypeKind::Integer)
+                        .parameter(PrimitiveType::String)
+                        .ret(PrimitiveType::Integer)
                         .build(),
                 ])
                 .into(),
@@ -2911,7 +2757,6 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
     );
 
     StandardLibrary {
-        types,
         functions,
         array_int,
         array_string,
@@ -2937,18 +2782,12 @@ mod test {
             match f {
                 Function::Monomorphic(f) => {
                     let params = TypeParameters::new(&f.signature.type_parameters);
-                    signatures.push(format!(
-                        "{name}{sig}",
-                        sig = f.signature.display(STDLIB.types(), &params)
-                    ));
+                    signatures.push(format!("{name}{sig}", sig = f.signature.display(&params)));
                 }
                 Function::Polymorphic(f) => {
                     for signature in &f.signatures {
                         let params = TypeParameters::new(&signature.type_parameters);
-                        signatures.push(format!(
-                            "{name}{sig}",
-                            sig = signature.display(STDLIB.types(), &params)
-                        ));
+                        signatures.push(format!("{name}{sig}", sig = signature.display(&params)));
                     }
                 }
             }
@@ -3048,24 +2887,23 @@ mod test {
         let f = STDLIB.function("floor").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::Zero));
 
-        let mut types = Types::new();
         let e = f
-            .bind(SupportedVersion::V1(V1::Zero), &mut types, &[])
+            .bind(SupportedVersion::V1(V1::Zero), &[])
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooFewArguments(1));
 
         let e = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[
-                PrimitiveTypeKind::String.into(),
-                PrimitiveTypeKind::Boolean.into(),
+            .bind(SupportedVersion::V1(V1::One), &[
+                PrimitiveType::String.into(),
+                PrimitiveType::Boolean.into(),
             ])
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooManyArguments(1));
 
         // Check for a string argument (should be a type mismatch)
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
-                PrimitiveTypeKind::String.into(),
+            .bind(SupportedVersion::V1(V1::Two), &[
+                PrimitiveType::String.into()
             ])
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
@@ -3075,28 +2913,29 @@ mod test {
 
         // Check for Union (i.e. indeterminate)
         let binding = f
-            .bind(SupportedVersion::V1(V1::Zero), &mut types, &[Type::Union])
+            .bind(SupportedVersion::V1(V1::Zero), &[Type::Union])
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(binding.return_type().display(&types).to_string(), "Int");
+        assert_eq!(binding.return_type().to_string(), "Int");
 
         // Check for a float argument
         let binding = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[
-                PrimitiveTypeKind::Float.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::One),
+                &[PrimitiveType::Float.into()],
+            )
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(binding.return_type().display(&types).to_string(), "Int");
+        assert_eq!(binding.return_type().to_string(), "Int");
 
         // Check for an integer argument (should coerce)
         let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
-                PrimitiveTypeKind::Integer.into(),
+            .bind(SupportedVersion::V1(V1::Two), &[
+                PrimitiveType::Integer.into()
             ])
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(binding.return_type().display(&types).to_string(), "Int");
+        assert_eq!(binding.return_type().to_string(), "Int");
     }
 
     #[test]
@@ -3104,9 +2943,8 @@ mod test {
         let f = STDLIB.function("values").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::Two));
 
-        let mut types = Types::new();
         let e = f
-            .bind(SupportedVersion::V1(V1::Zero), &mut types, &[])
+            .bind(SupportedVersion::V1(V1::Zero), &[])
             .expect_err("bind should fail");
         assert_eq!(
             e,
@@ -3114,22 +2952,22 @@ mod test {
         );
 
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[])
+            .bind(SupportedVersion::V1(V1::Two), &[])
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooFewArguments(1));
 
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
-                PrimitiveTypeKind::String.into(),
-                PrimitiveTypeKind::Boolean.into(),
+            .bind(SupportedVersion::V1(V1::Two), &[
+                PrimitiveType::String.into(),
+                PrimitiveType::Boolean.into(),
             ])
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooManyArguments(1));
 
         // Check for a string argument (should be a type mismatch)
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
-                PrimitiveTypeKind::String.into(),
+            .bind(SupportedVersion::V1(V1::Two), &[
+                PrimitiveType::String.into()
             ])
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
@@ -3139,52 +2977,38 @@ mod test {
 
         // Check for Union (i.e. indeterminate)
         let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[Type::Union])
+            .bind(SupportedVersion::V1(V1::Two), &[Type::Union])
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(
-            binding.return_type().display(&types).to_string(),
-            "Array[Union]"
-        );
+        assert_eq!(binding.return_type().to_string(), "Array[Union]");
 
         // Check for a Map[String, String]
-        let ty = types.add_map(MapType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::String,
-        ));
+        let ty: Type = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
         let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[ty])
+            .bind(SupportedVersion::V1(V1::Two), &[ty])
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(
-            binding.return_type().display(&types).to_string(),
-            "Array[String]"
-        );
+        assert_eq!(binding.return_type().to_string(), "Array[String]");
 
         // Check for a Map[String, Object]
-        let ty = types.add_map(MapType::new(PrimitiveTypeKind::String, Type::Object));
+        let ty: Type = MapType::new(PrimitiveType::String, Type::Object).into();
         let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[ty])
+            .bind(SupportedVersion::V1(V1::Two), &[ty])
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(
-            binding.return_type().display(&types).to_string(),
-            "Array[Object]"
-        );
+        assert_eq!(binding.return_type().to_string(), "Array[Object]");
 
         // Check for a map with an optional primitive type
-        let ty = types.add_map(MapType::new(
-            PrimitiveType::optional(PrimitiveTypeKind::String),
-            PrimitiveTypeKind::Boolean,
-        ));
+        let ty: Type = MapType::new(
+            Type::from(PrimitiveType::String).optional(),
+            PrimitiveType::Boolean,
+        )
+        .into();
         let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[ty])
+            .bind(SupportedVersion::V1(V1::Two), &[ty])
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(
-            binding.return_type().display(&types).to_string(),
-            "Array[Boolean]"
-        );
+        assert_eq!(binding.return_type().to_string(), "Array[Boolean]");
     }
 
     #[test]
@@ -3192,59 +3016,38 @@ mod test {
         let f = STDLIB.function("select_all").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::Zero));
 
-        let mut types = Types::new();
-
         // Check for a Array[String]
-        let array_string = types.add_array(ArrayType::new(PrimitiveTypeKind::String));
+        let array_string: Type = ArrayType::new(PrimitiveType::String).into();
         let binding = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[array_string])
+            .bind(SupportedVersion::V1(V1::One), &[array_string])
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(
-            binding.return_type().display(&types).to_string(),
-            "Array[String]"
-        );
+        assert_eq!(binding.return_type().to_string(), "Array[String]");
 
         // Check for a Array[String?] -> Array[String]
-        let array_optional_string = types.add_array(ArrayType::new(PrimitiveType::optional(
-            PrimitiveTypeKind::String,
-        )));
+        let array_optional_string: Type =
+            ArrayType::new(Type::from(PrimitiveType::String).optional()).into();
         let binding = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[
-                array_optional_string,
-            ])
+            .bind(SupportedVersion::V1(V1::One), &[array_optional_string])
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(
-            binding.return_type().display(&types).to_string(),
-            "Array[String]"
-        );
+        assert_eq!(binding.return_type().to_string(), "Array[String]");
 
         // Check for Union (i.e. indeterminate)
         let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[Type::Union])
+            .bind(SupportedVersion::V1(V1::Two), &[Type::Union])
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(
-            binding.return_type().display(&types).to_string(),
-            "Array[Union]"
-        );
+        assert_eq!(binding.return_type().to_string(), "Array[Union]");
 
         // Check for a Array[Array[String]?] -> Array[Array[String]]
-        let array_string = types
-            .add_array(ArrayType::new(PrimitiveTypeKind::String))
-            .optional();
-        let array_array_string = types.add_array(ArrayType::new(array_string));
+        let array_string = Type::from(ArrayType::new(PrimitiveType::String)).optional();
+        let array_array_string = ArrayType::new(array_string).into();
         let binding = f
-            .bind(SupportedVersion::V1(V1::Zero), &mut types, &[
-                array_array_string,
-            ])
+            .bind(SupportedVersion::V1(V1::Zero), &[array_array_string])
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(
-            binding.return_type().display(&types).to_string(),
-            "Array[Array[String]]"
-        );
+        assert_eq!(binding.return_type().to_string(), "Array[Array[String]]");
     }
 
     #[test]
@@ -3252,66 +3055,65 @@ mod test {
         let f = STDLIB.function("max").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::One));
 
-        let mut types = Types::new();
         let e = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[])
+            .bind(SupportedVersion::V1(V1::One), &[])
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooFewArguments(2));
 
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
-                PrimitiveTypeKind::String.into(),
-                PrimitiveTypeKind::Boolean.into(),
-                PrimitiveTypeKind::File.into(),
+            .bind(SupportedVersion::V1(V1::Two), &[
+                PrimitiveType::String.into(),
+                PrimitiveType::Boolean.into(),
+                PrimitiveType::File.into(),
             ])
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooManyArguments(2));
 
         // Check for `(Int, Int)`
         let binding = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[
-                PrimitiveTypeKind::Integer.into(),
-                PrimitiveTypeKind::Integer.into(),
+            .bind(SupportedVersion::V1(V1::One), &[
+                PrimitiveType::Integer.into(),
+                PrimitiveType::Integer.into(),
             ])
             .expect("binding should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(binding.return_type().display(&types).to_string(), "Int");
+        assert_eq!(binding.return_type().to_string(), "Int");
 
         // Check for `(Int, Float)`
         let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
-                PrimitiveTypeKind::Integer.into(),
-                PrimitiveTypeKind::Float.into(),
+            .bind(SupportedVersion::V1(V1::Two), &[
+                PrimitiveType::Integer.into(),
+                PrimitiveType::Float.into(),
             ])
             .expect("binding should succeed");
         assert_eq!(binding.index(), 1);
-        assert_eq!(binding.return_type().display(&types).to_string(), "Float");
+        assert_eq!(binding.return_type().to_string(), "Float");
 
         // Check for `(Float, Int)`
         let binding = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[
-                PrimitiveTypeKind::Float.into(),
-                PrimitiveTypeKind::Integer.into(),
+            .bind(SupportedVersion::V1(V1::One), &[
+                PrimitiveType::Float.into(),
+                PrimitiveType::Integer.into(),
             ])
             .expect("binding should succeed");
         assert_eq!(binding.index(), 2);
-        assert_eq!(binding.return_type().display(&types).to_string(), "Float");
+        assert_eq!(binding.return_type().to_string(), "Float");
 
         // Check for `(Float, Float)`
         let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
-                PrimitiveTypeKind::Float.into(),
-                PrimitiveTypeKind::Float.into(),
+            .bind(SupportedVersion::V1(V1::Two), &[
+                PrimitiveType::Float.into(),
+                PrimitiveType::Float.into(),
             ])
             .expect("binding should succeed");
         assert_eq!(binding.index(), 3);
-        assert_eq!(binding.return_type().display(&types).to_string(), "Float");
+        assert_eq!(binding.return_type().to_string(), "Float");
 
         // Check for `(String, Int)`
         let e = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[
-                PrimitiveTypeKind::String.into(),
-                PrimitiveTypeKind::Integer.into(),
+            .bind(SupportedVersion::V1(V1::One), &[
+                PrimitiveType::String.into(),
+                PrimitiveType::Integer.into(),
             ])
             .expect_err("binding should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
@@ -3321,9 +3123,9 @@ mod test {
 
         // Check for `(Int, String)`
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
-                PrimitiveTypeKind::Integer.into(),
-                PrimitiveTypeKind::String.into(),
+            .bind(SupportedVersion::V1(V1::Two), &[
+                PrimitiveType::Integer.into(),
+                PrimitiveType::String.into(),
             ])
             .expect_err("binding should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
@@ -3333,9 +3135,9 @@ mod test {
 
         // Check for `(String, Float)`
         let e = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[
-                PrimitiveTypeKind::String.into(),
-                PrimitiveTypeKind::Float.into(),
+            .bind(SupportedVersion::V1(V1::One), &[
+                PrimitiveType::String.into(),
+                PrimitiveType::Float.into(),
             ])
             .expect_err("binding should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
@@ -3345,9 +3147,9 @@ mod test {
 
         // Check for `(Float, String)`
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
-                PrimitiveTypeKind::Float.into(),
-                PrimitiveTypeKind::String.into(),
+            .bind(SupportedVersion::V1(V1::Two), &[
+                PrimitiveType::Float.into(),
+                PrimitiveType::String.into(),
             ])
             .expect_err("binding should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
@@ -3363,25 +3165,24 @@ mod test {
             .expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::Zero));
 
-        let mut types = Types::default();
         let e = f
-            .bind(SupportedVersion::V1(V1::Zero), &mut types, &[])
+            .bind(SupportedVersion::V1(V1::Zero), &[])
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooFewArguments(1));
 
         let e = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[
-                PrimitiveTypeKind::String.into(),
-                PrimitiveTypeKind::Boolean.into(),
-                PrimitiveTypeKind::File.into(),
+            .bind(SupportedVersion::V1(V1::One), &[
+                PrimitiveType::String.into(),
+                PrimitiveType::Boolean.into(),
+                PrimitiveType::File.into(),
             ])
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooManyArguments(2));
 
         // Check `Int`
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
-                PrimitiveTypeKind::Integer.into(),
+            .bind(SupportedVersion::V1(V1::Two), &[
+                PrimitiveType::Integer.into()
             ])
             .expect_err("binding should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
@@ -3390,30 +3191,28 @@ mod test {
         });
 
         // Check `Array[String?]+`
-        let array = types.add_array(ArrayType::non_empty(PrimitiveType::optional(
-            PrimitiveTypeKind::String,
-        )));
+        let array: Type = ArrayType::non_empty(Type::from(PrimitiveType::String).optional()).into();
         let binding = f
-            .bind(SupportedVersion::V1(V1::Zero), &mut types, &[array])
+            .bind(SupportedVersion::V1(V1::Zero), &[array.clone()])
             .expect("binding should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(binding.return_type().display(&types).to_string(), "String");
+        assert_eq!(binding.return_type().to_string(), "String");
 
         // Check (`Array[String?]+`, `String`)
         let binding = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[
-                array,
-                PrimitiveTypeKind::String.into(),
+            .bind(SupportedVersion::V1(V1::One), &[
+                array.clone(),
+                PrimitiveType::String.into(),
             ])
             .expect("binding should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(binding.return_type().display(&types).to_string(), "String");
+        assert_eq!(binding.return_type().to_string(), "String");
 
         // Check (`Array[String?]+`, `Int`)
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
-                array,
-                PrimitiveTypeKind::Integer.into(),
+            .bind(SupportedVersion::V1(V1::Two), &[
+                array.clone(),
+                PrimitiveType::Integer.into(),
             ])
             .expect_err("binding should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
@@ -3422,30 +3221,28 @@ mod test {
         });
 
         // Check `Array[String?]`
-        let array = types.add_array(ArrayType::new(PrimitiveType::optional(
-            PrimitiveTypeKind::String,
-        )));
+        let array: Type = ArrayType::new(Type::from(PrimitiveType::String).optional()).into();
         let binding = f
-            .bind(SupportedVersion::V1(V1::Zero), &mut types, &[array])
+            .bind(SupportedVersion::V1(V1::Zero), &[array.clone()])
             .expect("binding should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(binding.return_type().display(&types).to_string(), "String");
+        assert_eq!(binding.return_type().to_string(), "String");
 
         // Check (`Array[String?]`, `String`)
         let binding = f
-            .bind(SupportedVersion::V1(V1::One), &mut types, &[
-                array,
-                PrimitiveTypeKind::String.into(),
+            .bind(SupportedVersion::V1(V1::One), &[
+                array.clone(),
+                PrimitiveType::String.into(),
             ])
             .expect("binding should succeed");
         assert_eq!(binding.index(), 0);
-        assert_eq!(binding.return_type().display(&types).to_string(), "String");
+        assert_eq!(binding.return_type().to_string(), "String");
 
         // Check (`Array[String?]`, `Int`)
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &mut types, &[
+            .bind(SupportedVersion::V1(V1::Two), &[
                 array,
-                PrimitiveTypeKind::Integer.into(),
+                PrimitiveType::Integer.into(),
             ])
             .expect_err("binding should fail");
         assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {

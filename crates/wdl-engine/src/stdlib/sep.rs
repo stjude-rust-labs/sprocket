@@ -2,7 +2,7 @@
 
 use std::fmt::Write;
 
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -24,10 +24,10 @@ use crate::Value;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#sep-1
 fn sep(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::String));
+    debug_assert!(context.return_type_eq(PrimitiveType::String));
 
     let sep = context
-        .coerce_argument(0, PrimitiveTypeKind::String)
+        .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
 
     let array = context.arguments[1]

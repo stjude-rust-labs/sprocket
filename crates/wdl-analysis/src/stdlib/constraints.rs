@@ -4,11 +4,8 @@ use std::fmt;
 
 use crate::types::Coercible;
 use crate::types::CompoundType;
-use crate::types::CompoundTypeDef;
 use crate::types::PrimitiveType;
-use crate::types::PrimitiveTypeKind;
 use crate::types::Type;
-use crate::types::Types;
 
 /// A trait implemented by type constraints.
 pub trait Constraint: fmt::Debug + Send + Sync {
@@ -18,7 +15,7 @@ pub trait Constraint: fmt::Debug + Send + Sync {
     /// Determines if the given type satisfies the constraint.
     ///
     /// Returns `true` if the constraint is satisfied or false if not.
-    fn satisfied(&self, types: &Types, ty: Type) -> bool;
+    fn satisfied(&self, ty: &Type) -> bool;
 }
 
 /// Represents a constraint that ensure the type can be used in a file size
@@ -34,48 +31,42 @@ impl Constraint for SizeableConstraint {
         "any compound type that recursively contains a `File` or `Directory`"
     }
 
-    fn satisfied(&self, types: &Types, ty: Type) -> bool {
+    fn satisfied(&self, ty: &Type) -> bool {
         /// Determines if the given primitive type is sizable.
         fn primitive_type_is_sizable(ty: PrimitiveType) -> bool {
-            matches!(
-                ty.kind(),
-                PrimitiveTypeKind::File | PrimitiveTypeKind::Directory
-            )
+            matches!(ty, PrimitiveType::File | PrimitiveType::Directory)
         }
 
         /// Determines if the given compound type is sizable.
-        fn compound_type_is_sizable(types: &Types, ty: CompoundType) -> bool {
-            match types.type_definition(ty.definition()) {
-                CompoundTypeDef::Array(ty) => type_is_sizable(types, ty.element_type()),
-                CompoundTypeDef::Pair(ty) => {
-                    type_is_sizable(types, ty.left_type()) | type_is_sizable(types, ty.right_type())
+        fn compound_type_is_sizable(ty: &CompoundType) -> bool {
+            match ty {
+                CompoundType::Array(ty) => type_is_sizable(ty.element_type()),
+                CompoundType::Pair(ty) => {
+                    type_is_sizable(ty.left_type()) | type_is_sizable(ty.right_type())
                 }
-                CompoundTypeDef::Map(ty) => {
-                    type_is_sizable(types, ty.key_type()) | type_is_sizable(types, ty.value_type())
+                CompoundType::Map(ty) => {
+                    type_is_sizable(ty.key_type()) | type_is_sizable(ty.value_type())
                 }
-                CompoundTypeDef::Struct(s) => {
-                    s.members().values().any(|ty| type_is_sizable(types, *ty))
-                }
-                CompoundTypeDef::Call(_) => false,
+                CompoundType::Struct(s) => s.members().values().any(type_is_sizable),
             }
         }
 
         /// Determines if the given type is sizable.
-        fn type_is_sizable(types: &Types, ty: Type) -> bool {
+        fn type_is_sizable(ty: &Type) -> bool {
             match ty {
-                Type::Primitive(ty) => primitive_type_is_sizable(ty),
-                Type::Compound(ty) => compound_type_is_sizable(types, ty),
+                Type::Primitive(ty, _) => primitive_type_is_sizable(*ty),
+                Type::Compound(ty, _) => compound_type_is_sizable(ty),
                 Type::Object | Type::OptionalObject => {
                     // Note: checking the types of an object's members is a runtime constraint
                     true
                 }
                 // Treat unions as sizable as they can only be checked at runtime
                 Type::Union | Type::None => true,
-                Type::Task | Type::Hints | Type::Input | Type::Output => false,
+                Type::Task | Type::Hints | Type::Input | Type::Output | Type::Call(_) => false,
             }
         }
 
-        type_is_sizable(types, ty)
+        type_is_sizable(ty)
     }
 }
 
@@ -88,14 +79,8 @@ impl Constraint for StructConstraint {
         "any structure"
     }
 
-    fn satisfied(&self, types: &Types, ty: Type) -> bool {
-        if let Type::Compound(ty) = ty {
-            if let CompoundTypeDef::Struct(_) = types.type_definition(ty.definition()) {
-                return true;
-            }
-        }
-
-        false
+    fn satisfied(&self, ty: &Type) -> bool {
+        matches!(ty, Type::Compound(CompoundType::Struct(_), _))
     }
 }
 
@@ -109,11 +94,12 @@ impl Constraint for PrimitiveStructConstraint {
         "any structure containing only primitive types"
     }
 
-    fn satisfied(&self, types: &Types, ty: Type) -> bool {
-        if let Type::Compound(ty) = ty {
-            if let CompoundTypeDef::Struct(s) = types.type_definition(ty.definition()) {
-                return s.members().values().all(|ty| ty.as_primitive().is_some());
-            }
+    fn satisfied(&self, ty: &Type) -> bool {
+        if let Type::Compound(CompoundType::Struct(ty), _) = ty {
+            return ty
+                .members()
+                .values()
+                .all(|ty| matches!(ty, Type::Primitive(..)));
         }
 
         false
@@ -129,40 +115,35 @@ impl Constraint for JsonSerializableConstraint {
         "any JSON-serializable type"
     }
 
-    fn satisfied(&self, types: &Types, ty: Type) -> bool {
+    fn satisfied(&self, ty: &Type) -> bool {
         /// Determines if the given compound type is JSON serializable.
-        fn compound_type_is_serializable(types: &Types, ty: CompoundType) -> bool {
-            match types.type_definition(ty.definition()) {
-                CompoundTypeDef::Array(ty) => type_is_serializable(types, ty.element_type()),
-                CompoundTypeDef::Pair(_) => false,
-                CompoundTypeDef::Map(ty) => {
-                    ty.key_type()
-                        .is_coercible_to(types, &PrimitiveTypeKind::String.into())
-                        && type_is_serializable(types, ty.value_type())
+        fn compound_type_is_serializable(ty: &CompoundType) -> bool {
+            match ty {
+                CompoundType::Array(ty) => type_is_serializable(ty.element_type()),
+                CompoundType::Pair(_) => false,
+                CompoundType::Map(ty) => {
+                    ty.key_type().is_coercible_to(&PrimitiveType::String.into())
+                        && type_is_serializable(ty.value_type())
                 }
-                CompoundTypeDef::Struct(s) => s
-                    .members()
-                    .values()
-                    .all(|ty| type_is_serializable(types, *ty)),
-                CompoundTypeDef::Call(_) => false,
+                CompoundType::Struct(s) => s.members().values().all(type_is_serializable),
             }
         }
 
         /// Determines if the given type is JSON serializable.
-        fn type_is_serializable(types: &Types, ty: Type) -> bool {
+        fn type_is_serializable(ty: &Type) -> bool {
             match ty {
                 // Treat objects and unions as sizable as they can only be checked at runtime
-                Type::Primitive(_)
+                Type::Primitive(..)
                 | Type::Object
                 | Type::OptionalObject
                 | Type::Union
                 | Type::None => true,
-                Type::Task | Type::Hints | Type::Input | Type::Output => false,
-                Type::Compound(ty) => compound_type_is_serializable(types, ty),
+                Type::Compound(ty, _) => compound_type_is_serializable(ty),
+                Type::Task | Type::Hints | Type::Input | Type::Output | Type::Call(_) => false,
             }
         }
 
-        type_is_serializable(types, ty)
+        type_is_serializable(ty)
     }
 }
 
@@ -175,18 +156,19 @@ impl Constraint for PrimitiveTypeConstraint {
         "any primitive type"
     }
 
-    fn satisfied(&self, _: &Types, ty: Type) -> bool {
+    fn satisfied(&self, ty: &Type) -> bool {
         match ty {
-            Type::Primitive(_) => true,
+            Type::Primitive(..) => true,
             // Treat unions as primitive as they can only be checked at runtime
             Type::Union | Type::None => true,
-            Type::Compound(_)
+            Type::Compound(..)
             | Type::Object
             | Type::OptionalObject
             | Type::Task
             | Type::Hints
             | Type::Input
-            | Type::Output => false,
+            | Type::Output
+            | Type::Call(_) => false,
         }
     }
 }
@@ -200,302 +182,179 @@ mod test {
     use crate::types::PairType;
     use crate::types::PrimitiveType;
     use crate::types::StructType;
-    use crate::types::Types;
 
     #[test]
     fn test_sizable_constraint() {
         let constraint = SizeableConstraint;
-        let mut types = Types::default();
-
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Boolean).into()
-        ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Integer).into()
-        ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Float).into()
-        ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::String).into()
-        ));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Integer).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Float).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::String).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::File).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::Directory).optional()));
+        assert!(!constraint.satisfied(&PrimitiveType::Boolean.into()));
+        assert!(!constraint.satisfied(&PrimitiveType::Integer.into()));
+        assert!(!constraint.satisfied(&PrimitiveType::Float.into()));
+        assert!(!constraint.satisfied(&PrimitiveType::String.into()));
+        assert!(constraint.satisfied(&PrimitiveType::File.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Directory.into()));
+        assert!(constraint.satisfied(&Type::OptionalObject));
+        assert!(constraint.satisfied(&Type::Object));
+        assert!(constraint.satisfied(&Type::Union));
+        assert!(!constraint.satisfied(&ArrayType::new(PrimitiveType::String).into()));
+        assert!(constraint.satisfied(&ArrayType::new(PrimitiveType::File).into()));
+        assert!(
+            !constraint
+                .satisfied(&PairType::new(PrimitiveType::String, PrimitiveType::String).into())
+        );
+        assert!(
+            constraint.satisfied(&PairType::new(PrimitiveType::String, PrimitiveType::File).into())
+        );
+        assert!(
+            constraint.satisfied(
+                &Type::from(PairType::new(
+                    PrimitiveType::Directory,
+                    PrimitiveType::String
+                ))
+                .optional()
+            )
+        );
+        assert!(
+            !constraint.satisfied(
+                &Type::from(MapType::new(
+                    PrimitiveType::String,
+                    ArrayType::new(PrimitiveType::String)
+                ))
+                .optional()
+            )
+        );
+        assert!(
+            constraint.satisfied(
+                &MapType::new(
+                    PrimitiveType::String,
+                    Type::from(ArrayType::new(PrimitiveType::File)).optional()
+                )
+                .into()
+            )
+        );
+        assert!(
+            constraint.satisfied(
+                &Type::from(MapType::new(
+                    PrimitiveType::Directory,
+                    PrimitiveType::String
+                ))
+                .optional()
+            )
+        );
+        assert!(
+            !constraint.satisfied(&StructType::new("Foo", [("foo", PrimitiveType::String)]).into())
+        );
         assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::File).into()
+            &Type::from(StructType::new("Foo", [("foo", PrimitiveType::File)])).optional()
         ));
-        assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Directory).into()
-        ));
-        assert!(!constraint.satisfied(&types, PrimitiveTypeKind::Boolean.into()));
-        assert!(!constraint.satisfied(&types, PrimitiveTypeKind::Integer.into()));
-        assert!(!constraint.satisfied(&types, PrimitiveTypeKind::Float.into()));
-        assert!(!constraint.satisfied(&types, PrimitiveTypeKind::String.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::File.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Directory.into()));
-        assert!(constraint.satisfied(&types, Type::Object));
-        assert!(constraint.satisfied(&types, Type::OptionalObject));
-        assert!(constraint.satisfied(&types, Type::Union));
-
-        let ty = types.add_array(ArrayType::new(PrimitiveTypeKind::String));
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_array(ArrayType::new(PrimitiveTypeKind::File))
-            .optional();
-        assert!(constraint.satisfied(&types, ty));
-
-        let ty = types.add_pair(PairType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::String,
-        ));
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types.add_pair(PairType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::File,
-        ));
-        assert!(constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_pair(PairType::new(
-                PrimitiveTypeKind::Directory,
-                PrimitiveTypeKind::String,
-            ))
-            .optional();
-        assert!(constraint.satisfied(&types, ty));
-
-        let array = types.add_array(ArrayType::new(PrimitiveTypeKind::String));
-        let ty = types
-            .add_map(MapType::new(PrimitiveTypeKind::String, array))
-            .optional();
-        assert!(!constraint.satisfied(&types, ty));
-
-        let array = types
-            .add_array(ArrayType::new(PrimitiveTypeKind::File))
-            .optional();
-        let ty = types.add_map(MapType::new(PrimitiveTypeKind::String, array));
-        assert!(constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_map(MapType::new(
-                PrimitiveTypeKind::Directory,
-                PrimitiveTypeKind::String,
-            ))
-            .optional();
-        assert!(constraint.satisfied(&types, ty));
-
-        let ty = types.add_struct(StructType::new("Foo", [("foo", PrimitiveTypeKind::String)]));
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_struct(StructType::new("Foo", [("foo", PrimitiveTypeKind::File)]))
-            .optional();
-        assert!(constraint.satisfied(&types, ty));
-
-        let ty = types.add_struct(StructType::new("Foo", [(
-            "foo",
-            PrimitiveTypeKind::Directory,
-        )]));
-        assert!(constraint.satisfied(&types, ty));
+        assert!(
+            constraint
+                .satisfied(&StructType::new("Foo", [("foo", PrimitiveType::Directory,)]).into())
+        );
     }
 
     #[test]
     fn test_struct_constraint() {
         let constraint = StructConstraint;
-        let mut types = Types::default();
-
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Integer).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Float).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::String).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::File).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Directory).optional()));
+        assert!(!constraint.satisfied(&PrimitiveType::Boolean.into()));
+        assert!(!constraint.satisfied(&PrimitiveType::Integer.into()));
+        assert!(!constraint.satisfied(&PrimitiveType::Float.into()));
+        assert!(!constraint.satisfied(&PrimitiveType::String.into()));
+        assert!(!constraint.satisfied(&PrimitiveType::File.into()));
+        assert!(!constraint.satisfied(&PrimitiveType::Directory.into()));
+        assert!(!constraint.satisfied(&Type::OptionalObject));
+        assert!(!constraint.satisfied(&Type::Object));
+        assert!(!constraint.satisfied(&Type::Union));
+        assert!(!constraint.satisfied(&ArrayType::non_empty(PrimitiveType::String).into()));
         assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Boolean).into()
+            &Type::from(PairType::new(PrimitiveType::String, PrimitiveType::String)).optional()
         ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Integer).into()
+        assert!(
+            !constraint
+                .satisfied(&MapType::new(PrimitiveType::String, PrimitiveType::String,).into())
+        );
+        assert!(constraint.satisfied(
+            &Type::from(StructType::new("Foo", [("foo", PrimitiveType::String)])).optional()
         ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Float).into()
-        ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::String).into()
-        ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::File).into()
-        ));
-        assert!(!constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Directory).into()
-        ));
-        assert!(!constraint.satisfied(&types, PrimitiveTypeKind::Boolean.into()));
-        assert!(!constraint.satisfied(&types, PrimitiveTypeKind::Integer.into()));
-        assert!(!constraint.satisfied(&types, PrimitiveTypeKind::Float.into()));
-        assert!(!constraint.satisfied(&types, PrimitiveTypeKind::String.into()));
-        assert!(!constraint.satisfied(&types, PrimitiveTypeKind::File.into()));
-        assert!(!constraint.satisfied(&types, PrimitiveTypeKind::Directory.into()));
-        assert!(!constraint.satisfied(&types, Type::Object));
-        assert!(!constraint.satisfied(&types, Type::OptionalObject));
-        assert!(!constraint.satisfied(&types, Type::Union));
-
-        let ty = types.add_array(ArrayType::non_empty(PrimitiveTypeKind::String));
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_pair(PairType::new(
-                PrimitiveTypeKind::String,
-                PrimitiveTypeKind::String,
-            ))
-            .optional();
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types.add_map(MapType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::String,
-        ));
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_struct(StructType::new("Foo", [("foo", PrimitiveTypeKind::String)]))
-            .optional();
-        assert!(constraint.satisfied(&types, ty));
     }
 
     #[test]
     fn test_json_constraint() {
         let constraint = JsonSerializableConstraint;
-        let mut types = Types::default();
-
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::Integer).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::Float).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::String).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::File).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::Directory).optional()));
+        assert!(constraint.satisfied(&PrimitiveType::Boolean.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Integer.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Float.into()));
+        assert!(constraint.satisfied(&PrimitiveType::String.into()));
+        assert!(constraint.satisfied(&PrimitiveType::File.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Directory.into()));
+        assert!(constraint.satisfied(&Type::OptionalObject));
+        assert!(constraint.satisfied(&Type::Object));
+        assert!(constraint.satisfied(&Type::Union));
+        assert!(
+            constraint.satisfied(&Type::from(ArrayType::new(PrimitiveType::String)).optional())
+        );
+        assert!(
+            !constraint
+                .satisfied(&PairType::new(PrimitiveType::String, PrimitiveType::String,).into())
+        );
         assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Boolean).into()
+            &Type::from(MapType::new(PrimitiveType::String, PrimitiveType::String)).optional()
         ));
+        assert!(
+            !constraint
+                .satisfied(&MapType::new(PrimitiveType::Integer, PrimitiveType::String,).into())
+        );
         assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Integer).into()
+            &Type::from(StructType::new("Foo", [("foo", PrimitiveType::String)])).optional()
         ));
-        assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Float).into()
-        ));
-        assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::String).into()
-        ));
-        assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::File).into()
-        ));
-        assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Directory).into()
-        ));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Boolean.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Integer.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Float.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::String.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::File.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Directory.into()));
-        assert!(constraint.satisfied(&types, Type::Object));
-        assert!(constraint.satisfied(&types, Type::OptionalObject));
-        assert!(constraint.satisfied(&types, Type::Union));
-
-        let ty = types
-            .add_array(ArrayType::new(PrimitiveTypeKind::String))
-            .optional();
-        assert!(constraint.satisfied(&types, ty));
-
-        let ty = types.add_pair(PairType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::String,
-        ));
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_map(MapType::new(
-                PrimitiveTypeKind::String,
-                PrimitiveTypeKind::String,
-            ))
-            .optional();
-        assert!(constraint.satisfied(&types, ty));
-
-        let ty = types.add_map(MapType::new(
-            PrimitiveTypeKind::Integer,
-            PrimitiveTypeKind::String,
-        ));
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_struct(StructType::new("Foo", [("foo", PrimitiveTypeKind::String)]))
-            .optional();
-        assert!(constraint.satisfied(&types, ty));
     }
 
     #[test]
     fn test_primitive_constraint() {
         let constraint = PrimitiveTypeConstraint;
-        let mut types = Types::default();
-
-        assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Boolean).into()
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::Integer).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::Float).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::String).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::File).optional()));
+        assert!(constraint.satisfied(&Type::from(PrimitiveType::Directory).optional()));
+        assert!(constraint.satisfied(&PrimitiveType::Boolean.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Integer.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Float.into()));
+        assert!(constraint.satisfied(&PrimitiveType::String.into()));
+        assert!(constraint.satisfied(&PrimitiveType::File.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Directory.into()));
+        assert!(!constraint.satisfied(&Type::OptionalObject));
+        assert!(!constraint.satisfied(&Type::Object));
+        assert!(constraint.satisfied(&Type::Union));
+        assert!(constraint.satisfied(&Type::None));
+        assert!(!constraint.satisfied(&ArrayType::non_empty(PrimitiveType::String).into()));
+        assert!(!constraint.satisfied(
+            &Type::from(PairType::new(PrimitiveType::String, PrimitiveType::String)).optional()
         ));
-        assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Integer).into()
+        assert!(
+            !constraint
+                .satisfied(&MapType::new(PrimitiveType::String, PrimitiveType::String,).into())
+        );
+        assert!(!constraint.satisfied(
+            &Type::from(StructType::new("Foo", [("foo", PrimitiveType::String)])).optional()
         ));
-        assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Float).into()
-        ));
-        assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::String).into()
-        ));
-        assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::File).into()
-        ));
-        assert!(constraint.satisfied(
-            &types,
-            PrimitiveType::optional(PrimitiveTypeKind::Directory).into()
-        ));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Boolean.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Integer.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Float.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::String.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::File.into()));
-        assert!(constraint.satisfied(&types, PrimitiveTypeKind::Directory.into()));
-        assert!(!constraint.satisfied(&types, Type::Object));
-        assert!(!constraint.satisfied(&types, Type::OptionalObject));
-        assert!(constraint.satisfied(&types, Type::Union));
-        assert!(constraint.satisfied(&types, Type::None));
-
-        let ty = types.add_array(ArrayType::non_empty(PrimitiveTypeKind::String));
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_pair(PairType::new(
-                PrimitiveTypeKind::String,
-                PrimitiveTypeKind::String,
-            ))
-            .optional();
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types.add_map(MapType::new(
-            PrimitiveTypeKind::String,
-            PrimitiveTypeKind::String,
-        ));
-        assert!(!constraint.satisfied(&types, ty));
-
-        let ty = types
-            .add_struct(StructType::new("Foo", [("foo", PrimitiveTypeKind::String)]))
-            .optional();
-        assert!(!constraint.satisfied(&types, ty));
     }
 }

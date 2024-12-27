@@ -23,17 +23,7 @@ use crate::diagnostics::function_call_failed;
 fn transpose(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(
-        context
-            .types()
-            .type_definition(
-                context
-                    .return_type
-                    .as_compound()
-                    .expect("type should be compound")
-                    .definition()
-            )
-            .as_array()
-            .is_some(),
+        context.return_type.as_array().is_some(),
         "type should be an array"
     );
 
@@ -75,7 +65,7 @@ fn transpose(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             transposed_inner.push(inner.as_slice()[i].clone())
         }
 
-        transposed_outer.push(Array::new_unchecked(ty, transposed_inner).into());
+        transposed_outer.push(Array::new_unchecked(ty.clone(), transposed_inner).into());
     }
 
     Ok(Array::new_unchecked(context.return_type, transposed_outer).into())

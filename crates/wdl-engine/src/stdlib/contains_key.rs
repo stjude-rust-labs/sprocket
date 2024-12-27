@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
@@ -25,7 +25,7 @@ use crate::Value;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains_key
 fn contains_key_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Boolean));
+    debug_assert!(context.return_type_eq(PrimitiveType::Boolean));
 
     let map = context.arguments[0]
         .value
@@ -50,7 +50,7 @@ fn contains_key_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains_key
 fn contains_key_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Boolean));
+    debug_assert!(context.return_type_eq(PrimitiveType::Boolean));
 
     // As `Map[String, X]` coerces to `Object`, dispatch to the map overload if
     // passed a map
@@ -59,7 +59,7 @@ fn contains_key_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     }
 
     let object = context.coerce_argument(0, Type::Object).unwrap_object();
-    let key = context.coerce_argument(1, PrimitiveTypeKind::String);
+    let key = context.coerce_argument(1, PrimitiveType::String);
     Ok(object.contains_key(key.unwrap_string().as_str()).into())
 }
 
@@ -72,7 +72,7 @@ fn contains_key_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains_key
 fn contains_key_recursive(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Boolean));
+    debug_assert!(context.return_type_eq(PrimitiveType::Boolean));
 
     /// Helper for looking up a value in a map, object, or struct by the given
     /// key.
@@ -91,7 +91,7 @@ fn contains_key_recursive(context: CallContext<'_>) -> Result<Value, Diagnostic>
 
     let mut value = context.arguments[0].value.clone();
     let keys = context
-        .coerce_argument(1, ANALYSIS_STDLIB.array_string_type())
+        .coerce_argument(1, ANALYSIS_STDLIB.array_string_type().clone())
         .unwrap_array();
 
     for key in keys
@@ -134,8 +134,9 @@ pub const fn descriptor() -> Function {
 
 #[cfg(test)]
 mod test {
-    use wdl_analysis::types::PrimitiveTypeKind;
+    use wdl_analysis::types::PrimitiveType;
     use wdl_analysis::types::StructType;
+    use wdl_analysis::types::Type;
     use wdl_ast::version::V1;
 
     use crate::v1::test::TestEnv;
@@ -145,16 +146,10 @@ mod test {
     fn contains_key() {
         let mut env = TestEnv::default();
 
-        let bar_ty = env
-            .types_mut()
-            .add_struct(StructType::new("Bar", [("baz", PrimitiveTypeKind::String)]));
+        let bar_ty: Type = StructType::new("Bar", [("baz", PrimitiveType::String)]).into();
+        env.insert_struct("Bar", bar_ty.clone());
 
-        env.insert_struct("Bar", bar_ty);
-
-        let foo_ty = env
-            .types_mut()
-            .add_struct(StructType::new("Foo", [("bar", bar_ty)]));
-
+        let foo_ty = StructType::new("Foo", [("bar", bar_ty)]);
         env.insert_struct("Foo", foo_ty);
 
         let value = eval_v1_expr(&mut env, V1::Two, "contains_key({}, 1)").unwrap();

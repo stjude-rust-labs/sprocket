@@ -6,7 +6,7 @@ use std::path::Path;
 
 use tempfile::NamedTempFile;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -26,7 +26,7 @@ use crate::diagnostics::function_call_failed;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_lines
 fn write_lines(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::File));
 
     // Helper for handling errors while writing to the file.
     let write_error = |e: std::io::Error| {
@@ -38,7 +38,7 @@ fn write_lines(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     };
 
     let lines = context
-        .coerce_argument(0, ANALYSIS_STDLIB.array_string_type())
+        .coerce_argument(0, ANALYSIS_STDLIB.array_string_type().clone())
         .unwrap_array();
 
     // Create a temporary file that will be persisted after writing the lines

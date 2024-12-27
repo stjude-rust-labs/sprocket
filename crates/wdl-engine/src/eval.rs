@@ -10,7 +10,6 @@ use anyhow::bail;
 use indexmap::IndexMap;
 use wdl_analysis::document::Task;
 use wdl_analysis::types::Type;
-use wdl_analysis::types::Types;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::SupportedVersion;
@@ -54,12 +53,6 @@ pub trait EvaluationContext {
     /// Gets the supported version of the document being evaluated.
     fn version(&self) -> SupportedVersion;
 
-    /// Gets the types collection associated with the evaluation.
-    fn types(&self) -> &Types;
-
-    /// Gets the mutable types collection associated with the evaluation.
-    fn types_mut(&mut self) -> &mut Types;
-
     /// Gets the value of the given name in scope.
     fn resolve_name(&self, name: &Ident) -> Result<Value, Diagnostic>;
 
@@ -86,9 +79,6 @@ pub trait EvaluationContext {
     ///
     /// This is only `Some` when evaluating task hints sections.
     fn task(&self) -> Option<&Task>;
-
-    /// Gets the types collection associated with the document being evaluated.
-    fn document_types(&self) -> &Types;
 }
 
 /// Represents an index of a scope in a collection of scopes.

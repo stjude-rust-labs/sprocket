@@ -5,7 +5,7 @@ use std::io::Write;
 use std::path::Path;
 
 use tempfile::NamedTempFile;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
@@ -31,7 +31,7 @@ use crate::stdlib::write_tsv::write_tsv_value;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_object
 fn write_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::File));
 
     // Helper for handling errors while writing to the file.
     let write_error = |e: std::io::Error| {
@@ -143,7 +143,7 @@ mod test {
     use std::fs;
 
     use pretty_assertions::assert_eq;
-    use wdl_analysis::types::PrimitiveTypeKind;
+    use wdl_analysis::types::PrimitiveType;
     use wdl_analysis::types::StructType;
     use wdl_ast::version::V1;
 
@@ -154,11 +154,11 @@ mod test {
     fn write_object() {
         let mut env = TestEnv::default();
 
-        let ty = env.types_mut().add_struct(StructType::new("Foo", [
-            ("foo", PrimitiveTypeKind::Integer),
-            ("bar", PrimitiveTypeKind::String),
-            ("baz", PrimitiveTypeKind::Boolean),
-        ]));
+        let ty = StructType::new("Foo", [
+            ("foo", PrimitiveType::Integer),
+            ("bar", PrimitiveType::String),
+            ("baz", PrimitiveType::Boolean),
+        ]);
 
         env.insert_struct("Foo", ty);
 

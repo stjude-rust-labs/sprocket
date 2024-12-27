@@ -1,6 +1,6 @@
 //! Implements the `stderr` function from the WDL standard library.
 
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -15,7 +15,7 @@ use crate::diagnostics::function_call_failed;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#stderr
 fn stderr(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.is_empty());
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::File));
 
     match context.stderr() {
         Some(stderr) => {

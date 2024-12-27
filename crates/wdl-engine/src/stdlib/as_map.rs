@@ -41,17 +41,7 @@ impl fmt::Display for DuplicateKeyError {
 fn as_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(
-        context
-            .types()
-            .type_definition(
-                context
-                    .return_type
-                    .as_compound()
-                    .expect("type should be compound")
-                    .definition()
-            )
-            .as_map()
-            .is_some(),
+        context.return_type.as_map().is_some(),
         "return type should be a map"
     );
 

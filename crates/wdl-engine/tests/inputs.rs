@@ -39,7 +39,6 @@ use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::rules;
-use wdl_analysis::types::Types;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::Inputs;
@@ -147,14 +146,12 @@ fn run_test(test: &Path, result: AnalysisResult, ntests: &AtomicUsize) -> Result
         bail!("document `{path}` contains at least one diagnostic error:\n{diagnostic}");
     }
 
-    let mut types = Types::default();
     let document = result.document();
-    let result = match Inputs::parse(&mut types, document, test.join("inputs.json")) {
+    let result = match Inputs::parse(document, test.join("inputs.json")) {
         Ok(Some((name, inputs))) => match inputs {
             Inputs::Task(inputs) => {
                 match inputs
                     .validate(
-                        &mut types,
                         document,
                         document
                             .task_by_name(&name)
@@ -168,14 +165,12 @@ fn run_test(test: &Path, result: AnalysisResult, ntests: &AtomicUsize) -> Result
             }
             Inputs::Workflow(inputs) => {
                 let workflow = document.workflow().expect("workflow should be present");
-                match inputs
-                    .validate(&mut types, document, workflow)
-                    .with_context(|| {
-                        format!(
-                            "failed to validate the inputs to workflow `{workflow}`",
-                            workflow = workflow.name()
-                        )
-                    }) {
+                match inputs.validate(document, workflow).with_context(|| {
+                    format!(
+                        "failed to validate the inputs to workflow `{workflow}`",
+                        workflow = workflow.name()
+                    )
+                }) {
                     Ok(()) => String::new(),
                     Err(e) => format!("{e:?}"),
                 }

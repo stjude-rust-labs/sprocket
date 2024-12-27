@@ -177,11 +177,7 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
     }
 
     let mut engine = Engine::new(LocalTaskExecutionBackend::new());
-    let (name, mut inputs) = match Inputs::parse(
-        engine.types_mut(),
-        result.document(),
-        test.join("inputs.json"),
-    )? {
+    let (name, mut inputs) = match Inputs::parse(result.document(), test.join("inputs.json"))? {
         Some((name, Inputs::Task(inputs))) => (name, inputs),
         Some((_, Inputs::Workflow(_))) => {
             bail!("`inputs.json` contains inputs for a workflow, not a task")
@@ -208,7 +204,7 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
         .document()
         .task_by_name(&name)
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
-    inputs.join_paths(engine.types_mut(), result.document(), task, &test_dir);
+    inputs.join_paths(task, &test_dir);
 
     let dir = TempDir::new().context("failed to create temporary directory")?;
     let mut evaluator = TaskEvaluator::new(&mut engine);
@@ -224,7 +220,7 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
                     let outputs = outputs.with_name(name);
                     let mut buffer = Vec::new();
                     let mut serializer = serde_json::Serializer::pretty(&mut buffer);
-                    outputs.serialize(engine.types(), &mut serializer)?;
+                    outputs.serialize(&mut serializer)?;
                     let outputs = String::from_utf8(buffer).expect("output should be UTF-8");
                     let outputs = strip_paths(dir.path(), &outputs);
                     compare_result(&test.join("outputs.json"), &outputs)?;

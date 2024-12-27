@@ -6,8 +6,8 @@ use std::path::Path;
 
 use itertools::Either;
 use tempfile::NamedTempFile;
-use wdl_analysis::types::CompoundTypeDef;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::CompoundType;
+use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
@@ -42,7 +42,7 @@ use crate::stdlib::write_tsv::write_tsv_value;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_objects
 fn write_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::File));
 
     // Helper for handling errors while writing to the file.
     let write_error = |e: std::io::Error| {
@@ -67,12 +67,10 @@ fn write_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         )
     })?;
 
-    let element_type = match context.arguments[0].value.ty() {
-        Type::Compound(ty) => match context.types().type_definition(ty.definition()) {
-            CompoundTypeDef::Array(ty) => ty.element_type(),
-            _ => panic!("expected an array type for the argument"),
-        },
-        _ => panic!("expected a compound type for the argument"),
+    let ty = context.arguments[0].value.ty();
+    let element_type = match &ty {
+        Type::Compound(CompoundType::Array(ty), ..) => ty.element_type(),
+        _ => panic!("expected an array type for the argument"),
     };
 
     // If it's an array of objects, we need to ensure each object has the exact same
@@ -205,7 +203,7 @@ mod test {
     use std::fs;
 
     use pretty_assertions::assert_eq;
-    use wdl_analysis::types::PrimitiveTypeKind;
+    use wdl_analysis::types::PrimitiveType;
     use wdl_analysis::types::StructType;
     use wdl_ast::version::V1;
 
@@ -216,11 +214,11 @@ mod test {
     fn write_objects() {
         let mut env = TestEnv::default();
 
-        let ty = env.types_mut().add_struct(StructType::new("Foo", [
-            ("foo", PrimitiveTypeKind::Integer),
-            ("bar", PrimitiveTypeKind::String),
-            ("baz", PrimitiveTypeKind::Boolean),
-        ]));
+        let ty = StructType::new("Foo", [
+            ("foo", PrimitiveType::Integer),
+            ("bar", PrimitiveType::String),
+            ("baz", PrimitiveType::Boolean),
+        ]);
 
         env.insert_struct("Foo", ty);
 

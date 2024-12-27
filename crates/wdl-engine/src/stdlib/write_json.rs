@@ -3,8 +3,9 @@
 use std::io::BufWriter;
 use std::path::Path;
 
+use serde::Serialize;
 use tempfile::NamedTempFile;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -19,7 +20,7 @@ use crate::diagnostics::function_call_failed;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_json
 fn write_json(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::File));
 
     // Helper for handling errors while writing to the file.
     let write_error = |e: std::io::Error| {
@@ -44,7 +45,7 @@ fn write_json(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     let mut serializer = serde_json::Serializer::pretty(&mut writer);
     context.arguments[0]
         .value
-        .serialize(context.types(), &mut serializer)
+        .serialize(&mut serializer)
         .map_err(|e| {
             function_call_failed(
                 "write_json",
@@ -98,7 +99,7 @@ mod test {
     use std::fs;
 
     use pretty_assertions::assert_eq;
-    use wdl_analysis::types::PrimitiveTypeKind;
+    use wdl_analysis::types::PrimitiveType;
     use wdl_analysis::types::StructType;
     use wdl_ast::version::V1;
 
@@ -122,11 +123,11 @@ mod test {
     fn write_json() {
         let mut env = TestEnv::default();
 
-        let ty = env.types_mut().add_struct(StructType::new("Foo", [
-            ("foo", PrimitiveTypeKind::Integer),
-            ("bar", PrimitiveTypeKind::String),
-            ("baz", PrimitiveTypeKind::Float),
-        ]));
+        let ty = StructType::new("Foo", [
+            ("foo", PrimitiveType::Integer),
+            ("bar", PrimitiveType::String),
+            ("baz", PrimitiveType::Float),
+        ]);
         env.insert_struct("Foo", ty);
         env.insert_name("foo", PrimitiveValue::new_file("foo"));
         env.insert_name("bar", PrimitiveValue::new_file("bar"));

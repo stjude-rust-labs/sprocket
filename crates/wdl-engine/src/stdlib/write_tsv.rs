@@ -6,8 +6,7 @@ use std::path::Path;
 
 use tempfile::NamedTempFile;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
-use wdl_analysis::types::CompoundTypeDef;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 
@@ -171,10 +170,10 @@ fn write_array_tsv_file(
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
 fn write_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::File));
 
     let rows = context
-        .coerce_argument(0, ANALYSIS_STDLIB.array_array_string_type())
+        .coerce_argument(0, ANALYSIS_STDLIB.array_array_string_type().clone())
         .unwrap_array();
 
     write_array_tsv_file(context.temp_dir(), rows, None, context.call_site)
@@ -192,16 +191,16 @@ fn write_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
 fn write_tsv_with_header(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 3);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::File));
 
     let rows = context
-        .coerce_argument(0, ANALYSIS_STDLIB.array_array_string_type())
+        .coerce_argument(0, ANALYSIS_STDLIB.array_array_string_type().clone())
         .unwrap_array();
     let write_header = context
-        .coerce_argument(1, PrimitiveTypeKind::Boolean)
+        .coerce_argument(1, PrimitiveType::Boolean)
         .unwrap_boolean();
     let header = context
-        .coerce_argument(2, ANALYSIS_STDLIB.array_string_type())
+        .coerce_argument(2, ANALYSIS_STDLIB.array_string_type().clone())
         .unwrap_array();
 
     write_array_tsv_file(
@@ -225,7 +224,7 @@ fn write_tsv_with_header(context: CallContext<'_>) -> Result<Value, Diagnostic> 
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
 fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(!context.arguments.is_empty() && context.arguments.len() <= 3);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::File));
 
     // Helper for handling errors while writing to the file.
     let write_error = |e: std::io::Error| {
@@ -239,7 +238,7 @@ fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     let rows = context.arguments[0].value.as_array().unwrap();
     let write_header = if context.arguments.len() >= 2 {
         context
-            .coerce_argument(1, PrimitiveTypeKind::Boolean)
+            .coerce_argument(1, PrimitiveType::Boolean)
             .unwrap_boolean()
     } else {
         false
@@ -247,7 +246,7 @@ fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     let header = if context.arguments.len() == 3 {
         Some(
             context
-                .coerce_argument(2, ANALYSIS_STDLIB.array_string_type())
+                .coerce_argument(2, ANALYSIS_STDLIB.array_string_type().clone())
                 .unwrap_array(),
         )
     } else {
@@ -267,11 +266,12 @@ fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     // Get the struct type to print the columns; we need to do this even when the
     // array is empty
-    let ty = match context
-        .types()
-        .type_definition(rows.ty().as_compound().unwrap().definition())
-    {
-        CompoundTypeDef::Array(ty) => context.types().struct_type(ty.element_type()),
+    let rows_ty = rows.ty();
+    let ty = match rows_ty.as_array() {
+        Some(ty) => ty
+            .element_type()
+            .as_struct()
+            .expect("should be struct type"),
         _ => panic!("expected an array"),
     };
 
@@ -406,8 +406,8 @@ mod test {
     use pretty_assertions::assert_eq;
     use wdl_analysis::types::Optional;
     use wdl_analysis::types::PrimitiveType;
-    use wdl_analysis::types::PrimitiveTypeKind;
     use wdl_analysis::types::StructType;
+    use wdl_analysis::types::Type;
     use wdl_ast::version::V1;
 
     use crate::v1::test::TestEnv;
@@ -417,14 +417,12 @@ mod test {
     fn write_tsv() {
         let mut env = TestEnv::default();
 
-        let ty = env.types_mut().add_struct(StructType::new("Foo", [
-            ("foo", PrimitiveType::from(PrimitiveTypeKind::Integer)),
-            ("bar", PrimitiveType::from(PrimitiveTypeKind::String)),
-            (
-                "baz",
-                PrimitiveType::from(PrimitiveTypeKind::Boolean).optional(),
-            ),
-        ]));
+        let ty: Type = StructType::new("Foo", [
+            ("foo", PrimitiveType::Integer.into()),
+            ("bar", PrimitiveType::String.into()),
+            ("baz", Type::from(PrimitiveType::Boolean).optional()),
+        ])
+        .into();
 
         env.insert_struct("Foo", ty);
 

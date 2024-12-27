@@ -1,6 +1,6 @@
 //! Implements the `round` function from the WDL standard library.
 
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -14,10 +14,10 @@ use crate::Value;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#round
 fn round(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Integer));
+    debug_assert!(context.return_type_eq(PrimitiveType::Integer));
 
     let arg = context
-        .coerce_argument(0, PrimitiveTypeKind::Float)
+        .coerce_argument(0, PrimitiveType::Float)
         .unwrap_float();
     Ok((arg.round() as i64).into())
 }

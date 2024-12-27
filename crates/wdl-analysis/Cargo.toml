@@ -28,7 +28,6 @@ indexmap = { workspace = true }
 line-index = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 walkdir = { workspace = true }
-id-arena = { workspace = true }
 tracing = { workspace = true }
 convert_case = { workspace = true }
 

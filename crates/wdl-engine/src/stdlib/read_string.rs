@@ -3,7 +3,7 @@
 use std::fs;
 
 use anyhow::Context;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -21,11 +21,11 @@ use crate::diagnostics::function_call_failed;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_string
 fn read_string(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::String));
+    debug_assert!(context.return_type_eq(PrimitiveType::String));
 
     let path = context.work_dir().join(
         context
-            .coerce_argument(0, PrimitiveTypeKind::File)
+            .coerce_argument(0, PrimitiveType::File)
             .unwrap_file()
             .as_str(),
     );

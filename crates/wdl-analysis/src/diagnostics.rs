@@ -17,7 +17,6 @@ use crate::UNUSED_INPUT_RULE_ID;
 use crate::types::CallKind;
 use crate::types::CallType;
 use crate::types::Type;
-use crate::types::Types;
 use crate::types::display_types;
 use crate::types::v1::ComparisonOperator;
 use crate::types::v1::NumericOperator;
@@ -140,11 +139,9 @@ pub fn name_conflict(name: &str, conflicting: Context, first: Context) -> Diagno
 }
 
 /// Constructs a "cannot index" diagnostic.
-pub fn cannot_index(types: &Types, actual: Type, span: Span) -> Diagnostic {
-    Diagnostic::error("indexing is only allowed on `Array` and `Map` types").with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        span,
-    )
+pub fn cannot_index(actual: &Type, span: Span) -> Diagnostic {
+    Diagnostic::error("indexing is only allowed on `Array` and `Map` types")
+        .with_label(format!("this is type `{actual}`"), span)
 }
 
 /// Creates an "unknown name" diagnostic.
@@ -354,28 +351,16 @@ pub fn unknown_type(name: &str, span: Span) -> Diagnostic {
 
 /// Creates a "type mismatch" diagnostic.
 pub fn type_mismatch(
-    types: &Types,
-    expected: Type,
+    expected: &Type,
     expected_span: Span,
-    actual: Type,
+    actual: &Type,
     actual_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected type `{expected}`, but found type `{actual}`",
-        expected = expected.display(types),
-        actual = actual.display(types)
+        "type mismatch: expected type `{expected}`, but found type `{actual}`"
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-    .with_label(
-        format!(
-            "this expects type `{expected}`",
-            expected = expected.display(types)
-        ),
-        expected_span,
-    )
+    .with_label(format!("this is type `{actual}`"), actual_span)
+    .with_label(format!("this expects type `{expected}`"), expected_span)
 }
 
 /// Creates a "non-empty array assignment" diagnostic.
@@ -386,23 +371,14 @@ pub fn non_empty_array_assignment(expected_span: Span, actual_span: Span) -> Dia
 }
 
 /// Creates a "call input type mismatch" diagnostic.
-pub fn call_input_type_mismatch(
-    types: &Types,
-    name: &Ident,
-    expected: Type,
-    actual: Type,
-) -> Diagnostic {
+pub fn call_input_type_mismatch(name: &Ident, expected: &Type, actual: &Type) -> Diagnostic {
     Diagnostic::error(format!(
         "type mismatch: expected type `{expected}`, but found type `{actual}`",
-        expected = expected.display(types),
-        actual = actual.display(types)
     ))
     .with_label(
         format!(
             "input `{name}` is type `{expected}`, but name `{name}` is type `{actual}`",
             name = name.as_str(),
-            expected = expected.display(types),
-            actual = actual.display(types)
         ),
         name.span(),
     )
@@ -410,51 +386,34 @@ pub fn call_input_type_mismatch(
 
 /// Creates a "no common type" diagnostic.
 pub fn no_common_type(
-    types: &Types,
-    expected: Type,
+    expected: &Type,
     expected_span: Span,
-    actual: Type,
+    actual: &Type,
     actual_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: a type common to both type `{expected}` and type `{actual}` does not exist",
-        expected = expected.display(types),
-        actual = actual.display(types)
+        "type mismatch: a type common to both type `{expected}` and type `{actual}` does not exist"
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
-    .with_label(
-        format!(
-            "this is type `{expected}`",
-            expected = expected.display(types)
-        ),
-        expected_span,
-    )
+    .with_label(format!("this is type `{actual}`"), actual_span)
+    .with_label(format!("this is type `{expected}`"), expected_span)
 }
 
 /// Creates a "multiple type mismatch" diagnostic.
 pub fn multiple_type_mismatch(
-    types: &Types,
     expected: &[Type],
     expected_span: Span,
-    actual: Type,
+    actual: &Type,
     actual_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
         "type mismatch: expected {expected}, but found type `{actual}`",
-        expected = display_types(types, expected),
-        actual = actual.display(types),
+        expected = display_types(expected),
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
+    .with_label(format!("this is type `{actual}`"), actual_span)
     .with_label(
         format!(
             "this expects {expected}",
-            expected = display_types(types, expected)
+            expected = display_types(expected)
         ),
         expected_span,
     )
@@ -509,142 +468,97 @@ pub fn missing_struct_members(name: &Ident, count: usize, members: &str) -> Diag
 }
 
 /// Creates a "map key not primitive" diagnostic.
-pub fn map_key_not_primitive(types: &Types, span: Span, actual: Type) -> Diagnostic {
+pub fn map_key_not_primitive(span: Span, actual: &Type) -> Diagnostic {
     Diagnostic::error("expected map literal to use primitive type keys")
         .with_highlight(span)
-        .with_label(
-            format!("this is type `{actual}`", actual = actual.display(types)),
-            span,
-        )
+        .with_label(format!("this is type `{actual}`"), span)
 }
 
 /// Creates a "if conditional mismatch" diagnostic.
-pub fn if_conditional_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
+pub fn if_conditional_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
         "type mismatch: expected `if` conditional expression to be type `Boolean`, but found type \
-         `{actual}`",
-        actual = actual.display(types)
+         `{actual}`"
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
+    .with_label(format!("this is type `{actual}`"), actual_span)
 }
 
 /// Creates a "logical not mismatch" diagnostic.
-pub fn logical_not_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
+pub fn logical_not_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
         "type mismatch: expected `logical not` operand to be type `Boolean`, but found type \
-         `{actual}`",
-        actual = actual.display(types)
+         `{actual}`"
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
+    .with_label(format!("this is type `{actual}`"), actual_span)
 }
 
 /// Creates a "negation mismatch" diagnostic.
-pub fn negation_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
+pub fn negation_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
         "type mismatch: expected negation operand to be type `Int` or `Float`, but found type \
-         `{actual}`",
-        actual = actual.display(types)
+         `{actual}`"
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
+    .with_label(format!("this is type `{actual}`"), actual_span)
 }
 
 /// Creates a "logical or mismatch" diagnostic.
-pub fn logical_or_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
+pub fn logical_or_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
         "type mismatch: expected `logical or` operand to be type `Boolean`, but found type \
-         `{actual}`",
-        actual = actual.display(types)
+         `{actual}`"
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
+    .with_label(format!("this is type `{actual}`"), actual_span)
 }
 
 /// Creates a "logical and mismatch" diagnostic.
-pub fn logical_and_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
+pub fn logical_and_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
         "type mismatch: expected `logical and` operand to be type `Boolean`, but found type \
-         `{actual}`",
-        actual = actual.display(types)
+         `{actual}`"
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
+    .with_label(format!("this is type `{actual}`"), actual_span)
 }
 
 /// Creates a "comparison mismatch" diagnostic.
 pub fn comparison_mismatch(
-    types: &Types,
     op: ComparisonOperator,
     span: Span,
-    lhs: Type,
+    lhs: &Type,
     lhs_span: Span,
-    rhs: Type,
+    rhs: &Type,
     rhs_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: operator `{op}` cannot compare type `{lhs}` to type `{rhs}`",
-        lhs = lhs.display(types),
-        rhs = rhs.display(types),
+        "type mismatch: operator `{op}` cannot compare type `{lhs}` to type `{rhs}`"
     ))
     .with_highlight(span)
-    .with_label(
-        format!("this is type `{lhs}`", lhs = lhs.display(types)),
-        lhs_span,
-    )
-    .with_label(
-        format!("this is type `{rhs}`", rhs = rhs.display(types)),
-        rhs_span,
-    )
+    .with_label(format!("this is type `{lhs}`"), lhs_span)
+    .with_label(format!("this is type `{rhs}`"), rhs_span)
 }
 
 /// Creates a "numeric mismatch" diagnostic.
 pub fn numeric_mismatch(
-    types: &Types,
     op: NumericOperator,
     span: Span,
-    lhs: Type,
+    lhs: &Type,
     lhs_span: Span,
-    rhs: Type,
+    rhs: &Type,
     rhs_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: {op} operator is not supported for type `{lhs}` and type `{rhs}`",
-        lhs = lhs.display(types),
-        rhs = rhs.display(types)
+        "type mismatch: {op} operator is not supported for type `{lhs}` and type `{rhs}`"
     ))
     .with_highlight(span)
-    .with_label(
-        format!("this is type `{lhs}`", lhs = lhs.display(types)),
-        lhs_span,
-    )
-    .with_label(
-        format!("this is type `{rhs}`", rhs = rhs.display(types)),
-        rhs_span,
-    )
+    .with_label(format!("this is type `{lhs}`"), lhs_span)
+    .with_label(format!("this is type `{rhs}`"), rhs_span)
 }
 
 /// Creates a "string concat mismatch" diagnostic.
-pub fn string_concat_mismatch(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
+pub fn string_concat_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: string concatenation is not supported for type `{actual}`",
-        actual = actual.display(types),
+        "type mismatch: string concatenation is not supported for type `{actual}`"
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
+    .with_label(format!("this is type `{actual}`"), actual_span)
 }
 
 /// Creates an "unknown function" diagnostic.
@@ -696,22 +610,12 @@ pub fn too_many_arguments(
 }
 
 /// Constructs an "argument type mismatch" diagnostic.
-pub fn argument_type_mismatch(
-    types: &Types,
-    name: &str,
-    expected: &str,
-    actual: Type,
-    span: Span,
-) -> Diagnostic {
+pub fn argument_type_mismatch(name: &str, expected: &str, actual: &Type, span: Span) -> Diagnostic {
     Diagnostic::error(format!(
         "type mismatch: argument to function `{name}` expects type {expected}, but found type \
-         `{actual}`",
-        actual = actual.display(types)
+         `{actual}`"
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        span,
-    )
+    .with_label(format!("this is type `{actual}`"), span)
 }
 
 /// Constructs an "ambiguous argument" diagnostic.
@@ -723,52 +627,31 @@ pub fn ambiguous_argument(name: &str, span: Span, first: &str, second: &str) -> 
 }
 
 /// Constructs an "index type mismatch" diagnostic.
-pub fn index_type_mismatch(types: &Types, expected: Type, actual: Type, span: Span) -> Diagnostic {
+pub fn index_type_mismatch(expected: &Type, actual: &Type, span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected index to be type `{expected}`, but found type `{actual}`",
-        expected = expected.display(types),
-        actual = actual.display(types)
+        "type mismatch: expected index to be type `{expected}`, but found type `{actual}`"
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        span,
-    )
+    .with_label(format!("this is type `{actual}`"), span)
 }
 
 /// Constructs an "type is not array" diagnostic.
-pub fn type_is_not_array(types: &Types, actual: Type, span: Span) -> Diagnostic {
+pub fn type_is_not_array(actual: &Type, span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected an array type, but found type `{actual}`",
-        actual = actual.display(types)
+        "type mismatch: expected an array type, but found type `{actual}`"
     ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        span,
-    )
+    .with_label(format!("this is type `{actual}`"), span)
 }
 
 /// Constructs a "cannot access" diagnostic.
-pub fn cannot_access(types: &Types, actual: Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "cannot access type `{actual}`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        actual_span,
-    )
+pub fn cannot_access(actual: &Type, actual_span: Span) -> Diagnostic {
+    Diagnostic::error(format!("cannot access type `{actual}`"))
+        .with_label(format!("this is type `{actual}`"), actual_span)
 }
 
 /// Constructs a "cannot coerce to string" diagnostic.
-pub fn cannot_coerce_to_string(types: &Types, actual: Type, span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "cannot coerce type `{actual}` to `String`",
-        actual = actual.display(types)
-    ))
-    .with_label(
-        format!("this is type `{actual}`", actual = actual.display(types)),
-        span,
-    )
+pub fn cannot_coerce_to_string(actual: &Type, span: Span) -> Diagnostic {
+    Diagnostic::error(format!("cannot coerce type `{actual}` to `String`"))
+        .with_label(format!("this is type `{actual}`"), span)
 }
 
 /// Creates an "unknown task or workflow" diagnostic.

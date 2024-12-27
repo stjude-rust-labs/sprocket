@@ -24,21 +24,14 @@ fn as_pairs(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .expect("argument should be a map");
 
     let element_ty = context
-        .types()
-        .type_definition(
-            context
-                .return_type
-                .as_compound()
-                .expect("type should be compound")
-                .definition(),
-        )
+        .return_type
         .as_array()
         .expect("type should be an array")
         .element_type();
 
     let elements = map
         .iter()
-        .map(|(k, v)| Pair::new_unchecked(element_ty, k.clone().into(), v.clone()).into())
+        .map(|(k, v)| Pair::new_unchecked(element_ty.clone(), k.clone().into(), v.clone()).into())
         .collect();
 
     Ok(Array::new_unchecked(context.return_type, elements).into())

@@ -6,8 +6,6 @@ use std::sync::LazyLock;
 
 use wdl_analysis::stdlib::Binding;
 use wdl_analysis::types::Type;
-use wdl_analysis::types::TypeEq;
-use wdl_analysis::types::Types;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 
@@ -120,16 +118,6 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    /// Gets the types collection associated with the call.
-    pub fn types(&self) -> &Types {
-        self.context.types()
-    }
-
-    /// Gets the mutable types collection associated with the call.
-    pub fn types_mut(&mut self) -> &mut Types {
-        self.context.types_mut()
-    }
-
     /// Gets the working directory for the call.
     pub fn work_dir(&self) -> &Path {
         self.context.work_dir()
@@ -160,7 +148,7 @@ impl<'a> CallContext<'a> {
     fn coerce_argument(&self, index: usize, ty: impl Into<Type>) -> Value {
         self.arguments[index]
             .value
-            .coerce(self.context.types(), ty.into())
+            .coerce(&ty.into())
             .expect("value should coerce")
     }
 
@@ -169,7 +157,7 @@ impl<'a> CallContext<'a> {
     /// This is only used in assertions made by the function implementations.
     #[allow(unused)]
     fn return_type_eq(&self, ty: impl Into<Type>) -> bool {
-        self.return_type.type_eq(self.context.types(), &ty.into())
+        self.return_type.eq(&ty.into())
     }
 }
 
@@ -328,10 +316,7 @@ mod test {
                         );
                         assert_eq!(
                             f.signature()
-                                .display(
-                                    ANALYSIS_STDLIB.types(),
-                                    &TypeParameters::new(f.signature().type_parameters())
-                                )
+                                .display(&TypeParameters::new(f.signature().type_parameters()))
                                 .to_string(),
                             imp.signatures[0].display,
                             "signature mismatch for function `{name}`"
@@ -345,11 +330,8 @@ mod test {
                         );
                         for (i, sig) in f.signatures().iter().enumerate() {
                             assert_eq!(
-                                sig.display(
-                                    ANALYSIS_STDLIB.types(),
-                                    &TypeParameters::new(sig.type_parameters())
-                                )
-                                .to_string(),
+                                sig.display(&TypeParameters::new(sig.type_parameters()))
+                                    .to_string(),
                                 imp.signatures[i].display,
                                 "signature mismatch for function `{name}` (index {i})"
                             );

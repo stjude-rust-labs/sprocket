@@ -4,7 +4,8 @@ use std::fs;
 use std::io::BufReader;
 
 use anyhow::Context;
-use wdl_analysis::types::PrimitiveTypeKind;
+use serde::Deserialize;
+use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
@@ -18,13 +19,13 @@ use crate::diagnostics::function_call_failed;
 /// contents.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_json
-fn read_json(mut context: CallContext<'_>) -> Result<Value, Diagnostic> {
+fn read_json(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
     debug_assert!(context.return_type_eq(Type::Union));
 
     let path = context.work_dir().join(
         context
-            .coerce_argument(0, PrimitiveTypeKind::File)
+            .coerce_argument(0, PrimitiveType::File)
             .unwrap_file()
             .as_str(),
     );
@@ -33,7 +34,7 @@ fn read_json(mut context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .map_err(|e| function_call_failed("read_json", format!("{e:?}"), context.call_site))?;
 
     let mut deserializer = serde_json::Deserializer::from_reader(BufReader::new(file));
-    Value::deserialize(context.types_mut(), &mut deserializer).map_err(|e| {
+    Value::deserialize(&mut deserializer).map_err(|e| {
         function_call_failed(
             "read_json",
             format!(

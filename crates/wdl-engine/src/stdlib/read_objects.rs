@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 use wdl_grammar::lexer::v1::is_ident;
 
@@ -42,11 +42,11 @@ use crate::diagnostics::function_call_failed;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_objects
 fn read_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type()));
+    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type().clone()));
 
     let path = context.work_dir().join(
         context
-            .coerce_argument(0, PrimitiveTypeKind::File)
+            .coerce_argument(0, PrimitiveType::File)
             .unwrap_file()
             .as_str(),
     );
@@ -63,9 +63,11 @@ fn read_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
                 function_call_failed("read_objects", format!("{e:?}"), context.call_site)
             })?,
         None => {
-            return Ok(
-                Array::new_unchecked(ANALYSIS_STDLIB.array_object_type(), Vec::new()).into(),
-            );
+            return Ok(Array::new_unchecked(
+                ANALYSIS_STDLIB.array_object_type().clone(),
+                Vec::new(),
+            )
+            .into());
         }
     };
 
@@ -127,7 +129,7 @@ fn read_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         objects.push(Object::from(members).into());
     }
 
-    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type(), objects).into())
+    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type().clone(), objects).into())
 }
 
 /// Gets the function describing `read_objects`.

@@ -2,7 +2,7 @@
 
 use regex::Regex;
 use wdl_analysis::types::Optional;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
@@ -20,13 +20,13 @@ use crate::diagnostics::invalid_regex;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-find
 fn find(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
-    debug_assert!(context.return_type_eq(Type::from(PrimitiveTypeKind::String).optional()));
+    debug_assert!(context.return_type_eq(Type::from(PrimitiveType::String).optional()));
 
     let input = context
-        .coerce_argument(0, PrimitiveTypeKind::String)
+        .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
     let pattern = context
-        .coerce_argument(1, PrimitiveTypeKind::String)
+        .coerce_argument(1, PrimitiveType::String)
         .unwrap_string();
 
     let regex =

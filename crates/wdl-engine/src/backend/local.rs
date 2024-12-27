@@ -15,7 +15,7 @@ use futures::FutureExt;
 use futures::future::BoxFuture;
 use tokio::process::Command;
 use tracing::info;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::v1::TASK_REQUIREMENT_CPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 
@@ -110,7 +110,7 @@ impl TaskExecution for LocalTaskExecution {
         let min_cpu = requirements
             .get(TASK_REQUIREMENT_CPU)
             .map(|v| {
-                v.coerce(engine.types(), PrimitiveTypeKind::Float.into())
+                v.coerce(&PrimitiveType::Float.into())
                     .expect("type should coerce")
                     .unwrap_float()
             })

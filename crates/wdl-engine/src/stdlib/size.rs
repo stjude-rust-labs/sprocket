@@ -7,7 +7,7 @@ use std::path::Path;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -29,11 +29,11 @@ use crate::diagnostics::invalid_storage_unit;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#glob
 fn size(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(!context.arguments.is_empty() && context.arguments.len() < 3);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Float));
+    debug_assert!(context.return_type_eq(PrimitiveType::Float));
 
     let unit = if context.arguments.len() == 2 {
         let unit = context
-            .coerce_argument(1, PrimitiveTypeKind::String)
+            .coerce_argument(1, PrimitiveType::String)
             .unwrap_string();
 
         unit.parse()

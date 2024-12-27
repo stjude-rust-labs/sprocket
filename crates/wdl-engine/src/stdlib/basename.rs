@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -21,10 +21,10 @@ use crate::Value;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#basename
 fn basename(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(!context.arguments.is_empty() && context.arguments.len() < 3);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::String));
+    debug_assert!(context.return_type_eq(PrimitiveType::String));
 
     let path = context
-        .coerce_argument(0, PrimitiveTypeKind::String)
+        .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
 
     match Path::new(path.as_str()).file_name() {
@@ -33,7 +33,7 @@ fn basename(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             let base = if context.arguments.len() == 2 {
                 base.strip_suffix(
                     context
-                        .coerce_argument(1, PrimitiveTypeKind::String)
+                        .coerce_argument(1, PrimitiveType::String)
                         .unwrap_string()
                         .as_str(),
                 )

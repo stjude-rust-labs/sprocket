@@ -1313,11 +1313,6 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308b
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
-message = "BenchmarkSVs.wdl:242:26: error: type mismatch: expected type `Array[String]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/BenchmarkSVs/BenchmarkSVs.wdl/#L242"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
 message = "BenchmarkSVs.wdl:243:35: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/BenchmarkSVs/BenchmarkSVs.wdl/#L243"
 
@@ -1447,21 +1442,6 @@ message = "BenchmarkAndCompareVCFs.wdl:23:21: warning[UnusedInput]: unused input
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/BenchmarkVCFs/BenchmarkAndCompareVCFs.wdl/#L23"
 
 [[diagnostics]]
-document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkAndCompareVCFs.wdl"
-message = "BenchmarkAndCompareVCFs.wdl:75:32: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/BenchmarkVCFs/BenchmarkAndCompareVCFs.wdl/#L75"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkAndCompareVCFs.wdl"
-message = "BenchmarkAndCompareVCFs.wdl:76:39: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/BenchmarkVCFs/BenchmarkAndCompareVCFs.wdl/#L76"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkAndCompareVCFs.wdl"
-message = "BenchmarkAndCompareVCFs.wdl:77:22: error: type mismatch: expected type `Array[Int]`, but found type `Array[Int]?`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/BenchmarkVCFs/BenchmarkAndCompareVCFs.wdl/#L77"
-
-[[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
 message = "BenchmarkVCFs.wdl:178:26: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/BenchmarkVCFs/BenchmarkVCFs.wdl/#L178"
@@ -1475,11 +1455,6 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308b
 document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
 message = "BenchmarkVCFs.wdl:180:26: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/BenchmarkVCFs/BenchmarkVCFs.wdl/#L180"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
-message = "BenchmarkVCFs.wdl:189:18: error: type mismatch: expected type `Array[String]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/BenchmarkVCFs/BenchmarkVCFs.wdl/#L189"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
@@ -1698,16 +1673,6 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308b
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/GlimpseImputationPipeline/Glimpse2ImputationAndCheckQC.wdl"
-message = "Glimpse2ImputationAndCheckQC.wdl:48:21: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/GlimpseImputationPipeline/Glimpse2ImputationAndCheckQC.wdl/#L48"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/GlimpseImputationPipeline/Glimpse2ImputationAndCheckQC.wdl"
-message = "Glimpse2ImputationAndCheckQC.wdl:49:28: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/GlimpseImputationPipeline/Glimpse2ImputationAndCheckQC.wdl/#L49"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/GlimpseImputationPipeline/Glimpse2ImputationAndCheckQC.wdl"
 message = "Glimpse2ImputationAndCheckQC.wdl:55:46: error: type mismatch: expected type `Boolean`, but found type `Boolean?`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/GlimpseImputationPipeline/Glimpse2ImputationAndCheckQC.wdl/#L55"
 
@@ -1877,16 +1842,6 @@ message = "PCARE.wdl:3:8: warning[UnusedImport]: unused import namespace `Struct
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/ImputationPipeline/PCARE.wdl/#L3"
 
 [[diagnostics]]
-document = "broadinstitute/palantir-workflows:/ImputationPipeline/PCARE.wdl"
-message = "PCARE.wdl:44:28: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/ImputationPipeline/PCARE.wdl/#L44"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/ImputationPipeline/PCAREAndQC.wdl"
-message = "PCAREAndQC.wdl:49:28: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/ImputationPipeline/PCAREAndQC.wdl/#L49"
-
-[[diagnostics]]
 document = "broadinstitute/palantir-workflows:/ImputationPipeline/PCAREAndQC.wdl"
 message = "PCAREAndQC.wdl:61:35: error: type mismatch: expected type `Boolean`, but found type `Boolean?`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/ImputationPipeline/PCAREAndQC.wdl/#L61"
@@ -1958,23 +1913,8 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308b
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/ImputationPipeline/Validation/FullImputationPRSValidation.wdl"
-message = "FullImputationPRSValidation.wdl:52:18: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/ImputationPipeline/Validation/FullImputationPRSValidation.wdl/#L52"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/ImputationPipeline/Validation/FullImputationPRSValidation.wdl"
 message = "FullImputationPRSValidation.wdl:5:8: warning[UnusedImport]: unused import namespace `Structs`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/ImputationPipeline/Validation/FullImputationPRSValidation.wdl/#L5"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/ImputationPipeline/Validation/SubsetWeightSet.wdl"
-message = "SubsetWeightSet.wdl:27:7: warning[UnnecessaryFunctionCall]: unnecessary call to function `defined`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/ImputationPipeline/Validation/SubsetWeightSet.wdl/#L27"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/ImputationPipeline/Validation/SubsetWeightSet.wdl"
-message = "SubsetWeightSet.wdl:28:53: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_first`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/58f72308bdf511a760dea92dbf2ac21eb2c7dc0e/ImputationPipeline/Validation/SubsetWeightSet.wdl/#L28"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/ImputationPipeline/Validation/ValidateImputation.wdl"
@@ -2348,16 +2288,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd4345
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/broad/dna_seq/germline/single_sample/ugwgs/UltimaGenomicsWholeGenomeGermline.wdl"
-message = "UltimaGenomicsWholeGenomeGermline.wdl:62:25: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/broad/dna_seq/germline/single_sample/ugwgs/UltimaGenomicsWholeGenomeGermline.wdl/#L62"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/broad/dna_seq/germline/single_sample/ugwgs/UltimaGenomicsWholeGenomeGermline.wdl"
-message = "UltimaGenomicsWholeGenomeGermline.wdl:63:24: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/broad/dna_seq/germline/single_sample/ugwgs/UltimaGenomicsWholeGenomeGermline.wdl/#L63"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/broad/dna_seq/germline/single_sample/ugwgs/UltimaGenomicsWholeGenomeGermline.wdl"
 message = "UltimaGenomicsWholeGenomeGermline.wdl:7:104: warning[UnusedImport]: unused import namespace `UltimaGenomicsWholeGenomeGermlineAlignmentMarkDuplicates`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/broad/dna_seq/germline/single_sample/ugwgs/UltimaGenomicsWholeGenomeGermline.wdl/#L7"
 
@@ -2375,11 +2305,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd4345
 document = "broadinstitute/warp:/pipelines/broad/dna_seq/germline/single_sample/ugwgs/UltimaGenomicsWholeGenomeGermline.wdl"
 message = "UltimaGenomicsWholeGenomeGermline.wdl:9:50: warning[UnusedImport]: unused import namespace `QC`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/broad/dna_seq/germline/single_sample/ugwgs/UltimaGenomicsWholeGenomeGermline.wdl/#L9"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/broad/dna_seq/germline/single_sample/wgs/WholeGenomeGermlineSingleSample.wdl"
-message = "WholeGenomeGermlineSingleSample.wdl:109:37: error: type mismatch: expected type `DragmapReference`, but found type `DragmapReference?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/broad/dna_seq/germline/single_sample/wgs/WholeGenomeGermlineSingleSample.wdl/#L109"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/broad/dna_seq/germline/single_sample/wgs/WholeGenomeGermlineSingleSample.wdl"
@@ -2410,16 +2335,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd4345
 document = "broadinstitute/warp:/pipelines/broad/dna_seq/somatic/single_sample/ugwgs/UltimaGenomicsWholeGenomeCramOnly.wdl"
 message = "UltimaGenomicsWholeGenomeCramOnly.wdl:46:10: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/broad/dna_seq/somatic/single_sample/ugwgs/UltimaGenomicsWholeGenomeCramOnly.wdl/#L46"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/broad/dna_seq/somatic/single_sample/ugwgs/UltimaGenomicsWholeGenomeCramOnly.wdl"
-message = "UltimaGenomicsWholeGenomeCramOnly.wdl:58:25: error: type mismatch: expected type `Array[String]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/broad/dna_seq/somatic/single_sample/ugwgs/UltimaGenomicsWholeGenomeCramOnly.wdl/#L58"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/broad/dna_seq/somatic/single_sample/ugwgs/UltimaGenomicsWholeGenomeCramOnly.wdl"
-message = "UltimaGenomicsWholeGenomeCramOnly.wdl:59:25: error: type mismatch: expected type `Array[String]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/broad/dna_seq/somatic/single_sample/ugwgs/UltimaGenomicsWholeGenomeCramOnly.wdl/#L59"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/broad/dna_seq/somatic/single_sample/ugwgs/UltimaGenomicsWholeGenomeCramOnly.wdl"
@@ -2475,16 +2390,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd4345
 document = "broadinstitute/warp:/pipelines/broad/internal/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl"
 message = "BroadInternalUltimaGenomics.wdl:4:95: warning[UnusedImport]: unused import namespace `Structs`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/broad/internal/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl/#L4"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/broad/internal/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl"
-message = "BroadInternalUltimaGenomics.wdl:63:25: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/broad/internal/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl/#L63"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/broad/internal/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl"
-message = "BroadInternalUltimaGenomics.wdl:64:24: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/broad/internal/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl/#L64"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/broad/internal/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl"
@@ -2647,16 +2552,6 @@ message = "Multiome.wdl:105:13: error: duplicate call input `cloud_provider` in 
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/multiome/Multiome.wdl/#L105"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/pipelines/skylab/multiome/Multiome.wdl"
-message = "Multiome.wdl:90:24: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/multiome/Multiome.wdl/#L90"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/skylab/optimus/Optimus.wdl"
-message = "Optimus.wdl:164:18: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/optimus/Optimus.wdl/#L164"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/optimus/Optimus.wdl"
 message = "Optimus.wdl:228:22: error: type mismatch: expected type `String`, but found type `String?`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/optimus/Optimus.wdl/#L228"
@@ -2687,11 +2582,6 @@ message = "PairedTag.wdl:5:49: warning[UnusedImport]: unused import namespace `H
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/paired_tag/PairedTag.wdl/#L5"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/pipelines/skylab/paired_tag/PairedTag.wdl"
-message = "PairedTag.wdl:86:24: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/paired_tag/PairedTag.wdl/#L86"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/scATAC/scATAC.wdl"
 message = "scATAC.wdl:203:9: error: duplicate key `cpu` in runtime section"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/scATAC/scATAC.wdl/#L203"
@@ -2707,19 +2597,9 @@ message = "SlideSeq.wdl:7:51: warning[UnusedImport]: unused import namespace `Op
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/slideseq/SlideSeq.wdl/#L7"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/pipelines/skylab/slideseq/SlideSeq.wdl"
-message = "SlideSeq.wdl:98:24: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/slideseq/SlideSeq.wdl/#L98"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/smartseq2_multisample/MultiSampleSmartSeq2.wdl"
 message = "MultiSampleSmartSeq2.wdl:71:28: warning[UnusedCall]: unused call `checkArrays`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/smartseq2_multisample/MultiSampleSmartSeq2.wdl/#L71"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/skylab/smartseq2_single_nucleus_multisample/MultiSampleSmartSeq2SingleNucleus.wdl"
-message = "MultiSampleSmartSeq2SingleNucleus.wdl:135:27: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/smartseq2_single_nucleus_multisample/MultiSampleSmartSeq2SingleNucleus.wdl/#L135"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/smartseq2_single_nucleus_multisample/MultiSampleSmartSeq2SingleNucleus.wdl"
@@ -2757,11 +2637,6 @@ message = "MultiSampleSmartSeq2SingleNucleus.wdl:81:40: warning[UnusedCall]: unu
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/smartseq2_single_nucleus_multisample/MultiSampleSmartSeq2SingleNucleus.wdl/#L81"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/pipelines/skylab/smartseq2_single_nucleus_multisample/MultiSampleSmartSeq2SingleNucleus.wdl"
-message = "MultiSampleSmartSeq2SingleNucleus.wdl:84:24: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/smartseq2_single_nucleus_multisample/MultiSampleSmartSeq2SingleNucleus.wdl/#L84"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/snm3C/snm3C.wdl"
 message = "snm3C.wdl:278:14: warning[UnusedInput]: unused input `chromosome_sizes`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/pipelines/skylab/snm3C/snm3C.wdl/#L278"
@@ -2773,11 +2648,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd4345
 
 [[diagnostics]]
 document = "broadinstitute/warp:/projects/optimus/CreateOptimusAdapterMetadata.wdl"
-message = "CreateOptimusAdapterMetadata.wdl:131:61: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/projects/optimus/CreateOptimusAdapterMetadata.wdl/#L131"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/projects/optimus/CreateOptimusAdapterMetadata.wdl"
 message = "CreateOptimusAdapterMetadata.wdl:217:14: warning[UnusedCall]: unused call `ValidateStagingArea`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/projects/optimus/CreateOptimusAdapterMetadata.wdl/#L217"
 
@@ -2785,26 +2655,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd4345
 document = "broadinstitute/warp:/projects/optimus/CreateOptimusAdapterMetadata.wdl"
 message = "CreateOptimusAdapterMetadata.wdl:45:10: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/projects/optimus/CreateOptimusAdapterMetadata.wdl/#L45"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/projects/smartseq2/CreateSs2AdapterMetadata.wdl"
-message = "CreateSs2AdapterMetadata.wdl:141:62: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/projects/smartseq2/CreateSs2AdapterMetadata.wdl/#L141"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/projects/smartseq2/CreateSs2AdapterMetadata.wdl"
-message = "CreateSs2AdapterMetadata.wdl:142:61: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/projects/smartseq2/CreateSs2AdapterMetadata.wdl/#L142"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/projects/smartseq2/CreateSs2AdapterMetadata.wdl"
-message = "CreateSs2AdapterMetadata.wdl:143:61: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/projects/smartseq2/CreateSs2AdapterMetadata.wdl/#L143"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/projects/smartseq2/CreateSs2AdapterMetadata.wdl"
-message = "CreateSs2AdapterMetadata.wdl:175:57: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/projects/smartseq2/CreateSs2AdapterMetadata.wdl/#L175"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/projects/smartseq2/CreateSs2AdapterMetadata.wdl"
@@ -3177,11 +3027,6 @@ message = "UnmappedBamToAlignedBam.wdl:25:53: warning[UnusedImport]: unused impo
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/tasks/broad/UnmappedBamToAlignedBam.wdl/#L25"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/tasks/broad/UnmappedBamToAlignedBam.wdl"
-message = "UnmappedBamToAlignedBam.wdl:85:31: error: type mismatch: expected type `DragmapReference`, but found type `DragmapReference?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/tasks/broad/UnmappedBamToAlignedBam.wdl/#L85"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/Utilities.wdl"
 message = "Utilities.wdl:152:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/tasks/broad/Utilities.wdl/#L152"
@@ -3283,18 +3128,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd4345
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tests/skylab/smartseq2_multisample/pr/test_smartseq2_multisample_PR.wdl"
-message = "test_smartseq2_multisample_PR.wdl:48:21: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/tests/skylab/smartseq2_multisample/pr/test_smartseq2_multisample_PR.wdl/#L48"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tests/skylab/smartseq2_multisample/pr/test_smartseq2_multisample_PR.wdl"
 message = "test_smartseq2_multisample_PR.wdl:58:46: warning[UnusedCall]: unused call `checker_workflow`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/tests/skylab/smartseq2_multisample/pr/test_smartseq2_multisample_PR.wdl/#L58"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tests/skylab/smartseq2_multisample/pr_single_end/test_smartseq2_multisample_PR_SINGLE_END.wdl"
-message = "test_smartseq2_multisample_PR_SINGLE_END.wdl:48:21: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/tests/skylab/smartseq2_multisample/pr_single_end/test_smartseq2_multisample_PR_SINGLE_END.wdl/#L48"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tests/skylab/smartseq2_multisample/pr_single_end/test_smartseq2_multisample_PR_SINGLE_END.wdl"
@@ -3892,16 +3727,6 @@ message = "TestBroadInternalRNAWithUMIs.wdl:106:43: warning[UnnecessaryFunctionC
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestBroadInternalRNAWithUMIs.wdl/#L106"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:57:27: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestBroadInternalUltimaGenomics.wdl/#L57"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:58:26: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestBroadInternalUltimaGenomics.wdl/#L58"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/test-wdls/TestCheckFingerprint.wdl"
 message = "TestCheckFingerprint.wdl:33:15: warning[UnusedInput]: unused input `vault_token_path_arrays`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestCheckFingerprint.wdl/#L33"
@@ -3917,94 +3742,9 @@ message = "TestExternalWholeGenomeReprocessing.wdl:6:45: warning[UnusedImport]: 
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestExternalWholeGenomeReprocessing.wdl/#L6"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestGDCWholeGenomeSomaticSingleSample.wdl"
-message = "TestGDCWholeGenomeSomaticSingleSample.wdl:77:35: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestGDCWholeGenomeSomaticSingleSample.wdl/#L77"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestImputation.wdl"
-message = "TestImputation.wdl:141:12: warning[UnnecessaryFunctionCall]: unnecessary call to function `defined`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestImputation.wdl/#L141"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestImputation.wdl"
-message = "TestImputation.wdl:162:38: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestImputation.wdl/#L162"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestImputation.wdl"
-message = "TestImputation.wdl:163:46: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestImputation.wdl/#L163"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestImputation.wdl"
-message = "TestImputation.wdl:54:30: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestImputation.wdl/#L54"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestImputation.wdl"
-message = "TestImputation.wdl:55:37: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestImputation.wdl/#L55"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestImputation.wdl"
-message = "TestImputation.wdl:86:45: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestImputation.wdl/#L86"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/test-wdls/TestJointGenotyping.wdl"
 message = "TestJointGenotyping.wdl:110:20: error: type mismatch: expected type `Boolean`, but found type `Boolean?`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestJointGenotyping.wdl/#L110"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestJointGenotyping.wdl"
-message = "TestJointGenotyping.wdl:85:44: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestJointGenotyping.wdl/#L85"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestJointGenotyping.wdl"
-message = "TestJointGenotyping.wdl:87:46: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestJointGenotyping.wdl/#L87"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestJointGenotyping.wdl"
-message = "TestJointGenotyping.wdl:88:49: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestJointGenotyping.wdl/#L88"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl"
-message = "TestMultiSampleSmartSeq2SingleNucleus.wdl:51:23: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl/#L51"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl"
-message = "TestMultiSampleSmartSeq2SingleNucleus.wdl:56:22: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl/#L56"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl"
-message = "TestMultiSampleSmartSeq2SingleNucleus.wdl:57:24: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl/#L57"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl"
-message = "TestMultiSampleSmartSeq2SingleNucleus.wdl:58:19: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl/#L58"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl"
-message = "TestMultiSampleSmartSeq2SingleNucleus.wdl:59:19: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl/#L59"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl"
-message = "TestMultiSampleSmartSeq2SingleNucleus.wdl:60:17: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestMultiSampleSmartSeq2SingleNucleus.wdl/#L60"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestMultiome.wdl"
-message = "TestMultiome.wdl:67:24: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestMultiome.wdl/#L67"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/test-wdls/TestOptimus.wdl"
@@ -4022,19 +3762,9 @@ message = "TestOptimus.wdl:28:11: warning[UnusedInput]: unused input `mt_genes`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestOptimus.wdl/#L28"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestOptimus.wdl"
-message = "TestOptimus.wdl:76:36: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestOptimus.wdl/#L76"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/test-wdls/TestPairedTag.wdl"
 message = "TestPairedTag.wdl:57:15: warning[UnusedInput]: unused input `run_cellbender`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestPairedTag.wdl/#L57"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestPairedTag.wdl"
-message = "TestPairedTag.wdl:71:24: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestPairedTag.wdl/#L71"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/test-wdls/TestRNAWithUMIsPipeline.wdl"
@@ -4055,36 +3785,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd4345
 document = "broadinstitute/warp:/verification/test-wdls/TestReblockGVCF.wdl"
 message = "TestReblockGVCF.wdl:49:31: error: type mismatch: expected type `String`, but found type `String?`"
 permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestReblockGVCF.wdl/#L49"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestSlideSeq.wdl"
-message = "TestSlideSeq.wdl:40:20: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestSlideSeq.wdl/#L40"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestUltimaGenomicsWholeGenomeCramOnly.wdl"
-message = "TestUltimaGenomicsWholeGenomeCramOnly.wdl:39:27: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestUltimaGenomicsWholeGenomeCramOnly.wdl/#L39"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestUltimaGenomicsWholeGenomeCramOnly.wdl"
-message = "TestUltimaGenomicsWholeGenomeCramOnly.wdl:40:26: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestUltimaGenomicsWholeGenomeCramOnly.wdl/#L40"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestUltimaGenomicsWholeGenomeGermline.wdl"
-message = "TestUltimaGenomicsWholeGenomeGermline.wdl:43:27: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestUltimaGenomicsWholeGenomeGermline.wdl/#L43"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestUltimaGenomicsWholeGenomeGermline.wdl"
-message = "TestUltimaGenomicsWholeGenomeGermline.wdl:44:26: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestUltimaGenomicsWholeGenomeGermline.wdl/#L44"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/test-wdls/TestWholeGenomeGermlineSingleSample.wdl"
-message = "TestWholeGenomeGermlineSingleSample.wdl:54:45: error: type mismatch: expected type `DragmapReference`, but found type `DragmapReference?`"
-permalink = "https://github.com/broadinstitute/warp/blob/158772d35e6e83ecbdd43450e6cd2d7f3519bfc7/verification/test-wdls/TestWholeGenomeGermlineSingleSample.wdl/#L54"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/amr/run.wdl"
@@ -4175,26 +3875,6 @@ permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/a04293a527117
 document = "chanzuckerberg/czid-workflows:/workflows/benchmark/long-read-mngs-benchmark.wdl"
 message = "long-read-mngs-benchmark.wdl:88:31: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`"
 permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/a04293a5271176885ce7f876b6353b20da3f7b98/workflows/benchmark/long-read-mngs-benchmark.wdl/#L88"
-
-[[diagnostics]]
-document = "chanzuckerberg/czid-workflows:/workflows/benchmark/run.wdl"
-message = "run.wdl:37:17: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/a04293a5271176885ce7f876b6353b20da3f7b98/workflows/benchmark/run.wdl/#L37"
-
-[[diagnostics]]
-document = "chanzuckerberg/czid-workflows:/workflows/benchmark/run.wdl"
-message = "run.wdl:38:17: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/a04293a5271176885ce7f876b6353b20da3f7b98/workflows/benchmark/run.wdl/#L38"
-
-[[diagnostics]]
-document = "chanzuckerberg/czid-workflows:/workflows/benchmark/run.wdl"
-message = "run.wdl:53:17: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/a04293a5271176885ce7f876b6353b20da3f7b98/workflows/benchmark/run.wdl/#L53"
-
-[[diagnostics]]
-document = "chanzuckerberg/czid-workflows:/workflows/benchmark/run.wdl"
-message = "run.wdl:54:17: error: type mismatch: expected type `Array[File]`, but found type `Array[File]?`"
-permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/a04293a5271176885ce7f876b6353b20da3f7b98/workflows/benchmark/run.wdl/#L54"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/benchmark/short-read-mngs-benchmark.wdl"
@@ -4677,11 +4357,6 @@ message = "wf_freyja_fastq.wdl:135:38: error: type mismatch: expected type `Stri
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/2bf8822c7acfed9e8e6319f51e44594173c6ae75/workflows/freyja/wf_freyja_fastq.wdl/#L135"
 
 [[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/workflows/freyja/wf_freyja_plot.wdl"
-message = "wf_freyja_plot.wdl:18:25: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/2bf8822c7acfed9e8e6319f51e44594173c6ae75/workflows/freyja/wf_freyja_plot.wdl/#L18"
-
-[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/workflows/freyja/wf_freyja_update.wdl"
 message = "wf_freyja_update.wdl:13:17: warning[UnusedCall]: unused call `transfer_files`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/2bf8822c7acfed9e8e6319f51e44594173c6ae75/workflows/freyja/wf_freyja_update.wdl/#L13"
@@ -4695,16 +4370,6 @@ permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/2bf88
 document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_augur.wdl"
 message = "wf_augur.wdl:62:21: error: type mismatch: expected type `String`, but found type `String?`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/2bf8822c7acfed9e8e6319f51e44594173c6ae75/workflows/phylogenetics/wf_augur.wdl/#L62"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_core_gene_snp.wdl"
-message = "wf_core_gene_snp.wdl:84:24: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/2bf8822c7acfed9e8e6319f51e44594173c6ae75/workflows/phylogenetics/wf_core_gene_snp.wdl/#L84"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_mashtree_fasta.wdl"
-message = "wf_mashtree_fasta.wdl:37:24: error: type mismatch: expected type `Array[String]`, but found type `Array[String]?`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/2bf8822c7acfed9e8e6319f51e44594173c6ae75/workflows/phylogenetics/wf_mashtree_fasta.wdl/#L37"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_nextclade_addToRefTree.wdl"

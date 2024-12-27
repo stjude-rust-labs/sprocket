@@ -1,7 +1,7 @@
 //! Implements the `suffix` function from the WDL standard library.
 
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -19,10 +19,10 @@ use crate::Value;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#suffix
 fn suffix(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
-    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_string_type()));
+    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_string_type().clone()));
 
     let suffix = context
-        .coerce_argument(0, PrimitiveTypeKind::String)
+        .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
 
     let array = context.arguments[1]

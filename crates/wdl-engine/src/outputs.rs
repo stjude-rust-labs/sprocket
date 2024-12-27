@@ -3,7 +3,6 @@
 use std::cmp::Ordering;
 
 use indexmap::IndexMap;
-use wdl_analysis::types::Types;
 
 use crate::Scope;
 use crate::Value;
@@ -47,7 +46,7 @@ impl Outputs {
     }
 
     /// Serializes the value to the given serializer.
-    pub fn serialize<S>(&self, types: &Types, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -55,8 +54,6 @@ impl Outputs {
 
         /// Helper `Serialize` implementation for serializing element values.
         struct Serialize<'a> {
-            /// The types collection.
-            types: &'a Types,
             /// The value being serialized.
             value: &'a Value,
         }
@@ -66,7 +63,7 @@ impl Outputs {
             where
                 S: serde::Serializer,
             {
-                self.value.serialize(self.types, serializer)
+                self.value.serialize(serializer)
             }
         }
 
@@ -74,9 +71,9 @@ impl Outputs {
         for (k, v) in &self.values {
             match &self.name {
                 Some(prefix) => {
-                    s.serialize_entry(&format!("{prefix}.{k}"), &Serialize { types, value: v })?
+                    s.serialize_entry(&format!("{prefix}.{k}"), &Serialize { value: v })?
                 }
-                None => s.serialize_entry(k, &Serialize { types, value: v })?,
+                None => s.serialize_entry(k, &Serialize { value: v })?,
             }
         }
 

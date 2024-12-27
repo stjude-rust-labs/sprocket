@@ -1,7 +1,7 @@
 //! Implements the `matches` function from the WDL standard library.
 
 use regex::Regex;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -16,13 +16,13 @@ use crate::diagnostics::invalid_regex;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-matches
 fn matches(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::Boolean));
+    debug_assert!(context.return_type_eq(PrimitiveType::Boolean));
 
     let input = context
-        .coerce_argument(0, PrimitiveTypeKind::String)
+        .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
     let pattern = context
-        .coerce_argument(1, PrimitiveTypeKind::String)
+        .coerce_argument(1, PrimitiveType::String)
         .unwrap_string();
 
     let regex =

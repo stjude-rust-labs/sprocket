@@ -28,7 +28,6 @@ use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::types::CallType;
 use crate::types::Type;
-use crate::types::Types;
 
 mod v1;
 
@@ -147,13 +146,13 @@ impl Struct {
     ///
     /// A value of `None` indicates that the type could not be determined for
     /// the struct; this may happen if the struct definition is recursive.
-    pub fn ty(&self) -> Option<Type> {
-        self.ty
+    pub fn ty(&self) -> Option<&Type> {
+        self.ty.as_ref()
     }
 }
 
 /// Represents information about a name in a scope.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Name {
     /// The span of the name.
     span: Span,
@@ -168,8 +167,8 @@ impl Name {
     }
 
     /// Gets the type of the name.
-    pub fn ty(&self) -> Type {
-        self.ty
+    pub fn ty(&self) -> &Type {
+        &self.ty
     }
 }
 
@@ -237,28 +236,28 @@ impl<'a> ScopeRef<'a> {
     }
 
     /// Gets all of the names available at this scope.
-    pub fn names(&self) -> impl Iterator<Item = (&str, Name)> + use<'_> {
+    pub fn names(&self) -> impl Iterator<Item = (&str, &Name)> + use<'_> {
         self.scopes[self.index.0]
             .names
             .iter()
-            .map(|(name, span_ty)| (name.as_str(), *span_ty))
+            .map(|(name, n)| (name.as_str(), n))
     }
 
     /// Gets a name local to this scope.
     ///
     /// Returns `None` if a name local to this scope was not found.
-    pub fn local(&self, name: &str) -> Option<Name> {
-        self.scopes[self.index.0].names.get(name).copied()
+    pub fn local(&self, name: &str) -> Option<&Name> {
+        self.scopes[self.index.0].names.get(name)
     }
 
     /// Lookups a name in the scope.
     ///
     /// Returns `None` if the name is not available in the scope.
-    pub fn lookup(&self, name: &str) -> Option<Name> {
+    pub fn lookup(&self, name: &str) -> Option<&Name> {
         let mut current = Some(self.index);
 
         while let Some(index) = current {
-            if let Some(name) = self.scopes[index.0].names.get(name).copied() {
+            if let Some(name) = self.scopes[index.0].names.get(name) {
                 return Some(name);
             }
 
@@ -287,11 +286,11 @@ impl<'a> ScopeRefMut<'a> {
     /// Lookups a name in the scope.
     ///
     /// Returns `None` if the name is not available in the scope.
-    pub fn lookup(&self, name: &str) -> Option<Name> {
+    pub fn lookup(&self, name: &str) -> Option<&Name> {
         let mut current = Some(self.index);
 
         while let Some(index) = current {
-            if let Some(name) = self.scopes[index.0].names.get(name).copied() {
+            if let Some(name) = self.scopes[index.0].names.get(name) {
                 return Some(name);
             }
 
@@ -318,7 +317,7 @@ impl<'a> ScopeRefMut<'a> {
 }
 
 /// Represents a task or workflow input.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Input {
     /// The type of the input.
     ty: Type,
@@ -328,8 +327,8 @@ pub struct Input {
 
 impl Input {
     /// Gets the type of the input.
-    pub fn ty(&self) -> Type {
-        self.ty
+    pub fn ty(&self) -> &Type {
+        &self.ty
     }
 
     /// Whether or not the input is required.
@@ -339,7 +338,7 @@ impl Input {
 }
 
 /// Represents a task or workflow output.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Output {
     /// The type of the output.
     ty: Type,
@@ -352,8 +351,8 @@ impl Output {
     }
 
     /// Gets the type of the output.
-    pub fn ty(&self) -> Type {
-        self.ty
+    pub fn ty(&self) -> &Type {
+        &self.ty
     }
 }
 
@@ -476,8 +475,6 @@ pub struct Document {
     workflow: Option<Workflow>,
     /// The structs in the document.
     structs: IndexMap<String, Struct>,
-    /// The collection of types for the document.
-    types: Types,
     /// The diagnostics for the document.
     diagnostics: Vec<Diagnostic>,
 }
@@ -573,7 +570,6 @@ impl Document {
             tasks: Default::default(),
             workflow: Default::default(),
             structs: Default::default(),
-            types: Default::default(),
             diagnostics,
         }
     }
@@ -641,11 +637,6 @@ impl Document {
     /// Gets a struct in the document by name.
     pub fn struct_by_name(&self, name: &str) -> Option<&Struct> {
         self.structs.get(name)
-    }
-
-    /// Gets the types of the document.
-    pub fn types(&self) -> &Types {
-        &self.types
     }
 
     /// Gets the analysis diagnostics for the document.

@@ -10,7 +10,7 @@ use itertools::Either;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 use wdl_grammar::lexer::v1::is_ident;
 
@@ -61,11 +61,11 @@ impl TsvHeader {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
 fn read_tsv_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_array_string_type()));
+    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_array_string_type().clone()));
 
     let path = context.work_dir().join(
         context
-            .coerce_argument(0, PrimitiveTypeKind::File)
+            .coerce_argument(0, PrimitiveType::File)
             .unwrap_file()
             .as_str(),
     );
@@ -83,10 +83,10 @@ fn read_tsv_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             .split('\t')
             .map(|s| PrimitiveValue::new_string(s).into())
             .collect::<Vec<Value>>();
-        rows.push(Array::new_unchecked(ANALYSIS_STDLIB.array_string_type(), values).into());
+        rows.push(Array::new_unchecked(ANALYSIS_STDLIB.array_string_type().clone(), values).into());
     }
 
-    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_array_string_type(), rows).into())
+    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_array_string_type().clone(), rows).into())
 }
 
 /// Reads a tab-separated value (TSV) file as an Array[Object] representing a
@@ -111,11 +111,11 @@ fn read_tsv_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
 fn read_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() >= 2 && context.arguments.len() <= 3);
-    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type()));
+    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type().clone()));
 
     let path = context.work_dir().join(
         context
-            .coerce_argument(0, PrimitiveTypeKind::File)
+            .coerce_argument(0, PrimitiveType::File)
             .unwrap_file()
             .as_str(),
     );
@@ -129,7 +129,7 @@ fn read_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     // Read the file header if there is one; ignore it if the header was directly
     // specified.
     let file_has_header = context
-        .coerce_argument(1, PrimitiveTypeKind::Boolean)
+        .coerce_argument(1, PrimitiveType::Boolean)
         .unwrap_boolean();
     let header = if context.arguments.len() == 3 {
         if file_has_header {
@@ -138,7 +138,7 @@ fn read_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
         TsvHeader::Specified(
             context
-                .coerce_argument(2, ANALYSIS_STDLIB.array_string_type())
+                .coerce_argument(2, ANALYSIS_STDLIB.array_string_type().clone())
                 .unwrap_array(),
         )
     } else if !file_has_header {
@@ -225,7 +225,7 @@ fn read_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         rows.push(CompoundValue::Object(members.into()).into());
     }
 
-    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type(), rows).into())
+    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type().clone(), rows).into())
 }
 
 /// Gets the function describing `read_tsv`.

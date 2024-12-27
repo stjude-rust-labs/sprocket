@@ -142,7 +142,7 @@ fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
     } else {
         let mut validator = Validator::default();
         validator.add_visitor(LintVisitor::default());
-        validator.add_visitor(ShellCheckRule::default());
+        validator.add_visitor(ShellCheckRule);
         let errors = match validator.validate(&document) {
             Ok(()) => String::new(),
             Err(diagnostics) => format_diagnostics(&diagnostics, &path, &source),

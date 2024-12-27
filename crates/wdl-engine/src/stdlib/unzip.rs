@@ -26,44 +26,16 @@ fn unzip(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .expect("argument should be an array");
 
     let pair_ty = context
-        .types()
-        .type_definition(
-            context
-                .return_type
-                .as_compound()
-                .expect("type should be compound")
-                .definition(),
-        )
+        .return_type
         .as_pair()
         .expect("type should be a pair");
 
     let left_ty = pair_ty.left_type();
-    debug_assert!(
-        context
-            .types()
-            .type_definition(
-                left_ty
-                    .as_compound()
-                    .expect("type should be compound")
-                    .definition(),
-            )
-            .as_array()
-            .is_some(),
-        "left type should be an array"
-    );
+    debug_assert!(left_ty.as_array().is_some(), "left type should be an array");
 
     let right_ty = pair_ty.right_type();
     debug_assert!(
-        context
-            .types()
-            .type_definition(
-                right_ty
-                    .as_compound()
-                    .expect("type should be compound")
-                    .definition(),
-            )
-            .as_array()
-            .is_some(),
+        right_ty.as_array().is_some(),
         "right type should be an array"
     );
 
@@ -76,9 +48,9 @@ fn unzip(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     }
 
     Ok(Pair::new_unchecked(
-        context.return_type,
-        Array::new_unchecked(left_ty, left).into(),
-        Array::new_unchecked(right_ty, right).into(),
+        context.return_type.clone(),
+        Array::new_unchecked(left_ty.clone(), left).into(),
+        Array::new_unchecked(right_ty.clone(), right).into(),
     )
     .into())
 }

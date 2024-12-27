@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
-use wdl_analysis::types::PrimitiveTypeKind;
+use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
@@ -27,14 +27,14 @@ use crate::diagnostics::path_not_relative;
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths
 fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 2);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::File));
 
     let first = context
-        .coerce_argument(0, PrimitiveTypeKind::File)
+        .coerce_argument(0, PrimitiveType::File)
         .unwrap_file();
 
     let second = context
-        .coerce_argument(1, PrimitiveTypeKind::String)
+        .coerce_argument(1, PrimitiveType::String)
         .unwrap_string();
 
     let second = Path::new(second.as_str());
@@ -71,12 +71,12 @@ fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths
 fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(!context.arguments.is_empty() && context.arguments.len() < 3);
-    debug_assert!(context.return_type_eq(PrimitiveTypeKind::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::File));
 
     // Handle being provided one or two arguments
     let (first, array, skip, array_span) = if context.arguments.len() == 1 {
         let array = context
-            .coerce_argument(0, ANALYSIS_STDLIB.array_string_non_empty_type())
+            .coerce_argument(0, ANALYSIS_STDLIB.array_string_non_empty_type().clone())
             .unwrap_array();
 
         (
@@ -87,11 +87,11 @@ fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         )
     } else {
         let first = context
-            .coerce_argument(0, PrimitiveTypeKind::File)
+            .coerce_argument(0, PrimitiveType::File)
             .unwrap_file();
 
         let array = context
-            .coerce_argument(1, ANALYSIS_STDLIB.array_string_non_empty_type())
+            .coerce_argument(1, ANALYSIS_STDLIB.array_string_non_empty_type().clone())
             .unwrap_array();
 
         (first, array, false, context.arguments[1].span)
