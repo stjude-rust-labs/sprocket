@@ -139,7 +139,7 @@ pub async fn run(args: RunArgs) -> Result<()> {
                 path = path.display()
             )
         })?;
-        match Inputs::parse(engine.types_mut(), document, &abs_path)? {
+        match Inputs::parse(document, &abs_path)? {
             Some((name, inputs)) => (Some(path), name, inputs),
             None => bail!(
                 "inputs file `{path}` is empty; use the `--name` option to specify the name of \
@@ -186,7 +186,7 @@ pub async fn run(args: RunArgs) -> Result<()> {
             // Ensure all the paths specified in the inputs file are relative to the file's
             // directory
             if let Some(path) = path.as_ref().and_then(|p| p.parent()) {
-                inputs.join_paths(engine.types_mut(), document, task, path);
+                inputs.join_paths(task, path);
             }
 
             let mut evaluator = TaskEvaluator::new(&mut engine);
@@ -201,7 +201,7 @@ pub async fn run(args: RunArgs) -> Result<()> {
                             // errors during serialization.
                             let mut buffer = Vec::new();
                             let mut serializer = serde_json::Serializer::pretty(&mut buffer);
-                            outputs.serialize(engine.types(), &mut serializer)?;
+                            outputs.serialize(&mut serializer)?;
                             println!(
                                 "{buffer}\n",
                                 buffer =
@@ -247,7 +247,7 @@ pub async fn run(args: RunArgs) -> Result<()> {
             // Ensure all the paths specified in the inputs file are relative to the file's
             // directory
             if let Some(path) = path.as_ref().and_then(|p| p.parent()) {
-                inputs.join_paths(engine.types_mut(), document, workflow, path);
+                inputs.join_paths(workflow, path);
             }
 
             bail!("running workflows is not yet supported")
