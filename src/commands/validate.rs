@@ -13,7 +13,6 @@ use codespan_reporting::term::emit;
 use codespan_reporting::term::termcolor::Buffer;
 use url::Url;
 use wdl::analysis::path_to_uri;
-use wdl::analysis::types::Types;
 use wdl::ast::Diagnostic;
 use wdl::ast::Severity;
 use wdl::engine::Inputs;
@@ -42,7 +41,7 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> anyhow::Result<()> {
         bail!("expected a WDL document, found a directory");
     }
 
-    let results = analyze(&document, vec![], false).await?;
+    let results = analyze(&document, vec![], false, false).await?;
 
     let uri = if let Ok(uri) = Url::parse(&document) {
         uri
@@ -81,13 +80,11 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> anyhow::Result<()> {
         bail!("document `{document}` contains at least one diagnostic error:\n{diagnostic}");
     }
 
-    let mut types = Types::default();
-    let result = match Inputs::parse(&mut types, analyzed_document, inputs) {
+    let result = match Inputs::parse(analyzed_document, inputs) {
         Ok(Some((name, inputs))) => match inputs {
             Inputs::Task(inputs) => {
                 match inputs
                     .validate(
-                        &mut types,
                         analyzed_document,
                         analyzed_document
                             .task_by_name(&name)
@@ -103,7 +100,7 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> anyhow::Result<()> {
             Inputs::Workflow(inputs) => {
                 let workflow = analyzed_document.workflow().expect("workflow should exist");
                 match inputs
-                    .validate(&mut types, analyzed_document, workflow)
+                    .validate(analyzed_document, workflow)
                     .with_context(|| {
                         format!(
                             "failed to validate inputs for workflow `{name}`",
