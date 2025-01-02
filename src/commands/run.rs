@@ -47,6 +47,10 @@ pub struct RunArgs {
     pub name: Option<String>,
 
     /// The output directory; defaults to the task name.
+    ///
+    /// If no output directory is provided, a default nested directory is created
+    /// based on the task name and the current time in the form
+    /// `sprocket_runs/<task_name>/<timestamp>/`.
     #[arg(short, long, value_name = "DIR")]
     pub output: Option<PathBuf>,
 
@@ -64,10 +68,6 @@ pub struct RunArgs {
 }
 
 /// Creates the output directory for the task.
-///
-/// If no output directory is provided, a default nested directory is created
-/// based on the task name and the current time in the form
-/// `sprocket_runs/<task_name>/<timestamp>/`.
 fn create_output_dir(output_dir: Option<PathBuf>, name: &str, overwrite: bool) -> Result<PathBuf> {
     let output_dir = output_dir.unwrap_or_else(|| {
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H-%M-%S");
@@ -111,6 +111,8 @@ fn create_output_dir(output_dir: Option<PathBuf>, name: &str, overwrite: bool) -
 
 /// Runs a task.
 pub async fn run(args: RunArgs) -> Result<()> {
+    eprintln!("the `run` command is in alpha testing and does not currently support workflows or using containers.");
+
     let file = args.file;
     if Path::new(&file).is_dir() {
         anyhow::bail!("expected a WDL document, found a directory");

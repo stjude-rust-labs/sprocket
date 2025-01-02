@@ -34,7 +34,7 @@ enum Commands {
     #[clap(alias = "fmt")]
     Format(commands::format::FormatArgs),
 
-    /// Runs a task.
+    /// (ALPHA TESTING) Runs a task without a container.
     Run(commands::run::RunArgs),
 
     /// Validates the input JSON file against a task or workflow input schema.
