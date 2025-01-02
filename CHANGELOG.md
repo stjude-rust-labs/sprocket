@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added `--local-only` and `--single-document` args to `check/lint` ([#46](https://github.com/stjude-rust-labs/sprocket/pull/46)).
+* Added an alpha version of the `run` commannnd. This version only supports running tasks without a container
+  (workflows are not yet supported) ([#47](https://github.com/stjude-rust-labs/sprocket/pull/47)).
 
 ## 0.9.0 - 10-22-2024
 
