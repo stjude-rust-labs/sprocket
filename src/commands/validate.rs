@@ -34,6 +34,10 @@ pub struct ValidateInputsArgs {
 }
 
 /// Validates the inputs for a task or workflow.
+///
+/// * Every required input is supplied.
+/// * Every supplied input is correctly typed.
+/// * No extraneous inputs are provided.
 pub async fn validate_inputs(args: ValidateInputsArgs) -> anyhow::Result<()> {
     let ValidateInputsArgs { document, inputs } = args;
 
