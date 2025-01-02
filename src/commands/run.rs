@@ -50,7 +50,7 @@ pub struct RunArgs {
     ///
     /// If no output directory is provided, a default nested directory is
     /// created based on the task name and the current time in the form
-    /// `sprocket_runs/<task_name>/<timestamp>/`.
+    /// `sprocket_runs/<execution_name>/<timestamp>/`.
     #[arg(short, long, value_name = "DIR")]
     pub output: Option<PathBuf>,
 
