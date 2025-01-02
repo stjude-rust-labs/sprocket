@@ -183,7 +183,6 @@ pub async fn run(args: RunArgs) -> Result<()> {
 
     match inputs {
         Inputs::Task(mut inputs) => {
-            // Make any paths specified in the inputs absolute
             let task = document
                 .task_by_name(&name)
                 .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
