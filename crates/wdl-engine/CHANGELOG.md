@@ -30,3 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added `InputFiles` type for parsing WDL input JSON files (#[241](https://github.com/stjude-rust-labs/wdl/pull/241)).
 * Added the `wdl-engine` crate that will eventually implement a WDL execution
   engine (#[225](https://github.com/stjude-rust-labs/wdl/pull/225)).
+
+### Changed
+
+* Require file existence for a successul validation parse of inputs ([#281](https://github.com/stjude-rust-labs/wdl/pull/281)).
