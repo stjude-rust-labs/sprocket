@@ -93,6 +93,7 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> anyhow::Result<()> {
                         analyzed_document
                             .task_by_name(&name)
                             .expect("task should exist"),
+                            None,
                     )
                     .with_context(|| {
                         format!("failed to validate inputs for task `{name}`", name = name)
@@ -104,7 +105,7 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> anyhow::Result<()> {
             Inputs::Workflow(inputs) => {
                 let workflow = analyzed_document.workflow().expect("workflow should exist");
                 match inputs
-                    .validate(analyzed_document, workflow)
+                    .validate(analyzed_document, workflow, None)
                     .with_context(|| {
                         format!(
                             "failed to validate inputs for workflow `{name}`",
