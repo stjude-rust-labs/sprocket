@@ -206,7 +206,7 @@ impl<'a> TaskEvaluator<'a> {
             return Err(diagnostic.clone().into());
         }
 
-        inputs.validate(document, task).with_context(|| {
+        inputs.validate(document, task, None).with_context(|| {
             format!(
                 "failed to validate the inputs to task `{task}`",
                 task = task.name()

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed input validation to not treat directly specified call inputs as missing ([#282](https://github.com/stjude-rust-labs/wdl/pull/282)).
+
 ### Added
 
 * Reduced size of the `Value` type ([#277](https://github.com/stjude-rust-labs/wdl/pull/277)).

@@ -1,6 +1,7 @@
 //! Implementation of workflow and task inputs.
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::mem;
@@ -111,8 +112,14 @@ impl TaskInputs {
 
     /// Validates the inputs for the given task.
     ///
-    /// Note that this alters the inputs
-    pub fn validate(&self, document: &Document, task: &Task) -> Result<()> {
+    /// The `specified` set of inputs are those that are present, but may not
+    /// have values available at validation.
+    pub fn validate(
+        &self,
+        document: &Document,
+        task: &Task,
+        specified: Option<&HashSet<String>>,
+    ) -> Result<()> {
         let version = document.version().context("missing document version")?;
 
         // Start by validating all the specified inputs and their types
@@ -132,8 +139,14 @@ impl TaskInputs {
 
         // Next check for missing required inputs
         for (name, input) in task.inputs() {
-            if input.required() && !self.inputs.contains_key(name) {
-                bail!("missing required input `{name}`");
+            if input.required()
+                && !self.inputs.contains_key(name)
+                && specified.map(|s| !s.contains(name)).unwrap_or(true)
+            {
+                bail!(
+                    "missing required input `{name}` to task `{task}`",
+                    task = task.name()
+                );
             }
         }
 
@@ -319,7 +332,15 @@ impl WorkflowInputs {
     }
 
     /// Validates the inputs for the given workflow.
-    pub fn validate(&self, document: &Document, workflow: &Workflow) -> Result<()> {
+    ///
+    /// The `specified` set of inputs are those that are present, but may not
+    /// have values available at validation.
+    pub fn validate(
+        &self,
+        document: &Document,
+        workflow: &Workflow,
+        specified: Option<&HashSet<String>>,
+    ) -> Result<()> {
         // Start by validating all the specified inputs and their types
         for (name, value) in &self.inputs {
             let input = workflow
@@ -335,8 +356,14 @@ impl WorkflowInputs {
 
         // Next check for missing required inputs
         for (name, input) in workflow.inputs() {
-            if input.required() && !self.inputs.contains_key(name) {
-                bail!("missing required input `{name}`");
+            if input.required()
+                && !self.inputs.contains_key(name)
+                && specified.map(|s| !s.contains(name)).unwrap_or(false)
+            {
+                bail!(
+                    "missing required input `{name}` to workflow `{workflow}`",
+                    workflow = workflow.name()
+                );
             }
         }
 
@@ -379,7 +406,7 @@ impl WorkflowInputs {
                         format!("`{name}` is a call to a task, but workflow inputs were supplied")
                     })?;
 
-                    task_inputs.validate(document, task)?;
+                    task_inputs.validate(document, task, Some(call.specified()))?;
                     &task_inputs.inputs
                 }
                 CallKind::Workflow => {
@@ -393,7 +420,7 @@ impl WorkflowInputs {
                         format!("`{name}` is a call to a workflow, but task inputs were supplied")
                     })?;
 
-                    workflow_inputs.validate(document, workflow)?;
+                    workflow_inputs.validate(document, workflow, Some(call.specified()))?;
                     &workflow_inputs.inputs
                 }
             };

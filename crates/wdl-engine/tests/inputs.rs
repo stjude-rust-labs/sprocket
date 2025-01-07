@@ -156,6 +156,7 @@ fn run_test(test: &Path, result: AnalysisResult, ntests: &AtomicUsize) -> Result
                         document
                             .task_by_name(&name)
                             .expect("task should be present"),
+                        None,
                     )
                     .with_context(|| format!("failed to validate the inputs to task `{name}`"))
                 {
@@ -165,7 +166,7 @@ fn run_test(test: &Path, result: AnalysisResult, ntests: &AtomicUsize) -> Result
             }
             Inputs::Workflow(inputs) => {
                 let workflow = document.workflow().expect("workflow should be present");
-                match inputs.validate(document, workflow).with_context(|| {
+                match inputs.validate(document, workflow, None).with_context(|| {
                     format!(
                         "failed to validate the inputs to workflow `{workflow}`",
                         workflow = workflow.name()
