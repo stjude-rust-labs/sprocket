@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+use anyhow::Result;
+use anyhow::Ok;
 use clap::Parser;
 use wdl::cli::validate_inputs as wdl_validate_inputs;
 
@@ -35,10 +37,10 @@ pub struct ValidateInputsArgs {
 /// * Every required input is supplied.
 /// * Every supplied input is correctly typed.
 /// * No extraneous inputs are provided.
-pub async fn validate_inputs(args: ValidateInputsArgs) -> anyhow::Result<()> {
+pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
     let (config, mut stream) = get_display_config(args.report_mode, args.no_color);
 
     wdl_validate_inputs(&args.document, &args.inputs, &mut stream, &config).await?;
     println!("All inputs are valid");
-    anyhow::Ok(())
+    Ok(())
 }
