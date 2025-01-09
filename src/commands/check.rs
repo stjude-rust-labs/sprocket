@@ -11,10 +11,10 @@ use url::Url;
 use wdl::ast::Diagnostic;
 use wdl::ast::Severity;
 use wdl::ast::SyntaxNode;
+use wdl::cli::analyze;
 
-use crate::Mode;
-use crate::analyze;
-use crate::get_display_config;
+use super::Mode;
+use super::get_display_config;
 
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
@@ -99,30 +99,34 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     }
 
     let (config, mut stream) = get_display_config(args.common.report_mode, args.common.no_color);
+    let exceptions = args.common.except;
+    let lint = args.lint;
+    let shellcheck = args.common.shellcheck;
 
     let file = args.common.file;
-
-    // Check if the file is a URL, a directory, or a file
-    // and bail if that result conflicts with any arguments.
-    if let Ok(_url) = Url::parse(&file) {
+    let results = if Url::parse(&file).is_ok() {
         if args.common.local_only {
             bail!(
                 "`--local-only` was specified, but `{file}` is a remote URL",
                 file = file
             );
         }
+        analyze(&file, exceptions, lint, shellcheck)
     } else if fs::metadata(&file)
         .with_context(|| format!("failed to read metadata for file `{file}`"))?
         .is_dir()
-        && args.common.single_document
     {
-        bail!(
-            "`--single-document` was specified, but `{file}` is a directory",
-            file = file
-        );
+        if args.common.single_document {
+            bail!(
+                "`--single-document` was specified, but `{file}` is a directory",
+                file = file
+            );
+        }
+        analyze(&file, exceptions, lint, shellcheck)
+    } else {
+        analyze(&file, exceptions, lint, shellcheck)
     }
-
-    let results = analyze(&file, args.common.except, args.lint, args.common.shellcheck).await?;
+    .await?;
 
     let cwd = std::env::current_dir().ok();
     let mut error_count = 0;
