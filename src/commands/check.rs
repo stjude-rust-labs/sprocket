@@ -14,7 +14,6 @@ use wdl::ast::SyntaxNode;
 use wdl::cli::analyze;
 
 use crate::Mode;
-use crate::analyze;
 use crate::get_display_config;
 
 /// Common arguments for the `check` and `lint` subcommands.
