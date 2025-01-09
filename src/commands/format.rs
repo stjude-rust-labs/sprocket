@@ -15,6 +15,7 @@ use clap::Parser;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::emit;
 use colored::Colorize;
+use pretty_assertions::StrComparison;
 use walkdir::WalkDir;
 use wdl::ast::Document;
 use wdl::ast::Node;
@@ -70,8 +71,12 @@ pub struct FormatArgs {
     pub indentation_size: Option<usize>,
 
     /// Overwrite the WDL documents with the formatted versions
-    #[arg(long)]
+    #[arg(long, conflicts_with = "check")]
     pub overwrite: bool,
+
+    /// Check if files are formatted correctly and print diff if not
+    #[arg(long, conflicts_with = "overwrite")]
+    pub check: bool,
 }
 
 /// Reads source from the given path.
@@ -103,14 +108,16 @@ fn format_document(
     overwrite: bool,
     report_mode: Mode,
     no_color: bool,
+    check: bool,
 ) -> Result<usize> {
     if path.to_str() != Some("-") {
+        let action = if check { "checking" } else { "formatting" };
         println!(
-            "{formatting} `{path}`",
-            formatting = if no_color {
-                "formatting".normal()
+            "{action_colored} `{path}`",
+            action_colored = if no_color {
+                action.normal()
             } else {
-                "formatting".green()
+                action.green()
             },
             path = path.display()
         );
@@ -139,6 +146,15 @@ fn format_document(
 
     let formatter = Formatter::new(config);
     let formatted = formatter.format(&document)?;
+
+    if check {
+        if formatted != source {
+            print!("{}", StrComparison::new(&source, &formatted));
+            return Ok(1);
+        }
+        println!("`{path}` is formatted correctly", path = path.display());
+        return Ok(0);
+    }
 
     if overwrite {
         fs::write(path, formatted)
@@ -172,8 +188,8 @@ pub fn format(args: FormatArgs) -> Result<()> {
 
     let mut diagnostics = 0;
     if args.path.to_str() != Some("-") && args.path.is_dir() {
-        if !args.overwrite {
-            bail!("formatting a directory requires the `--overwrite` option");
+        if !args.overwrite && !args.check {
+            bail!("formatting a directory requires the `--overwrite` or `--check` option");
         }
 
         for entry in WalkDir::new(&args.path) {
@@ -194,6 +210,7 @@ pub fn format(args: FormatArgs) -> Result<()> {
                 args.overwrite,
                 args.report_mode,
                 args.no_color,
+                args.check,
             )?;
         }
     } else {
@@ -203,6 +220,7 @@ pub fn format(args: FormatArgs) -> Result<()> {
             args.overwrite,
             args.report_mode,
             args.no_color,
+            args.check,
         )?;
     }
 

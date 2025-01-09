@@ -27,3 +27,4 @@ tokio = { version = "1.41.0", features = ["full"] }
 tracing-log = "0.2.0"
 indicatif = "0.17.8"
 clap-verbosity-flag = "2.2.2"
+pretty_assertions = "1.4.1"
