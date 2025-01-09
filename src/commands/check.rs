@@ -13,8 +13,8 @@ use wdl::ast::Severity;
 use wdl::ast::SyntaxNode;
 use wdl::cli::analyze;
 
-use super::Mode;
-use super::get_display_config;
+use crate::Mode;
+use crate::get_display_config;
 
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
