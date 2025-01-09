@@ -104,7 +104,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let shellcheck = args.common.shellcheck;
 
     let file = args.common.file;
-    let results = if let Ok(_) = Url::parse(&file) {
+    let results = if Url::parse(&file).is_ok() {
         if args.common.local_only {
             bail!(
                 "`--local-only` was specified, but `{file}` is a remote URL",
@@ -125,7 +125,8 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         analyze(&file, exceptions, lint, shellcheck)
     } else {
         analyze(&file, exceptions, lint, shellcheck)
-    }.await?;
+    }
+    .await?;
 
     let cwd = std::env::current_dir().ok();
     let mut error_count = 0;
