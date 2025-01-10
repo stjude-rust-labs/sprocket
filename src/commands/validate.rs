@@ -36,6 +36,7 @@ pub struct ValidateInputsArgs {
 /// * Every required input is supplied.
 /// * Every supplied input is correctly typed.
 /// * No extraneous inputs are provided.
+/// * Any provided `File` or `Directory` inputs exist.
 pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
     if let Some(diagnostic) = wdl_validate_inputs(&args.document, &args.inputs).await? {
         let source = std::fs::read_to_string(&args.document)?;
