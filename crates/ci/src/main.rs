@@ -247,10 +247,7 @@ fn read_crate(manifest_path: &Path) -> Option<Crate> {
     let mut manifest =
         toml_edit::DocumentMut::from_str(&contents).expect("failed to parse manifest");
 
-    let package = match manifest.get_mut("package") {
-        Some(p) => p,
-        None => return None, // workspace manifests don't have a package section
-    };
+    let package = manifest.get_mut("package")?;
     let name = package["name"].as_str().expect("name").to_string();
     let version = package["version"].as_str().expect("version").to_string();
 

@@ -73,8 +73,27 @@ missing_docs = "warn"
 nonstandard-style = "warn"
 rust-2018-idioms = "warn"
 rust-2021-compatibility = "warn"
-rust-2024-compatibility = "warn"
-edition_2024_expr_fragment_specifier = "allow"
+
+# Re-enable this lint and remove the group expansion lints after auditing remaining diagnostics as we get closer to the 2024 release
+# rust-2024-compatibility = "warn"
+# <expansion>
+boxed-slice-into-iter = "warn"
+dependency-on-unit-never-type-fallback = "warn"
+deprecated-safe-2024 = "warn"
+edition-2024-expr-fragment-specifier = "allow"  # Reason: the few macros where we use the `expr` fragment will not break with the new expressions
+if-let-rescope = "allow"                        # Reason: lint is too noisy and we are unlikely to have drop order dependencies
+impl-trait-overcaptures = "warn"
+keyword-idents-2024 = "warn"
+missing-unsafe-on-extern = "warn"
+never-type-fallback-flowing-into-unsafe = "warn"
+rust-2024-guarded-string-incompatible-syntax = "warn"
+rust-2024-incompatible-pat = "warn"
+rust-2024-prelude-collisions = "warn"
+static-mut-refs = "warn"
+tail-expr-drop-order = "allow"                  # Reason: lint is too noisy and we are unlikely to have drop order dependencies
+unsafe-attr-outside-unsafe = "warn"
+unsafe-op-in-unsafe-fn  = "warn"
+# </expansion>
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "warn"

@@ -525,10 +525,7 @@ where
     where
         F: FnOnce(&mut Self, Span) -> Result<(), Diagnostic>,
     {
-        let open_span = match self.expect(open) {
-            Ok(span) => span,
-            Err(e) => return Err(e),
-        };
+        let open_span = self.expect(open)?;
 
         // Check to see if the close token is immediately following the opening
         if allow_empty {
@@ -579,11 +576,7 @@ where
     where
         F: FnMut(&mut Self, Marker) -> Result<(), (Marker, Diagnostic)>,
     {
-        let open_span = match self.expect(open) {
-            Ok(span) => span,
-            Err(e) => return Err(e),
-        };
-
+        let open_span = self.expect(open)?;
         self.delimited(close, delimiter, recovery, cb);
         self.consume_close_token(open, open_span, close);
         Ok(())

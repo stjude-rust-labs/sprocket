@@ -544,7 +544,7 @@ where
     /// the analyzer, those documents will be removed.
     ///
     /// Documents are only removed when not referenced from importing documents.
-    pub async fn remove_documents<'a>(&self, documents: Vec<Url>) -> Result<()> {
+    pub async fn remove_documents(&self, documents: Vec<Url>) -> Result<()> {
         // Send the remove request to the queue
         let (tx, rx) = oneshot::channel();
         self.sender

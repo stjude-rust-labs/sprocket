@@ -168,7 +168,7 @@ impl TokenStream<PreToken> {
         for token in preceding_trivia {
             match token.kind() {
                 SyntaxKind::Whitespace => {
-                    if !self.0.last().map_or(false, |t| {
+                    if !self.0.last().is_some_and(|t| {
                         matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine))
                     }) {
                         self.0.push(PreToken::Trivia(Trivia::BlankLine));
