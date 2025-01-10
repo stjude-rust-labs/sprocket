@@ -20,7 +20,7 @@ nonempty = "0.10.0"
 pest = { version = "2.7.14", features = ["pretty-print"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
-wdl = { git = "https://github.com/stjude-rust-labs/wdl", branch = "feat/cli", features = ["cli", "lsp"] }
+wdl = { git = "https://github.com/stjude-rust-labs/wdl", branch = "main", features = ["cli", "lsp"] }
 walkdir = "2.5.0"
 colored = "2.1.0"
 tokio = { version = "1.41.0", features = ["full"] }
