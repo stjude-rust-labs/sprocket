@@ -2,13 +2,12 @@
 
 use std::path::PathBuf;
 
-use anyhow::Ok;
 use anyhow::Result;
 use clap::Parser;
 use wdl::cli::validate_inputs as wdl_validate_inputs;
 
 use crate::Mode;
-use crate::get_display_config;
+use crate::emit_diagnostics;
 
 /// Arguments for the `validate-inputs` command.
 #[derive(Parser, Debug)]
@@ -38,9 +37,17 @@ pub struct ValidateInputsArgs {
 /// * Every supplied input is correctly typed.
 /// * No extraneous inputs are provided.
 pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
-    let (config, mut stream) = get_display_config(args.report_mode, args.no_color);
-
-    wdl_validate_inputs(&args.document, &args.inputs, &mut stream, &config).await?;
+    if let Some(diagnostic) = wdl_validate_inputs(&args.document, &args.inputs).await? {
+        let source = std::fs::read_to_string(&args.document)?;
+        emit_diagnostics(
+            &[diagnostic],
+            &args.document,
+            &source,
+            args.report_mode,
+            args.no_color,
+        );
+        anyhow::bail!("Invalid inputs");
+    }
     println!("All inputs are valid");
-    Ok(())
+    anyhow::Ok(())
 }
