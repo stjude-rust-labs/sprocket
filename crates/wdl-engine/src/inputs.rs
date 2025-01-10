@@ -358,7 +358,7 @@ impl WorkflowInputs {
         for (name, input) in workflow.inputs() {
             if input.required()
                 && !self.inputs.contains_key(name)
-                && specified.map(|s| !s.contains(name)).unwrap_or(false)
+                && specified.map(|s| !s.contains(name)).unwrap_or(true)
             {
                 bail!(
                     "missing required input `{name}` to workflow `{workflow}`",
