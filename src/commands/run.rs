@@ -9,10 +9,16 @@ use anyhow::bail;
 use chrono;
 use clap::Parser;
 use tracing_log::log;
+use url::Url;
+use wdl::analysis::path_to_uri;
+use wdl::cli::analyze;
+use wdl::cli::parse_inputs;
 use wdl::cli::run as wdl_run;
+use wdl::engine::Engine;
+use wdl::engine::local::LocalTaskExecutionBackend;
 
 use crate::Mode;
-use crate::get_display_config;
+use crate::emit_diagnostics;
 
 /// Arguments for the run command.
 #[derive(Parser, Debug)]
@@ -104,21 +110,42 @@ pub async fn run(args: RunArgs) -> Result<()> {
          containers."
     );
 
-    let (config, mut stream) = get_display_config(args.report_mode, args.no_color);
+    let results = analyze(&args.file, vec![], false, false).await?;
 
-    let output_dir = create_output_dir(
-        args.output,
-        args.name.as_deref().unwrap_or("task"),
-        args.overwrite,
-    )?;
+    let uri = Url::parse(&args.file)
+        .unwrap_or_else(|_| path_to_uri(&args.file).expect("file should be a local path"));
 
-    wdl_run(
-        &args.file,
-        args.inputs,
-        args.name,
+    let result = results
+        .iter()
+        .find(|r| **r.document().uri() == uri)
+        .context("failed to find document in analysis results")?;
+    let document = result.document();
+
+    let (path, name, inputs) =
+        parse_inputs(document, args.name.as_deref(), args.inputs.as_deref())?;
+
+    let output_dir = create_output_dir(args.output, &name, args.overwrite)?;
+
+    let mut engine = Engine::new(LocalTaskExecutionBackend::new());
+
+    if let Some(diagnostic) = wdl_run(
+        document,
+        path.as_deref(),
+        &name,
+        inputs,
         output_dir,
-        &mut stream,
-        &config,
+        &mut engine,
     )
-    .await
+    .await?
+    {
+        emit_diagnostics(
+            &[diagnostic],
+            uri.as_ref(),
+            &document.node().syntax().text().to_string(),
+            args.report_mode,
+            args.no_color,
+        );
+    }
+
+    anyhow::Ok(())
 }

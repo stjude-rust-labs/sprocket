@@ -12,8 +12,6 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
-use codespan_reporting::files::SimpleFile;
-use codespan_reporting::term::emit;
 use colored::Colorize;
 use pretty_assertions::StrComparison;
 use walkdir::WalkDir;
@@ -25,8 +23,8 @@ use wdl::format::config::Builder;
 use wdl::format::config::Indent;
 use wdl::format::element::node::AstNodeFormatExt;
 
+use crate::emit_diagnostics;
 use crate::Mode;
-use crate::get_display_config;
 
 /// The maximum acceptable indentation size.
 const MAX_INDENT_SIZE: usize = 16;
@@ -126,12 +124,13 @@ fn format_document(
     let source = read_source(path)?;
     let (document, diagnostics) = Document::parse(&source);
     if !diagnostics.is_empty() {
-        let (config, mut stream) = get_display_config(report_mode, no_color);
-        let file = SimpleFile::new(path.to_string_lossy(), source);
-        for diagnostic in diagnostics.iter() {
-            emit(&mut stream, &config, &file, &diagnostic.to_codespan())
-                .context("failed to emit diagnostic")?;
-        }
+        emit_diagnostics(
+            &diagnostics,
+            path.to_str().unwrap_or(""),
+            &source,
+            report_mode,
+            no_color,
+        );
 
         return Ok(diagnostics.len());
     }

@@ -8,10 +8,13 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 
 use clap::ValueEnum;
+use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::Config;
 use codespan_reporting::term::DisplayStyle;
+use codespan_reporting::term::emit;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
+use wdl::ast::Diagnostic;
 
 pub mod commands;
 
@@ -56,4 +59,21 @@ fn get_display_config(report_mode: Mode, no_color: bool) -> (Config, StandardStr
     let writer = StandardStream::stderr(color_choice);
 
     (config, writer)
+}
+
+/// Emits the given diagnostics to the terminal.
+fn emit_diagnostics(
+    diagnostics: &[Diagnostic],
+    file_name: &str,
+    source: &str,
+    report_mode: Mode,
+    no_color: bool,
+) {
+    let file = SimpleFile::new(file_name, source);
+
+    let (config, writer) = get_display_config(report_mode, no_color);
+    let mut writer = writer.lock();
+    for diagnostic in diagnostics {
+        emit(&mut writer, &config, &file, &diagnostic.to_codespan()).unwrap();
+    }
 }

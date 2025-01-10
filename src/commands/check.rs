@@ -5,16 +5,13 @@ use std::fs;
 use anyhow::Context;
 use anyhow::bail;
 use clap::Parser;
-use codespan_reporting::files::SimpleFile;
-use codespan_reporting::term::emit;
 use url::Url;
 use wdl::ast::Diagnostic;
 use wdl::ast::Severity;
-use wdl::ast::SyntaxNode;
 use wdl::cli::analyze;
 
 use crate::Mode;
-use crate::get_display_config;
+use crate::emit_diagnostics;
 
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
@@ -98,7 +95,6 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         bail!("`--shellcheck` requires `--lint` to be enabled");
     }
 
-    let (config, mut stream) = get_display_config(args.common.report_mode, args.common.no_color);
     let exceptions = args.common.except;
     let lint = args.lint;
     let shellcheck = args.common.shellcheck;
@@ -170,11 +166,12 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         };
 
         if !diagnostics.is_empty() {
-            let file = SimpleFile::new(
-                uri,
-                SyntaxNode::new_root(result.document().node().syntax().green().into())
-                    .text()
-                    .to_string(),
+            emit_diagnostics(
+                diagnostics,
+                &uri,
+                &result.document().node().syntax().text().to_string(),
+                args.common.report_mode,
+                args.common.no_color,
             );
 
             for diagnostic in diagnostics.iter() {
@@ -183,9 +180,6 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                     Severity::Warning => warning_count += 1,
                     Severity::Note => note_count += 1,
                 }
-
-                emit(&mut stream, &config, &file, &diagnostic.to_codespan())
-                    .context("failed to emit diagnostic")?;
             }
         }
     }
