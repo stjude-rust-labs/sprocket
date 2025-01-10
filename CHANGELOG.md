@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * Updated WDL crate to latest. This adds support for
-  checking/linting remote URLs ([#46](https://github.com/stjude-rust-labs/sprocket/pull/46)).
+  checking/linting remote URLs and other features and improvements ([#46](https://github.com/stjude-rust-labs/sprocket/pull/46)).
 * Only allow one `file` argument to `check/lint` instead of any number of local files and directories
   ([#46](https://github.com/stjude-rust-labs/sprocket/pull/46)).
 
