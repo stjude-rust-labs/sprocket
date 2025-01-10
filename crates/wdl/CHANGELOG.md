@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added an `--open` flag to `wdl doc` subcommand ([#269](https://github.com/stjude-rust-labs/wdl/pull/269)).
 * Added the `engine` module containing the implementation of `wdl-engine` ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
 * Implemented the `wdl run` subcommand for running tasks ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
+* Added a `validate` subcommand for validating input JSONs ([#283](https://github.com/stjude-rust-labs/wdl/pull/283)).
+* Added `analyze()`, `parse_inputs()`, `validate_inputs()`, and `run()` entrypoints ([#283](https://github.com/stjude-rust-labs/wdl/pull/283)).
 
 ### Fixed
 

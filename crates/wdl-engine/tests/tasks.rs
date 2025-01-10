@@ -43,6 +43,7 @@ use futures::stream;
 use path_clean::clean;
 use pretty_assertions::StrComparison;
 use regex::Regex;
+use serde_json::to_string_pretty;
 use tempfile::TempDir;
 use walkdir::WalkDir;
 use wdl_analysis::AnalysisResult;
@@ -218,10 +219,8 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
             match evaluated.into_result() {
                 Ok(outputs) => {
                     let outputs = outputs.with_name(name);
-                    let mut buffer = Vec::new();
-                    let mut serializer = serde_json::Serializer::pretty(&mut buffer);
-                    outputs.serialize(&mut serializer)?;
-                    let outputs = String::from_utf8(buffer).expect("output should be UTF-8");
+                    let outputs =
+                        to_string_pretty(&outputs).context("failed to serialize outputs")?;
                     let outputs = strip_paths(dir.path(), &outputs);
                     compare_result(&test.join("outputs.json"), &outputs)?;
                 }

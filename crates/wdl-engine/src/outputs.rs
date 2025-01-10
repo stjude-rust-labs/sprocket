@@ -3,6 +3,7 @@
 use std::cmp::Ordering;
 
 use indexmap::IndexMap;
+use serde::Serialize;
 
 use crate::Scope;
 use crate::Value;
@@ -45,8 +46,20 @@ impl Outputs {
         self.values.get(name)
     }
 
-    /// Serializes the value to the given serializer.
-    pub fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    /// Sorts the outputs according to a callback.
+    pub(crate) fn sort_by(&mut self, mut cmp: impl FnMut(&str, &str) -> Ordering) {
+        // We can sort unstable as none of the keys are equivalent in ordering; thus the
+        // resulting sort is still considered to be stable
+        self.values.sort_unstable_by(move |a, _, b, _| {
+            let ordering = cmp(a, b);
+            assert!(ordering != Ordering::Equal);
+            ordering
+        });
+    }
+}
+
+impl Serialize for Outputs {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -78,17 +91,6 @@ impl Outputs {
         }
 
         s.end()
-    }
-
-    /// Sorts the outputs according to a callback.
-    pub(crate) fn sort_by(&mut self, mut cmp: impl FnMut(&str, &str) -> Ordering) {
-        // We can sort unstable as none of the keys are equivalent in ordering; thus the
-        // resulting sort is still considered to be stable
-        self.values.sort_unstable_by(move |a, _, b, _| {
-            let ordering = cmp(a, b);
-            assert!(ordering != Ordering::Equal);
-            ordering
-        });
     }
 }
 
