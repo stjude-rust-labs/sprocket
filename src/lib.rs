@@ -1,5 +1,4 @@
-//! The `sprocket` command line tool for working with Workflow Description
-//! Language (WDL) files.
+//! The Sprocket command line tool.
 
 #![warn(missing_docs)]
 #![warn(rust_2018_idioms)]
