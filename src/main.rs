@@ -24,7 +24,7 @@ enum Commands {
     /// Lints Workflow Description Language files.
     Lint(commands::check::LintArgs),
 
-    /// Explains a lint warning.
+    /// Explains a rule.
     Explain(commands::explain::Args),
 
     /// Runs the analyzer LSP server.
@@ -40,10 +40,10 @@ enum Commands {
     /// Validates an input JSON file against a task or workflow input schema.
     ///
     /// This ensures that every required input is supplied, every supplied input
-    /// is correctly typed, and that no extraneous inputs are provided.
+    /// is correctly typed, that no extraneous inputs are provided, and that any
+    /// provided `File` or `Directory` inputs exist.
     ///
-    /// This does not check that any supplied `File` or `Directory` inputs are
-    /// valid paths. It also will not catch potential runtime errors that
+    /// It will not catch potential runtime errors that
     /// may occur when running the task or workflow.
     ValidateInputs(commands::validate::ValidateInputsArgs),
 }

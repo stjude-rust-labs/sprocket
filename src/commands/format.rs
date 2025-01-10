@@ -126,7 +126,7 @@ fn format_document(
     if !diagnostics.is_empty() {
         emit_diagnostics(
             &diagnostics,
-            path.to_str().unwrap_or(""),
+            &path.to_string_lossy(),
             &source,
             report_mode,
             no_color,

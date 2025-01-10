@@ -40,7 +40,7 @@ pub struct RunArgs {
     #[arg(short, long, value_name = "NAME", conflicts_with = "inputs")]
     pub name: Option<String>,
 
-    /// The output directory; defaults to the task name.
+    /// The output directory.
     ///
     /// If no output directory is provided, a default nested directory is
     /// created based on the task name and the current time in the form
