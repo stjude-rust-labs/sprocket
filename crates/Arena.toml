@@ -4,7 +4,7 @@ commit_hash = "2d1e1989a57402642c06d15f4b623ac66fd9ed7d"
 
 [repositories."getwilds/ww-star-deseq2"]
 identifier = "getwilds/ww-star-deseq2"
-commit_hash = "6d81ede0ad963115697c3f707f073177ddde7013"
+commit_hash = "eb2efc50a94fd9e9579775acbf776d20ea2da0d1"
 
 [repositories."getwilds/ww-vc-trio"]
 identifier = "getwilds/ww-vc-trio"
@@ -12,7 +12,7 @@ commit_hash = "c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2"
 
 [repositories."stjudecloud/workflows"]
 identifier = "stjudecloud/workflows"
-commit_hash = "43462b0c3beb0e5f6caaac58d236b75997bef61a"
+commit_hash = "2d3493e5eea65365f9249d5c6f4c05dde513afff"
 filters = ["/template/task-templates.wdl"]
 
 [[diagnostics]]
@@ -312,483 +312,223 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:10:22: note[Whitespace]: line contains trailing whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L10"
+message = "ww-star-deseq2.wdl:127:13: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L127"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:110:13: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L110"
+message = "ww-star-deseq2.wdl:133:6: note[MissingMetas]: task `CollapseGTF` is missing both `meta` and `parameter_meta` sections"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L133"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:117:92: note[BlankLinesBetweenElements]: extra blank line(s) found"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L117"
+message = "ww-star-deseq2.wdl:133:6: warning[SnakeCase]: task name `CollapseGTF` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L133"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:119:5: note[MatchingParameterMeta]: task `FindFastqs` has an extraneous parameter metadata key named `r1_locs`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L119"
+message = "ww-star-deseq2.wdl:152:13: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L152"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:120:5: note[MatchingParameterMeta]: task `FindFastqs` has an extraneous parameter metadata key named `r2_locs`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L120"
+message = "ww-star-deseq2.wdl:158:6: note[MissingMetas]: task `STARalignTwoPass` is missing both `meta` and `parameter_meta` sections"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L158"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:125:6: note[MissingMetas]: task `ConcatenateFastQs` is missing a `meta` section"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L125"
+message = "ww-star-deseq2.wdl:158:6: warning[SnakeCase]: task name `STARalignTwoPass` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L158"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:125:6: note[SectionOrdering]: sections are not in order for task `ConcatenateFastQs`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L125"
+message = "ww-star-deseq2.wdl:15:10: note[MissingMetas]: workflow `STAR2Pass` is missing both `meta` and `parameter_meta` sections"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L15"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:125:6: warning[SnakeCase]: task name `ConcatenateFastQs` is not snake_case"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L125"
+message = "ww-star-deseq2.wdl:15:10: warning[SnakeCase]: workflow name `STAR2Pass` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L15"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:126:3: note[InputSorting]: input not sorted"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L126"
+message = "ww-star-deseq2.wdl:192:1: note[LineWidth]: line exceeds maximum width of 90"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L192"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:133:15: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L133"
+message = "ww-star-deseq2.wdl:205:10: warning[SnakeCase]: output name `geneCounts` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L205"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:134:15: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L134"
+message = "ww-star-deseq2.wdl:209:10: warning[SnakeCase]: output name `SJout` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L209"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:143:13: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L143"
+message = "ww-star-deseq2.wdl:213:13: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L213"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:151:61: note[BlankLinesBetweenElements]: extra blank line(s) found"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L151"
+message = "ww-star-deseq2.wdl:219:6: note[MissingMetas]: task `RNASeQC` is missing both `meta` and `parameter_meta` sections"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L219"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:153:5: note[MatchingParameterMeta]: task `ConcatenateFastQs` has an extraneous parameter metadata key named `r1fastq`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L153"
+message = "ww-star-deseq2.wdl:219:6: warning[SnakeCase]: task name `RNASeQC` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L219"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:154:5: note[MatchingParameterMeta]: task `ConcatenateFastQs` has an extraneous parameter metadata key named `r2fastq`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L154"
+message = "ww-star-deseq2.wdl:243:13: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L243"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:159:6: note[MissingMetas]: task `STARalignTwoPass` is missing a `meta` section"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L159"
+message = "ww-star-deseq2.wdl:27:21: note[CallInputSpacing]: call input not properly spaced"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L27"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:159:6: note[SectionOrdering]: sections are not in order for task `STARalignTwoPass`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L159"
+message = "ww-star-deseq2.wdl:32:24: note[CallInputSpacing]: call input not properly spaced"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L32"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:159:6: warning[SnakeCase]: task name `STARalignTwoPass` is not snake_case"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L159"
+message = "ww-star-deseq2.wdl:35:40: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L35"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:183:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L183"
+message = "ww-star-deseq2.wdl:39:28: note[CallInputSpacing]: call input not properly spaced"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L39"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:192:10: warning[SnakeCase]: output name `geneCounts` is not snake_case"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L192"
+message = "ww-star-deseq2.wdl:45:44: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L45"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:196:10: warning[SnakeCase]: output name `SJout` is not snake_case"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L196"
+message = "ww-star-deseq2.wdl:48:19: note[CallInputSpacing]: call input not properly spaced"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L48"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:1:12: note[VersionFormatting]: expected exactly one blank line after the version statement"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L1"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:200:13: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L200"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:210:58: note[BlankLinesBetweenElements]: extra blank line(s) found"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L210"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:212:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `bam`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L212"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:213:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `bai`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L213"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:214:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `geneCounts`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L214"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:215:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `log_final`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L215"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:216:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `log_progress`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L216"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:217:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `log`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L217"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:218:5: note[MatchingParameterMeta]: task `STARalignTwoPass` has an extraneous parameter metadata key named `SJout`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L218"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:224:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L224"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:225:6: note[MissingMetas]: task `RNASeQC` is missing a `meta` section"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L225"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:225:6: note[SectionOrdering]: sections are not in order for task `RNASeQC`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L225"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:225:6: warning[SnakeCase]: task name `RNASeQC` is not snake_case"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L225"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:23:22: note[CallInputSpacing]: call input not properly spaced"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L23"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:244:13: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L244"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:253:64: note[BlankLinesBetweenElements]: extra blank line(s) found"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L253"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:255:5: note[MatchingParameterMeta]: task `RNASeQC` has an extraneous parameter metadata key named `rnaseqc_metrics`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L255"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:25:21: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L25"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:25:36: note[Whitespace]: line contains trailing whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L25"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:26:21: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L26"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:26:22: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L26"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:29:29: note[CallInputSpacing]: call input not properly spaced"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L29"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:30:13: note[Whitespace]: line contains trailing whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L30"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:31:23: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L31"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:31:43: note[Whitespace]: line contains trailing whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L31"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:32:23: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L32"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:32:43: note[Whitespace]: line contains trailing whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L32"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:33:23: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L33"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:33:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L33"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:36:28: note[CallInputSpacing]: call input not properly spaced"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:38:23: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L38"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:39:32: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L39"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:40:16: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L40"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:41:16: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L41"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:42:19: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L42"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:42:20: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L42"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:45:19: note[CallInputSpacing]: call input not properly spaced"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L45"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:47:23: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L47"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:48:17: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L48"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:49:18: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L49"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:50:16: note[CallInputSpacing]: call inputs assignments must be surrounded with whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L50"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:50:17: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L50"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:51:6: note[BlankLinesBetweenElements]: extra blank line(s) found"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L51"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:53:18: note[Whitespace]: line contains trailing whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L53"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:53:5: note[CommentWhitespace]: in-line comments should be preceded by two spaces"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L53"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:55:3: note[CommentWhitespace]: comment not sufficiently indented"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L55"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:57:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L57"
+message = "ww-star-deseq2.wdl:53:31: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L53"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:58:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L58"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L58"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:59:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L59"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L59"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:59:17: warning[SnakeCase]: output name `output_geneCounts` is not snake_case"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L59"
+message = "ww-star-deseq2.wdl:5:10: warning[SnakeCase]: struct member name `R1` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L5"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:60:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L60"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L60"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:60:17: warning[SnakeCase]: output name `output_geneCounts` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L60"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:61:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L61"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L61"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:62:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L62"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L62"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:63:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L63"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:63:17: warning[SnakeCase]: output name `output_SJ` is not snake_case"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L63"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L63"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:64:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L64"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L64"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:6:10: note[MissingMetas]: workflow `STAR2Pass` is missing a `meta` section"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L6"
+message = "ww-star-deseq2.wdl:64:17: warning[SnakeCase]: output name `output_SJ` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L64"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:6:10: note[SectionOrdering]: sections are not in order for workflow `STAR2Pass`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L6"
+message = "ww-star-deseq2.wdl:65:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L65"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:6:10: warning[SnakeCase]: workflow name `STAR2Pass` is not snake_case"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L6"
+message = "ww-star-deseq2.wdl:69:6: note[MissingMetas]: task `DownloadReference` is missing both `meta` and `parameter_meta` sections"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L69"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:71:100: note[BlankLinesBetweenElements]: extra blank line(s) found"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L71"
+message = "ww-star-deseq2.wdl:69:6: warning[SnakeCase]: task name `DownloadReference` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L69"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:73:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_bam`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L73"
+message = "ww-star-deseq2.wdl:6:10: warning[SnakeCase]: struct member name `R2` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:74:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_bai`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L74"
+message = "ww-star-deseq2.wdl:73:1: note[LineWidth]: line exceeds maximum width of 90"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L73"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:75:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_gene_counts`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L75"
+message = "ww-star-deseq2.wdl:74:1: note[LineWidth]: line exceeds maximum width of 90"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L74"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:76:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_log_final`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L76"
+message = "ww-star-deseq2.wdl:83:52: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L83"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:77:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_log_progress`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L77"
+message = "ww-star-deseq2.wdl:88:13: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L88"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:78:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_log`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L78"
+message = "ww-star-deseq2.wdl:94:6: note[MissingMetas]: task `BuildSTARIndex` is missing both `meta` and `parameter_meta` sections"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L94"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:79:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_SJ`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L79"
+message = "ww-star-deseq2.wdl:94:6: warning[SnakeCase]: task name `BuildSTARIndex` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L94"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:7:3: note[InputSorting]: input not sorted"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L7"
+message = "ww-star-deseq2.wdl:98:9: warning[SnakeCase]: input name `sjdbOverhang` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L98"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:80:5: note[MatchingParameterMeta]: workflow `STAR2Pass` has an extraneous parameter metadata key named `output_rnaseqc`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L80"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:82:3: note[CommentWhitespace]: in-line comments should be preceded by two spaces"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L82"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:87:6: note[MissingMetas]: task `FindFastqs` is missing a `meta` section"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L87"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:87:6: note[SectionOrdering]: sections are not in order for task `FindFastqs`"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L87"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:87:6: warning[SnakeCase]: task name `FindFastqs` is not snake_case"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L87"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:9:25: note[Whitespace]: line contains trailing whitespace"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/6d81ede0ad963115697c3f707f073177ddde7013/ww-star-deseq2.wdl/#L9"
+message = "ww-star-deseq2.wdl:99:9: warning[SnakeCase]: input name `genomeSAindexNbases` is not snake_case"
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L99"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
@@ -1738,699 +1478,724 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
 message = "flag_filter.wdl:121:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/data_structures/flag_filter.wdl/#L121"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/data_structures/flag_filter.wdl/#L121"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:107:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/data_structures/read_group.wdl/#L107"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/data_structures/read_group.wdl/#L107"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:159:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/data_structures/read_group.wdl/#L159"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/data_structures/read_group.wdl/#L159"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:444:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/data_structures/read_group.wdl/#L444"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/data_structures/read_group.wdl/#L444"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:245:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/arriba.wdl/#L245"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/arriba.wdl/#L245"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:298:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/arriba.wdl/#L298"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/arriba.wdl/#L298"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:347:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/arriba.wdl/#L347"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/arriba.wdl/#L347"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:397:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/arriba.wdl/#L397"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/arriba.wdl/#L397"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:80:45: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/arriba.wdl/#L80"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/arriba.wdl/#L80"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:97:25: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/arriba.wdl/#L97"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/arriba.wdl/#L97"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:190:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/bwa.wdl/#L190"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/bwa.wdl/#L190"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:286:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/bwa.wdl/#L286"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/bwa.wdl/#L286"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:337:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/bwa.wdl/#L337"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/bwa.wdl/#L337"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:89:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/bwa.wdl/#L89"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/bwa.wdl/#L89"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/deeptools.wdl"
 message = "deeptools.wdl:70:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/deeptools.wdl/#L70"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/deeptools.wdl/#L70"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/estimate.wdl"
 message = "estimate.wdl:54:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/estimate.wdl/#L54"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/estimate.wdl/#L54"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fastqc.wdl"
 message = "fastqc.wdl:67:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/fastqc.wdl/#L67"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/fastqc.wdl/#L67"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:175:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/fq.wdl/#L175"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/fq.wdl/#L175"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:40:22: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/fq.wdl/#L40"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/fq.wdl/#L40"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:48:22: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/fq.wdl/#L48"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/fq.wdl/#L48"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:96:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/fq.wdl/#L96"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/fq.wdl/#L96"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:150:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L150"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/gatk4.wdl/#L150"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:213:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L213"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/gatk4.wdl/#L213"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:299:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L299"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/gatk4.wdl/#L299"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:372:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L372"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/gatk4.wdl/#L372"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:399:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L399"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/gatk4.wdl/#L399"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:408:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L408"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/gatk4.wdl/#L408"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:416:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L416"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/gatk4.wdl/#L416"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:485:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L485"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/gatk4.wdl/#L485"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:69:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/gatk4.wdl/#L69"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/gatk4.wdl/#L69"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:137:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/htseq.wdl/#L137"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/htseq.wdl/#L137"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:212:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/htseq.wdl/#L212"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/htseq.wdl/#L212"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:22:20: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/htseq.wdl/#L22"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/htseq.wdl/#L22"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:40:39: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/htseq.wdl/#L40"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/htseq.wdl/#L40"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:120:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/kraken2.wdl/#L120"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/kraken2.wdl/#L120"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:177:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/kraken2.wdl/#L177"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/kraken2.wdl/#L177"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:287:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/kraken2.wdl/#L287"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/kraken2.wdl/#L287"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:404:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/kraken2.wdl/#L404"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/kraken2.wdl/#L404"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:44:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/kraken2.wdl/#L44"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/kraken2.wdl/#L44"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:73:29: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/kraken2.wdl/#L73"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/kraken2.wdl/#L73"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/librarian.wdl"
 message = "librarian.wdl:53:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/librarian.wdl/#L53"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/librarian.wdl/#L53"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/md5sum.wdl"
 message = "md5sum.wdl:39:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/md5sum.wdl/#L39"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/md5sum.wdl/#L39"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/mosdepth.wdl"
 message = "mosdepth.wdl:69:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/mosdepth.wdl/#L69"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/mosdepth.wdl/#L69"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/multiqc.wdl"
 message = "multiqc.wdl:68:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/multiqc.wdl/#L68"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/multiqc.wdl/#L68"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:140:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/ngsderive.wdl/#L140"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/ngsderive.wdl/#L140"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:204:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/ngsderive.wdl/#L204"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/ngsderive.wdl/#L204"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:281:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/ngsderive.wdl/#L281"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/ngsderive.wdl/#L281"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:369:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/ngsderive.wdl/#L369"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/ngsderive.wdl/#L369"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:455:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/ngsderive.wdl/#L455"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/ngsderive.wdl/#L455"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:87:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/ngsderive.wdl/#L87"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/ngsderive.wdl/#L87"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:1044:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L1044"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L1044"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:125:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L125"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L125"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:153:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L153"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L153"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:250:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L250"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L250"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:273:27: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L273"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L273"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:283:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L283"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L283"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:29:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L29"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L29"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:333:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L333"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L333"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:358:27: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L358"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L358"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:367:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L367"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L367"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:38:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L38"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L38"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:420:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L420"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L420"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:444:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L444"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L444"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:46:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L46"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L46"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:488:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L488"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L488"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:514:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L514"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L514"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:551:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L551"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L551"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:577:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L577"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L577"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:613:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L613"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L613"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:644:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L644"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L644"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:684:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L684"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L684"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:710:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L710"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L710"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:746:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L746"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L746"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:769:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L769"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L769"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:805:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L805"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L805"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:865:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L865"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L865"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:911:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L911"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L911"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:933:56: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L933"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L933"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:983:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/picard.wdl/#L983"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/picard.wdl/#L983"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
 message = "qualimap.wdl:157:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/qualimap.wdl/#L157"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/qualimap.wdl/#L157"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
 message = "qualimap.wdl:89:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/qualimap.wdl/#L89"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/qualimap.wdl/#L89"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:117:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/sambamba.wdl/#L117"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/sambamba.wdl/#L117"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:172:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/sambamba.wdl/#L172"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/sambamba.wdl/#L172"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:228:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/sambamba.wdl/#L228"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/sambamba.wdl/#L228"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:285:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/sambamba.wdl/#L285"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/sambamba.wdl/#L285"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:57:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/sambamba.wdl/#L57"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/sambamba.wdl/#L57"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1060:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L1060"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L1060"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1164:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L1164"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L1164"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1194:20: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L1194"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L1194"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1284:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L1284"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L1284"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1330:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L1330"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L1330"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:153:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L153"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L153"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:211:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L211"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L211"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:270:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L270"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L270"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:39:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L39"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L39"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:416:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L416"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L416"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:503:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L503"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L503"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:605:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L605"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L605"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:690:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L690"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L690"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:763:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L763"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L763"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:962:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L962"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L962"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:986:23: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/samtools.wdl/#L986"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/samtools.wdl/#L986"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
 message = "star.wdl:130:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/star.wdl/#L130"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/star.wdl/#L130"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
 message = "star.wdl:816:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/star.wdl/#L816"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/star.wdl/#L816"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:101:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L101"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L101"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:142:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L142"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L142"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:242:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L242"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L242"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:279:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L279"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L279"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:324:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L324"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L324"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:366:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L366"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L366"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:392:32: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L392"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L392"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:425:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L425"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L425"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:45:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L45"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L45"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:686:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L686"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L686"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:764:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L764"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L764"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:825:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/tools/util.wdl/#L825"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/tools/util.wdl/#L825"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
-message = "dnaseq-core.wdl:33:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-core.wdl/#L33"
+message = "dnaseq-core.wdl:34:21: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/dnaseq/dnaseq-core.wdl/#L34"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:124:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L124"
+message = "dnaseq-standard-fastq.wdl:126:21: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L126"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:160:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L160"
+message = "dnaseq-standard-fastq.wdl:162:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L162"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:33:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L33"
+message = "dnaseq-standard-fastq.wdl:35:21: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L35"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
-message = "dnaseq-standard.wdl:111:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-standard.wdl/#L111"
+message = "dnaseq-standard.wdl:113:21: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/dnaseq/dnaseq-standard.wdl/#L113"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
-message = "dnaseq-standard.wdl:137:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-standard.wdl/#L137"
+message = "dnaseq-standard.wdl:139:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/dnaseq/dnaseq-standard.wdl/#L139"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
-message = "dnaseq-standard.wdl:30:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/dnaseq/dnaseq-standard.wdl/#L30"
+message = "dnaseq-standard.wdl:32:21: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/dnaseq/dnaseq-standard.wdl/#L32"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/general/alignment-post.wdl"
 message = "alignment-post.wdl:30:22: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/general/alignment-post.wdl/#L30"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/general/alignment-post.wdl/#L30"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/general/bam-to-fastqs.wdl"
-message = "bam-to-fastqs.wdl:29:39: note[RedundantInputAssignment]: redundant input assignment"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/general/bam-to-fastqs.wdl/#L29"
+message = "bam-to-fastqs.wdl:31:39: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/general/bam-to-fastqs.wdl/#L31"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:127:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/methylation/methylation-cohort.wdl/#L127"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:173:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/methylation/methylation-cohort.wdl/#L173"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:212:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/methylation/methylation-cohort.wdl/#L212"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:247:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/methylation/methylation-cohort.wdl/#L247"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
+message = "methylation-preprocess.wdl:56:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/methylation/methylation-preprocess.wdl/#L56"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:269:9: note[RedundantInputAssignment]: redundant input assignment"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/qc/quality-check-standard.wdl/#L269"
+message = "quality-check-standard.wdl:270:9: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/qc/quality-check-standard.wdl/#L270"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:295:13: note[RedundantInputAssignment]: redundant input assignment"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/qc/quality-check-standard.wdl/#L295"
+message = "quality-check-standard.wdl:296:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/qc/quality-check-standard.wdl/#L296"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:311:13: note[RedundantInputAssignment]: redundant input assignment"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/qc/quality-check-standard.wdl/#L311"
+message = "quality-check-standard.wdl:312:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/qc/quality-check-standard.wdl/#L312"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:369:13: note[RedundantInputAssignment]: redundant input assignment"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/qc/quality-check-standard.wdl/#L369"
+message = "quality-check-standard.wdl:370:13: note[RedundantInputAssignment]: redundant input assignment"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/qc/quality-check-standard.wdl/#L370"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:559:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/qc/quality-check-standard.wdl/#L559"
+message = "quality-check-standard.wdl:560:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/qc/quality-check-standard.wdl/#L560"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/reference/make-qc-reference.wdl"
-message = "make-qc-reference.wdl:35:29: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/reference/make-qc-reference.wdl/#L35"
+document = "stjudecloud/workflows:/workflows/reference/qc-reference.wdl"
+message = "qc-reference.wdl:37:29: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/reference/qc-reference.wdl/#L37"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/reference/make-qc-reference.wdl"
-message = "make-qc-reference.wdl:49:32: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/reference/make-qc-reference.wdl/#L49"
+document = "stjudecloud/workflows:/workflows/reference/qc-reference.wdl"
+message = "qc-reference.wdl:51:32: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/reference/qc-reference.wdl/#L51"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:48:22: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-core.wdl/#L48"
+message = "rnaseq-core.wdl:49:22: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/rnaseq/rnaseq-core.wdl/#L49"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:57:28: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-core.wdl/#L57"
+message = "rnaseq-core.wdl:58:28: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/rnaseq/rnaseq-core.wdl/#L58"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
-message = "rnaseq-standard-fastq.wdl:73:22: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L73"
+message = "rnaseq-standard-fastq.wdl:75:22: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L75"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
-message = "rnaseq-standard-fastq.wdl:82:28: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L82"
+message = "rnaseq-standard-fastq.wdl:84:28: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L84"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:145:28: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-standard.wdl/#L145"
+message = "rnaseq-standard.wdl:147:28: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/rnaseq/rnaseq-standard.wdl/#L147"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:182:20: note[ContainerValue]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-standard.wdl/#L182"
+message = "rnaseq-standard.wdl:184:20: note[ContainerValue]: container URI uses a mutable tag"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/rnaseq/rnaseq-standard.wdl/#L184"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:36:22: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-standard.wdl/#L36"
+message = "rnaseq-standard.wdl:38:22: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/rnaseq/rnaseq-standard.wdl/#L38"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:45:28: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/stjudecloud/workflows/blob/43462b0c3beb0e5f6caaac58d236b75997bef61a/workflows/rnaseq/rnaseq-standard.wdl/#L45"
+message = "rnaseq-standard.wdl:47:28: note[TrailingComma]: item missing trailing comma"
+permalink = "https://github.com/stjudecloud/workflows/blob/2d3493e5eea65365f9249d5c6f4c05dde513afff/workflows/rnaseq/rnaseq-standard.wdl/#L47"
