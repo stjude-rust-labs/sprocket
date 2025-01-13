@@ -143,5 +143,4 @@ pub fn format_literal_struct(element: &FormatElement, stream: &mut TokenStream<P
 
     stream.decrement_indent();
     (&close_brace.expect("literal struct close brace")).write(stream);
-    stream.end_line();
 }
