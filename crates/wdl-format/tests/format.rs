@@ -31,6 +31,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Document;
 use wdl_ast::Node;
 use wdl_format::Formatter;
+use wdl_format::element::FormatElement;
 use wdl_format::element::node::AstNodeFormatExt;
 
 /// Normalizes a result.
@@ -117,30 +118,25 @@ fn compare_result(path: &Path, result: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Run a test.
-fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
-    let path = test.join("source.wdl");
-    let source = std::fs::read_to_string(&path).map_err(|e| {
-        format!(
-            "failed to read source file `{path}`: {e}",
-            path = path.display()
-        )
-    })?;
-
+/// Parses source string into a document FormatElement
+fn prepare_document(source: &str, path: &Path) -> Result<FormatElement, String> {
     let (document, diagnostics) = Document::parse(&source);
 
     if !diagnostics.is_empty() {
         return Err(format!(
-            "failed to format `{path}`: {e}",
+            "failed to parse `{path}` {e}",
             path = path.display(),
-            e = format_diagnostics(&diagnostics, path.as_path(), &source)
+            e = format_diagnostics(&diagnostics, path, &source)
         ));
     };
 
-    let document = Node::Ast(document.ast().into_v1().unwrap()).into_format_element();
-    let formatter = Formatter::default();
+    Ok(Node::Ast(document.ast().into_v1().unwrap()).into_format_element())
+}
 
-    let formatted = match formatter.format(&document) {
+/// Parses and formats source string
+fn format(source: &str, path: &Path) -> Result<String, String> {
+    let document = prepare_document(&source, &path)?;
+    let formatted = match Formatter::default().format(&document) {
         Ok(formatted) => formatted,
         Err(e) => {
             return Err(format!(
@@ -150,7 +146,26 @@ fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
             ));
         }
     };
-    compare_result(path.with_extension("formatted.wdl").as_path(), &formatted)?;
+    Ok(formatted)
+}
+
+/// Run a test.
+fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
+    let path = test.join("source.wdl");
+    let formatted_path = path.with_extension("formatted.wdl");
+    let source = std::fs::read_to_string(&path).map_err(|e| {
+        format!(
+            "failed to read source file `{path}`: {e}",
+            path = path.display()
+        )
+    })?;
+
+    let formatted = format(&source, path.as_path())?;
+    compare_result(formatted_path.as_path(), &formatted)?;
+
+    // test idempotency by formatting the formatted document
+    let twice_formatted = format(&formatted, formatted_path.as_path())?;
+    compare_result(formatted_path.as_path(), &twice_formatted)?;
 
     ntests.fetch_add(1, Ordering::SeqCst);
     Ok(())
