@@ -2238,6 +2238,10 @@ impl LiteralString {
             if text.ends_with('\n') {
                 text.pop();
             }
+
+            if text.ends_with('\r') {
+                text.pop();
+            }
         }
 
         // Now that the string has been unescaped and the first and last lines trimmed,
@@ -7869,6 +7873,33 @@ task test {
         match &stripped[0] {
             StrippedStringPart::Text(text) => {
                 assert_eq!(text.as_str(), "hello world\n    my name is Jeff.")
+            }
+            _ => panic!("expected text part"),
+        }
+    }
+
+    #[test]
+    fn whitespace_stripping_on_windows() {
+        let (document, diagnostics) = Document::parse(
+            "version 1.2\r\ntask test {\r\n    String s = <<<\r\n        hello\r\n    >>>\r\n}\r\n",
+        );
+
+        assert!(diagnostics.is_empty());
+        let ast = document.ast();
+        let ast = ast.as_v1().expect("should be a V1 AST");
+
+        let tasks: Vec<_> = ast.tasks().collect();
+        assert_eq!(tasks.len(), 1);
+
+        let decls: Vec<_> = tasks[0].declarations().collect();
+        assert_eq!(decls.len(), 1);
+
+        let expr = decls[0].expr().unwrap_literal().unwrap_string();
+        let stripped = expr.strip_whitespace().unwrap();
+        assert_eq!(stripped.len(), 1);
+        match &stripped[0] {
+            StrippedStringPart::Text(text) => {
+                assert_eq!(text.as_str(), "hello")
             }
             _ => panic!("expected text part"),
         }

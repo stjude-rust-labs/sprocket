@@ -264,10 +264,10 @@ impl Visitor for PreambleFormattingRule {
                     if s.chars().filter(|&c| c == '\n').count() == 2 {
                         for (line, start, end) in lines_with_offset(s) {
                             if !line.is_empty() {
-                                let end_offset = if s.ends_with('\n') {
-                                    1
-                                } else if s.ends_with("\r\n") {
+                                let end_offset = if s.ends_with("\r\n") {
                                     2
+                                } else if s.ends_with('\n') {
+                                    1
                                 } else {
                                     0
                                 };

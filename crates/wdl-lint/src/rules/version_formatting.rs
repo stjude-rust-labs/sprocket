@@ -131,10 +131,10 @@ impl Visitor for VersionFormattingRule {
                     if ws.chars().filter(|&c| c == '\n').count() == 2 {
                         for (line, start, end) in lines_with_offset(ws) {
                             if !line.is_empty() {
-                                let end_offset = if ws.ends_with('\n') {
-                                    1
-                                } else if ws.ends_with("\r\n") {
+                                let end_offset = if ws.ends_with("\r\n") {
                                     2
+                                } else if ws.ends_with('\n') {
+                                    1
                                 } else {
                                     0
                                 };

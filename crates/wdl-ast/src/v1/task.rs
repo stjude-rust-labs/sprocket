@@ -962,6 +962,10 @@ impl CommandSection {
             if text.ends_with('\n') {
                 text.pop();
             }
+
+            if text.ends_with('\r') {
+                text.pop();
+            }
         }
 
         // Check for no indentation or all whitespace, in which case we're done
@@ -2509,5 +2513,28 @@ task test {
             _ => panic!("expected text"),
         };
         assert_eq!(text, "");
+    }
+
+    #[test]
+    fn whitespace_stripping_on_windows() {
+        let (document, diagnostics) = Document::parse(
+            "version 1.2\r\ntask test {\r\n    command <<<\r\n        echo \"hello\"\r\n    \
+             >>>\r\n}\r\n",
+        );
+
+        assert!(diagnostics.is_empty());
+        let ast = document.ast();
+        let ast = ast.as_v1().expect("should be a V1 AST");
+        let tasks: Vec<_> = ast.tasks().collect();
+        assert_eq!(tasks.len(), 1);
+
+        let command = tasks[0].command().expect("should have a command section");
+        let stripped = command.strip_whitespace().unwrap();
+        assert_eq!(stripped.len(), 1);
+        let text = match &stripped[0] {
+            StrippedCommandPart::Text(text) => text,
+            _ => panic!("expected text"),
+        };
+        assert_eq!(text, "echo \"hello\"");
     }
 }

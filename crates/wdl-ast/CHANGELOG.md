@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed a bug in `strip_whitespace` that left a trailing carriage return at the
+  end of commands and multiline strings when using Windows line endings ([#291](https://github.com/stjude-rust-labs/wdl/pull/291)).
 * Fixed bug in `strip_whitespace()` that erroneously stripped characters from the first line when it had content.
   Closed [issue #268](https://github.com/stjude-rust-labs/wdl/issues/268) ([#271](https://github.com/stjude-rust-labs/wdl/pull/271)).
 * Fixed same #268 bug in mutliline strings as well as command sections  ([#272](https://github.com/stjude-rust-labs/wdl/pull/272)).
