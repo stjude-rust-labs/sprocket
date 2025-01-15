@@ -4,6 +4,7 @@ mod post;
 mod pre;
 
 use std::fmt::Display;
+use std::rc::Rc;
 
 pub use post::*;
 pub use pre::*;
@@ -19,8 +20,7 @@ pub trait Token: Eq + PartialEq {
 /// A stream of tokens. Tokens in this case are either [`PreToken`]s or
 /// [`PostToken`]s. Note that, unless you are working on formatting
 /// specifically, you should never need to work with [`PostToken`]s.
-#[derive(Debug)]
-
+#[derive(Debug, Clone)]
 pub struct TokenStream<T: Token>(Vec<T>);
 
 impl<T: Token> Default for TokenStream<T> {
@@ -52,6 +52,26 @@ impl<T: Token> TokenStream<T> {
             let _ = self.0.pop();
         }
     }
+
+    /// Returns whether the stream is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Returns an iterator over the tokens in the stream.
+    pub fn iter(&self) -> std::slice::Iter<'_, T> {
+        self.0.iter()
+    }
+
+    /// Clears the stream.
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    /// Extends the stream with the tokens from another stream.
+    pub fn extend(&mut self, other: Self) {
+        self.0.extend(other.0);
+    }
 }
 
 impl<T: Token> IntoIterator for TokenStream<T> {
@@ -64,16 +84,16 @@ impl<T: Token> IntoIterator for TokenStream<T> {
 }
 
 /// The kind of comment.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Comment {
     /// A comment on its own line.
-    Preceding(String),
+    Preceding(Rc<String>),
     /// A comment on the same line as the code preceding it.
-    Inline(String),
+    Inline(Rc<String>),
 }
 
 /// Trivia.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Trivia {
     /// A blank line. This may be ignored by the postprocessor.
     BlankLine,
@@ -81,11 +101,16 @@ pub enum Trivia {
     Comment(Comment),
 }
 
-/// Whether optional blank lines are allowed in the current context.
+/// The policy for [`Trivia::BlankLine`] line spacing.
+///
+/// Blank lines before comments and between comments are always permitted.
 #[derive(Eq, PartialEq, Default, Debug, Clone, Copy)]
-pub enum LineSpacingPolicy {
-    /// Blank lines are allowed before comments.
-    BeforeComments,
+pub enum TriviaBlankLineSpacingPolicy {
+    /// Blank lines are allowed before and between comments, but not after.
+    ///
+    /// i.e. a comment, then a blank line, then code, would have the blank
+    /// removed.
+    RemoveTrailingBlanks,
     /// Blank lines are always allowed.
     #[default]
     Always,

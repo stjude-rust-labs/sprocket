@@ -24,6 +24,9 @@ pub const NEWLINE: &str = "\n";
 /// A space.
 pub const SPACE: &str = " ";
 
+/// A tab.
+pub const TAB: &str = "\t";
+
 /// Returns exactly one entity from an enumerable list of entities (usually a
 /// [`Vec`]).
 #[macro_export]
@@ -208,16 +211,12 @@ impl Formatter {
     }
 
     /// Gets the [`PostToken`] stream.
-    ///
-    /// # Notes
-    ///
-    /// * This shouldn't be exposed publicly.
     fn to_stream<W: Writable>(&self, element: W) -> TokenStream<PostToken> {
         let mut stream = TokenStream::default();
         element.write(&mut stream);
 
         let mut postprocessor = Postprocessor::default();
-        postprocessor.run(stream)
+        postprocessor.run(stream, self.config())
     }
 }
 

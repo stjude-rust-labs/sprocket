@@ -672,44 +672,9 @@ pub fn format_parenthesized_expr(element: &FormatElement, stream: &mut TokenStre
 
 /// Formats an [`IfExpr`](wdl_ast::v1::IfExpr).
 pub fn format_if_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
-    let mut children = element.children().expect("if expr children");
-
-    let last = stream.last_literal_kind();
-
-    // Nested `if` expressions are a special case where we don't want to add
-    // parentheses or increment the indent level.
-    // Otherwise, we need to add parentheses and increment the indent if the last
-    // token is not an open parenthesis.
-    let nested_else_if = matches!(last, Some(SyntaxKind::ElseKeyword));
-    let paren_needed = !matches!(last, Some(SyntaxKind::OpenParen)) && !nested_else_if;
-
-    if paren_needed {
-        stream.push_literal("(".to_string(), SyntaxKind::OpenParen);
-    }
-    if !nested_else_if {
-        stream.increment_indent();
-    }
-
-    let if_keyword = children.next().expect("if keyword");
-    assert!(if_keyword.element().kind() == SyntaxKind::IfKeyword);
-    (&if_keyword).write(stream);
-    stream.end_word();
-
-    for child in children {
-        let kind = child.element().kind();
-        if matches!(kind, SyntaxKind::ElseKeyword | SyntaxKind::ThenKeyword) {
-            stream.end_line();
-        }
+    for child in element.children().expect("if expr children") {
         (&child).write(stream);
-        if matches!(kind, SyntaxKind::ElseKeyword | SyntaxKind::ThenKeyword) {
-            stream.end_word();
-        }
+        stream.end_word();
     }
-
-    if !nested_else_if {
-        stream.decrement_indent();
-    }
-    if paren_needed {
-        stream.push_literal(")".to_string(), SyntaxKind::CloseParen);
-    }
+    stream.trim_end(&PreToken::WordEnd);
 }

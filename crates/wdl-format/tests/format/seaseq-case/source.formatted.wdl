@@ -280,44 +280,30 @@ workflow seaseq {
     ### ------------------------------------------------- ###
 
     # if multiple fastqfiles are provided
-    Boolean multi_fastq = (
-        if length(original_fastqfiles) > 1
-        then true
-        else false
-    )
-    Boolean one_fastq = (
-        if length(original_fastqfiles) == 1
-        then true
-        else false
-    )
+    Boolean multi_fastq = if length(original_fastqfiles) > 1 then true else false
+    Boolean one_fastq = if length(original_fastqfiles) == 1 then true else false
 
     if (defined(spikein_bowtie_index) || defined(spikein_reference)) {
         scatter (eachfastq in original_fastqfiles) {
             call fastqc.fastqc as spikein_indv_fastqc { input:
                 inputfile = eachfastq,
-                default_location = (
-                    if (one_fastq)
-                    then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/FastQC"
-                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/FastQC"
-                ),
+                default_location = if (one_fastq) then sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/SpikeIn/FastQC" else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/SpikeIn/FastQC",
             }
             call util.basicfastqstats as spikein_indv_bfs { input:
                 fastqfile = eachfastq,
-                default_location = (
-                    if (one_fastq)
-                    then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                ),
+                default_location = if (one_fastq) then sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/SpikeIn/SummaryStats" else "SAMPLE/" + sub(basename(eachfastq),
+                    ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats",
             }
             call bowtie.spikein_SE as spikein_indv_map { input:
                 fastqfile = eachfastq,
                 index_files = actual_spikein_bowtie_index,
                 metricsfile = spikein_indv_bfs.metrics_out,
-                default_location = (
-                    if (one_fastq)
-                    then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                ),
+                default_location = if (one_fastq) then sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/SpikeIn/SummaryStats" else "SAMPLE/" + sub(basename(eachfastq),
+                    ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats",
             }
         }
 
@@ -349,12 +335,14 @@ workflow seaseq {
 
             call fastqc.fastqc as indv_fastqc { input:
                 inputfile = eachfastq,
-                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/QC/FastQC",
+                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/QC/FastQC",
             }
 
             call util.basicfastqstats as indv_bfs { input:
                 fastqfile = eachfastq,
-                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/QC/SummaryStats",
+                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/QC/SummaryStats",
             }
 
             call mapping.mapping as indv_mapping { input:
@@ -362,12 +350,14 @@ workflow seaseq {
                 index_files = actual_bowtie_index,
                 metricsfile = indv_bfs.metrics_out,
                 blacklist = blacklist,
-                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/BAM_files",
+                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/BAM_files",
             }
 
             call fastqc.fastqc as indv_bamfqc { input:
                 inputfile = indv_mapping.sorted_bam,
-                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/QC/FastQC",
+                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/QC/FastQC",
             }
 
             call runspp.runspp as indv_runspp { input: bamfile = select_first([
@@ -389,7 +379,8 @@ workflow seaseq {
                 rmdupflag = indv_mapping.mkdup_stats,
                 bkflag = indv_mapping.bklist_stats,
                 fastqmetrics = indv_bfs.metrics_out,
-                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/QC/SummaryStats",
+                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/QC/SummaryStats",
             }
         }  # end scatter (for each sample fastq)
 
@@ -410,16 +401,10 @@ workflow seaseq {
         call samtools.mergebam { input:
             bamfiles = indv_mapping.sorted_bam,
             metricsfiles = indv_bfs.metrics_out,
-            default_location = (
-                if defined(results_name)
-                then results_name + "/BAM_files"
-                else "AllMerge_" + length(indv_mapping.sorted_bam) + "_mapped" + "/BAM_files"
-            ),
-            outputfile = (
-                if defined(results_name)
-                then results_name + ".sorted.bam"
-                else "AllMerge_" + length(fastqfiles) + "_mapped.sorted.bam"
-            ),
+            default_location = if defined(results_name) then results_name + "/BAM_files"
+                else "AllMerge_" + length(indv_mapping.sorted_bam) + "_mapped" + "/BAM_files",
+            outputfile = if defined(results_name) then results_name + ".sorted.bam" else "AllMerge_"
+                + length(fastqfiles) + "_mapped.sorted.bam",
         }
 
         call fastqc.fastqc as mergebamfqc { input:
@@ -545,27 +530,34 @@ workflow seaseq {
         pvalue = "1e-9",
         keep_dup = "auto",
         egs = egs.genomesize,
-        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS/NARROW_peaks" + "/" + basename(sample_bam, ".bam") + "-p9_kd-auto",
-        coverage_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks" + "/" + basename(sample_bam, ".bam") + "_p9_kd-auto",
+        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS/NARROW_peaks"
+            + "/" + basename(sample_bam, ".bam") + "-p9_kd-auto",
+        coverage_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks"
+            + "/" + basename(sample_bam, ".bam") + "_p9_kd-auto",
     }
 
-    call util.addreadme { input: default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS" }
+    call util.addreadme { input: default_location = sub(basename(sample_bam), ".sorted.b.*$",
+        "") + "/PEAKS" }
 
     call macs.macs as all { input:
         bamfile = sample_bam,
         pvalue = "1e-9",
         keep_dup = "all",
         egs = egs.genomesize,
-        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS/NARROW_peaks" + "/" + basename(sample_bam, ".bam") + "-p9_kd-all",
-        coverage_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks" + "/" + basename(sample_bam, ".bam") + "_p9_kd-all",
+        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS/NARROW_peaks"
+            + "/" + basename(sample_bam, ".bam") + "-p9_kd-all",
+        coverage_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks"
+            + "/" + basename(sample_bam, ".bam") + "_p9_kd-all",
     }
 
     call macs.macs as nomodel { input:
         bamfile = sample_bam,
         nomodel = true,
         egs = egs.genomesize,
-        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS/NARROW_peaks" + "/" + basename(sample_bam, ".bam") + "-nm",
-        coverage_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks" + "/" + basename(sample_bam, ".bam") + "_nm",
+        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS/NARROW_peaks"
+            + "/" + basename(sample_bam, ".bam") + "-nm",
+        coverage_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks"
+            + "/" + basename(sample_bam, ".bam") + "_nm",
     }
 
     call bamtogff.bamtogff { input:
@@ -621,7 +613,8 @@ workflow seaseq {
         bedfile = macs.peakbedfile,
         chromsizes = samtools_faidx.chromsizes,
         summitfile = macs.summitsfile,
-        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS_Annotation/NARROW_peaks" + "/" + sub(basename(macs.peakbedfile), "_peaks.bed", ""),
+        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS_Annotation/NARROW_peaks"
+            + "/" + sub(basename(macs.peakbedfile), "_peaks.bed", ""),
     }
 
     call util.peaksanno as all_peaksanno { input:
@@ -629,7 +622,8 @@ workflow seaseq {
         bedfile = all.peakbedfile,
         chromsizes = samtools_faidx.chromsizes,
         summitfile = all.summitsfile,
-        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS_Annotation/NARROW_peaks" + "/" + sub(basename(all.peakbedfile), "_peaks.bed", ""),
+        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS_Annotation/NARROW_peaks"
+            + "/" + sub(basename(all.peakbedfile), "_peaks.bed", ""),
     }
 
     call util.peaksanno as nomodel_peaksanno { input:
@@ -637,7 +631,8 @@ workflow seaseq {
         bedfile = nomodel.peakbedfile,
         chromsizes = samtools_faidx.chromsizes,
         summitfile = nomodel.summitsfile,
-        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS_Annotation/NARROW_peaks" + "/" + sub(basename(nomodel.peakbedfile), "_peaks.bed", ""),
+        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS_Annotation/NARROW_peaks"
+            + "/" + sub(basename(nomodel.peakbedfile), "_peaks.bed", ""),
     }
 
     call util.peaksanno as sicer_peaksanno { input:
@@ -675,21 +670,24 @@ workflow seaseq {
         wigfile = macs.wigfile,
         chromsizes = samtools_faidx.chromsizes,
         xlsfile = macs.peakxlsfile,
-        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks" + "/" + sub(basename(macs.peakbedfile), "_peaks.bed", ""),
+        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks"
+            + "/" + sub(basename(macs.peakbedfile), "_peaks.bed", ""),
     }
 
     call viz.visualization as vizall { input:
         wigfile = all.wigfile,
         chromsizes = samtools_faidx.chromsizes,
         xlsfile = all.peakxlsfile,
-        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks" + "/" + sub(basename(all.peakbedfile), "_peaks.bed", ""),
+        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks"
+            + "/" + sub(basename(all.peakbedfile), "_peaks.bed", ""),
     }
 
     call viz.visualization as viznomodel { input:
         wigfile = nomodel.wigfile,
         chromsizes = samtools_faidx.chromsizes,
         xlsfile = nomodel.peakxlsfile,
-        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks" + "/" + sub(basename(nomodel.peakbedfile), "_peaks.bed", ""),
+        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/NARROW_peaks"
+            + "/" + sub(basename(nomodel.peakbedfile), "_peaks.bed", ""),
     }
 
     call viz.visualization as vizsicer { input:

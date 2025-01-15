@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Leading whitespace in command text is now normalized ([#240](https://github.com/stjude-rust-labs/wdl/pull/240)).
+* Line breaks are now added in order to keep lines under the max line width (default 90 characters) ([#242](https://github.com/stjude-rust-labs/wdl/pull/242)).
 
 ### Fixed
 
