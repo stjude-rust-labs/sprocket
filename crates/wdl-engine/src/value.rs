@@ -18,6 +18,7 @@ use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::ArrayType;
+use wdl_analysis::types::CallType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::CompoundType;
 use wdl_analysis::types::Optional;
@@ -41,6 +42,7 @@ use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_grammar::lexer::v1::is_ident;
 
+use crate::Outputs;
 use crate::TaskExecutionConstraints;
 
 /// Implemented on coercible values.
@@ -79,6 +81,8 @@ pub enum Value {
     ///
     /// Output values only appear in a task hints section in WDL 1.2.
     Output(OutputValue),
+    /// The value is the outputs of a call.
+    Call(CallValue),
 }
 
 impl Value {
@@ -118,6 +122,7 @@ impl Value {
             Self::Hints(_) => Type::Hints,
             Self::Input(_) => Type::Input,
             Self::Output(_) => Type::Output,
+            Self::Call(v) => Type::Call(v.ty.clone()),
         }
     }
 
@@ -422,6 +427,28 @@ impl Value {
         }
     }
 
+    /// Gets the value as a call value.
+    ///
+    /// Returns `None` if the value is not a call value.
+    pub fn as_call(&self) -> Option<&CallValue> {
+        match self {
+            Self::Call(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the value into a call value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not a call value.
+    pub fn unwrap_call(self) -> CallValue {
+        match self {
+            Self::Call(v) => v,
+            _ => panic!("value is not a call value"),
+        }
+    }
+
     /// Visits each file or directory path contained in the value.
     pub(crate) fn visit_paths(&self, cb: &mut impl FnMut(&str)) {
         match self {
@@ -466,6 +493,16 @@ impl Value {
         }
     }
 
+    /// Creates a clone of the value, but makes the type optional.
+    ///
+    /// This only affects compound values that internally store their type.
+    pub(crate) fn clone_as_optional(&self) -> Self {
+        match self {
+            Self::Compound(v) => Self::Compound(v.clone_as_optional()),
+            _ => self.clone(),
+        }
+    }
+
     /// Determines if two values have equality according to the WDL
     /// specification.
     ///
@@ -493,6 +530,7 @@ impl fmt::Display for Value {
             Self::Hints(v) => v.fmt(f),
             Self::Input(v) => v.fmt(f),
             Self::Output(v) => v.fmt(f),
+            Self::Call(c) => c.fmt(f),
         }
     }
 }
@@ -541,6 +579,9 @@ impl Coercible for Value {
 
                 bail!("output values cannot be coerced to any other type");
             }
+            Self::Call(_) => {
+                bail!("call values cannot be coerced to any other type");
+            }
         }
     }
 }
@@ -575,6 +616,12 @@ impl From<Option<PrimitiveValue>> for Value {
             Some(v) => v.into(),
             None => Self::None,
         }
+    }
+}
+
+impl From<CompoundValue> for Value {
+    fn from(value: CompoundValue) -> Self {
+        Self::Compound(value)
     }
 }
 
@@ -620,9 +667,9 @@ impl From<HintsValue> for Value {
     }
 }
 
-impl From<CompoundValue> for Value {
-    fn from(value: CompoundValue) -> Self {
-        Self::Compound(value)
+impl From<CallValue> for Value {
+    fn from(value: CallValue) -> Self {
+        Self::Call(value)
     }
 }
 
@@ -637,7 +684,7 @@ impl serde::Serialize for Value {
             Self::None => serializer.serialize_none(),
             Self::Primitive(v) => v.serialize(serializer),
             Self::Compound(v) => v.serialize(serializer),
-            Self::Task(_) | Self::Hints(_) | Self::Input(_) | Self::Output(_) => {
+            Self::Task(_) | Self::Hints(_) | Self::Input(_) | Self::Output(_) | Self::Call(_) => {
                 Err(S::Error::custom("value cannot be serialized"))
             }
         }
@@ -2177,6 +2224,30 @@ impl CompoundValue {
             }),
         }
     }
+
+    /// Creates a clone of the value, but makes the type optional.
+    fn clone_as_optional(&self) -> Self {
+        match self {
+            Self::Pair(v) => Self::Pair(Pair {
+                ty: v.ty.optional(),
+                values: v.values.clone(),
+            }),
+            Self::Array(v) => Self::Array(Array {
+                ty: v.ty.optional(),
+                elements: v.elements.clone(),
+            }),
+            Self::Map(v) => Self::Map(Map {
+                ty: v.ty.optional(),
+                elements: v.elements.clone(),
+            }),
+            Self::Object(_) => self.clone(),
+            Self::Struct(v) => Self::Struct(Struct {
+                ty: v.ty.optional(),
+                name: v.name.clone(),
+                members: v.members.clone(),
+            }),
+        }
+    }
 }
 
 impl fmt::Display for CompoundValue {
@@ -2840,6 +2911,51 @@ impl fmt::Display for OutputValue {
 impl From<Object> for OutputValue {
     fn from(value: Object) -> Self {
         Self(value)
+    }
+}
+
+/// Represents the outputs of a call.
+///
+/// Call values are cheap to clone.
+#[derive(Debug, Clone)]
+pub struct CallValue {
+    /// The type of the call.
+    ty: CallType,
+    /// The outputs of the call.
+    outputs: Arc<Outputs>,
+}
+
+impl CallValue {
+    /// Constructs a new call value without checking the outputs conform to the
+    /// call type.
+    pub(crate) fn new_unchecked(ty: CallType, outputs: Arc<Outputs>) -> Self {
+        Self { ty, outputs }
+    }
+
+    /// Gets the type of the call.
+    pub fn ty(&self) -> &CallType {
+        &self.ty
+    }
+
+    /// Gets the outputs of the call.
+    pub fn outputs(&self) -> &Outputs {
+        self.outputs.as_ref()
+    }
+}
+
+impl fmt::Display for CallValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "call output {{")?;
+
+        for (i, (k, v)) in self.outputs.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+
+            write!(f, "{k}: {v}")?;
+        }
+
+        write!(f, "}}")
     }
 }
 

@@ -3,12 +3,14 @@
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use colored::Colorize;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 use serde_json::to_string_pretty;
@@ -20,10 +22,11 @@ use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::document::Document;
 use wdl_analysis::path_to_uri;
 use wdl_analysis::rules as analysis_rules;
-use wdl_engine::Engine;
 use wdl_engine::EvaluationError;
 use wdl_engine::Inputs;
+use wdl_engine::local::LocalTaskExecutionBackend;
 use wdl_engine::v1::TaskEvaluator;
+use wdl_engine::v1::WorkflowEvaluator;
 use wdl_grammar::Diagnostic;
 use wdl_lint::rules as lint_rules;
 
@@ -98,8 +101,10 @@ pub async fn analyze(
 
     let bar = ProgressBar::new(0);
     bar.set_style(
-        ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {msg} {pos}/{len}")
-            .unwrap(),
+        ProgressStyle::with_template(
+            "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}",
+        )
+        .unwrap(),
     );
 
     let results = analyzer.analyze(bar.clone()).await?;
@@ -190,11 +195,27 @@ pub async fn run(
     path: Option<&Path>,
     name: &str,
     inputs: Inputs,
-    output: PathBuf,
-    engine: &mut Engine,
+    output_dir: &Path,
 ) -> Result<Option<Diagnostic>> {
+    let bar = ProgressBar::new_spinner();
+    bar.set_message(format!(
+        "{running} {kind} {name}",
+        running = "running".cyan(),
+        kind = match &inputs {
+            Inputs::Task(_) => "task",
+            Inputs::Workflow(_) => "workflow",
+        },
+        name = name.magenta().bold()
+    ));
+    bar.enable_steady_tick(Duration::from_millis(100));
+    bar.set_style(
+        ProgressStyle::with_template("[{elapsed_precise:.cyan/blue}] {spinner:.cyan/blue} {msg}")
+            .unwrap(),
+    );
+
     match inputs {
         Inputs::Task(mut inputs) => {
+            // Make any paths specified in the inputs absolute
             let task = document
                 .task_by_name(name)
                 .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
@@ -205,23 +226,27 @@ pub async fn run(
                 inputs.join_paths(task, path);
             }
 
-            let mut evaluator = TaskEvaluator::new(engine);
+            let backend = LocalTaskExecutionBackend::new(None);
+            let mut evaluator = TaskEvaluator::new(&backend);
             match evaluator
-                .evaluate(document, task, &inputs, &output, name)
+                .evaluate(document, task, &inputs, output_dir, name)
                 .await
             {
                 Ok(evaluated) => match evaluated.into_result() {
                     Ok(outputs) => {
-                        println!("{}", to_string_pretty(&outputs)?);
+                        drop(bar);
+                        let s = to_string_pretty(&outputs)?;
+                        println!("{s}\n");
+                        Ok(None)
                     }
                     Err(e) => match e {
-                        EvaluationError::Source(diagnostic) => return Ok(Some(diagnostic)),
-                        EvaluationError::Other(e) => return Err(e),
+                        EvaluationError::Source(diagnostic) => Ok(Some(diagnostic)),
+                        EvaluationError::Other(e) => Err(e),
                     },
                 },
                 Err(e) => match e {
-                    EvaluationError::Source(diagnostic) => return Ok(Some(diagnostic)),
-                    EvaluationError::Other(e) => return Err(e),
+                    EvaluationError::Source(diagnostic) => Ok(Some(diagnostic)),
+                    EvaluationError::Other(e) => Err(e),
                 },
             }
         }
@@ -229,6 +254,9 @@ pub async fn run(
             let workflow = document
                 .workflow()
                 .ok_or_else(|| anyhow!("document does not contain a workflow"))?;
+            if workflow.name() != name {
+                bail!("document does not contain a workflow named `{name}`");
+            }
 
             // Ensure all the paths specified in the inputs file are relative to the file's
             // directory
@@ -236,9 +264,20 @@ pub async fn run(
                 inputs.join_paths(workflow, path);
             }
 
-            bail!("running workflows is not yet supported")
+            let mut evaluator =
+                WorkflowEvaluator::new(Arc::new(LocalTaskExecutionBackend::new(None)));
+            match evaluator.evaluate(document, &inputs, output_dir).await {
+                Ok(outputs) => {
+                    drop(bar);
+                    let s = to_string_pretty(&outputs)?;
+                    println!("{s}\n");
+                    Ok(None)
+                }
+                Err(e) => match e {
+                    EvaluationError::Source(diagnostic) => Ok(Some(diagnostic)),
+                    EvaluationError::Other(e) => Err(e),
+                },
+            }
         }
     }
-
-    anyhow::Ok(None)
 }

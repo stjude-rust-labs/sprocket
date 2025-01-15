@@ -7,6 +7,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
 use std::process::Stdio;
+use std::sync::Arc;
+use std::thread::available_parallelism;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -14,7 +16,9 @@ use anyhow::bail;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tokio::process::Command;
+use tokio::sync::Semaphore;
 use tracing::info;
+use tracing::warn;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::v1::TASK_REQUIREMENT_CPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
@@ -23,7 +27,7 @@ use super::TaskExecution;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use crate::Coercible;
-use crate::Engine;
+use crate::SYSTEM;
 use crate::Value;
 use crate::convert_unit_string;
 
@@ -32,6 +36,8 @@ use crate::convert_unit_string;
 /// Local executions directly execute processes on the host without a container.
 #[derive(Debug)]
 pub struct LocalTaskExecution {
+    /// The task execution lock.
+    lock: Arc<Semaphore>,
     /// The path to the working directory for the execution.
     work_dir: PathBuf,
     /// The path to the temp directory for the execution.
@@ -47,7 +53,7 @@ pub struct LocalTaskExecution {
 impl LocalTaskExecution {
     /// Creates a new local task execution with the given execution root
     /// directory to use.
-    pub fn new(root: &Path) -> Result<Self> {
+    fn new(lock: Arc<Semaphore>, root: &Path) -> Result<Self> {
         let root = absolute(root).with_context(|| {
             format!(
                 "failed to determine absolute path of `{path}`",
@@ -65,6 +71,7 @@ impl LocalTaskExecution {
         })?;
 
         Ok(Self {
+            lock,
             work_dir: root.join("work"),
             temp_dir,
             command: root.join("command"),
@@ -102,11 +109,10 @@ impl TaskExecution for LocalTaskExecution {
 
     fn constraints(
         &self,
-        engine: &Engine,
         requirements: &HashMap<String, Value>,
         _: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let num_cpus: f64 = engine.system().cpus().len() as f64;
+        let num_cpus: f64 = SYSTEM.cpus().len() as f64;
         let min_cpu = requirements
             .get(TASK_REQUIREMENT_CPU)
             .map(|v| {
@@ -123,8 +129,7 @@ impl TaskExecution for LocalTaskExecution {
             );
         }
 
-        let memory: i64 = engine
-            .system()
+        let memory: i64 = SYSTEM
             .total_memory()
             .try_into()
             .context("system has too much memory to describe as a WDL value")?;
@@ -173,7 +178,7 @@ impl TaskExecution for LocalTaskExecution {
 
     fn spawn(
         &self,
-        command: String,
+        command: &str,
         _: &HashMap<String, Value>,
         _: &HashMap<String, Value>,
     ) -> Result<BoxFuture<'static, Result<i32>>> {
@@ -225,7 +230,8 @@ impl TaskExecution for LocalTaskExecution {
             .arg(&self.command)
             .stdin(Stdio::null())
             .stdout(stdout)
-            .stderr(stderr);
+            .stderr(stderr)
+            .kill_on_drop(true);
 
         // Set an environment variable on Windows to get consistent PATH searching
         // See: https://github.com/rust-lang/rust/issues/122660
@@ -235,10 +241,16 @@ impl TaskExecution for LocalTaskExecution {
         #[cfg(unix)]
         let stderr = self.stderr.clone();
 
-        let mut child = command.spawn().context("failed to spawn `bash`")?;
+        let lock = self.lock.clone();
         Ok(async move {
+            let _permit = lock
+                .acquire_owned()
+                .await
+                .expect("failed to acquire task execution permit");
+
+            let mut child = command.spawn().context("failed to spawn `bash`")?;
             let id = child.id().expect("should have id");
-            info!("spawning local `bash` process {id} for task execution");
+            info!("spawned local `bash` process {id} for task execution");
 
             let status = child.wait().await.with_context(|| {
                 format!("failed to wait for termination of task child process {id}")
@@ -248,6 +260,8 @@ impl TaskExecution for LocalTaskExecution {
             {
                 use std::os::unix::process::ExitStatusExt;
                 if let Some(signal) = status.signal() {
+                    tracing::warn!("task process {id} has terminated with signal {signal}");
+
                     bail!(
                         "task child process {id} has terminated with signal {signal}; see stderr \
                          file `{path}` for more details",
@@ -257,6 +271,7 @@ impl TaskExecution for LocalTaskExecution {
             }
 
             let status_code = status.code().expect("process should have exited");
+            info!("task process {id} has terminated with status code {status_code}");
             Ok(status_code)
         }
         .boxed())
@@ -266,18 +281,42 @@ impl TaskExecution for LocalTaskExecution {
 /// Represents a task execution backend that locally executes tasks.
 ///
 /// This backend will directly spawn processes without using a container.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct LocalTaskExecutionBackend;
+#[derive(Debug, Clone)]
+pub struct LocalTaskExecutionBackend {
+    /// The semaphore for handing out task execution permits.
+    lock: Arc<Semaphore>,
+    /// The maximum number of concurrent task executions.
+    max_concurrency: usize,
+}
 
 impl LocalTaskExecutionBackend {
     /// Constructs a new local task execution backend.
-    pub fn new() -> Self {
-        Self
+    ///
+    /// If `max_concurrency` is `None`, the default available parallelism for
+    /// the host will be used (typically the logical CPU count).
+    pub fn new(max_concurrency: Option<usize>) -> Self {
+        let max_concurrency = max_concurrency.unwrap_or_else(|| {
+            available_parallelism().map(Into::into).unwrap_or_else(|_| {
+                warn!(
+                    "unable to determine available parallelism: tasks will not be executed \
+                     concurrently"
+                );
+                1
+            })
+        });
+        Self {
+            lock: Semaphore::new(max_concurrency).into(),
+            max_concurrency,
+        }
     }
 }
 
 impl TaskExecutionBackend for LocalTaskExecutionBackend {
+    fn max_concurrency(&self) -> usize {
+        self.max_concurrency
+    }
+
     fn create_execution(&self, root: &Path) -> Result<Box<dyn TaskExecution>> {
-        Ok(Box::new(LocalTaskExecution::new(root)?))
+        Ok(Box::new(LocalTaskExecution::new(self.lock.clone(), root)?))
     }
 }

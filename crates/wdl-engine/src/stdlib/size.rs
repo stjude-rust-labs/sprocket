@@ -85,6 +85,7 @@ fn calculate_disk_size(value: &Value, unit: StorageUnit, cwd: &Path) -> Result<f
         Value::Hints(_) => bail!("the size of a hints value cannot be calculated"),
         Value::Input(_) => bail!("the size of an input value cannot be calculated"),
         Value::Output(_) => bail!("the size of an output value cannot be calculated"),
+        Value::Call(_) => bail!("the size of a call value cannot be calculated"),
     }
 }
 

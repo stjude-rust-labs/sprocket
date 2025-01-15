@@ -85,6 +85,13 @@ pub trait EvaluationContext {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ScopeIndex(usize);
 
+impl ScopeIndex {
+    /// Constructs a new scope index from a raw index.
+    pub const fn new(index: usize) -> Self {
+        Self(index)
+    }
+}
+
 impl From<usize> for ScopeIndex {
     fn from(index: usize) -> Self {
         Self(index)
@@ -102,7 +109,7 @@ impl From<ScopeIndex> for usize {
 pub struct Scope {
     /// The index of the parent scope.
     ///
-    /// This is `None` for task and workflow scopes.
+    /// This is `None` for the root scopes.
     parent: Option<ScopeIndex>,
     /// The map of names in scope to their values.
     names: IndexMap<String, Value>,
@@ -110,21 +117,38 @@ pub struct Scope {
 
 impl Scope {
     /// Creates a new scope given the parent scope.
-    pub fn new(parent: Option<ScopeIndex>) -> Self {
+    pub fn new(parent: ScopeIndex) -> Self {
         Self {
-            parent,
+            parent: Some(parent),
             names: Default::default(),
         }
     }
 
     /// Inserts a name into the scope.
     pub fn insert(&mut self, name: impl Into<String>, value: impl Into<Value>) {
-        self.names.insert(name.into(), value.into());
+        let prev = self.names.insert(name.into(), value.into());
+        assert!(prev.is_none(), "conflicting name in scope");
+    }
+
+    /// Iterates over the local names and values in the scope.
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> + use<'_> {
+        self.names.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     /// Gets a mutable reference to an existing name in scope.
     pub(crate) fn get_mut(&mut self, name: &str) -> Option<&mut Value> {
         self.names.get_mut(name)
+    }
+
+    /// Clears the scope.
+    pub(crate) fn clear(&mut self) {
+        self.parent = None;
+        self.names.clear();
+    }
+
+    /// Sets the scope's parent.
+    pub(crate) fn set_parent(&mut self, parent: ScopeIndex) {
+        self.parent = Some(parent);
     }
 }
 

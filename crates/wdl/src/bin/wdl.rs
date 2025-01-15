@@ -35,8 +35,6 @@ use wdl_analysis::path_to_uri;
 use wdl_ast::Node;
 use wdl_ast::Severity;
 use wdl_doc::document_workspace;
-use wdl_engine::Engine;
-use wdl_engine::local::LocalTaskExecutionBackend;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
 
@@ -344,34 +342,46 @@ impl RunCommand {
             .context("failed to find document in analysis results")?;
         let document = result.document();
 
-        let mut engine = Engine::new(LocalTaskExecutionBackend::new());
+        let output_dir = self
+            .output
+            .as_deref()
+            .unwrap_or_else(|| {
+                self.name
+                    .as_ref()
+                    .map(Path::new)
+                    .unwrap_or_else(|| Path::new("output"))
+            })
+            .to_owned();
+
+        // Check to see if the output directory already exists and if it should be
+        // removed
+        if output_dir.exists() {
+            if !self.overwrite {
+                bail!(
+                    "output directory `{dir}` exists; use the `--overwrite` option to overwrite \
+                     its contents",
+                    dir = output_dir.display()
+                );
+            }
+
+            fs::remove_dir_all(&output_dir).with_context(|| {
+                format!(
+                    "failed to remove output directory `{dir}`",
+                    dir = output_dir.display()
+                )
+            })?;
+        }
 
         let (path, name, inputs) =
             parse_inputs(document, self.name.as_deref(), self.inputs.as_deref())?;
-
-        let output_dir = self.output.as_deref().unwrap_or_else(|| {
-            self.name
-                .as_ref()
-                .map(Path::new)
-                .unwrap_or_else(|| Path::new("output"))
-        });
-
-        if let Some(diagnostic) = run(
-            document,
-            path.as_deref(),
-            &name,
-            inputs,
-            output_dir.to_path_buf(),
-            &mut engine,
-        )
-        .await?
+        if let Some(diagnostic) = run(document, path.as_deref(), &name, inputs, &output_dir).await?
         {
             let source = read_source(Path::new(&self.file))?;
             emit_diagnostics(&self.file, &source, &[diagnostic])?;
             bail!("aborting due to previous diagnostic");
         }
 
-        anyhow::Ok(())
+        Ok(())
     }
 }
 

@@ -53,7 +53,6 @@ use wdl_analysis::document::Document;
 use wdl_analysis::rules;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
-use wdl_engine::Engine;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::Inputs;
@@ -177,7 +176,6 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
         bail!(diagnostic_to_string(result.document(), &path, diagnostic));
     }
 
-    let mut engine = Engine::new(LocalTaskExecutionBackend::new());
     let (name, mut inputs) = match Inputs::parse(result.document(), test.join("inputs.json"))? {
         Some((name, Inputs::Task(inputs))) => (name, inputs),
         Some((_, Inputs::Workflow(_))) => {
@@ -208,7 +206,8 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
     inputs.join_paths(task, &test_dir);
 
     let dir = TempDir::new().context("failed to create temporary directory")?;
-    let mut evaluator = TaskEvaluator::new(&mut engine);
+    let backend = LocalTaskExecutionBackend::new(None);
+    let mut evaluator = TaskEvaluator::new(&backend);
     match evaluator
         .evaluate(result.document(), task, &inputs, dir.path(), &name)
         .await

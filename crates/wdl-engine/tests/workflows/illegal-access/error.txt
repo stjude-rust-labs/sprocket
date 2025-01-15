@@ -1,0 +1,6 @@
+error: object does not have a member named `x`
+  ┌─ tests/workflows/illegal-access/source.wdl:8:14
+  │
+8 │   Int i = my.x  # error: field 'x' does not exist in object
+  │              ^
+

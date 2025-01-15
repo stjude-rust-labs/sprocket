@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added support for workflow evaluation to `wdl run` ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
 * Add `--shellcheck` flag to `wdl lint` subcommand to run shellcheck when linting ([#264](https://github.com/stjude-rust-labs/wdl/pull/264))
 * Implemented the `wdl doc` subcommand for generating documentation (**currently in ALPHA testing**) ([#248](https://github.com/stjude-rust-labs/wdl/pull/248)).
 * Added an `--open` flag to `wdl doc` subcommand ([#269](https://github.com/stjude-rust-labs/wdl/pull/269)).

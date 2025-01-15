@@ -1,0 +1,11 @@
+error: type mismatch: expected type `Array[Boolean]+`, but found type `Array[Boolean]`
+
+Caused by:
+    cannot coerce empty array value to non-empty array type `Array[Boolean]+`
+  ┌─ tests/workflows/non-empty-array-fail/source.wdl:8:30
+  │
+8 │   Array[Boolean]+ nonempty = x
+  │                   --------   ^ this is type `Array[Boolean]`
+  │                   │           
+  │                   this expects type `Array[Boolean]+`
+

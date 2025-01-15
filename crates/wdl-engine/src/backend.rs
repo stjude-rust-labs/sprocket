@@ -8,7 +8,6 @@ use anyhow::Result;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
 
-use crate::Engine;
 use crate::Value;
 
 pub mod local;
@@ -89,7 +88,6 @@ pub trait TaskExecution: Send {
     /// environment or if the task specifies invalid requirements.
     fn constraints(
         &self,
-        engine: &Engine,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints>;
@@ -102,14 +100,17 @@ pub trait TaskExecution: Send {
     /// task's process.
     fn spawn(
         &self,
-        command: String,
+        command: &str,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<BoxFuture<'static, Result<i32>>>;
 }
 
 /// Represents a task execution backend.
-pub trait TaskExecutionBackend {
+pub trait TaskExecutionBackend: Send + Sync {
+    /// Gets the maximum concurrent tasks supported by the backend.
+    fn max_concurrency(&self) -> usize;
+
     /// Creates a new task execution.
     ///
     /// The specified directory serves as the root location of where a task

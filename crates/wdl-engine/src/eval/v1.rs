@@ -2,6 +2,8 @@
 
 mod expr;
 mod task;
+mod workflow;
 
 pub use expr::*;
 pub use task::*;
+pub use workflow::*;

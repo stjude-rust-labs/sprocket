@@ -169,7 +169,7 @@ pub enum Type {
     /// sections.
     Output,
     /// The type is a call output.
-    Call(Arc<CallType>),
+    Call(CallType),
 }
 
 impl Type {
@@ -246,13 +246,8 @@ impl Type {
     /// Promotes the type from one scope to another.
     pub fn promote(&self, kind: PromotionKind) -> Self {
         // For calls, the outputs of the call are promoted instead of the call itself
-        if let Type::Call(ty) = self {
-            let mut ty = ty.as_ref().clone();
-            for output in Arc::make_mut(&mut ty.outputs).values_mut() {
-                *output = Output::new(output.ty().promote(kind));
-            }
-
-            return Type::Call(ty.into());
+        if let Self::Call(ty) = self {
+            return Self::Call(ty.promote(kind));
         }
 
         match kind {
@@ -481,7 +476,7 @@ impl From<StructType> for Type {
 
 impl From<CallType> for Type {
     fn from(value: CallType) -> Self {
-        Self::Call(value.into())
+        Self::Call(value)
     }
 }
 
@@ -982,6 +977,16 @@ impl CallType {
     /// Gets the outputs of the called workflow or task.
     pub fn outputs(&self) -> &IndexMap<String, Output> {
         &self.outputs
+    }
+
+    /// Promotes the call type into a parent scope.
+    pub fn promote(&self, kind: PromotionKind) -> Self {
+        let mut ty = self.clone();
+        for output in Arc::make_mut(&mut ty.outputs).values_mut() {
+            *output = Output::new(output.ty().promote(kind));
+        }
+
+        ty
     }
 }
 

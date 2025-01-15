@@ -75,8 +75,10 @@ impl TaskInputs {
     }
 
     /// Sets a task input.
-    pub fn set(&mut self, name: impl Into<String>, value: impl Into<Value>) {
-        self.inputs.insert(name.into(), value.into());
+    ///
+    /// Returns the previous value, if any.
+    pub fn set(&mut self, name: impl Into<String>, value: impl Into<Value>) -> Option<Value> {
+        self.inputs.insert(name.into(), value.into())
     }
 
     /// Gets an overridden requirement by name.
@@ -316,8 +318,10 @@ impl WorkflowInputs {
     }
 
     /// Sets a workflow input.
-    pub fn set(&mut self, name: impl Into<String>, value: impl Into<Value>) {
-        self.inputs.insert(name.into(), value.into());
+    ///
+    /// Returns the previous value, if any.
+    pub fn set(&mut self, name: impl Into<String>, value: impl Into<Value>) -> Option<Value> {
+        self.inputs.insert(name.into(), value.into())
     }
 
     /// Replaces any `File` or `Directory` input values with joining the
@@ -630,6 +634,16 @@ impl Inputs {
         }
     }
 
+    /// Sets an input value.
+    ///
+    /// Returns the previous value, if any.
+    pub fn set(&mut self, name: impl Into<String>, value: impl Into<Value>) -> Option<Value> {
+        match self {
+            Self::Task(inputs) => inputs.set(name, value),
+            Self::Workflow(inputs) => inputs.set(name, value),
+        }
+    }
+
     /// Gets the task inputs.
     ///
     /// Returns `None` if the inputs are for a workflow.
@@ -650,6 +664,18 @@ impl Inputs {
         }
     }
 
+    /// Unwraps the inputs as task inputs.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the inputs are for a workflow.
+    pub fn unwrap_task_inputs(self) -> TaskInputs {
+        match self {
+            Self::Task(inputs) => inputs,
+            Self::Workflow(_) => panic!("inputs are for a workflow"),
+        }
+    }
+
     /// Gets the workflow inputs.
     ///
     /// Returns `None` if the inputs are for a task.
@@ -667,6 +693,18 @@ impl Inputs {
         match self {
             Self::Task(_) => None,
             Self::Workflow(inputs) => Some(inputs),
+        }
+    }
+
+    /// Unwraps the inputs as workflow inputs.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the inputs are for a task.
+    pub fn unwrap_workflow_inputs(self) -> WorkflowInputs {
+        match self {
+            Self::Task(_) => panic!("inputs are for a task"),
+            Self::Workflow(inputs) => inputs,
         }
     }
 

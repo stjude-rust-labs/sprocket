@@ -411,10 +411,14 @@ pub enum WorkflowGraphNode {
     Decl(Decl),
     /// The node is an output decl.
     Output(Decl),
-    /// The node is a conditional statement
-    Conditional(ConditionalStatement),
+    /// The node is a conditional statement.
+    ///
+    /// Stores the AST node along with the exit node index.
+    Conditional(ConditionalStatement, NodeIndex),
     /// The node is a scatter statement.
-    Scatter(ScatterStatement),
+    ///
+    /// Stores the AST node along with the exit node index.
+    Scatter(ScatterStatement, NodeIndex),
     /// The node is a call statement.
     Call(CallStatement),
     /// The node is an exit of a conditional statement.
@@ -438,12 +442,12 @@ impl WorkflowGraphNode {
     /// Gets the context of the name introduced by the node.
     ///
     /// Returns `None` if the node did not introduce a name.
-    fn context(&self) -> Option<NameContext> {
+    pub fn context(&self) -> Option<NameContext> {
         match self {
             Self::Input(decl) => Some(NameContext::Input(decl.name().span())),
             Self::Decl(decl) => Some(NameContext::Decl(decl.name().span())),
             Self::Output(decl) => Some(NameContext::Output(decl.name().span())),
-            Self::Scatter(statement) => {
+            Self::Scatter(statement, _) => {
                 Some(NameContext::ScatterVariable(statement.variable().span()))
             }
             Self::Call(statement) => statement
@@ -456,20 +460,20 @@ impl WorkflowGraphNode {
                         .last()
                         .map(|t| NameContext::Call(t.span()))
                 }),
-            Self::Conditional(_) | Self::ExitConditional(_) | Self::ExitScatter(_) => None,
+            Self::Conditional(..) | Self::ExitConditional(_) | Self::ExitScatter(_) => None,
         }
     }
 
     /// Gets the syntax node associated with the graph node.
-    fn syntax(&self) -> &SyntaxNode {
+    ///
+    /// Returns `None` for exit nodes.
+    pub fn syntax(&self) -> Option<&SyntaxNode> {
         match self {
-            Self::Input(decl) | Self::Decl(decl) | Self::Output(decl) => decl.syntax(),
-            Self::Conditional(statement) => statement.syntax(),
-            Self::Scatter(statement) => statement.syntax(),
-            Self::Call(statement) => statement.syntax(),
-            Self::ExitConditional(_) | Self::ExitScatter(_) => {
-                unreachable!("exit nodes have no syntax node")
-            }
+            Self::Input(decl) | Self::Decl(decl) | Self::Output(decl) => Some(decl.syntax()),
+            Self::Conditional(statement, _) => Some(statement.syntax()),
+            Self::Scatter(statement, _) => Some(statement.syntax()),
+            Self::Call(statement) => Some(statement.syntax()),
+            Self::ExitConditional(_) | Self::ExitScatter(_) => None,
         }
     }
 }
@@ -480,7 +484,9 @@ impl fmt::Display for WorkflowGraphNode {
             Self::Input(decl) | Self::Decl(decl) | Self::Output(decl) => {
                 write!(f, "`{name}`", name = decl.name().as_str())
             }
-            Self::Scatter(statement) => write!(f, "`{name}`", name = statement.variable().as_str()),
+            Self::Scatter(statement, _) => {
+                write!(f, "`{name}`", name = statement.variable().as_str())
+            }
             Self::Call(statement) => write!(
                 f,
                 "`{name}`",
@@ -491,7 +497,7 @@ impl fmt::Display for WorkflowGraphNode {
                     .expect("should have name")
                     .as_str()
             ),
-            Self::Conditional(_) => write!(f, "conditional expression"),
+            Self::Conditional(..) => write!(f, "conditional expression"),
             Self::ExitConditional(_) | Self::ExitScatter(_) => write!(f, "exit"),
         }
     }
@@ -610,8 +616,8 @@ impl WorkflowGraphBuilder {
             WorkflowStatement::Conditional(statement) => {
                 // Create the entry and exit nodes for the conditional statement
                 // The exit node always depends on the entry node
-                let entry = graph.add_node(WorkflowGraphNode::Conditional(statement.clone()));
                 let exit = graph.add_node(WorkflowGraphNode::ExitConditional(statement.clone()));
+                let entry = graph.add_node(WorkflowGraphNode::Conditional(statement.clone(), exit));
                 graph.update_edge(entry, exit, ());
                 self.entry_exits
                     .insert(statement.syntax().clone(), (entry, exit));
@@ -626,8 +632,8 @@ impl WorkflowGraphBuilder {
             WorkflowStatement::Scatter(statement) => {
                 // Create the entry and exit nodes for the scatter statement
                 // The exit node always depends on the entry node
-                let entry = graph.add_node(WorkflowGraphNode::Scatter(statement.clone()));
                 let exit = graph.add_node(WorkflowGraphNode::ExitScatter(statement.clone()));
+                let entry = graph.add_node(WorkflowGraphNode::Scatter(statement.clone(), exit));
                 graph.update_edge(entry, exit, ());
                 self.entry_exits
                     .insert(statement.syntax().clone(), (entry, exit));
@@ -769,10 +775,10 @@ impl WorkflowGraphBuilder {
                         self.add_expr_edges(from, expr, graph, diagnostics);
                     }
                 }
-                WorkflowGraphNode::Conditional(statement) => {
+                WorkflowGraphNode::Conditional(statement, _) => {
                     self.add_expr_edges(from, statement.expr(), graph, diagnostics);
                 }
-                WorkflowGraphNode::Scatter(statement) => {
+                WorkflowGraphNode::Scatter(statement, _) => {
                     self.add_expr_edges(from, statement.expr(), graph, diagnostics);
                 }
                 WorkflowGraphNode::Call(statement) => {
@@ -906,8 +912,14 @@ impl WorkflowGraphBuilder {
 
         let (from, to) = if let Some((f, t)) =
             self.ancestor_finder.find_children_of_common_ancestor(
-                graph[from].syntax().ancestors(),
-                graph[to].syntax().ancestors(),
+                graph[from]
+                    .syntax()
+                    .expect("should have syntax node")
+                    .ancestors(),
+                graph[to]
+                    .syntax()
+                    .expect("should have syntax node")
+                    .ancestors(),
                 SyntaxKind::WorkflowDefinitionNode,
             ) {
             let from = self

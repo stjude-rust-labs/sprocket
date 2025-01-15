@@ -33,6 +33,7 @@ use wdl_analysis::diagnostics::numeric_mismatch;
 use wdl_analysis::diagnostics::too_few_arguments;
 use wdl_analysis::diagnostics::too_many_arguments;
 use wdl_analysis::diagnostics::type_mismatch;
+use wdl_analysis::diagnostics::unknown_call_io;
 use wdl_analysis::diagnostics::unknown_function;
 use wdl_analysis::diagnostics::unknown_task_io;
 use wdl_analysis::diagnostics::unsupported_function;
@@ -1274,8 +1275,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     fn evaluate_access_expr(&mut self, expr: &AccessExpr) -> Result<Value, Diagnostic> {
         let (target, name) = expr.operands();
 
-        // TODO: add support for access to call outputs
-
         match self.evaluate_expr(&target)? {
             Value::Compound(CompoundValue::Pair(pair)) => match name.as_str() {
                 "left" => Ok(pair.left().clone()),
@@ -1296,6 +1295,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             Value::Task(task) => match task.field(name.as_str()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_task_member(&name)),
+            },
+            Value::Call(call) => match call.outputs().get(name.as_str()) {
+                Some(value) => Ok(value.clone()),
+                None => Err(unknown_call_io(call.ty(), &name, Io::Output)),
             },
             value => Err(cannot_access(&value.ty(), target.span())),
         }
@@ -1363,7 +1366,7 @@ pub(crate) mod test {
     impl Default for TestEnv {
         fn default() -> Self {
             Self {
-                scopes: vec![Scope::new(None)],
+                scopes: vec![Scope::default()],
                 structs: Default::default(),
                 temp_dir: TempDir::new().expect("failed to create temp directory"),
                 work_dir: TempDir::new().expect("failed to create work directory"),

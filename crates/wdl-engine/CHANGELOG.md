@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Limited the local task executor to a maximum level of concurrency ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
 * Fixed regression in workflow input validation when an input is missing ([#286](https://github.com/stjude-rust-labs/wdl/pull/286)).
 * Fixed input validation to not treat directly specified call inputs as missing ([#282](https://github.com/stjude-rust-labs/wdl/pull/282)).
 
 ### Added
 
+* Implemented workflow evaluation ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
 * Reduced size of the `Value` type ([#277](https://github.com/stjude-rust-labs/wdl/pull/277)).
 * Implement task evaluation with local execution and remaining WDL 1.2
   functionality ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
@@ -38,4 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Removed the `Engine` type in favor of direct use of a `WorkflowEvaluator` or
+  `TaskEvaluator` ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
 * Require file existence for a successul validation parse of inputs ([#281](https://github.com/stjude-rust-labs/wdl/pull/281)).

@@ -54,3 +54,8 @@ harness = false
 name = "tasks"
 required-features = ["codespan"]
 harness = false
+
+[[test]]
+name = "workflows"
+required-features = ["codespan"]
+harness = false

@@ -9,14 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Fixed missing diagnostic for unknown local name when using the abbreviated
+  syntax for specifying a call input ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
 * Added functions for getting type information of task requirements and hints ([#241](https://github.com/stjude-rust-labs/wdl/pull/241)).
 * Exposed information about workflow calls from an analyzed document ([#239](https://github.com/stjude-rust-labs/wdl/pull/239)).
 * Added formatting to the analyzer ([#247](https://github.com/stjude-rust-labs/wdl/pull/247)).
 
 ### Changed
 
+* Entry nodes in a workflow evaluation graph now contain information about the
+  corresponding exit node. ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
 * Removed `Types` collection from `wdl-analysis` to simplify the API ([#277](https://github.com/stjude-rust-labs/wdl/pull/277)).
-* Changed the `new` and `new_with_validator` methods of `Analyzer` to take the 
+* Changed the `new` and `new_with_validator` methods of `Analyzer` to take the
   diagnostics configuration rather than a rule iterator ([#274](https://github.com/stjude-rust-labs/wdl/pull/274)).
 * Refactored the `AnalysisResult` and `Document` types to move properties of
   the former into the latter; this will assist in evaluation of documents in

@@ -97,6 +97,16 @@ pub fn runtime_type_mismatch(
         .with_label(format!("this expects type `{expected}`"), expected_span)
 }
 
+/// Creates an "if conditional mismatch" diagnostic.
+pub fn if_conditional_mismatch(e: anyhow::Error, actual: &Type, actual_span: Span) -> Diagnostic {
+    let e = e.context(format!(
+        "type mismatch: expected `if` conditional expression to be type `Boolean`, but found type \
+         `{actual}`"
+    ));
+
+    Diagnostic::error(format!("{e:?}")).with_label(format!("this is type `{actual}`"), actual_span)
+}
+
 /// Creates an "array index out of range" diagnostic.
 pub fn array_index_out_of_range(
     index: i64,
@@ -188,11 +198,17 @@ pub fn function_call_failed(name: &str, error: impl fmt::Display, span: Span) ->
     Diagnostic::error(format!("call to function `{name}` failed: {error}")).with_highlight(span)
 }
 
-/// Creates a "missing task output" diagnostic.
-pub fn missing_task_output(e: anyhow::Error, task: &str, output: &Ident) -> Diagnostic {
+/// Creates an "output evaluation failed" diagnostic.
+pub fn output_evaluation_failed(
+    e: anyhow::Error,
+    name: &str,
+    task: bool,
+    output: &Ident,
+) -> Diagnostic {
     let e = e.context(format!(
-        "failed to evaluate output `{output}` for task `{task}`",
+        "failed to evaluate output `{output}` for {kind} `{name}`",
         output = output.as_str(),
+        kind = if task { "task" } else { "workflow" }
     ));
 
     Diagnostic::error(format!("{e:?}")).with_highlight(output.span())

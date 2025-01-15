@@ -89,15 +89,66 @@ pub enum VisitReason {
     Exit,
 }
 
+/// Calculates the span of a scope given the node where the scope is visible.
+fn scope_span(parent: &crate::SyntaxNode, open: SyntaxKind, close: SyntaxKind) -> Option<Span> {
+    let open = rowan::ast::support::token(parent, open)?
+        .text_range()
+        .to_span();
+    let close = parent
+        .last_child_or_token()
+        .and_then(|c| {
+            if c.kind() == close {
+                c.into_token()
+            } else {
+                None
+            }
+        })?
+        .text_range()
+        .to_span();
+
+    // The span starts after the opening brace and before the closing brace
+    Some(Span::new(open.end(), close.start() - open.end()))
+}
+
 /// An extension trait for AST nodes.
 pub trait AstNodeExt {
     /// Gets the source span of the node.
     fn span(&self) -> Span;
+
+    /// Gets the interior span of child opening and closing brace tokens for the
+    /// node.
+    ///
+    /// The span starts from immediately after the opening brace token and ends
+    /// immediately before the closing brace token.
+    ///
+    /// Returns `None` if the node does not contain child brace tokens.
+    fn braced_scope_span(&self) -> Option<Span>;
+
+    /// Gets the interior span of child opening and closing heredoc tokens for
+    /// the node.
+    ///
+    /// The span starts from immediately after the opening heredoc token and
+    /// ends immediately before the closing heredoc token.
+    ///
+    /// Returns `None` if the node does not contain child heredoc tokens.
+    fn heredoc_scope_span(&self) -> Option<Span>;
 }
 
-impl<T: AstNode> AstNodeExt for T {
+impl<T: AstNode<Language = WorkflowDescriptionLanguage>> AstNodeExt for T {
     fn span(&self) -> Span {
         self.syntax().text_range().to_span()
+    }
+
+    fn braced_scope_span(&self) -> Option<Span> {
+        scope_span(self.syntax(), SyntaxKind::OpenBrace, SyntaxKind::CloseBrace)
+    }
+
+    fn heredoc_scope_span(&self) -> Option<Span> {
+        scope_span(
+            self.syntax(),
+            SyntaxKind::OpenHeredoc,
+            SyntaxKind::CloseHeredoc,
+        )
     }
 }
 

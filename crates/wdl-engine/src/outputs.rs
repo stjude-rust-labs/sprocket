@@ -9,7 +9,7 @@ use crate::Scope;
 use crate::Value;
 
 /// Represents outputs of a WDL workflow or task.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug)]
 pub struct Outputs {
     /// The name of the outputs.
     ///
@@ -99,6 +99,15 @@ impl From<Scope> for Outputs {
         Self {
             name: None,
             values: scope.into(),
+        }
+    }
+}
+
+impl FromIterator<(String, Value)> for Outputs {
+    fn from_iter<T: IntoIterator<Item = (String, Value)>>(iter: T) -> Self {
+        Self {
+            name: None,
+            values: iter.into_iter().collect(),
         }
     }
 }

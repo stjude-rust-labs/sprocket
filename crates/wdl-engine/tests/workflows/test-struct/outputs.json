@@ -1,0 +1,18 @@
+{
+  "test_struct.john": {
+    "name": "John",
+    "account": {
+      "account_number": "123456",
+      "routing_number": 300211325,
+      "balance": 3.5,
+      "pin_digits": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "username": null
+    }
+  },
+  "test_struct.has_account": true
+}

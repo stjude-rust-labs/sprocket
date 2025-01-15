@@ -1,0 +1,6 @@
+{
+  "multiline_strings.spaces": "  ",
+  "multiline_strings.name": "Henry",
+  "multiline_strings.company": "Acme",
+  "multiline_strings.multi_line": "  Hello Henry,/n  Welcome to Acme!"
+}

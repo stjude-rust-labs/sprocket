@@ -16,11 +16,7 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
-use wdl_ast::ToSpan;
-use wdl_ast::WorkflowDescriptionLanguage;
-use wdl_ast::support::token;
 
 use crate::DiagnosticsConfig;
 use crate::diagnostics::unused_import;
@@ -34,44 +30,6 @@ mod v1;
 /// The `task` variable name available in task command sections and outputs in
 /// WDL 1.2.
 pub const TASK_VAR_NAME: &str = "task";
-
-/// Calculates the span of a scope given a braced node.
-fn braced_scope_span(parent: &impl AstNode<Language = WorkflowDescriptionLanguage>) -> Span {
-    scope_span(parent, SyntaxKind::OpenBrace, SyntaxKind::CloseBrace)
-}
-
-/// Calculates the span of a scope given a heredoc node.
-fn heredoc_scope_span(parent: &impl AstNode<Language = WorkflowDescriptionLanguage>) -> Span {
-    scope_span(parent, SyntaxKind::OpenHeredoc, SyntaxKind::CloseHeredoc)
-}
-
-/// Calculates the span of a scope given the node where the scope is visible.
-fn scope_span(
-    parent: &impl AstNode<Language = WorkflowDescriptionLanguage>,
-    open: SyntaxKind,
-    close: SyntaxKind,
-) -> Span {
-    let open = token(parent.syntax(), open)
-        .expect("missing open token")
-        .text_range()
-        .to_span();
-    let close = parent
-        .syntax()
-        .last_child_or_token()
-        .and_then(|c| {
-            if c.kind() == close {
-                c.into_token()
-            } else {
-                None
-            }
-        })
-        .expect("missing close token")
-        .text_range()
-        .to_span();
-
-    // The span starts after the opening brace and before the closing brace
-    Span::new(open.end(), close.start() - open.end())
-}
 
 /// Represents a namespace introduced by an import.
 #[derive(Debug)]
