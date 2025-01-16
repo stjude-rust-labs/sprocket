@@ -100,30 +100,23 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let shellcheck = args.common.shellcheck;
 
     let file = args.common.file;
-    let results = if Url::parse(&file).is_ok() {
-        if args.common.local_only {
-            bail!(
-                "`--local-only` was specified, but `{file}` is a remote URL",
-                file = file
-            );
-        }
-        analyze(&file, exceptions, lint, shellcheck)
-    } else if fs::metadata(&file)
+    if Url::parse(&file).is_ok() && args.common.local_only {
+        bail!(
+            "`--local-only` was specified, but `{file}` is a remote URL",
+            file = file
+        );
+    }  if fs::metadata(&file)
         .with_context(|| format!("failed to read metadata for file `{file}`"))?
         .is_dir()
         && args.common.single_document
     {
-        if args.common.single_document {
-            bail!(
-                "`--single-document` was specified, but `{file}` is a directory",
-                file = file
-            );
-        }
-        analyze(&file, exceptions, lint, shellcheck)
-    } else {
-        analyze(&file, exceptions, lint, shellcheck)
+        bail!(
+            "`--single-document` was specified, but `{file}` is a directory",
+            file = file
+        );
     }
-    .await?;
+
+    let results = analyze(&file, exceptions, lint, shellcheck).await?;
 
     let cwd = std::env::current_dir().ok();
     let mut error_count = 0;
