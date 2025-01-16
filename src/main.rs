@@ -34,9 +34,6 @@ enum Commands {
     #[clap(alias = "fmt")]
     Format(commands::format::FormatArgs),
 
-    /// (ALPHA TESTING) Runs a task without a container.
-    Run(commands::run::RunArgs),
-
     /// Validates an input JSON file against a task or workflow input schema.
     ///
     /// This ensures that every required input is supplied, every supplied input
@@ -76,7 +73,6 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
         Commands::Format(args) => commands::format::format(args),
-        Commands::Run(args) => commands::run::run(args).await,
         Commands::ValidateInputs(args) => commands::validate::validate_inputs(args).await,
     }
 }

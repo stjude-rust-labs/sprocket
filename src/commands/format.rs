@@ -3,7 +3,6 @@
 use std::ffi::OsStr;
 use std::fs;
 use std::io::Read;
-use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -21,19 +20,11 @@ use wdl::format::Config;
 use wdl::format::Formatter;
 use wdl::format::config::Builder;
 use wdl::format::config::Indent;
+use wdl::format::config::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
 
 use crate::Mode;
 use crate::emit_diagnostics;
-
-/// The maximum acceptable indentation size.
-const MAX_INDENT_SIZE: usize = 16;
-
-/// The default number of tabs to use for indentation.
-const DEFAULT_TAB_INDENT_SIZE: usize = 1;
-
-/// The default number of spaces to use for indentation.
-const DEFAULT_SPACE_IDENT_SIZE: usize = 4;
 
 /// Arguments for the `format` subcommand.
 #[derive(Parser, Debug)]
@@ -64,10 +55,13 @@ pub struct FormatArgs {
     #[arg(long)]
     pub with_tabs: bool,
 
-    /// The number of characters to use for indentation levels (defaults to 4
-    /// for spaces and 1 for tabs).
-    #[arg(long, value_name = "SIZE")]
+    /// The number of spaces to use for indentation levels (default is 4).
+    #[arg(long, value_name = "SIZE", conflicts_with = "with_tabs")]
     pub indentation_size: Option<usize>,
+
+    /// The maximum line length (default is 90).
+    #[arg(long, value_name = "LENGTH")]
+    pub max_line_length: Option<usize>,
 
     /// Argument group defining the mode of behavior
     #[command(flatten)]
@@ -177,23 +171,26 @@ fn format_document(
 
 /// Runs the `format` command.
 pub fn format(args: FormatArgs) -> Result<()> {
-    let indentation_size = NonZeroUsize::new(args.indentation_size.unwrap_or(if args.with_tabs {
-        DEFAULT_TAB_INDENT_SIZE
+    let max_line_length = if let Some(max_line_length) = args.max_line_length {
+        MaxLineLength::try_new(max_line_length)
     } else {
-        DEFAULT_SPACE_IDENT_SIZE
-    }))
-    .ok_or_else(|| anyhow!("indentation size must be a value greater than zero"))?;
-    if indentation_size.get() > MAX_INDENT_SIZE {
-        bail!("indentation size cannot be greater than {MAX_INDENT_SIZE}");
-    }
+        Ok(MaxLineLength::default())
+    };
+    let max_line_length = match max_line_length {
+        Ok(max_line_length) => max_line_length,
+        Err(err) => bail!("invalid maximum line length: {}", err),
+    };
 
     let config = Builder::default()
         .indent(if args.with_tabs {
-            Indent::Tabs(indentation_size)
-        } else {
+            Indent::Tabs
+        } else if let Some(indentation_size) = args.indentation_size {
             Indent::Spaces(indentation_size)
+        } else {
+            Indent::default()
         })
-        .try_build()?;
+        .max_line_length(max_line_length)
+        .build();
 
     let mut diagnostics = 0;
     if args.path.to_str() != Some("-") && args.path.is_dir() {
