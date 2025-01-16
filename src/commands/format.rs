@@ -43,9 +43,10 @@ const DEFAULT_SPACE_IDENT_SIZE: usize = 4;
     author,
     version,
     about,
-    after_help = "Use the `--overwrite` option to replace a WDL document, or a directory \
-                  containing WDL documents, with the formatted source. Use the `--check` option \
-                  to print the diff or none if the source is already formatted."
+    after_help = "Use the `--overwrite` option to replace a WDL document or a directory \
+                  containing WDL documents with the formatted source.\nUse the `--check` option \
+                  to verify that a document or a directory containing WDL documents is already formatted \
+                  and print the diff if not."
 )]
 pub struct FormatArgs {
     /// The path to the WDL document to format (`-` for STDIN); the path may be
@@ -107,8 +108,8 @@ fn read_source(path: &Path) -> Result<String> {
 
 /// Formats a document.
 ///
-/// Checks if the document is formatted correctly and prints the diff if not
-/// if check_only is true.
+/// If `check_only` is true, checks if the document is formatted correctly and prints the diff if not
+/// then exits. Else will format and overwrite the document.
 ///
 /// If the document failed to parse, this emits the diagnostics and returns
 /// `Ok(count)` of the diagnostics to the caller.
