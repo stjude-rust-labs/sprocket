@@ -41,9 +41,10 @@ const DEFAULT_SPACE_IDENT_SIZE: usize = 4;
     author,
     version,
     about,
-    after_help = "By default, the `format` command will print a single formatted WDL \
-                  document.\n\nUse the `--overwrite` option to replace a WDL document, or a \
-                  directory containing WDL documents, with the formatted source."
+    after_help = "Use the `--overwrite` option to replace a WDL document or a directory \
+                  containing WDL documents with the formatted source.\nUse the `--check` option \
+                  to verify that a document or a directory containing WDL documents is already \
+                  formatted and print the diff if not."
 )]
 pub struct FormatArgs {
     /// The path to the WDL document to format (`-` for STDIN); the path may be
@@ -68,12 +69,21 @@ pub struct FormatArgs {
     #[arg(long, value_name = "SIZE")]
     pub indentation_size: Option<usize>,
 
+    /// Argument group defining the mode of behavior
+    #[command(flatten)]
+    mode: ModeGroup,
+}
+
+/// Argument group defining the mode of behavior
+#[derive(Parser, Debug)]
+#[group(required = true, multiple = false)]
+pub struct ModeGroup {
     /// Overwrite the WDL documents with the formatted versions
     #[arg(long, conflicts_with = "check")]
     pub overwrite: bool,
 
     /// Check if files are formatted correctly and print diff if not
-    #[arg(long, conflicts_with = "overwrite")]
+    #[arg(long)]
     pub check: bool,
 }
 
@@ -96,6 +106,10 @@ fn read_source(path: &Path) -> Result<String> {
 
 /// Formats a document.
 ///
+/// If `check_only` is true, checks if the document is formatted correctly and
+/// prints the diff if not then exits. Else will format and overwrite the
+/// document.
+///
 /// If the document failed to parse, this emits the diagnostics and returns
 /// `Ok(count)` of the diagnostics to the caller.
 ///
@@ -103,13 +117,12 @@ fn read_source(path: &Path) -> Result<String> {
 fn format_document(
     config: Config,
     path: &Path,
-    overwrite: bool,
     report_mode: Mode,
     no_color: bool,
-    check: bool,
+    check_only: bool,
 ) -> Result<usize> {
     if path.to_str() != Some("-") {
-        let action = if check { "checking" } else { "formatting" };
+        let action = if check_only { "checking" } else { "formatting" };
         println!(
             "{action_colored} `{path}`",
             action_colored = if no_color {
@@ -146,7 +159,7 @@ fn format_document(
     let formatter = Formatter::new(config);
     let formatted = formatter.format(&document)?;
 
-    if check {
+    if check_only {
         if formatted != source {
             print!("{}", StrComparison::new(&source, &formatted));
             return Ok(1);
@@ -155,12 +168,9 @@ fn format_document(
         return Ok(0);
     }
 
-    if overwrite {
-        fs::write(path, formatted)
-            .with_context(|| format!("failed to write `{path}`", path = path.display()))?;
-    } else {
-        print!("{formatted}");
-    }
+    // write file because check is not true
+    fs::write(path, formatted)
+        .with_context(|| format!("failed to write `{path}`", path = path.display()))?;
 
     Ok(0)
 }
@@ -187,10 +197,6 @@ pub fn format(args: FormatArgs) -> Result<()> {
 
     let mut diagnostics = 0;
     if args.path.to_str() != Some("-") && args.path.is_dir() {
-        if !args.overwrite && !args.check {
-            bail!("formatting a directory requires the `--overwrite` or `--check` option");
-        }
-
         for entry in WalkDir::new(&args.path) {
             let entry = entry.with_context(|| {
                 format!(
@@ -206,20 +212,18 @@ pub fn format(args: FormatArgs) -> Result<()> {
             diagnostics += format_document(
                 config,
                 path,
-                args.overwrite,
                 args.report_mode,
                 args.no_color,
-                args.check,
+                args.mode.check,
             )?;
         }
     } else {
         diagnostics += format_document(
             config,
             &args.path,
-            args.overwrite,
             args.report_mode,
             args.no_color,
-            args.check,
+            args.mode.check,
         )?;
     }
 

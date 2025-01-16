@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* `format` now requires one of the `--check` or `--overwrite` arguments ([#51](https://github.com/stjude-rust-labs/sprocket/pull/51)).
 * Updated WDL crate to latest. This adds support for
   checking/linting remote URLs and other features and improvements ([#46](https://github.com/stjude-rust-labs/sprocket/pull/46)).
 * Only allow one `file` argument to `check/lint` instead of any number of local files and directories
@@ -17,8 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added `--local-only` and `--single-document` args to `check/lint` ([#46](https://github.com/stjude-rust-labs/sprocket/pull/46)).
-* Added an alpha version of the `run` commannnd. This version only supports running tasks without a container
-  (workflows are not yet supported) ([#47](https://github.com/stjude-rust-labs/sprocket/pull/47)).
 * Added a `validate-inputs` command. ([#48](https://github.com/stjude-rust-labs/sprocket/pull/48)).
 
 ## 0.9.0 - 10-22-2024
