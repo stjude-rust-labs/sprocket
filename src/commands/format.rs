@@ -38,8 +38,8 @@ use crate::emit_diagnostics;
                   formatted and print the diff if not."
 )]
 pub struct FormatArgs {
-    /// The path to the WDL document to format (`-` for STDIN); the path may be
-    /// a directory when `--overwrite` is specified.
+    /// The path to the WDL document or a directory containing WDL documents to
+    /// format or check (`-` for STDIN).
     #[arg(value_name = "PATH")]
     pub path: PathBuf,
 
