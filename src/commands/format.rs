@@ -197,9 +197,6 @@ pub fn format(args: FormatArgs) -> Result<()> {
 
     let mut diagnostics = 0;
     if args.path.to_str() != Some("-") && args.path.is_dir() {
-        if !args.mode.overwrite && !args.mode.check {
-            bail!("formatting a directory requires the `--overwrite` or `--check` option");
-        }
 
         for entry in WalkDir::new(&args.path) {
             let entry = entry.with_context(|| {
