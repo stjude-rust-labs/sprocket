@@ -126,6 +126,8 @@ fn format_document(
             },
             path = path.display()
         );
+    } else if !check_only {
+        bail!("cannot overwrite STDIN");
     }
 
     let source = read_source(path)?;
@@ -171,24 +173,19 @@ fn format_document(
 
 /// Runs the `format` command.
 pub fn format(args: FormatArgs) -> Result<()> {
-    let max_line_length = if let Some(max_line_length) = args.max_line_length {
-        MaxLineLength::try_new(max_line_length)
-    } else {
-        Ok(MaxLineLength::default())
+    let indent = match Indent::try_new(args.with_tabs, args.indentation_size) {
+        Ok(indent) => indent,
+        Err(e) => bail!("failed to create indentation configuration: {}", e),
     };
-    let max_line_length = match max_line_length {
-        Ok(max_line_length) => max_line_length,
-        Err(err) => bail!("invalid maximum line length: {}", err),
+    let max_line_length = match args.max_line_length {
+        Some(length) => match MaxLineLength::try_new(length) {
+            Ok(max_line_length) => max_line_length,
+            Err(e) => bail!("failed to create max line length configuration: {}", e),
+        },
+        None => MaxLineLength::default(),
     };
-
     let config = Builder::default()
-        .indent(if args.with_tabs {
-            Indent::Tabs
-        } else if let Some(indentation_size) = args.indentation_size {
-            Indent::Spaces(indentation_size)
-        } else {
-            Indent::default()
-        })
+        .indent(indent)
         .max_line_length(max_line_length)
         .build();
 
