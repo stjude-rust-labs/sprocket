@@ -105,7 +105,8 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             "`--local-only` was specified, but `{file}` is a remote URL",
             file = file
         );
-    }  if fs::metadata(&file)
+    }
+    if fs::metadata(&file)
         .with_context(|| format!("failed to read metadata for file `{file}`"))?
         .is_dir()
         && args.common.single_document
