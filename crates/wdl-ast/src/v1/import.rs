@@ -13,13 +13,13 @@ use super::ImportKeyword;
 use super::LiteralString;
 use crate::AstChildren;
 use crate::AstNode;
+use crate::AstNodeExt;
 use crate::AstToken;
 use crate::Ident;
 use crate::Span;
 use crate::SyntaxElement;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
-use crate::ToSpan;
 use crate::WorkflowDescriptionLanguage;
 use crate::support::child;
 use crate::support::children;
@@ -92,7 +92,7 @@ impl ImportStatement {
             _ => return None,
         }
 
-        Some((stem.to_string(), uri.syntax().text_range().to_span()))
+        Some((stem.to_string(), uri.span()))
     }
 }
 

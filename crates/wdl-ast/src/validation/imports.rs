@@ -1,12 +1,11 @@
 //! Validation of imports.
 
-use crate::AstNode;
+use crate::AstNodeExt;
 use crate::Diagnostic;
 use crate::Diagnostics;
 use crate::Document;
 use crate::Span;
 use crate::SupportedVersion;
-use crate::ToSpan;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::v1;
@@ -64,7 +63,7 @@ impl Visitor for ImportsVisitor {
 
         let uri = stmt.uri();
         if uri.is_empty() {
-            state.add(empty_import(uri.syntax().text_range().to_span()));
+            state.add(empty_import(uri.span()));
             return;
         }
 
@@ -73,7 +72,7 @@ impl Visitor for ImportsVisitor {
                 .parts()
                 .find_map(|p| match p {
                     StringPart::Text(_) => None,
-                    StringPart::Placeholder(p) => Some(p.syntax().text_range().to_span()),
+                    StringPart::Placeholder(p) => Some(p.span()),
                 })
                 .expect("should have a placeholder span");
 
@@ -82,9 +81,7 @@ impl Visitor for ImportsVisitor {
         }
 
         if stmt.namespace().is_none() {
-            state.add(invalid_import_namespace(
-                uri.syntax().text_range().to_span(),
-            ));
+            state.add(invalid_import_namespace(uri.span()));
         }
     }
 }

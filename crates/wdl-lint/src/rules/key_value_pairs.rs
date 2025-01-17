@@ -1,6 +1,7 @@
 //! A lint rule for key-value pairs to ensure each element is on a newline.
 
 use wdl_ast::AstNode;
+use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
@@ -145,7 +146,7 @@ impl Visitor for KeyValuePairsRule {
 
         if !item.syntax().to_string().contains('\n') {
             state.exceptable_add(
-                all_on_one_line(item.syntax().text_range().to_span()),
+                all_on_one_line(item.span()),
                 SyntaxElement::from(item.syntax().clone()),
                 &self.exceptable_nodes(),
             );
@@ -176,7 +177,7 @@ impl Visitor for KeyValuePairsRule {
             let (next_newline, _newline_is_next) = find_next_newline(child.syntax());
             if next_newline.is_none() {
                 // No newline found, report missing
-                let s = child.syntax().text_range().to_span();
+                let s = child.span();
                 let end = if let Some(next) = find_next_comma(child.syntax()).0 {
                     next.text_range().end()
                 } else {
@@ -266,7 +267,7 @@ impl Visitor for KeyValuePairsRule {
         // If the array is all on one line, report that
         if !item.syntax().to_string().contains('\n') {
             state.exceptable_add(
-                all_on_one_line(item.syntax().text_range().to_span()),
+                all_on_one_line(item.span()),
                 SyntaxElement::from(item.syntax().clone()),
                 &self.exceptable_nodes(),
             );
@@ -297,7 +298,7 @@ impl Visitor for KeyValuePairsRule {
             let (next_newline, _newline_is_next) = find_next_newline(child.syntax());
             if next_newline.is_none() {
                 // No newline found, report missing
-                let s = child.syntax().text_range().to_span();
+                let s = child.span();
                 let end = if let Some(next) = find_next_comma(child.syntax()).0 {
                     next.text_range().end()
                 } else {

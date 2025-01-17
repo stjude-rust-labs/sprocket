@@ -282,16 +282,36 @@ impl<'a> TaskEvaluator<'a> {
         );
 
         let mut state = State::new(document, task, self.backend.create_execution(root)?);
-
+        let mut envs = Vec::new();
         let nodes = toposort(&graph, None).expect("graph should be acyclic");
         let mut current = 0;
         while current < nodes.len() {
             match &graph[nodes[current]] {
                 TaskGraphNode::Input(decl) => {
-                    self.evaluate_input(&mut state, decl, inputs)?;
+                    let value = self.evaluate_input(&mut state, decl, inputs)?;
+                    if decl.env().is_some() {
+                        envs.push((
+                            decl.name().as_str().to_string(),
+                            value
+                                .as_primitive()
+                                .expect("value should be primitive")
+                                .raw()
+                                .to_string(),
+                        ));
+                    }
                 }
                 TaskGraphNode::Decl(decl) => {
-                    self.evaluate_decl(&mut state, decl)?;
+                    let value = self.evaluate_decl(&mut state, decl)?;
+                    if decl.env().is_some() {
+                        envs.push((
+                            decl.name().as_str().to_string(),
+                            value
+                                .as_primitive()
+                                .expect("value should be primitive")
+                                .raw()
+                                .to_string(),
+                        ));
+                    }
                 }
                 TaskGraphNode::Output(_) => {
                     // Stop at the first output; at this point the task can be executed
@@ -361,7 +381,7 @@ impl<'a> TaskEvaluator<'a> {
 
         let status_code = state
             .execution
-            .spawn(&state.command, &state.requirements, &state.hints)?
+            .spawn(&state.command, &state.requirements, &state.hints, &envs)?
             .await?;
 
         // TODO: support retrying the task if it fails
@@ -420,7 +440,7 @@ impl<'a> TaskEvaluator<'a> {
         state: &mut State<'_>,
         decl: &Decl,
         inputs: &TaskInputs,
-    ) -> EvaluationResult<()> {
+    ) -> EvaluationResult<Value> {
         let name = decl.name();
         let decl_ty = decl.ty();
         let ty = crate::convert_ast_type_v1(state.document, &decl_ty)?;
@@ -450,12 +470,12 @@ impl<'a> TaskEvaluator<'a> {
         let value = value
             .coerce(&ty)
             .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), span))?;
-        state.scopes[ROOT_SCOPE_INDEX.0].insert(name.as_str(), value);
-        Ok(())
+        state.scopes[ROOT_SCOPE_INDEX.0].insert(name.as_str(), value.clone());
+        Ok(value)
     }
 
     /// Evaluates a task private declaration.
-    fn evaluate_decl(&mut self, state: &mut State<'_>, decl: &Decl) -> EvaluationResult<()> {
+    fn evaluate_decl(&mut self, state: &mut State<'_>, decl: &Decl) -> EvaluationResult<Value> {
         let name = decl.name();
         debug!(
             "evaluating private declaration `{name}` for task `{task}` in `{uri}`",
@@ -474,8 +494,8 @@ impl<'a> TaskEvaluator<'a> {
         let value = value
             .coerce(&ty)
             .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
-        state.scopes[ROOT_SCOPE_INDEX.0].insert(name.as_str(), value);
-        Ok(())
+        state.scopes[ROOT_SCOPE_INDEX.0].insert(name.as_str(), value.clone());
+        Ok(value)
     }
 
     /// Evaluates the runtime section.

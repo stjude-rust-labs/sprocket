@@ -1,6 +1,7 @@
 //! A lint rule for import placements.
 
 use wdl_ast::AstNode;
+use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
@@ -8,7 +9,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::ImportStatement;
@@ -97,7 +97,7 @@ impl Visitor for ImportPlacementRule {
 
         if self.invalid {
             state.exceptable_add(
-                misplaced_import(stmt.syntax().text_range().to_span()),
+                misplaced_import(stmt.span()),
                 SyntaxElement::from(stmt.syntax().clone()),
                 &self.exceptable_nodes(),
             );

@@ -1,6 +1,7 @@
 //! Implementation of the local backend.
 
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
 use std::path::Path;
@@ -181,6 +182,7 @@ impl TaskExecution for LocalTaskExecution {
         command: &str,
         _: &HashMap<String, Value>,
         _: &HashMap<String, Value>,
+        envs: &[(String, String)],
     ) -> Result<BoxFuture<'static, Result<i32>>> {
         // Recreate the working directory
         if self.work_dir.exists() {
@@ -231,6 +233,7 @@ impl TaskExecution for LocalTaskExecution {
             .stdin(Stdio::null())
             .stdout(stdout)
             .stderr(stderr)
+            .envs(envs.iter().map(|(k, v)| (OsStr::new(k), OsStr::new(v))))
             .kill_on_drop(true);
 
         // Set an environment variable on Windows to get consistent PATH searching

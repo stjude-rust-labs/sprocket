@@ -2,6 +2,7 @@
 
 use rowan::Direction;
 use wdl_ast::AstNode;
+use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
@@ -239,7 +240,7 @@ impl Visitor for ExpressionSpacingRule {
                     > 0
                 {
                     state.exceptable_add(
-                        prefix_whitespace(expr.syntax().text_range().to_span()),
+                        prefix_whitespace(expr.span()),
                         SyntaxElement::from(expr.syntax().clone()),
                         &self.exceptable_nodes(),
                     );

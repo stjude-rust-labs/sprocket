@@ -201,7 +201,8 @@ impl TaskGraphBuilder {
         // Add reference edges again, but only for the output declaration nodes
         self.add_reference_edges(version, Some(count), &mut graph, diagnostics);
 
-        // Finally, add edges from the command to runtime/requirements/hints
+        // Finally, add edges from the command to runtime/requirements/hints and
+        // environment variables
         if let Some(command) = self.command {
             if let Some(runtime) = self.runtime {
                 graph.update_edge(runtime, command, ());
@@ -213,6 +214,19 @@ impl TaskGraphBuilder {
 
             if let Some(hints) = self.hints {
                 graph.update_edge(hints, command, ());
+            }
+
+            // As environment variables are implicitly used by commands, add edges from the
+            // command to the environment variable declarations
+            for index in self.names.values() {
+                match &graph[*index] {
+                    TaskGraphNode::Input(decl) | TaskGraphNode::Decl(decl)
+                        if decl.env().is_some() =>
+                    {
+                        graph.update_edge(*index, command, ());
+                    }
+                    _ => continue,
+                }
             }
         }
 

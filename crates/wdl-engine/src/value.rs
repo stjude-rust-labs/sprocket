@@ -131,6 +131,26 @@ impl Value {
         matches!(self, Self::None)
     }
 
+    /// Gets the value as a primitive value.
+    ///
+    /// Returns `None` if the value is not a primitive value.
+    pub fn as_primitive(&self) -> Option<&PrimitiveValue> {
+        match self {
+            Self::Primitive(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Gets the value as a compound value.
+    ///
+    /// Returns `None` if the value is not a compound value.
+    pub fn as_compound(&self) -> Option<&CompoundValue> {
+        match self {
+            Self::Compound(v) => Some(v),
+            _ => None,
+        }
+    }
+
     /// Gets the value as a `Boolean`.
     ///
     /// Returns `None` if the value is not a `Boolean`.

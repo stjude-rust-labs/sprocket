@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added AST support for the WDL 1.2 `env` declaration modifier ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
 * Added `braced_scope_span` and `heredoc_scope_span` methods to `AstNodeExt` ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
 * Added constants for the task variable fields, task requirement names, and
   task hint names ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).

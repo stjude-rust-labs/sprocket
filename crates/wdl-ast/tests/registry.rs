@@ -88,6 +88,7 @@ static REGISTRY: LazyLock<HashMap<&'static str, Box<[SyntaxKind]>>> = LazyLock::
         v1::Dot::register(),
         v1::DoubleQuote::register(),
         v1::ElseKeyword::register(),
+        v1::EnvKeyword::register(),
         v1::Equal::register(),
         v1::EqualityExpr::register(),
         v1::Exclamation::register(),

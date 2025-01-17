@@ -323,6 +323,7 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::CallKeyword as u8,
     Token::CommandKeyword as u8,
     Token::ElseKeyword as u8,
+    Token::EnvKeyword as u8,
     Token::FalseKeyword as u8,
     Token::HintsKeyword as u8,
     Token::IfKeyword as u8,
@@ -646,7 +647,7 @@ fn primitive_type(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
 /// Parses an item in a task definition.
 fn task_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     match parser.peek() {
-        Some((Token::InputKeyword, _)) => input_section(parser, marker),
+        Some((Token::InputKeyword, _)) => input_section(parser, marker, true),
         Some((Token::CommandKeyword, _)) => command_section(parser, marker),
         Some((Token::OutputKeyword, _)) => output_section(parser, marker),
         Some((Token::RuntimeKeyword, _)) => runtime_section(parser, marker),
@@ -654,8 +655,8 @@ fn task_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Dia
         Some((Token::HintsKeyword, _)) => task_hints_section(parser, marker),
         Some((Token::MetaKeyword, _)) => metadata_section(parser, marker),
         Some((Token::ParameterMetaKeyword, _)) => parameter_metadata_section(parser, marker),
-        Some((t, _)) if TYPE_EXPECTED_SET.contains(t.into_raw()) => {
-            bound_decl(parser, marker, false)
+        Some((t, _)) if t == Token::EnvKeyword || TYPE_EXPECTED_SET.contains(t.into_raw()) => {
+            bound_decl(parser, marker, false, true)
         }
         found => {
             let (found, span) = found
@@ -672,7 +673,7 @@ fn task_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Dia
 /// Parses an item in a workflow definition.
 fn workflow_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     match parser.peek() {
-        Some((Token::InputKeyword, _)) => input_section(parser, marker),
+        Some((Token::InputKeyword, _)) => input_section(parser, marker, false),
         Some((Token::OutputKeyword, _)) => output_section(parser, marker),
         Some((Token::MetaKeyword, _)) => metadata_section(parser, marker),
         Some((Token::ParameterMetaKeyword, _)) => parameter_metadata_section(parser, marker),
@@ -681,7 +682,7 @@ fn workflow_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker,
         Some((Token::ScatterKeyword, _)) => scatter_statement(parser, marker),
         Some((Token::CallKeyword, _)) => call_statement(parser, marker),
         Some((t, _)) if TYPE_EXPECTED_SET.contains(t.into_raw()) => {
-            bound_decl(parser, marker, false)
+            bound_decl(parser, marker, false, false)
         }
         found => {
             let (found, span) = found
@@ -702,7 +703,7 @@ fn workflow_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Ma
         Some((Token::ScatterKeyword, _)) => scatter_statement(parser, marker),
         Some((Token::CallKeyword, _)) => call_statement(parser, marker),
         Some((t, _)) if TYPE_EXPECTED_SET.contains(t.into_raw()) => {
-            bound_decl(parser, marker, false)
+            bound_decl(parser, marker, false, false)
         }
         found => {
             let (found, span) = found
@@ -714,15 +715,33 @@ fn workflow_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Ma
 }
 
 /// Parses an input section in a task or workflow.
-fn input_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+fn input_section(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+    allow_env: bool,
+) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::InputKeyword);
-    braced_items!(parser, marker, None, INPUT_ITEM_RECOVERY_SET, input_item);
+    braced_items!(
+        parser,
+        marker,
+        None,
+        INPUT_ITEM_RECOVERY_SET,
+        |parser, marker| input_item(parser, marker, allow_env)
+    );
     marker.complete(parser, SyntaxKind::InputSectionNode);
     Ok(())
 }
 
 /// Parses an input item.
-fn input_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+fn input_item(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+    allow_env: bool,
+) -> Result<(), (Marker, Diagnostic)> {
+    if allow_env {
+        parser.next_if(Token::EnvKeyword);
+    }
+
     expected_fn!(parser, marker, ty);
     expected_in!(parser, marker, ANY_IDENT, "input name");
     parser.update_last_token_kind(SyntaxKind::Ident);
@@ -991,7 +1010,7 @@ fn output_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
         marker,
         None,
         OUTPUT_ITEM_RECOVERY_SET,
-        |parser, marker| bound_decl(parser, marker, true)
+        |parser, marker| bound_decl(parser, marker, true, false)
     );
     marker.complete(parser, SyntaxKind::OutputSectionNode);
     Ok(())
@@ -1693,7 +1712,12 @@ fn bound_decl(
     parser: &mut Parser<'_>,
     marker: Marker,
     output: bool,
+    allow_env: bool,
 ) -> Result<(), (Marker, Diagnostic)> {
+    if allow_env {
+        parser.next_if(Token::EnvKeyword);
+    }
+
     expected_fn!(parser, marker, ty);
 
     if output {

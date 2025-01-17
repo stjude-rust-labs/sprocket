@@ -82,6 +82,7 @@ define_token!(
 define_token!(Dot, "the `.` symbol", ".");
 define_token!(DoubleQuote, "the `\"` symbol", "\"");
 define_token!(ElseKeyword, "the `else` keyword", "else");
+define_token!(EnvKeyword, "the `env` keyword", "env");
 define_token!(Equal, "the `=` symbol", "=");
 define_token!(Exclamation, "the `!` symbol", "!");
 define_token!(Exponentiation, "the `**` symbol", "**");

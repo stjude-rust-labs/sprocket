@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use super::EnvKeyword;
 use super::Expr;
 use crate::AstNode;
 use crate::AstToken;
@@ -763,6 +764,13 @@ impl fmt::Display for Type {
 pub struct UnboundDecl(pub(crate) SyntaxNode);
 
 impl UnboundDecl {
+    /// Gets the `env` token, if present.
+    ///
+    /// This may only return a token for task inputs (WDL 1.2+).
+    pub fn env(&self) -> Option<EnvKeyword> {
+        token(&self.0)
+    }
+
     /// Gets the type of the declaration.
     pub fn ty(&self) -> Type {
         Type::child(&self.0).expect("unbound declaration should have a type")
@@ -804,6 +812,14 @@ impl AstNode for UnboundDecl {
 pub struct BoundDecl(pub(crate) SyntaxNode);
 
 impl BoundDecl {
+    /// Gets the `env` token, if present.
+    ///
+    /// This may only return a token for task inputs and private declarations
+    /// (WDL 1.2+).
+    pub fn env(&self) -> Option<EnvKeyword> {
+        token(&self.0)
+    }
+
     /// Gets the type of the declaration.
     pub fn ty(&self) -> Type {
         Type::child(&self.0).expect("bound declaration should have a type")
@@ -886,6 +902,17 @@ impl Decl {
         match self {
             Self::Bound(element) => element.syntax(),
             Self::Unbound(element) => element.syntax(),
+        }
+    }
+
+    /// Gets the `env` token, if present.
+    ///
+    /// This may only return a token for task inputs and private declarations
+    /// (WDL 1.2+).
+    pub fn env(&self) -> Option<EnvKeyword> {
+        match self {
+            Self::Bound(d) => d.env(),
+            Self::Unbound(d) => d.env(),
         }
     }
 

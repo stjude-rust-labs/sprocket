@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added evaluation support for the WDL 1.2 `env` declaration modifier ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
 * Implemented workflow evaluation ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
 * Reduced size of the `Value` type ([#277](https://github.com/stjude-rust-labs/wdl/pull/277)).
 * Implement task evaluation with local execution and remaining WDL 1.2

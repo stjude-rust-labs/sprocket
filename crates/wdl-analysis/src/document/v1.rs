@@ -19,7 +19,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxNodeExt;
-use wdl_ast::ToSpan;
 use wdl_ast::TokenStrHash;
 use wdl_ast::Version;
 use wdl_ast::v1::Ast;
@@ -269,7 +268,7 @@ fn add_namespace(
     };
 
     // Check for conflicting namespaces
-    let span = import.uri().syntax().text_range().to_span();
+    let span = import.uri().span();
     let ns = match import.namespace() {
         Some((ns, span)) => {
             if let Some(prev) = document.namespaces.get(&ns) {
@@ -589,10 +588,12 @@ fn add_task(config: DiagnosticsConfig, document: &mut Document, definition: &Tas
                 // Check for unused input
                 if let Some(severity) = config.unused_input {
                     let name = decl.name();
-                    if graph
-                        .edges_directed(index, Direction::Outgoing)
-                        .next()
-                        .is_none()
+                    // Don't warn for environment variables as they are always implicitly used
+                    if decl.env().is_none()
+                        && graph
+                            .edges_directed(index, Direction::Outgoing)
+                            .next()
+                            .is_none()
                     {
                         // Determine if the input is really used based on its name and type
                         if is_input_used(name.as_str(), &task.inputs[name.as_str()].ty) {
@@ -621,10 +622,12 @@ fn add_task(config: DiagnosticsConfig, document: &mut Document, definition: &Tas
                 // Check for unused declaration
                 if let Some(severity) = config.unused_declaration {
                     let name = decl.name();
-                    if graph
-                        .edges_directed(index, Direction::Outgoing)
-                        .next()
-                        .is_none()
+                    // Don't warn for environment variables as they are always implicitly used
+                    if decl.env().is_none()
+                        && graph
+                            .edges_directed(index, Direction::Outgoing)
+                            .next()
+                            .is_none()
                         && !decl.syntax().is_rule_excepted(UNUSED_DECL_RULE_ID)
                     {
                         document.diagnostics.push(
@@ -1319,7 +1322,7 @@ fn resolve_import(
     importer_version: &Version,
 ) -> Result<(Arc<Url>, Arc<Document>), Option<Diagnostic>> {
     let uri = stmt.uri();
-    let span = uri.syntax().text_range().to_span();
+    let span = uri.span();
     let text = match uri.text() {
         Some(text) => text,
         None => {

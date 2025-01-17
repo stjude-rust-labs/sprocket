@@ -5,6 +5,8 @@ use wdl_grammar::ToSpan;
 use wdl_grammar::version::V1;
 
 use crate::AstNode;
+use crate::AstNodeExt;
+use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
 use crate::Document;
@@ -56,6 +58,12 @@ fn struct_metadata_requirement(kind: &str, span: Span) -> Diagnostic {
         "use of a `{kind}` section in a struct definition requires WDL version 1.2"
     ))
     .with_highlight(span)
+}
+
+/// Creates an "env var" requirement diagnostic.
+fn env_var_requirement(span: Span) -> Diagnostic {
+    Diagnostic::error("use of environment variable declarations requires WDL version 1.2")
+        .with_highlight(span)
 }
 
 /// An AST visitor that ensures the syntax present in the document matches the
@@ -168,9 +176,7 @@ impl Visitor for VersionVisitor {
                     if version < SupportedVersion::V1(V1::Two)
                         && s.kind() == v1::LiteralStringKind::Multiline =>
                 {
-                    state.add(multiline_string_requirement(
-                        s.syntax().text_range().to_span(),
-                    ));
+                    state.add(multiline_string_requirement(s.span()));
                 }
                 _ => {}
             }
@@ -183,13 +189,17 @@ impl Visitor for VersionVisitor {
         }
 
         if let Some(version) = self.version {
+            if let Some(env) = decl.env() {
+                if version < SupportedVersion::V1(V1::Two) {
+                    state.add(env_var_requirement(env.span()));
+                }
+            }
+
             if let v1::Type::Primitive(ty) = decl.ty() {
                 if version < SupportedVersion::V1(V1::Two)
                     && ty.kind() == v1::PrimitiveTypeKind::Directory
                 {
-                    state.add(directory_type_requirement(
-                        ty.syntax().text_range().to_span(),
-                    ));
+                    state.add(directory_type_requirement(ty.span()));
                 }
             }
         }
@@ -206,13 +216,17 @@ impl Visitor for VersionVisitor {
         }
 
         if let Some(version) = self.version {
+            if let Some(env) = decl.env() {
+                if version < SupportedVersion::V1(V1::Two) {
+                    state.add(env_var_requirement(env.span()));
+                }
+            }
+
             if let v1::Type::Primitive(ty) = decl.ty() {
                 if version < SupportedVersion::V1(V1::Two)
                     && ty.kind() == v1::PrimitiveTypeKind::Directory
                 {
-                    state.add(directory_type_requirement(
-                        ty.syntax().text_range().to_span(),
-                    ));
+                    state.add(directory_type_requirement(ty.span()));
                 }
             }
         }
@@ -234,9 +248,7 @@ impl Visitor for VersionVisitor {
                 if let Some(input) = stmt.inputs().next() {
                     if rowan::ast::support::token(stmt.syntax(), SyntaxKind::InputKeyword).is_none()
                     {
-                        state.add(input_keyword_requirement(
-                            input.syntax().text_range().to_span(),
-                        ));
+                        state.add(input_keyword_requirement(input.span()));
                     }
                 }
             }

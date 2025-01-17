@@ -2,6 +2,7 @@
 
 use indexmap::IndexMap;
 use wdl_ast::AstNode;
+use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
@@ -348,10 +349,8 @@ impl Visitor for NonmatchingOutputRule<'_> {
         decl: &wdl_ast::v1::BoundDecl,
     ) {
         if reason == VisitReason::Enter && self.in_output {
-            self.output_keys.insert(
-                decl.name().as_str().to_string(),
-                decl.name().syntax().text_range().to_span(),
-            );
+            self.output_keys
+                .insert(decl.name().as_str().to_string(), decl.name().span());
         }
     }
 
@@ -374,13 +373,13 @@ impl Visitor for NonmatchingOutputRule<'_> {
             VisitReason::Enter => {
                 if let Some(_meta_span) = self.current_meta_span {
                     if item.name().as_str() == "outputs" {
-                        self.current_meta_outputs_span = Some(item.syntax().text_range().to_span());
+                        self.current_meta_outputs_span = Some(item.span());
                         match item.value() {
                             MetadataValue::Object(_) => {}
                             _ => {
                                 state.exceptable_add(
                                     non_object_meta_outputs(
-                                        item.syntax().text_range().to_span(),
+                                        item.span(),
                                         self.name.as_deref().expect("should have a name"),
                                         self.ty.expect("should have a type"),
                                     ),
@@ -390,7 +389,7 @@ impl Visitor for NonmatchingOutputRule<'_> {
                             }
                         }
                     } else if let Some(meta_outputs_span) = self.current_meta_outputs_span {
-                        let span = item.syntax().text_range().to_span();
+                        let span = item.span();
                         if span.start() > meta_outputs_span.start()
                             && span.end() < meta_outputs_span.end()
                             && self
@@ -399,10 +398,8 @@ impl Visitor for NonmatchingOutputRule<'_> {
                                 .expect("should have seen `meta.outputs`")
                                 == "outputs"
                         {
-                            self.meta_outputs_keys.insert(
-                                item.name().as_str().to_string(),
-                                item.syntax().text_range().to_span(),
-                            );
+                            self.meta_outputs_keys
+                                .insert(item.name().as_str().to_string(), item.span());
                         }
                     }
                 }

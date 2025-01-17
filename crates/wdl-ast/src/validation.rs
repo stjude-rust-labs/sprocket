@@ -15,6 +15,7 @@ use crate::VersionStatement;
 use crate::Visitor;
 
 mod counts;
+mod env;
 mod exprs;
 mod imports;
 mod keys;
@@ -138,6 +139,7 @@ impl Default for Validator {
                 Box::<requirements::RequirementsVisitor>::default(),
                 Box::<exprs::ScopedExprVisitor>::default(),
                 Box::<imports::ImportsVisitor>::default(),
+                Box::<env::EnvVisitor>::default(),
             ],
         }
     }

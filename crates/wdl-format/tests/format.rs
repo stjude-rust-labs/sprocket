@@ -120,13 +120,13 @@ fn compare_result(path: &Path, result: &str) -> Result<(), String> {
 
 /// Parses source string into a document FormatElement
 fn prepare_document(source: &str, path: &Path) -> Result<FormatElement, String> {
-    let (document, diagnostics) = Document::parse(&source);
+    let (document, diagnostics) = Document::parse(source);
 
     if !diagnostics.is_empty() {
         return Err(format!(
             "failed to parse `{path}` {e}",
             path = path.display(),
-            e = format_diagnostics(&diagnostics, path, &source)
+            e = format_diagnostics(&diagnostics, path, source)
         ));
     };
 
@@ -135,7 +135,7 @@ fn prepare_document(source: &str, path: &Path) -> Result<FormatElement, String> 
 
 /// Parses and formats source string
 fn format(source: &str, path: &Path) -> Result<String, String> {
-    let document = prepare_document(&source, &path)?;
+    let document = prepare_document(source, path)?;
     let formatted = match Formatter::default().format(&document) {
         Ok(formatted) => formatted,
         Err(e) => {

@@ -447,6 +447,8 @@ pub enum Token {
     DoubleQuote(DoubleQuote),
     /// The `else` keyword.
     ElseKeyword(ElseKeyword),
+    /// The `env` keyword.
+    EnvKeyword(EnvKeyword),
     /// The `==` symbol.
     Equal(Equal),
     /// The `!` symbol.
@@ -585,6 +587,7 @@ ast_element_impl!(
         dot(): Dot => Dot => Dot,
         double_quote(): DoubleQuote => DoubleQuote => DoubleQuote,
         else_keyword(): ElseKeyword => ElseKeyword => ElseKeyword,
+        env_keyword(): EnvKeyword => EnvKeyword => EnvKeyword,
         equal(): Equal => Equal => Equal,
         exclaimation(): Exclamation => Exclamation => Exclamation,
         exponentiation(): Exponentiation => Exponentiation => Exponentiation,

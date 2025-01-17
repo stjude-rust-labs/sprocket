@@ -3,10 +3,10 @@
 use rowan::ast::AstChildren;
 use rowan::ast::AstNode;
 use rowan::ast::support::children;
-use wdl_grammar::ToSpan;
 use wdl_grammar::lexer::v1::EscapeToken;
 use wdl_grammar::lexer::v1::Logos;
 
+use crate::AstNodeExt;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
@@ -190,8 +190,8 @@ impl Visitor for LiteralTextVisitor {
         if let Some(first) = placeholders.next() {
             for additional in placeholders {
                 state.add(multiple_placeholder_options(
-                    first.syntax().text_range().to_span(),
-                    additional.syntax().text_range().to_span(),
+                    first.span(),
+                    additional.span(),
                 ));
             }
         }

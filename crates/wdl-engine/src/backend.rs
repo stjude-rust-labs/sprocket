@@ -103,6 +103,7 @@ pub trait TaskExecution: Send {
         command: &str,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
+        env: &[(String, String)],
     ) -> Result<BoxFuture<'static, Result<i32>>>;
 }
 
