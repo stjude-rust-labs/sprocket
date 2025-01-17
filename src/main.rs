@@ -24,7 +24,7 @@ enum Commands {
     /// Lints Workflow Description Language files.
     Lint(commands::check::LintArgs),
 
-    /// Explains a lint warning.
+    /// Explains a rule.
     Explain(commands::explain::Args),
 
     /// Runs the analyzer LSP server.
@@ -33,6 +33,16 @@ enum Commands {
     /// Formats a WDL document.
     #[clap(alias = "fmt")]
     Format(commands::format::FormatArgs),
+
+    /// Validates an input JSON file against a task or workflow input schema.
+    ///
+    /// This ensures that every required input is supplied, every supplied input
+    /// is correctly typed, that no extraneous inputs are provided, and that any
+    /// provided `File` or `Directory` inputs exist.
+    ///
+    /// It will not catch potential runtime errors that
+    /// may occur when running the task or workflow.
+    ValidateInputs(commands::validate::ValidateInputsArgs),
 }
 
 #[derive(Parser)]
@@ -63,6 +73,7 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
         Commands::Format(args) => commands::format::format(args),
+        Commands::ValidateInputs(args) => commands::validate::validate_inputs(args).await,
     }
 }
 

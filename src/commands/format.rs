@@ -3,7 +3,6 @@
 use std::ffi::OsStr;
 use std::fs;
 use std::io::Read;
-use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -12,8 +11,6 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
-use codespan_reporting::files::SimpleFile;
-use codespan_reporting::term::emit;
 use colored::Colorize;
 use pretty_assertions::StrComparison;
 use walkdir::WalkDir;
@@ -23,19 +20,11 @@ use wdl::format::Config;
 use wdl::format::Formatter;
 use wdl::format::config::Builder;
 use wdl::format::config::Indent;
+use wdl::format::config::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
 
-use super::Mode;
-use crate::commands::get_display_config;
-
-/// The maximum acceptable indentation size.
-const MAX_INDENT_SIZE: usize = 16;
-
-/// The default number of tabs to use for indentation.
-const DEFAULT_TAB_INDENT_SIZE: usize = 1;
-
-/// The default number of spaces to use for indentation.
-const DEFAULT_SPACE_IDENT_SIZE: usize = 4;
+use crate::Mode;
+use crate::emit_diagnostics;
 
 /// Arguments for the `format` subcommand.
 #[derive(Parser, Debug)]
@@ -49,8 +38,8 @@ const DEFAULT_SPACE_IDENT_SIZE: usize = 4;
                   formatted and print the diff if not."
 )]
 pub struct FormatArgs {
-    /// The path to the WDL document to format (`-` for STDIN); the path may be
-    /// a directory when `--overwrite` is specified.
+    /// The path to the WDL document or a directory containing WDL documents to
+    /// format or check (`-` for STDIN).
     #[arg(value_name = "PATH")]
     pub path: PathBuf,
 
@@ -66,10 +55,13 @@ pub struct FormatArgs {
     #[arg(long)]
     pub with_tabs: bool,
 
-    /// The number of characters to use for indentation levels (defaults to 4
-    /// for spaces and 1 for tabs).
-    #[arg(long, value_name = "SIZE")]
+    /// The number of spaces to use for indentation levels (default is 4).
+    #[arg(long, value_name = "SIZE", conflicts_with = "with_tabs")]
     pub indentation_size: Option<usize>,
+
+    /// The maximum line length (default is 90).
+    #[arg(long, value_name = "LENGTH")]
+    pub max_line_length: Option<usize>,
 
     /// Argument group defining the mode of behavior
     #[command(flatten)]
@@ -134,17 +126,20 @@ fn format_document(
             },
             path = path.display()
         );
+    } else if !check_only {
+        bail!("cannot overwrite STDIN");
     }
 
     let source = read_source(path)?;
     let (document, diagnostics) = Document::parse(&source);
     if !diagnostics.is_empty() {
-        let (config, mut stream) = get_display_config(report_mode, no_color);
-        let file = SimpleFile::new(path.to_string_lossy(), source);
-        for diagnostic in diagnostics.iter() {
-            emit(&mut stream, &config, &file, &diagnostic.to_codespan())
-                .context("failed to emit diagnostic")?;
-        }
+        emit_diagnostics(
+            &diagnostics,
+            &path.to_string_lossy(),
+            &source,
+            report_mode,
+            no_color,
+        );
 
         return Ok(diagnostics.len());
     }
@@ -178,23 +173,21 @@ fn format_document(
 
 /// Runs the `format` command.
 pub fn format(args: FormatArgs) -> Result<()> {
-    let indentation_size = NonZeroUsize::new(args.indentation_size.unwrap_or(if args.with_tabs {
-        DEFAULT_TAB_INDENT_SIZE
-    } else {
-        DEFAULT_SPACE_IDENT_SIZE
-    }))
-    .ok_or_else(|| anyhow!("indentation size must be a value greater than zero"))?;
-    if indentation_size.get() > MAX_INDENT_SIZE {
-        bail!("indentation size cannot be greater than {MAX_INDENT_SIZE}");
-    }
-
+    let indent = match Indent::try_new(args.with_tabs, args.indentation_size) {
+        Ok(indent) => indent,
+        Err(e) => bail!("failed to create indentation configuration: {}", e),
+    };
+    let max_line_length = match args.max_line_length {
+        Some(length) => match MaxLineLength::try_new(length) {
+            Ok(max_line_length) => max_line_length,
+            Err(e) => bail!("failed to create max line length configuration: {}", e),
+        },
+        None => MaxLineLength::default(),
+    };
     let config = Builder::default()
-        .indent(if args.with_tabs {
-            Indent::Tabs(indentation_size)
-        } else {
-            Indent::Spaces(indentation_size)
-        })
-        .try_build()?;
+        .indent(indent)
+        .max_line_length(max_line_length)
+        .build();
 
     let mut diagnostics = 0;
     if args.path.to_str() != Some("-") && args.path.is_dir() {

@@ -1,40 +1,30 @@
 //! Implementation of the check and lint commands.
 
-use std::borrow::Cow;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
+use std::fs;
 
 use anyhow::Context;
 use anyhow::bail;
 use clap::Parser;
-use codespan_reporting::files::SimpleFile;
-use codespan_reporting::term::emit;
-use indicatif::ProgressBar;
-use indicatif::ProgressStyle;
-use wdl::analysis::Analyzer;
-use wdl::analysis::rules;
+use url::Url;
 use wdl::ast::Diagnostic;
 use wdl::ast::Severity;
-use wdl::ast::SyntaxNode;
-use wdl::ast::Validator;
-use wdl::lint::LintVisitor;
+use wdl::cli::analyze;
 
-use super::Mode;
-use super::get_display_config;
+use crate::Mode;
+use crate::emit_diagnostics;
 
-/// The delay in showing the progress bar.
-const PROGRESS_BAR_DELAY: Duration = Duration::from_secs(2);
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Common {
-    /// The files or directories to check.
+    /// The file, URL, or directory to check.
     #[arg(required = true)]
-    pub paths: Vec<PathBuf>,
+    #[clap(value_name = "PATH or URL")]
+    pub file: String,
 
-    /// A single rule ID to except from running. Can be specified multiple
-    /// times.
+    /// A single rule ID to except from running.
+    ///
+    /// Can be specified multiple times.
     #[arg(short, long, value_name = "RULE")]
     pub except: Vec<String>,
 
@@ -45,6 +35,28 @@ pub struct Common {
     /// Causes the command to fail if notes were reported.
     #[clap(long)]
     pub deny_notes: bool,
+
+    /// Only display diagnostics for local files.
+    ///
+    /// This is useful when you want to ignore diagnostics for remote imports.
+    /// If specified with a remote file, an error will be raised.
+    #[arg(long)]
+    pub local_only: bool,
+
+    /// Supress diagnostics from imported documents.
+    ///
+    /// This will only display diagnostics for the document specified by `file`.
+    /// If specified with a directory, an error will be raised.
+    #[arg(long)]
+    pub single_document: bool,
+
+    /// Run the `shellcheck` program on command sections.
+    ///
+    /// Requires linting to be enabled. This feature is experimental.
+    /// False positives may be reported.
+    /// If `shellcheck` is not installed, an error will be raised.
+    #[arg(long)]
+    pub shellcheck: bool,
 
     /// Disables color output.
     #[arg(long)]
@@ -79,120 +91,106 @@ pub struct LintArgs {
 
 /// Checks WDL source files for diagnostics.
 pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
-    if !args.lint && !args.common.except.is_empty() {
-        bail!("cannot specify `--except` without `--lint`");
+    if args.common.shellcheck && !args.lint {
+        bail!("`--shellcheck` requires `--lint` to be enabled");
     }
 
-    let (config, mut stream) = get_display_config(args.common.report_mode, args.common.no_color);
-    let exceptions = Arc::new(args.common.except);
-    let excepts = exceptions.clone();
-    let rules = rules()
-        .into_iter()
-        .filter(|r| !excepts.iter().any(|e| e == r.id()));
+    let exceptions = args.common.except;
     let lint = args.lint;
-    let analyzer = Analyzer::new_with_validator(
-        rules,
-        move |bar: ProgressBar, kind, completed, total| async move {
-            if bar.elapsed() < PROGRESS_BAR_DELAY {
-                return;
-            }
+    let shellcheck = args.common.shellcheck;
 
-            if completed == 0 || bar.length() == Some(0) {
-                bar.set_length(total.try_into().unwrap());
-                bar.set_message(format!("{kind}"));
-            }
+    let file = args.common.file;
+    if Url::parse(&file).is_ok() && args.common.local_only {
+        bail!(
+            "`--local-only` was specified, but `{file}` is a remote URL",
+            file = file
+        );
+    }
+    if fs::metadata(&file)
+        .with_context(|| format!("failed to read metadata for file `{file}`"))?
+        .is_dir()
+        && args.common.single_document
+    {
+        bail!(
+            "`--single-document` was specified, but `{file}` is a directory",
+            file = file
+        );
+    }
 
-            bar.set_position(completed.try_into().unwrap());
-        },
-        move || {
-            let mut validator = Validator::empty();
-
-            if lint {
-                let visitor = LintVisitor::new(wdl::lint::rules().into_iter().filter_map(|rule| {
-                    if exceptions.iter().any(|e| e == rule.id()) {
-                        None
-                    } else {
-                        Some(rule)
-                    }
-                }));
-                validator.add_visitor(visitor);
-            }
-
-            validator
-        },
-    );
-
-    analyzer.add_documents(args.common.paths).await?;
-
-    let bar = ProgressBar::new(0);
-    bar.set_style(
-        ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {msg} {pos}/{len}")
-            .unwrap(),
-    );
-
-    let results = analyzer
-        .analyze(bar.clone())
-        .await
-        .context("failed to analyze documents")?;
-
-    // Drop (hide) the progress bar before emitting any diagnostics
-    drop(bar);
+    let results = analyze(&file, exceptions, lint, shellcheck).await?;
 
     let cwd = std::env::current_dir().ok();
     let mut error_count = 0;
     let mut warning_count = 0;
     let mut note_count = 0;
     for result in &results {
-        let path = result.uri().to_file_path().ok();
-
         // Attempt to strip the CWD from the result path
-        let path = match (&cwd, &path) {
-            // Only display diagnostics for local files.
-            (_, None) => continue,
-            // Use just the path if there's no CWD
-            (None, Some(path)) => path.to_string_lossy(),
-            // Strip the CWD from the path
-            (Some(cwd), Some(path)) => path.strip_prefix(cwd).unwrap_or(path).to_string_lossy(),
+        let uri = result.document().uri();
+        if args.common.single_document && !uri.as_str().contains(&file) {
+            continue;
+        }
+        let scheme = uri.scheme();
+        let uri = match (cwd.clone(), scheme) {
+            (Some(cwd), "file") => uri
+                .to_string()
+                .strip_prefix(cwd.to_str().unwrap())
+                .unwrap_or(
+                    uri.to_file_path()
+                        .expect("failed to convert file URI to file path")
+                        .to_string_lossy()
+                        .as_ref(),
+                )
+                .to_string(),
+            (_, "file") => uri
+                .to_file_path()
+                .expect("failed to convert file URI to file path")
+                .to_string_lossy()
+                .to_string(),
+            _ => {
+                if args.common.local_only {
+                    continue;
+                }
+                uri.to_string()
+            }
         };
 
-        let diagnostics: Cow<'_, [Diagnostic]> = match result.parse_result().error() {
-            Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
-            None => result.diagnostics().into(),
+        let diagnostics = match result.error() {
+            Some(e) => &[Diagnostic::error(format!("failed to read `{uri}`: {e:#}"))],
+            None => result.document().diagnostics(),
         };
 
         if !diagnostics.is_empty() {
-            let source = result
-                .parse_result()
-                .root()
-                .map(|n| SyntaxNode::new_root(n.clone()).text().to_string())
-                .unwrap_or(String::new());
-            let file = SimpleFile::new(path, source);
+            emit_diagnostics(
+                diagnostics,
+                &uri,
+                &result.document().node().syntax().text().to_string(),
+                args.common.report_mode,
+                args.common.no_color,
+            );
+
             for diagnostic in diagnostics.iter() {
                 match diagnostic.severity() {
                     Severity::Error => error_count += 1,
                     Severity::Warning => warning_count += 1,
                     Severity::Note => note_count += 1,
                 }
-
-                emit(&mut stream, &config, &file, &diagnostic.to_codespan())
-                    .context("failed to emit diagnostic")?;
             }
         }
     }
 
     if error_count > 0 {
         bail!(
-            "aborting due to previous {error_count} error{s}",
+            "failing due to {error_count} error{s}",
             s = if error_count == 1 { "" } else { "s" }
         );
     } else if args.common.deny_warnings && warning_count > 0 {
         bail!(
-            "aborting due to previous {warning_count} warning{s} (`--deny-warnings` was specified)",
+            "failing due to {warning_count} warning{s} (`--deny-warnings` was specified)",
             s = if warning_count == 1 { "" } else { "s" }
         );
     } else if args.common.deny_notes && note_count > 0 {
         bail!(
-            "aborting due to previous {note_count} note{s} (`--deny-notes` was specified)",
+            "failing due to {note_count} note{s} (`--deny-notes` was specified)",
             s = if note_count == 1 { "" } else { "s" }
         );
     }
