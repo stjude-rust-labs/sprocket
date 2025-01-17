@@ -13,7 +13,7 @@ export default defineConfig({
     nav: [
       { text: "Documentation", link: "/overview" },
       {
-        text: "v0.9.0",
+        text: "v0.10.0",
         items: [
           {
             text: "Changelog",

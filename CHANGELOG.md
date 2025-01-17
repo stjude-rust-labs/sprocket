@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.10.0 - 01-17-2025
+
+### Added
+
+* Added `--local-only` and `--single-document` args to `check/lint` ([#48](https://github.com/stjude-rust-labs/sprocket/pull/48)).
+* Added a `validate-inputs` command. ([#48](https://github.com/stjude-rust-labs/sprocket/pull/48)).
+
 ### Changed
 
 * `format` now requires one of the `--check` or `--overwrite` arguments ([#51](https://github.com/stjude-rust-labs/sprocket/pull/51)).
@@ -14,11 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checking/linting remote URLs and other features and improvements ([#48](https://github.com/stjude-rust-labs/sprocket/pull/48)).
 * Only allow one `file` argument to `check/lint` instead of any number of local files and directories
   ([#48](https://github.com/stjude-rust-labs/sprocket/pull/48)).
-
-### Added
-
-* Added `--local-only` and `--single-document` args to `check/lint` ([#48](https://github.com/stjude-rust-labs/sprocket/pull/48)).
-* Added a `validate-inputs` command. ([#48](https://github.com/stjude-rust-labs/sprocket/pull/48)).
 
 ## 0.9.0 - 10-22-2024
 
