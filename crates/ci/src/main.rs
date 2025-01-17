@@ -327,10 +327,8 @@ fn bump(version: &str, patch_bump: bool) -> String {
     }
     if major != 0 {
         format!("{}.0.0", major + 1)
-    } else if minor != 0 {
-        format!("0.{}.0", minor + 1)
     } else {
-        format!("0.0.{}", patch + 1)
+        format!("0.{}.0", minor + 1)
     }
 }
 
