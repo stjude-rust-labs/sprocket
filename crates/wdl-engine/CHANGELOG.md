@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.1.0 - 01-17-2025
+
 ### Fixed
 
 * Limited the local task executor to a maximum level of concurrency ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.1.0 - 01-17-2025
+
 ### Added
 
 * `wdl-doc` crate for documenting WDL codebases ([#258](https://github.com/stjude-rust-labs/wdl/pull/248)).

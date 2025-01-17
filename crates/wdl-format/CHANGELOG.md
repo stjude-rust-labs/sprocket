@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.4.0 - 01-17-2025
+
 ### Added
 
 * Leading whitespace in command text is now normalized ([#240](https://github.com/stjude-rust-labs/wdl/pull/240)).
