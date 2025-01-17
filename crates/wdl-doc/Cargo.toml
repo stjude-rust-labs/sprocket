@@ -1,6 +1,7 @@
 [package]
 name = "wdl-doc"
 version = "0.1.0"
+description = "Documentation generator for Workflow Description Language (WDL) documents."
 license.workspace = true
 edition.workspace = true
 authors.workspace = true
