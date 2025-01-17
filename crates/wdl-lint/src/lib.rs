@@ -33,6 +33,7 @@ use wdl_ast::Diagnostics;
 use wdl_ast::SyntaxKind;
 use wdl_ast::Visitor;
 
+pub(crate) mod fix;
 pub mod rules;
 mod tags;
 pub(crate) mod util;

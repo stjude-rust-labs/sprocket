@@ -152,3 +152,23 @@ task test5 {
 
     runtime {}
 }
+
+task test6 {
+    meta {}
+
+    parameter_meta {}
+
+    input {
+      Int placeholder
+    }
+
+    command <<<
+      version=`uname -r`
+
+      cd "DIR"
+    >>>
+
+    output {}
+
+    runtime {}
+}

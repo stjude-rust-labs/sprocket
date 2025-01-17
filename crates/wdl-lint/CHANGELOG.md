@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Added
 
+* Improved `ShellCheck` rule fix messages and implemented the `fix` module ([#284](https://github.com/stjude-rust-labs/wdl/pull/284))
 * Added a `ShellCheck` rule ([#264](https://github.com/stjude-rust-labs/wdl/pull/264)).
 * Added a `RedundantInputAssignment` rule ([#244](https://github.com/stjude-rust-labs/wdl/pull/244)).
 

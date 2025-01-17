@@ -7,7 +7,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
    │                      more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line17"`?
 
 note[ShellCheck]: line17 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:17:22
@@ -29,7 +29,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
    │                                     more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line18"`?
 
 note[ShellCheck]: line18 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:18:37
@@ -51,7 +51,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                                    SC2086[info]: Double quote to prevent globbing and word splitting.
    │                                    more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line19"`?
 
 note[ShellCheck]: line19 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:19:36
@@ -73,7 +73,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
    │                      more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line30"`?
 
 note[ShellCheck]: line30 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:30:22
@@ -95,7 +95,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                           SC2086[info]: Double quote to prevent globbing and word splitting.
    │                           more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line31"`?
 
 note[ShellCheck]: line31 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:31:27
@@ -117,7 +117,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
    │                      more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line49"`?
 
 note[ShellCheck]: line49 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:49:22
@@ -139,7 +139,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
    │                                     more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line50"`?
 
 note[ShellCheck]: line50 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:50:37
@@ -161,7 +161,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                                    SC2086[info]: Double quote to prevent globbing and word splitting.
    │                                    more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line51"`?
 
 note[ShellCheck]: line51 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:51:36
@@ -183,7 +183,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
    │                      more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line52"`?
 
 note[ShellCheck]: line52 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:52:22
@@ -205,7 +205,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                           SC2086[info]: Double quote to prevent globbing and word splitting.
    │                           more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$bad_test"`?
 
 note[ShellCheck]: bad_test is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:53:27
@@ -227,7 +227,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                           SC2086[info]: Double quote to prevent globbing and word splitting.
    │                           more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$trailing_space"`?
 
 note[ShellCheck]: trailing_space is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:54:27
@@ -249,7 +249,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
    │                      more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line72"`?
 
 note[ShellCheck]: line72 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:72:22
@@ -271,7 +271,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
    │                                     more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line73"`?
 
 note[ShellCheck]: line73 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:73:37
@@ -293,7 +293,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                                    SC2086[info]: Double quote to prevent globbing and word splitting.
    │                                    more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line74"`?
 
 note[ShellCheck]: line74 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:74:36
@@ -315,7 +315,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
    │                      more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line75"`?
 
 note[ShellCheck]: line75 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:75:22
@@ -337,7 +337,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
    │                      more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line76_trailing_pholder"`?
 
 note[ShellCheck]: line76_trailing_pholder is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:76:22
@@ -359,7 +359,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
    │                                     more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$leading_pholder"`?
 
 note[ShellCheck]: leading_pholder is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:77:37
@@ -381,7 +381,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
    │                      more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line96"`?
 
 note[ShellCheck]: line96 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:96:22
@@ -403,7 +403,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
    │                                     more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line97"`?
 
 note[ShellCheck]: line97 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:97:37
@@ -425,7 +425,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                                    SC2086[info]: Double quote to prevent globbing and word splitting.
    │                                    more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line98"`?
 
 note[ShellCheck]: line98 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:98:36
@@ -447,7 +447,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
    │                      SC2086[info]: Double quote to prevent globbing and word splitting.
    │                      more info: https://www.shellcheck.net/wiki/SC2086
    │
-   = fix: address the diagnostic as recommended in the message
+   = fix: did you mean `"$line99"`?
 
 note[ShellCheck]: line99 is referenced but not assigned.
    ┌─ tests/lints/shellcheck-warn/source.wdl:99:22
@@ -469,7 +469,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                      SC2086[info]: Double quote to prevent globbing and word splitting.
     │                      more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$line100_trailing_pholder"`?
 
 note[ShellCheck]: line100_trailing_pholder is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:100:22
@@ -491,7 +491,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
     │                                     more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$leading_pholder"`?
 
 note[ShellCheck]: leading_pholder is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:101:37
@@ -513,7 +513,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                                  SC2086[info]: Double quote to prevent globbing and word splitting.
     │                                  more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$firstlinelint"`?
 
 note[ShellCheck]: firstlinelint is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:118:34
@@ -535,7 +535,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                      SC2086[info]: Double quote to prevent globbing and word splitting.
     │                      more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$line120"`?
 
 note[ShellCheck]: line120 is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:120:22
@@ -557,7 +557,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
     │                                     more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$line121"`?
 
 note[ShellCheck]: line121 is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:121:37
@@ -579,7 +579,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                                    SC2086[info]: Double quote to prevent globbing and word splitting.
     │                                    more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$line122"`?
 
 note[ShellCheck]: line122 is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:122:36
@@ -601,7 +601,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                      SC2086[info]: Double quote to prevent globbing and word splitting.
     │                      more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$line123"`?
 
 note[ShellCheck]: line123 is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:123:22
@@ -623,7 +623,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                      SC2086[info]: Double quote to prevent globbing and word splitting.
     │                      more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$line124_trailing_pholder"`?
 
 note[ShellCheck]: line124_trailing_pholder is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:124:22
@@ -645,7 +645,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                                     SC2086[info]: Double quote to prevent globbing and word splitting.
     │                                     more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$leading_pholder"`?
 
 note[ShellCheck]: leading_pholder is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:126:37
@@ -733,7 +733,7 @@ note[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                        SC2086[info]: Double quote to prevent globbing and word splitting.
     │                        more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$lint146"`?
 
 note[ShellCheck]: lint146 is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:146:24
@@ -745,4 +745,37 @@ note[ShellCheck]: lint146 is referenced but not assigned.
     │                        more info: https://www.shellcheck.net/wiki/SC2154
     │
     = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: version appears unused. Verify use (or export if used externally).
+    ┌─ tests/lints/shellcheck-warn/source.wdl:166:7
+    │
+166 │       version=`uname -r`
+    │       ^^^^^^^
+    │       │
+    │       SC2034[warning]: version appears unused. Verify use (or export if used externally).
+    │       more info: https://www.shellcheck.net/wiki/SC2034
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Use $(...) notation instead of legacy backticks `...`.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:166:15
+    │
+166 │       version=`uname -r`
+    │               ^^^^^^^^^^
+    │               │
+    │               SC2006[style]: Use $(...) notation instead of legacy backticks `...`.
+    │               more info: https://www.shellcheck.net/wiki/SC2006
+    │
+    = fix: did you mean `$(uname -r)`?
+
+note[ShellCheck]: Use 'cd ... || exit' or 'cd ... || return' in case cd fails.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:168:7
+    │
+168 │       cd "DIR"
+    │       ^^^^^^^^
+    │       │
+    │       SC2164[warning]: Use 'cd ... || exit' or 'cd ... || return' in case cd fails.
+    │       more info: https://www.shellcheck.net/wiki/SC2164
+    │
+    = fix: did you mean `cd "DIR" || exit`?
 
