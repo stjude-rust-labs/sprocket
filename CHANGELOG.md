@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+* Added a `Dockerfile` and automation to release Docker images with each Sprocket version ([#56](https://github.com/stjude-rust-labs/sprocket/pull/56)).
+
 ## 0.10.0 - 01-17-2025
 
 ### Added
