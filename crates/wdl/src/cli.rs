@@ -109,38 +109,51 @@ pub async fn analyze(
 
     let results = analyzer.analyze(bar.clone()).await?;
 
-    anyhow::Ok(results)
+    Ok(results)
 }
 
 /// Parses the inputs for a task or workflow.
+///
+/// Returns the absolute path to the inputs file (if a path was provided), the
+/// name of the workflow or task referenced by the inputs, and the inputs to the
+/// workflow or task.
 pub fn parse_inputs(
     document: &Document,
     name: Option<&str>,
     inputs: Option<&Path>,
 ) -> Result<(Option<PathBuf>, String, Inputs)> {
-    let (path, name, inputs) = if let Some(path) = inputs {
-        let abs_path = absolute(path).with_context(|| {
-            format!(
-                "failed to determine the absolute path of `{path}`",
-                path = path.display()
-            )
-        })?;
-        match Inputs::parse(document, &abs_path)? {
-            Some((name, inputs)) => (Some(path.to_path_buf()), name, inputs),
+    if let Some(path) = inputs {
+        // If a inputs file path was provided, parse the inputs from the file
+        match Inputs::parse(document, path)? {
+            Some((name, inputs)) => {
+                // Make the inputs file path absolute so that we treat any file/directory inputs
+                // in the file as relative to the inputs file itself
+                let path = absolute(path).with_context(|| {
+                    format!(
+                        "failed to determine the absolute path of `{path}`",
+                        path = path.display()
+                    )
+                })?;
+                Ok((Some(path), name, inputs))
+            }
             None => bail!("inputs file `{path}` is empty", path = path.display()),
         }
     } else if let Some(name) = name {
+        // Otherwise, if a name was provided, look for a task or workflow with that
+        // name
         if document.task_by_name(name).is_some() {
-            (None, name.to_string(), Inputs::Task(Default::default()))
+            Ok((None, name.to_string(), Inputs::Task(Default::default())))
         } else if document.workflow().is_some() {
             if name != document.workflow().unwrap().name() {
                 bail!("document does not contain a workflow named `{name}`");
             }
-            (None, name.to_string(), Inputs::Workflow(Default::default()))
+            Ok((None, name.to_string(), Inputs::Workflow(Default::default())))
         } else {
             bail!("document does not contain a task or workflow named `{name}`");
         }
     } else {
+        // Neither a inputs file or name was provided, look for a single task or
+        // workflow in the document
         let mut iter = document.tasks();
         let (name, inputs) = iter
             .next()
@@ -156,10 +169,8 @@ pub fn parse_inputs(
             bail!("inputs file is empty and the WDL document contains more than one task");
         }
 
-        (None, name, inputs)
-    };
-
-    anyhow::Ok((path, name, inputs))
+        Ok((None, name, inputs))
+    }
 }
 
 /// Validates the inputs for a task or workflow.
@@ -186,7 +197,7 @@ pub async fn validate_inputs(document: &str, inputs: &Path) -> Result<Option<Dia
         }
     }
 
-    anyhow::Ok(None)
+    Ok(None)
 }
 
 /// Run a WDL task or workflow.

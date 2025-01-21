@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed `wdl run` not correctly updating file/directory paths in an inputs file ([#302](https://github.com/stjude-rust-labs/wdl/pull/302)).
+
 ## 0.11.0 - 01-17-2025
 
 ### Added
