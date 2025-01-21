@@ -1,4 +1,5 @@
-//! Implementation of analysis rule configuration.
+//! Implementation of analysis rules.
+#![doc = include_str!("../RULES.md")]
 
 use wdl_ast::Severity;
 
