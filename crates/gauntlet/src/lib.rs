@@ -86,7 +86,7 @@ pub struct Args {
     #[arg(short, long = "filter")]
     pub filters: Vec<String>,
 
-    /// Enables logging for all modules (not just `wdl-gauntlet`).
+    /// Enables logging for all modules (not just `gauntlet`).
     #[arg(short, long)]
     pub log_all_modules: bool,
 
