@@ -2,7 +2,6 @@ FROM rust:1.82 AS builder
 
 WORKDIR /tmp/sprocket
 
-COPY .git/ .git/
 COPY Cargo.lock Cargo.toml ./
 COPY src/ src/
 
@@ -14,5 +13,5 @@ COPY --from=builder /tmp/sprocket/target/release/sprocket /opt/sprocket/bin/spro
 
 ENV PATH=/opt/sprocket/bin:$PATH
 
-ENTRYPOINT ["/opt/sprocket/bin/sprocket"]
+ENTRYPOINT ["sprocket"]
 CMD ["--help"]
