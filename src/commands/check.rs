@@ -100,17 +100,17 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let shellcheck = args.common.shellcheck;
 
     let file = args.common.file;
-    if Url::parse(&file).is_ok() && args.common.local_only {
+    if args.common.local_only && Url::parse(&file).is_ok() {
         bail!(
             "`--local-only` was specified, but `{file}` is a remote URL",
             file = file
         );
     }
-    if fs::metadata(&file)
-        .with_context(|| format!("failed to read metadata for file `{file}`"))
-        .map(|m| m.is_dir())
-        .unwrap_or_else(|_| false)
-        && args.common.single_document
+    if args.common.single_document
+        && fs::metadata(&file)
+            .with_context(|| format!("failed to read metadata for file `{file}`"))
+            .map(|m| m.is_dir())
+            .unwrap_or_else(|_| false)
     {
         bail!(
             "`--single-document` was specified, but `{file}` is a directory",
