@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added progress callback to `WorkflowEvaluator` ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
+
 ## 0.1.0 - 01-17-2025
 
 ### Fixed

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added executing task information to the `wdl run` progress bar ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
+
+### Changed
+
+* `wdl` run now prefers running the workflow in a document containing a single
+  workflow and a single task ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
+* Changed the default log level of the `wdl` binary from `error` to `warn` ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
+
 ### Fixed
 
 * Fixed `wdl run` not correctly updating file/directory paths in an inputs file ([#302](https://github.com/stjude-rust-labs/wdl/pull/302)).

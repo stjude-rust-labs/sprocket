@@ -17,6 +17,7 @@ use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
 use clap_verbosity_flag::Verbosity;
+use clap_verbosity_flag::WarnLevel;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::Config;
 use codespan_reporting::term::emit;
@@ -408,7 +409,7 @@ struct App {
 
     /// The verbosity flags.
     #[command(flatten)]
-    verbose: Verbosity,
+    verbose: Verbosity<WarnLevel>,
 }
 
 #[derive(Subcommand)]

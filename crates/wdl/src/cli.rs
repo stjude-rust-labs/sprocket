@@ -1,9 +1,9 @@
 //! Entry point functions for the command-line interface.
 
+use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -11,7 +11,9 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use colored::Colorize;
+use indexmap::IndexSet;
 use indicatif::ProgressBar;
+use indicatif::ProgressDrawTarget;
 use indicatif::ProgressStyle;
 use serde_json::to_string_pretty;
 use tokio::fs;
@@ -22,9 +24,11 @@ use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::document::Document;
 use wdl_analysis::path_to_uri;
 use wdl_analysis::rules as analysis_rules;
+use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::Inputs;
 use wdl_engine::local::LocalTaskExecutionBackend;
+use wdl_engine::v1::ProgressKind;
 use wdl_engine::v1::TaskEvaluator;
 use wdl_engine::v1::WorkflowEvaluator;
 use wdl_grammar::Diagnostic;
@@ -100,6 +104,7 @@ pub async fn analyze(
     }
 
     let bar = ProgressBar::new(0);
+    bar.set_draw_target(ProgressDrawTarget::stdout());
     bar.set_style(
         ProgressStyle::with_template(
             "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}",
@@ -152,22 +157,26 @@ pub fn parse_inputs(
             bail!("document does not contain a task or workflow named `{name}`");
         }
     } else {
-        // Neither a inputs file or name was provided, look for a single task or
-        // workflow in the document
-        let mut iter = document.tasks();
-        let (name, inputs) = iter
-            .next()
-            .map(|t| (t.name().to_string(), Inputs::Task(Default::default())))
-            .or_else(|| {
-                document
-                    .workflow()
-                    .map(|w| (w.name().to_string(), Inputs::Workflow(Default::default())))
-            })
-            .context("inputs file is empty and the WDL document contains no tasks or workflow")?;
+        // Neither an inputs file or name was provided, look for a workflow in the
+        // document; failing that, find at most one task in the document
+        let (name, inputs) = document
+            .workflow()
+            .map(|w| Ok((w.name().to_string(), Inputs::Workflow(Default::default()))))
+            .unwrap_or_else(|| {
+                let mut iter = document.tasks();
+                let (name, inputs) = iter
+                    .next()
+                    .map(|t| (t.name().to_string(), Inputs::Task(Default::default())))
+                    .context(
+                        "inputs file is empty and the document contains no workflow or task",
+                    )?;
 
-        if iter.next().is_some() {
-            bail!("inputs file is empty and the WDL document contains more than one task");
-        }
+                if iter.next().is_some() {
+                    bail!("inputs file is empty and the document contains more than one task");
+                }
+
+                Ok((name, inputs))
+            })?;
 
         Ok((None, name, inputs))
     }
@@ -208,23 +217,53 @@ pub async fn run(
     inputs: Inputs,
     output_dir: &Path,
 ) -> Result<Option<Diagnostic>> {
+    /// Helper for displaying task ids
+    struct Ids<'a>(&'a IndexSet<String>);
+
+    impl fmt::Display for Ids<'_> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            /// The maximum number of executing task names to display at a time
+            const MAX_TASKS: usize = 10;
+
+            let mut first = true;
+            for (i, id) in self.0.iter().enumerate() {
+                if i == MAX_TASKS {
+                    write!(f, "...")?;
+                    break;
+                }
+
+                if first {
+                    first = false;
+                } else {
+                    write!(f, ", ")?;
+                }
+
+                write!(f, "{id}", id = id.magenta().bold())?;
+            }
+
+            Ok(())
+        }
+    }
+
+    let run_kind = match &inputs {
+        Inputs::Task(_) => "task",
+        Inputs::Workflow(_) => "workflow",
+    };
+
     let bar = ProgressBar::new_spinner();
-    bar.set_message(format!(
-        "{running} {kind} {name}",
-        running = "running".cyan(),
-        kind = match &inputs {
-            Inputs::Task(_) => "task",
-            Inputs::Workflow(_) => "workflow",
-        },
-        name = name.magenta().bold()
-    ));
+    bar.set_draw_target(ProgressDrawTarget::stdout());
     bar.enable_steady_tick(Duration::from_millis(100));
     bar.set_style(
-        ProgressStyle::with_template("[{elapsed_precise:.cyan/blue}] {spinner:.cyan/blue} {msg}")
-            .unwrap(),
+        ProgressStyle::with_template(&format!(
+            "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} {name}: \
+             {{wide_msg}}",
+            running = "running".cyan(),
+            name = name.magenta().bold()
+        ))
+        .unwrap(),
     );
 
-    match inputs {
+    let result = match inputs {
         Inputs::Task(mut inputs) => {
             // Make any paths specified in the inputs absolute
             let task = document
@@ -239,27 +278,10 @@ pub async fn run(
 
             let backend = LocalTaskExecutionBackend::new(None);
             let mut evaluator = TaskEvaluator::new(&backend);
-            match evaluator
+            evaluator
                 .evaluate(document, task, &inputs, output_dir, name)
                 .await
-            {
-                Ok(evaluated) => match evaluated.into_result() {
-                    Ok(outputs) => {
-                        drop(bar);
-                        let s = to_string_pretty(&outputs)?;
-                        println!("{s}\n");
-                        Ok(None)
-                    }
-                    Err(e) => match e {
-                        EvaluationError::Source(diagnostic) => Ok(Some(diagnostic)),
-                        EvaluationError::Other(e) => Err(e),
-                    },
-                },
-                Err(e) => match e {
-                    EvaluationError::Source(diagnostic) => Ok(Some(diagnostic)),
-                    EvaluationError::Other(e) => Err(e),
-                },
-            }
+                .and_then(EvaluatedTask::into_result)
         }
         Inputs::Workflow(mut inputs) => {
             let workflow = document
@@ -275,20 +297,48 @@ pub async fn run(
                 inputs.join_paths(workflow, path);
             }
 
-            let mut evaluator =
-                WorkflowEvaluator::new(Arc::new(LocalTaskExecutionBackend::new(None)));
-            match evaluator.evaluate(document, &inputs, output_dir).await {
-                Ok(outputs) => {
-                    drop(bar);
-                    let s = to_string_pretty(&outputs)?;
-                    println!("{s}\n");
-                    Ok(None)
+            let mut ids = IndexSet::new();
+            let mut completed = 0;
+            let mut executing = 0;
+            let backend = LocalTaskExecutionBackend::new(None);
+            let mut evaluator = WorkflowEvaluator::new(&backend, |kind| {
+                match kind {
+                    ProgressKind::TaskStarted(id) => {
+                        ids.insert(id.to_string());
+                        executing += 1;
+                    }
+                    ProgressKind::TaskCompleted(id) => {
+                        executing -= 1;
+                        completed += 1;
+                        ids.swap_remove(id);
+                    }
+                    _ => {}
                 }
-                Err(e) => match e {
-                    EvaluationError::Source(diagnostic) => Ok(Some(diagnostic)),
-                    EvaluationError::Other(e) => Err(e),
-                },
-            }
+
+                bar.set_message(format!(
+                    "{completed} {comp} task{s1} - {executing} {exec} task{s2}: {ids}",
+                    comp = "completed".cyan(),
+                    exec = "executing".cyan(),
+                    s1 = if completed == 1 { "" } else { "s" },
+                    s2 = if executing == 1 { "" } else { "s" },
+                    ids = Ids(&ids)
+                ));
+            });
+
+            evaluator.evaluate(document, &inputs, output_dir).await
         }
+    };
+
+    match result {
+        Ok(outputs) => {
+            drop(bar);
+            let s = to_string_pretty(&outputs)?;
+            println!("{s}");
+            Ok(None)
+        }
+        Err(e) => match e {
+            EvaluationError::Source(diagnostic) => Ok(Some(diagnostic)),
+            EvaluationError::Other(e) => Err(e),
+        },
     }
 }

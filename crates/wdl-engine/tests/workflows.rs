@@ -23,7 +23,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
 use std::process::exit;
-use std::sync::Arc;
 use std::thread::available_parallelism;
 
 use anyhow::Context;
@@ -182,8 +181,8 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
     inputs.join_paths(workflow, &test_dir);
 
     let dir = TempDir::new().context("failed to create temporary directory")?;
-    let backend = Arc::new(LocalTaskExecutionBackend::new(None));
-    let mut evaluator = WorkflowEvaluator::new(backend);
+    let backend = LocalTaskExecutionBackend::new(None);
+    let mut evaluator = WorkflowEvaluator::new(&backend, |_| {});
     match evaluator
         .evaluate(result.document(), &inputs, dir.path())
         .await
