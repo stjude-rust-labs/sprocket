@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-* Bug introduced inn [#59](https://github.com/stjude-rust-labs/sprocket/pull/59) which sometimes caused the exit message
+* Bug introduced in [#59](https://github.com/stjude-rust-labs/sprocket/pull/59) which sometimes caused the exit message
   to have an incorrect count of Notes and Warnings ([#61](https://github.com/stjude-rust-labs/sprocket/pull/61)).
 
 ## 0.10.1 - 01-23-2025
