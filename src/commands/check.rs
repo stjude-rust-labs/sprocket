@@ -161,24 +161,17 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         };
 
         if !diagnostics.is_empty() {
-            let diagnostics = if suppress {
+            emit_diagnostics(
                 diagnostics
                     .iter()
-                    .filter(|d| d.severity() == Severity::Error)
-                    .cloned()
-                    .collect()
-            } else {
-                diagnostics.to_vec()
-            };
-            emit_diagnostics(
-                &diagnostics,
+                    .filter(|d| !suppress || d.severity() == Severity::Error),
                 &uri,
                 &result.document().node().syntax().text().to_string(),
                 args.common.report_mode,
                 args.common.no_color,
             );
 
-            for diagnostic in diagnostics {
+            for diagnostic in diagnostics.iter() {
                 match diagnostic.severity() {
                     Severity::Error => error_count += 1,
                     Severity::Warning => warning_count += 1,
