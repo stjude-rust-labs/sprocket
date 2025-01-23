@@ -107,8 +107,9 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         );
     }
     if fs::metadata(&file)
-        .with_context(|| format!("failed to read metadata for file `{file}`"))?
-        .is_dir()
+        .with_context(|| format!("failed to read metadata for file `{file}`"))
+        .map(|m| m.is_dir())
+        .unwrap_or_else(|_| false)
         && args.common.single_document
     {
         bail!(
