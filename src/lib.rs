@@ -62,8 +62,8 @@ fn get_display_config(report_mode: Mode, no_color: bool) -> (Config, StandardStr
 }
 
 /// Emits the given diagnostics to the terminal.
-fn emit_diagnostics(
-    diagnostics: &[Diagnostic],
+fn emit_diagnostics<'a>(
+    diagnostics: impl IntoIterator<Item = &'a Diagnostic>,
     file_name: &str,
     source: &str,
     report_mode: Mode,

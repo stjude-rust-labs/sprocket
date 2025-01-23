@@ -160,29 +160,11 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             None => result.document().diagnostics(),
         };
 
-        // If any errors occurred but this document is meant to be suppressed, only
-        // display the errors.
-        if suppress {
-            let errors = diagnostics
-                .iter()
-                .filter(|d| d.severity() == Severity::Error)
-                .cloned()
-                .collect::<Vec<_>>();
-            if !errors.is_empty() {
-                emit_diagnostics(
-                    &errors,
-                    &uri,
-                    &result.document().node().syntax().text().to_string(),
-                    args.common.report_mode,
-                    args.common.no_color,
-                );
-            }
-            continue;
-        }
-
         if !diagnostics.is_empty() {
             emit_diagnostics(
-                diagnostics,
+                diagnostics
+                    .iter()
+                    .filter(|d| !suppress || d.severity() == Severity::Error),
                 &uri,
                 &result.document().node().syntax().text().to_string(),
                 args.common.report_mode,
