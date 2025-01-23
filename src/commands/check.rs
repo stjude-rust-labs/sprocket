@@ -174,8 +174,9 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             for diagnostic in diagnostics.iter() {
                 match diagnostic.severity() {
                     Severity::Error => error_count += 1,
-                    Severity::Warning => warning_count += 1,
-                    Severity::Note => note_count += 1,
+                    Severity::Warning if !suppress => warning_count += 1,
+                    Severity::Note if !suppress => note_count += 1,
+                    _ => {}
                 }
             }
         }
