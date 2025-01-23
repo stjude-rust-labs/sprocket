@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* By deafult, when checking a local file, suppress diagnostics from remote files. Added a `--show-remote-diagnostics`
+  flag to recreate the older behavior ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).
+* Always emit any diagnostics with a `Severity::Error` regardless of other CL options that might suppress the diagnostic
+  ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).
+
+### Fixed
+
+* Bug introduced inn [#59](https://github.com/stjude-rust-labs/sprocket/pull/59) which sometimes caused the exit message
+  to have an incorrect count of Notes and Warnings ([#61](https://github.com/stjude-rust-labs/sprocket/pull/61)).
+
+## 0.10.1 - 01-23-2025
+
+### Fixed
+
+* URLs can be checked/linted ([#58](https://github.com/stjude-rust-labs/sprocket/pull/58)). 
+
+### Added
+
 * Added a `Dockerfile` and automation to release Docker images with each Sprocket version ([#56](https://github.com/stjude-rust-labs/sprocket/pull/56)).
 
 ## 0.10.0 - 01-17-2025
@@ -59,52 +79,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `analyzer` subcommand to sprocket ([#9](https://github.com/stjude-rust-labs/sprocket/pull/9)).
-- Updated dependencies to latest ([#9](https://github.com/stjude-rust-labs/sprocket/pull/9)).
+* Added `analyzer` subcommand to sprocket ([#9](https://github.com/stjude-rust-labs/sprocket/pull/9)).
+* Updated dependencies to latest ([#9](https://github.com/stjude-rust-labs/sprocket/pull/9)).
 
 ### Changed
 
-- Update to version 0.7.0 of `wdl` crate. This pulls in many new lint rules.
+* Update to version 0.7.0 of `wdl` crate. This pulls in many new lint rules.
 
 ## 0.5.0 - 07-17-2024
 
 ### Changed
 
-- Update to version 0.6.0 of `wdl` crate.
+* Update to version 0.6.0 of `wdl` crate.
 
 ## 0.4.0 - 07-01-2024
 
 ### Added
 
-- `--except` arg to `check --lint` and `lint` subcommands.
+* `--except` arg to `check --lint` and `lint` subcommands.
 
 ### Changed
 
-- Update to version 0.5.0 of `wdl` crate. This enables lint directive comments (AKA `#@` comments) among other new features.
+* Update to version 0.5.0 of `wdl` crate. This enables lint directive comments (AKA `#@` comments) among other new features.
 
 ## 0.3.0 - 06-18-2024
 
 ### Added
 
-- `check` subcommand with `--lint` parameter
+* `check` subcommand with `--lint` parameter
 
 ### Changed
 
-- Update to version 0.4.0 of `wdl` crate. This features a new parser implementation
+* Update to version 0.4.0 of `wdl` crate. This features a new parser implementation
 
 ## 0.2.1 - 06-05-2024
 
 ### Fixed
 
-- exit code `2` if there are no parse errors or validation failures, but there are lint warnings.
-  - exit code `1` if there are parse errors or validation failures; exit code `0` means there were no concerns found at all.
+* exit code `2` if there are no parse errors or validation failures, but there are lint warnings.
+  * exit code `1` if there are parse errors or validation failures; exit code `0` means there were no concerns found at all.
 
 ## 0.2.0 - 06-03-2024
 
 ### Added
 
-- `explain` command
+* `explain` command
 
 ### Changed
 
-- Update to version 0.3.0 of `wdl` crate. This pulls in new lint rules.
+* Update to version 0.3.0 of `wdl` crate. This pulls in new lint rules.
