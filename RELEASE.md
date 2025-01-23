@@ -13,7 +13,7 @@ Once the above PR merges:
     ```
     git tag v{VERSION}
     ```
-    * where `{VERSION}` is new version being released
-* [ ] Push release: `git push --tags`.
+    * where `{VERSION}` is the new version being released
+* [ ] Push the tag: `git push --tags`.
 
 And the CI should handle the rest!
