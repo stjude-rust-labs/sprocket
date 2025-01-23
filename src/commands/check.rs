@@ -36,19 +36,20 @@ pub struct Common {
     #[clap(long)]
     pub deny_notes: bool,
 
-    /// Only display diagnostics for local files.
-    ///
-    /// This is useful when you want to ignore diagnostics for remote imports.
-    /// If specified with a remote file, an error will be raised.
-    #[arg(long)]
-    pub local_only: bool,
-
     /// Supress diagnostics from imported documents.
     ///
     /// This will only display diagnostics for the document specified by `file`.
     /// If specified with a directory, an error will be raised.
     #[arg(long)]
     pub single_document: bool,
+
+    /// Show diagnostics for remote documents.
+    ///
+    /// By default, when checking a local document remote diagnostics are
+    /// suppressed. This flag will show diagnostics for remote documents.
+    /// This flag has no effect when checking a remote document.
+    #[arg(long)]
+    pub show_remote_diagnostics: bool,
 
     /// Run the `shellcheck` program on command sections.
     ///
@@ -100,12 +101,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let shellcheck = args.common.shellcheck;
 
     let file = args.common.file;
-    if args.common.local_only && Url::parse(&file).is_ok() {
-        bail!(
-            "`--local-only` was specified, but `{file}` is a remote URL",
-            file = file
-        );
-    }
+
     if args.common.single_document
         && fs::metadata(&file)
             .with_context(|| format!("failed to read metadata for file `{file}`"))
@@ -118,6 +114,8 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         );
     }
 
+    let remote_file = Url::parse(&file).is_ok();
+
     let results = analyze(&file, exceptions, lint, shellcheck).await?;
 
     let cwd = std::env::current_dir().ok();
@@ -125,6 +123,8 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let mut warning_count = 0;
     let mut note_count = 0;
     for result in &results {
+        let mut suppress = false;
+
         // Attempt to strip the CWD from the result path
         let uri = result.document().uri();
         if args.common.single_document && !uri.as_str().contains(&file) {
@@ -148,8 +148,8 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                 .to_string_lossy()
                 .to_string(),
             _ => {
-                if args.common.local_only {
-                    continue;
+                if !remote_file && !args.common.show_remote_diagnostics {
+                    suppress = true;
                 }
                 uri.to_string()
             }
@@ -162,7 +162,9 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
 
         if !diagnostics.is_empty() {
             emit_diagnostics(
-                diagnostics,
+                diagnostics
+                    .iter()
+                    .filter(|d| !suppress || d.severity() == Severity::Error),
                 &uri,
                 &result.document().node().syntax().text().to_string(),
                 args.common.report_mode,
