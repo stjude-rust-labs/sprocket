@@ -61,4 +61,4 @@ Before submitting this PR, please make sure:
 END SECTION -->
 
 [conventional commit]: https://www.conventionalcommits.org/en/v1.0.0/#summary
-["keep a changelog"]: https://keepachangelog.com/en/1.0.0/
+["keep a changelog"]: https://keepachangelog.com/en/1.1.0/
