@@ -37,10 +37,10 @@ fn inline_preceding_whitespace(span: Span) -> Diagnostic {
 /// Creates a diagnostic when the comment token is not followed by a single
 /// space.
 fn following_whitespace(span: Span) -> Diagnostic {
-    Diagnostic::note("comment delimiter should be followed by a single space")
+    Diagnostic::note("comment delimiter should be followed by at least one space")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("add a single space after the comment delimiter")
+        .with_fix("add at least one space after the comment delimiter")
 }
 
 /// Creates a diagnostic when non-inline comment has insufficient indentation.
@@ -206,8 +206,6 @@ impl Visitor for CommentWhitespaceRule {
             comment_chars.next();
         }
 
-        let preamble = n_delimiter == 2;
-
         if let Some('@') = comment_chars.peek() {
             n_delimiter += 1;
             comment_chars.next();
@@ -215,9 +213,7 @@ impl Visitor for CommentWhitespaceRule {
 
         let n_whitespace = comment_chars.by_ref().take_while(|c| *c == ' ').count();
 
-        if comment_chars.skip(n_whitespace).count() > 0
-            && ((n_whitespace != 1 && !preamble) || (preamble && n_whitespace == 0))
-        {
+        if comment_chars.skip(n_whitespace).count() > 0 && n_whitespace == 0 {
             state.exceptable_add(
                 following_whitespace(Span::new(comment.span().start(), n_delimiter)),
                 SyntaxElement::from(comment.syntax().clone()),

@@ -1,10 +1,10 @@
-note[CommentWhitespace]: comment delimiter should be followed by a single space
+note[CommentWhitespace]: comment delimiter should be followed by at least one space
   ┌─ tests/lints/comment-whitespace/source.wdl:5:1
   │
 5 │ #a bad comment
   │ ^
   │
-  = fix: add a single space after the comment delimiter
+  = fix: add at least one space after the comment delimiter
 
 note[CommentWhitespace]: comment has too much indentation
   ┌─ tests/lints/comment-whitespace/source.wdl:6:5
