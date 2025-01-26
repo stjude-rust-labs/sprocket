@@ -37,6 +37,7 @@ use wdl_analysis::document::Task;
 use wdl_analysis::document::Workflow;
 use wdl_analysis::eval::v1::WorkflowGraphBuilder;
 use wdl_analysis::eval::v1::WorkflowGraphNode;
+use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::CallType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
@@ -287,7 +288,7 @@ impl GatherArray {
 
     /// Converts the gather array into a WDL array value.
     fn into_array(self) -> Array {
-        Array::new_unchecked(self.element_ty, self.elements)
+        Array::new_unchecked(ArrayType::new(self.element_ty).into(), self.elements)
     }
 }
 

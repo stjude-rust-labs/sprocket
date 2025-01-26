@@ -1357,6 +1357,7 @@ impl Pair {
     /// Constructs a new pair without checking the given left and right conform
     /// to the given type.
     pub(crate) fn new_unchecked(ty: Type, left: Value, right: Value) -> Self {
+        assert!(ty.as_pair().is_some());
         Self {
             ty,
             values: Arc::new((left, right)),
@@ -1441,6 +1442,7 @@ impl Array {
     /// Constructs a new array without checking the given elements conform to
     /// the given type.
     pub(crate) fn new_unchecked(ty: Type, elements: Vec<Value>) -> Self {
+        assert!(ty.as_array().is_some());
         Self {
             ty,
             elements: if elements.is_empty() {
@@ -1567,6 +1569,7 @@ impl Map {
         ty: Type,
         elements: IndexMap<Option<PrimitiveValue>, Value>,
     ) -> Self {
+        assert!(ty.as_map().is_some());
         Self {
             ty,
             elements: if elements.is_empty() {
@@ -1852,6 +1855,7 @@ impl Struct {
         name: Arc<String>,
         members: Arc<IndexMap<String, Value>>,
     ) -> Self {
+        assert!(ty.as_struct().is_some());
         Self { ty, name, members }
     }
 
