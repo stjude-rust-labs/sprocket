@@ -872,10 +872,10 @@ impl CommandSection {
         None
     }
 
-    /// Strips leading whitespace from the command.
+    /// Counts the leading whitespace of the command.
     ///
-    /// If the command has mixed indentation, this will return `None`.
-    pub fn strip_whitespace(&self) -> Option<Vec<StrippedCommandPart>> {
+    /// If the command has mixed indentation, this will return None.
+    pub fn count_whitespace(&self) -> Option<usize> {
         let mut min_leading_spaces = usize::MAX;
         let mut min_leading_tabs = usize::MAX;
         let mut parsing_leading_whitespace = false; // init to false so that the first line is skipped
@@ -926,6 +926,35 @@ impl CommandSection {
             }
         }
 
+        // Check for no indentation or all whitespace, in which case we're done
+        if (min_leading_spaces == 0 && min_leading_tabs == 0)
+            || (min_leading_spaces == usize::MAX && min_leading_tabs == usize::MAX)
+        {
+            return Some(0);
+        }
+
+        // Check for mixed indentation
+        if (min_leading_spaces > 0 && min_leading_spaces != usize::MAX)
+            && (min_leading_tabs > 0 && min_leading_tabs != usize::MAX)
+        {
+            return None;
+        }
+
+        // Exactly one of the two will be equal to usize::MAX because it never appeared.
+        // The other will be the number of leading spaces or tabs to strip.
+        let final_leading_whitespace = if min_leading_spaces < min_leading_tabs {
+            min_leading_spaces
+        } else {
+            min_leading_tabs
+        };
+
+        Some(final_leading_whitespace)
+    }
+
+    /// Strips leading whitespace from the command.
+    ///
+    /// If the command has mixed indentation, this will return `None`.
+    pub fn strip_whitespace(&self) -> Option<Vec<StrippedCommandPart>> {
         let mut result = Vec::new();
         let heredoc = self.is_heredoc();
         for part in self.parts() {
@@ -968,27 +997,13 @@ impl CommandSection {
             }
         }
 
-        // Check for no indentation or all whitespace, in which case we're done
-        if (min_leading_spaces == 0 && min_leading_tabs == 0)
-            || (min_leading_spaces == usize::MAX && min_leading_tabs == usize::MAX)
-        {
+        // Return immediately if command contains mixed indentation
+        let num_stripped_chars = self.count_whitespace()?;
+
+        // If there is no leading whitespace, we're done
+        if num_stripped_chars == 0 {
             return Some(result);
         }
-
-        // Check for mixed indentation
-        if (min_leading_spaces > 0 && min_leading_spaces != usize::MAX)
-            && (min_leading_tabs > 0 && min_leading_tabs != usize::MAX)
-        {
-            return None;
-        }
-
-        // Exactly one of the two will be equal to usize::MAX because it never appeared.
-        // The other will be the number of leading spaces or tabs to strip.
-        let num_stripped_chars = if min_leading_spaces < min_leading_tabs {
-            min_leading_spaces
-        } else {
-            min_leading_tabs
-        };
 
         // Finally, strip the leading whitespace on each line
         // This is done in place using the `replace_range` method; the method will

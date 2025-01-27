@@ -172,3 +172,41 @@ task test6 {
 
     runtime {}
 }
+
+task test6 {
+    meta {}
+
+    parameter_meta {}
+
+    input {}
+
+    command <<<
+        convert_fusions_to_vcf.sh \
+            $fasta_name \
+            ~{fusions} \
+            ~{prefix}.vcf
+
+        for file in ~{sep(" ", bams)}
+        do
+          # This will fail (intentionally) if there are duplicate names
+          # in the input BAM array.
+          ln -s $file
+          bams+=" $(basename $file)"
+        done
+        
+        if ! ~{succeed_on_errors} \
+            && [ "$(grep -Ec "$GREP_PATTERN" $outfile_name)" -gt 0 ]
+        then
+            >&2 echo "Problems detected by Picard ValidateSamFile"
+            >&2 grep -E "$GREP_PATTERN" ~{outfile_name}
+            exit $rc
+        fi
+
+
+
+    >>>
+
+    output {}
+
+    runtime {}
+}

@@ -779,3 +779,102 @@ note[ShellCheck]: Use 'cd ... || exit' or 'cd ... || return' in case cd fails.
     │
     = fix: did you mean `cd "DIR" || exit`?
 
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:185:13
+    │
+185 │             $fasta_name /
+    │             ^^^^^^^^^^^
+    │             │
+    │             SC2086[info]: Double quote to prevent globbing and word splitting.
+    │             more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: did you mean `"$fasta_name"`?
+
+note[ShellCheck]: fasta_name is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:185:13
+    │
+185 │             $fasta_name /
+    │             ^^^^^^^^^^^
+    │             │
+    │             SC2154[warning]: fasta_name is referenced but not assigned.
+    │             more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Since you double quoted this, it will not word split, and the loop will only run once.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:189:21
+    │
+189 │         for file in ~{sep(" ", bams)}
+    │                     ^^^^^^^^^^^^^^^^^
+    │                     │
+    │                     SC2066[error]: Since you double quoted this, it will not word split, and the loop will only run once.
+    │                     more info: https://www.shellcheck.net/wiki/SC2066
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:193:17
+    │
+193 │           ln -s $file
+    │                 ^^^^^
+    │                 │
+    │                 SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                 more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: did you mean `"$file"`?
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:194:30
+    │
+194 │           bams+=" $(basename $file)"
+    │                              ^^^^^
+    │                              │
+    │                              SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                              more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: did you mean `"$file"`?
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:198:46
+    │
+198 │             && [ "$(grep -Ec "$GREP_PATTERN" $outfile_name)" -gt 0 ]
+    │                                              ^^^^^^^^^^^^^
+    │                                              │
+    │                                              SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                                              more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: did you mean `"$outfile_name"`?
+
+note[ShellCheck]: outfile_name is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:198:46
+    │
+198 │             && [ "$(grep -Ec "$GREP_PATTERN" $outfile_name)" -gt 0 ]
+    │                                              ^^^^^^^^^^^^^
+    │                                              │
+    │                                              SC2154[warning]: outfile_name is referenced but not assigned.
+    │                                              more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:202:18
+    │
+202 │             exit $rc
+    │                  ^^^
+    │                  │
+    │                  SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                  more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: did you mean `"$rc"`?
+
+note[ShellCheck]: rc is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:202:18
+    │
+202 │             exit $rc
+    │                  ^^^
+    │                  │
+    │                  SC2154[warning]: rc is referenced but not assigned.
+    │                  more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+

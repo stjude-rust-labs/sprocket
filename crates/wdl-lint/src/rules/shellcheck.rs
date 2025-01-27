@@ -40,7 +40,6 @@ use crate::TagSet;
 use crate::fix::Fixer;
 use crate::fix::InsertionPoint;
 use crate::fix::Replacement;
-use crate::util::count_leading_whitespace;
 use crate::util::is_properly_quoted;
 use crate::util::lines_with_offset;
 use crate::util::program_exists;
@@ -345,11 +344,13 @@ fn shellcheck_lint(
 /// with dummy bash variables or literals, and records declarations.
 ///
 /// If the section contains mixed indentation, returns None.
-fn sanitize_command(section: &CommandSection) -> Option<(String, HashSet<String>)> {
+fn sanitize_command(section: &CommandSection) -> Option<(String, HashSet<String>, usize)> {
+    let amount_stripped = section.count_whitespace()?;
     let mut sanitized_command = String::new();
     let mut decls = HashSet::new();
     let mut needs_quotes = true;
     let mut is_literal = false;
+
     if let Some(cmd_parts) = section.strip_whitespace() {
         cmd_parts.iter().for_each(|part| match part {
             StrippedCommandPart::Text(text) => {
@@ -380,7 +381,7 @@ fn sanitize_command(section: &CommandSection) -> Option<(String, HashSet<String>
                 }
             }
         });
-        Some((sanitized_command, decls))
+        Some((sanitized_command, decls, amount_stripped))
     } else {
         None
     }
@@ -388,7 +389,10 @@ fn sanitize_command(section: &CommandSection) -> Option<(String, HashSet<String>
 
 /// Maps each line as shellcheck sees it to its corresponding span in the
 /// source.
-fn map_shellcheck_lines(section: &CommandSection) -> HashMap<usize, Span> {
+fn map_shellcheck_lines(
+    section: &CommandSection,
+    leading_whitespace: usize,
+) -> HashMap<usize, Span> {
     let mut line_map = HashMap::new();
     let mut line_num = 1;
     let mut skip_next_line = false;
@@ -401,14 +405,12 @@ fn map_shellcheck_lines(section: &CommandSection) -> HashMap<usize, Span> {
                         skip_next_line = false;
                         continue;
                     }
-                    // Add back leading whitespace that is stripped from the sanitized command.
                     // The first line is removed entirely, UNLESS there is content on it.
-                    let leading_ws = if line_num > 1 || !line.trim().is_empty() {
-                        count_leading_whitespace(line)
-                    } else {
+                    if line_num == 1 && line.is_empty() {
                         continue;
-                    };
-                    let adjusted_start = text.span().start() + line_start + leading_ws;
+                    }
+                    // Add back the leading whitespace that was stripped.
+                    let adjusted_start = text.span().start() + line_start + leading_whitespace;
                     line_map.insert(line_num, Span::new(adjusted_start, line.len()));
                     line_num += 1;
                 }
@@ -439,8 +441,7 @@ fn calculate_span(diagnostic: &ShellCheckDiagnostic, line_map: &HashMap<usize, S
             .start()
             + diagnostic.end_column
             - 1;
-        // - 2 to discount first and last newlines
-        end_line_end.saturating_sub(start) - 2
+        end_line_end.saturating_sub(start)
     } else {
         // single line diagnostic
         (diagnostic.end_column).saturating_sub(diagnostic.column)
@@ -508,14 +509,15 @@ impl Visitor for ShellCheckRule {
         let mut decls = gather_task_declarations(&parent_task);
 
         // Replace all placeholders in the command with dummy bash variables
-        let Some((sanitized_command, cmd_decls)) = sanitize_command(section) else {
+        let Some((sanitized_command, cmd_decls, amount_stripped)) = sanitize_command(section)
+        else {
             // This is the case where the command section contains
             // mixed indentation. We silently return and allow
             // the mixed indentation lint to report this.
             return;
         };
         decls.extend(cmd_decls);
-        let line_map = map_shellcheck_lines(section);
+        let line_map = map_shellcheck_lines(section, amount_stripped);
 
         // create a Fenwick tree where each index is a line number
         // and each value is the length of the line.
