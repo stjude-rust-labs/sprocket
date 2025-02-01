@@ -307,11 +307,14 @@ mod test {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        assert_eq!(elements, [
-            Vec::from_iter(["row1_1", "row1_2", "row1_3"]),
-            Vec::from_iter(["row2_1", "row2_2", "row2_3", "row2_4"]),
-            Vec::from_iter(["row3_1", "row3_2"])
-        ]);
+        assert_eq!(
+            elements,
+            [
+                Vec::from_iter(["row1_1", "row1_2", "row1_3"]),
+                Vec::from_iter(["row2_1", "row2_2", "row2_3", "row2_4"]),
+                Vec::from_iter(["row3_1", "row3_2"])
+            ]
+        );
 
         let value = eval_v1_expr(&mut env, V1::Two, "read_tsv('bar.tsv', true)").unwrap();
         let elements = value
@@ -327,11 +330,14 @@ mod test {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        assert_eq!(elements, [
-            Vec::from_iter([("foo", "row1_1"), ("bar", "row1_2"), ("baz", "row1_3")]),
-            Vec::from_iter([("foo", "row2_1"), ("bar", "row2_2"), ("baz", "row2_3")]),
-            Vec::from_iter([("foo", "row3_1"), ("bar", "row3_2"), ("baz", "row3_3")]),
-        ]);
+        assert_eq!(
+            elements,
+            [
+                Vec::from_iter([("foo", "row1_1"), ("bar", "row1_2"), ("baz", "row1_3")]),
+                Vec::from_iter([("foo", "row2_1"), ("bar", "row2_2"), ("baz", "row2_3")]),
+                Vec::from_iter([("foo", "row3_1"), ("bar", "row3_2"), ("baz", "row3_3")]),
+            ]
+        );
 
         let value = eval_v1_expr(
             &mut env,
@@ -352,11 +358,14 @@ mod test {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        assert_eq!(elements, [
-            Vec::from_iter([("qux", "row1_1"), ("jam", "row1_2"), ("cakes", "row1_3")]),
-            Vec::from_iter([("qux", "row2_1"), ("jam", "row2_2"), ("cakes", "row2_3")]),
-            Vec::from_iter([("qux", "row3_1"), ("jam", "row3_2"), ("cakes", "row3_3")]),
-        ]);
+        assert_eq!(
+            elements,
+            [
+                Vec::from_iter([("qux", "row1_1"), ("jam", "row1_2"), ("cakes", "row1_3")]),
+                Vec::from_iter([("qux", "row2_1"), ("jam", "row2_2"), ("cakes", "row2_3")]),
+                Vec::from_iter([("qux", "row3_1"), ("jam", "row3_2"), ("cakes", "row3_3")]),
+            ]
+        );
 
         let diagnostic =
             eval_v1_expr(&mut env, V1::Two, "read_tsv('bar.tsv', true, ['nope'])").unwrap_err();
@@ -403,11 +412,14 @@ mod test {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        assert_eq!(elements, [
-            Vec::from_iter([("foo", "row1_1"), ("bar", "row1_2"), ("baz", "row1_3")]),
-            Vec::from_iter([("foo", "row2_1"), ("bar", "row2_2"), ("baz", "row2_3")]),
-            Vec::from_iter([("foo", "row3_1"), ("bar", "row3_2"), ("baz", "row3_3")]),
-        ]);
+        assert_eq!(
+            elements,
+            [
+                Vec::from_iter([("foo", "row1_1"), ("bar", "row1_2"), ("baz", "row1_3")]),
+                Vec::from_iter([("foo", "row2_1"), ("bar", "row2_2"), ("baz", "row2_3")]),
+                Vec::from_iter([("foo", "row3_1"), ("bar", "row3_2"), ("baz", "row3_3")]),
+            ]
+        );
 
         let diagnostic = eval_v1_expr(
             &mut env,

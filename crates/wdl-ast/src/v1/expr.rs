@@ -4079,16 +4079,19 @@ task test {
 
         let mut visitor = MyVisitor(Vec::new());
         document.visit(&mut (), &mut visitor);
-        assert_eq!(visitor.0, [
-            Some(0),
-            Some(1234),
-            Some(668),
-            Some(4660),
-            Some(15),
-            Some(9223372036854775807),
-            None,
-            None,
-        ]);
+        assert_eq!(
+            visitor.0,
+            [
+                Some(0),
+                Some(1234),
+                Some(668),
+                Some(4660),
+                Some(15),
+                Some(9223372036854775807),
+                None,
+                None,
+            ]
+        );
     }
 
     #[test]

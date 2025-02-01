@@ -1405,31 +1405,40 @@ mod test {
 
         // Map[String, X] -> Struct
         let type1: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
-        let type2 = StructType::new("Foo", [
-            ("foo", PrimitiveType::Integer),
-            ("bar", PrimitiveType::Integer),
-            ("baz", PrimitiveType::Integer),
-        ])
+        let type2 = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::Integer),
+                ("bar", PrimitiveType::Integer),
+                ("baz", PrimitiveType::Integer),
+            ],
+        )
         .into();
         assert!(type1.is_coercible_to(&type2));
 
         // Map[String, X] -> Struct (mismatched fields)
         let type1: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
-        let type2 = StructType::new("Foo", [
-            ("foo", PrimitiveType::Integer),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Integer),
-        ])
+        let type2 = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::Integer),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Integer),
+            ],
+        )
         .into();
         assert!(!type1.is_coercible_to(&type2));
 
         // Map[Int, X] -> Struct
         let type1: Type = MapType::new(PrimitiveType::Integer, PrimitiveType::Integer).into();
-        let type2 = StructType::new("Foo", [
-            ("foo", PrimitiveType::Integer),
-            ("bar", PrimitiveType::Integer),
-            ("baz", PrimitiveType::Integer),
-        ])
+        let type2 = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::Integer),
+                ("bar", PrimitiveType::Integer),
+                ("baz", PrimitiveType::Integer),
+            ],
+        )
         .into();
         assert!(!type1.is_coercible_to(&type2));
 
@@ -1459,106 +1468,142 @@ mod test {
     #[test]
     fn struct_type_coercion() {
         // S -> S (identical)
-        let type1: Type = StructType::new("Foo", [
-            ("foo", PrimitiveType::String),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Integer),
-        ])
+        let type1: Type = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Integer),
+            ],
+        )
         .into();
-        let type2 = StructType::new("Foo", [
-            ("foo", PrimitiveType::String),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Integer),
-        ])
+        let type2 = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Integer),
+            ],
+        )
         .into();
         assert!(type1.is_coercible_to(&type2));
         assert!(type2.is_coercible_to(&type1));
 
         // S -> S?
-        let type1: Type = StructType::new("Foo", [
-            ("foo", PrimitiveType::String),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Integer),
-        ])
+        let type1: Type = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Integer),
+            ],
+        )
         .into();
-        let type2 = Type::from(StructType::new("Foo", [
-            ("foo", PrimitiveType::String),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Integer),
-        ]))
+        let type2 = Type::from(StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Integer),
+            ],
+        ))
         .optional();
         assert!(type1.is_coercible_to(&type2));
         assert!(!type2.is_coercible_to(&type1));
 
         // S? -> S?
-        let type1: Type = Type::from(StructType::new("Foo", [
-            ("foo", PrimitiveType::String),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Integer),
-        ]))
+        let type1: Type = Type::from(StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Integer),
+            ],
+        ))
         .optional();
-        let type2 = Type::from(StructType::new("Foo", [
-            ("foo", PrimitiveType::String),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Integer),
-        ]))
+        let type2 = Type::from(StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Integer),
+            ],
+        ))
         .optional();
         assert!(type1.is_coercible_to(&type2));
         assert!(type2.is_coercible_to(&type1));
 
         // S -> S (coercible fields)
-        let type1: Type = StructType::new("Foo", [
-            ("foo", PrimitiveType::String),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Integer),
-        ])
+        let type1: Type = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Integer),
+            ],
+        )
         .into();
-        let type2 = StructType::new("Bar", [
-            ("foo", PrimitiveType::File),
-            ("bar", PrimitiveType::Directory),
-            ("baz", PrimitiveType::Float),
-        ])
+        let type2 = StructType::new(
+            "Bar",
+            [
+                ("foo", PrimitiveType::File),
+                ("bar", PrimitiveType::Directory),
+                ("baz", PrimitiveType::Float),
+            ],
+        )
         .into();
         assert!(type1.is_coercible_to(&type2));
         assert!(!type2.is_coercible_to(&type1));
 
         // S -> S (mismatched fields)
-        let type1: Type = StructType::new("Foo", [
-            ("foo", PrimitiveType::String),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Integer),
-        ])
+        let type1: Type = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Integer),
+            ],
+        )
         .into();
         let type2 = StructType::new("Bar", [("baz", PrimitiveType::Float)]).into();
         assert!(!type1.is_coercible_to(&type2));
         assert!(!type2.is_coercible_to(&type1));
 
         // Struct -> Map[String, X]
-        let type1: Type = StructType::new("Foo", [
-            ("foo", PrimitiveType::String),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::String),
-        ])
+        let type1: Type = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::String),
+            ],
+        )
         .into();
         let type2 = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
         assert!(type1.is_coercible_to(&type2));
 
         // Struct -> Map[String, X] (mismatched types)
-        let type1: Type = StructType::new("Foo", [
-            ("foo", PrimitiveType::String),
-            ("bar", PrimitiveType::Integer),
-            ("baz", PrimitiveType::String),
-        ])
+        let type1: Type = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::Integer),
+                ("baz", PrimitiveType::String),
+            ],
+        )
         .into();
         let type2 = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
         assert!(!type1.is_coercible_to(&type2));
 
         // Struct -> Map[Int, X] (not a string key)
-        let type1: Type = StructType::new("Foo", [
-            ("foo", PrimitiveType::String),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::String),
-        ])
+        let type1: Type = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::String),
+            ],
+        )
         .into();
         let type2 = MapType::new(PrimitiveType::Integer, PrimitiveType::String).into();
         assert!(!type1.is_coercible_to(&type2));

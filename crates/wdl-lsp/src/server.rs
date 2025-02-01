@@ -485,25 +485,25 @@ impl LanguageServer for Server {
         };
 
         // Notify the analyzer that the document has changed
-        if let Err(e) =
-            self.analyzer
-                .notify_incremental_change(params.text_document.uri, IncrementalChange {
-                    version: params.text_document.version,
-                    start,
-                    edits: changes
-                        .iter_mut()
-                        .map(|e| {
-                            let range = e.range.expect("edit should be after the last full change");
-                            SourceEdit::new(
-                                SourcePosition::new(range.start.line, range.start.character)
-                                    ..SourcePosition::new(range.end.line, range.end.character),
-                                SourcePositionEncoding::UTF16,
-                                mem::take(&mut e.text),
-                            )
-                        })
-                        .collect(),
-                })
-        {
+        if let Err(e) = self.analyzer.notify_incremental_change(
+            params.text_document.uri,
+            IncrementalChange {
+                version: params.text_document.version,
+                start,
+                edits: changes
+                    .iter_mut()
+                    .map(|e| {
+                        let range = e.range.expect("edit should be after the last full change");
+                        SourceEdit::new(
+                            SourcePosition::new(range.start.line, range.start.character)
+                                ..SourcePosition::new(range.end.line, range.end.character),
+                            SourcePositionEncoding::UTF16,
+                            mem::take(&mut e.text),
+                        )
+                    })
+                    .collect(),
+            },
+        ) {
             error!("failed to notify incremental change: {e}");
         }
     }

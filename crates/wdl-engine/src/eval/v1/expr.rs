@@ -1825,16 +1825,22 @@ pub(crate) mod test {
     #[test]
     fn literal_struct_expr() {
         let mut env = TestEnv::default();
-        let bar_ty: Type = StructType::new("Bar", [
-            ("foo", PrimitiveType::File),
-            ("bar", PrimitiveType::Integer),
-        ])
+        let bar_ty: Type = StructType::new(
+            "Bar",
+            [
+                ("foo", PrimitiveType::File),
+                ("bar", PrimitiveType::Integer),
+            ],
+        )
         .into();
 
-        let foo_ty = StructType::new("Foo", [
-            ("foo", PrimitiveType::Float.into()),
-            ("bar", bar_ty.clone()),
-        ]);
+        let foo_ty = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::Float.into()),
+                ("bar", bar_ty.clone()),
+            ],
+        );
 
         env.insert_struct("Foo", foo_ty);
         env.insert_struct("Bar", bar_ty);
@@ -2789,10 +2795,13 @@ pub(crate) mod test {
         env.insert_name("foo", Array::new(array_ty, [1, 2, 3, 4, 5]).unwrap());
         env.insert_name(
             "bar",
-            Map::new(map_ty, [
-                (PrimitiveValue::new_string("foo"), 1),
-                (PrimitiveValue::new_string("bar"), 2),
-            ])
+            Map::new(
+                map_ty,
+                [
+                    (PrimitiveValue::new_string("foo"), 1),
+                    (PrimitiveValue::new_string("bar"), 2),
+                ],
+            )
             .unwrap(),
         );
         env.insert_name("baz", PrimitiveValue::new_file("bar"));
@@ -2844,10 +2853,13 @@ pub(crate) mod test {
     fn access_expr() {
         let mut env = TestEnv::default();
         let pair_ty = PairType::new(PrimitiveType::Integer, PrimitiveType::String);
-        let struct_ty = StructType::new("Foo", [
-            ("foo", PrimitiveType::Integer),
-            ("bar", PrimitiveType::String),
-        ]);
+        let struct_ty = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::Integer),
+                ("bar", PrimitiveType::String),
+            ],
+        );
 
         env.insert_name(
             "foo",
@@ -2855,10 +2867,13 @@ pub(crate) mod test {
         );
         env.insert_name(
             "bar",
-            Struct::new(struct_ty, [
-                ("foo", 1.into()),
-                ("bar", PrimitiveValue::new_string("bar")),
-            ])
+            Struct::new(
+                struct_ty,
+                [
+                    ("foo", 1.into()),
+                    ("bar", PrimitiveValue::new_string("bar")),
+                ],
+            )
             .unwrap(),
         );
         env.insert_name("baz", 1);

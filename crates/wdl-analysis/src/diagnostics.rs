@@ -655,19 +655,13 @@ pub fn cannot_coerce_to_string(actual: &Type, span: Span) -> Diagnostic {
 }
 
 /// Creates an "unknown task or workflow" diagnostic.
-pub fn unknown_task_or_workflow(namespace: Option<Span>, name: &Ident) -> Diagnostic {
-    let mut diagnostic = Diagnostic::error(format!(
-        "unknown task or workflow `{name}`",
-        name = name.as_str()
-    ))
-    .with_highlight(name.span());
+pub fn unknown_task_or_workflow(namespace: Option<Span>, name: &str, span: Span) -> Diagnostic {
+    let mut diagnostic =
+        Diagnostic::error(format!("unknown task or workflow `{name}`")).with_highlight(span);
 
     if let Some(namespace) = namespace {
         diagnostic = diagnostic.with_label(
-            format!(
-                "this namespace does not have a task or workflow named `{name}`",
-                name = name.as_str()
-            ),
+            format!("this namespace does not have a task or workflow named `{name}`"),
             namespace,
         );
     }
@@ -696,12 +690,8 @@ pub fn unknown_task_io(task_name: &str, name: &Ident, io: Io) -> Diagnostic {
 }
 
 /// Creates a "recursive workflow call" diagnostic.
-pub fn recursive_workflow_call(name: &Ident) -> Diagnostic {
-    Diagnostic::error(format!(
-        "cannot recursively call workflow `{name}`",
-        name = name.as_str()
-    ))
-    .with_highlight(name.span())
+pub fn recursive_workflow_call(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(format!("cannot recursively call workflow `{name}`")).with_highlight(span)
 }
 
 /// Creates a "missing call input" diagnostic.

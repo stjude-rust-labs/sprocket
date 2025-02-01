@@ -1,1 +1,1 @@
-task process has terminated with status code 1; see the `stdout` and `stderr` files in execution directory `` for task command output
+task process has terminated with status code 1; see the `stdout` and `stderr` files in execution directory `attempts/0/` for task command output

@@ -4,7 +4,9 @@ use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
+use std::sync::Mutex;
 use std::time::Duration;
+use std::time::Instant;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -12,11 +14,10 @@ use anyhow::anyhow;
 use anyhow::bail;
 use colored::Colorize;
 use indexmap::IndexSet;
-use indicatif::ProgressBar;
-use indicatif::ProgressDrawTarget;
 use indicatif::ProgressStyle;
 use serde_json::to_string_pretty;
 use tokio::fs;
+use tracing_indicatif::span_ext::IndicatifSpanExt;
 use url::Url;
 use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
@@ -27,7 +28,7 @@ use wdl_analysis::rules as analysis_rules;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::Inputs;
-use wdl_engine::local::LocalTaskExecutionBackend;
+use wdl_engine::config::Config;
 use wdl_engine::v1::ProgressKind;
 use wdl_engine::v1::TaskEvaluator;
 use wdl_engine::v1::WorkflowEvaluator;
@@ -53,19 +54,32 @@ pub async fn analyze(
         .filter(|rule| !exceptions.iter().any(|e| e == rule.id()));
     let rules_config = DiagnosticsConfig::new(rules);
 
+    let pb = tracing::warn_span!("progress");
+    pb.pb_set_style(
+        &ProgressStyle::with_template(
+            "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}",
+        )
+        .unwrap(),
+    );
+
+    let start = Instant::now();
     let analyzer = Analyzer::new_with_validator(
         rules_config,
-        move |bar: ProgressBar, kind, completed, total| async move {
-            if bar.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
-                return;
-            }
+        move |_: (), kind, completed, total| {
+            let pb = pb.clone();
+            async move {
+                if start.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
+                    return;
+                }
 
-            if completed == 0 || bar.length() == Some(0) {
-                bar.set_length(total.try_into().unwrap());
-                bar.set_message(format!("{kind}"));
-            }
+                if completed == 0 {
+                    pb.pb_start();
+                    pb.pb_set_length(total.try_into().unwrap());
+                    pb.pb_set_message(&format!("{kind}"));
+                }
 
-            bar.set_position(completed.try_into().unwrap());
+                pb.pb_set_position(completed.try_into().unwrap());
+            }
         },
         move || {
             let mut validator = wdl_ast::Validator::default();
@@ -103,17 +117,7 @@ pub async fn analyze(
         bail!("failed to convert `{file}` to a URI", file = file)
     }
 
-    let bar = ProgressBar::new(0);
-    bar.set_draw_target(ProgressDrawTarget::stdout());
-    bar.set_style(
-        ProgressStyle::with_template(
-            "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}",
-        )
-        .unwrap(),
-    );
-
-    let results = analyzer.analyze(bar.clone()).await?;
-
+    let results = analyzer.analyze(()).await?;
     Ok(results)
 }
 
@@ -250,19 +254,19 @@ pub async fn run(
         Inputs::Workflow(_) => "workflow",
     };
 
-    let bar = ProgressBar::new_spinner();
-    bar.set_draw_target(ProgressDrawTarget::stdout());
-    bar.enable_steady_tick(Duration::from_millis(100));
-    bar.set_style(
-        ProgressStyle::with_template(&format!(
-            "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} {name}: \
-             {{wide_msg}}",
+    let pb = tracing::warn_span!("progress");
+    pb.pb_set_style(
+        &ProgressStyle::with_template(&format!(
+            "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} \
+             {name}{{msg}}",
             running = "running".cyan(),
             name = name.magenta().bold()
         ))
         .unwrap(),
     );
 
+    // TODO: take config from command line argument
+    let config = Config::default();
     let result = match inputs {
         Inputs::Task(mut inputs) => {
             // Make any paths specified in the inputs absolute
@@ -276,10 +280,9 @@ pub async fn run(
                 inputs.join_paths(task, path);
             }
 
-            let backend = LocalTaskExecutionBackend::new(None);
-            let mut evaluator = TaskEvaluator::new(&backend);
+            let mut evaluator = TaskEvaluator::new(config)?;
             evaluator
-                .evaluate(document, task, &inputs, output_dir, name)
+                .evaluate(document, task, &inputs, output_dir, |_| async {})
                 .await
                 .and_then(EvaluatedTask::into_result)
         }
@@ -297,41 +300,73 @@ pub async fn run(
                 inputs.join_paths(workflow, path);
             }
 
-            let mut ids = IndexSet::new();
-            let mut completed = 0;
-            let mut executing = 0;
-            let backend = LocalTaskExecutionBackend::new(None);
-            let mut evaluator = WorkflowEvaluator::new(&backend, |kind| {
-                match kind {
-                    ProgressKind::TaskStarted(id) => {
-                        ids.insert(id.to_string());
-                        executing += 1;
-                    }
-                    ProgressKind::TaskCompleted(id) => {
-                        executing -= 1;
-                        completed += 1;
-                        ids.swap_remove(id);
-                    }
-                    _ => {}
-                }
+            /// Represents state for reporting progress
+            #[derive(Default)]
+            struct State {
+                /// The set of currently executing task identifiers
+                ids: IndexSet<String>,
+                /// The number of completed tasks
+                completed: usize,
+                /// The number of tasks awaiting execution.
+                ready: usize,
+                /// The number of currently executing tasks
+                executing: usize,
+            }
 
-                bar.set_message(format!(
-                    "{completed} {comp} task{s1} - {executing} {exec} task{s2}: {ids}",
-                    comp = "completed".cyan(),
-                    exec = "executing".cyan(),
-                    s1 = if completed == 1 { "" } else { "s" },
-                    s2 = if executing == 1 { "" } else { "s" },
-                    ids = Ids(&ids)
-                ));
-            });
+            let state = Mutex::<State>::default();
+            let mut evaluator = WorkflowEvaluator::new(config)?;
 
-            evaluator.evaluate(document, &inputs, output_dir).await
+            evaluator
+                .evaluate(document, inputs, output_dir, move |kind| {
+                    pb.pb_start();
+
+                    let message = {
+                        let mut state = state.lock().expect("failed to lock progress mutex");
+                        match kind {
+                            ProgressKind::TaskStarted { .. } => {
+                                state.ready += 1;
+                            }
+                            ProgressKind::TaskExecutionStarted { id, .. } => {
+                                state.ready -= 1;
+                                state.executing += 1;
+                                state.ids.insert(id.to_string());
+                            }
+                            ProgressKind::TaskExecutionCompleted { id, .. } => {
+                                state.executing -= 1;
+                                state.ids.swap_remove(id);
+                            }
+                            ProgressKind::TaskCompleted { .. } => {
+                                state.completed += 1;
+                            }
+                            _ => {}
+                        }
+
+                        format!(
+                            " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e} {executing} \
+                             task{s3}: {ids}",
+                            c = state.completed,
+                            completed = "completed".cyan(),
+                            s1 = if state.completed == 1 { "" } else { "s" },
+                            r = state.ready,
+                            ready = "ready".cyan(),
+                            s2 = if state.ready == 1 { "" } else { "s" },
+                            e = state.executing,
+                            executing = "executing".cyan(),
+                            s3 = if state.executing == 1 { "" } else { "s" },
+                            ids = Ids(&state.ids)
+                        )
+                    };
+
+                    pb.pb_set_message(&message);
+
+                    async {}
+                })
+                .await
         }
     };
 
     match result {
         Ok(outputs) => {
-            drop(bar);
             let s = to_string_pretty(&outputs)?;
             println!("{s}");
             Ok(None)

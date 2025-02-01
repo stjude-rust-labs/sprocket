@@ -58,11 +58,14 @@ mod test {
     fn values() {
         let mut env = TestEnv::default();
 
-        let ty = StructType::new("Foo", [
-            ("foo", PrimitiveType::Float),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Integer),
-        ]);
+        let ty = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::Float),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Integer),
+            ],
+        );
 
         env.insert_struct("Foo", ty);
 

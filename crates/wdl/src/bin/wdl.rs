@@ -25,6 +25,7 @@ use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
 use colored::Colorize;
 use tracing_log::AsTrace;
+use tracing_subscriber::layer::SubscriberExt;
 use url::Url;
 use wdl::ast::Diagnostic;
 use wdl::ast::Document;
@@ -440,11 +441,14 @@ enum Command {
 async fn main() -> Result<()> {
     let app = App::parse();
 
+    let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
     let subscriber = tracing_subscriber::fmt::Subscriber::builder()
         .with_max_level(app.verbose.log_level_filter().as_trace())
-        .with_writer(std::io::stderr)
+        .with_writer(indicatif_layer.get_stderr_writer())
         .with_ansi(stderr().is_terminal())
-        .finish();
+        .finish()
+        .with(indicatif_layer);
+
     tracing::subscriber::set_global_default(subscriber)?;
 
     if let Err(e) = match app.command {

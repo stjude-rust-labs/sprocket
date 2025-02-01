@@ -1,239 +1,389 @@
 //! Implementation of the local backend.
 
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
 use std::path::Path;
-use std::path::PathBuf;
-use std::path::absolute;
 use std::process::Stdio;
-use std::sync::Arc;
-use std::thread::available_parallelism;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
-use futures::FutureExt;
-use futures::future::BoxFuture;
 use tokio::process::Command;
-use tokio::sync::Semaphore;
+use tokio::sync::mpsc;
+use tokio::sync::oneshot;
+use tokio::task::JoinSet;
+use tracing::debug;
 use tracing::info;
-use tracing::warn;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::v1::TASK_REQUIREMENT_CPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 
-use super::TaskExecution;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
+use super::TaskSpawnRequest;
+use super::TaskSpawnResponse;
 use crate::Coercible;
 use crate::SYSTEM;
 use crate::Value;
+use crate::config::LocalBackendConfig;
 use crate::convert_unit_string;
+use crate::v1::DEFAULT_TASK_REQUIREMENT_CPU;
+use crate::v1::DEFAULT_TASK_REQUIREMENT_MEMORY;
 
-/// Represents a local task execution.
+/// Gets the `cpu` requirement from a requirements map.
+fn cpu(requirements: &HashMap<String, Value>) -> f64 {
+    requirements
+        .get(TASK_REQUIREMENT_CPU)
+        .map(|v| {
+            v.coerce(&PrimitiveType::Float.into())
+                .expect("type should coerce")
+                .unwrap_float()
+        })
+        .unwrap_or(DEFAULT_TASK_REQUIREMENT_CPU)
+}
+
+/// Gets the `memory` requirement from a requirements map.
+fn memory(requirements: &HashMap<String, Value>) -> Result<i64> {
+    Ok(requirements
+        .get(TASK_REQUIREMENT_MEMORY)
+        .map(|v| {
+            if let Some(v) = v.as_integer() {
+                return Ok(v);
+            }
+
+            if let Some(s) = v.as_string() {
+                return convert_unit_string(s)
+                    .and_then(|v| v.try_into().ok())
+                    .with_context(|| {
+                        format!("task specifies an invalid `memory` requirement `{s}`")
+                    });
+            }
+
+            unreachable!("value should be an integer or string");
+        })
+        .transpose()?
+        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MEMORY))
+}
+
+/// Represents a local task spawn request.
 ///
-/// Local executions directly execute processes on the host without a container.
+/// This request contains the requested cpu and memory reservations for the task
+/// as well as the result receiver channel.
 #[derive(Debug)]
-pub struct LocalTaskExecution {
-    /// The task execution lock.
-    lock: Arc<Semaphore>,
-    /// The path to the working directory for the execution.
-    work_dir: PathBuf,
-    /// The path to the temp directory for the execution.
-    temp_dir: PathBuf,
-    /// The path to the command file.
-    command: PathBuf,
-    /// The path to the stdout file.
-    stdout: PathBuf,
-    /// The path to the stderr file.
-    stderr: PathBuf,
+struct LocalTaskSpawnRequest {
+    /// The inner task spawn request.
+    inner: TaskSpawnRequest,
+    /// The requested CPU reservation for the task.
+    ///
+    /// Note that CPU isn't actually reserved for the task process.
+    cpu: f64,
+    /// The requested memory reservation for the task.
+    ///
+    /// Note that memory isn't actually reserved for the task process.
+    memory: u64,
+    /// The sender to send the response back on.
+    tx: oneshot::Sender<TaskSpawnResponse>,
 }
 
-impl LocalTaskExecution {
-    /// Creates a new local task execution with the given execution root
-    /// directory to use.
-    fn new(lock: Arc<Semaphore>, root: &Path) -> Result<Self> {
-        let root = absolute(root).with_context(|| {
-            format!(
-                "failed to determine absolute path of `{path}`",
-                path = root.display()
-            )
-        })?;
-
-        // Create the temp directory now as it may be needed for task evaluation
-        let temp_dir = root.join("tmp");
-        fs::create_dir_all(&temp_dir).with_context(|| {
-            format!(
-                "failed to create directory `{path}`",
-                path = temp_dir.display()
-            )
-        })?;
-
-        Ok(Self {
-            lock,
-            work_dir: root.join("work"),
-            temp_dir,
-            command: root.join("command"),
-            stdout: root.join("stdout"),
-            stderr: root.join("stderr"),
-        })
-    }
+/// Represents a local task spawn response.
+#[derive(Debug)]
+struct LocalTaskSpawnResponse {
+    /// The inner task spawn response.
+    inner: TaskSpawnResponse,
+    /// The requested CPU reservation for the task.
+    ///
+    /// Note that CPU isn't actually reserved for the task process.
+    cpu: f64,
+    /// The requested memory reservation for the task.
+    ///
+    /// Note that memory isn't actually reserved for the task process.
+    memory: u64,
+    /// The sender to send the response back on.
+    tx: oneshot::Sender<TaskSpawnResponse>,
 }
 
-impl TaskExecution for LocalTaskExecution {
-    fn map_path(&mut self, _: &Path) -> Option<PathBuf> {
-        // Local execution doesn't use guest paths
-        None
-    }
+/// Represents state for the local task execution backend.
+struct State {
+    /// The amount of available host CPU remaining.
+    ///
+    /// This doesn't reflect the _actual_ CPU currently available, only what
+    /// remains after "reserving" resources for each executing task.
+    ///
+    /// Initially this is the total CPUs of the host.
+    cpu: f64,
+    /// The amount of available host memory remaining.
+    ///
+    /// This doesn't reflect the _actual_ memory currently available, only what
+    /// remains after "reserving" resources for each executing task.
+    ///
+    /// Initially this is the total memory of the host.
+    memory: u64,
+    /// The set of spawned tasks.
+    spawned: JoinSet<LocalTaskSpawnResponse>,
+    /// The queue of parked spawn requests.
+    ///
+    /// A request may be parked if there isn't enough available resources on the
+    /// host.
+    parked: VecDeque<LocalTaskSpawnRequest>,
+}
 
-    fn work_dir(&self) -> &Path {
-        &self.work_dir
-    }
-
-    fn temp_dir(&self) -> &Path {
-        &self.temp_dir
-    }
-
-    fn command(&self) -> &Path {
-        &self.command
-    }
-
-    fn stdout(&self) -> &Path {
-        &self.stdout
-    }
-
-    fn stderr(&self) -> &Path {
-        &self.stderr
-    }
-
-    fn constraints(
-        &self,
-        requirements: &HashMap<String, Value>,
-        _: &HashMap<String, Value>,
-    ) -> Result<TaskExecutionConstraints> {
-        let num_cpus: f64 = SYSTEM.cpus().len() as f64;
-        let min_cpu = requirements
-            .get(TASK_REQUIREMENT_CPU)
-            .map(|v| {
-                v.coerce(&PrimitiveType::Float.into())
-                    .expect("type should coerce")
-                    .unwrap_float()
-            })
-            .unwrap_or(1.0);
-        if num_cpus < min_cpu {
-            bail!(
-                "task requires at least {min_cpu} CPU{s}, but the host only has {num_cpus} \
-                 available",
-                s = if min_cpu == 1.0 { "" } else { "s" },
-            );
-        }
-
-        let memory: i64 = SYSTEM
-            .total_memory()
-            .try_into()
-            .context("system has too much memory to describe as a WDL value")?;
-
-        // The default value for `memory` is 2 GiB
-        let min_memory = requirements
-            .get(TASK_REQUIREMENT_MEMORY)
-            .map(|v| {
-                if let Some(v) = v.as_integer() {
-                    return Ok(v);
-                }
-
-                if let Some(s) = v.as_string() {
-                    return convert_unit_string(s)
-                        .and_then(|v| v.try_into().ok())
-                        .with_context(|| {
-                            format!("task specifies an invalid `memory` requirement `{s}`")
-                        });
-                }
-
-                unreachable!("value should be an integer or string");
-            })
-            .transpose()?
-            .unwrap_or(2 * 1024 * 1024 * 1024); // 2GiB is the default for `memory`
-
-        if memory < min_memory {
-            // Display the error in GiB, as it is the most common unit for memory
-            let memory = memory as f64 / (1024.0 * 1024.0 * 1024.0);
-            let min_memory = min_memory as f64 / (1024.0 * 1024.0 * 1024.0);
-
-            bail!(
-                "task requires at least {min_memory} GiB of memory, but the host only has \
-                 {memory} GiB available",
-            );
-        }
-
-        Ok(TaskExecutionConstraints {
-            container: None,
-            cpu: num_cpus,
+impl State {
+    /// Creates a new state with the given total CPU and memory for the host.
+    fn new(cpu: f64, memory: u64) -> Self {
+        Self {
+            cpu,
             memory,
-            gpu: Default::default(),
-            fpga: Default::default(),
-            disks: Default::default(),
-        })
+            spawned: Default::default(),
+            parked: Default::default(),
+        }
+    }
+}
+
+/// Represents a task execution backend that locally executes tasks.
+///
+/// <div class="warning">
+/// Warning: the local task execution backend spawns processes on the host
+/// directly without the use of a container; only use this backend on trusted
+/// WDL. </div>
+#[derive(Debug)]
+pub struct LocalTaskExecutionBackend {
+    /// The total CPU of the host.
+    cpu: u64,
+    /// The total memory of the host.
+    memory: u64,
+    /// The sender for new spawn requests.
+    tx: mpsc::UnboundedSender<LocalTaskSpawnRequest>,
+}
+
+impl LocalTaskExecutionBackend {
+    /// Constructs a new local task execution backend with the given
+    /// configuration.
+    pub fn new(config: &LocalBackendConfig) -> Result<Self> {
+        config.validate()?;
+
+        let cpu = config.cpu.unwrap_or_else(|| SYSTEM.cpus().len() as u64);
+        let memory = config
+            .memory
+            .as_ref()
+            .map(|s| convert_unit_string(s).expect("value should be valid"))
+            .unwrap_or_else(|| SYSTEM.total_memory());
+
+        let (tx, rx) = mpsc::unbounded_channel::<LocalTaskSpawnRequest>();
+        tokio::spawn(Self::run_request_queue(rx, cpu as f64, memory));
+
+        Ok(Self { cpu, memory, tx })
     }
 
-    fn spawn(
-        &self,
-        command: &str,
-        _: &HashMap<String, Value>,
-        _: &HashMap<String, Value>,
-        envs: &[(String, String)],
-    ) -> Result<BoxFuture<'static, Result<i32>>> {
-        // Recreate the working directory
-        if self.work_dir.exists() {
-            fs::remove_dir_all(&self.work_dir).with_context(|| {
-                format!(
-                    "failed to remove directory `{path}`",
-                    path = self.work_dir.display()
-                )
-            })?;
+    /// Runs the spawn request queue.
+    ///
+    /// The spawn request queue is responsible for spawning new tasks.
+    ///
+    /// A task may not immediately run if there aren't enough resources
+    /// (CPU or memory) available.
+    async fn run_request_queue(
+        mut rx: mpsc::UnboundedReceiver<LocalTaskSpawnRequest>,
+        total_cpu: f64,
+        total_memory: u64,
+    ) {
+        let mut state = State::new(total_cpu, total_memory);
+
+        loop {
+            // If there aren't any spawned tasks, wait for a spawn request only
+            if state.spawned.is_empty() {
+                assert!(
+                    state.parked.is_empty(),
+                    "there can't be any parked requests if there are no spawned tasks"
+                );
+                match rx.recv().await {
+                    Some(request) => {
+                        Self::handle_spawn_request(&mut state, total_cpu, total_memory, request);
+                        continue;
+                    }
+                    None => break,
+                }
+            }
+
+            // Otherwise, wait for a spawn request or a completed task
+            tokio::select! {
+                request = rx.recv() => {
+                    match request {
+                        Some(request) => {
+                            Self::handle_spawn_request(&mut state, total_cpu, total_memory, request);
+                        }
+                        None => break,
+                    }
+                }
+                Some(Ok(response)) = state.spawned.join_next() => {
+                    state.cpu += response.cpu;
+                    state.memory += response.memory;
+                    response.tx.send(response.inner).ok();
+
+                    // Look for tasks to unpark
+                    while let Some(pos) = state.parked.iter().position(|r| r.cpu <= state.cpu && r.memory <= state.memory) {
+                        let request = state.parked.swap_remove_back(pos).unwrap();
+
+                        debug!(
+                            "unparking task with requested CPU {cpu} and memory {memory}",
+                            cpu = request.cpu,
+                            memory = request.memory,
+                        );
+
+                        Self::handle_spawn_request(&mut state, total_cpu, total_memory, request);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Handles a spawn request by either parking it (not enough resources
+    /// currently available) or by spawning it.
+    fn handle_spawn_request(
+        state: &mut State,
+        total_cpu: f64,
+        total_memory: u64,
+        mut request: LocalTaskSpawnRequest,
+    ) {
+        // Ensure the request does not exceed the total CPU
+        if request.cpu > total_cpu {
+            request
+                .tx
+                .send(TaskSpawnResponse {
+                    requirements: request.inner.requirements,
+                    hints: request.inner.hints,
+                    env: request.inner.env,
+                    status_code: Err(anyhow!(
+                        "requested task CPU count of {cpu} exceeds the total host CPU count of \
+                         {total_cpu}",
+                        cpu = request.cpu
+                    )),
+                })
+                .ok();
+            return;
         }
 
-        fs::create_dir_all(&self.work_dir).with_context(|| {
+        // Ensure the request does not exceed the total memory
+        if request.memory > total_memory {
+            request
+                .tx
+                .send(TaskSpawnResponse {
+                    requirements: request.inner.requirements,
+                    hints: request.inner.hints,
+                    env: request.inner.env,
+                    status_code: Err(anyhow!(
+                        "requested task memory of {memory} byte{s} exceeds the total host memory \
+                         of {total_memory}",
+                        memory = request.memory,
+                        s = if request.memory == 1 { "" } else { "s" }
+                    )),
+                })
+                .ok();
+            return;
+        }
+
+        // If the request can't be processed due to resource constraints, park the
+        // request for now When a task completes and resources become available,
+        // we'll unpark the request
+        if request.cpu > state.cpu || request.memory > state.memory {
+            debug!(
+                "insufficient host resources to spawn a new task (requested {cpu} CPU with \
+                 {cpu_remaining} CPU remaining and {memory} memory with {memory_remaining} \
+                 remaining); task has been parked",
+                cpu = request.cpu,
+                memory = request.memory,
+                cpu_remaining = state.cpu,
+                memory_remaining = state.memory
+            );
+            state.parked.push_back(request);
+            return;
+        }
+
+        // Decrement the resource counts and spawn the task
+        state.cpu -= request.cpu;
+        state.memory -= request.memory;
+        debug!(
+            "spawning task with {cpu} CPUs and {memory} bytes of memory remaining",
+            cpu = state.cpu,
+            memory = state.memory
+        );
+
+        state.spawned.spawn(async move {
+            let spawned = request.inner.spawned.take().unwrap();
+            spawned.send(()).ok();
+
+            let status_code = Self::spawn_task(&request.inner).await;
+            LocalTaskSpawnResponse {
+                inner: TaskSpawnResponse {
+                    requirements: request.inner.requirements,
+                    hints: request.inner.hints,
+                    env: request.inner.env,
+                    status_code,
+                },
+                cpu: request.cpu,
+                memory: request.memory,
+                tx: request.tx,
+            }
+        });
+    }
+
+    /// Spawns the requested task.
+    ///
+    /// Returns the status code of the process when it has exited.
+    async fn spawn_task(request: &TaskSpawnRequest) -> Result<i32> {
+        // Recreate the working directory
+        let work_dir = request.root.work_dir();
+        fs::create_dir_all(work_dir).with_context(|| {
             format!(
                 "failed to create directory `{path}`",
-                path = self.work_dir.display()
+                path = work_dir.display()
             )
         })?;
 
         // Write the evaluated command to disk
-        fs::write(&self.command, command).with_context(|| {
+        let command_path = request.root.command();
+        fs::write(command_path, &request.command).with_context(|| {
             format!(
                 "failed to write command contents to `{path}`",
-                path = self.command.display()
+                path = command_path.display()
             )
         })?;
 
         // Create a file for the stdout
-        let stdout = File::create(&self.stdout).with_context(|| {
+        let stdout_path = request.root.stdout();
+        let stdout = File::create(stdout_path).with_context(|| {
             format!(
                 "failed to create stdout file `{path}`",
-                path = self.stdout.display()
+                path = stdout_path.display()
             )
         })?;
 
         // Create a file for the stderr
-        let stderr = File::create(&self.stderr).with_context(|| {
+        let stderr_path = request.root.stderr();
+        let stderr = File::create(stderr_path).with_context(|| {
             format!(
                 "failed to create stderr file `{path}`",
-                path = self.stderr.display()
+                path = stderr_path.display()
             )
         })?;
 
+        // TODO: use the shell from configuration
         let mut command = Command::new("bash");
         command
-            .current_dir(&self.work_dir)
+            .current_dir(work_dir)
             .arg("-C")
-            .arg(&self.command)
+            .arg(command_path)
             .stdin(Stdio::null())
             .stdout(stdout)
             .stderr(stderr)
-            .envs(envs.iter().map(|(k, v)| (OsStr::new(k), OsStr::new(v))))
+            .envs(
+                request
+                    .env
+                    .iter()
+                    .map(|(k, v)| (OsStr::new(k), OsStr::new(v))),
+            )
             .kill_on_drop(true);
 
         // Set an environment variable on Windows to get consistent PATH searching
@@ -241,85 +391,94 @@ impl TaskExecution for LocalTaskExecution {
         #[cfg(windows)]
         command.env("WDL_TASK_EVALUATION", "1");
 
+        let mut child = command.spawn().context("failed to spawn `bash`")?;
+        let id = child.id().expect("should have id");
+        info!("spawned local `bash` process {id} for task execution");
+
+        let status = child.wait().await.with_context(|| {
+            format!("failed to wait for termination of task child process {id}")
+        })?;
+
         #[cfg(unix)]
-        let stderr = self.stderr.clone();
+        {
+            use std::os::unix::process::ExitStatusExt;
+            if let Some(signal) = status.signal() {
+                tracing::warn!("task process {id} has terminated with signal {signal}");
 
-        let lock = self.lock.clone();
-        Ok(async move {
-            let _permit = lock
-                .acquire_owned()
-                .await
-                .expect("failed to acquire task execution permit");
-
-            let mut child = command.spawn().context("failed to spawn `bash`")?;
-            let id = child.id().expect("should have id");
-            info!("spawned local `bash` process {id} for task execution");
-
-            let status = child.wait().await.with_context(|| {
-                format!("failed to wait for termination of task child process {id}")
-            })?;
-
-            #[cfg(unix)]
-            {
-                use std::os::unix::process::ExitStatusExt;
-                if let Some(signal) = status.signal() {
-                    tracing::warn!("task process {id} has terminated with signal {signal}");
-
-                    bail!(
-                        "task child process {id} has terminated with signal {signal}; see stderr \
-                         file `{path}` for more details",
-                        path = stderr.display()
-                    );
-                }
-            }
-
-            let status_code = status.code().expect("process should have exited");
-            info!("task process {id} has terminated with status code {status_code}");
-            Ok(status_code)
-        }
-        .boxed())
-    }
-}
-
-/// Represents a task execution backend that locally executes tasks.
-///
-/// This backend will directly spawn processes without using a container.
-#[derive(Debug, Clone)]
-pub struct LocalTaskExecutionBackend {
-    /// The semaphore for handing out task execution permits.
-    lock: Arc<Semaphore>,
-    /// The maximum number of concurrent task executions.
-    max_concurrency: usize,
-}
-
-impl LocalTaskExecutionBackend {
-    /// Constructs a new local task execution backend.
-    ///
-    /// If `max_concurrency` is `None`, the default available parallelism for
-    /// the host will be used (typically the logical CPU count).
-    pub fn new(max_concurrency: Option<usize>) -> Self {
-        let max_concurrency = max_concurrency.unwrap_or_else(|| {
-            available_parallelism().map(Into::into).unwrap_or_else(|_| {
-                warn!(
-                    "unable to determine available parallelism: tasks will not be executed \
-                     concurrently"
+                bail!(
+                    "task child process {id} has terminated with signal {signal}; see stderr file \
+                     `{path}` for more details",
+                    path = stderr_path.display()
                 );
-                1
-            })
-        });
-        Self {
-            lock: Semaphore::new(max_concurrency).into(),
-            max_concurrency,
+            }
         }
+
+        let status_code = status.code().expect("process should have exited");
+        info!("task process {id} has terminated with status code {status_code}");
+        Ok(status_code)
     }
 }
 
 impl TaskExecutionBackend for LocalTaskExecutionBackend {
-    fn max_concurrency(&self) -> usize {
-        self.max_concurrency
+    fn max_concurrency(&self) -> u64 {
+        self.cpu
     }
 
-    fn create_execution(&self, root: &Path) -> Result<Box<dyn TaskExecution>> {
-        Ok(Box::new(LocalTaskExecution::new(self.lock.clone(), root)?))
+    fn constraints(
+        &self,
+        requirements: &HashMap<String, Value>,
+        _: &HashMap<String, Value>,
+    ) -> Result<TaskExecutionConstraints> {
+        let cpu = cpu(requirements);
+        if (self.cpu as f64) < cpu {
+            bail!(
+                "task requires at least {cpu} CPU{s}, but the host only has {total_cpu} available",
+                s = if cpu == 1.0 { "" } else { "s" },
+                total_cpu = self.cpu,
+            );
+        }
+
+        let memory = memory(requirements)?;
+        if self.memory < memory as u64 {
+            // Display the error in GiB, as it is the most common unit for memory
+            let memory = memory as f64 / (1024.0 * 1024.0 * 1024.0);
+            let total_memory = self.memory as f64 / (1024.0 * 1024.0 * 1024.0);
+
+            bail!(
+                "task requires at least {memory} GiB of memory, but the host only has \
+                 {total_memory} GiB available",
+            );
+        }
+
+        Ok(TaskExecutionConstraints {
+            container: None,
+            cpu,
+            memory,
+            gpu: Default::default(),
+            fpga: Default::default(),
+            disks: Default::default(),
+        })
+    }
+
+    fn container_root(&self) -> Option<&Path> {
+        // Local execution does not use a container
+        None
+    }
+
+    fn spawn(&self, request: TaskSpawnRequest) -> Result<oneshot::Receiver<TaskSpawnResponse>> {
+        let (tx, rx) = oneshot::channel();
+        let cpu = cpu(&request.requirements);
+        let memory = memory(&request.requirements)? as u64;
+
+        self.tx
+            .send(LocalTaskSpawnRequest {
+                inner: request,
+                cpu,
+                memory,
+                tx,
+            })
+            .ok();
+
+        Ok(rx)
     }
 }

@@ -1783,6 +1783,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     // `String` overload is required as `String` may coerce to either `File` or
                     // `Directory`, which is ambiguous.
                     FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
                         .parameter(PrimitiveType::String)
                         .parameter(PrimitiveType::String)
@@ -2793,93 +2794,97 @@ mod test {
             }
         }
 
-        assert_eq!(signatures, [
-            "floor(Float) -> Int",
-            "ceil(Float) -> Int",
-            "round(Float) -> Int",
-            "min(Int, Int) -> Int",
-            "min(Int, Float) -> Float",
-            "min(Float, Int) -> Float",
-            "min(Float, Float) -> Float",
-            "max(Int, Int) -> Int",
-            "max(Int, Float) -> Float",
-            "max(Float, Int) -> Float",
-            "max(Float, Float) -> Float",
-            "find(String, String) -> String?",
-            "matches(String, String) -> Boolean",
-            "sub(String, String, String) -> String",
-            "basename(File, <String>) -> String",
-            "basename(String, <String>) -> String",
-            "basename(Directory, <String>) -> String",
-            "join_paths(File, String) -> File",
-            "join_paths(File, Array[String]+) -> File",
-            "join_paths(Array[String]+) -> File",
-            "glob(String) -> Array[File]",
-            "size(None, <String>) -> Float",
-            "size(File?, <String>) -> Float",
-            "size(String?, <String>) -> Float",
-            "size(Directory?, <String>) -> Float",
-            "size(X, <String>) -> Float where `X`: any compound type that recursively contains a \
-             `File` or `Directory`",
-            "stdout() -> File",
-            "stderr() -> File",
-            "read_string(File) -> String",
-            "read_int(File) -> Int",
-            "read_float(File) -> Float",
-            "read_boolean(File) -> Boolean",
-            "read_lines(File) -> Array[String]",
-            "write_lines(Array[String]) -> File",
-            "read_tsv(File) -> Array[Array[String]]",
-            "read_tsv(File, Boolean) -> Array[Object]",
-            "read_tsv(File, Boolean, Array[String]) -> Array[Object]",
-            "write_tsv(Array[Array[String]]) -> File",
-            "write_tsv(Array[Array[String]], Boolean, Array[String]) -> File",
-            "write_tsv(Array[S], <Boolean>, <Array[String]>) -> File where `S`: any structure \
-             containing only primitive types",
-            "read_map(File) -> Map[String, String]",
-            "write_map(Map[String, String]) -> File",
-            "read_json(File) -> Union",
-            "write_json(X) -> File where `X`: any JSON-serializable type",
-            "read_object(File) -> Object",
-            "read_objects(File) -> Array[Object]",
-            "write_object(Object) -> File",
-            "write_object(S) -> File where `S`: any structure containing only primitive types",
-            "write_objects(Array[Object]) -> File",
-            "write_objects(Array[S]) -> File where `S`: any structure containing only primitive \
-             types",
-            "prefix(String, Array[P]) -> Array[String] where `P`: any primitive type",
-            "suffix(String, Array[P]) -> Array[String] where `P`: any primitive type",
-            "quote(Array[P]) -> Array[String] where `P`: any primitive type",
-            "squote(Array[P]) -> Array[String] where `P`: any primitive type",
-            "sep(String, Array[P]) -> String where `P`: any primitive type",
-            "range(Int) -> Array[Int]",
-            "transpose(Array[Array[X]]) -> Array[Array[X]]",
-            "cross(Array[X], Array[Y]) -> Array[Pair[X, Y]]",
-            "zip(Array[X], Array[Y]) -> Array[Pair[X, Y]]",
-            "unzip(Array[Pair[X, Y]]) -> Pair[Array[X], Array[Y]]",
-            "contains(Array[P], P) -> Boolean where `P`: any primitive type",
-            "chunk(Array[X], Int) -> Array[Array[X]]",
-            "flatten(Array[Array[X]]) -> Array[X]",
-            "select_first(Array[X], <X>) -> X",
-            "select_all(Array[X]) -> Array[X]",
-            "as_pairs(Map[K, V]) -> Array[Pair[K, V]] where `K`: any primitive type",
-            "as_map(Array[Pair[K, V]]) -> Map[K, V] where `K`: any primitive type",
-            "keys(Map[K, V]) -> Array[K] where `K`: any primitive type",
-            "keys(S) -> Array[String] where `S`: any structure",
-            "keys(Object) -> Array[String]",
-            "contains_key(Map[K, V], K) -> Boolean where `K`: any primitive type",
-            "contains_key(Object, String) -> Boolean",
-            "contains_key(Map[String, V], Array[String]) -> Boolean",
-            "contains_key(S, Array[String]) -> Boolean where `S`: any structure",
-            "contains_key(Object, Array[String]) -> Boolean",
-            "values(Map[K, V]) -> Array[V] where `K`: any primitive type",
-            "collect_by_key(Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any primitive type",
-            "defined(X) -> Boolean",
-            "length(Array[X]) -> Int",
-            "length(Map[K, V]) -> Int",
-            "length(Object) -> Int",
-            "length(String) -> Int",
-        ]);
+        assert_eq!(
+            signatures,
+            [
+                "floor(Float) -> Int",
+                "ceil(Float) -> Int",
+                "round(Float) -> Int",
+                "min(Int, Int) -> Int",
+                "min(Int, Float) -> Float",
+                "min(Float, Int) -> Float",
+                "min(Float, Float) -> Float",
+                "max(Int, Int) -> Int",
+                "max(Int, Float) -> Float",
+                "max(Float, Int) -> Float",
+                "max(Float, Float) -> Float",
+                "find(String, String) -> String?",
+                "matches(String, String) -> Boolean",
+                "sub(String, String, String) -> String",
+                "basename(File, <String>) -> String",
+                "basename(String, <String>) -> String",
+                "basename(Directory, <String>) -> String",
+                "join_paths(File, String) -> File",
+                "join_paths(File, Array[String]+) -> File",
+                "join_paths(Array[String]+) -> File",
+                "glob(String) -> Array[File]",
+                "size(None, <String>) -> Float",
+                "size(File?, <String>) -> Float",
+                "size(String?, <String>) -> Float",
+                "size(Directory?, <String>) -> Float",
+                "size(X, <String>) -> Float where `X`: any compound type that recursively \
+                 contains a `File` or `Directory`",
+                "stdout() -> File",
+                "stderr() -> File",
+                "read_string(File) -> String",
+                "read_int(File) -> Int",
+                "read_float(File) -> Float",
+                "read_boolean(File) -> Boolean",
+                "read_lines(File) -> Array[String]",
+                "write_lines(Array[String]) -> File",
+                "read_tsv(File) -> Array[Array[String]]",
+                "read_tsv(File, Boolean) -> Array[Object]",
+                "read_tsv(File, Boolean, Array[String]) -> Array[Object]",
+                "write_tsv(Array[Array[String]]) -> File",
+                "write_tsv(Array[Array[String]], Boolean, Array[String]) -> File",
+                "write_tsv(Array[S], <Boolean>, <Array[String]>) -> File where `S`: any structure \
+                 containing only primitive types",
+                "read_map(File) -> Map[String, String]",
+                "write_map(Map[String, String]) -> File",
+                "read_json(File) -> Union",
+                "write_json(X) -> File where `X`: any JSON-serializable type",
+                "read_object(File) -> Object",
+                "read_objects(File) -> Array[Object]",
+                "write_object(Object) -> File",
+                "write_object(S) -> File where `S`: any structure containing only primitive types",
+                "write_objects(Array[Object]) -> File",
+                "write_objects(Array[S]) -> File where `S`: any structure containing only \
+                 primitive types",
+                "prefix(String, Array[P]) -> Array[String] where `P`: any primitive type",
+                "suffix(String, Array[P]) -> Array[String] where `P`: any primitive type",
+                "quote(Array[P]) -> Array[String] where `P`: any primitive type",
+                "squote(Array[P]) -> Array[String] where `P`: any primitive type",
+                "sep(String, Array[P]) -> String where `P`: any primitive type",
+                "range(Int) -> Array[Int]",
+                "transpose(Array[Array[X]]) -> Array[Array[X]]",
+                "cross(Array[X], Array[Y]) -> Array[Pair[X, Y]]",
+                "zip(Array[X], Array[Y]) -> Array[Pair[X, Y]]",
+                "unzip(Array[Pair[X, Y]]) -> Pair[Array[X], Array[Y]]",
+                "contains(Array[P], P) -> Boolean where `P`: any primitive type",
+                "chunk(Array[X], Int) -> Array[Array[X]]",
+                "flatten(Array[Array[X]]) -> Array[X]",
+                "select_first(Array[X], <X>) -> X",
+                "select_all(Array[X]) -> Array[X]",
+                "as_pairs(Map[K, V]) -> Array[Pair[K, V]] where `K`: any primitive type",
+                "as_map(Array[Pair[K, V]]) -> Map[K, V] where `K`: any primitive type",
+                "keys(Map[K, V]) -> Array[K] where `K`: any primitive type",
+                "keys(S) -> Array[String] where `S`: any structure",
+                "keys(Object) -> Array[String]",
+                "contains_key(Map[K, V], K) -> Boolean where `K`: any primitive type",
+                "contains_key(Object, String) -> Boolean",
+                "contains_key(Map[String, V], Array[String]) -> Boolean",
+                "contains_key(S, Array[String]) -> Boolean where `S`: any structure",
+                "contains_key(Object, Array[String]) -> Boolean",
+                "values(Map[K, V]) -> Array[V] where `K`: any primitive type",
+                "collect_by_key(Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any primitive \
+                 type",
+                "defined(X) -> Boolean",
+                "length(Array[X]) -> Int",
+                "length(Map[K, V]) -> Int",
+                "length(Object) -> Int",
+                "length(String) -> Int",
+            ]
+        );
     }
 
     #[test]
@@ -2893,23 +2898,27 @@ mod test {
         assert_eq!(e, FunctionBindError::TooFewArguments(1));
 
         let e = f
-            .bind(SupportedVersion::V1(V1::One), &[
-                PrimitiveType::String.into(),
-                PrimitiveType::Boolean.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::One),
+                &[PrimitiveType::String.into(), PrimitiveType::Boolean.into()],
+            )
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooManyArguments(1));
 
         // Check for a string argument (should be a type mismatch)
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                PrimitiveType::String.into()
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[PrimitiveType::String.into()],
+            )
             .expect_err("bind should fail");
-        assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
-            index: 0,
-            expected: "`Float`".into()
-        });
+        assert_eq!(
+            e,
+            FunctionBindError::ArgumentTypeMismatch {
+                index: 0,
+                expected: "`Float`".into()
+            }
+        );
 
         // Check for Union (i.e. indeterminate)
         let binding = f
@@ -2930,9 +2939,10 @@ mod test {
 
         // Check for an integer argument (should coerce)
         let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                PrimitiveType::Integer.into()
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[PrimitiveType::Integer.into()],
+            )
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
         assert_eq!(binding.return_type().to_string(), "Int");
@@ -2957,23 +2967,27 @@ mod test {
         assert_eq!(e, FunctionBindError::TooFewArguments(1));
 
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                PrimitiveType::String.into(),
-                PrimitiveType::Boolean.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[PrimitiveType::String.into(), PrimitiveType::Boolean.into()],
+            )
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooManyArguments(1));
 
         // Check for a string argument (should be a type mismatch)
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                PrimitiveType::String.into()
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[PrimitiveType::String.into()],
+            )
             .expect_err("bind should fail");
-        assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
-            index: 0,
-            expected: "`Map[K, V]` where `K`: any primitive type".into()
-        });
+        assert_eq!(
+            e,
+            FunctionBindError::ArgumentTypeMismatch {
+                index: 0,
+                expected: "`Map[K, V]` where `K`: any primitive type".into()
+            }
+        );
 
         // Check for Union (i.e. indeterminate)
         let binding = f
@@ -3061,101 +3075,116 @@ mod test {
         assert_eq!(e, FunctionBindError::TooFewArguments(2));
 
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                PrimitiveType::String.into(),
-                PrimitiveType::Boolean.into(),
-                PrimitiveType::File.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[
+                    PrimitiveType::String.into(),
+                    PrimitiveType::Boolean.into(),
+                    PrimitiveType::File.into(),
+                ],
+            )
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooManyArguments(2));
 
         // Check for `(Int, Int)`
         let binding = f
-            .bind(SupportedVersion::V1(V1::One), &[
-                PrimitiveType::Integer.into(),
-                PrimitiveType::Integer.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::One),
+                &[PrimitiveType::Integer.into(), PrimitiveType::Integer.into()],
+            )
             .expect("binding should succeed");
         assert_eq!(binding.index(), 0);
         assert_eq!(binding.return_type().to_string(), "Int");
 
         // Check for `(Int, Float)`
         let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                PrimitiveType::Integer.into(),
-                PrimitiveType::Float.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[PrimitiveType::Integer.into(), PrimitiveType::Float.into()],
+            )
             .expect("binding should succeed");
         assert_eq!(binding.index(), 1);
         assert_eq!(binding.return_type().to_string(), "Float");
 
         // Check for `(Float, Int)`
         let binding = f
-            .bind(SupportedVersion::V1(V1::One), &[
-                PrimitiveType::Float.into(),
-                PrimitiveType::Integer.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::One),
+                &[PrimitiveType::Float.into(), PrimitiveType::Integer.into()],
+            )
             .expect("binding should succeed");
         assert_eq!(binding.index(), 2);
         assert_eq!(binding.return_type().to_string(), "Float");
 
         // Check for `(Float, Float)`
         let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                PrimitiveType::Float.into(),
-                PrimitiveType::Float.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[PrimitiveType::Float.into(), PrimitiveType::Float.into()],
+            )
             .expect("binding should succeed");
         assert_eq!(binding.index(), 3);
         assert_eq!(binding.return_type().to_string(), "Float");
 
         // Check for `(String, Int)`
         let e = f
-            .bind(SupportedVersion::V1(V1::One), &[
-                PrimitiveType::String.into(),
-                PrimitiveType::Integer.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::One),
+                &[PrimitiveType::String.into(), PrimitiveType::Integer.into()],
+            )
             .expect_err("binding should fail");
-        assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
-            index: 0,
-            expected: "`Int` or `Float`".into()
-        });
+        assert_eq!(
+            e,
+            FunctionBindError::ArgumentTypeMismatch {
+                index: 0,
+                expected: "`Int` or `Float`".into()
+            }
+        );
 
         // Check for `(Int, String)`
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                PrimitiveType::Integer.into(),
-                PrimitiveType::String.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[PrimitiveType::Integer.into(), PrimitiveType::String.into()],
+            )
             .expect_err("binding should fail");
-        assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
-            index: 1,
-            expected: "`Int` or `Float`".into()
-        });
+        assert_eq!(
+            e,
+            FunctionBindError::ArgumentTypeMismatch {
+                index: 1,
+                expected: "`Int` or `Float`".into()
+            }
+        );
 
         // Check for `(String, Float)`
         let e = f
-            .bind(SupportedVersion::V1(V1::One), &[
-                PrimitiveType::String.into(),
-                PrimitiveType::Float.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::One),
+                &[PrimitiveType::String.into(), PrimitiveType::Float.into()],
+            )
             .expect_err("binding should fail");
-        assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
-            index: 0,
-            expected: "`Int` or `Float`".into()
-        });
+        assert_eq!(
+            e,
+            FunctionBindError::ArgumentTypeMismatch {
+                index: 0,
+                expected: "`Int` or `Float`".into()
+            }
+        );
 
         // Check for `(Float, String)`
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                PrimitiveType::Float.into(),
-                PrimitiveType::String.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[PrimitiveType::Float.into(), PrimitiveType::String.into()],
+            )
             .expect_err("binding should fail");
-        assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
-            index: 1,
-            expected: "`Int` or `Float`".into()
-        });
+        assert_eq!(
+            e,
+            FunctionBindError::ArgumentTypeMismatch {
+                index: 1,
+                expected: "`Int` or `Float`".into()
+            }
+        );
     }
 
     #[test]
@@ -3171,24 +3200,31 @@ mod test {
         assert_eq!(e, FunctionBindError::TooFewArguments(1));
 
         let e = f
-            .bind(SupportedVersion::V1(V1::One), &[
-                PrimitiveType::String.into(),
-                PrimitiveType::Boolean.into(),
-                PrimitiveType::File.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::One),
+                &[
+                    PrimitiveType::String.into(),
+                    PrimitiveType::Boolean.into(),
+                    PrimitiveType::File.into(),
+                ],
+            )
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooManyArguments(2));
 
         // Check `Int`
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                PrimitiveType::Integer.into()
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[PrimitiveType::Integer.into()],
+            )
             .expect_err("binding should fail");
-        assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
-            index: 0,
-            expected: "`Array[X]`".into()
-        });
+        assert_eq!(
+            e,
+            FunctionBindError::ArgumentTypeMismatch {
+                index: 0,
+                expected: "`Array[X]`".into()
+            }
+        );
 
         // Check `Array[String?]+`
         let array: Type = ArrayType::non_empty(Type::from(PrimitiveType::String).optional()).into();
@@ -3200,25 +3236,28 @@ mod test {
 
         // Check (`Array[String?]+`, `String`)
         let binding = f
-            .bind(SupportedVersion::V1(V1::One), &[
-                array.clone(),
-                PrimitiveType::String.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::One),
+                &[array.clone(), PrimitiveType::String.into()],
+            )
             .expect("binding should succeed");
         assert_eq!(binding.index(), 0);
         assert_eq!(binding.return_type().to_string(), "String");
 
         // Check (`Array[String?]+`, `Int`)
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                array.clone(),
-                PrimitiveType::Integer.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[array.clone(), PrimitiveType::Integer.into()],
+            )
             .expect_err("binding should fail");
-        assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
-            index: 1,
-            expected: "`String`".into()
-        });
+        assert_eq!(
+            e,
+            FunctionBindError::ArgumentTypeMismatch {
+                index: 1,
+                expected: "`String`".into()
+            }
+        );
 
         // Check `Array[String?]`
         let array: Type = ArrayType::new(Type::from(PrimitiveType::String).optional()).into();
@@ -3230,24 +3269,27 @@ mod test {
 
         // Check (`Array[String?]`, `String`)
         let binding = f
-            .bind(SupportedVersion::V1(V1::One), &[
-                array.clone(),
-                PrimitiveType::String.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::One),
+                &[array.clone(), PrimitiveType::String.into()],
+            )
             .expect("binding should succeed");
         assert_eq!(binding.index(), 0);
         assert_eq!(binding.return_type().to_string(), "String");
 
         // Check (`Array[String?]`, `Int`)
         let e = f
-            .bind(SupportedVersion::V1(V1::Two), &[
-                array,
-                PrimitiveType::Integer.into(),
-            ])
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[array, PrimitiveType::Integer.into()],
+            )
             .expect_err("binding should fail");
-        assert_eq!(e, FunctionBindError::ArgumentTypeMismatch {
-            index: 1,
-            expected: "`String`".into()
-        });
+        assert_eq!(
+            e,
+            FunctionBindError::ArgumentTypeMismatch {
+                index: 1,
+                expected: "`String`".into()
+            }
+        );
     }
 }

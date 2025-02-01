@@ -120,12 +120,23 @@ pub struct TaskGraphBuilder {
 
 impl TaskGraphBuilder {
     /// Builds a new task evaluation graph.
+    ///
+    /// The nodes are [`TaskGraphNode`] and the edges represent a reverse
+    /// dependency relationship (A -> B => "node A is depended on by B").
+    ///
+    /// The edge data indicates whether or not the edge is an implicit edge
+    /// between the node and the command section.
+    ///
+    /// Commands implicitly depend on all inputs, environment variables, the
+    /// requirements section, the runtime section, and the hints section.
+    ///
+    /// Outputs implicitly depend on the command section.
     pub fn build(
         mut self,
         version: SupportedVersion,
         task: &TaskDefinition,
         diagnostics: &mut Vec<Diagnostic>,
-    ) -> DiGraph<TaskGraphNode, ()> {
+    ) -> DiGraph<TaskGraphNode, bool> {
         // Populate the declaration types and build a name reference graph
         let mut graph = DiGraph::default();
         let mut saw_inputs = false;
@@ -181,49 +192,55 @@ impl TaskGraphBuilder {
         // Add name reference edges before adding the outputs
         self.add_reference_edges(version, None, &mut graph, diagnostics);
 
+        // Add the outputs
         let count = graph.node_count();
         if let Some(section) = outputs {
             for decl in section.declarations() {
-                if let Some(index) = self.add_named_node(
+                self.add_named_node(
                     decl.name(),
                     TaskGraphNode::Output(Decl::Bound(decl)),
                     &mut graph,
                     diagnostics,
-                ) {
-                    // Add an edge to the command node as all outputs depend on the command
-                    if let Some(command) = self.command {
-                        graph.update_edge(command, index, ());
-                    }
-                }
+                );
             }
         }
 
         // Add reference edges again, but only for the output declaration nodes
         self.add_reference_edges(version, Some(count), &mut graph, diagnostics);
 
-        // Finally, add edges from the command to runtime/requirements/hints and
-        // environment variables
+        // Finally, add implicit edges to and from the command
         if let Some(command) = self.command {
+            // The command section depends on the runtime section
             if let Some(runtime) = self.runtime {
-                graph.update_edge(runtime, command, ());
+                graph.update_edge(runtime, command, true);
             }
 
+            // The command section depends on the requirements section
             if let Some(requirements) = self.requirements {
-                graph.update_edge(requirements, command, ());
+                graph.update_edge(requirements, command, true);
             }
 
+            // The command section depends on the hints section
             if let Some(hints) = self.hints {
-                graph.update_edge(hints, command, ());
+                graph.update_edge(hints, command, true);
             }
 
-            // As environment variables are implicitly used by commands, add edges from the
-            // command to the environment variable declarations
+            // The command section depends on any input or environment variable declaration
+            // All outputs depend on the command
             for index in self.names.values() {
                 match &graph[*index] {
-                    TaskGraphNode::Input(decl) | TaskGraphNode::Decl(decl)
-                        if decl.env().is_some() =>
-                    {
-                        graph.update_edge(*index, command, ());
+                    TaskGraphNode::Input(_) => {
+                        if !graph.contains_edge(*index, command) {
+                            graph.update_edge(*index, command, true);
+                        }
+                    }
+                    TaskGraphNode::Decl(decl) if decl.env().is_some() => {
+                        if !graph.contains_edge(*index, command) {
+                            graph.update_edge(*index, command, true);
+                        }
+                    }
+                    TaskGraphNode::Output(_) => {
+                        graph.update_edge(command, *index, true);
                     }
                     _ => continue,
                 }
@@ -238,7 +255,7 @@ impl TaskGraphBuilder {
         &mut self,
         name: Ident,
         node: TaskGraphNode,
-        graph: &mut DiGraph<TaskGraphNode, ()>,
+        graph: &mut DiGraph<TaskGraphNode, bool>,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Option<NodeIndex> {
         // Check for conflicting nodes
@@ -265,7 +282,7 @@ impl TaskGraphBuilder {
         from: NodeIndex,
         descendants: impl Iterator<Item = SyntaxNode>,
         allow_task_var: bool,
-        graph: &mut DiGraph<TaskGraphNode, ()>,
+        graph: &mut DiGraph<TaskGraphNode, bool>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         // Add edges for any descendant name references
@@ -275,7 +292,7 @@ impl TaskGraphBuilder {
             // Look up the name; we don't check for cycles here as decls can't
             // reference a section.
             if let Some(to) = self.names.get(name.as_str()) {
-                graph.update_edge(*to, from, ());
+                graph.update_edge(*to, from, false);
             } else if name.as_str() != TASK_VAR_NAME || !allow_task_var {
                 diagnostics.push(unknown_name(name.as_str(), name.span()));
             }
@@ -287,7 +304,7 @@ impl TaskGraphBuilder {
         &mut self,
         version: SupportedVersion,
         skip: Option<usize>,
-        graph: &mut DiGraph<TaskGraphNode, ()>,
+        graph: &mut DiGraph<TaskGraphNode, bool>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         // Populate edges for any nodes that reference other nodes by name
@@ -373,7 +390,7 @@ impl TaskGraphBuilder {
         from: NodeIndex,
         expr: Expr,
         allow_task_var: bool,
-        graph: &mut DiGraph<TaskGraphNode, ()>,
+        graph: &mut DiGraph<TaskGraphNode, bool>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         for r in expr.syntax().descendants().filter_map(NameRef::cast) {
@@ -408,7 +425,7 @@ impl TaskGraphBuilder {
                     continue;
                 }
 
-                graph.update_edge(*to, from, ());
+                graph.update_edge(*to, from, false);
             } else if name.as_str() != TASK_VAR_NAME || !allow_task_var {
                 diagnostics.push(unknown_name(name.as_str(), name.span()));
             }
@@ -537,6 +554,9 @@ pub struct WorkflowGraphBuilder {
 
 impl WorkflowGraphBuilder {
     /// Builds a new workflow evaluation graph.
+    ///
+    /// The nodes are [`WorkflowGraphNode`] and the edges represent a reverse
+    /// dependency relationship (A -> B => "node A is depended on by B").
     pub fn build(
         mut self,
         workflow: &WorkflowDefinition,

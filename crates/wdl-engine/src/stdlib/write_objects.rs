@@ -214,11 +214,14 @@ mod test {
     fn write_objects() {
         let mut env = TestEnv::default();
 
-        let ty = StructType::new("Foo", [
-            ("foo", PrimitiveType::Integer),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Boolean),
-        ]);
+        let ty = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::Integer),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Boolean),
+            ],
+        );
 
         env.insert_struct("Foo", ty);
 

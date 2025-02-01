@@ -138,9 +138,10 @@ mod test {
                     .collect::<Vec<_>>()
             })
             .collect();
-        assert_eq!(elements, [["a", "d", "g"], ["b", "e", "h"], [
-            "c", "f", "i"
-        ]]);
+        assert_eq!(
+            elements,
+            [["a", "d", "g"], ["b", "e", "h"], ["c", "f", "i"]]
+        );
 
         let diagnostic =
             eval_v1_expr(&mut env, V1::One, "transpose([['foo', 'bar'], ['baz']])").unwrap_err();

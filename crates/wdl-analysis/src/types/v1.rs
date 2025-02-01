@@ -325,14 +325,18 @@ pub enum ComparisonOperator {
 
 impl fmt::Display for ComparisonOperator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            Self::Equality => "==",
-            Self::Inequality => "!=",
-            Self::Less => "<",
-            Self::LessEqual => "<=",
-            Self::Greater => ">",
-            Self::GreaterEqual => ">=",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Equality => "==",
+                Self::Inequality => "!=",
+                Self::Less => "<",
+                Self::LessEqual => "<=",
+                Self::Greater => ">",
+                Self::GreaterEqual => ">=",
+            }
+        )
     }
 }
 
@@ -355,14 +359,18 @@ pub enum NumericOperator {
 
 impl fmt::Display for NumericOperator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            Self::Addition => "addition",
-            Self::Subtraction => "subtraction",
-            Self::Multiplication => "multiplication",
-            Self::Division => "division",
-            Self::Modulo => "remainder",
-            Self::Exponentiation => "exponentiation",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Addition => "addition",
+                Self::Subtraction => "subtraction",
+                Self::Multiplication => "multiplication",
+                Self::Division => "division",
+                Self::Modulo => "remainder",
+                Self::Exponentiation => "exponentiation",
+            }
+        )
     }
 }
 

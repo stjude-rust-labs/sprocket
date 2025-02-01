@@ -56,7 +56,7 @@ use wdl_ast::Severity;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::Inputs;
-use wdl_engine::local::LocalTaskExecutionBackend;
+use wdl_engine::config::Backend;
 use wdl_engine::v1::TaskEvaluator;
 
 /// Regex used to replace temporary file names in task command files with
@@ -205,11 +205,13 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
     inputs.join_paths(task, &test_dir);
 
+    let mut config = wdl_engine::config::Config::default();
+    config.backend.default = Backend::Local;
+    let mut evaluator = TaskEvaluator::new(config)?;
+
     let dir = TempDir::new().context("failed to create temporary directory")?;
-    let backend = LocalTaskExecutionBackend::new(None);
-    let mut evaluator = TaskEvaluator::new(&backend);
     match evaluator
-        .evaluate(result.document(), task, &inputs, dir.path(), &name)
+        .evaluate(result.document(), task, &inputs, dir.path(), |_| async {})
         .await
     {
         Ok(evaluated) => {

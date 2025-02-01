@@ -1,4 +1,4 @@
-//! Module for evaluation diagnostics.
+//! Implementation of evaluation diagnostics.
 
 use std::fmt;
 
@@ -203,13 +203,13 @@ pub fn output_evaluation_failed(
     e: anyhow::Error,
     name: &str,
     task: bool,
-    output: &Ident,
+    output: &str,
+    span: Span,
 ) -> Diagnostic {
     let e = e.context(format!(
         "failed to evaluate output `{output}` for {kind} `{name}`",
-        output = output.as_str(),
         kind = if task { "task" } else { "workflow" }
     ));
 
-    Diagnostic::error(format!("{e:?}")).with_highlight(output.span())
+    Diagnostic::error(format!("{e:?}")).with_highlight(span)
 }

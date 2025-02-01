@@ -95,7 +95,7 @@ pub struct DocumentGraphNode {
     /// The analyzed document for the node.
     ///
     /// If `None`, an analysis does not exist for the current state of the node.
-    analysis: Option<Arc<Document>>,
+    document: Option<Document>,
 }
 
 impl DocumentGraphNode {
@@ -105,7 +105,7 @@ impl DocumentGraphNode {
             uri,
             change: None,
             parse_state: ParseState::NotParsed,
-            analysis: None,
+            document: None,
         }
     }
 
@@ -118,8 +118,8 @@ impl DocumentGraphNode {
     pub fn notify_incremental_change(&mut self, change: IncrementalChange) {
         info!("document `{uri}` has incrementally changed", uri = self.uri);
 
-        // Clear the analysis as there has been a change
-        self.analysis = None;
+        // Clear the analyzed document as there has been a change
+        self.document = None;
 
         // Attempt to merge the edits of the change
         if let Some(IncrementalChange {
@@ -149,13 +149,16 @@ impl DocumentGraphNode {
     pub fn notify_change(&mut self, discard_pending: bool) {
         info!("document `{uri}` has changed", uri = self.uri);
 
-        // Clear the analysis as there has been a change
-        self.analysis = None;
+        // Clear the analyzed document as there has been a change
+        self.document = None;
 
-        if !matches!(self.parse_state, ParseState::Parsed {
-            version: Some(_),
-            ..
-        }) || discard_pending
+        if !matches!(
+            self.parse_state,
+            ParseState::Parsed {
+                version: Some(_),
+                ..
+            }
+        ) || discard_pending
         {
             self.parse_state = ParseState::NotParsed;
             self.change = None;
@@ -177,26 +180,28 @@ impl DocumentGraphNode {
     }
 
     /// Gets the analyzed document for the node.
-    pub fn analysis(&self) -> Option<&Arc<Document>> {
-        self.analysis.as_ref()
+    ///
+    /// Returns `None` if the document hasn't been analyzed.
+    pub fn document(&self) -> Option<&Document> {
+        self.document.as_ref()
     }
 
     /// Marks the analysis as completed.
     pub fn analysis_completed(&mut self, document: Document) {
-        self.analysis = Some(Arc::new(document));
+        self.document = Some(document);
     }
 
     /// Marks the document node for reanalysis.
     ///
     /// This may occur when a dependency has changed.
     pub fn reanalyze(&mut self) {
-        self.analysis = None;
+        self.document = None;
     }
 
-    /// Gets the AST document of the node.
+    /// Gets the root AST node of the document.
     ///
     /// Returns `None` if the document was not parsed.
-    pub fn document(&self) -> Option<wdl_ast::Document> {
+    pub fn root(&self) -> Option<wdl_ast::Document> {
         if let ParseState::Parsed { root, .. } = &self.parse_state {
             return Some(
                 wdl_ast::Document::cast(SyntaxNode::new_root(root.clone()))
@@ -473,14 +478,14 @@ impl DocumentGraph {
             }
 
             node.parse_state = ParseState::NotParsed;
-            node.analysis = None;
+            node.document = None;
             node.change = None;
 
             // Do a BFS traversal to trigger re-analysis in dependent documents
             self.bfs_mut(index, |graph, dependent: NodeIndex| {
                 let node = graph.get_mut(dependent);
                 debug!("document `{uri}` needs to be reanalyzed", uri = node.uri);
-                node.analysis = None;
+                node.document = None;
             });
         }
     }
@@ -500,7 +505,7 @@ impl DocumentGraph {
     pub fn include_result(&self, index: NodeIndex) -> bool {
         // Only consider rooted or parsed nodes that have been analyzed
         let node = self.get(index);
-        node.analysis().is_some()
+        node.document().is_some()
             && (self.roots.contains(&index)
                 || matches!(node.parse_state(), ParseState::Parsed { .. }))
     }

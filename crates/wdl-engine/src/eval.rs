@@ -19,7 +19,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use crate::CompoundValue;
 use crate::Outputs;
 use crate::PrimitiveValue;
-use crate::TaskExecution;
+use crate::TaskExecutionRoot;
 use crate::Value;
 
 pub mod v1;
@@ -220,13 +220,12 @@ impl<'a> ScopeRef<'a> {
 }
 
 /// Represents an evaluated task.
+#[derive(Debug)]
 pub struct EvaluatedTask {
     /// The evaluated task's status code.
     status_code: i32,
     /// The working directory of the executed task.
     work_dir: PathBuf,
-    /// The temp directory of the executed task.
-    temp_dir: PathBuf,
     /// The command file of the executed task.
     command: PathBuf,
     /// The value to return from the `stdout` function.
@@ -247,27 +246,26 @@ impl EvaluatedTask {
     /// Constructs a new evaluated task.
     ///
     /// Returns an error if the stdout or stderr paths are not UTF-8.
-    fn new(execution: &dyn TaskExecution, status_code: i32) -> anyhow::Result<Self> {
-        let stdout = PrimitiveValue::new_file(execution.stdout().to_str().with_context(|| {
+    fn new(root: &TaskExecutionRoot, status_code: i32) -> anyhow::Result<Self> {
+        let stdout = PrimitiveValue::new_file(root.stdout().to_str().with_context(|| {
             format!(
                 "path to stdout file `{path}` is not UTF-8",
-                path = execution.stdout().display()
+                path = root.stdout().display()
             )
         })?)
         .into();
-        let stderr = PrimitiveValue::new_file(execution.stderr().to_str().with_context(|| {
+        let stderr = PrimitiveValue::new_file(root.stderr().to_str().with_context(|| {
             format!(
                 "path to stderr file `{path}` is not UTF-8",
-                path = execution.stderr().display()
+                path = root.stderr().display()
             )
         })?)
         .into();
 
         Ok(Self {
             status_code,
-            work_dir: execution.work_dir().into(),
-            temp_dir: execution.temp_dir().into(),
-            command: execution.command().into(),
+            work_dir: root.work_dir().into(),
+            command: root.command().into(),
             stdout,
             stderr,
             outputs: Ok(Default::default()),
@@ -282,11 +280,6 @@ impl EvaluatedTask {
     /// Gets the working directory of the evaluated task.
     pub fn work_dir(&self) -> &Path {
         &self.work_dir
-    }
-
-    /// Gets the temp directory of the evaluated task.
-    pub fn temp_dir(&self) -> &Path {
-        &self.temp_dir
     }
 
     /// Gets the command file of the evaluated task.

@@ -61,6 +61,7 @@ tokio = { version = "1.38.0", features = ["full"] }
 toml = "0.8.14"
 tower-lsp = "0.20.0"
 tracing = "0.1.40"
+tracing-indicatif = "0.3.9"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 url = "2.5.2"

@@ -123,11 +123,14 @@ mod test {
     fn write_json() {
         let mut env = TestEnv::default();
 
-        let ty = StructType::new("Foo", [
-            ("foo", PrimitiveType::Integer),
-            ("bar", PrimitiveType::String),
-            ("baz", PrimitiveType::Float),
-        ]);
+        let ty = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::Integer),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::Float),
+            ],
+        );
         env.insert_struct("Foo", ty);
         env.insert_name("foo", PrimitiveValue::new_file("foo"));
         env.insert_name("bar", PrimitiveValue::new_file("bar"));

@@ -1,4 +1,4 @@
-cat 'tmp/tmp0' >> result
-cat 'tmp/tmp1' >> result
+cat 'attempts/0/tmp/tmp0' >> result
+cat 'attempts/0/tmp/tmp1' >> result
 
-cat 'tmp/tmp2' >> result
+cat 'attempts/0/tmp/tmp2' >> result

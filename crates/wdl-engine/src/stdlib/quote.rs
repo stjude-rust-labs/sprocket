@@ -81,11 +81,10 @@ mod test {
             .iter()
             .map(|v| v.as_string().unwrap().as_str())
             .collect();
-        assert_eq!(elements, [
-            r#""1.000000""#,
-            r#""1.100000""#,
-            r#""1.200000""#
-        ]);
+        assert_eq!(
+            elements,
+            [r#""1.000000""#, r#""1.100000""#, r#""1.200000""#]
+        );
 
         let value = eval_v1_expr(&mut env, V1::One, "quote(['bar', 'baz', 'qux'])").unwrap();
         let elements: Vec<_> = value

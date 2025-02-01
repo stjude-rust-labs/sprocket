@@ -28,6 +28,7 @@ petgraph = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }
 sysinfo = { workspace = true }
+rowan = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

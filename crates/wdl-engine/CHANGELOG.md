@@ -9,11 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added retry logic for task execution ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+* Added a `Config` type for specifying evaluation configuration ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 * Added progress callback to `WorkflowEvaluator` ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
 
 ### Fixed
 
 * Fixed an incorrect type being used for scatter statement outputs ([#316](https://github.com/stjude-rust-labs/wdl/pull/316)).
+
+### Changed
+
+* Workflow evaluation now uses `tokio::spawn` internally for running graph
+  evaluation concurrently ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+* Improved evaluation reporting to include how many tasks are ready for
+  execution ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 
 ## 0.1.0 - 01-17-2025
 

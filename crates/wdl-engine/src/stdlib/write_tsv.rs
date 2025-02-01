@@ -417,11 +417,14 @@ mod test {
     fn write_tsv() {
         let mut env = TestEnv::default();
 
-        let ty: Type = StructType::new("Foo", [
-            ("foo", PrimitiveType::Integer.into()),
-            ("bar", PrimitiveType::String.into()),
-            ("baz", Type::from(PrimitiveType::Boolean).optional()),
-        ])
+        let ty: Type = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::Integer.into()),
+                ("bar", PrimitiveType::String.into()),
+                ("baz", Type::from(PrimitiveType::Boolean).optional()),
+            ],
+        )
         .into();
 
         env.insert_struct("Foo", ty);

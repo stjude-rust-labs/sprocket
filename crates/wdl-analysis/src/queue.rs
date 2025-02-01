@@ -267,7 +267,7 @@ where
                     let result = graph
                         .get_index(&document)
                         .and_then(|index| {
-                            graph.get(index).document().and_then(|document| {
+                            graph.get(index).root().and_then(|document| {
                                 match graph.get(index).parse_state() {
                                     // NOTE: if we haven't parsed the document yet, then
                                     // we don't have the line lengths of the document,
@@ -283,8 +283,8 @@ where
                                         // If there are any diagnostics that are
                                         // errors, we shouldn't attempt to format the
                                         // document.
-                                        if diagnostics.as_ref().iter().any(|diagnositic| {
-                                            diagnositic.severity() == Severity::Error
+                                        if diagnostics.as_ref().iter().any(|diagnostic| {
+                                            diagnostic.severity() == Severity::Error
                                         }) {
                                             return None;
                                         }
@@ -444,7 +444,7 @@ where
                     .filter_map(|index| {
                         let index = *index;
                         let node = graph.get(index);
-                        if node.analysis().is_some() {
+                        if node.document().is_some() {
                             if graph.include_result(index) {
                                 results.push(AnalysisResult::new(node));
                             }
@@ -611,7 +611,7 @@ where
             graph.remove_dependency_edges(index);
 
             // Add back dependency edges for the document's imports
-            match graph.get(index).document().map(|d| d.ast()) {
+            match graph.get(index).root().map(|d| d.ast()) {
                 None | Some(Ast::Unsupported) => {}
                 Some(Ast::V1(ast)) => {
                     for import in ast.imports() {

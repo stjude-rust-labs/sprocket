@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added executing task information to the `wdl run` progress bar ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
 
+### Fixed
+
+* Progress bars no longer interleave their output with the rest of tracing
+  output ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+
 ### Changed
 
 * `wdl` run now prefers running the workflow in a document containing a single

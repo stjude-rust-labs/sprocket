@@ -39,7 +39,7 @@ pub struct Namespace {
     /// The URI of the imported document that introduced the namespace.
     source: Arc<Url>,
     /// The namespace's document.
-    document: Arc<Document>,
+    document: Document,
     /// Whether or not the namespace is used (i.e. referenced) in the document.
     used: bool,
     /// Whether or not the namespace is excepted from the "unused import"
@@ -410,9 +410,9 @@ impl Workflow {
     }
 }
 
-/// Represents an analyzed WDL document.
+/// Represents analysis data about a WDL document.
 #[derive(Debug)]
-pub struct Document {
+struct DocumentData {
     /// The root CST node of the document.
     ///
     /// This is `None` when the document could not be parsed.
@@ -437,82 +437,8 @@ pub struct Document {
     diagnostics: Vec<Diagnostic>,
 }
 
-impl Document {
-    /// Creates a new analyzed document from a document graph node.
-    pub(crate) fn from_graph_node(
-        config: DiagnosticsConfig,
-        graph: &DocumentGraph,
-        index: NodeIndex,
-    ) -> Self {
-        let node = graph.get(index);
-
-        let diagnostics = match node.parse_state() {
-            ParseState::NotParsed => panic!("node should have been parsed"),
-            ParseState::Error(_) => {
-                return Self::new(node.uri().clone(), None, None, Default::default());
-            }
-            ParseState::Parsed { diagnostics, .. } => {
-                Vec::from_iter(diagnostics.as_ref().iter().cloned())
-            }
-        };
-
-        let root = node.document().expect("node should have been parsed");
-        let (version, config) = match root.version_statement() {
-            Some(stmt) => (stmt.version(), config.excepted_for_node(stmt.syntax())),
-            None => {
-                // Don't process a document with a missing version
-                return Self::new(
-                    node.uri().clone(),
-                    Some(root.syntax().green().into()),
-                    None,
-                    diagnostics,
-                );
-            }
-        };
-
-        let mut document = Self::new(
-            node.uri().clone(),
-            Some(root.syntax().green().into()),
-            SupportedVersion::from_str(version.as_str()).ok(),
-            diagnostics,
-        );
-        match root.ast() {
-            Ast::Unsupported => {}
-            Ast::V1(ast) => {
-                v1::populate_document(&mut document, config, graph, index, &ast, &version)
-            }
-        }
-
-        // Check for unused imports
-        if let Some(severity) = config.unused_import {
-            let Document {
-                namespaces,
-                diagnostics,
-                ..
-            } = &mut document;
-
-            diagnostics.extend(
-                namespaces
-                    .iter()
-                    .filter(|(_, ns)| !ns.used && !ns.excepted)
-                    .map(|(name, ns)| unused_import(name, ns.span()).with_severity(severity)),
-            );
-        }
-
-        // Sort the diagnostics by start
-        document
-            .diagnostics
-            .sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
-                (None, None) => Ordering::Equal,
-                (None, Some(_)) => Ordering::Less,
-                (Some(_), None) => Ordering::Greater,
-                (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
-            });
-
-        document
-    }
-
-    /// Constructs a new analysis document.
+impl DocumentData {
+    /// Constructs a new analysis document data.
     fn new(
         uri: Arc<Url>,
         root: Option<GreenNode>,
@@ -531,11 +457,104 @@ impl Document {
             diagnostics,
         }
     }
+}
+
+/// Represents an analyzed WDL document.
+///
+/// This type is cheaply cloned.
+#[derive(Debug, Clone)]
+pub struct Document {
+    /// The document data for the document.
+    data: Arc<DocumentData>,
+}
+
+impl Document {
+    /// Creates a new analyzed document from a document graph node.
+    pub(crate) fn from_graph_node(
+        config: DiagnosticsConfig,
+        graph: &DocumentGraph,
+        index: NodeIndex,
+    ) -> Self {
+        let node = graph.get(index);
+
+        let diagnostics = match node.parse_state() {
+            ParseState::NotParsed => panic!("node should have been parsed"),
+            ParseState::Error(_) => {
+                return Self {
+                    data: Arc::new(DocumentData::new(
+                        node.uri().clone(),
+                        None,
+                        None,
+                        Default::default(),
+                    )),
+                };
+            }
+            ParseState::Parsed { diagnostics, .. } => {
+                Vec::from_iter(diagnostics.as_ref().iter().cloned())
+            }
+        };
+
+        let root = node.root().expect("node should have been parsed");
+        let (version, config) = match root.version_statement() {
+            Some(stmt) => (stmt.version(), config.excepted_for_node(stmt.syntax())),
+            None => {
+                // Don't process a document with a missing version
+                return Self {
+                    data: Arc::new(DocumentData::new(
+                        node.uri().clone(),
+                        Some(root.syntax().green().into()),
+                        None,
+                        diagnostics,
+                    )),
+                };
+            }
+        };
+
+        let mut data = DocumentData::new(
+            node.uri().clone(),
+            Some(root.syntax().green().into()),
+            SupportedVersion::from_str(version.as_str()).ok(),
+            diagnostics,
+        );
+        match root.ast() {
+            Ast::Unsupported => {}
+            Ast::V1(ast) => v1::populate_document(&mut data, config, graph, index, &ast, &version),
+        }
+
+        // Check for unused imports
+        if let Some(severity) = config.unused_import {
+            let DocumentData {
+                namespaces,
+                diagnostics,
+                ..
+            } = &mut data;
+
+            diagnostics.extend(
+                namespaces
+                    .iter()
+                    .filter(|(_, ns)| !ns.used && !ns.excepted)
+                    .map(|(name, ns)| unused_import(name, ns.span()).with_severity(severity)),
+            );
+        }
+
+        // Sort the diagnostics by start
+        data.diagnostics
+            .sort_by(|a, b| match (a.labels().next(), b.labels().next()) {
+                (None, None) => Ordering::Equal,
+                (None, Some(_)) => Ordering::Less,
+                (Some(_), None) => Ordering::Greater,
+                (Some(a), Some(b)) => a.span().start().cmp(&b.span().start()),
+            });
+
+        Self {
+            data: Arc::new(data),
+        }
+    }
 
     /// Gets the root AST document node.
     pub fn node(&self) -> wdl_ast::Document {
         wdl_ast::Document::cast(SyntaxNode::new_root(
-            self.root.clone().expect("should have a root"),
+            self.data.root.clone().expect("should have a root"),
         ))
         .expect("should cast")
     }
@@ -544,12 +563,12 @@ impl Document {
     ///
     /// This value changes when a document is reanalyzed.
     pub fn id(&self) -> &Arc<String> {
-        &self.id
+        &self.data.id
     }
 
     /// Gets the URI of the document.
     pub fn uri(&self) -> &Arc<Url> {
-        &self.uri
+        &self.data.uri
     }
 
     /// Gets the supported version of the document.
@@ -557,49 +576,49 @@ impl Document {
     /// Returns `None` if the document could not be parsed or contains an
     /// unsupported version.
     pub fn version(&self) -> Option<SupportedVersion> {
-        self.version
+        self.data.version
     }
 
     /// Gets the namespaces in the document.
     pub fn namespaces(&self) -> impl Iterator<Item = (&str, &Namespace)> {
-        self.namespaces.iter().map(|(n, ns)| (n.as_str(), ns))
+        self.data.namespaces.iter().map(|(n, ns)| (n.as_str(), ns))
     }
 
     /// Gets a namespace in the document by name.
     pub fn namespace(&self, name: &str) -> Option<&Namespace> {
-        self.namespaces.get(name)
+        self.data.namespaces.get(name)
     }
 
     /// Gets the tasks in the document.
     pub fn tasks(&self) -> impl Iterator<Item = &Task> {
-        self.tasks.iter().map(|(_, t)| t)
+        self.data.tasks.iter().map(|(_, t)| t)
     }
 
     /// Gets a task in the document by name.
     pub fn task_by_name(&self, name: &str) -> Option<&Task> {
-        self.tasks.get(name)
+        self.data.tasks.get(name)
     }
 
     /// Gets a workflow in the document.
     ///
     /// Returns `None` if the document did not contain a workflow.
     pub fn workflow(&self) -> Option<&Workflow> {
-        self.workflow.as_ref()
+        self.data.workflow.as_ref()
     }
 
     /// Gets the structs in the document.
     pub fn structs(&self) -> impl Iterator<Item = (&str, &Struct)> {
-        self.structs.iter().map(|(n, s)| (n.as_str(), s))
+        self.data.structs.iter().map(|(n, s)| (n.as_str(), s))
     }
 
     /// Gets a struct in the document by name.
     pub fn struct_by_name(&self, name: &str) -> Option<&Struct> {
-        self.structs.get(name)
+        self.data.structs.get(name)
     }
 
     /// Gets the analysis diagnostics for the document.
     pub fn diagnostics(&self) -> &[Diagnostic] {
-        &self.diagnostics
+        &self.data.diagnostics
     }
 
     /// Finds a scope based on a position within the document.
@@ -636,7 +655,7 @@ impl Document {
         }
 
         // Check to see if the position is contained in the workflow
-        if let Some(workflow) = &self.workflow {
+        if let Some(workflow) = &self.data.workflow {
             if workflow.scope().span().contains(position) {
                 return find_scope(&workflow.scopes, position);
             }
@@ -644,10 +663,11 @@ impl Document {
 
         // Search for a task that might contain the position
         let task = match self
+            .data
             .tasks
             .binary_search_by_key(&position, |_, t| t.scope().span().start())
         {
-            Ok(index) => &self.tasks[index],
+            Ok(index) => &self.data.tasks[index],
             Err(index) => {
                 // This indicates that we couldn't find a match and the match would go _before_
                 // the first task, so there is no containing task.
@@ -655,7 +675,7 @@ impl Document {
                     return None;
                 }
 
-                &self.tasks[index - 1]
+                &self.data.tasks[index - 1]
             }
         };
 

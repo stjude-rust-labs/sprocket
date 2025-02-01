@@ -27,6 +27,7 @@ colored = { workspace = true, optional = true }
 codespan-reporting = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 indicatif = { workspace = true, optional = true }
+tracing-indicatif = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 clap-verbosity-flag =  { workspace = true, optional = true }
 tracing-log = { workspace = true, optional = true }
@@ -63,6 +64,7 @@ cli = [
     "dep:anyhow",
     "dep:colored",
     "dep:indicatif",
+    "dep:tracing-indicatif",
     "dep:tokio",
     "dep:clap-verbosity-flag",
     "dep:tracing-log",

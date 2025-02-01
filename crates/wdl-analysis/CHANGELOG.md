@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed a missing version 1.2 constraint on the `String` overload of `basename` ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+
+### Changed
+
+* `Document` is now trivially cloned ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+* The task evaluation graph now forms implicit edges between the command and
+  other nodes in the graph; the command now always depends on an input even if
+  the input is not transitively referenced by the command. This does not impact
+  the diagnostic relating to unused inputs ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+
 ## 0.6.0 - 01-17-2025
 
 ### Added
