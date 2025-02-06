@@ -10,8 +10,8 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use ftree::FenwickTree;
-use rand::distributions::Alphanumeric;
-use rand::distributions::DistString;
+use rand::distr::Alphanumeric;
+use rand::distr::SampleString;
 use serde::Deserialize;
 use serde_json;
 use tracing::debug;
@@ -239,9 +239,8 @@ fn to_bash_var(placeholder: &Placeholder) -> String {
     let placeholder_len: usize = placeholder.syntax().text_range().len().into();
     // don't start variable with numbers
     let mut bash_var = String::from("WDL");
-    bash_var.push_str(
-        &Alphanumeric.sample_string(&mut rand::thread_rng(), placeholder_len.saturating_sub(6)),
-    );
+    bash_var
+        .push_str(&Alphanumeric.sample_string(&mut rand::rng(), placeholder_len.saturating_sub(6)));
     bash_var
 }
 

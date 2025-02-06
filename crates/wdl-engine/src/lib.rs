@@ -61,7 +61,7 @@ fn convert_ast_type_v1(document: &Document, ty: &wdl_ast::v1::Type) -> Result<Ty
 /// Cached information about the host system.
 static SYSTEM: LazyLock<System> = LazyLock::new(|| {
     let mut system = System::new();
-    system.refresh_cpu_list(CpuRefreshKind::new());
-    system.refresh_memory_specifics(MemoryRefreshKind::new().with_ram());
+    system.refresh_cpu_list(CpuRefreshKind::nothing());
+    system.refresh_memory_specifics(MemoryRefreshKind::nothing().with_ram());
     system
 });
