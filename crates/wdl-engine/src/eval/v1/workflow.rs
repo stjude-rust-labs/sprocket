@@ -1201,7 +1201,9 @@ impl WorkflowEvaluator {
 
         // Finally, join any paths with the working directory, checking for existence
         value
-            .join_paths(&state.work_dir, true, expected_ty.is_optional())
+            .join_paths(&state.work_dir, true, expected_ty.is_optional(), &|_| {
+                Ok(None)
+            })
             .map_err(|e| {
                 output_evaluation_failed(
                     e,
@@ -1291,7 +1293,7 @@ impl WorkflowEvaluator {
             // Promote all values in the scope to the parent scope as optional
             let mut scopes = state.scopes.write().await;
             let (parent, child) = scopes.parent_mut(scope);
-            for (name, value) in child.iter() {
+            for (name, value) in child.local() {
                 parent.insert(name.to_string(), value.clone_as_optional());
             }
 
@@ -1358,7 +1360,7 @@ impl WorkflowEvaluator {
             // Append the result to the gather (the first two variables in scope are always
             // the scatter index and variable)
             let mut scopes = scopes.write().await;
-            for (name, value) in scopes.get_mut(scope).iter().skip(2) {
+            for (name, value) in scopes.get_mut(scope).local().skip(2) {
                 match gathers.get_mut(name) {
                     Some(gather) => gather.set(index, value.clone())?,
                     None => {

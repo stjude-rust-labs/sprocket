@@ -25,7 +25,6 @@ use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskSpawnRequest;
-use super::TaskSpawnResponse;
 use crate::Coercible;
 use crate::SYSTEM;
 use crate::Value;
@@ -86,14 +85,14 @@ struct LocalTaskSpawnRequest {
     /// Note that memory isn't actually reserved for the task process.
     memory: u64,
     /// The sender to send the response back on.
-    tx: oneshot::Sender<TaskSpawnResponse>,
+    tx: oneshot::Sender<Result<i32>>,
 }
 
 /// Represents a local task spawn response.
 #[derive(Debug)]
 struct LocalTaskSpawnResponse {
-    /// The inner task spawn response.
-    inner: TaskSpawnResponse,
+    /// The result of execution.
+    result: Result<i32>,
     /// The requested CPU reservation for the task.
     ///
     /// Note that CPU isn't actually reserved for the task process.
@@ -103,7 +102,7 @@ struct LocalTaskSpawnResponse {
     /// Note that memory isn't actually reserved for the task process.
     memory: u64,
     /// The sender to send the response back on.
-    tx: oneshot::Sender<TaskSpawnResponse>,
+    tx: oneshot::Sender<Result<i32>>,
 }
 
 /// Represents state for the local task execution backend.
@@ -220,7 +219,7 @@ impl LocalTaskExecutionBackend {
                 Some(Ok(response)) = state.spawned.join_next() => {
                     state.cpu += response.cpu;
                     state.memory += response.memory;
-                    response.tx.send(response.inner).ok();
+                    response.tx.send(response.result).ok();
 
                     // Look for tasks to unpark
                     while let Some(pos) = state.parked.iter().position(|r| r.cpu <= state.cpu && r.memory <= state.memory) {
@@ -251,16 +250,11 @@ impl LocalTaskExecutionBackend {
         if request.cpu > total_cpu {
             request
                 .tx
-                .send(TaskSpawnResponse {
-                    requirements: request.inner.requirements,
-                    hints: request.inner.hints,
-                    env: request.inner.env,
-                    status_code: Err(anyhow!(
-                        "requested task CPU count of {cpu} exceeds the total host CPU count of \
-                         {total_cpu}",
-                        cpu = request.cpu
-                    )),
-                })
+                .send(Err(anyhow!(
+                    "requested task CPU count of {cpu} exceeds the total host CPU count of \
+                     {total_cpu}",
+                    cpu = request.cpu
+                )))
                 .ok();
             return;
         }
@@ -269,17 +263,12 @@ impl LocalTaskExecutionBackend {
         if request.memory > total_memory {
             request
                 .tx
-                .send(TaskSpawnResponse {
-                    requirements: request.inner.requirements,
-                    hints: request.inner.hints,
-                    env: request.inner.env,
-                    status_code: Err(anyhow!(
-                        "requested task memory of {memory} byte{s} exceeds the total host memory \
-                         of {total_memory}",
-                        memory = request.memory,
-                        s = if request.memory == 1 { "" } else { "s" }
-                    )),
-                })
+                .send(Err(anyhow!(
+                    "requested task memory of {memory} byte{s} exceeds the total host memory of \
+                     {total_memory}",
+                    memory = request.memory,
+                    s = if request.memory == 1 { "" } else { "s" }
+                )))
                 .ok();
             return;
         }
@@ -314,14 +303,8 @@ impl LocalTaskExecutionBackend {
             let spawned = request.inner.spawned.take().unwrap();
             spawned.send(()).ok();
 
-            let status_code = Self::spawn_task(&request.inner).await;
             LocalTaskSpawnResponse {
-                inner: TaskSpawnResponse {
-                    requirements: request.inner.requirements,
-                    hints: request.inner.hints,
-                    env: request.inner.env,
-                    status_code,
-                },
+                result: Self::spawn_task(&request.inner).await,
                 cpu: request.cpu,
                 memory: request.memory,
                 tx: request.tx,
@@ -460,12 +443,16 @@ impl TaskExecutionBackend for LocalTaskExecutionBackend {
         })
     }
 
-    fn container_root(&self) -> Option<&Path> {
+    fn container_root_dir(&self) -> Option<&Path> {
         // Local execution does not use a container
         None
     }
 
-    fn spawn(&self, request: TaskSpawnRequest) -> Result<oneshot::Receiver<TaskSpawnResponse>> {
+    fn spawn(&self, request: TaskSpawnRequest) -> Result<oneshot::Receiver<Result<i32>>> {
+        if !request.mounts.is_empty() {
+            bail!("cannot spawn a local task with mount points");
+        }
+
         let (tx, rx) = oneshot::channel();
         let cpu = cpu(&request.requirements);
         let memory = memory(&request.requirements)? as u64;

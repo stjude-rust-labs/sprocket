@@ -1,9 +1,10 @@
 //! Implementation of an expression evaluator for 1.x WDL documents.
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::fmt::Write;
 use std::iter::once;
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
@@ -263,20 +264,20 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
     /// Evaluates a placeholder into the given string buffer.
     ///
-    /// `mapped_paths` is used to map from host paths to guest paths when
-    /// evaluating commands.
+    /// The `translate` callback is called to translate any path values; this is
+    /// primarily used when evaluating a placeholder in a task command section.
     pub fn evaluate_placeholder(
         &mut self,
         placeholder: &Placeholder,
         buffer: &mut String,
-        mapped_paths: &HashMap<String, String>,
+        translate: impl Fn(&Path) -> Option<PathBuf>,
     ) -> Result<(), Diagnostic> {
         /// The actual implementation for evaluating placeholders
         fn imp<C: EvaluationContext>(
             evaluator: &mut ExprEvaluator<C>,
             placeholder: &Placeholder,
             buffer: &mut String,
-            mapped_paths: &HashMap<String, String>,
+            translate: impl Fn(&Path) -> Option<PathBuf>,
         ) -> Result<(), Diagnostic> {
             let expr = placeholder.expr();
             match evaluator.evaluate_expr(&expr)? {
@@ -317,10 +318,12 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     }
                 }
                 Value::Primitive(PrimitiveValue::File(path))
-                | Value::Primitive(PrimitiveValue::Directory(path))
-                    if mapped_paths.contains_key(path.as_str()) =>
-                {
-                    write!(buffer, "{path}", path = mapped_paths[path.as_str()]).unwrap()
+                | Value::Primitive(PrimitiveValue::Directory(path)) => {
+                    if let Some(path) = translate(Path::new(path.as_str())) {
+                        write!(buffer, "{path}", path = path.display()).unwrap()
+                    } else {
+                        write!(buffer, "{path}").unwrap();
+                    }
                 }
                 Value::Primitive(v) => write!(buffer, "{v}", v = v.raw()).unwrap(),
                 Value::Compound(CompoundValue::Array(v))
@@ -362,7 +365,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
         // Bump the placeholder count while evaluating the placeholder
         self.placeholders += 1;
-        let result = imp(self, placeholder, buffer, mapped_paths);
+        let result = imp(self, placeholder, buffer, translate);
         self.placeholders -= 1;
 
         // Reset the evaluated none flag
@@ -396,7 +399,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         s.push_str(&t);
                     }
                     StrippedStringPart::Placeholder(placeholder) => {
-                        self.evaluate_placeholder(&placeholder, &mut s, &Default::default())?;
+                        self.evaluate_placeholder(&placeholder, &mut s, |_| None)?;
                     }
                 }
             }
@@ -407,7 +410,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         t.unescape_to(&mut s);
                     }
                     StringPart::Placeholder(placeholder) => {
-                        self.evaluate_placeholder(&placeholder, &mut s, &Default::default())?;
+                        self.evaluate_placeholder(&placeholder, &mut s, |_| None)?;
                     }
                 }
             }

@@ -5,6 +5,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -470,14 +471,11 @@ impl Value {
     }
 
     /// Visits each file or directory path contained in the value.
-    ///
-    /// If the callback returns an error, visitation stops and the error result
-    /// is returned.
-    pub(crate) fn visit_paths(&self, cb: &mut impl FnMut(&str) -> Result<()>) -> Result<()> {
+    pub(crate) fn visit_paths(&self, cb: &mut impl FnMut(&Arc<String>)) {
         match self {
             Self::Primitive(v) => v.visit_paths(cb),
             Self::Compound(v) => v.visit_paths(cb),
-            _ => Ok(()),
+            _ => {}
         }
     }
 
@@ -487,19 +485,22 @@ impl Value {
     /// If `check_existence` is `true` and a required path does not exist, an
     /// error is returned. An optional path that does not exist is replaced with
     /// `None`.
+    ///
+    /// The translate` callback is called for each path value prior to joining.
     pub(crate) fn join_paths(
         &mut self,
         path: &Path,
         check_existence: bool,
         optional: bool,
+        translate: &impl Fn(&Path) -> Result<Option<PathBuf>>,
     ) -> Result<()> {
         match self {
             Self::Primitive(v) => {
-                if !v.join_paths(path, check_existence, optional)? {
+                if !v.join_paths(path, check_existence, optional, translate)? {
                     *self = Value::None;
                 }
             }
-            Self::Compound(v) => v.join_paths(path, check_existence)?,
+            Self::Compound(v) => v.join_paths(path, check_existence, translate)?,
             _ => {}
         }
 
@@ -1102,10 +1103,10 @@ impl PrimitiveValue {
     }
 
     /// Visits each file or directory path contained in the value.
-    fn visit_paths(&self, cb: &mut impl FnMut(&str) -> Result<()>) -> Result<()> {
+    fn visit_paths(&self, cb: &mut impl FnMut(&Arc<String>)) {
         match self {
-            Self::File(path) | Self::Directory(path) => cb(path.as_str()),
-            _ => Ok(()),
+            Self::File(path) | Self::Directory(path) => cb(path),
+            _ => {}
         }
     }
 
@@ -1113,13 +1114,26 @@ impl PrimitiveValue {
     /// path value.
     ///
     /// If `check_existence` is `true` and a required path does not exist, an
-    /// error is returned. An optional path that does not exist is replaced with
-    /// `None`.
-    fn join_paths(&mut self, path: &Path, check_existence: bool, optional: bool) -> Result<bool> {
+    /// error is returned.
+    ///
+    /// Otherwise, returns whether or not the value exists.
+    fn join_paths(
+        &mut self,
+        path: &Path,
+        check_existence: bool,
+        optional: bool,
+        translate: &impl Fn(&Path) -> Result<Option<PathBuf>>,
+    ) -> Result<bool> {
         match self {
             PrimitiveValue::File(p) => {
-                if let Ok(joined) = path.join(p.as_str()).into_os_string().into_string() {
-                    *Arc::make_mut(p) = joined;
+                let path = if let Some(p) = translate(Path::new(p.as_str()))? {
+                    path.join(p)
+                } else {
+                    path.join(p.as_str())
+                };
+
+                if let Ok(path) = path.into_os_string().into_string() {
+                    *Arc::make_mut(p) = path;
                 }
 
                 if check_existence && !Path::new(p.as_str()).is_file() {
@@ -1131,8 +1145,14 @@ impl PrimitiveValue {
                 }
             }
             PrimitiveValue::Directory(p) => {
-                if let Ok(joined) = path.join(p.as_str()).into_os_string().into_string() {
-                    *Arc::make_mut(p) = joined;
+                let path = if let Some(p) = translate(Path::new(p.as_str()))? {
+                    path.join(p)
+                } else {
+                    path.join(p.as_str())
+                };
+
+                if let Ok(path) = path.into_os_string().into_string() {
+                    *Arc::make_mut(p) = path;
                 }
 
                 if check_existence && !Path::new(p.as_str()).is_dir() {
@@ -2113,63 +2133,71 @@ impl CompoundValue {
     }
 
     /// Visits each file or directory path contained in the value.
-    fn visit_paths(&self, cb: &mut impl FnMut(&str) -> Result<()>) -> Result<()> {
+    fn visit_paths(&self, cb: &mut impl FnMut(&Arc<String>)) {
         match self {
             Self::Pair(pair) => {
-                pair.left().visit_paths(cb)?;
-                pair.right().visit_paths(cb)?;
+                pair.left().visit_paths(cb);
+                pair.right().visit_paths(cb);
             }
             Self::Array(array) => {
                 for v in array.as_slice() {
-                    v.visit_paths(cb)?;
+                    v.visit_paths(cb);
                 }
             }
             Self::Map(map) => {
                 for (k, v) in map.iter() {
                     if let Some(k) = k {
-                        k.visit_paths(cb)?;
+                        k.visit_paths(cb);
                     }
 
-                    v.visit_paths(cb)?;
+                    v.visit_paths(cb);
                 }
             }
             Self::Object(object) => {
                 for v in object.values() {
-                    v.visit_paths(cb)?;
+                    v.visit_paths(cb);
                 }
             }
             Self::Struct(Struct { members, .. }) => {
                 for v in members.values() {
-                    v.visit_paths(cb)?;
+                    v.visit_paths(cb);
                 }
             }
         }
-
-        Ok(())
     }
 
     /// Replaces any inner path values by joining the specified path with the
     /// path value.
     ///
     /// If `check_existence` is `true` and a required path does not exist, an
-    /// error is returned. An optional path that does not exist is replaced with
-    /// `None`.
-    pub(crate) fn join_paths(&mut self, path: &Path, check_existence: bool) -> Result<()> {
+    /// error is returned.
+    ///
+    /// An optional path that does not exist is replaced with `None`.
+    pub(crate) fn join_paths(
+        &mut self,
+        path: &Path,
+        check_existence: bool,
+        translate: &impl Fn(&Path) -> Result<Option<PathBuf>>,
+    ) -> Result<()> {
         match self {
             Self::Pair(pair) => {
                 let ty = pair.ty.as_pair().expect("should be a pair type");
                 let (left_optional, right_optional) =
                     (ty.left_type().is_optional(), ty.right_type().is_optional());
                 let values = Arc::make_mut(&mut pair.values);
-                values.0.join_paths(path, check_existence, left_optional)?;
-                values.1.join_paths(path, check_existence, right_optional)?;
+                values
+                    .0
+                    .join_paths(path, check_existence, left_optional, translate)?;
+                values
+                    .1
+                    .join_paths(path, check_existence, right_optional, translate)?;
             }
             Self::Array(array) => {
                 let ty = array.ty.as_array().expect("should be an array type");
                 let optional = ty.element_type().is_optional();
                 if let Some(elements) = &mut array.elements {
                     for v in Arc::make_mut(elements) {
-                        v.join_paths(path, check_existence, optional)?;
+                        v.join_paths(path, check_existence, optional, translate)?;
                     }
                 }
             }
@@ -2194,12 +2222,17 @@ impl CompoundValue {
                             .drain(..)
                             .map(|(mut k, mut v)| {
                                 if let Some(v) = &mut k {
-                                    if !v.join_paths(path, check_existence, key_optional)? {
+                                    if !v.join_paths(
+                                        path,
+                                        check_existence,
+                                        key_optional,
+                                        translate,
+                                    )? {
                                         k = None;
                                     }
                                 }
 
-                                v.join_paths(path, check_existence, value_optional)?;
+                                v.join_paths(path, check_existence, value_optional, translate)?;
                                 Ok((k, v))
                             })
                             .collect::<Result<Vec<_>>>()?;
@@ -2207,7 +2240,7 @@ impl CompoundValue {
                     } else {
                         // Otherwise, we can just mutable the values in place
                         for v in Arc::make_mut(elements).values_mut() {
-                            v.join_paths(path, check_existence, value_optional)?;
+                            v.join_paths(path, check_existence, value_optional, translate)?;
                         }
                     }
                 }
@@ -2215,14 +2248,19 @@ impl CompoundValue {
             Self::Object(object) => {
                 if let Some(members) = &mut object.members {
                     for v in Arc::make_mut(members).values_mut() {
-                        v.join_paths(path, check_existence, false)?;
+                        v.join_paths(path, check_existence, false, translate)?;
                     }
                 }
             }
             Self::Struct(s) => {
                 let ty = s.ty.as_struct().expect("should be a struct type");
                 for (n, v) in Arc::make_mut(&mut s.members).iter_mut() {
-                    v.join_paths(path, check_existence, ty.members()[n].is_optional())?;
+                    v.join_paths(
+                        path,
+                        check_existence,
+                        ty.members()[n].is_optional(),
+                        translate,
+                    )?;
                 }
             }
         }

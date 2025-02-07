@@ -13,6 +13,7 @@ use indexmap::IndexMap;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 
+use crate::MountPoints;
 use crate::Value;
 
 pub mod local;
@@ -72,6 +73,8 @@ pub struct TaskExecutionConstraints {
 /// ```
 #[derive(Debug)]
 pub struct TaskExecutionRoot {
+    /// The root directory for task execution.
+    root_dir: PathBuf,
     /// The path to the directory for files created by the stdlib before and
     /// after command evaluation.
     temp_dir: PathBuf,
@@ -80,7 +83,7 @@ pub struct TaskExecutionRoot {
     ///
     /// This needs to be a different location from `temp_dir` because commands
     /// are re-evaluated on retry.
-    command_temp_dir: PathBuf,
+    attempt_temp_dir: PathBuf,
     /// The path to the working directory for the execution.
     work_dir: PathBuf,
     /// The path to the command file.
@@ -94,18 +97,18 @@ pub struct TaskExecutionRoot {
 impl TaskExecutionRoot {
     /// Creates a task execution root for the given path and execution attempt.
     pub fn new(path: &Path, attempt: u64) -> Result<Self> {
-        let path = absolute(path).with_context(|| {
+        let root_dir = absolute(path).with_context(|| {
             format!(
                 "failed to determine absolute path of `{path}`",
                 path = path.display()
             )
         })?;
 
-        let mut attempts = path.join("attempts");
+        let mut attempts = root_dir.join("attempts");
         attempts.push(attempt.to_string());
 
         // Create both temp directories now as it may be needed for task evaluation
-        let temp_dir = path.join("tmp");
+        let temp_dir = root_dir.join("tmp");
         fs::create_dir_all(&temp_dir).with_context(|| {
             format!(
                 "failed to create directory `{path}`",
@@ -113,22 +116,28 @@ impl TaskExecutionRoot {
             )
         })?;
 
-        let command_temp_dir = attempts.join("tmp");
-        fs::create_dir_all(&command_temp_dir).with_context(|| {
+        let attempt_temp_dir = attempts.join("tmp");
+        fs::create_dir_all(&attempt_temp_dir).with_context(|| {
             format!(
                 "failed to create directory `{path}`",
-                path = command_temp_dir.display()
+                path = attempt_temp_dir.display()
             )
         })?;
 
         Ok(Self {
+            root_dir,
             temp_dir,
-            command_temp_dir,
+            attempt_temp_dir,
             work_dir: attempts.join("work"),
             command: attempts.join("command"),
             stdout: attempts.join("stdout"),
             stderr: attempts.join("stderr"),
         })
+    }
+
+    /// Gets the path to the root itself.
+    pub fn path(&self) -> &Path {
+        &self.root_dir
     }
 
     /// Gets the temporary directory path for task evaluation before and after
@@ -148,7 +157,7 @@ impl TaskExecutionRoot {
     /// The temporary directory is created before spawning the task so that it
     /// is available for task evaluation.
     pub fn attempt_temp_dir(&self) -> &Path {
-        &self.command_temp_dir
+        &self.attempt_temp_dir
     }
 
     /// Gets the working directory for task execution.
@@ -187,15 +196,13 @@ pub struct TaskSpawnRequest {
     /// The command of the task.
     command: String,
     /// The requirements of the task.
-    requirements: HashMap<String, Value>,
+    requirements: Arc<HashMap<String, Value>>,
     /// The hints of the task.
-    hints: HashMap<String, Value>,
+    hints: Arc<HashMap<String, Value>>,
     /// The environment variables of the task.
-    env: HashMap<String, String>,
-    /// The mapping between host paths and guest paths.
-    ///
-    /// This is only populated for backends that have a container root.
-    mapping: HashMap<String, String>,
+    env: Arc<HashMap<String, String>>,
+    /// The mount points to use for the spawn request.
+    mounts: Arc<MountPoints>,
     /// The channel to send a message on when the task is spawned.
     ///
     /// This value will be `None` once the task is spawned.
@@ -210,10 +217,10 @@ impl TaskSpawnRequest {
     pub fn new(
         root: Arc<TaskExecutionRoot>,
         command: String,
-        requirements: HashMap<String, Value>,
-        hints: HashMap<String, Value>,
-        env: HashMap<String, String>,
-        mapping: HashMap<String, String>,
+        requirements: Arc<HashMap<String, Value>>,
+        hints: Arc<HashMap<String, Value>>,
+        env: Arc<HashMap<String, String>>,
+        mounts: Arc<MountPoints>,
     ) -> (Self, oneshot::Receiver<()>) {
         let (tx, rx) = oneshot::channel();
 
@@ -224,7 +231,7 @@ impl TaskSpawnRequest {
                 requirements,
                 hints,
                 env,
-                mapping,
+                mounts,
                 spawned: Some(tx),
             },
             rx,
@@ -256,27 +263,10 @@ impl TaskSpawnRequest {
         &self.env
     }
 
-    /// Gets the mapping between host paths and guest paths.
-    ///
-    /// This is only populated for backends that have a container root.
-    pub fn mapping(&self) -> &HashMap<String, String> {
-        &self.mapping
+    /// Gets the mount points for the task.
+    pub fn mounts(&self) -> &Arc<MountPoints> {
+        &self.mounts
     }
-}
-
-/// Represents the response from spawning a task.
-#[derive(Debug)]
-pub struct TaskSpawnResponse {
-    /// The requirements the task was spawned with.
-    pub requirements: HashMap<String, Value>,
-    /// The hints the task was spawned with.
-    pub hints: HashMap<String, Value>,
-    /// The environment the task was spawned with.
-    pub env: HashMap<String, String>,
-    /// The status code of the task's execution.
-    ///
-    /// This may be `Err` if the task failed to spawn.
-    pub status_code: Result<i32>,
 }
 
 /// Represents a task execution backend.
@@ -294,13 +284,22 @@ pub trait TaskExecutionBackend: Send + Sync {
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints>;
 
-    /// Gets the container root directory for the backend (e.g. `/mnt/task`)
+    /// Gets the container (guest) root directory for the backend (e.g.
+    /// `/mnt/task`).
+    ///
+    /// Containerized execution uses the following guest paths:
+    ///
+    /// * `<root>/inputs/` - where inputs are mounted; this is mounted
+    ///   read-only.
+    /// * `<root>/work/` - the task working directory; this is mounted
+    ///   read-write.
+    /// * `<root>/command` - the command to execute; this is mounted read-only.
     ///
     /// Returns `None` if the task execution does not use a container.
-    fn container_root(&self) -> Option<&Path>;
+    fn container_root_dir(&self) -> Option<&Path>;
 
     /// Spawns a task with the execution backend.
     ///
     /// Upon success, returns a receiver for receiving the response.
-    fn spawn(&self, request: TaskSpawnRequest) -> Result<Receiver<TaskSpawnResponse>>;
+    fn spawn(&self, request: TaskSpawnRequest) -> Result<Receiver<Result<i32>>>;
 }

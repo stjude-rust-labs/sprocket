@@ -43,7 +43,7 @@ fn join_paths(inputs: &mut HashMap<String, Value>, path: &Path, ty: impl Fn(&str
         let mut replacement = std::mem::replace(value, Value::None);
         if let Ok(mut v) = replacement.coerce(&ty) {
             drop(replacement);
-            v.join_paths(path, true, false)
+            v.join_paths(path, true, false, &|_| Ok(None))
                 .expect("joining should not fail");
             replacement = v;
         }

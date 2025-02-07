@@ -1,7 +1,6 @@
 //! Implementation of evaluation for V1 tasks.
 
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::future::Future;
 use std::mem;
 use std::path::Path;
@@ -51,7 +50,9 @@ use super::ProgressKind;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationResult;
+use crate::MountPoint;
 use crate::Outputs;
+use crate::PathTrie;
 use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
@@ -66,6 +67,7 @@ use crate::config::MAX_RETRIES;
 use crate::diagnostics::output_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::eval::EvaluatedTask;
+use crate::eval::MountPoints;
 use crate::v1::ExprEvaluator;
 
 /// The default value for the `cpu` requirement.
@@ -258,10 +260,6 @@ struct State<'a> {
     ///
     /// Environment variables do not change between retries.
     env: HashMap<String, String>,
-    /// Host paths that need to be mapped to guest paths.
-    ///
-    /// This is only populated for backends that have a container root.
-    paths: HashSet<String>,
 }
 
 impl<'a> State<'a> {
@@ -287,43 +285,12 @@ impl<'a> State<'a> {
             scopes,
             root: Arc::new(TaskExecutionRoot::new(root, 0)?),
             env: Default::default(),
-            paths: Default::default(),
         })
     }
 
-    /// Updates the state for retrying task execution.
-    fn retry(&mut self, root: &Path, attempt: u64, env: HashMap<String, String>) -> Result<()> {
+    /// Changes the root for a new attempt.
+    fn set_root(&mut self, root: &Path, attempt: u64) -> Result<()> {
         self.root = Arc::new(TaskExecutionRoot::new(root, attempt)?);
-        self.env = env;
-        Ok(())
-    }
-
-    /// Updates state for a declaration.
-    fn update_for_decl(
-        &mut self,
-        name: &Ident,
-        value: &Value,
-        is_env_var: bool,
-        map_paths: bool,
-    ) -> Result<(), crate::EvaluationError> {
-        if is_env_var {
-            self.env.insert(
-                name.as_str().to_string(),
-                value
-                    .as_primitive()
-                    .expect("value should be primitive")
-                    .raw()
-                    .to_string(),
-            );
-        }
-
-        if map_paths {
-            value.visit_paths(&mut |path| {
-                self.paths.insert(path.to_string());
-                Ok(())
-            })?;
-        }
-
         Ok(())
     }
 }
@@ -333,11 +300,11 @@ struct EvaluatedSections {
     /// The evaluated command.
     command: String,
     /// The evaluated requirements.
-    requirements: HashMap<String, Value>,
+    requirements: Arc<HashMap<String, Value>>,
     /// The evaluated hints.
-    hints: HashMap<String, Value>,
-    /// The mapped paths from host path to guest path.
-    mapped: HashMap<String, String>,
+    hints: Arc<HashMap<String, Value>>,
+    /// The calculated mount points based on the inputs and declarations.
+    mounts: Arc<MountPoints>,
 }
 
 /// Represents a WDL V1 task evaluator.
@@ -547,14 +514,16 @@ impl TaskEvaluator {
         // TODO: check call cache for a hit. if so, skip task execution and use cache
         // paths for output evaluation
 
+        let env = Arc::new(mem::take(&mut state.env));
+
         // Spawn the task in a retry loop
         let mut attempt = 0;
-        let mut evaluated = loop {
+        let (mut evaluated, mounts) = loop {
             let EvaluatedSections {
                 command,
                 requirements,
                 hints,
-                mapped,
+                mounts,
             } = self.evaluate_sections(&mut state, definition.clone(), inputs, id, attempt)?;
 
             // Get the maximum number of retries, either from the task's requirements or
@@ -577,10 +546,10 @@ impl TaskEvaluator {
             let (request, rx) = TaskSpawnRequest::new(
                 state.root.clone(),
                 command,
-                requirements,
-                hints,
-                std::mem::take(&mut state.env),
-                mapped,
+                requirements.clone(),
+                hints.clone(),
+                env.clone(),
+                mounts.clone(),
             );
             let response = self.backend.spawn(request)?;
 
@@ -589,16 +558,16 @@ impl TaskEvaluator {
 
             progress(ProgressKind::TaskExecutionStarted { id, attempt });
 
-            let response = response
+            let status_code = response
                 .await
                 .expect("failed to receive response from spawned task");
 
             progress(ProgressKind::TaskExecutionCompleted {
                 id,
-                status_code: &response.status_code,
+                status_code: &status_code,
             });
 
-            let status_code = response.status_code?;
+            let status_code = status_code?;
             let evaluated = EvaluatedTask::new(&state.root, status_code)?;
 
             // Update the task variable
@@ -618,15 +587,15 @@ impl TaskEvaluator {
                 task.set_return_code(evaluated.status_code);
             }
 
-            if let Err(e) = evaluated.handle_exit(&response.requirements) {
+            if let Err(e) = evaluated.handle_exit(&requirements) {
                 if attempt >= max_retries {
                     return Err(e.into());
                 }
 
                 attempt += 1;
 
-                // Update the state for the next attempt
-                state.retry(root, attempt, response.env)?;
+                // Update the execution root for the next attempt
+                state.set_root(root, attempt)?;
 
                 info!(
                     "retrying execution of task `{name}` (retry {attempt})",
@@ -635,7 +604,7 @@ impl TaskEvaluator {
                 continue;
             }
 
-            break evaluated;
+            break (evaluated, mounts);
         };
 
         // Evaluate the remaining inputs (unused), and decls, and outputs
@@ -645,7 +614,7 @@ impl TaskEvaluator {
                     self.evaluate_decl(&mut state, &decl)?;
                 }
                 TaskGraphNode::Output(decl) => {
-                    self.evaluate_output(&mut state, &decl, &evaluated)?;
+                    self.evaluate_output(&mut state, &decl, &evaluated, &mounts)?;
                 }
                 _ => {
                     unreachable!(
@@ -711,12 +680,17 @@ impl TaskEvaluator {
             .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), span))?;
         state.scopes[ROOT_SCOPE_INDEX.0].insert(name.as_str(), value.clone());
 
-        state.update_for_decl(
-            &name,
-            &value,
-            decl.env().is_some(),
-            self.backend.container_root().is_some(),
-        )?;
+        // Insert an environment variable, if it is one
+        if decl.env().is_some() {
+            state.env.insert(
+                name.as_str().to_string(),
+                value
+                    .as_primitive()
+                    .expect("value should be primitive")
+                    .raw()
+                    .to_string(),
+            );
+        }
 
         Ok(())
     }
@@ -747,12 +721,17 @@ impl TaskEvaluator {
             .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
         state.scopes[ROOT_SCOPE_INDEX.0].insert(name.as_str(), value.clone());
 
-        state.update_for_decl(
-            &name,
-            &value,
-            decl.env().is_some(),
-            self.backend.container_root().is_some(),
-        )?;
+        // Insert an environment variable, if it is one
+        if decl.env().is_some() {
+            state.env.insert(
+                name.as_str().to_string(),
+                value
+                    .as_primitive()
+                    .expect("value should be primitive")
+                    .raw()
+                    .to_string(),
+            );
+        }
 
         Ok(())
     }
@@ -918,15 +897,49 @@ impl TaskEvaluator {
         &self,
         state: &State<'_>,
         section: &CommandSection,
-    ) -> EvaluationResult<(String, HashMap<String, String>)> {
+    ) -> EvaluationResult<(String, MountPoints)> {
         debug!(
             "evaluating command section for task `{task}` in `{uri}`",
             task = state.task.name(),
             uri = state.document.uri()
         );
 
-        // TODO: map paths from host to guest
-        let mapping = Default::default();
+        // Determine the mount points needed to evaluate the command properly
+        let mounts = if let Some(root) = self.backend.container_root_dir() {
+            // For every file or directory value in scope, we need to insert into the tree
+            let mut paths = Vec::new();
+            let mut trie = PathTrie::default();
+
+            // Discover every path and directory that's visible to the scope
+            ScopeRef::new(&state.scopes, TASK_SCOPE_INDEX.0).for_each(|_, v| {
+                v.visit_paths(&mut |p| {
+                    paths.push(p.clone());
+                });
+            });
+
+            // Insert the paths into the trie
+            for path in &paths {
+                trie.insert(Path::new(path.as_str()));
+            }
+
+            // Convert the trie into mount points
+            let mut mounts = trie.into_mount_points(root.join("inputs"));
+
+            // Mount the working directory and command
+            mounts.insert(MountPoint::new(
+                state.root.work_dir(),
+                root.join("work"),
+                false,
+            ));
+            mounts.insert(MountPoint::new(
+                state.root.command(),
+                root.join("command"),
+                true,
+            ));
+            mounts
+        } else {
+            Default::default()
+        };
 
         let mut command = String::new();
         if let Some(parts) = section.strip_whitespace() {
@@ -942,7 +955,9 @@ impl TaskEvaluator {
                         command.push_str(t.as_str());
                     }
                     StrippedCommandPart::Placeholder(placeholder) => {
-                        evaluator.evaluate_placeholder(&placeholder, &mut command, &mapping)?;
+                        evaluator.evaluate_placeholder(&placeholder, &mut command, |p| {
+                            mounts.guest(p)
+                        })?;
                     }
                 }
             }
@@ -967,13 +982,15 @@ impl TaskEvaluator {
                         t.unescape_to(heredoc, &mut command);
                     }
                     CommandPart::Placeholder(placeholder) => {
-                        evaluator.evaluate_placeholder(&placeholder, &mut command, &mapping)?;
+                        evaluator.evaluate_placeholder(&placeholder, &mut command, |p| {
+                            mounts.guest(p)
+                        })?;
                     }
                 }
             }
         }
 
-        Ok((command, mapping))
+        Ok((command, mounts))
     }
 
     /// Evaluates sections prior to spawning the command.
@@ -1047,15 +1064,16 @@ impl TaskEvaluator {
             }
         }
 
-        let (command, mapped) = self.evaluate_command(
+        let (command, mounts) = self.evaluate_command(
             state,
             &definition.command().expect("must have command section"),
         )?;
+
         Ok(EvaluatedSections {
             command,
-            requirements,
-            hints,
-            mapped,
+            requirements: Arc::new(requirements),
+            hints: Arc::new(hints),
+            mounts: Arc::new(mounts),
         })
     }
 
@@ -1065,6 +1083,7 @@ impl TaskEvaluator {
         state: &mut State<'_>,
         decl: &Decl,
         evaluated: &EvaluatedTask,
+        mounts: &MountPoints,
     ) -> EvaluationResult<()> {
         let name = decl.name();
         debug!(
@@ -1092,7 +1111,22 @@ impl TaskEvaluator {
 
         // Finally, join the path with the working directory, checking for existence
         value
-            .join_paths(&evaluated.work_dir, true, ty.is_optional())
+            .join_paths(&evaluated.work_dir, true, ty.is_optional(), &|p| {
+                let host = mounts.host(p);
+
+                // If the path was absolute, it must map to a host path otherwise the file
+                // exists only within the container
+                if p.is_absolute() && !p.starts_with(state.root.path()) {
+                    return Ok(Some(host.ok_or_else(|| {
+                        anyhow!(
+                            "guest path `{p}` is not within a container mount point",
+                            p = p.display()
+                        )
+                    })?));
+                }
+
+                Ok(host)
+            })
             .map_err(|e| {
                 output_evaluation_failed(e, state.task.name(), true, name.as_str(), name.span())
             })?;
