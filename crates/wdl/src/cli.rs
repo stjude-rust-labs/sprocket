@@ -13,10 +13,15 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use colored::Colorize;
+use futures::FutureExt;
 use indexmap::IndexSet;
 use indicatif::ProgressStyle;
 use serde_json::to_string_pretty;
 use tokio::fs;
+use tokio::select;
+use tokio::signal;
+use tokio_util::sync::CancellationToken;
+use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt;
 use url::Url;
 use wdl_analysis::AnalysisResult;
@@ -213,13 +218,15 @@ pub async fn validate_inputs(document: &str, inputs: &Path) -> Result<Option<Dia
     Ok(None)
 }
 
-/// Run a WDL task or workflow.
-pub async fn run(
+/// Evaluates a WDL task or workflow.
+async fn evaluate(
     document: &Document,
     path: Option<&Path>,
     name: &str,
+    config: Config,
     inputs: Inputs,
     output_dir: &Path,
+    token: CancellationToken,
 ) -> Result<Option<Diagnostic>> {
     /// Helper for displaying task ids
     struct Ids<'a>(&'a IndexSet<String>);
@@ -265,8 +272,6 @@ pub async fn run(
         .unwrap(),
     );
 
-    // TODO: take config from command line argument
-    let config = Config::default();
     let result = match inputs {
         Inputs::Task(mut inputs) => {
             // Make any paths specified in the inputs absolute
@@ -277,10 +282,10 @@ pub async fn run(
             // Ensure all the paths specified in the inputs file are relative to the file's
             // directory
             if let Some(path) = path.as_ref().and_then(|p| p.parent()) {
-                inputs.join_paths(task, path);
+                inputs.join_paths(task, path)?;
             }
 
-            let mut evaluator = TaskEvaluator::new(config)?;
+            let mut evaluator = TaskEvaluator::new(config, token).await?;
             evaluator
                 .evaluate(document, task, &inputs, output_dir, |_| async {})
                 .await
@@ -297,7 +302,7 @@ pub async fn run(
             // Ensure all the paths specified in the inputs file are relative to the file's
             // directory
             if let Some(path) = path.as_ref().and_then(|p| p.parent()) {
-                inputs.join_paths(workflow, path);
+                inputs.join_paths(workflow, path)?;
             }
 
             /// Represents state for reporting progress
@@ -314,7 +319,7 @@ pub async fn run(
             }
 
             let state = Mutex::<State>::default();
-            let mut evaluator = WorkflowEvaluator::new(config)?;
+            let mut evaluator = WorkflowEvaluator::new(config, token).await?;
 
             evaluator
                 .evaluate(document, inputs, output_dir, move |kind| {
@@ -326,8 +331,12 @@ pub async fn run(
                             ProgressKind::TaskStarted { .. } => {
                                 state.ready += 1;
                             }
-                            ProgressKind::TaskExecutionStarted { id, .. } => {
-                                state.ready -= 1;
+                            ProgressKind::TaskExecutionStarted { id, attempt } => {
+                                // If this is the first attempt, remove it from the ready set
+                                if attempt == 0 {
+                                    state.ready -= 1;
+                                }
+
                                 state.executing += 1;
                                 state.ids.insert(id.to_string());
                             }
@@ -375,5 +384,37 @@ pub async fn run(
             EvaluationError::Source(diagnostic) => Ok(Some(diagnostic)),
             EvaluationError::Other(e) => Err(e),
         },
+    }
+}
+
+/// Runs a WDL task or workflow.
+pub async fn run(
+    document: &Document,
+    path: Option<&Path>,
+    name: &str,
+    config: Config,
+    inputs: Inputs,
+    output_dir: &Path,
+) -> Result<Option<Diagnostic>> {
+    let token = CancellationToken::new();
+    let mut evaluate = evaluate(
+        document,
+        path,
+        name,
+        config,
+        inputs,
+        output_dir,
+        token.clone(),
+    )
+    .boxed();
+
+    select! {
+        _ = signal::ctrl_c() => {
+            error!("execution was interrupted: waiting for evaluation to abort");
+            token.cancel();
+            evaluate.await.ok();
+            bail!("execution was aborted");
+        },
+        res = &mut evaluate => res,
     }
 }

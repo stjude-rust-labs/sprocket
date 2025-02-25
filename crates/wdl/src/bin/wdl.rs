@@ -321,6 +321,10 @@ pub struct RunCommand {
     #[clap(short, long, value_name = "OUTPUT_DIR")]
     pub output: Option<PathBuf>,
 
+    /// The path to the engine TOML configuration file.
+    #[clap(short, long, value_name = "CONFIG")]
+    pub config: Option<PathBuf>,
+
     /// Overwrites the task execution output directory if it exists.
     #[clap(long)]
     pub overwrite: bool,
@@ -374,9 +378,34 @@ impl RunCommand {
             })?;
         }
 
+        let config = self
+            .config
+            .map(|p| {
+                let contents = fs::read_to_string(&p).with_context(|| {
+                    format!(
+                        "failed to read configuration file `{path}`",
+                        path = p.display(),
+                    )
+                })?;
+
+                toml::from_str(&contents).with_context(|| {
+                    format!("invalid configuration file `{path}`", path = p.display())
+                })
+            })
+            .transpose()?
+            .unwrap_or_default();
+
         let (path, name, inputs) =
             parse_inputs(document, self.name.as_deref(), self.inputs.as_deref())?;
-        if let Some(diagnostic) = run(document, path.as_deref(), &name, inputs, &output_dir).await?
+        if let Some(diagnostic) = run(
+            document,
+            path.as_deref(),
+            &name,
+            config,
+            inputs,
+            &output_dir,
+        )
+        .await?
         {
             let source = read_source(Path::new(&self.file))?;
             emit_diagnostics(&self.file, &source, &[diagnostic])?;

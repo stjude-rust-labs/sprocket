@@ -185,6 +185,8 @@ cargo +nightly fmt --check
 cargo doc
 ```
 
+Note that the `wdl-engine` tests require a locally running Docker daemon.
+
 ## 🤝 Contributing
 
 Contributions, issues, and feature requests are all welcome! Feel free to read our

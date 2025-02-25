@@ -30,6 +30,11 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 
+/// One gibibyte (GiB) as a float.
+///
+/// This is defined as a constant as it's a commonly performed conversion.
+const ONE_GIBIBYTE: f64 = 1024.0 * 1024.0 * 1024.0;
+
 /// Resolves a type name from a document.
 ///
 /// This function will import the type into the type cache if not already

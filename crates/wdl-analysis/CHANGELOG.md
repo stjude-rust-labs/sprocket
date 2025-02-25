@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Fixed
+### Added
 
-* Fixed a missing version 1.2 constraint on the `String` overload of `basename` ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+* Added `path` method to `Document` ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 
 ### Changed
 
@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   other nodes in the graph; the command now always depends on an input even if
   the input is not transitively referenced by the command. This does not impact
   the diagnostic relating to unused inputs ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+
+### Fixed
+
+* Fixed type of `task.container` to be `String?` ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed a missing version 1.2 constraint on the `String` overload of `basename` ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 
 ## 0.6.0 - 01-17-2025
 

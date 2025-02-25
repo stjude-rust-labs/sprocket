@@ -55,7 +55,7 @@ impl Diagnostics {
             for node in element.ancestors().filter(|node| {
                 exceptable_nodes
                     .as_ref()
-                    .map_or(true, |nodes| nodes.contains(&node.kind()))
+                    .is_none_or(|nodes| nodes.contains(&node.kind()))
             }) {
                 if node.is_rule_excepted(rule) {
                     // Rule is currently excepted, don't add the diagnostic

@@ -7,18 +7,26 @@ use anyhow::Result;
 use anyhow::bail;
 use serde::Deserialize;
 use serde::Serialize;
+use tracing::warn;
 
 use crate::SYSTEM;
 use crate::TaskExecutionBackend;
 use crate::convert_unit_string;
+use crate::crankshaft::CrankshaftBackend;
 use crate::local::LocalTaskExecutionBackend;
 
 /// The inclusive maximum number of task retries the engine supports.
 pub const MAX_RETRIES: u64 = 100;
 
+/// The name of the crankshaft docker backend.
+pub const CRANKSHAFT_DOCKER_BACKEND_NAME: &str = "docker";
+
+/// The default task shell.
+pub const DEFAULT_TASK_SHELL: &str = "bash";
+
 /// Represents WDL evaluation configuration.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Config {
     /// Workflow evaluation configuration.
     #[serde(default)]
@@ -41,18 +49,29 @@ impl Config {
     }
 
     /// Creates a new task execution backend based on this configuration.
-    pub fn create_backend(&self) -> Result<Arc<dyn TaskExecutionBackend>> {
+    pub async fn create_backend(&self) -> Result<Arc<dyn TaskExecutionBackend>> {
         match self.backend.default {
-            Backend::Local => Ok(Arc::new(LocalTaskExecutionBackend::new(
-                &self.backend.local,
-            )?)),
+            BackendKind::Local => {
+                warn!(
+                    "the engine is configured to use the local backend: tasks will not be run \
+                     inside of a container"
+                );
+
+                Ok(Arc::new(LocalTaskExecutionBackend::new(
+                    &self.task,
+                    &self.backend.local,
+                )?))
+            }
+            BackendKind::Crankshaft => Ok(Arc::new(
+                CrankshaftBackend::new(&self.task, &self.backend.crankshaft).await?,
+            )),
         }
     }
 }
 
 /// Represents workflow evaluation configuration.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct WorkflowConfig {
     /// Scatter statement evaluation configuration.
     #[serde(default)]
@@ -69,7 +88,7 @@ impl WorkflowConfig {
 
 /// Represents scatter statement evaluation configuration.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ScatterConfig {
     /// The number of scatter array elements to process concurrently.
     ///
@@ -142,7 +161,7 @@ impl ScatterConfig {
 
 /// Represents task evaluation configuration.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TaskConfig {
     /// The default maximum number of retries to attempt if a task fails.
     ///
@@ -151,6 +170,21 @@ pub struct TaskConfig {
     /// Defaults to 0 (no retries).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retries: Option<u64>,
+    /// The default container to use if a container is not specified in a task's
+    /// requirements.
+    ///
+    /// Defaults to `ubuntu:latest`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub container: Option<String>,
+    /// The default shell to use for tasks.
+    ///
+    /// Defaults to `bash`.
+    ///
+    /// <div class="warning">
+    /// Warning: the use of a shell other than `bash` may lead to tasks that may
+    /// not be portable to other execution engines.</div>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shell: Option<String>,
 }
 
 impl TaskConfig {
@@ -159,6 +193,7 @@ impl TaskConfig {
         if self.retries.unwrap_or(0) > MAX_RETRIES {
             bail!("configuration value `task.retries` cannot exceed {MAX_RETRIES}");
         }
+
         Ok(())
     }
 }
@@ -166,36 +201,46 @@ impl TaskConfig {
 /// Represents supported task execution backends.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
-pub enum Backend {
+pub enum BackendKind {
     /// Use the local task execution backend.
-    // TODO: change this to docker when supported.
-    #[default]
     Local,
+    /// Use the crankshaft task execution backend.
+    #[default]
+    Crankshaft,
 }
 
-impl Backend {
+impl BackendKind {
     /// Determines if the backend is the local task execution backend.
     pub fn is_local(&self) -> bool {
         matches!(self, Self::Local)
+    }
+
+    /// Determines if the backend is the crankshaft task execution backend.
+    pub fn is_crankshaft(&self) -> bool {
+        matches!(self, Self::Crankshaft)
     }
 }
 
 /// Represents task execution backend configuration.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BackendConfig {
     /// The default execution backend to use.
-    // TODO: update this once local is no longer the default
-    #[serde(default, skip_serializing_if = "Backend::is_local")]
-    pub default: Backend,
+    #[serde(default, skip_serializing_if = "BackendKind::is_crankshaft")]
+    pub default: BackendKind,
     /// Local task execution backend configuration.
+    #[serde(default)]
     pub local: LocalBackendConfig,
+    /// Crankshaft execution backend configuration.
+    #[serde(default)]
+    pub crankshaft: CrankshaftBackendConfig,
 }
 
 impl BackendConfig {
     /// Validates the backend configuration.
     pub fn validate(&self) -> Result<()> {
         self.local.validate()?;
+        self.crankshaft.validate()?;
         Ok(())
     }
 }
@@ -207,7 +252,7 @@ impl BackendConfig {
 /// directly without the use of a container; only use this backend on trusted
 /// WDL. </div>
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LocalBackendConfig {
     /// Set the number of CPUs available for task execution.
     ///
@@ -262,6 +307,42 @@ impl LocalBackendConfig {
             }
         }
 
+        Ok(())
+    }
+}
+
+/// Represents supported crankshaft execution backends.
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum CrankshaftBackendKind {
+    /// Use the Docker task execution backend.
+    #[default]
+    Docker,
+}
+
+impl CrankshaftBackendKind {
+    /// Determines if the crankshaft backend is Docker.
+    pub fn is_docker(&self) -> bool {
+        matches!(self, Self::Docker)
+    }
+}
+
+/// Represents configuration for the crankshaft task execution backend.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct CrankshaftBackendConfig {
+    /// The default execution backend to use.
+    #[serde(default, skip_serializing_if = "CrankshaftBackendKind::is_docker")]
+    pub default: CrankshaftBackendKind,
+
+    /// The docker backend configuration.
+    #[serde(default)]
+    pub docker: crankshaft::config::backend::docker::Config,
+}
+
+impl CrankshaftBackendConfig {
+    /// Validates the crankshaft task execution backend configuration.
+    pub fn validate(&self) -> Result<()> {
         Ok(())
     }
 }

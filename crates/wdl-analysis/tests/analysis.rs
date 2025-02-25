@@ -115,17 +115,9 @@ fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<()> {
 /// Compares the provided results.
 fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
     let mut buffer = Buffer::no_color();
-    let cwd = std::env::current_dir().expect("must have a CWD");
     for result in results {
         // Attempt to strip the CWD from the result path
-        let path = result.document().uri().to_file_path();
-        let path: Cow<'_, str> = match &path {
-            // Strip the CWD from the path
-            Ok(path) => path.strip_prefix(&cwd).unwrap_or(path).to_string_lossy(),
-            // Use the id itself if there is no path
-            Err(_) => result.document().uri().as_str().into(),
-        };
-
+        let path = result.document().path();
         let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
             Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
             None => result.document().diagnostics().into(),

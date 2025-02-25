@@ -39,6 +39,7 @@ use path_clean::clean;
 use pretty_assertions::StrComparison;
 use serde_json::to_string_pretty;
 use tempfile::TempDir;
+use tokio_util::sync::CancellationToken;
 use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
 use wdl_analysis::DiagnosticsConfig;
@@ -49,7 +50,7 @@ use wdl_ast::Severity;
 use wdl_engine::EvaluationError;
 use wdl_engine::Inputs;
 use wdl_engine::config;
-use wdl_engine::config::Backend;
+use wdl_engine::config::BackendKind;
 use wdl_engine::v1::WorkflowEvaluator;
 
 /// Finds tests to run as part of the analysis test suite.
@@ -143,18 +144,30 @@ fn compare_result(path: &Path, result: &str) -> Result<()> {
     Ok(())
 }
 
+/// Gets the engine configurations to use for the test.
+fn configs() -> Vec<config::Config> {
+    vec![
+        {
+            let mut config = config::Config::default();
+            config.backend.default = BackendKind::Local;
+            config
+        },
+        // Currently we limit running the Docker backend to Linux as GitHub does not have Docker
+        // installed on macOS hosted runners and the Windows hosted runners are configured to use
+        // Windows containers
+        #[cfg(target_os = "linux")]
+        {
+            let mut config = config::Config::default();
+            config.backend.crankshaft.default = config::CrankshaftBackendKind::Docker;
+            config.backend.default = BackendKind::Crankshaft;
+            config
+        },
+    ]
+}
+
 /// Runs the test given the provided analysis result.
 async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
-    let cwd = std::env::current_dir().expect("must have a CWD");
-    // Attempt to strip the CWD from the result path
-    let path = result.document().uri().to_file_path();
-    let path: Cow<'_, str> = match &path {
-        // Strip the CWD from the path
-        Ok(path) => path.strip_prefix(&cwd).unwrap_or(path).to_string_lossy(),
-        // Use the id itself if there is no path
-        Err(_) => result.document().uri().as_str().into(),
-    };
-
+    let path = result.document().path();
     let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
         Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
         None => result.document().diagnostics().into(),
@@ -179,32 +192,32 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
         .document()
         .workflow()
         .context("document does not contain a workflow")?;
-    inputs.join_paths(workflow, &test_dir);
+    inputs.join_paths(workflow, &test_dir)?;
 
-    let dir = TempDir::new().context("failed to create temporary directory")?;
+    for config in configs() {
+        let dir = TempDir::new().context("failed to create temporary directory")?;
 
-    let mut config = config::Config::default();
-    config.backend.default = Backend::Local;
-    let mut evaluator = WorkflowEvaluator::new(config)?;
-    match evaluator
-        .evaluate(result.document(), inputs, dir.path(), |_| async {})
-        .await
-    {
-        Ok(outputs) => {
-            let outputs = outputs.with_name(workflow.name());
-            let outputs = to_string_pretty(&outputs).context("failed to serialize outputs")?;
-            let outputs = strip_paths(dir.path(), &outputs);
-            compare_result(&test.join("outputs.json"), &outputs)?;
-        }
-        Err(e) => {
-            let error = match e {
-                EvaluationError::Source(diagnostic) => {
-                    diagnostic_to_string(result.document(), &path, &diagnostic)
-                }
-                EvaluationError::Other(e) => format!("{e:?}"),
-            };
-            let error = strip_paths(dir.path(), &error);
-            compare_result(&test.join("error.txt"), &error)?;
+        let mut evaluator = WorkflowEvaluator::new(config, CancellationToken::new()).await?;
+        match evaluator
+            .evaluate(result.document(), inputs.clone(), &dir, |_| async {})
+            .await
+        {
+            Ok(outputs) => {
+                let outputs = outputs.with_name(workflow.name());
+                let outputs = to_string_pretty(&outputs).context("failed to serialize outputs")?;
+                let outputs = strip_paths(dir.path(), &outputs);
+                compare_result(&test.join("outputs.json"), &outputs)?;
+            }
+            Err(e) => {
+                let error = match e {
+                    EvaluationError::Source(diagnostic) => {
+                        diagnostic_to_string(result.document(), &path, &diagnostic)
+                    }
+                    EvaluationError::Other(e) => format!("{e:?}"),
+                };
+                let error = strip_paths(dir.path(), &error);
+                compare_result(&test.join("error.txt"), &error)?;
+            }
         }
     }
 

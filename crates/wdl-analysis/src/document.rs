@@ -1,7 +1,9 @@
 //! Representation of analyzed WDL documents.
 
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -569,6 +571,29 @@ impl Document {
     /// Gets the URI of the document.
     pub fn uri(&self) -> &Arc<Url> {
         &self.data.uri
+    }
+
+    /// Gets the path to the document.
+    ///
+    /// If the scheme of the document's URI is not `file`, this will return the
+    /// URI as a string. Otherwise, this will attempt to return the path
+    /// relative to the current working directory, or the absolute path
+    /// failing that.
+    pub fn path(&self) -> Cow<'_, str> {
+        if let Ok(path) = self.data.uri.to_file_path() {
+            if let Some(path) = std::env::current_dir()
+                .ok()
+                .and_then(|cwd| path.strip_prefix(cwd).ok().and_then(Path::to_str))
+            {
+                return path.to_string().into();
+            }
+
+            if let Ok(path) = path.into_os_string().into_string() {
+                return path.into();
+            }
+        }
+
+        self.data.uri.as_str().into()
     }
 
     /// Gets the supported version of the document.

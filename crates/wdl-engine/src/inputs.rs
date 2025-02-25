@@ -29,7 +29,11 @@ type JsonMap = serde_json::Map<String, JsonValue>;
 
 /// Helper for replacing input paths with a path derived from joining the
 /// specified path with the input path.
-fn join_paths(inputs: &mut HashMap<String, Value>, path: &Path, ty: impl Fn(&str) -> Option<Type>) {
+fn join_paths(
+    inputs: &mut HashMap<String, Value>,
+    path: &Path,
+    ty: impl Fn(&str) -> Option<Type>,
+) -> Result<()> {
     for (name, value) in inputs.iter_mut() {
         let ty = if let Some(ty) = ty(name) {
             ty
@@ -43,13 +47,14 @@ fn join_paths(inputs: &mut HashMap<String, Value>, path: &Path, ty: impl Fn(&str
         let mut replacement = std::mem::replace(value, Value::None);
         if let Ok(mut v) = replacement.coerce(&ty) {
             drop(replacement);
-            v.join_paths(path, true, false, &|_| Ok(None))
-                .expect("joining should not fail");
+            v.join_paths(path, true, false, &|_| Ok(None))?;
             replacement = v;
         }
 
         *value = replacement;
     }
+
+    Ok(())
 }
 
 /// Represents inputs to a task.
@@ -106,10 +111,10 @@ impl TaskInputs {
     ///
     /// This method will attempt to coerce matching input values to their
     /// expected types.
-    pub fn join_paths(&mut self, task: &Task, path: &Path) {
+    pub fn join_paths(&mut self, task: &Task, path: &Path) -> Result<()> {
         join_paths(&mut self.inputs, path, |name| {
             task.inputs().get(name).map(|input| input.ty().clone())
-        });
+        })
     }
 
     /// Validates the inputs for the given task.
@@ -329,10 +334,10 @@ impl WorkflowInputs {
     ///
     /// This method will attempt to coerce matching input values to their
     /// expected types.
-    pub fn join_paths(&mut self, workflow: &Workflow, path: &Path) {
+    pub fn join_paths(&mut self, workflow: &Workflow, path: &Path) -> Result<()> {
         join_paths(&mut self.inputs, path, |name| {
             workflow.inputs().get(name).map(|input| input.ty().clone())
-        });
+        })
     }
 
     /// Validates the inputs for the given workflow.

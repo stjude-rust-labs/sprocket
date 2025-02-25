@@ -1,5 +1,5 @@
 echo "Task name: test"
 echo "Task id: test"
 echo "Task description: Task that shows how to use the implicit 'task' variable"
-echo "Task container: "
+echo "Task container: ubuntu:latest"
 exit 1

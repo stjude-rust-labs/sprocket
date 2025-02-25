@@ -132,9 +132,8 @@ use crate::types::Coercible;
 /// Returns `None` if the given member name is unknown.
 pub fn task_member_type(name: &str) -> Option<Type> {
     match name {
-        n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID || n == TASK_FIELD_CONTAINER => {
-            Some(PrimitiveType::String.into())
-        }
+        n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
+        n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
         n if n == TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
         n if n == TASK_FIELD_MEMORY || n == TASK_FIELD_ATTEMPT => {
             Some(PrimitiveType::Integer.into())

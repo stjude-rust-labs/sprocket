@@ -1,7 +1,4 @@
-error: failed to evaluate output `foo` for task `test`
-
-Caused by:
-    file `attempts/0/work/foo.txt` does not exist
+error: failed to evaluate output `foo` for task `test`: file `attempts/0/work/foo.txt` does not exist
   ┌─ tests/tasks/missing-output-file/source.wdl:9:14
   │
 9 │         File foo = "foo.txt"

@@ -9,7 +9,7 @@ task test {
     echo "Task name: ~{task.name}"
     echo "Task id: ~{task.id}"
     echo "Task description: ~{task.meta.description}"
-    echo "Task container: ~{task.container}"
+    echo "Task container: ~{select_first([task.container, "ubuntu:latest"])}"
     exit 1
   >>>
   
@@ -17,11 +17,12 @@ task test {
     String name = task.name
     String id = task.id
     String description = task.meta.description
-    String? container = task.container
+    String? container = select_first([task.container, "ubuntu:latest"])
     Int? return_code = task.return_code
   }
 
   requirements {
+    container: "ubuntu:latest"
     return_codes: [0, 1]
   }
 }

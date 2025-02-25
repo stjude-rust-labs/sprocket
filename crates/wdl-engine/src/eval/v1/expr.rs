@@ -4,7 +4,6 @@ use std::cmp::Ordering;
 use std::fmt::Write;
 use std::iter::once;
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
@@ -263,21 +262,16 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a placeholder into the given string buffer.
-    ///
-    /// The `translate` callback is called to translate any path values; this is
-    /// primarily used when evaluating a placeholder in a task command section.
     pub fn evaluate_placeholder(
         &mut self,
         placeholder: &Placeholder,
         buffer: &mut String,
-        translate: impl Fn(&Path) -> Option<PathBuf>,
     ) -> Result<(), Diagnostic> {
         /// The actual implementation for evaluating placeholders
         fn imp<C: EvaluationContext>(
             evaluator: &mut ExprEvaluator<C>,
             placeholder: &Placeholder,
             buffer: &mut String,
-            translate: impl Fn(&Path) -> Option<PathBuf>,
         ) -> Result<(), Diagnostic> {
             let expr = placeholder.expr();
             match evaluator.evaluate_expr(&expr)? {
@@ -319,7 +313,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 }
                 Value::Primitive(PrimitiveValue::File(path))
                 | Value::Primitive(PrimitiveValue::Directory(path)) => {
-                    if let Some(path) = translate(Path::new(path.as_str())) {
+                    if let Some(path) = evaluator.context.translate_path(Path::new(path.as_str())) {
                         write!(buffer, "{path}", path = path.display()).unwrap()
                     } else {
                         write!(buffer, "{path}").unwrap();
@@ -365,7 +359,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
         // Bump the placeholder count while evaluating the placeholder
         self.placeholders += 1;
-        let result = imp(self, placeholder, buffer, translate);
+        let result = imp(self, placeholder, buffer);
         self.placeholders -= 1;
 
         // Reset the evaluated none flag
@@ -399,7 +393,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         s.push_str(&t);
                     }
                     StrippedStringPart::Placeholder(placeholder) => {
-                        self.evaluate_placeholder(&placeholder, &mut s, |_| None)?;
+                        self.evaluate_placeholder(&placeholder, &mut s)?;
                     }
                 }
             }
@@ -410,7 +404,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         t.unescape_to(&mut s);
                     }
                     StringPart::Placeholder(placeholder) => {
-                        self.evaluate_placeholder(&placeholder, &mut s, |_| None)?;
+                        self.evaluate_placeholder(&placeholder, &mut s)?;
                     }
                 }
             }
@@ -1310,6 +1304,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
 #[cfg(test)]
 pub(crate) mod test {
+    use std::borrow::Cow;
     use std::collections::HashMap;
     use std::fs;
     use std::path::Path;
@@ -1449,6 +1444,10 @@ pub(crate) mod test {
         }
 
         fn task(&self) -> Option<&Task> {
+            None
+        }
+
+        fn translate_path(&self, _path: &Path) -> Option<Cow<'_, Path>> {
             None
         }
     }

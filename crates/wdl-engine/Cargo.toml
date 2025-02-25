@@ -29,11 +29,16 @@ futures = { workspace = true }
 tokio = { workspace = true }
 sysinfo = { workspace = true }
 rowan = { workspace = true }
+crankshaft = { workspace = true }
+rand = { workspace = true }
+tokio-util = { workspace = true }
+nonempty = { workspace = true }
+path-clean = { workspace = true }
+url = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 codespan-reporting = { workspace = true }
-path-clean = { workspace = true }
 colored = { workspace = true }
 approx = { workspace = true }
 walkdir = { workspace = true }

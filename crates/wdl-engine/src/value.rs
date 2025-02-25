@@ -1,11 +1,11 @@
 //! Implementation of the WDL runtime and values.
 
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -487,12 +487,12 @@ impl Value {
     /// `None`.
     ///
     /// The translate` callback is called for each path value prior to joining.
-    pub(crate) fn join_paths(
+    pub(crate) fn join_paths<'a>(
         &mut self,
         path: &Path,
         check_existence: bool,
         optional: bool,
-        translate: &impl Fn(&Path) -> Result<Option<PathBuf>>,
+        translate: &(impl Fn(&Path) -> Result<Option<Cow<'a, Path>>> + 'a),
     ) -> Result<()> {
         match self {
             Self::Primitive(v) => {
@@ -1117,12 +1117,12 @@ impl PrimitiveValue {
     /// error is returned.
     ///
     /// Otherwise, returns whether or not the value exists.
-    fn join_paths(
+    fn join_paths<'a>(
         &mut self,
         path: &Path,
         check_existence: bool,
         optional: bool,
-        translate: &impl Fn(&Path) -> Result<Option<PathBuf>>,
+        translate: &(impl Fn(&Path) -> Result<Option<Cow<'a, Path>>> + 'a),
     ) -> Result<bool> {
         match self {
             PrimitiveValue::File(p) => {
@@ -2173,11 +2173,11 @@ impl CompoundValue {
     /// error is returned.
     ///
     /// An optional path that does not exist is replaced with `None`.
-    pub(crate) fn join_paths(
+    pub(crate) fn join_paths<'a>(
         &mut self,
         path: &Path,
         check_existence: bool,
-        translate: &impl Fn(&Path) -> Result<Option<PathBuf>>,
+        translate: &(impl Fn(&Path) -> Result<Option<Cow<'a, Path>>> + 'a),
     ) -> Result<()> {
         match self {
             Self::Pair(pair) => {

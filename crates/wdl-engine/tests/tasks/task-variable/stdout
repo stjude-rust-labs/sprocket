@@ -1,4 +1,4 @@
 Task name: test
 Task id: test
 Task description: Task that shows how to use the implicit 'task' variable
-Task container: 
+Task container: ubuntu:latest

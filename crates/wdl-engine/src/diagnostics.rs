@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use wdl_analysis::types::CallKind;
 use wdl_analysis::types::Type;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -72,12 +73,16 @@ pub fn cannot_call(target: &Ident) -> Diagnostic {
 }
 
 /// Creates a "call failed" diagnostic.
-pub fn call_failed(target: &Ident, error: &anyhow::Error) -> Diagnostic {
-    Diagnostic::error(format!(
-        "function `{target}` failed: {error:#}",
-        target = target.as_str()
-    ))
-    .with_highlight(target.span())
+pub fn call_failed(
+    kind: CallKind,
+    target: &str,
+    document: &str,
+    span: Span,
+    e: anyhow::Error,
+) -> Diagnostic {
+    let e = e.context(format!("call to {kind} `{target}` in `{document}` failed"));
+
+    Diagnostic::error(format!("{e:#}")).with_highlight(span)
 }
 
 /// Creates a "runtime type mismatch" diagnostic.
@@ -92,7 +97,7 @@ pub fn runtime_type_mismatch(
         "type mismatch: expected type `{expected}`, but found type `{actual}`"
     ));
 
-    Diagnostic::error(format!("{e:?}"))
+    Diagnostic::error(format!("{e:#}"))
         .with_label(format!("this is type `{actual}`"), actual_span)
         .with_label(format!("this expects type `{expected}`"), expected_span)
 }
@@ -104,7 +109,7 @@ pub fn if_conditional_mismatch(e: anyhow::Error, actual: &Type, actual_span: Spa
          `{actual}`"
     ));
 
-    Diagnostic::error(format!("{e:?}")).with_label(format!("this is type `{actual}`"), actual_span)
+    Diagnostic::error(format!("{e:#}")).with_label(format!("this is type `{actual}`"), actual_span)
 }
 
 /// Creates an "array index out of range" diagnostic.
@@ -211,5 +216,5 @@ pub fn output_evaluation_failed(
         kind = if task { "task" } else { "workflow" }
     ));
 
-    Diagnostic::error(format!("{e:?}")).with_highlight(span)
+    Diagnostic::error(format!("{e:#}")).with_highlight(span)
 }

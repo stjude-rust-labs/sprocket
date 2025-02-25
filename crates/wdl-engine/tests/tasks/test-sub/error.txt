@@ -1,9 +1,0 @@
-error: regex parse error:
-    *
-    ^
-error: repetition operator missing expression
-   ┌─ tests/tasks/test-sub/source.wdl:13:36
-   │
-13 │     String choco4 = sub(chocolike, "*", " 4444 ") # I 4444 chocolate 4444/nit's late
-   │                                    ^^^
-

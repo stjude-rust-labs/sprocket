@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added graceful cancellation on SIGINT (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Added `--config` option to the `run` command (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Added executing task information to the `wdl run` progress bar ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
 
 ### Fixed

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added support for graceful cancellation of evaluation (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Added support for `max_cpu` and `max_memory` hints in task evaluation (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Added a Crankshaft backend with initial support for Docker (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Added calculation for mounting input files for future backends that use
   containers ([#323](https://github.com/stjude-rust-labs/wdl/pull/323)).
 * Added retry logic for task execution ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
@@ -17,10 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed panic when an input path in a complex type did not exist (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed path translation in nested placeholder evaluation (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed path translation to mount inputs individually (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed not including task temp directories in mounts (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Fixed an incorrect type being used for scatter statement outputs ([#316](https://github.com/stjude-rust-labs/wdl/pull/316)).
 
 ### Changed
 
+* Docker backend is now the default backend (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Refactored a common task management implementation to use in task execution
+  backends (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Workflow evaluation now uses `tokio::spawn` internally for running graph
   evaluation concurrently ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 * Improved evaluation reporting to include how many tasks are ready for
