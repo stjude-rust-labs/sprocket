@@ -20,8 +20,16 @@ pub struct InputsArgs {
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     let source = std::fs::read_to_string(&args.document)?;
     let (document, diagnostics) = Document::parse(&source);
-    println!("{:?}", source);
-    println!("{:?}", document);
-    println!("{:?}", diagnostics);
+    if !diagnostics.is_empty() {
+        for diagnostic in diagnostics {
+            anyhow::bail!("Failed to parse WDL document: {:?}", diagnostic);
+        }
+    }
+
+    // todo:
+    // 1. Walk through the AST tree
+    // 2. Generate appropriate JSON structure
+    // 3. Output to file or stdout (CLI)
+
     Ok(())
 }
