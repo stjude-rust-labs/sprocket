@@ -22,7 +22,7 @@ pub struct InputsArgs {
     #[clap(value_name = "path")]
     pub document: String,
 
-    #[arg(short, long, default_value = "output")]
+    #[arg(short, long)]
     pub output: Option<PathBuf>,
 
     #[arg(long)]
