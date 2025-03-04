@@ -46,9 +46,7 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         .workflows()
         .next()
         .ok_or_else(|| anyhow::anyhow!("No workflow found in the document"))?;
-    let inputs = workflow
-        .input()
-        .map(|input| input.declarations()).unwrap();
+    let inputs = workflow.input().map(|input| input.declarations()).unwrap();
 
     let mut template = serde_json::Map::new();
 
@@ -56,8 +54,12 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         let name = decl.name().as_str().to_string();
         let ty = decl.ty();
         // Create a default expression if none is provided
-        let expr = decl.expr().unwrap();
-        template.insert(name, expr_to_json(&expr));
+        let value = if let Some(expr) = decl.expr() {
+            expr_to_json(&expr)
+        } else {
+            Value::Null
+        };
+        template.insert(name, value);
     }
 
     let json_output = serde_json::to_string_pretty(&template)?;
