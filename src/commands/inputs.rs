@@ -40,6 +40,8 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
 
     // workflow = document.workflows().first() or error "No workflow found"
     // inputs = workflow.input().declarations() or empty_list
+
+    // todo: handle multiple workflows
     let workflow = document
         .ast()
         .unwrap_v1()
@@ -48,17 +50,21 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("No workflow found in the document"))?;
     let inputs = workflow.input().map(|input| input.declarations()).unwrap();
 
+    // todo handle tasks
+
     let mut template = serde_json::Map::new();
 
     for decl in inputs {
         let name = decl.name().as_str().to_string();
-        let ty = decl.ty();
+        // let ty = decl.ty();
         // Create a default expression if none is provided
         let value = if let Some(expr) = decl.expr() {
             expr_to_json(&expr)
         } else {
             Value::Null
         };
+
+        // todo: workflow_name.input_name .. currently it's just input_name
         template.insert(name, value);
     }
 
