@@ -4,10 +4,14 @@ use serde_json::{Value, json};
 use std::path::PathBuf;
 use wdl::{
     ast::{
+        AstToken, Document, SyntaxKind, Visitor,
         v1::{
-            Expr::{self, Literal}, LiteralExpr, LiteralNone, Type
-        }, AstToken, Document, SyntaxKind, Visitor
+            self,
+            Expr::{self, Literal},
+            LiteralExpr, LiteralNone, Type,
+        },
     },
+    doc,
     grammar::SyntaxTree,
 };
 
@@ -34,9 +38,36 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         }
     }
 
+    // workflow = document.workflows().first() or error "No workflow found"
+    // inputs = workflow.input().declarations() or empty_list
+    let workflow = document
+        .ast()
+        .unwrap_v1()
+        .workflows()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("No workflow found in the document"))?;
+    let inputs = workflow
+        .input()
+        .map(|input| input.declarations()).unwrap();
+
     let mut template = serde_json::Map::new();
 
+    for decl in inputs {
+        let name = decl.name().as_str().to_string();
+        let ty = decl.ty();
+        // Create a default expression if none is provided
+        let expr = decl.expr().unwrap();
+        template.insert(name, expr_to_json(&expr));
+    }
+
     let json_output = serde_json::to_string_pretty(&template)?;
+
+    if let Some(output_path) = args.output {
+        std::fs::write(output_path, json_output)?;
+    } else {
+        // ? output in the console if no output path is provided is that good?
+        println!("{}", json_output);
+    }
 
     // todo:
     // 1. Walk through the AST tree
@@ -46,7 +77,6 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     Ok(())
 }
 
-// ? idon't want to use the MapType::is_optional and ArrayType::is_optional ... etc for each type since they have the same logic.
 fn is_optional(type_: &Type) -> bool {
     type_.is_optional()
 }
@@ -57,9 +87,21 @@ fn expr_to_json(expr: &Expr) -> Value {
             LiteralExpr::Boolean(b) => Value::Bool(b.value()),
             LiteralExpr::Integer(i) => Value::Number(i.value().unwrap_or(0).into()),
             LiteralExpr::String(s) => Value::String(s.text().unwrap().as_str().to_string()),
-            // LiteralExpr::None(_) => Value::Null,
+            LiteralExpr::None(_) => Value::Null,
             _ => Value::Null,
         },
         _ => Value::Null,
     }
 }
+
+/*
+{
+    "workflow_name": {
+        "input_name": null,
+        "input_name": null,
+        "input_name": null
+    }
+}
+
+
+*/
