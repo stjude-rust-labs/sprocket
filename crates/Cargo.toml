@@ -111,4 +111,4 @@ broken_intra_doc_links = "warn"
 missing_docs_in_private_items = "warn"
 
 [patch.crates-io]
-bollard = { git = "https://github.com/peterhuene/bollard", branch = "nodes-api" }
+bollard = { git = "https://github.com/fussybeaver/bollard", rev = "bf2b924426" }
