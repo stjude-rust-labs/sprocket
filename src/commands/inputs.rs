@@ -64,8 +64,14 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
             Value::Null
         };
 
-        // todo: workflow_name.input_name .. currently it's just input_name
-        template.insert(name, value);
+        let parent_name = workflow.name().as_str().to_string();
+        let parent = template
+            .entry(parent_name)
+            .or_insert(Value::Object(serde_json::Map::new()));
+
+        if let Value::Object(map) = parent {
+            map.insert(name, value);
+        }
     }
 
     let json_output = serde_json::to_string_pretty(&template)?;
@@ -76,11 +82,6 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         // ? output in the console if no output path is provided is that good?
         println!("{}", json_output);
     }
-
-    // todo:
-    // 1. Walk through the AST tree
-    // 2. Generate appropriate JSON structure
-    // 3. Output to file or stdout (CLI)
 
     Ok(())
 }
