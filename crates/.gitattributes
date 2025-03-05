@@ -3,3 +3,6 @@
 
 # Ensure that WDL files always use LF line endings.
 *.wdl text eol=lf
+
+# Ignore line endings for this file as it is intentionally inconsistent
+wdl-lint/tests/lints/inconsistent-newlines/source.wdl -text
