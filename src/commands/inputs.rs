@@ -41,7 +41,6 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     // workflow = document.workflows().first() or error "No workflow found"
     // inputs = workflow.input().declarations() or empty_list
 
-    // todo: handle multiple workflows
     let workflow = document
         .ast()
         .unwrap_v1()
@@ -49,8 +48,6 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         .next()
         .ok_or_else(|| anyhow::anyhow!("No workflow found in the document"))?;
     let inputs = workflow.input().map(|input| input.declarations()).unwrap();
-
-    // todo handle tasks
 
     let mut template = serde_json::Map::new();
 
@@ -64,14 +61,7 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
             Value::Null
         };
 
-        let parent_name = workflow.name().as_str().to_string();
-        let parent = template
-            .entry(parent_name)
-            .or_insert(Value::Object(serde_json::Map::new()));
-
-        if let Value::Object(map) = parent {
-            map.insert(name, value);
-        }
+        template.insert(name, value);
     }
 
     let json_output = serde_json::to_string_pretty(&template)?;
