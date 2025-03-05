@@ -6,59 +6,170 @@
 #![warn(missing_debug_implementations)]
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
-#![recursion_limit = "512"]
 
+pub mod callable;
+pub mod docs_tree;
+pub mod meta;
 pub mod parameter;
 pub mod r#struct;
-pub mod task;
-pub mod workflow;
 
-use std::collections::HashMap;
-use std::fmt::Display;
+use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
+use std::rc::Rc;
 
 use anyhow::Result;
 use anyhow::anyhow;
-use html::content;
-use html::text_content;
+pub use callable::Callable;
+pub use callable::task;
+pub use callable::workflow;
+pub use docs_tree::DocsTree;
+use docs_tree::HTMLPage;
+use docs_tree::PageType;
+use maud::DOCTYPE;
+use maud::Markup;
+use maud::PreEscaped;
+use maud::Render;
+use maud::html;
+use pathdiff::diff_paths;
 use pulldown_cmark::Options;
 use pulldown_cmark::Parser;
-use tokio::io::AsyncWriteExt;
 use wdl_analysis::Analyzer;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::rules;
 use wdl_ast::AstToken;
-use wdl_ast::Document as AstDocument;
 use wdl_ast::SyntaxTokenExt;
-use wdl_ast::Version;
+use wdl_ast::VersionStatement;
 use wdl_ast::v1::DocumentItem;
-use wdl_ast::v1::MetadataValue;
 
 /// The directory where the generated documentation will be stored.
 ///
 /// This directory will be created in the workspace directory.
 const DOCS_DIR: &str = "docs";
 
+/// Links to a CSS stylesheet at the given path.
+struct Css<'a>(&'a str);
+
+impl Render for Css<'_> {
+    fn render(&self) -> Markup {
+        html! {
+            link rel="stylesheet" type="text/css" href=(self.0);
+        }
+    }
+}
+
+/// A basic header with a `page_title` and an optional link to the stylesheet.
+pub(crate) fn header<P: AsRef<Path>>(page_title: &str, stylesheet: Option<P>) -> Markup {
+    html! {
+        head {
+            meta charset="utf-8";
+            meta name="viewport" content="width=device-width, initial-scale=1.0";
+            title { (page_title) }
+            link rel="preconnect" href="https://fonts.googleapis.com";
+            link rel="preconnect" href="https://fonts.gstatic.com" crossorigin;
+            link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet";
+            @if let Some(ss) = stylesheet {
+                (Css(ss.as_ref().to_str().unwrap()))
+            }
+        }
+    }
+}
+
+/// A full HTML page.
+pub(crate) fn full_page<P: AsRef<Path>>(
+    page_title: &str,
+    body: Markup,
+    stylesheet: Option<P>,
+) -> Markup {
+    html! {
+        (DOCTYPE)
+        html class="dark size-full" {
+            (header(page_title, stylesheet))
+            body class="flex dark size-full dark:bg-slate-950 dark:text-white" {
+                (body)
+            }
+        }
+    }
+}
+
+/// Renders a block of Markdown using `pulldown-cmark`.
+pub(crate) struct Markdown<T>(T);
+
+impl<T: AsRef<str>> Render for Markdown<T> {
+    fn render(&self) -> Markup {
+        // Generate raw HTML
+        let mut unsafe_html = String::new();
+        let mut options = Options::empty();
+        options.insert(Options::ENABLE_TABLES);
+        options.insert(Options::ENABLE_STRIKETHROUGH);
+        let parser = Parser::new_ext(self.0.as_ref(), options);
+        pulldown_cmark::html::push_html(&mut unsafe_html, parser);
+        // Sanitize it with ammonia
+        let safe_html = ammonia::clean(&unsafe_html);
+
+        // Remove the outer `<p>` tag that `pulldown_cmark` wraps single lines in
+        let safe_html = if safe_html.starts_with("<p>") && safe_html.ends_with("</p>\n") {
+            let trimmed = safe_html[3..safe_html.len() - 5].to_string();
+            if trimmed.contains("<p>") {
+                // If the trimmed string contains another `<p>` tag, it means
+                // that the original string was more complicated than a single-line paragraph,
+                // so we should keep the outer `<p>` tag.
+                safe_html
+            } else {
+                trimmed
+            }
+        } else {
+            safe_html
+        };
+        PreEscaped(safe_html)
+    }
+}
+
+/// Parse the preamble comments of a document using the version statement.
+fn parse_preamble_comments(version: VersionStatement) -> String {
+    let comments = version
+        .keyword()
+        .syntax()
+        .preceding_trivia()
+        .map(|t| match t.kind() {
+            wdl_ast::SyntaxKind::Comment => match t.to_string().strip_prefix("## ") {
+                Some(comment) => comment.to_string(),
+                None => "".to_string(),
+            },
+            wdl_ast::SyntaxKind::Whitespace => "".to_string(),
+            _ => {
+                panic!("Unexpected token kind: {:?}", t.kind())
+            }
+        })
+        .collect::<Vec<_>>();
+    comments.join("\n")
+}
+
 /// A WDL document.
 #[derive(Debug)]
 pub struct Document {
     /// The name of the document.
-    ///
-    /// This is the filename of the document without the extension.
     name: String,
-    /// The version of the document.
-    version: Version,
-    /// The Markdown preamble comments.
-    preamble: String,
+    /// The AST node for the version statement.
+    ///
+    /// This is used both to display the WDL version number and to fetch the
+    /// preamble comments.
+    version: VersionStatement,
+    /// The pages that this document should link to.
+    local_pages: Vec<(PathBuf, Rc<HTMLPage>)>,
 }
 
 impl Document {
     /// Create a new document.
-    pub fn new(name: String, version: Version, preamble: String) -> Self {
+    pub fn new(
+        name: String,
+        version: VersionStatement,
+        local_pages: Vec<(PathBuf, Rc<HTMLPage>)>,
+    ) -> Self {
         Self {
             name,
             version,
-            preamble,
+            local_pages,
         }
     }
 
@@ -67,282 +178,198 @@ impl Document {
         &self.name
     }
 
-    /// Get the version of the document.
+    /// Get the version of the document as text.
     pub fn version(&self) -> String {
-        self.version.as_str().to_owned()
+        self.version.version().as_str().to_string()
     }
 
     /// Get the preamble comments of the document.
-    pub fn preamble(&self) -> &str {
-        &self.preamble
+    pub fn preamble(&self) -> Markup {
+        let preamble = parse_preamble_comments(self.version.clone());
+        Markdown(&preamble).render()
     }
-}
 
-impl Display for Document {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let document_name = content::Heading1::builder()
-            .text(self.name().to_owned())
-            .build();
-        let version = text_content::Paragraph::builder()
-            .text(format!("WDL Version: {}", self.version()))
-            .build();
-
-        let mut options = Options::empty();
-        options.insert(Options::ENABLE_TABLES);
-        options.insert(Options::ENABLE_STRIKETHROUGH);
-        let parser = Parser::new_ext(&self.preamble, options);
-        let mut preamble = String::new();
-        pulldown_cmark::html::push_html(&mut preamble, parser);
-
-        write!(f, "{}", document_name)?;
-        write!(f, "{}", version)?;
-        write!(f, "{}", preamble)
-    }
-}
-
-/// Fetch the preamble comments from a document.
-pub fn fetch_preamble_comments(document: AstDocument) -> String {
-    let comments = match document.version_statement() {
-        Some(version) => {
-            let comments = version
-                .keyword()
-                .syntax()
-                .preceding_trivia()
-                .map(|t| match t.kind() {
-                    wdl_ast::SyntaxKind::Comment => match t.to_string().strip_prefix("## ") {
-                        Some(comment) => comment.to_string(),
-                        None => "".to_string(),
-                    },
-                    wdl_ast::SyntaxKind::Whitespace => "".to_string(),
-                    _ => {
-                        panic!("Unexpected token kind: {:?}", t.kind())
+    /// Render the document as HTML.
+    pub fn render(&self) -> Markup {
+        html! {
+            div {
+                h1 { (self.name()) }
+                h3 { "WDL Version: " (self.version()) }
+                div { (self.preamble()) }
+                div class="flex flex-col items-center text-left"  {
+                    h2 { "Table of Contents" }
+                    table class="border" {
+                        thead class="border" { tr {
+                            th class="" { "Page" }
+                            th class="" { "Type" }
+                            th class="" { "Description" }
+                        }}
+                        tbody class="border" {
+                            @for page in &self.local_pages {
+                                tr class="border" {
+                                    td class="border" {
+                                        a href=(page.0.to_str().unwrap()) { (page.1.name()) }
+                                    }
+                                    td class="border" {
+                                        @match page.1.page_type() {
+                                            PageType::Index(_) => { "TODO ERROR" }
+                                            PageType::Struct(_) => { "Struct" }
+                                            PageType::Task(_) => { "Task" }
+                                            PageType::Workflow(_) => { "Workflow" }
+                                        }
+                                    }
+                                    td class="border" {
+                                        @match page.1.page_type() {
+                                            PageType::Index(_) => { "TODO ERROR" }
+                                            PageType::Struct(_) => { "N/A" }
+                                            PageType::Task(t) => { (t.description()) }
+                                            PageType::Workflow(w) => { (w.description()) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
-                })
-                .collect::<Vec<_>>();
-            comments
-        }
-        None => {
-            vec![]
+                }
+            }
         }
     }
-    .join("\n");
-    comments
 }
 
 /// Generate HTML documentation for a workspace.
-pub async fn document_workspace(path: PathBuf) -> Result<()> {
-    if !path.is_dir() {
-        return Err(anyhow!("The path is not a directory"));
+///
+/// This function will generate HTML documentation for all WDL files in the
+/// workspace directory. The generated documentation will be stored in a
+/// `docs` directory within the workspace.
+pub async fn document_workspace(
+    workspace: impl AsRef<Path>,
+    stylesheet: Option<impl AsRef<Path>>,
+    overwrite: bool,
+) -> Result<PathBuf> {
+    let workspace_abs_path = absolute(workspace)?;
+    let stylesheet = stylesheet.and_then(|p| absolute(p.as_ref()).ok());
+
+    if !workspace_abs_path.is_dir() {
+        return Err(anyhow!("Workspace is not a directory"));
     }
 
-    let abs_path = std::path::absolute(&path)?;
-
-    let docs_dir = abs_path.clone().join(DOCS_DIR);
+    let docs_dir = workspace_abs_path.join(DOCS_DIR);
+    if overwrite && docs_dir.exists() {
+        std::fs::remove_dir_all(&docs_dir)?;
+    }
     if !docs_dir.exists() {
         std::fs::create_dir(&docs_dir)?;
     }
 
     let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
-    analyzer.add_directory(abs_path.clone()).await?;
+    analyzer.add_directory(workspace_abs_path.clone()).await?;
     let results = analyzer.analyze(()).await?;
 
+    let mut docs_tree = if let Some(ss) = stylesheet {
+        docs_tree::DocsTree::new_with_stylesheet(docs_dir.clone(), ss)?
+    } else {
+        docs_tree::DocsTree::new(docs_dir.clone())
+    };
+
     for result in results {
-        let cur_path = result
-            .document()
-            .uri()
-            .to_file_path()
-            .expect("URI should have a file path");
-        let relative_path = match cur_path.strip_prefix(&abs_path) {
-            Ok(path) => path,
-            Err(_) => &PathBuf::from("external").join(cur_path.strip_prefix("/").unwrap()),
+        let uri = result.document().uri();
+        let rel_wdl_path = match uri.to_file_path() {
+            Ok(path) => match path.strip_prefix(&workspace_abs_path) {
+                Ok(path) => path.to_path_buf(),
+                Err(_) => {
+                    PathBuf::from("external").join(path.components().skip(1).collect::<PathBuf>())
+                }
+            },
+            Err(_) => PathBuf::from("external").join(
+                uri.path()
+                    .strip_prefix("/")
+                    .expect("URI path should start with /"),
+            ),
         };
-        let cur_dir = docs_dir.join(relative_path.with_extension(""));
+        let cur_dir = docs_dir.join(rel_wdl_path.with_extension(""));
         if !cur_dir.exists() {
             std::fs::create_dir_all(&cur_dir)?;
         }
-        let name = cur_dir
-            .file_name()
-            .expect("current directory should have a file name")
-            .to_string_lossy();
         let ast_doc = result.document().node();
         let version = ast_doc
             .version_statement()
-            .expect("document should have a version statement")
-            .version();
-        let preamble = fetch_preamble_comments(ast_doc.clone());
+            .expect("document should have a version statement");
         let ast = ast_doc.ast().unwrap_v1();
 
-        let document = Document::new(name.to_string(), version, preamble);
-
-        let index = cur_dir.join("index.html");
-        let mut index = tokio::fs::File::create(index).await?;
-
-        index.write_all(document.to_string().as_bytes()).await?;
+        let mut local_pages = Vec::new();
 
         for item in ast.items() {
             match item {
                 DocumentItem::Struct(s) => {
-                    let struct_name = s.name().as_str().to_owned();
-                    let struct_file = cur_dir.join(format!("{}-struct.html", struct_name));
-                    let mut struct_file = tokio::fs::File::create(struct_file).await?;
+                    let name = s.name().as_str().to_owned();
+                    let path = cur_dir.join(format!("{}-struct.html", name));
 
                     let r#struct = r#struct::Struct::new(s.clone());
-                    struct_file
-                        .write_all(r#struct.to_string().as_bytes())
-                        .await?;
+
+                    let page = Rc::new(HTMLPage::new(name.clone(), PageType::Struct(r#struct)));
+                    docs_tree.add_page(path.clone(), page.clone());
+                    local_pages.push((diff_paths(path, &cur_dir).unwrap(), page));
                 }
                 DocumentItem::Task(t) => {
-                    let task_name = t.name().as_str().to_owned();
-                    let task_file = cur_dir.join(format!("{}-task.html", task_name));
-                    let mut task_file = tokio::fs::File::create(task_file).await?;
+                    let name = t.name().as_str().to_owned();
+                    let path = cur_dir.join(format!("{}-task.html", name));
 
-                    let parameter_meta: HashMap<String, MetadataValue> = t
-                        .parameter_metadata()
-                        .into_iter()
-                        .flat_map(|p| p.items())
-                        .map(|p| {
-                            let name = p.name().as_str().to_owned();
-                            let item = p.value();
-                            (name, item)
-                        })
-                        .collect();
+                    let task = task::Task::new(
+                        name.clone(),
+                        t.metadata(),
+                        t.parameter_metadata(),
+                        t.input(),
+                        t.output(),
+                        t.runtime(),
+                    );
 
-                    let meta: HashMap<String, MetadataValue> = t
-                        .metadata()
-                        .into_iter()
-                        .flat_map(|m| m.items())
-                        .map(|m| {
-                            let name = m.name().as_str().to_owned();
-                            let item = m.value();
-                            (name, item)
-                        })
-                        .collect();
-
-                    let output_meta: HashMap<String, MetadataValue> = meta
-                        .get("outputs")
-                        .cloned()
-                        .into_iter()
-                        .flat_map(|v| v.unwrap_object().items())
-                        .map(|m| {
-                            let name = m.name().as_str().to_owned();
-                            let item = m.value();
-                            (name, item)
-                        })
-                        .collect();
-
-                    let inputs = t
-                        .input()
-                        .into_iter()
-                        .flat_map(|i| i.declarations())
-                        .map(|decl| {
-                            let name = decl.name().as_str().to_owned();
-                            let meta = parameter_meta.get(&name);
-                            parameter::Parameter::new(decl.clone(), meta.cloned())
-                        })
-                        .collect();
-
-                    let outputs = t
-                        .output()
-                        .into_iter()
-                        .flat_map(|o| o.declarations())
-                        .map(|decl| {
-                            let name = decl.name().as_str().to_owned();
-                            let meta = output_meta.get(&name);
-                            parameter::Parameter::new(
-                                wdl_ast::v1::Decl::Bound(decl.clone()),
-                                meta.cloned(),
-                            )
-                        })
-                        .collect();
-
-                    let task = task::Task::new(task_name, t.metadata(), inputs, outputs);
-
-                    task_file.write_all(task.to_string().as_bytes()).await?;
+                    let page = Rc::new(HTMLPage::new(name, PageType::Task(task)));
+                    docs_tree.add_page(path.clone(), page.clone());
+                    local_pages.push((diff_paths(path, &cur_dir).unwrap(), page));
                 }
                 DocumentItem::Workflow(w) => {
-                    let workflow_name = w.name().as_str().to_owned();
-                    let workflow_file = cur_dir.join(format!("{}-workflow.html", workflow_name));
-                    let mut workflow_file = tokio::fs::File::create(workflow_file).await?;
+                    let name = w.name().as_str().to_owned();
+                    let path = cur_dir.join(format!("{}-workflow.html", name));
 
-                    let parameter_meta: HashMap<String, MetadataValue> = w
-                        .parameter_metadata()
-                        .into_iter()
-                        .flat_map(|p| p.items())
-                        .map(|p| {
-                            let name = p.name().as_str().to_owned();
-                            let item = p.value();
-                            (name, item)
-                        })
-                        .collect();
+                    let workflow = workflow::Workflow::new(
+                        name.clone(),
+                        w.metadata(),
+                        w.parameter_metadata(),
+                        w.input(),
+                        w.output(),
+                    );
 
-                    let meta: HashMap<String, MetadataValue> = w
-                        .metadata()
-                        .into_iter()
-                        .flat_map(|m| m.items())
-                        .map(|m| {
-                            let name = m.name().as_str().to_owned();
-                            let item = m.value();
-                            (name, item)
-                        })
-                        .collect();
-
-                    let output_meta: HashMap<String, MetadataValue> = meta
-                        .get("outputs")
-                        .cloned()
-                        .into_iter()
-                        .flat_map(|v| v.unwrap_object().items())
-                        .map(|m| {
-                            let name = m.name().as_str().to_owned();
-                            let item = m.value();
-                            (name, item)
-                        })
-                        .collect();
-
-                    let inputs = w
-                        .input()
-                        .into_iter()
-                        .flat_map(|i| i.declarations())
-                        .map(|decl| {
-                            let name = decl.name().as_str().to_owned();
-                            let meta = parameter_meta.get(&name);
-                            parameter::Parameter::new(decl.clone(), meta.cloned())
-                        })
-                        .collect();
-
-                    let outputs = w
-                        .output()
-                        .into_iter()
-                        .flat_map(|o| o.declarations())
-                        .map(|decl| {
-                            let name = decl.name().as_str().to_owned();
-                            let meta = output_meta.get(&name);
-                            parameter::Parameter::new(
-                                wdl_ast::v1::Decl::Bound(decl.clone()),
-                                meta.cloned(),
-                            )
-                        })
-                        .collect();
-
-                    let workflow =
-                        workflow::Workflow::new(workflow_name, w.metadata(), inputs, outputs);
-
-                    workflow_file
-                        .write_all(workflow.to_string().as_bytes())
-                        .await?;
+                    let page = Rc::new(HTMLPage::new(name, PageType::Workflow(workflow)));
+                    docs_tree.add_page(path.clone(), page.clone());
+                    local_pages.push((diff_paths(path, &cur_dir).unwrap(), page));
                 }
                 DocumentItem::Import(_) => {}
             }
         }
+        let name = rel_wdl_path.file_stem().unwrap().to_str().unwrap();
+        let document = Document::new(name.to_string(), version, local_pages);
+
+        let index_path = cur_dir.join("index.html");
+
+        docs_tree.add_page(
+            index_path,
+            Rc::new(HTMLPage::new(name.to_string(), PageType::Index(document))),
+        );
     }
-    anyhow::Ok(())
+
+    docs_tree.render_all()?;
+
+    Ok(docs_dir)
 }
 
 #[cfg(test)]
 mod tests {
+    use wdl_ast::Document as AstDocument;
+
     use super::*;
 
     #[test]
-    fn test_fetch_preamble_comments() {
+    fn test_parse_preamble_comments() {
         let source = r#"
         ## This is a comment
         ## This is also a comment
@@ -361,7 +388,47 @@ mod tests {
         }
         "#;
         let (document, _) = AstDocument::parse(source);
-        let preamble = fetch_preamble_comments(document);
+        let preamble = parse_preamble_comments(document.version_statement().unwrap());
         assert_eq!(preamble, "This is a comment\nThis is also a comment");
+    }
+
+    #[test]
+    fn test_markdown_render() {
+        let source = r#"
+        ## This is a paragraph.
+        ##
+        ## This is the start of a new paragraph.
+        ## And this is the same paragraph continued.
+        version 1.0
+        workflow test {
+            meta {
+                description: "A simple description should not render with p tags"
+            }
+        }
+        "#;
+        let (document, _) = AstDocument::parse(source);
+        let preamble = parse_preamble_comments(document.version_statement().unwrap());
+        let markdown = Markdown(&preamble).render();
+        assert_eq!(
+            markdown.into_string(),
+            "<p>This is a paragraph.</p>\n<p>This is the start of a new paragraph.\nAnd this is \
+             the same paragraph continued.</p>\n"
+        );
+
+        let doc_item = document.ast().into_v1().unwrap().items().next().unwrap();
+        let ast_workflow = doc_item.into_workflow_definition().unwrap();
+        let workflow = workflow::Workflow::new(
+            ast_workflow.name().as_str().to_string(),
+            ast_workflow.metadata(),
+            ast_workflow.parameter_metadata(),
+            ast_workflow.input(),
+            ast_workflow.output(),
+        );
+
+        let description = workflow.description();
+        assert_eq!(
+            description.into_string(),
+            "A simple description should not render with p tags"
+        );
     }
 }

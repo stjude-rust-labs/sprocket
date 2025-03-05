@@ -10,10 +10,12 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+ammonia.workspace = true
 anyhow.workspace = true
-html = "0.6.3"
 indexmap.workspace = true
-pulldown-cmark = "0.12.2"
+maud.workspace = true
+pulldown-cmark.workspace = true
+pathdiff.workspace = true
 tokio.workspace = true
 wdl-analysis = { path = "../wdl-analysis", version = "0.6.0" }
 wdl-ast = { path = "../wdl-ast", version = "0.10.0" }

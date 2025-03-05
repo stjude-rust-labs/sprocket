@@ -9,3 +9,5 @@ rustc-ice*
 .idea
 
 **/docs/
+
+node_modules/

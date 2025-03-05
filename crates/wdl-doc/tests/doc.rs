@@ -47,7 +47,7 @@ async fn main() {
         fs::remove_dir_all(test_dir.join("docs")).unwrap();
     }
 
-    match document_workspace(test_dir.to_path_buf()).await {
+    match document_workspace(test_dir.to_path_buf(), None::<&str>, true).await {
         Ok(_) => {
             println!("Successfully generated docs");
         }

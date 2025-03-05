@@ -34,8 +34,9 @@ clap-verbosity-flag =  { workspace = true, optional = true }
 tracing-log = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
-webbrowser = { workspace = true, optional = true }
 indexmap = { workspace = true, optional = true }
+notify = { workspace = true, optional = true }
+opener = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }
 toml = { workspace = true, optional = true }
 
@@ -75,7 +76,8 @@ cli = [
     "dep:tracing",
     "dep:url",
     "dep:serde_json",
-    "dep:webbrowser",
+    "dep:opener",
+    "dep:notify",
     "dep:indexmap",
     "dep:futures",
     "dep:toml",

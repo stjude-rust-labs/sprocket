@@ -1,4 +1,4 @@
-<h1>flag_filter</h1><p>WDL Version: 1.1</p><h1>FlagFilter</h1>
+<!DOCTYPE html><html class="dark size-full"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>flag_filter</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;display=swap" rel="stylesheet"></head><body class="flex dark size-full dark:bg-slate-950 dark:text-white"><div class="top-0 left-0 h-full w-1/6 dark:bg-slate-950 dark:text-white"><h1 class="text-2xl text-center">Sidebar</h1><p class="">docs</p><p class="">data_structures</p><p><a href="index.html">flag_filter</a></p><p><a href="FlagFilter-struct.html">FlagFilter</a></p><p><a href="validate_flag_filter-workflow.html">validate_flag_filter</a></p><p><a href="validate_string_is_12bit_oct_dec_or_hex-task.html">validate_string_is_12bit_oct_dec_or_hex</a></p><p><a href="../read_group/index.html">read_group</a></p><p><a href="../read_group/ReadGroup-struct.html">ReadGroup</a></p><p><a href="../read_group/get_read_groups-task.html">get_read_groups</a></p><p><a href="../read_group/read_group_to_string-task.html">read_group_to_string</a></p><p><a href="../read_group/validate_read_group-task.html">validate_read_group</a></p></div><div><h1>flag_filter</h1><h3>WDL Version: 1.1</h3><div><h1>FlagFilter</h1>
 <p>A struct to represent the filtering flags used in various <code>samtools</code> commands.
 The order of precedence is <code>include_if_all</code>, <code>exclude_if_any</code>, <code>include_if_any</code>,
 and <code>exclude_if_all</code>.
@@ -18,9 +18,9 @@ So it is possible to pass in flags that produce nonsensical output.
 For example, it is possible to pass in flags that produce no output.
 <strong>Please exhibit caution while modifying any default values of a <code>FlagFilter</code>.</strong></p>
 <p>We suggest using the Broad Institute's SAM flag explainer to construct the flags.
-Find it <a href="https://broadinstitute.github.io/picard/explain-flags.html">here</a>.</p>
+Find it <a href="https://broadinstitute.github.io/picard/explain-flags.html" rel="noopener noreferrer">here</a>.</p>
 <h2>Example input JSON</h2>
-<pre><code class="language-json">{
+<pre><code>{
    "flags": {
        "include_if_all": "0x3",
        "exclude_if_any": "0xF04",
@@ -44,7 +44,8 @@ This number means that to be excluded a read must have <strong>any</strong> of t
 3rd, 9th, 10th, 11th, or 12th bits set.
 We won't go through what all those bits mean here, but you can find
 the meanings of the bits in the
-<a href="https://broadinstitute.github.io/picard/explain-flags.html">SAM flag explainer</a>.
+<a href="https://broadinstitute.github.io/picard/explain-flags.html" rel="noopener noreferrer">SAM flag explainer</a>.
 In short, those are all flags corresponding to the quality of the read
 and them being <code>true</code> may indicate that the read is of low quality and
 should be excluded.</p>
+</div><div class="flex flex-col items-center text-left"><h2>Table of Contents</h2><table class="border"><thead class="border"><tr><th class="">Page</th><th class="">Type</th><th class="">Description</th></tr></thead><tbody class="border"><tr class="border"><td class="border"><a href="FlagFilter-struct.html">FlagFilter</a></td><td class="border">Struct</td><td class="border">N/A</td></tr><tr class="border"><td class="border"><a href="validate_string_is_12bit_oct_dec_or_hex-task.html">validate_string_is_12bit_oct_dec_or_hex</a></td><td class="border">Task</td><td class="border">Validates that a string is a octal, decimal, or hexadecimal number and less than 2^12.</td></tr><tr class="border"><td class="border"><a href="validate_flag_filter-workflow.html">validate_flag_filter</a></td><td class="border">Workflow</td><td class="border">Validates a FlagFilter struct.</td></tr></tbody></table></div></div></body></html>

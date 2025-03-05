@@ -9,6 +9,8 @@ use std::io::Read;
 use std::io::stderr;
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
+use std::sync::mpsc;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -24,6 +26,11 @@ use codespan_reporting::term::emit;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
 use colored::Colorize;
+use notify::Event;
+use notify::RecursiveMode;
+use notify::Result as NotifyResult;
+use notify::Watcher;
+use notify::recommended_watcher;
 use tracing_log::AsTrace;
 use tracing_subscriber::layer::SubscriberExt;
 use url::Url;
@@ -219,23 +226,30 @@ impl FormatCommand {
     }
 }
 
-/// Finds a file matching the given name in the given directory.
-///
-/// This function will return the first match it finds, at any depth.
-fn find_file_in_directory(name: &str, dir: &Path) -> Option<PathBuf> {
-    fs::read_dir(dir)
-        .ok()?
-        .filter_map(|entry| entry.ok())
-        .find_map(|entry| {
-            let path = entry.path();
-            if path.is_dir() {
-                find_file_in_directory(name, &path)
-            } else if path.file_name().map(|f| f == name).unwrap_or(false) {
-                Some(path)
-            } else {
-                None
-            }
-        })
+/// Build a stylesheet for the documentation, given the path to the `themes`
+/// directory.
+pub fn build_stylesheet(themes_dir: &Path) -> Result<PathBuf> {
+    let themes_dir = absolute(themes_dir)?;
+    let output = std::process::Command::new("npx")
+        .arg("@tailwindcss/cli")
+        .arg("-i")
+        .arg("src/main.css")
+        .arg("-o")
+        .arg("dist/style.css")
+        .current_dir(&themes_dir)
+        .output()?;
+    if !output.status.success() {
+        bail!(
+            "failed to build stylesheet: {stderr}",
+            stderr = String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let css_path = themes_dir.join("dist/style.css");
+    if !css_path.exists() {
+        bail!("failed to build stylesheet: no output file found");
+    }
+
+    Ok(css_path)
 }
 
 /// Document a workspace.
@@ -246,25 +260,65 @@ pub struct DocCommand {
     #[clap(value_name = "PATH")]
     pub path: PathBuf,
 
+    /// The path to the `themes` directory.
+    #[clap(long, value_name = "THEMES")]
+    pub themes: Option<PathBuf>,
+
+    /// Whether or not to overwrite the existing documentation.
+    #[clap(long)]
+    pub overwrite: bool,
+
     /// Whether or not to open the generated documentation in the default
     /// browser.
     #[clap(long)]
     pub open: bool,
+
+    /// Whether to watch the `themes` directory for changes and regenerate the
+    /// compiled stylesheet and documentation.
+    #[clap(long, requires = "themes")]
+    pub watch: bool,
+
+    /// The path to a compiled stylesheet. Skips compilation of the stylesheet
+    /// and does not require any additional dependencies or installations.
+    #[clap(long, value_name = "CSS", conflicts_with = "themes")]
+    pub css: Option<PathBuf>,
 }
 
 impl DocCommand {
     /// Executes the `doc` subcommand.
     async fn exec(self) -> Result<()> {
-        document_workspace(self.path.clone()).await?;
+        let css = if let Some(themes) = self.themes.as_ref() {
+            Some(build_stylesheet(themes)?)
+        } else {
+            self.css.clone()
+        };
+
+        let docs_dir = document_workspace(self.path.clone(), css.clone(), self.overwrite).await?;
 
         if self.open {
-            // find the first `$path/docs/**/index.html` file in the workspace
-            // TODO: once we have a homepage, open that instead.
-            if let Some(index) = find_file_in_directory("index.html", &self.path.join("docs")) {
-                webbrowser::open(&index.as_path().to_string_lossy())
-                    .context("failed to open browser")?;
-            } else {
-                eprintln!("failed to find `index.html` in workspace");
+            opener::open(docs_dir.join("index.html"))?;
+        }
+
+        if self.watch {
+            let (tx, rx) = mpsc::channel::<NotifyResult<Event>>();
+            let mut watcher = recommended_watcher(tx)?;
+
+            let themes = self
+                .themes
+                .expect("themes directory is required for watching");
+            watcher.watch(&themes.join("src"), RecursiveMode::Recursive)?;
+
+            loop {
+                match rx.recv() {
+                    Ok(Ok(Event { .. })) => {
+                        println!("regenerating documentation...");
+                        build_stylesheet(&themes)?;
+                        document_workspace(self.path.clone(), css.clone(), self.overwrite).await?;
+                        println!("done");
+                    }
+                    Ok(Err(e)) => eprintln!("watch error: {}", e),
+                    Err(e) => eprintln!("watch error: {}", e),
+                }
             }
         }
 
