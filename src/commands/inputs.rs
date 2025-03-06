@@ -19,13 +19,15 @@ use wdl::{
 #[command(about = "Generate input JSON from a WDL document", version, about)]
 pub struct InputsArgs {
     #[arg(required = true)]
-    #[clap(value_name = "path")]
+    #[clap(value_name = "input path")]
     pub document: String,
 
     #[arg(short, long)]
+    #[clap(value_name = "output path")]
     pub output: Option<PathBuf>,
 
     #[arg(long)]
+    #[clap(value_name = "include defaults")]
     pub include_defaults: bool,
 }
 
@@ -92,15 +94,3 @@ fn expr_to_json(expr: &Expr) -> Value {
         _ => Value::Null,
     }
 }
-
-/*
-{
-    "workflow_name": {
-        "input_name": null,
-        "input_name": null,
-        "input_name": null
-    }
-}
-
-
-*/
