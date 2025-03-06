@@ -1,8 +1,10 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use serde_json::{Value, json};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use url::Url;
 use wdl::{
+    analysis::path_to_uri,
     ast::{
         AstToken, Document, SyntaxKind, Visitor,
         v1::{
@@ -11,6 +13,7 @@ use wdl::{
             LiteralExpr, LiteralNone, Type,
         },
     },
+    cli::analyze,
     doc,
     grammar::SyntaxTree,
 };
@@ -32,38 +35,63 @@ pub struct InputsArgs {
 }
 
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
-    let source = std::fs::read_to_string(&args.document)?;
-    let (document, diagnostics) = Document::parse(&source);
-    if !diagnostics.is_empty() {
-        for diagnostic in diagnostics {
-            anyhow::bail!("Failed to parse WDL document: {:?}", diagnostic);
-        }
-    }
+    println!("{:?}", args);
 
+    let results: Vec<wdl::analysis::AnalysisResult> =
+        analyze(args.document.as_str(), vec![], false, false).await?;
+
+    // println!("{:?}", results);
+
+    let uri: Url = Url::parse(args.document.as_str()).unwrap_or_else(|_| {
+        path_to_uri(args.document.as_str()).expect("file should be a local path")
+    });
+
+    // println!("{:?}", uri);
+
+    let result = results
+        .iter()
+        .find(|r| **r.document().uri() == uri)
+        .context("failed to find document in analysis results")?;
+
+    // println!("result: {:?}", result);
+
+    let document = result.document();
+
+    // println!("doc: {:?}", document);
+
+    let doc_name = Path::new(&args.document)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&args.document);
+
+    let (_path, name, inputs) = wdl::cli::parse_inputs(
+        document,
+        Some(doc_name),
+        Some(Path::new(args.document.as_str())),
+    )?;
+    // if !diagnostics.is_empty() {
+    //     for diagnostic in diagnostics {
+    //         anyhow::bail!("Failed to parse WDL document: {:?}", diagnostic);
+    //     }
+    // }
+
+    println!("{:?},{:?}, {:?}", _path, name, inputs);
     // workflow = document.workflows().first() or error "No workflow found"
     // inputs = workflow.input().declarations() or empty_list
 
-    let workflow = document
-        .ast()
-        .unwrap_v1()
-        .workflows()
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("No workflow found in the document"))?;
-    let inputs = workflow.input().map(|input| input.declarations()).unwrap();
-
     let mut template = serde_json::Map::new();
 
-    for decl in inputs {
-        let name = decl.name().as_str().to_string();
-        // let ty = decl.ty();
-        // Create a default expression if none is provided
-        let value = if let Some(expr) = decl.expr() {
-            expr_to_json(&expr)
-        } else {
-            Value::Null
-        };
+    let workflow_inputs: &wdl::engine::WorkflowInputs =
+        inputs.as_workflow_inputs().expect("worflow input problem");
 
-        template.insert(name, value);
+    for decl in workflow_inputs.iter() {
+        let name = decl.0;
+        let v: &wdl::engine::Value = decl.1;
+
+        println!("{v}");
+        let value = expr_to_json(v.clone());
+
+        template.insert(name.to_string(), value);
     }
 
     let json_output = serde_json::to_string_pretty(&template)?;
@@ -71,7 +99,6 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     if let Some(output_path) = args.output {
         std::fs::write(output_path, json_output)?;
     } else {
-        // ? output in the console if no output path is provided is that good?
         println!("{}", json_output);
     }
 
@@ -82,15 +109,15 @@ fn is_optional(type_: &Type) -> bool {
     type_.is_optional()
 }
 
-fn expr_to_json(expr: &Expr) -> Value {
+fn expr_to_json(expr: wdl::engine::Value) -> Value {
     match expr {
-        Literal(literal) => match literal {
-            LiteralExpr::Boolean(b) => Value::Bool(b.value()),
-            LiteralExpr::Integer(i) => Value::Number(i.value().unwrap_or(0).into()),
-            LiteralExpr::String(s) => Value::String(s.text().unwrap().as_str().to_string()),
-            LiteralExpr::None(_) => Value::Null,
-            _ => Value::Null,
-        },
+        // Literal(literal) => match literal {
+        //     LiteralExpr::Boolean(b) => Value::Bool(b.value()),
+        //     LiteralExpr::Integer(i) => Value::Number(i.value().unwrap_or(0).into()),
+        //     LiteralExpr::String(s) => Value::String(s.text().unwrap().as_str().to_string()),
+        //     LiteralExpr::None(_) => Value::Null,
+        //     _ => Value::Null,
+        // },
         _ => Value::Null,
     }
 }
