@@ -1,8 +1,16 @@
-note[UnknownRule]: unknown lint rule `ThisIsNotARealRule`
-  ┌─ tests/lints/unknown_rule/source.wdl:3:12
+note[UnknownRule]: unknown lint rule `SnackCase`
+  ┌─ tests/lints/unknown_rule/source.wdl:1:12
   │
-3 │ #@ except: ThisIsNotARealRule, MissingMetas
-  │            ^^^^^^^^^^^^^^^^^^ cannot make an exception for this rule
+1 │ #@ except: SnackCase, ThisIsNotARealRule, MissingMetas
+  │            ^^^^^^^^^ cannot make an exception for this rule
+  │
+  = fix: did you mean `SnakeCase`?
+
+note[UnknownRule]: unknown lint rule `ThisIsNotARealRule`
+  ┌─ tests/lints/unknown_rule/source.wdl:1:23
+  │
+1 │ #@ except: SnackCase, ThisIsNotARealRule, MissingMetas
+  │                       ^^^^^^^^^^^^^^^^^^ cannot make an exception for this rule
   │
   = fix: remove the unknown rule from the exception list
 

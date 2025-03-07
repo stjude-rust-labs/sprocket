@@ -3,9 +3,13 @@
 use std::process::Command;
 use std::process::Stdio;
 
+use strsim::levenshtein;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::SyntaxKind;
+
+use crate::RESERVED_RULE_IDS;
+use crate::rules::RULE_MAP;
 
 /// Detect if a comment is in-line or not by looking for `\n` in the prior
 /// whitespace.
@@ -98,6 +102,32 @@ pub fn program_exists(exec: &str) -> bool {
 /// Strips a single newline from the end of a string.
 pub fn strip_newline(s: &str) -> Option<&str> {
     s.strip_suffix("\r\n").or_else(|| s.strip_suffix('\n'))
+}
+
+/// Finds the nearest rule ID to the given unknown rule ID,
+/// or `None` if no rule ID is close enough.
+pub fn find_nearest_rule(unknown_rule_id: &str) -> Option<&'static str> {
+    let threshold = calculate_threshold(unknown_rule_id.len());
+
+    RULE_MAP
+        .keys()
+        .copied()
+        .chain(RESERVED_RULE_IDS.iter().copied())
+        .map(|rule_id| (rule_id, levenshtein(unknown_rule_id, rule_id)))
+        .filter(|(_, distance)| *distance <= threshold)
+        .min_by_key(|(_, distance)| *distance)
+        .map(|(rule_id, _)| rule_id)
+}
+
+/// Calculates a threshold for string similarity based on input length.
+fn calculate_threshold(input_len: usize) -> usize {
+    if input_len <= 3 {
+        return 1;
+    }
+    if input_len <= 10 {
+        return input_len / 3 + 1;
+    }
+    5
 }
 
 #[cfg(test)]
@@ -209,5 +239,32 @@ task foo {  # an in-line comment
         assert!(is_properly_quoted(s, '\''));
         let s = "this string has unclosed single quotes'";
         assert_eq!(is_properly_quoted(s, '\''), false);
+    }
+
+    #[test]
+    fn test_find_nearest_rule() {
+        // Test exact match
+        let nearest = find_nearest_rule("SnakeCase");
+        assert_eq!(nearest, Some("SnakeCase"));
+
+        // Test close match
+        let nearest = find_nearest_rule("SnackCase");
+        assert_eq!(nearest, Some("SnakeCase"));
+
+        // Test another exact match
+        let nearest = find_nearest_rule("PascalCase");
+        assert_eq!(nearest, Some("PascalCase"));
+
+        // Test a typo
+        let nearest = find_nearest_rule("PaskalCase");
+        assert_eq!(nearest, Some("PascalCase"));
+
+        // Test a more significant typo
+        let nearest = find_nearest_rule("SnakeCas");
+        assert_eq!(nearest, Some("SnakeCase"));
+
+        // Test a completely different string
+        let nearest = find_nearest_rule("CompletelyDifferentRule");
+        assert_eq!(nearest, None);
     }
 }

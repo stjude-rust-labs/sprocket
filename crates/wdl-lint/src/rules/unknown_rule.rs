@@ -17,16 +17,25 @@ use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 use crate::rules::RULE_MAP;
+use crate::util::find_nearest_rule;
 
 /// The identifier for the unknown rule rule.
 const ID: &str = "UnknownRule";
 
 /// Creates an "unknown rule" diagnostic.
 fn unknown_rule(id: &str, span: Span) -> Diagnostic {
-    Diagnostic::note(format!("unknown lint rule `{id}`"))
+    let mut diagnostic = Diagnostic::note(format!("unknown lint rule `{id}`"))
         .with_rule(ID)
-        .with_label("cannot make an exception for this rule", span)
-        .with_fix("remove the unknown rule from the exception list")
+        .with_label("cannot make an exception for this rule", span);
+
+    // Find the nearest rule to suggest
+    if let Some(nearest_rule) = find_nearest_rule(id) {
+        diagnostic = diagnostic.with_fix(format!("did you mean `{nearest_rule}`?"));
+    } else {
+        diagnostic = diagnostic.with_fix("remove the unknown rule from the exception list");
+    }
+
+    diagnostic
 }
 
 /// Detects unknown rules within lint directives.
