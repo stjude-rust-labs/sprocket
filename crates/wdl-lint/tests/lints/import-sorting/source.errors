@@ -1,0 +1,12 @@
+note[ImportSort]: imports are not sorted lexicographically
+  ┌─ tests/lints/import-sorting/source.wdl:7:1
+  │
+7 │ import "A"
+  │ ^^^^^^ imports must be sorted
+  │
+  = fix: sort the imports lexicographically:
+    import "A"
+    import "B"
+    import "C"
+    import "D"
+

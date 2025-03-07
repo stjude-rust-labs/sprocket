@@ -1,10 +1,18 @@
 note[ImportSort]: imports are not sorted lexicographically
-  ┌─ tests/lints/within-import-whitespace/source.wdl:9:1
+  ┌─ tests/lints/within-import-whitespace/source.wdl:8:1
   │
-9 │ import  "bar"  # BAD (2 spaces)
-  │ ^^^^^^^^^^^^^
+8 │ import "foo" as foo  # OK
+  │ ^^^^^^ imports must be sorted
   │
-  = fix: sort the imports lexicographically
+  = fix: sort the imports lexicographically:
+    import  "bar"
+    import	"baz"
+    import "chuk"        as something
+    import  # BAD (comment within statement)
+    "corge" as grault
+    import "foo" as foo
+    import "lorem" as 	ipsum
+    import   "qux"  alias   jabber    as    quux
 
 note[ImportWhitespace]: improper whitespace in import statement
   ┌─ tests/lints/within-import-whitespace/source.wdl:9:7

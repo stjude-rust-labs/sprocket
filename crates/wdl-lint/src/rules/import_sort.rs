@@ -1,13 +1,13 @@
 //! A lint rule for ensuring that imports are sorted lexicographically.
 
 use wdl_ast::AstNode;
+use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
-use wdl_ast::SyntaxNode;
 use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
@@ -21,13 +21,15 @@ use crate::TagSet;
 const ID: &str = "ImportSort";
 
 /// Creates an import not sorted diagnostic.
-fn import_not_sorted(span: Span) -> Diagnostic {
+fn import_not_sorted(span: Span, sorted_imports: String) -> Diagnostic {
     Diagnostic::note("imports are not sorted lexicographically")
         .with_rule(ID)
-        .with_highlight(span)
-        .with_fix("sort the imports lexicographically") // TODO: Provide the correct sorting
+        .with_label("imports must be sorted", span)
+        .with_fix(format!(
+            "sort the imports lexicographically:\n{}",
+            sorted_imports
+        ))
 }
-
 /// Creates an improper comment diagnostic.
 fn improper_comment(span: Span) -> Diagnostic {
     Diagnostic::note("comments are not allowed within an import statement")
@@ -57,7 +59,7 @@ impl Rule for ImportSortRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Style, Tag::Clarity])
+        TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Sorting])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
@@ -79,27 +81,52 @@ impl Visitor for ImportSortRule {
             return;
         }
 
-        // Reset the visitor upon document entry
         *self = Default::default();
 
-        let imports = doc
+        // Collect all import statements
+        let imports: Vec<_> = doc
             .syntax()
             .children_with_tokens()
-            .filter(|c| c.kind() == SyntaxKind::ImportStatementNode)
-            .map(|c| c.into_node().unwrap());
+            .filter(|n| n.kind() == SyntaxKind::ImportStatementNode)
+            .filter_map(|c| c.into_node())
+            .collect();
 
-        let mut prev_import: Option<SyntaxNode> = None;
-        for import in imports {
-            if let Some(prev) = prev_import {
-                if import.text().to_string() < prev.text().to_string() {
-                    // Since this rule can only be excepted in a document-wide fashion,
-                    // if the rule is running we can directly add the diagnostic
-                    // without checking for the exceptable nodes
-                    state.add(import_not_sorted(import.text_range().to_span()));
-                    return; // Only report one sorting diagnostic at a time.
-                }
-            }
-            prev_import = Some(import);
+        if imports.is_empty() {
+            return;
+        }
+
+        // Clone imports for comparison
+        let mut sorted_imports = imports.clone();
+        sorted_imports.sort_by(|a, b| {
+            let a_uri = ImportStatement::cast(a.clone())
+                .expect("import statement")
+                .uri()
+                .text()
+                .expect("import uri");
+            let b_uri = ImportStatement::cast(b.clone())
+                .expect("import statement")
+                .uri()
+                .text()
+                .expect("import uri");
+            a_uri.as_str().cmp(b_uri.as_str())
+        });
+
+        if imports != sorted_imports {
+            let span = imports
+                .first()
+                .expect("there should be at least one import")
+                .first_token()
+                .expect("node should have a first token")
+                .text_range()
+                .to_span();
+            state.add(import_not_sorted(
+                span,
+                sorted_imports
+                    .iter()
+                    .map(|i| i.text().to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ));
         }
     }
 
