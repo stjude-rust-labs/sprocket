@@ -1,16 +1,16 @@
 use anyhow::{Context, Result};
 use clap::Parser;
+use indexmap::IndexMap;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use url::Url;
 use wdl::{
-    analysis::path_to_uri,
+    analysis::{path_to_uri, types::Type},
     ast::{
         AstToken, Document, SyntaxKind, Visitor,
         v1::{
             self,
             Expr::{self, Literal},
-            LiteralExpr, LiteralNone, Type,
         },
     },
     cli::analyze,
@@ -35,7 +35,7 @@ pub struct InputsArgs {
 }
 
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
-    println!("{:?}", args);
+    // println!("{:?}", args);
 
     let results: Vec<wdl::analysis::AnalysisResult> =
         analyze(args.document.as_str(), vec![], false, false).await?;
@@ -53,43 +53,40 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         .find(|r| **r.document().uri() == uri)
         .context("failed to find document in analysis results")?;
 
-    // println!("result: {:?}", result);
-
     let document = result.document();
 
-    // println!("doc: {:?}", document);
+    let diagnostics = document.diagnostics();
+    if !diagnostics.is_empty() {
+        for diagnostic in diagnostics {
+            anyhow::bail!("Failed to parse WDL document: {:?}", diagnostic);
+        }
+    }
 
-    let doc_name = Path::new(&args.document)
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or(&args.document);
+    let (_path, name, inputs) = wdl::cli::parse_inputs(document, Some("main"), None)?;
 
-    let (_path, name, inputs) = wdl::cli::parse_inputs(
-        document,
-        Some(doc_name),
-        Some(Path::new(args.document.as_str())),
-    )?;
-    // if !diagnostics.is_empty() {
-    //     for diagnostic in diagnostics {
-    //         anyhow::bail!("Failed to parse WDL document: {:?}", diagnostic);
-    //     }
-    // }
+    println!("name: {:?}    {:?}", name, inputs);
 
-    println!("{:?},{:?}, {:?}", _path, name, inputs);
+    // find workflow by name
+    let workflow: &wdl::analysis::document::Workflow = document
+        .workflow()
+        .context("workflow not found".to_string())?;
+
+    let input_section: &IndexMap<String, wdl::analysis::document::Input> = workflow.inputs();
+
+    // println!("{:?},{:?}, {:?}", _path, name, inputs);
     // workflow = document.workflows().first() or error "No workflow found"
     // inputs = workflow.input().declarations() or empty_list
 
     let mut template = serde_json::Map::new();
 
-    let workflow_inputs: &wdl::engine::WorkflowInputs =
-        inputs.as_workflow_inputs().expect("worflow input problem");
-
-    for decl in workflow_inputs.iter() {
+    for decl in input_section {
         let name = decl.0;
-        let v: &wdl::engine::Value = decl.1;
+        let input: &wdl::analysis::document::Input = decl.1;
+        let v: &wdl::analysis::types::Type = input.ty();
 
-        println!("{v}");
-        let value = expr_to_json(v.clone());
+        println!("input name {} value {:?}", name, v);
+
+        let value = type_to_json(&v);
 
         template.insert(name.to_string(), value);
     }
@@ -99,14 +96,26 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     if let Some(output_path) = args.output {
         std::fs::write(output_path, json_output)?;
     } else {
-        println!("{}", json_output);
+        println!("OUTPUT    {}", json_output);
     }
 
     Ok(())
 }
 
-fn is_optional(type_: &Type) -> bool {
-    type_.is_optional()
+fn type_to_json(ty: &Type) -> Value {
+    match ty {
+        Type::Primitive(ty, _bool) => match ty {
+            // ? how should i handle other primitive types?
+            wdl::analysis::types::PrimitiveType::Boolean => Value::Bool(false),
+            wdl::analysis::types::PrimitiveType::Integer => Value::Number(0.into()),
+            // wdl::analysis::types::PrimitiveType::Float => Value::Number(0.0.into()),
+            wdl::analysis::types::PrimitiveType::String => Value::String("".to_string()),
+            // wdl::analysis::types::PrimitiveType::File => Value::String("".to_string()),
+            // wdl::analysis::types::PrimitiveType::Directory => Value::String("".to_string()),
+            _ => Value::Null,
+        },
+        _ => Value::Null,
+    }
 }
 
 fn expr_to_json(expr: wdl::engine::Value) -> Value {
