@@ -1,20 +1,19 @@
-//! Implementation of the `validate-inputs` command.
+//! Implementation of the `run` command.
 
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
 use clap::Parser;
 use tracing::info;
-use wdl::cli::validate_inputs as wdl_validate_inputs;
 
 use crate::Mode;
 use crate::emit_diagnostics;
 use crate::utils;
 
-/// Arguments for the `validate-inputs` command.
+/// Arguments for the `run` command.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
-pub struct ValidateInputsArgs {
+pub struct RunArgs {
     /// The path or URL to the WDL document.
     #[arg(required = true)]
     #[clap(value_name = "PATH or URL")]
@@ -33,13 +32,8 @@ pub struct ValidateInputsArgs {
     pub report_mode: Mode,
 }
 
-/// Validates the inputs for a task or workflow.
-///
-/// * Every required input is supplied.
-/// * Every supplied input is correctly typed.
-/// * No extraneous inputs are provided.
-/// * Any provided `File` or `Directory` inputs exist.
-pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
+/// Runs a workflow or task with the given inputs.
+pub async fn run(args: RunArgs) -> Result<()> {
     // Create a temporary JSON file if the input is YAML
     let input_path = if utils::is_yaml_file(&args.inputs) {
         info!("Converting YAML input to JSON");
@@ -48,7 +42,10 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
         args.inputs.clone()
     };
 
-    if let Some(diagnostic) = wdl_validate_inputs(&args.document, &input_path).await? {
+    // TODO: Implement the actual workflow execution logic here
+    // For now, we'll just validate the inputs
+    info!("Validating inputs");
+    if let Some(diagnostic) = wdl::cli::validate_inputs(&args.document, &input_path).await? {
         let source = std::fs::read_to_string(&args.document)?;
         emit_diagnostics(
             &[diagnostic],
@@ -59,6 +56,9 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
         );
         bail!("Invalid inputs");
     }
-    println!("All inputs are valid");
+    
+    info!("Inputs are valid");
+    println!("Workflow execution is not yet implemented. This is a placeholder for future functionality.");
+    
     anyhow::Ok(())
-}
+} 
