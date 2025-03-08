@@ -26,12 +26,21 @@ pub struct InputsArgs {
     pub document: String,
 
     #[arg(short, long)]
+    #[clap(value_name = "workflow name")]
+    pub name: Option<String>,
+
+    #[arg(short, long)]
     #[clap(value_name = "output path")]
     pub output: Option<PathBuf>,
 
-    #[arg(long)]
-    #[clap(value_name = "include defaults")]
-    pub include_defaults: bool,
+    #[arg(short, long)]
+    #[clap(value_name = "literal defaults")]
+    pub literal_defaults: bool,
+
+    #[arg(short, long)]
+    #[clap(value_name = "override expressions")]
+    pub override_expressions: bool,
+
 }
 
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
