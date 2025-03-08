@@ -39,6 +39,8 @@ pub struct ValidateInputsArgs {
 /// * Every supplied input is correctly typed.
 /// * No extraneous inputs are provided.
 /// * Any provided `File` or `Directory` inputs exist.
+///
+/// This command supports both JSON and YAML input files.
 pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
     // Create a temporary JSON file if the input is YAML
     let input_path = if utils::is_yaml_file(&args.inputs) {
