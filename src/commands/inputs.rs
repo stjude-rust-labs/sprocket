@@ -75,12 +75,38 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
 
     println!("name: {:?}    {:?}", name, inputs);
 
-    // find workflow by name
-    let workflow: &wdl::analysis::document::Workflow = document
-        .workflow()
-        .context("workflow not found".to_string())?;
-
-    let input_section: &IndexMap<String, wdl::analysis::document::Input> = workflow.inputs();
+    // search the document to match a task or workflow by name
+    let input_section: &IndexMap<String, wdl::analysis::document::Input> = if let Some(name) =
+    args.name
+    {
+        if let Some(task) = document.task_by_name(&name) {
+            task.inputs()
+        } else if let Some(workflow) = document.workflow() {
+            if workflow.name() == name {
+                workflow.inputs()
+            } else {
+                anyhow::bail!("No task or workflow found with name '{}'", name);
+            }
+        } else {
+            anyhow::bail!("No task or workflow found with name '{}'", name);
+        }
+    } else {
+        // If no name is provided, try workflow first
+        if let Some(workflow) = document.workflow() {
+            workflow.inputs()
+        } else {
+            // No workflow - look for exactly one task
+            let tasks: Vec<_> = document.tasks().collect();
+            println!("tasks: {:?}", tasks);
+            match tasks.len() {
+                0 => anyhow::bail!("No workflow or tasks found in document"),
+                1 => tasks[0].inputs(),
+                _ => anyhow::bail!(
+                    "Multiple tasks found in document but no name specified. Please provide a name using --name"
+                ),
+            }
+        }
+    };
 
     // println!("{:?},{:?}, {:?}", _path, name, inputs);
     // workflow = document.workflows().first() or error "No workflow found"
