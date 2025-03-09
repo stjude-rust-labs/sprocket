@@ -58,9 +58,11 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     let document = result.document();
 
     let diagnostics = document.diagnostics();
-    if !diagnostics.is_empty() {
+    if diagnostics.is_empty() {
         for diagnostic in diagnostics {
-            anyhow::bail!("Failed to parse WDL document: {:?}", diagnostic);
+            if diagnostic.severity() == wdl::ast::Severity::Error {
+                anyhow::bail!("Failed to parse WDL document: {:?}", diagnostic);
+            }
         }
     }
 
