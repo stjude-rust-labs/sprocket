@@ -26,7 +26,7 @@ pub struct InputsArgs {
     pub document: String,
 
     #[arg(short, long)]
-    #[clap(value_name = "workflow name")]
+    #[clap(value_name = "workflow or task name")]
     pub name: Option<String>,
 
     #[arg(short, long)]
@@ -40,7 +40,6 @@ pub struct InputsArgs {
     #[arg(short, long)]
     #[clap(value_name = "override expressions")]
     pub override_expressions: bool,
-
 }
 
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
@@ -77,7 +76,7 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
 
     // search the document to match a task or workflow by name
     let input_section: &IndexMap<String, wdl::analysis::document::Input> = if let Some(name) =
-    args.name
+        args.name
     {
         if let Some(task) = document.task_by_name(&name) {
             task.inputs()

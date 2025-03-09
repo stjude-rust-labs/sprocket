@@ -4,5 +4,5 @@ pub mod analyzer;
 pub mod check;
 pub mod explain;
 pub mod format;
-pub mod validate;
 pub mod inputs;
+pub mod validate;
