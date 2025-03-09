@@ -2,7 +2,8 @@
 
 use std::path::PathBuf;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
+use anyhow::bail;
 use clap::Parser;
 use wdl::cli::validate_inputs as wdl_validate_inputs;
 
