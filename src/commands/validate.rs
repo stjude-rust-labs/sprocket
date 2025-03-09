@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 use anyhow::{Result, bail};
 use clap::Parser;
-use tracing::info;
 use wdl::cli::validate_inputs as wdl_validate_inputs;
 
 use crate::Mode;
@@ -42,9 +41,9 @@ pub struct ValidateInputsArgs {
 ///
 /// This command supports both JSON and YAML input files.
 pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
-    // Convert input file to JSON if necessary
-    info!("Checking input file format");
-    let input_path = utils::get_json_path(&args.inputs)?;
+    // Create a temporary JSON file from the input file
+    // The wdl crate's validate_inputs function expects a file path
+    let input_path = utils::create_json_file_from_input(args.inputs)?;
 
     if let Some(diagnostic) = wdl_validate_inputs(&args.document, &input_path).await? {
         let source = std::fs::read_to_string(&args.document)?;
