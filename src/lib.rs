@@ -17,6 +17,7 @@ use codespan_reporting::term::termcolor::StandardStream;
 use wdl::ast::Diagnostic;
 
 pub mod commands;
+pub mod utils;
 
 /// The diagnostic mode to use for reporting diagnostics.
 #[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
