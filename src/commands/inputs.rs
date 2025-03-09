@@ -43,18 +43,12 @@ pub struct InputsArgs {
 }
 
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
-    // println!("{:?}", args);
-
     let results: Vec<wdl::analysis::AnalysisResult> =
         analyze(args.document.as_str(), vec![], false, false).await?;
-
-    // println!("{:?}", results);
 
     let uri: Url = Url::parse(args.document.as_str()).unwrap_or_else(|_| {
         path_to_uri(args.document.as_str()).expect("file should be a local path")
     });
-
-    // println!("{:?}", uri);
 
     let result = results
         .iter()
@@ -69,10 +63,6 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
             anyhow::bail!("Failed to parse WDL document: {:?}", diagnostic);
         }
     }
-
-    let (_path, name, inputs) = wdl::cli::parse_inputs(document, Some("main"), None)?;
-
-    println!("name: {:?}    {:?}", name, inputs);
 
     // search the document to match a task or workflow by name
     let input_section: &IndexMap<String, wdl::analysis::document::Input> = if let Some(name) =
@@ -106,10 +96,6 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
             }
         }
     };
-
-    // println!("{:?},{:?}, {:?}", _path, name, inputs);
-    // workflow = document.workflows().first() or error "No workflow found"
-    // inputs = workflow.input().declarations() or empty_list
 
     let mut template = serde_json::Map::new();
 
@@ -148,19 +134,6 @@ fn type_to_json(ty: &Type) -> Value {
             // wdl::analysis::types::PrimitiveType::Directory => Value::String("".to_string()),
             _ => Value::Null,
         },
-        _ => Value::Null,
-    }
-}
-
-fn expr_to_json(expr: wdl::engine::Value) -> Value {
-    match expr {
-        // Literal(literal) => match literal {
-        //     LiteralExpr::Boolean(b) => Value::Bool(b.value()),
-        //     LiteralExpr::Integer(i) => Value::Number(i.value().unwrap_or(0).into()),
-        //     LiteralExpr::String(s) => Value::String(s.text().unwrap().as_str().to_string()),
-        //     LiteralExpr::None(_) => Value::Null,
-        //     _ => Value::Null,
-        // },
         _ => Value::Null,
     }
 }
