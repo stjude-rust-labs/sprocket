@@ -62,6 +62,32 @@ pub fn get_json_string(input_path: PathBuf) -> Result<String> {
     }
 }
 
+/// Gets a path to a JSON file for use with APIs that require a file path.
+///
+/// For JSON inputs, returns the original path directly.
+/// For YAML inputs, converts to JSON and creates a temporary file.
+pub fn get_json_file_path(input_path: PathBuf) -> Result<PathBuf> {
+    match parse_input_file(&input_path)? {
+        ParsedInput::Json(_) => {
+            debug!("Input is already JSON, using original file directly");
+            Ok(input_path)
+        },
+        ParsedInput::Yaml(json) => {
+            debug!("Converting YAML to JSON and creating temporary file");
+            let json_string = serde_json::to_string_pretty(&json)
+                .context("Failed to convert YAML-derived JSON value to string")?;
+            
+            let temp_dir = std::env::temp_dir();
+            let temp_file = temp_dir.join("sprocket_temp_input.json");
+            
+            fs::write(&temp_file, json_string)
+                .context("Failed to write temporary JSON file")?;
+            
+            Ok(temp_file)
+        }
+    }
+}
+
 /// Creates a temporary JSON file from the input file contents.
 ///
 /// This is used when the underlying API requires a file path rather than
@@ -162,5 +188,36 @@ mod tests {
         assert_eq!(json["nested"]["inner"], 42);
         assert_eq!(json["list"][0], "item1");
         assert_eq!(json["list"][1], "item2");
+    }
+    
+    #[test]
+    fn test_get_json_file_path_with_json() {
+        // Create a temporary JSON file
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"{\"key\": \"value\", \"number\": 42}").unwrap();
+        let path = file.path().to_path_buf();
+        
+        // For JSON input, should return the original path
+        let result_path = get_json_file_path(path.clone()).unwrap();
+        assert_eq!(result_path, path);
+    }
+    
+    #[test]
+    fn test_get_json_file_path_with_yaml() {
+        // Create a temporary YAML file
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"key: value\nnested:\n  inner: 42").unwrap();
+        
+        // For YAML input, should create a new JSON file
+        let result_path = get_json_file_path(file.path().to_path_buf()).unwrap();
+        
+        // Result should be a different path
+        assert_ne!(result_path, file.path());
+        
+        // Verify the content of the new file
+        let content = fs::read_to_string(&result_path).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(json["key"], "value");
+        assert_eq!(json["nested"]["inner"], 42);
     }
 } 

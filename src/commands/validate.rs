@@ -41,9 +41,10 @@ pub struct ValidateInputsArgs {
 ///
 /// This command supports both JSON and YAML input files.
 pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
-    // Create a temporary JSON file from the input file
-    // The wdl crate's validate_inputs function expects a file path
-    let input_path = utils::create_json_file_from_input(args.inputs)?;
+    // Get a path to a JSON file
+    // For JSON inputs, this returns the original path
+    // For YAML inputs, this creates a temporary JSON file
+    let input_path = utils::get_json_file_path(args.inputs)?;
 
     if let Some(diagnostic) = wdl_validate_inputs(&args.document, &input_path).await? {
         let source = std::fs::read_to_string(&args.document)?;
