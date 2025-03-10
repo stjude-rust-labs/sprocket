@@ -9,7 +9,7 @@ use wdl::cli::validate_inputs as wdl_validate_inputs;
 
 use crate::Mode;
 use crate::emit_diagnostics;
-use crate::utils;
+use crate::input;
 
 /// Arguments for the `validate-inputs` command.
 #[derive(Parser, Debug)]
@@ -45,7 +45,7 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
     // Get a path to a JSON file
     // For JSON inputs, this returns the original path
     // For YAML inputs, this creates a temporary JSON file
-    let input_path = utils::get_json_file_path(args.inputs)?;
+    let input_path = input::get_json_file_path(args.inputs)?;
 
     if let Some(diagnostic) = wdl_validate_inputs(&args.document, &input_path).await? {
         let source = std::fs::read_to_string(&args.document)?;
