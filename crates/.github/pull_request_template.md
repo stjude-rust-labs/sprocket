@@ -3,7 +3,7 @@ When creating a pull request, you should uncomment the section below that
 describes the type of pull request you are submitting.
 -->
 
-<!-- START SECTION: adding a new linting rule
+<!-- START SECTION: adding a new lint rule
 
 This pull request adds a new rule to `wdl-lint`.
 
@@ -20,6 +20,7 @@ Before submitting this PR, please make sure:
 - [ ] You have added an entry to the relevant `CHANGELOG.md` (see
       ["keep a changelog"] for more information).
 - [ ] Your commit messages follow the [conventional commit] style.
+- [ ] Your PR title follows the [conventional commit] style.
 
 Rule specific checks:
 
@@ -33,9 +34,9 @@ Rule specific checks:
       (`wdl-ast/src/validation.rs`) and `LintVisitor`
       (`wdl-lint/src/visitor.rs`) visitors. These are required to ensure the new
       visitor callback will execute.
-- [ ] You have run `gauntlet --refresh` to ensure that there are no 
+- [ ] You have run `gauntlet --bless` to ensure that there are no 
       unintended changes to the baseline configuration file (`Gauntlet.toml`).
-- [ ] You have run `gauntlet --refresh --arena` to ensure that all of the 
+- [ ] You have run `gauntlet --bless --arena` to ensure that all of the 
       rules added/removed are now reflected in the baseline configuration file 
       (`Arena.toml`).
 
@@ -57,6 +58,7 @@ Before submitting this PR, please make sure:
 - [ ] You have added an entry to the relevant `CHANGELOG.md` (see
       ["keep a changelog"] for more information).
 - [ ] Your commit messages follow the [conventional commit] style.
+- [ ] Your PR title follows the [conventional commit] style.
 
 END SECTION -->
 

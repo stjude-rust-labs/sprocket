@@ -130,7 +130,8 @@ pub async fn analyze(
 ///
 /// Returns the absolute path to the inputs file (if a path was provided), the
 /// name of the workflow or task referenced by the inputs, and the inputs to the
-/// workflow or task.
+/// workflow or task. If no `inputs` file is provided, the resulting [`Inputs`]
+/// will be empty.
 pub fn parse_inputs(
     document: &Document,
     name: Option<&str>,
