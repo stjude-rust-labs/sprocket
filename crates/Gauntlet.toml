@@ -1838,6 +1838,11 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/PRS/PRSWrapper.wdl"
+message = "PRSWrapper.wdl:36:18: warning: missing required call input `imputed_array_vcf_index` for workflow `ScoringImputedDataset`"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/PRS/PRSWrapper.wdl/#L36"
+
+[[diagnostics]]
+document = "broadinstitute/palantir-workflows:/PRS/PRSWrapper.wdl"
 message = "PRSWrapper.wdl:48:30: error: type mismatch: expected type `Int`, but found type `Int?`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/PRS/PRSWrapper.wdl/#L48"
 
@@ -3097,6 +3102,11 @@ message = "test_smartseq2_multisample_PR_SINGLE_END.wdl:58:46: warning[UnusedCal
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tests/skylab/smartseq2_multisample/pr_single_end/test_smartseq2_multisample_PR_SINGLE_END.wdl/#L58"
 
 [[diagnostics]]
+document = "broadinstitute/warp:/tests/skylab/smartseq2_single_nucleus/pr/test_smartseq2_single_nucleus_PR.wdl"
+message = "test_smartseq2_single_nucleus_PR.wdl:28:19: warning: missing required call input `cloud_provider` for workflow `MultiSampleSmartSeq2SingleNucleus`"
+permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tests/skylab/smartseq2_single_nucleus/pr/test_smartseq2_single_nucleus_PR.wdl/#L28"
+
+[[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyArrays.wdl"
 message = "VerifyArrays.wdl:46:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyArrays.wdl/#L46"
@@ -3970,6 +3980,51 @@ permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/8d57beab9fd6a
 document = "chanzuckerberg/czid-workflows:/workflows/short-read-mngs/host_filter.wdl"
 message = "host_filter.wdl:22:11: warning[UnusedInput]: unused input `gtf_gz`"
 permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/8d57beab9fd6ab640826af0fdc6bff9b22d95163/workflows/short-read-mngs/host_filter.wdl/#L22"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/short-read-mngs/local_driver.wdl"
+message = "local_driver.wdl:23:17: warning: missing required call input `adapter_fasta` for workflow `czid_host_filter`"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/8d57beab9fd6ab640826af0fdc6bff9b22d95163/workflows/short-read-mngs/local_driver.wdl/#L23"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/short-read-mngs/local_driver.wdl"
+message = "local_driver.wdl:23:17: warning: missing required call input `bowtie2_index_tar` for workflow `czid_host_filter`"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/8d57beab9fd6ab640826af0fdc6bff9b22d95163/workflows/short-read-mngs/local_driver.wdl/#L23"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/short-read-mngs/local_driver.wdl"
+message = "local_driver.wdl:23:17: warning: missing required call input `hisat2_index_tar` for workflow `czid_host_filter`"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/8d57beab9fd6ab640826af0fdc6bff9b22d95163/workflows/short-read-mngs/local_driver.wdl/#L23"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/short-read-mngs/local_driver.wdl"
+message = "local_driver.wdl:23:17: warning: missing required call input `host_genome` for workflow `czid_host_filter`"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/8d57beab9fd6ab640826af0fdc6bff9b22d95163/workflows/short-read-mngs/local_driver.wdl/#L23"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/short-read-mngs/local_driver.wdl"
+message = "local_driver.wdl:23:17: warning: missing required call input `human_bowtie2_index_tar` for workflow `czid_host_filter`"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/8d57beab9fd6ab640826af0fdc6bff9b22d95163/workflows/short-read-mngs/local_driver.wdl/#L23"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/short-read-mngs/local_driver.wdl"
+message = "local_driver.wdl:23:17: warning: missing required call input `human_hisat2_index_tar` for workflow `czid_host_filter`"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/8d57beab9fd6ab640826af0fdc6bff9b22d95163/workflows/short-read-mngs/local_driver.wdl/#L23"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/short-read-mngs/local_driver.wdl"
+message = "local_driver.wdl:23:17: warning: missing required call input `kallisto_idx` for workflow `czid_host_filter`"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/8d57beab9fd6ab640826af0fdc6bff9b22d95163/workflows/short-read-mngs/local_driver.wdl/#L23"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/short-read-mngs/local_driver.wdl"
+message = "local_driver.wdl:23:17: warning: missing required call input `max_input_fragments` for workflow `czid_host_filter`"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/8d57beab9fd6ab640826af0fdc6bff9b22d95163/workflows/short-read-mngs/local_driver.wdl/#L23"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/short-read-mngs/local_driver.wdl"
+message = "local_driver.wdl:23:17: warning: missing required call input `max_subsample_fragments` for workflow `czid_host_filter`"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/8d57beab9fd6ab640826af0fdc6bff9b22d95163/workflows/short-read-mngs/local_driver.wdl/#L23"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/short-read-mngs/local_driver.wdl"

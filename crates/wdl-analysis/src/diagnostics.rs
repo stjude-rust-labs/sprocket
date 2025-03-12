@@ -695,12 +695,22 @@ pub fn recursive_workflow_call(name: &str, span: Span) -> Diagnostic {
 }
 
 /// Creates a "missing call input" diagnostic.
-pub fn missing_call_input(kind: CallKind, target: &Ident, input: &str) -> Diagnostic {
-    Diagnostic::error(format!(
+pub fn missing_call_input(
+    kind: CallKind,
+    target: &Ident,
+    input: &str,
+    nested_inputs_allowed: bool,
+) -> Diagnostic {
+    let message = format!(
         "missing required call input `{input}` for {kind} `{target}`",
         target = target.as_str(),
-    ))
-    .with_highlight(target.span())
+    );
+
+    if nested_inputs_allowed {
+        Diagnostic::warning(message).with_highlight(target.span())
+    } else {
+        Diagnostic::error(message).with_highlight(target.span())
+    }
 }
 
 /// Creates an "unused import" diagnostic.

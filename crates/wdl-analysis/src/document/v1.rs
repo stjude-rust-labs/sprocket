@@ -1185,19 +1185,17 @@ fn add_call_statement(
                 },
             }
 
-            // Don't bother keeping track of seen inputs if nested inputs are allowed
-            if !nested_inputs_allowed {
-                seen.insert(TokenStrHash::new(input_name));
-            }
+            seen.insert(TokenStrHash::new(input_name));
         }
 
-        if !nested_inputs_allowed {
-            for (name, input) in ty.inputs() {
-                if input.required && !seen.contains(name.as_str()) {
-                    document
-                        .diagnostics
-                        .push(missing_call_input(ty.kind(), &target_name, name));
-                }
+        for (name, input) in ty.inputs() {
+            if input.required && !seen.contains(name.as_str()) {
+                document.diagnostics.push(missing_call_input(
+                    ty.kind(),
+                    &target_name,
+                    name,
+                    nested_inputs_allowed,
+                ));
             }
         }
 
