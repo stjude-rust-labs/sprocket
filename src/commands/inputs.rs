@@ -52,7 +52,6 @@ struct InputVisitor {
     inputs: IndexMap<String, Option<Expr>>, // input_name -> default expression (if any)
 }
 
-
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     let results: Vec<wdl::analysis::AnalysisResult> =
         analyze(args.document.as_str(), vec![], false, false).await?;
@@ -69,12 +68,11 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     let document = result.document();
 
     let diagnostics: &[Diagnostic] = document.diagnostics();
-    if diagnostics.is_empty() {
-        for diagnostic in diagnostics {
-            if diagnostic.severity() == wdl::ast::Severity::Error {
-                anyhow::bail!("Failed to parse WDL document: {:?}", diagnostic);
-            }
-        }
+    if diagnostics
+        .iter()
+        .any(|d| d.severity() == wdl::ast::Severity::Error)
+    {
+        anyhow::bail!("Failed to parse WDL document: {:?}", diagnostics);
     }
 
     println!("document: {:?}", document);
