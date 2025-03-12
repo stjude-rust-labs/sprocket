@@ -47,24 +47,6 @@ pub fn parse_input_file(path: &PathBuf) -> Result<(InputFormat, serde_json::Valu
     )
 }
 
-/// Gets a JSON string representation of the input file.
-pub fn get_json_string(input_path: PathBuf) -> Result<String> {
-    let (format, json_value) = parse_input_file(&input_path)?;
-
-    match format {
-        InputFormat::Json => {
-            debug!("Using JSON input directly");
-            serde_json::to_string_pretty(&json_value)
-                .context("Failed to convert JSON value to string")
-        }
-        InputFormat::Yaml => {
-            debug!("Using YAML input converted to JSON");
-            serde_json::to_string_pretty(&json_value)
-                .context("Failed to convert YAML-derived JSON value to string")
-        }
-    }
-}
-
 /// Gets a path to a JSON file from an input file which may be in either JSON or
 /// YAML format.
 ///
@@ -141,40 +123,6 @@ mod tests {
         // Test parsing should fail
         let result = parse_input_file(&file.path().to_path_buf());
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_get_json_string_with_json() {
-        // Create a temporary JSON file
-        let mut file = NamedTempFile::new().unwrap();
-        file.write_all(b"{\"key\": \"value\", \"number\": 42}")
-            .unwrap();
-
-        // Get JSON string
-        let json_string = get_json_string(file.path().to_path_buf()).unwrap();
-
-        // Parse back to verify
-        let json: serde_json::Value = serde_json::from_str(&json_string).unwrap();
-        assert_eq!(json["key"], "value");
-        assert_eq!(json["number"], 42);
-    }
-
-    #[test]
-    fn test_get_json_string_with_yaml() {
-        // Create a temporary YAML file
-        let mut file = NamedTempFile::new().unwrap();
-        file.write_all(b"key: value\nnested:\n  inner: 42\nlist:\n  - item1\n  - item2")
-            .unwrap();
-
-        // Get JSON string
-        let json_string = get_json_string(file.path().to_path_buf()).unwrap();
-
-        // Parse back to verify
-        let json: serde_json::Value = serde_json::from_str(&json_string).unwrap();
-        assert_eq!(json["key"], "value");
-        assert_eq!(json["nested"]["inner"], 42);
-        assert_eq!(json["list"][0], "item1");
-        assert_eq!(json["list"][1], "item2");
     }
 
     #[test]
