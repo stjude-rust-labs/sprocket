@@ -39,13 +39,15 @@ workflow.optional=null
 
 ### Arrays
 
-```bash
-# Flat arrays (comma-separated)
-workflow.tags=dev,test,prod
+Arrays must be wrapped in square brackets:
 
-# Nested arrays (using brackets)
-workflow.matrix=[1,2,3],[4,5,6]
-workflow.deep=[[a,b],[c,d]],[[e,f]]
+```bash
+# Simple arrays
+workflow.tags=[dev,test,prod]
+
+# Nested arrays
+workflow.matrix=[[1,2,3],[4,5,6]]
+workflow.deep=[[[a,b],[c,d]],[[e,f]]]
 ```
 
 ### Nested Structures
@@ -98,4 +100,8 @@ Common errors include:
 ## Limitations
 
 - For highly complex nested structures, consider using a JSON file directly
-- The `Object` type in WDL should be handled via JSON files 
+- The `Object` type in WDL should be handled via JSON files
+
+# Null/Optional Values
+workflow.optional=null   # JSON/YAML style
+workflow.optional=None   # WDL style

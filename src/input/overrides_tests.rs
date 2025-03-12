@@ -296,4 +296,48 @@ mod tests {
         let batch2 = &result["complex_map"]["batch2"];
         assert!(batch2.is_array());
     }
+
+    #[test]
+    fn test_arrays() {
+        // Simple array
+        let result = parse_value("[dev,test,prod]").unwrap();
+        match result {
+            OverrideValue::Array(values) => {
+                assert_eq!(values.len(), 3);
+                assert!(matches!(&values[0], OverrideValue::String(s) if s == "dev"));
+                assert!(matches!(&values[1], OverrideValue::String(s) if s == "test"));
+                assert!(matches!(&values[2], OverrideValue::String(s) if s == "prod"));
+            },
+            _ => panic!("Expected array"),
+        }
+
+        // Nested array
+        let result = parse_value("[[1,2],[3,4]]").unwrap();
+        // ... rest of test
+    }
+
+    #[test]
+    fn test_null_values() {
+        // Test both null and None are treated equivalently
+        assert!(matches!(parse_value("null").unwrap(), OverrideValue::Null));
+        assert!(matches!(parse_value("None").unwrap(), OverrideValue::Null));
+
+        // Test in context
+        let base_json: Value = serde_json::from_str(r#"
+            {
+                "workflow": {
+                    "optional_param": "value"
+                }
+            }
+        "#).unwrap();
+
+        let overrides = vec![
+            InputOverride::parse("workflow.null_style=null").unwrap(),
+            InputOverride::parse("workflow.none_style=None").unwrap(),
+        ];
+
+        let result = apply_overrides(base_json, &overrides).unwrap();
+        assert!(result["workflow"]["null_style"].is_null());
+        assert!(result["workflow"]["none_style"].is_null());
+    }
 } 

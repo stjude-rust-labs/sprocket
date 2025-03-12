@@ -100,18 +100,13 @@ fn parse_value(input: &str) -> Result<OverrideValue, OverrideError> {
         return Ok(OverrideValue::String(input[1..input.len()-1].to_string()));
     }
 
-    // Handle arrays with brackets
+    // Handle arrays (must use brackets)
     if input.starts_with('[') {
         return parse_array_value(input);
     }
 
-    // Handle flat arrays (comma-separated)
-    if input.contains(',') {
-        return parse_flat_array(input);
-    }
-
-    // Handle null
-    if input == "null" {
+    // Handle null/None
+    if input == "null" || input == "None" {
         return Ok(OverrideValue::Null);
     }
 
@@ -128,37 +123,6 @@ fn parse_value(input: &str) -> Result<OverrideValue, OverrideError> {
 
     // Default to string
     Ok(OverrideValue::String(input.to_string()))
-}
-
-/// Parses a comma-separated string into an array.
-fn parse_flat_array(input: &str) -> Result<OverrideValue, OverrideError> {
-    if input.is_empty() {
-        return Err(OverrideError::EmptyArray);
-    }
-
-    if input.ends_with(',') {
-        return Err(OverrideError::TrailingComma);
-    }
-
-    if input.starts_with(',') {
-        return Err(OverrideError::LeadingComma);
-    }
-
-    // Check for consecutive commas
-    if input.contains(",,") {
-        return Err(OverrideError::ConsecutiveCommas);
-    }
-
-    let values = input
-        .split(',')
-        .map(|s| parse_value(s.trim()))
-        .collect::<Result<Vec<_>, _>>()?;
-    
-    if values.is_empty() {
-        return Err(OverrideError::EmptyArray);
-    }
-    
-    Ok(OverrideValue::Array(values))
 }
 
 /// Parses a nested array using bracket notation.
