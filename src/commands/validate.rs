@@ -10,6 +10,7 @@ use wdl::cli::validate_inputs as wdl_validate_inputs;
 use crate::Mode;
 use crate::emit_diagnostics;
 use crate::input;
+use crate::input::override::InputOverride;
 
 /// Arguments for the `validate-inputs` command.
 #[derive(Parser, Debug)]
@@ -23,6 +24,10 @@ pub struct ValidateInputsArgs {
     /// The path to the input file (JSON or YAML).
     #[arg(short, long, value_name = "FILE")]
     pub inputs: PathBuf,
+
+    /// Input overrides in key=value format
+    #[arg(value_name = "KEY=VALUE")]
+    pub overrides: Vec<String>,
 
     /// Disables color output.
     #[arg(long)]
@@ -42,12 +47,20 @@ pub struct ValidateInputsArgs {
 ///
 /// This command supports both JSON and YAML input files.
 pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
-    // Get a path to a JSON file
-    // For JSON inputs, this returns the original path
-    // For YAML inputs, this creates a temporary JSON file
-    let input_path = input::get_json_file_path(args.inputs)?;
+    // Parse base JSON/YAML
+    let (_, mut json_value) = input::parse_input_file(&args.inputs)?;
 
-    if let Some(diagnostic) = wdl_validate_inputs(&args.document, &input_path).await? {
+    // Parse and apply overrides
+    let overrides: Vec<InputOverride> = args.overrides
+        .iter()
+        .map(|s| InputOverride::parse(s))
+        .collect::<Result<_>>()?;
+
+    if !overrides.is_empty() {
+        json_value = input::override_mod::apply_overrides(json_value, &overrides)?;
+    }
+
+    if let Some(diagnostic) = wdl_validate_inputs(&args.document, &json_value).await? {
         let source = std::fs::read_to_string(&args.document)?;
         emit_diagnostics(
             &[diagnostic],
@@ -59,5 +72,5 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
         bail!("Invalid inputs");
     }
     println!("All inputs are valid");
-    anyhow::Ok(())
+    Ok(())
 }
