@@ -103,5 +103,6 @@ Common errors include:
 - The `Object` type in WDL should be handled via JSON files
 
 # Null/Optional Values
-workflow.optional=null   # JSON/YAML style
-workflow.optional=None   # WDL style
+
+workflow.optional=null # JSON/YAML style
+workflow.optional=None # WDL style

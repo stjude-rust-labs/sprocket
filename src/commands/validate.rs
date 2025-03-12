@@ -8,11 +8,11 @@ use clap::Parser;
 use wdl::cli::validate_inputs as wdl_validate_inputs;
 use tempfile::NamedTempFile;
 use std::io::Write;
+use serde_json::json;
 
 use crate::Mode;
 use crate::emit_diagnostics;
-use crate::input;
-use crate::input::overrides::InputOverride;
+use crate::input::command_line::CommandLineInput;
 
 /// Arguments for the `validate-inputs` command.
 #[derive(Parser, Debug)]
@@ -25,11 +25,11 @@ pub struct ValidateInputsArgs {
 
     /// The path to the input file (JSON or YAML).
     #[arg(short, long, value_name = "FILE")]
-    pub inputs: PathBuf,
+    pub inputs: Option<PathBuf>,
 
-    /// Input overrides in key=value format
+    /// Input values in key=value format
     #[arg(value_name = "KEY=VALUE")]
-    pub overrides: Vec<String>,
+    pub inputs: Vec<String>,
 
     /// Disables color output.
     #[arg(long)]
@@ -53,21 +53,25 @@ pub struct ValidateInputsArgs {
 ///
 /// This command supports both JSON and YAML input files.
 pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
-    // Parse base JSON/YAML
-    let (_, mut json_value) = input::parse_input_file(&args.inputs)?;
+    // Start with empty JSON if no input file
+    let mut json_value = if let Some(input_file) = args.inputs {
+        let (_, json) = input::parse_input_file(&input_file)?;
+        json
+    } else {
+        json!({})
+    };
 
-    // Parse and apply overrides
-    if !args.overrides.is_empty() {
-        let overrides: Vec<InputOverride> = args.overrides
+    // Parse and apply command line inputs
+    if !args.inputs.is_empty() {
+        let inputs: Vec<CommandLineInput> = args.inputs
             .iter()
-            .map(|s| InputOverride::parse(s))
+            .map(|s| CommandLineInput::parse(s))
             .collect::<Result<_>>()?;
 
-        json_value = input::overrides::apply_overrides(json_value, &overrides)?;
+        json_value = input::command_line::apply_inputs(json_value, &inputs)?;
         
-        // Print the resulting JSON if verbose
         if args.verbose {
-            println!("Input JSON with overrides applied:");
+            println!("Final input JSON:");
             println!("{}", serde_json::to_string_pretty(&json_value)?);
             println!();
         }
