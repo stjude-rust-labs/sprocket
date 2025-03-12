@@ -37,6 +37,9 @@
 - **`sprocket lint`** Performs static analysis on WDL documents with additional
   linting rules enabled.
 - **`sprocket validate-inputs`** Validates an input JSON against a task or workflow input schema.
+  - Supports command-line input overrides with `key=value` syntax (e.g., `workflow.param=value`)
+  - Handles all WDL data types including nested structures and arrays
+  - See [input-overrides.md](docs/input-overrides.md) for detailed documentation
 
 ## Guiding Principles
 
@@ -71,6 +74,20 @@ Sprocket is available as a Docker [image](https://github.com/stjude-rust-labs/sp
 ```bash
 docker pull ghcr.io/stjude-rust-labs/sprocket:v0.11.0
 ```
+
+### Input Overrides
+
+Sprocket supports overriding input values via command-line arguments:
+
+```bash
+# Override input values without editing the JSON file
+sprocket validate-inputs workflow.wdl --inputs inputs.json \
+  workflow.sample_name=TUMOR_002 \
+  workflow.threads=8 \
+  workflow.reference=/new/reference.fa
+```
+
+See the [input overrides documentation](docs/input-overrides.md) for more details.
 
 ## 🖥️ Development
 

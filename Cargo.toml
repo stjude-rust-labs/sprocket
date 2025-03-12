@@ -14,6 +14,7 @@ readme = "README.md"
 anyhow = "1.0.91"
 clap = { version = "4.5.20", features = ["derive", "string"] }
 codespan-reporting = "0.11.1"
+tempfile = "3.2"
 git-testament = "0.2.5"
 indexmap = "2.6.0"
 nonempty = "0.10.0"
@@ -26,12 +27,13 @@ colored = "2.1.0"
 tokio = { version = "1.41.0", features = ["full"] }
 tracing-log = "0.2.0"
 indicatif = "0.17.8"
-clap-verbosity-flag = "2.2.2"
+clap-verbosity-flag = "2.2.3"
 pretty_assertions = "1.4.1"
 url = "2.5.4"
 chrono = "0.4.39"
 serde_yaml = "0.9.32"
 serde_json = "1.0.114"
+thiserror = "1.0"
 
 [dev-dependencies]
 tempfile = "3.10.1"

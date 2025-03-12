@@ -1,0 +1,8 @@
+{
+    "ComplexPipeline.input_fastq_1": "/data/sample_R1.fastq",
+    "ComplexPipeline.input_fastq_2": "/data/sample_R2.fastq",
+    "ComplexPipeline.sample_name": "SAMPLE_001",
+    "ComplexPipeline.reference_genome": "/ref/genome.fa",
+    "ComplexPipeline.known_variants": "/ref/known_variants.vcf",
+    "ComplexPipeline.threads": 4
+}
