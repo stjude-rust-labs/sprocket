@@ -24,8 +24,8 @@ pub struct ValidateInputsArgs {
     pub document: String,
 
     /// The path to the input file (JSON or YAML).
-    #[arg(short, long, value_name = "FILE")]
-    pub inputs: Option<PathBuf>,
+    #[arg(short = 'i', long = "input-file", value_name = "FILE")]
+    pub input_file: Option<PathBuf>,
 
     /// Input values in key=value format
     #[arg(value_name = "KEY=VALUE")]
@@ -39,8 +39,8 @@ pub struct ValidateInputsArgs {
     #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
     pub report_mode: Mode,
 
-    /// Print verbose output, including the JSON with overrides applied
-    #[arg(short, long)]
+    /// Print verbose output, including the JSON with inputs applied
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
     pub verbose: bool,
 }
 
@@ -53,8 +53,10 @@ pub struct ValidateInputsArgs {
 ///
 /// This command supports both JSON and YAML input files.
 pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
+    use crate::input;
+    
     // Start with empty JSON if no input file
-    let mut json_value = if let Some(input_file) = args.inputs {
+    let mut json_value = if let Some(input_file) = args.input_file {
         let (_, json) = input::parse_input_file(&input_file)?;
         json
     } else {
@@ -66,6 +68,7 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
         let inputs: Vec<CommandLineInput> = args.inputs
             .iter()
             .map(|s| CommandLineInput::parse(s))
+            .map(|r| r.map_err(anyhow::Error::from))
             .collect::<Result<_>>()?;
 
         json_value = input::command_line::apply_inputs(json_value, &inputs)?;
