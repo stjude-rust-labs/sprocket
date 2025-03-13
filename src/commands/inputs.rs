@@ -14,11 +14,10 @@ use wdl::{
         types::Type,
     },
     ast::{
-        AstToken, Diagnostic, Document as AstDocument, SyntaxKind, Visitor,
         v1::{
             self,
-            Expr::{self, Literal},
-        },
+            Expr::{self, Literal}, InputSection,
+        }, AstToken, Diagnostic, Document as AstDocument, SupportedVersion, SyntaxKind, VisitReason, Visitor
     },
     cli::analyze,
     doc,
@@ -48,8 +47,46 @@ pub struct InputsArgs {
     // pub override_expressions: bool,
 }
 
+type InputDefaultMap = IndexMap<String, bool>; // input_name -> has_default
+
 struct InputVisitor {
-    inputs: IndexMap<String, Option<Expr>>, // input_name -> default expression (if any)
+    inputs: InputDefaultMap,
+}
+
+impl Visitor for InputVisitor {
+    type State = ();
+
+    fn document(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        doc: &AstDocument,
+        version: SupportedVersion,
+    ) {
+        if reason == VisitReason::Enter {
+            self.inputs.clear(); // Reset the list when starting a new document
+            println!("visiting document {:?}", version);
+        } else if reason == VisitReason::Exit {
+            println!("Exiting document {:?}", version);
+        }
+    }
+
+    fn input_section(
+        &mut self,
+        _state: &mut Self::State,
+        reason: VisitReason,
+        section: &InputSection,
+    ) {
+        if reason == VisitReason::Enter {
+            // Iterate over all declarations in the input section
+            for decl in section.declarations() {
+                let name = decl.name().as_str().to_string();
+                // Check if the declaration has an expression (i.e., a default value)
+                let has_default: bool = decl.expr().is_some();
+                self.inputs.insert(name, has_default);
+            }
+        }
+    }
 }
 
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
@@ -77,7 +114,7 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
 
     println!("document: {:?}", document);
 
-    let mut template = serde_json::Map::new();
+    let mut template  = serde_json::Map::new();
 
     // Collect inputs and their parent information
     let inputs_with_parents = collect_inputs_with_parents(&args, document)?;
@@ -128,28 +165,13 @@ fn type_to_json(ty: &Type) -> Value {
 }
 
 fn has_default(document: &Document, parent_name: &str, input_name: &str) -> bool {
-    // Check workflow inputs
-    if let Some(workflow) = document.workflow() {
-        let input_section: &IndexMap<String, Input> = workflow.inputs();
-        for input in input_section {
-            println!("workflow input: {:?}", input);
-            if input.0.as_str() == input_name {
-                println!("workflow input: {:?}", input.1.ty());
-                return !input.1.ty().is_none();
-            }
-        }
-    }
+    // default value rules
+    // 1. Int? X  (optional)
+    // 2. Int X = 5 (has a default value)
 
-    // Check task inputs
-    for task in document.tasks() {
-        let input_section: &IndexMap<String, Input> = task.inputs();
-        for input in input_section {
-            println!("task input: {:?}", input);
-            if input.0.as_str() == input_name {
-                return !input.1.ty().is_none();
-            }
-        }
-    }
+    // parse the WDL document into a SyntaxTree
+    // use a Visitor to collect input decl and their default expressions
+
 
     false
 }
