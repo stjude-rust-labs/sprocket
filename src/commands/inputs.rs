@@ -1,28 +1,31 @@
-use anyhow::{Context, Result};
+use std::ops::Deref;
+use std::path::Path;
+use std::path::PathBuf;
+
+use anyhow::Context;
+use anyhow::Result;
 use clap::Parser;
 use indexmap::IndexMap;
-use serde_json::{Value, json};
-use std::{
-    ops::Deref,
-    path::{Path, PathBuf},
-};
+use serde_json::Value;
+use serde_json::json;
 use url::Url;
-use wdl::{
-    analysis::{
-        document::{Document, Input},
-        path_to_uri,
-        types::Type,
-    },
-    ast::{
-        v1::{
-            self,
-            Expr::{self, Literal}, InputSection,
-        }, AstToken, Diagnostic, Document as AstDocument, SupportedVersion, SyntaxKind, VisitReason, Visitor
-    },
-    cli::analyze,
-    doc,
-    grammar::SyntaxTree,
-};
+use wdl::analysis::document::Document;
+use wdl::analysis::document::Input;
+use wdl::analysis::path_to_uri;
+use wdl::analysis::types::Type;
+use wdl::ast::AstToken;
+use wdl::ast::Diagnostic;
+use wdl::ast::Document as AstDocument;
+use wdl::ast::SupportedVersion;
+use wdl::ast::SyntaxKind;
+use wdl::ast::VisitReason;
+use wdl::ast::Visitor;
+use wdl::ast::v1::Expr::Literal;
+use wdl::ast::v1::Expr::{self};
+use wdl::ast::v1::InputSection;
+use wdl::ast::v1::{self};
+use wdl::cli::analyze;
+use wdl::doc;
 
 #[derive(Parser, Debug)]
 #[command(about = "Generate input JSON from a WDL document", version, about)]
@@ -102,7 +105,7 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         .find(|r| **r.document().uri() == uri)
         .context("failed to find document in analysis results")?;
 
-    let document = result.document();
+    let document: &std::sync::Arc<Document> = result.document();
 
     let diagnostics: &[Diagnostic] = document.diagnostics();
     if diagnostics
@@ -112,16 +115,14 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         anyhow::bail!("Failed to parse WDL document: {:?}", diagnostics);
     }
 
-    println!("document: {:?}", document);
-
-    let mut template  = serde_json::Map::new();
+    let mut template = serde_json::Map::new();
 
     // Collect inputs and their parent information
     let inputs_with_parents = collect_inputs_with_parents(&args, document)?;
 
     for (parent_name, name, input) in inputs_with_parents {
         // Skip this input if hide_defaults is true and the input has a default value
-        if args.hide_defaults && has_default(document, parent_name, name) {
+        if args.hide_defaults && has_default(document, args.document.as_str(), name) {
             continue;
         }
 
@@ -130,7 +131,7 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         // Format the key name based on prefix_names flag
         let key = format!("{}.{}", parent_name, name);
 
-        println!("input name {} value {:?}", key, v);
+        println!("input name {} value {:?}, is default {:?}", key, v, has_default(document, &args.document, name));
 
         let value = type_to_json(&v);
         template.insert(key, value);
@@ -164,7 +165,7 @@ fn type_to_json(ty: &Type) -> Value {
     }
 }
 
-fn has_default(document: &Document, parent_name: &str, input_name: &str) -> bool {
+fn has_default(document: &Document, document_path: &str, input_name: &str) -> bool {
     // default value rules
     // 1. Int? X  (optional)
     // 2. Int X = 5 (has a default value)
@@ -172,8 +173,20 @@ fn has_default(document: &Document, parent_name: &str, input_name: &str) -> bool
     // parse the WDL document into a SyntaxTree
     // use a Visitor to collect input decl and their default expressions
 
+    let ast_doc: AstDocument = document.node();
 
-    false
+    // let source = std::fs::read_to_string(&document_path).unwrap();
+
+    // let syntax_tree: wdl::ast::SyntaxTree =
+    // wdl::grammar::SyntaxTree::parse(&source).0;
+
+    let mut visitor = InputVisitor {
+        inputs: IndexMap::new(),
+    };
+
+    ast_doc.visit(&mut (), &mut visitor);
+
+    visitor.inputs.get(input_name).cloned().unwrap_or(false)
 }
 
 // Collects inputs with their parent names
@@ -218,7 +231,8 @@ fn collect_inputs_with_parents<'a>(
                     }
                 }
                 _ => anyhow::bail!(
-                    "Multiple tasks found in document but no name specified. Please provide a name using --name"
+                    "Multiple tasks found in document but no name specified. Please provide a \
+                     name using --name"
                 ),
             }
         }
