@@ -63,16 +63,13 @@ impl Visitor for InputVisitor {
 
     fn document(
         &mut self,
-        state: &mut Self::State,
+        _state: &mut Self::State,
         reason: VisitReason,
-        doc: &AstDocument,
-        version: SupportedVersion,
+        _doc: &AstDocument,
+        _version: SupportedVersion,
     ) {
         if reason == VisitReason::Enter {
             self.inputs.clear(); // Reset the list when starting a new document
-            println!("visiting document {:?}", version);
-        } else if reason == VisitReason::Exit {
-            println!("Exiting document {:?}", version);
         }
     }
 
@@ -136,13 +133,6 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         // Format the key name based on prefix_names flag
         let key = format!("{}.{}", parent_name, name);
 
-        println!(
-            "input name {} value {:?}, is default {:?}",
-            key,
-            v,
-            has_default(document, &args.document, name)
-        );
-
         let value = type_to_json(&v);
         template.insert(key, value);
     }
@@ -152,7 +142,7 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     if let Some(output_path) = args.output {
         std::fs::write(output_path, json_output)?;
     } else {
-        println!("OUTPUT    {}", json_output);
+        println!("{}", json_output);
     }
 
     Ok(())
