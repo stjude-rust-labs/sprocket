@@ -131,7 +131,12 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         // Format the key name based on prefix_names flag
         let key = format!("{}.{}", parent_name, name);
 
-        println!("input name {} value {:?}, is default {:?}", key, v, has_default(document, &args.document, name));
+        println!(
+            "input name {} value {:?}, is default {:?}",
+            key,
+            v,
+            has_default(document, &args.document, name)
+        );
 
         let value = type_to_json(&v);
         template.insert(key, value);
@@ -166,19 +171,7 @@ fn type_to_json(ty: &Type) -> Value {
 }
 
 fn has_default(document: &Document, document_path: &str, input_name: &str) -> bool {
-    // default value rules
-    // 1. Int? X  (optional)
-    // 2. Int X = 5 (has a default value)
-
-    // parse the WDL document into a SyntaxTree
-    // use a Visitor to collect input decl and their default expressions
-
     let ast_doc: AstDocument = document.node();
-
-    // let source = std::fs::read_to_string(&document_path).unwrap();
-
-    // let syntax_tree: wdl::ast::SyntaxTree =
-    // wdl::grammar::SyntaxTree::parse(&source).0;
 
     let mut visitor = InputVisitor {
         inputs: IndexMap::new(),
