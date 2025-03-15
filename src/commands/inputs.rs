@@ -1,5 +1,3 @@
-use std::ops::Deref;
-use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -41,6 +39,10 @@ pub struct InputsArgs {
     #[arg(short, long)]
     #[clap(value_name = "output path")]
     pub output: Option<PathBuf>,
+
+    #[arg(short, long)]
+    #[clap(value_name = "nested inputs", short = 'N')]
+    pub nested_inputs: bool,
 
     #[arg(short, long)]
     #[clap(value_name = "hide defaults", short = 'd')]
@@ -91,6 +93,9 @@ impl Visitor for InputVisitor {
         }
     }
 }
+
+// --nested-inputs flag should be used to show all inputs of tasks and
+// workflows. the default is to show only the workflow inputs
 
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     let results: Vec<wdl::analysis::AnalysisResult> =
@@ -197,8 +202,18 @@ fn collect_inputs_with_parents<'a>(
             }
         } else if let Some(workflow) = document.workflow() {
             if workflow.name() == name {
+                // Add workflow inputs
                 for (input_name, input) in workflow.inputs() {
                     result.push((workflow.name(), input_name.as_str(), input));
+                }
+
+                // If nested_inputs is true, add all called task inputs
+                if args.nested_inputs {
+                    for task in document.tasks() {
+                        for (input_name, input) in task.inputs() {
+                            result.push((task.name(), input_name, input));
+                        }
+                    }
                 }
             } else {
                 anyhow::bail!("No task or workflow found with name '{}'", name);
@@ -209,8 +224,18 @@ fn collect_inputs_with_parents<'a>(
     } else {
         // No name provided, try workflow first
         if let Some(workflow) = document.workflow() {
+            // Add workflow inputs
             for (input_name, input) in workflow.inputs() {
                 result.push((workflow.name(), input_name.as_str(), input));
+            }
+
+            // If nested_inputs is true, add all task inputs
+            if args.nested_inputs {
+                for task in document.tasks() {
+                    for (input_name, input) in task.inputs() {
+                        result.push((task.name(), input_name, input));
+                    }
+                }
             }
         } else {
             // No workflow - look for exactly one task
