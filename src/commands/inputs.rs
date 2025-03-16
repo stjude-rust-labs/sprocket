@@ -87,7 +87,7 @@ impl Visitor for InputVisitor {
                 let name = decl.name().as_str().to_string();
                 let has_default = decl.expr().is_some();
                 self.inputs.insert(name.clone(), has_default);
-                
+
                 // Check if the default is a literal
                 let has_literal_default = if let Some(expr) = decl.expr() {
                     matches!(expr, Literal(_))
@@ -100,7 +100,8 @@ impl Visitor for InputVisitor {
     }
 }
 
-// --hide-expressions hides any input which isn't defaulted to a literal or required
+// --hide-expressions hides any input which isn't defaulted to a literal or
+// required
 
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     let results: Vec<wdl::analysis::AnalysisResult> =
@@ -198,7 +199,11 @@ fn has_literal_default(document: &Document, document_path: &str, input_name: &st
 
     ast_doc.visit(&mut (), &mut visitor);
 
-    visitor.literal_defaults.get(input_name).cloned().unwrap_or(false)
+    visitor
+        .literal_defaults
+        .get(input_name)
+        .cloned()
+        .unwrap_or(false)
 }
 
 // Collects inputs with their parent names
