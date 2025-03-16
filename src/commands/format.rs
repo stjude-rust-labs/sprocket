@@ -22,6 +22,7 @@ use wdl::format::config::Builder;
 use wdl::format::config::Indent;
 use wdl::format::config::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
+use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::Mode;
 use crate::emit_diagnostics;
@@ -66,6 +67,10 @@ pub struct FormatArgs {
     /// Argument group defining the mode of behavior
     #[command(flatten)]
     mode: ModeGroup,
+
+    /// Disables progress bar when formatting multiple files.
+    #[arg(long)]
+    pub no_progress: bool,
 }
 
 /// Argument group defining the mode of behavior
@@ -191,6 +196,8 @@ pub fn format(args: FormatArgs) -> Result<()> {
 
     let mut diagnostics = 0;
     if args.path.to_str() != Some("-") && args.path.is_dir() {
+        // Collect all WDL files in the directory
+        let mut wdl_files = Vec::new();
         for entry in WalkDir::new(&args.path) {
             let entry = entry.with_context(|| {
                 format!(
@@ -203,13 +210,68 @@ pub fn format(args: FormatArgs) -> Result<()> {
                 continue;
             }
 
-            diagnostics += format_document(
-                config,
-                path,
-                args.report_mode,
-                args.no_color,
-                args.mode.check,
-            )?;
+            wdl_files.push(path.to_path_buf());
+        }
+
+        // Create a progress bar if there are multiple files and progress is enabled
+        let total_files = wdl_files.len();
+        let progress_enabled = total_files > 1 && !args.no_progress;
+        
+        let pb = if progress_enabled {
+            let pb = ProgressBar::new(total_files as u64);
+            pb.set_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} files {msg}")
+                    .unwrap()
+                    .progress_chars("█▓▒░ ")
+            );
+            Some(pb)
+        } else {
+            None
+        };
+
+        // Process each file with progress tracking
+        for file in wdl_files {
+            if let Some(pb) = &pb {
+                if let Some(filename) = file.file_name() {
+                    if let Some(name) = filename.to_str() {
+                        pb.set_message(format!("({})", name));
+                    }
+                }
+            }
+            
+            // Temporarily pause the progress bar if it exists
+            if let Some(pb) = &pb {
+                pb.suspend(|| {
+                    diagnostics += format_document(
+                        config,
+                        &file,
+                        args.report_mode,
+                        args.no_color,
+                        args.mode.check,
+                    ).unwrap_or_else(|e| {
+                        eprintln!("Error formatting {}: {}", file.display(), e);
+                        0
+                    });
+                });
+            } else {
+                diagnostics += format_document(
+                    config,
+                    &file,
+                    args.report_mode,
+                    args.no_color,
+                    args.mode.check,
+                )?;
+            }
+            
+            if let Some(pb) = &pb {
+                pb.inc(1);
+            }
+        }
+
+        // Finish the progress bar with a completion message
+        if let Some(pb) = pb {
+            pb.finish_with_message("✓ Formatting complete!");
         }
     } else {
         diagnostics += format_document(
