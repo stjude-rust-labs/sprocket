@@ -690,16 +690,19 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 // Ensure the remaining element types share a common type
                 for expr in elements {
                     if let Some(actual) = self.evaluate_expr(&expr) {
-                        if let Some(ty) = expected.common_type(&actual) {
-                            expected = ty;
-                            expected_span = expr.span();
-                        } else {
-                            self.context.add_diagnostic(no_common_type(
-                                &expected,
-                                expected_span,
-                                &actual,
-                                expr.span(),
-                            ));
+                        match expected.common_type(&actual) {
+                            Some(ty) => {
+                                expected = ty;
+                                expected_span = expr.span();
+                            }
+                            _ => {
+                                self.context.add_diagnostic(no_common_type(
+                                    &expected,
+                                    expected_span,
+                                    &actual,
+                                    expr.span(),
+                                ));
+                            }
                         }
                     }
                 }
@@ -756,28 +759,34 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     let (key, value) = item.key_value();
                     if let Some(actual_key) = self.evaluate_expr(&key) {
                         if let Some(actual_value) = self.evaluate_expr(&value) {
-                            if let Some(ty) = expected_key.common_type(&actual_key) {
-                                expected_key = ty;
-                                expected_key_span = key.span();
-                            } else {
-                                self.context.add_diagnostic(no_common_type(
-                                    &expected_key,
-                                    expected_key_span,
-                                    &actual_key,
-                                    key.span(),
-                                ));
+                            match expected_key.common_type(&actual_key) {
+                                Some(ty) => {
+                                    expected_key = ty;
+                                    expected_key_span = key.span();
+                                }
+                                _ => {
+                                    self.context.add_diagnostic(no_common_type(
+                                        &expected_key,
+                                        expected_key_span,
+                                        &actual_key,
+                                        key.span(),
+                                    ));
+                                }
                             }
 
-                            if let Some(ty) = expected_value.common_type(&actual_value) {
-                                expected_value = ty;
-                                expected_value_span = value.span();
-                            } else {
-                                self.context.add_diagnostic(no_common_type(
-                                    &expected_value,
-                                    expected_value_span,
-                                    &actual_value,
-                                    value.span(),
-                                ));
+                            match expected_value.common_type(&actual_value) {
+                                Some(ty) => {
+                                    expected_value = ty;
+                                    expected_value_span = value.span();
+                                }
+                                _ => {
+                                    self.context.add_diagnostic(no_common_type(
+                                        &expected_value,
+                                        expected_value_span,
+                                        &actual_value,
+                                        value.span(),
+                                    ));
+                                }
                             }
                         }
                     }
@@ -817,22 +826,25 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 // Validate the member types
                 for item in expr.items() {
                     let (n, v) = item.name_value();
-                    if let Some((index, _, expected)) = ty.members.get_full(n.as_str()) {
-                        present[index] = true;
-                        if let Some(actual) = self.evaluate_expr(&v) {
-                            if !actual.is_coercible_to(expected) {
-                                self.context.add_diagnostic(type_mismatch(
-                                    expected,
-                                    n.span(),
-                                    &actual,
-                                    v.span(),
-                                ));
+                    match ty.members.get_full(n.as_str()) {
+                        Some((index, _, expected)) => {
+                            present[index] = true;
+                            if let Some(actual) = self.evaluate_expr(&v) {
+                                if !actual.is_coercible_to(expected) {
+                                    self.context.add_diagnostic(type_mismatch(
+                                        expected,
+                                        n.span(),
+                                        &actual,
+                                        v.span(),
+                                    ));
+                                }
                             }
                         }
-                    } else {
-                        // Not a struct member
-                        self.context
-                            .add_diagnostic(not_a_struct_member(name.as_str(), &n));
+                        _ => {
+                            // Not a struct member
+                            self.context
+                                .add_diagnostic(not_a_struct_member(name.as_str(), &n));
+                        }
                     }
                 }
 
@@ -1093,10 +1105,9 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             (Type::Union, Type::Union) => None,
             (Type::Union, false_ty) => Some(false_ty),
             (true_ty, Type::Union) => Some(true_ty),
-            (true_ty, false_ty) => {
-                if let Some(ty) = true_ty.common_type(&false_ty) {
-                    Some(ty)
-                } else {
+            (true_ty, false_ty) => match true_ty.common_type(&false_ty) {
+                Some(ty) => Some(ty),
+                _ => {
                     self.context.add_diagnostic(type_mismatch(
                         &true_ty,
                         true_expr.span(),
@@ -1106,7 +1117,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
                     None
                 }
-            }
+            },
         }
     }
 

@@ -70,28 +70,29 @@ fn write_array_tsv_file(
     let mut writer = BufWriter::new(file.as_file_mut());
 
     // Start by writing the header, if one was provided
-    let column_count = if let Some(header) = header {
-        for (i, name) in header.as_slice().iter().enumerate() {
-            let name = name.as_string().unwrap();
-            if name.contains('\t') {
-                return Err(function_call_failed(
-                    "write_tsv",
-                    format!("specified column name at index {i} contains a tab character"),
-                    call_site,
-                ));
+    let column_count = match header {
+        Some(header) => {
+            for (i, name) in header.as_slice().iter().enumerate() {
+                let name = name.as_string().unwrap();
+                if name.contains('\t') {
+                    return Err(function_call_failed(
+                        "write_tsv",
+                        format!("specified column name at index {i} contains a tab character"),
+                        call_site,
+                    ));
+                }
+
+                if i > 0 {
+                    writer.write(b"\t").map_err(write_error)?;
+                }
+
+                writer.write(name.as_bytes()).map_err(write_error)?;
             }
 
-            if i > 0 {
-                writer.write(b"\t").map_err(write_error)?;
-            }
-
-            writer.write(name.as_bytes()).map_err(write_error)?;
+            writeln!(&mut writer).map_err(write_error)?;
+            Some(header.len())
         }
-
-        writeln!(&mut writer).map_err(write_error)?;
-        Some(header.len())
-    } else {
-        None
+        _ => None,
     };
 
     // Write the rows
@@ -277,48 +278,51 @@ fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     // Start by writing the header
     if write_header {
-        if let Some(header) = header {
-            // Ensure the header count matches the element count
-            if header.len() != ty.members().len() {
-                return Err(function_call_failed(
-                    "write_tsv",
-                    format!(
-                        "expected {expected} header{s1} as the struct has {expected} member{s1}, \
-                         but only given {actual} header{s2}",
-                        expected = ty.members().len(),
-                        s1 = if ty.members().len() == 1 { "" } else { "s" },
-                        actual = header.len(),
-                        s2 = if header.len() == 1 { "" } else { "s" },
-                    ),
-                    context.arguments[2].span,
-                ));
-            }
-
-            // Header was explicitly specified, write out the values
-            for (i, name) in header.as_slice().iter().enumerate() {
-                let name = name.as_string().unwrap();
-                if name.contains('\t') {
+        match header {
+            Some(header) => {
+                // Ensure the header count matches the element count
+                if header.len() != ty.members().len() {
                     return Err(function_call_failed(
                         "write_tsv",
-                        format!("specified column name at index {i} contains a tab character"),
-                        context.call_site,
+                        format!(
+                            "expected {expected} header{s1} as the struct has {expected} \
+                             member{s1}, but only given {actual} header{s2}",
+                            expected = ty.members().len(),
+                            s1 = if ty.members().len() == 1 { "" } else { "s" },
+                            actual = header.len(),
+                            s2 = if header.len() == 1 { "" } else { "s" },
+                        ),
+                        context.arguments[2].span,
                     ));
                 }
 
-                if i > 0 {
-                    writer.write(b"\t").map_err(write_error)?;
-                }
+                // Header was explicitly specified, write out the values
+                for (i, name) in header.as_slice().iter().enumerate() {
+                    let name = name.as_string().unwrap();
+                    if name.contains('\t') {
+                        return Err(function_call_failed(
+                            "write_tsv",
+                            format!("specified column name at index {i} contains a tab character"),
+                            context.call_site,
+                        ));
+                    }
 
-                writer.write(name.as_bytes()).map_err(write_error)?;
+                    if i > 0 {
+                        writer.write(b"\t").map_err(write_error)?;
+                    }
+
+                    writer.write(name.as_bytes()).map_err(write_error)?;
+                }
             }
-        } else {
-            // Write out the names of each struct member
-            for (i, name) in ty.members().keys().enumerate() {
-                if i > 0 {
-                    writer.write(b"\t").map_err(write_error)?;
-                }
+            _ => {
+                // Write out the names of each struct member
+                for (i, name) in ty.members().keys().enumerate() {
+                    if i > 0 {
+                        writer.write(b"\t").map_err(write_error)?;
+                    }
 
-                writer.write(name.as_bytes()).map_err(write_error)?;
+                    writer.write(name.as_bytes()).map_err(write_error)?;
+                }
             }
         }
 

@@ -198,110 +198,113 @@ impl Visitor for PreambleFormattingRule {
 
         let s = whitespace.as_str();
         // If there is a previous token, it must be a comment
-        if let Some(prev_comment) = whitespace.syntax().prev_token() {
-            let prev_text = prev_comment.text();
-            let prev_is_lint_directive = is_lint_directive(prev_text);
-            let prev_is_preamble_comment = is_preamble_comment(prev_text);
+        match whitespace.syntax().prev_token() {
+            Some(prev_comment) => {
+                let prev_text = prev_comment.text();
+                let prev_is_lint_directive = is_lint_directive(prev_text);
+                let prev_is_preamble_comment = is_preamble_comment(prev_text);
 
-            let next_token = whitespace
-                .syntax()
-                .next_token()
-                .expect("should have a next token");
-            assert!(
-                next_token.kind() == SyntaxKind::Comment,
-                "next token should be a comment"
-            );
+                let next_token = whitespace
+                    .syntax()
+                    .next_token()
+                    .expect("should have a next token");
+                assert!(
+                    next_token.kind() == SyntaxKind::Comment,
+                    "next token should be a comment"
+                );
 
-            let next_text = next_token.text();
-            let next_is_lint_directive = is_lint_directive(next_text);
-            let next_is_preamble_comment = is_preamble_comment(next_text);
+                let next_text = next_token.text();
+                let next_is_lint_directive = is_lint_directive(next_text);
+                let next_is_preamble_comment = is_preamble_comment(next_text);
 
-            let expect_single_blank = match (
-                prev_is_lint_directive,
-                prev_is_preamble_comment,
-                next_is_lint_directive,
-                next_is_preamble_comment,
-            ) {
-                (true, false, true, false) => {
-                    // Lint directive followed by lint directive
-                    false
-                }
-                (true, false, false, true) => {
-                    // Lint directive followed by preamble comment
-                    true
-                }
-                (false, true, false, true) => {
-                    // Preamble comment followed by preamble comment
-                    false
-                }
-                (false, true, true, false) => {
-                    // Preamble comment followed by lint directive
-                    // Handled by comment visitor
-                    return;
-                }
-                (_, _, false, false) => {
-                    // anything followed by invalid comment
-                    // Handled by comment visitor
-                    return;
-                }
-                (false, false, ..) => {
-                    // Invalid comment followed by anything
-                    // Handled by comment visitor
-                    return;
-                }
-                _ => {
-                    unreachable!()
-                }
-            };
-
-            let span = whitespace.span();
-            if expect_single_blank {
-                if s != "\r\n\r\n" && s != "\n\n" {
-                    // There's a special case where the blank line has extra whitespace
-                    // but that doesn't appear in the printed diagnostic.
-                    let mut diagnostic = expected_blank_line_before_preamble_comment(span);
-
-                    if s.chars().filter(|&c| c == '\n').count() == 2 {
-                        for (line, start, end) in lines_with_offset(s) {
-                            if !line.is_empty() {
-                                let end_offset = if s.ends_with("\r\n") {
-                                    2
-                                } else if s.ends_with('\n') {
-                                    1
-                                } else {
-                                    0
-                                };
-
-                                diagnostic = diagnostic.with_highlight(Span::new(
-                                    span.start() + start,
-                                    end - start - end_offset,
-                                ));
-                            }
-                        }
+                let expect_single_blank = match (
+                    prev_is_lint_directive,
+                    prev_is_preamble_comment,
+                    next_is_lint_directive,
+                    next_is_preamble_comment,
+                ) {
+                    (true, false, true, false) => {
+                        // Lint directive followed by lint directive
+                        false
                     }
-                    state.add(diagnostic);
-                }
-            } else if s != "\r\n" && s != "\n" {
-                // Don't include the newline separating the previous comment from the
-                // leading whitespace
-                let offset = if s.starts_with("\r\n") {
-                    2
-                } else if s.starts_with('\n') {
-                    1
-                } else {
-                    0
+                    (true, false, false, true) => {
+                        // Lint directive followed by preamble comment
+                        true
+                    }
+                    (false, true, false, true) => {
+                        // Preamble comment followed by preamble comment
+                        false
+                    }
+                    (false, true, true, false) => {
+                        // Preamble comment followed by lint directive
+                        // Handled by comment visitor
+                        return;
+                    }
+                    (_, _, false, false) => {
+                        // Anything followed by invalid comment
+                        // Handled by comment visitor
+                        return;
+                    }
+                    (false, false, ..) => {
+                        // Invalid comment followed by anything
+                        // Handled by comment visitor
+                        return;
+                    }
+                    _ => {
+                        unreachable!()
+                    }
                 };
 
-                state.add(leading_whitespace(Span::new(
-                    span.start() + offset,
-                    span.len() - offset,
-                )));
-            } else {
-                return;
+                let span = whitespace.span();
+                if expect_single_blank {
+                    if s != "\r\n\r\n" && s != "\n\n" {
+                        // There's a special case where the blank line has extra whitespace
+                        // but that doesn't appear in the printed diagnostic.
+                        let mut diagnostic = expected_blank_line_before_preamble_comment(span);
+
+                        if s.chars().filter(|&c| c == '\n').count() == 2 {
+                            for (line, start, end) in lines_with_offset(s) {
+                                if !line.is_empty() {
+                                    let end_offset = if s.ends_with("\r\n") {
+                                        2
+                                    } else if s.ends_with('\n') {
+                                        1
+                                    } else {
+                                        0
+                                    };
+
+                                    diagnostic = diagnostic.with_highlight(Span::new(
+                                        span.start() + start,
+                                        end - start - end_offset,
+                                    ));
+                                }
+                            }
+                        }
+                        state.add(diagnostic);
+                    }
+                } else if s != "\r\n" && s != "\n" {
+                    // Don't include the newline separating the previous comment from the
+                    // leading whitespace
+                    let offset = if s.starts_with("\r\n") {
+                        2
+                    } else if s.starts_with('\n') {
+                        1
+                    } else {
+                        0
+                    };
+
+                    state.add(leading_whitespace(Span::new(
+                        span.start() + offset,
+                        span.len() - offset,
+                    )));
+                } else {
+                    return;
+                }
             }
-        } else {
-            // Whitespace is not allowed to start the document.
-            state.add(leading_whitespace(whitespace.span()));
+            _ => {
+                // Whitespace is not allowed to start the document.
+                state.add(leading_whitespace(whitespace.span()));
+            }
         }
     }
 

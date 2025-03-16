@@ -266,14 +266,17 @@ impl Visitor for ExpressionSpacingRule {
                 let mut prev = expr.syntax().prev_sibling_or_token();
                 if prev.is_none() {
                     // No prior elements, so we need to go up a level.
-                    if let Some(parent) = expr.syntax().parent() {
-                        if let Some(parent_prev) = parent.prev_sibling_or_token() {
-                            prev = Some(parent_prev);
+                    match expr.syntax().parent() {
+                        Some(parent) => {
+                            if let Some(parent_prev) = parent.prev_sibling_or_token() {
+                                prev = Some(parent_prev);
+                            }
                         }
-                    } else {
-                        unreachable!(
-                            "parenthesized expression should have a prior sibling or a parent"
-                        );
+                        _ => {
+                            unreachable!(
+                                "parenthesized expression should have a prior sibling or a parent"
+                            );
+                        }
                     }
                 }
 

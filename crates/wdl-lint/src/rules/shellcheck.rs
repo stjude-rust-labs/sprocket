@@ -350,39 +350,40 @@ fn sanitize_command(section: &CommandSection) -> Option<(String, HashSet<String>
     let mut needs_quotes = true;
     let mut is_literal = false;
 
-    if let Some(cmd_parts) = section.strip_whitespace() {
-        cmd_parts.iter().for_each(|part| match part {
-            StrippedCommandPart::Text(text) => {
-                sanitized_command.push_str(text);
-                // if this placeholder is in a single-quoted segment
-                // don't treat as an expansion but rather a literal.
-                is_literal ^= !is_properly_quoted(text, '\'');
-                // if this text section is not properly quoted then the
-                // next placeholder does *not* need double quotes
-                // because it will end up enclosed.
-                needs_quotes ^= !is_properly_quoted(text, '"');
-            }
-            StrippedCommandPart::Placeholder(placeholder) => {
-                let bash_var = to_bash_var(placeholder);
-                // we need to save the var so we can suppress later
-                decls.insert(bash_var.clone());
-
-                if is_literal {
-                    // pad literal with three underscores to account for ~{}
-                    sanitized_command.push_str(&format!("___{bash_var}"));
-                } else if needs_quotes {
-                    // surround with quotes for proper form
-                    sanitized_command.push_str(&format!("\"${bash_var}\""));
-                } else {
-                    // surround with curly braces because already
-                    // inside of a quoted segment.
-                    sanitized_command.push_str(&format!("${{{bash_var}}}"));
+    match section.strip_whitespace() {
+        Some(cmd_parts) => {
+            cmd_parts.iter().for_each(|part| match part {
+                StrippedCommandPart::Text(text) => {
+                    sanitized_command.push_str(text);
+                    // if this placeholder is in a single-quoted segment
+                    // don't treat as an expansion but rather a literal.
+                    is_literal ^= !is_properly_quoted(text, '\'');
+                    // if this text section is not properly quoted then the
+                    // next placeholder does *not* need double quotes
+                    // because it will end up enclosed.
+                    needs_quotes ^= !is_properly_quoted(text, '"');
                 }
-            }
-        });
-        Some((sanitized_command, decls, amount_stripped))
-    } else {
-        None
+                StrippedCommandPart::Placeholder(placeholder) => {
+                    let bash_var = to_bash_var(placeholder);
+                    // we need to save the var so we can suppress later
+                    decls.insert(bash_var.clone());
+
+                    if is_literal {
+                        // pad literal with three underscores to account for ~{}
+                        sanitized_command.push_str(&format!("___{bash_var}"));
+                    } else if needs_quotes {
+                        // surround with quotes for proper form
+                        sanitized_command.push_str(&format!("\"${bash_var}\""));
+                    } else {
+                        // surround with curly braces because already
+                        // inside of a quoted segment.
+                        sanitized_command.push_str(&format!("${{{bash_var}}}"));
+                    }
+                }
+            });
+            Some((sanitized_command, decls, amount_stripped))
+        }
+        _ => None,
     }
 }
 

@@ -121,35 +121,38 @@ impl Visitor for VersionFormattingRule {
         if let Some(prev_ws) = stmt.syntax().prev_sibling_or_token() {
             let ws = prev_ws.as_token().expect("expected a token").text();
             // If there's a previous sibling or token, it must be a comment
-            if let Some(_prev_comment) = prev_ws.prev_sibling_or_token() {
-                if ws != "\n\n" && ws != "\r\n\r\n" {
-                    // There's a special case where the blank line has extra whitespace
-                    // but that doesn't appear in the printed diagnostic.
-                    let mut diagnostic =
-                        expected_blank_line_before_version(prev_ws.text_range().to_span());
+            match prev_ws.prev_sibling_or_token() {
+                Some(_prev_comment) => {
+                    if ws != "\n\n" && ws != "\r\n\r\n" {
+                        // There's a special case where the blank line has extra whitespace
+                        // but that doesn't appear in the printed diagnostic.
+                        let mut diagnostic =
+                            expected_blank_line_before_version(prev_ws.text_range().to_span());
 
-                    if ws.chars().filter(|&c| c == '\n').count() == 2 {
-                        for (line, start, end) in lines_with_offset(ws) {
-                            if !line.is_empty() {
-                                let end_offset = if ws.ends_with("\r\n") {
-                                    2
-                                } else if ws.ends_with('\n') {
-                                    1
-                                } else {
-                                    0
-                                };
+                        if ws.chars().filter(|&c| c == '\n').count() == 2 {
+                            for (line, start, end) in lines_with_offset(ws) {
+                                if !line.is_empty() {
+                                    let end_offset = if ws.ends_with("\r\n") {
+                                        2
+                                    } else if ws.ends_with('\n') {
+                                        1
+                                    } else {
+                                        0
+                                    };
 
-                                diagnostic = diagnostic.with_highlight(Span::new(
-                                    prev_ws.text_range().to_span().start() + start,
-                                    end - start - end_offset,
-                                ));
+                                    diagnostic = diagnostic.with_highlight(Span::new(
+                                        prev_ws.text_range().to_span().start() + start,
+                                        end - start - end_offset,
+                                    ));
+                                }
                             }
                         }
+                        state.add(diagnostic);
                     }
-                    state.add(diagnostic);
                 }
-            } else {
-                state.add(whitespace_before_version(prev_ws.text_range().to_span()));
+                _ => {
+                    state.add(whitespace_before_version(prev_ws.text_range().to_span()));
+                }
             }
         }
 

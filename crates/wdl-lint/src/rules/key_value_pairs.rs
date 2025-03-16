@@ -178,10 +178,9 @@ impl Visitor for KeyValuePairsRule {
             if next_newline.is_none() {
                 // No newline found, report missing
                 let s = child.span();
-                let end = if let Some(next) = find_next_comma(child.syntax()).0 {
-                    next.text_range().end()
-                } else {
-                    close_delim.text_range().start()
+                let end = match find_next_comma(child.syntax()).0 {
+                    Some(next) => next.text_range().end(),
+                    _ => close_delim.text_range().start(),
                 };
                 state.exceptable_add(
                     missing_trailing_newline(Span::new(s.start(), usize::from(end) - s.start())),
@@ -299,10 +298,9 @@ impl Visitor for KeyValuePairsRule {
             if next_newline.is_none() {
                 // No newline found, report missing
                 let s = child.span();
-                let end = if let Some(next) = find_next_comma(child.syntax()).0 {
-                    next.text_range().end()
-                } else {
-                    close_delim.text_range().start()
+                let end = match find_next_comma(child.syntax()).0 {
+                    Some(next) => next.text_range().end(),
+                    _ => close_delim.text_range().start(),
                 };
                 state.exceptable_add(
                     missing_trailing_newline(Span::new(s.start(), usize::from(end) - s.start())),

@@ -351,7 +351,7 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
 /// Parses matching braces given a callback to parse the interior delimited
 /// items.
 macro_rules! braced_items {
-    ($parser:ident, $marker:ident, $delimiter:expr, $recovery:expr, $cb:expr) => {
+    ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenBrace,
             Token::CloseBrace,
@@ -367,7 +367,7 @@ macro_rules! braced_items {
 /// Parses matching brackets given a callback to parse the interior delimited
 /// items.
 macro_rules! bracketed_items {
-    ($parser:ident, $marker:ident, $delimiter:expr, $recovery:expr, $cb:expr) => {
+    ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenBracket,
             Token::CloseBracket,
@@ -383,7 +383,7 @@ macro_rules! bracketed_items {
 /// Parses matching parens given a callback to parse the interior delimited
 /// items.
 macro_rules! paren_items {
-    ($parser:ident, $marker:ident, $delimiter:expr, $recovery:expr, $cb:expr) => {
+    ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenParen,
             Token::CloseParen,
@@ -398,7 +398,7 @@ macro_rules! paren_items {
 
 /// Parses matching brackets given a callback to parse the interior.
 macro_rules! bracketed {
-    ($parser:ident, $marker:ident, $cb:expr) => {
+    ($parser:ident, $marker:ident, $cb:expr_2021) => {
         if let Err(e) = $parser.matching(Token::OpenBracket, Token::CloseBracket, false, $cb) {
             return Err(($marker, e));
         }
@@ -407,7 +407,7 @@ macro_rules! bracketed {
 
 /// Parses matching parenthesis given a callback to parse the interior.
 macro_rules! paren {
-    ($parser:ident, $marker:ident, $cb:expr) => {
+    ($parser:ident, $marker:ident, $cb:expr_2021) => {
         if let Err(e) = $parser.matching(Token::OpenParen, Token::CloseParen, false, $cb) {
             return Err(($marker, e));
         }

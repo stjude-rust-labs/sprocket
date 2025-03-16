@@ -991,17 +991,19 @@ impl WorkflowEvaluator {
 
                 let node = node?;
                 match state.graph[node].to_node(&state.document) {
-                    WorkflowGraphNode::Call(stmt) => debug!(
-                        workflow_id = id.as_str(),
-                        workflow_name = state.document.workflow().unwrap().name(),
-                        document = state.document.uri().as_str(),
-                        call_name = stmt
+                    WorkflowGraphNode::Call(stmt) => {
+                        let call_name = stmt
                             .alias()
                             .map(|a| a.name())
-                            .unwrap_or_else(|| stmt.target().names().last().unwrap())
-                            .as_str(),
-                        "evaluation of call statement has completed",
-                    ),
+                            .unwrap_or_else(|| stmt.target().names().last().unwrap());
+                        debug!(
+                            workflow_id = id.as_str(),
+                            workflow_name = state.document.workflow().unwrap().name(),
+                            document = state.document.uri().as_str(),
+                            call_name = call_name.as_str(),
+                            "evaluation of call statement has completed",
+                        )
+                    }
                     WorkflowGraphNode::Conditional(stmt, _) => debug!(
                         workflow_id = id.as_str(),
                         workflow_name = state.document.workflow().unwrap().name(),
@@ -1009,13 +1011,16 @@ impl WorkflowEvaluator {
                         expr = stmt.expr().syntax().text().to_string(),
                         "evaluation of conditional statement has completed",
                     ),
-                    WorkflowGraphNode::Scatter(stmt, _) => debug!(
-                        workflow_id = id.as_str(),
-                        workflow_name = state.document.workflow().unwrap().name(),
-                        document = state.document.uri().as_str(),
-                        variable = stmt.variable().as_str(),
-                        "evaluation of scatter statement has completed",
-                    ),
+                    WorkflowGraphNode::Scatter(stmt, _) => {
+                        let variable = stmt.variable();
+                        debug!(
+                            workflow_id = id.as_str(),
+                            workflow_name = state.document.workflow().unwrap().name(),
+                            document = state.document.uri().as_str(),
+                            variable = variable.as_str(),
+                            "evaluation of scatter statement has completed",
+                        )
+                    }
                     _ => unreachable!(),
                 }
 
@@ -1681,9 +1686,8 @@ impl WorkflowEvaluator {
             .as_ref()
             .map(|(_, ns)| ns.document())
             .unwrap_or(&state.document);
-        let (mut inputs, evaluator, kind) = if let Some(task) = document.task_by_name(target.text())
-        {
-            (
+        let (mut inputs, evaluator, kind) = match document.task_by_name(target.text()) {
+            Some(task) => (
                 inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
                 Evaluator::Task(
                     task,
@@ -1694,9 +1698,8 @@ impl WorkflowEvaluator {
                     ),
                 ),
                 CallKind::Task,
-            )
-        } else {
-            match document.workflow() {
+            ),
+            _ => match document.workflow() {
                 Some(workflow) if workflow.name() == target.text() => (
                     inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
                     Evaluator::Workflow(WorkflowEvaluator {
@@ -1714,7 +1717,7 @@ impl WorkflowEvaluator {
                     )
                     .into());
                 }
-            }
+            },
         };
 
         // Evaluate the inputs

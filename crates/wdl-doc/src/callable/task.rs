@@ -37,25 +37,21 @@ impl Task {
         output_section: Option<OutputSection>,
         runtime_section: Option<RuntimeSection>,
     ) -> Self {
-        let meta = if let Some(mds) = meta_section {
-            parse_meta(&mds)
-        } else {
-            MetaMap::default()
+        let meta = match meta_section {
+            Some(mds) => parse_meta(&mds),
+            _ => MetaMap::default(),
         };
-        let parameter_meta = if let Some(pmds) = parameter_meta {
-            parse_parameter_meta(&pmds)
-        } else {
-            MetaMap::default()
+        let parameter_meta = match parameter_meta {
+            Some(pmds) => parse_parameter_meta(&pmds),
+            _ => MetaMap::default(),
         };
-        let inputs = if let Some(is) = input_section {
-            parse_inputs(&is, &parameter_meta)
-        } else {
-            Vec::new()
+        let inputs = match input_section {
+            Some(is) => parse_inputs(&is, &parameter_meta),
+            _ => Vec::new(),
         };
-        let outputs = if let Some(os) = output_section {
-            parse_outputs(&os, &meta, &parameter_meta)
-        } else {
-            Vec::new()
+        let outputs = match output_section {
+            Some(os) => parse_outputs(&os, &meta, &parameter_meta),
+            _ => Vec::new(),
         };
 
         Self {
@@ -91,26 +87,29 @@ impl Task {
 
     /// Render the rutime section of the task as HTML.
     pub fn render_runtime_section(&self) -> Markup {
-        if let Some(runtime_section) = &self.runtime_section {
-            html! {
-                h2 { "Default Runtime Attributes" }
-                table class="border" {
-                    thead class="border" { tr {
-                        th { "Attribute" }
-                        th { "Value" }
-                    }}
-                    tbody class="border" {
-                        @for entry in runtime_section.items() {
-                            tr class="border" {
-                                td class="border" { code { (entry.name().as_str()) } }
-                                td class="border" { code { (entry.expr().syntax().to_string()) } }
+        match &self.runtime_section {
+            Some(runtime_section) => {
+                html! {
+                    h2 { "Default Runtime Attributes" }
+                    table class="border" {
+                        thead class="border" { tr {
+                            th { "Attribute" }
+                            th { "Value" }
+                        }}
+                        tbody class="border" {
+                            @for entry in runtime_section.items() {
+                                tr class="border" {
+                                    td class="border" { code { (entry.name().as_str()) } }
+                                    td class="border" { code { (entry.expr().syntax().to_string()) } }
+                                }
                             }
                         }
                     }
                 }
             }
-        } else {
-            html! {}
+            _ => {
+                html! {}
+            }
         }
     }
 

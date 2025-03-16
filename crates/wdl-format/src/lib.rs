@@ -31,7 +31,7 @@ pub const TAB: &str = "\t";
 /// [`Vec`]).
 #[macro_export]
 macro_rules! exactly_one {
-    ($entities:expr, $name:expr) => {
+    ($entities:expr_2021, $name:expr_2021) => {
         match $entities.len() {
             0 => unreachable!("we should never have zero {}", $name),
             // SAFETY: we just checked to ensure that exactly

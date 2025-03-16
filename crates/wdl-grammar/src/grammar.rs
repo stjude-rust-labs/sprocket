@@ -18,12 +18,12 @@ mod macros {
     ///
     /// Returns a diagnostic if the token is not the specified token.
     macro_rules! expected {
-        ($parser:ident, $marker:ident, $token:expr) => {
+        ($parser:ident, $marker:ident, $token:expr_2021) => {
             if let Err(e) = $parser.expect($token) {
                 return Err(($marker, e));
             }
         };
-        ($parser:ident, $marker:ident, $token:expr, $name:literal) => {
+        ($parser:ident, $marker:ident, $token:expr_2021, $name:literal) => {
             if let Err(e) = $parser.expect_with_name($token, $name) {
                 return Err(($marker, e));
             }

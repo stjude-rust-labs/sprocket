@@ -63,13 +63,10 @@ impl Parameter {
     /// Returns `None` for outputs.
     pub fn required(&self) -> Option<bool> {
         match self.io {
-            InputOutput::Input => {
-                if let Some(d) = self.decl.as_unbound_decl() {
-                    Some(!d.ty().is_optional())
-                } else {
-                    Some(false)
-                }
-            }
+            InputOutput::Input => match self.decl.as_unbound_decl() {
+                Some(d) => Some(!d.ty().is_optional()),
+                _ => Some(false),
+            },
             InputOutput::Output => None,
         }
     }

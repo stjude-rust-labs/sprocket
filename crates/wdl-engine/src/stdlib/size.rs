@@ -44,24 +44,25 @@ fn size(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     // If the first argument is a string, we need to check if it's a file or
     // directory and treat it as such.
-    let value = if let Some(s) = context.arguments[0].value.as_string() {
-        let path = context.work_dir().join(s.as_str());
-        let metadata = path
-            .metadata()
-            .with_context(|| {
-                format!(
-                    "failed to read metadata for file `{path}`",
-                    path = path.display()
-                )
-            })
-            .map_err(|e| function_call_failed("size", format!("{e:?}"), context.call_site))?;
-        if metadata.is_dir() {
-            PrimitiveValue::Directory(s.clone()).into()
-        } else {
-            PrimitiveValue::File(s.clone()).into()
+    let value = match context.arguments[0].value.as_string() {
+        Some(s) => {
+            let path = context.work_dir().join(s.as_str());
+            let metadata = path
+                .metadata()
+                .with_context(|| {
+                    format!(
+                        "failed to read metadata for file `{path}`",
+                        path = path.display()
+                    )
+                })
+                .map_err(|e| function_call_failed("size", format!("{e:?}"), context.call_site))?;
+            if metadata.is_dir() {
+                PrimitiveValue::Directory(s.clone()).into()
+            } else {
+                PrimitiveValue::File(s.clone()).into()
+            }
         }
-    } else {
-        context.arguments[0].value.clone()
+        _ => context.arguments[0].value.clone(),
     };
 
     calculate_disk_size(&value, unit, context.work_dir())

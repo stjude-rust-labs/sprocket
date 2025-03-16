@@ -35,10 +35,11 @@ fn join_paths(
     ty: impl Fn(&str) -> Option<Type>,
 ) -> Result<()> {
     for (name, value) in inputs.iter_mut() {
-        let ty = if let Some(ty) = ty(name) {
-            ty
-        } else {
-            continue;
+        let ty = match ty(name) {
+            Some(ty) => ty,
+            _ => {
+                continue;
+            }
         };
 
         // Replace the value with `None` temporarily

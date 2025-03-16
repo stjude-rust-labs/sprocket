@@ -314,10 +314,9 @@ mod test {
                             1,
                             "signature count mismatch for function `{name}`"
                         );
+                        let params = TypeParameters::new(f.signature().type_parameters());
                         assert_eq!(
-                            f.signature()
-                                .display(&TypeParameters::new(f.signature().type_parameters()))
-                                .to_string(),
+                            f.signature().display(&params).to_string(),
                             imp.signatures[0].display,
                             "signature mismatch for function `{name}`"
                         );
@@ -329,9 +328,9 @@ mod test {
                             "signature count mismatch for function `{name}`"
                         );
                         for (i, sig) in f.signatures().iter().enumerate() {
+                            let params = TypeParameters::new(sig.type_parameters());
                             assert_eq!(
-                                sig.display(&TypeParameters::new(sig.type_parameters()))
-                                    .to_string(),
+                                sig.display(&params).to_string(),
                                 imp.signatures[i].display,
                                 "signature mismatch for function `{name}` (index {i})"
                             );

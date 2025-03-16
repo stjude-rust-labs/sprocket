@@ -1126,10 +1126,9 @@ impl PrimitiveValue {
     ) -> Result<bool> {
         match self {
             PrimitiveValue::File(p) => {
-                let path = if let Some(p) = translate(Path::new(p.as_str()))? {
-                    path.join(p)
-                } else {
-                    path.join(p.as_str())
+                let path = match translate(Path::new(p.as_str()))? {
+                    Some(p) => path.join(p),
+                    _ => path.join(p.as_str()),
                 };
 
                 if let Ok(path) = path.into_os_string().into_string() {
@@ -1145,10 +1144,9 @@ impl PrimitiveValue {
                 }
             }
             PrimitiveValue::Directory(p) => {
-                let path = if let Some(p) = translate(Path::new(p.as_str()))? {
-                    path.join(p)
-                } else {
-                    path.join(p.as_str())
+                let path = match translate(Path::new(p.as_str()))? {
+                    Some(p) => path.join(p),
+                    _ => path.join(p.as_str()),
                 };
 
                 if let Ok(path) = path.into_os_string().into_string() {

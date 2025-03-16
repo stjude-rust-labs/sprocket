@@ -14,7 +14,7 @@ documentation = "https://docs.rs/wdl-grammar"
 itertools = { workspace = true }
 logos = { workspace = true }
 rowan = { workspace = true }
-strum = { version = "0.26", features = ["derive"] }
+strum = { version = "0.27", features = ["derive"] }
 codespan-reporting = { workspace = true, optional = true }
 
 [dev-dependencies]

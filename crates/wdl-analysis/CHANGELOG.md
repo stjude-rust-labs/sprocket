@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
 * `Document` is now trivially cloned ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 * The task evaluation graph now forms implicit edges between the command and
   other nodes in the graph; the command now always depends on an input even if

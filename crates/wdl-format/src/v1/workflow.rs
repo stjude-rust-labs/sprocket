@@ -230,10 +230,13 @@ pub fn format_workflow_hints_array(element: &FormatElement, stream: &mut TokenSt
     let mut commas = commas.into_iter();
     for item in items {
         (&item).write(stream);
-        if let Some(comma) = commas.next() {
-            (&comma).write(stream);
-        } else {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+        match commas.next() {
+            Some(comma) => {
+                (&comma).write(stream);
+            }
+            _ => {
+                stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            }
         }
         stream.end_line();
     }

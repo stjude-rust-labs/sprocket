@@ -118,12 +118,17 @@ pub fn format_task_definition(element: &FormatElement, stream: &mut TokenStream<
         stream.blank_line();
     }
 
-    if let Some(requirements) = requirements {
-        (&requirements).write(stream);
-        stream.blank_line();
-    } else if let Some(runtime) = runtime {
-        (&runtime).write(stream);
-        stream.blank_line();
+    match requirements {
+        Some(requirements) => {
+            (&requirements).write(stream);
+            stream.blank_line();
+        }
+        _ => {
+            if let Some(runtime) = runtime {
+                (&runtime).write(stream);
+                stream.blank_line();
+            }
+        }
     }
 
     if let Some(hints) = hints {

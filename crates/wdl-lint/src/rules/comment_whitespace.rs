@@ -156,44 +156,47 @@ impl Visitor for CommentWhitespaceRule {
                 .count();
             let expected_indentation = INDENT.repeat(ancestors);
 
-            if let Some(leading_whitespace) = comment
+            match comment
                 .syntax()
                 .prev_sibling_or_token()
                 .and_then(SyntaxElement::into_token)
             {
-                let this_whitespace = leading_whitespace.text();
-                let this_indentation = this_whitespace
-                    .split('\n')
-                    .last()
-                    .expect("should have prior whitespace");
-                if this_indentation != expected_indentation {
-                    // Report a diagnostic if the comment is not indented properly
-                    let span = Span::new(comment.span().start(), 1);
-                    match this_indentation.len().cmp(&expected_indentation.len()) {
-                        Ordering::Greater => state.exceptable_add(
-                            excess_indentation(
-                                span,
-                                expected_indentation.len() / INDENT.len(),
-                                this_indentation.len() / INDENT.len(),
+                Some(leading_whitespace) => {
+                    let this_whitespace = leading_whitespace.text();
+                    let this_indentation = this_whitespace
+                        .split('\n')
+                        .last()
+                        .expect("should have prior whitespace");
+                    if this_indentation != expected_indentation {
+                        // Report a diagnostic if the comment is not indented properly
+                        let span = Span::new(comment.span().start(), 1);
+                        match this_indentation.len().cmp(&expected_indentation.len()) {
+                            Ordering::Greater => state.exceptable_add(
+                                excess_indentation(
+                                    span,
+                                    expected_indentation.len() / INDENT.len(),
+                                    this_indentation.len() / INDENT.len(),
+                                ),
+                                SyntaxElement::from(comment.syntax().clone()),
+                                &self.exceptable_nodes(),
                             ),
-                            SyntaxElement::from(comment.syntax().clone()),
-                            &self.exceptable_nodes(),
-                        ),
-                        Ordering::Less => state.exceptable_add(
-                            insufficient_indentation(
-                                span,
-                                expected_indentation.len() / INDENT.len(),
-                                this_indentation.len() / INDENT.len(),
+                            Ordering::Less => state.exceptable_add(
+                                insufficient_indentation(
+                                    span,
+                                    expected_indentation.len() / INDENT.len(),
+                                    this_indentation.len() / INDENT.len(),
+                                ),
+                                SyntaxElement::from(comment.syntax().clone()),
+                                &self.exceptable_nodes(),
                             ),
-                            SyntaxElement::from(comment.syntax().clone()),
-                            &self.exceptable_nodes(),
-                        ),
-                        Ordering::Equal => {}
+                            Ordering::Equal => {}
+                        }
                     }
                 }
-            } else {
-                // If there is no prior whitespace, this comment must be at the
-                // start of the file.
+                _ => {
+                    // If there is no prior whitespace, this comment must be at
+                    // the start of the file.
+                }
             }
         }
 

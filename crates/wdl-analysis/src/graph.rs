@@ -422,14 +422,15 @@ pub struct DocumentGraph {
 impl DocumentGraph {
     /// Add a node to the document graph.
     pub fn add_node(&mut self, uri: Url, rooted: bool) -> NodeIndex {
-        let index = if let Some(index) = self.indexes.get(&uri) {
-            *index
-        } else {
-            debug!("inserting `{uri}` into the document graph");
-            let uri = Arc::new(uri);
-            let index = self.inner.add_node(DocumentGraphNode::new(uri.clone()));
-            self.indexes.insert(uri, index);
-            index
+        let index = match self.indexes.get(&uri) {
+            Some(index) => *index,
+            _ => {
+                debug!("inserting `{uri}` into the document graph");
+                let uri = Arc::new(uri);
+                let index = self.inner.add_node(DocumentGraphNode::new(uri.clone()));
+                self.indexes.insert(uri, index);
+                index
+            }
         };
 
         if rooted {

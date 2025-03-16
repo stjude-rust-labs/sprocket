@@ -828,8 +828,8 @@ impl TaskEvaluator {
 
         let (value, span) = match inputs.get(name.as_str()) {
             Some(input) => (input.clone(), name.span()),
-            None => {
-                if let Some(expr) = decl.expr() {
+            None => match decl.expr() {
+                Some(expr) => {
                     debug!(
                         task_id = id,
                         task_name = state.task.name(),
@@ -845,11 +845,12 @@ impl TaskEvaluator {
                     ));
                     let value = evaluator.evaluate_expr(&expr)?;
                     (value, expr.span())
-                } else {
+                }
+                _ => {
                     assert!(decl.ty().is_optional(), "type should be optional");
                     (Value::None, name.span())
                 }
-            }
+            },
         };
 
         let value = value
@@ -940,12 +941,17 @@ impl TaskEvaluator {
             .expect("document should have version");
         for item in section.items() {
             let name = item.name();
-            if let Some(value) = inputs.requirement(name.as_str()) {
-                requirements.insert(name.as_str().to_string(), value.clone());
-                continue;
-            } else if let Some(value) = inputs.hint(name.as_str()) {
-                hints.insert(name.as_str().to_string(), value.clone());
-                continue;
+            match inputs.requirement(name.as_str()) {
+                Some(value) => {
+                    requirements.insert(name.as_str().to_string(), value.clone());
+                    continue;
+                }
+                _ => {
+                    if let Some(value) = inputs.hint(name.as_str()) {
+                        hints.insert(name.as_str().to_string(), value.clone());
+                        continue;
+                    }
+                }
             }
 
             let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
@@ -1091,87 +1097,99 @@ impl TaskEvaluator {
         );
 
         // Determine the mounts needed to evaluate the command properly
-        let mounts = if let Some(root_dir) = self.backend.container_root_dir() {
-            // For every file or directory value in scope, we need to insert into the tree
-            let mut paths = Vec::new();
+        let mounts = match self.backend.container_root_dir() {
+            Some(root_dir) => {
+                // For every file or directory value in scope, we need to insert into the tree
+                let mut paths = Vec::new();
 
-            // Discover every path and directory that's visible to the scope
-            ScopeRef::new(&state.scopes, TASK_SCOPE_INDEX.0).for_each(|_, v| {
-                v.visit_paths(&mut |p| {
-                    paths.push((clean(state.root.work_dir().join(p.as_ref())), true));
+                // Discover every path and directory that's visible to the scope
+                ScopeRef::new(&state.scopes, TASK_SCOPE_INDEX.0).for_each(|_, v| {
+                    v.visit_paths(&mut |p| {
+                        paths.push((clean(state.root.work_dir().join(p.as_ref())), true));
+                    });
                 });
-            });
 
-            // Insert the paths into the trie
-            let mut trie = PathTrie::default();
-            for (path, read_only) in &paths {
-                trie.insert(path, *read_only);
-            }
-
-            trie.insert(state.root.work_dir(), false);
-            trie.insert(state.root.temp_dir(), true);
-            trie.insert(state.root.attempt_temp_dir(), true);
-            trie.insert(state.root.command(), true);
-
-            // Convert the trie into mounts
-            let mounts = trie.into_mounts(root_dir.join("inputs"));
-            if enabled!(Level::DEBUG) {
-                for mount in mounts.iter() {
-                    debug!(
-                        task_id = id,
-                        task_name = state.task.name(),
-                        document = state.document.uri().as_str(),
-                        "mounting `{host}` as `{guest}`{ro}",
-                        host = mount.host.display(),
-                        guest = mount.guest.display(),
-                        ro = if mount.read_only { " (read-only)" } else { "" }
-                    );
+                // Insert the paths into the trie
+                let mut trie = PathTrie::default();
+                for (path, read_only) in &paths {
+                    trie.insert(path, *read_only);
                 }
-            }
 
-            mounts
-        } else {
-            Default::default()
+                trie.insert(state.root.work_dir(), false);
+                trie.insert(state.root.temp_dir(), true);
+                trie.insert(state.root.attempt_temp_dir(), true);
+                trie.insert(state.root.command(), true);
+
+                // Convert the trie into mounts
+                let mounts = trie.into_mounts(root_dir.join("inputs"));
+                if enabled!(Level::DEBUG) {
+                    for mount in mounts.iter() {
+                        debug!(
+                            task_id = id,
+                            task_name = state.task.name(),
+                            document = state.document.uri().as_str(),
+                            "mounting `{host}` as `{guest}`{ro}",
+                            host = mount.host.display(),
+                            guest = mount.guest.display(),
+                            ro = if mount.read_only { " (read-only)" } else { "" }
+                        );
+                    }
+                }
+
+                mounts
+            }
+            _ => Default::default(),
         };
 
         let mut command = String::new();
-        if let Some(parts) = section.strip_whitespace() {
-            let mut evaluator = ExprEvaluator::new(
-                TaskEvaluationContext::new(state, state.root.attempt_temp_dir(), TASK_SCOPE_INDEX)
+        match section.strip_whitespace() {
+            Some(parts) => {
+                let mut evaluator = ExprEvaluator::new(
+                    TaskEvaluationContext::new(
+                        state,
+                        state.root.attempt_temp_dir(),
+                        TASK_SCOPE_INDEX,
+                    )
                     .with_mounts(&mounts),
-            );
+                );
 
-            for part in parts {
-                match part {
-                    StrippedCommandPart::Text(t) => {
-                        command.push_str(t.as_str());
-                    }
-                    StrippedCommandPart::Placeholder(placeholder) => {
-                        evaluator.evaluate_placeholder(&placeholder, &mut command)?;
+                for part in parts {
+                    match part {
+                        StrippedCommandPart::Text(t) => {
+                            command.push_str(t.as_str());
+                        }
+                        StrippedCommandPart::Placeholder(placeholder) => {
+                            evaluator.evaluate_placeholder(&placeholder, &mut command)?;
+                        }
                     }
                 }
             }
-        } else {
-            warn!(
-                "command for task `{task}` in `{uri}` has mixed indentation; whitespace stripping \
-                 was skipped",
-                task = state.task.name(),
-                uri = state.document.uri(),
-            );
+            _ => {
+                warn!(
+                    "command for task `{task}` in `{uri}` has mixed indentation; whitespace \
+                     stripping was skipped",
+                    task = state.task.name(),
+                    uri = state.document.uri(),
+                );
 
-            let mut evaluator = ExprEvaluator::new(
-                TaskEvaluationContext::new(state, state.root.attempt_temp_dir(), TASK_SCOPE_INDEX)
+                let mut evaluator = ExprEvaluator::new(
+                    TaskEvaluationContext::new(
+                        state,
+                        state.root.attempt_temp_dir(),
+                        TASK_SCOPE_INDEX,
+                    )
                     .with_mounts(&mounts),
-            );
+                );
 
-            let heredoc = section.is_heredoc();
-            for part in section.parts() {
-                match part {
-                    CommandPart::Text(t) => {
-                        t.unescape_to(heredoc, &mut command);
-                    }
-                    CommandPart::Placeholder(placeholder) => {
-                        evaluator.evaluate_placeholder(&placeholder, &mut command)?;
+                let heredoc = section.is_heredoc();
+                for part in section.parts() {
+                    match part {
+                        CommandPart::Text(t) => {
+                            t.unescape_to(heredoc, &mut command);
+                        }
+                        CommandPart::Placeholder(placeholder) => {
+                            evaluator.evaluate_placeholder(&placeholder, &mut command)?;
+                        }
                     }
                 }
             }
@@ -1198,10 +1216,9 @@ impl TaskEvaluator {
         let definition = definition.to_node(state.document.node().syntax());
 
         // Start by evaluating requirements and hints
-        let (requirements, hints) = if let Some(section) = definition.runtime() {
-            self.evaluate_runtime_section(id, state, &section, inputs)?
-        } else {
-            (
+        let (requirements, hints) = match definition.runtime() {
+            Some(section) => self.evaluate_runtime_section(id, state, &section, inputs)?,
+            _ => (
                 definition
                     .requirements()
                     .map(|s| self.evaluate_requirements_section(id, state, &s, inputs))
@@ -1212,7 +1229,7 @@ impl TaskEvaluator {
                     .map(|s| self.evaluate_hints_section(id, state, &s, inputs))
                     .transpose()?
                     .unwrap_or_default(),
-            )
+            ),
         };
 
         // Update or insert the `task` variable in the task scope
