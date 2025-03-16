@@ -45,17 +45,19 @@ pub struct InputsArgs {
     pub nested_inputs: bool,
 
     #[arg(short, long)]
-    #[clap(value_name = "hide defaults", short = 'd')]
+    #[clap(value_name = "hide defaults", short = 'D')]
     pub hide_defaults: bool,
-    // #[arg(short, long)]
-    // #[clap(value_name = "override expressions", short = '4')]
-    // pub override_expressions: bool,
+
+    #[arg(short, long)]
+    #[clap(value_name = "hide expressions", short = 'E')]
+    pub hide_expressions: bool,
 }
 
 type InputDefaultMap = IndexMap<String, bool>; // input_name -> has_default
 
 struct InputVisitor {
     inputs: InputDefaultMap,
+    literal_defaults: IndexMap<String, bool>, // input_name -> has_literal_default
 }
 
 impl Visitor for InputVisitor {
@@ -69,7 +71,8 @@ impl Visitor for InputVisitor {
         _version: SupportedVersion,
     ) {
         if reason == VisitReason::Enter {
-            self.inputs.clear(); // Reset the list when starting a new document
+            self.inputs.clear();
+            self.literal_defaults.clear();
         }
     }
 
@@ -80,19 +83,24 @@ impl Visitor for InputVisitor {
         section: &InputSection,
     ) {
         if reason == VisitReason::Enter {
-            // Iterate over all declarations in the input section
             for decl in section.declarations() {
                 let name = decl.name().as_str().to_string();
-                // Check if the declaration has an expression (i.e., a default value)
-                let has_default: bool = decl.expr().is_some();
-                self.inputs.insert(name, has_default);
+                let has_default = decl.expr().is_some();
+                self.inputs.insert(name.clone(), has_default);
+                
+                // Check if the default is a literal
+                let has_literal_default = if let Some(expr) = decl.expr() {
+                    matches!(expr, Literal(_))
+                } else {
+                    false
+                };
+                self.literal_defaults.insert(name, has_literal_default);
             }
         }
     }
 }
 
-// --nested-inputs flag should be used to show all inputs of tasks and
-// workflows. the default is to show only the workflow inputs
+// --hide-expressions hides any input which isn't defaulted to a literal or required
 
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     let results: Vec<wdl::analysis::AnalysisResult> =
@@ -123,16 +131,18 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     let inputs_with_parents = collect_inputs_with_parents(&args, document)?;
 
     for (parent_name, name, input) in inputs_with_parents {
-        // Skip this input if hide_defaults is true and the input has a default value
+        // Skip if hide_defaults is true and input has any default
         if args.hide_defaults && has_default(document, args.document.as_str(), name) {
             continue;
         }
 
+        // Skip if hide_expressions is true and input has non-literal default
+        if args.hide_expressions && !has_literal_default(document, args.document.as_str(), name) {
+            continue;
+        }
+
         let v: &wdl::analysis::types::Type = input.ty();
-
-        // Format the key name based on prefix_names flag
         let key = format!("{}.{}", parent_name, name);
-
         let value = type_to_json(&v);
         template.insert(key, value);
     }
@@ -170,11 +180,25 @@ fn has_default(document: &Document, document_path: &str, input_name: &str) -> bo
 
     let mut visitor = InputVisitor {
         inputs: IndexMap::new(),
+        literal_defaults: IndexMap::new(),
     };
 
     ast_doc.visit(&mut (), &mut visitor);
 
     visitor.inputs.get(input_name).cloned().unwrap_or(false)
+}
+
+fn has_literal_default(document: &Document, document_path: &str, input_name: &str) -> bool {
+    let ast_doc: AstDocument = document.node();
+
+    let mut visitor = InputVisitor {
+        inputs: IndexMap::new(),
+        literal_defaults: IndexMap::new(),
+    };
+
+    ast_doc.visit(&mut (), &mut visitor);
+
+    visitor.literal_defaults.get(input_name).cloned().unwrap_or(false)
 }
 
 // Collects inputs with their parent names
