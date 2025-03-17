@@ -19,11 +19,13 @@ use wdl::ast::Diagnostic;
 
 pub mod commands;
 
+/// Configuration for full display style.
 static FULL_CONFIG: LazyLock<Config> = LazyLock::new(|| Config {
     display_style: DisplayStyle::Rich,
     ..Default::default()
 });
 
+/// Configuration for one-line display style.
 static ONE_LINE_CONFIG: LazyLock<Config> = LazyLock::new(|| Config {
     display_style: DisplayStyle::Short,
     ..Default::default()
@@ -67,7 +69,7 @@ fn get_display_config(report_mode: Mode, no_color: bool) -> (&'static Config, St
     (config, writer)
 }
 
-/// Emits the given diagnostics to the terminal.
+///  Emits the given diagnostics to the terminal.
 fn emit_diagnostics<'a>(
     diagnostics: impl IntoIterator<Item = &'a Diagnostic>,
     file_name: &str,
@@ -80,6 +82,6 @@ fn emit_diagnostics<'a>(
     let (config, writer) = get_display_config(report_mode, no_color);
     let mut writer = writer.lock();
     for diagnostic in diagnostics {
-        emit(&mut writer, &config, &file, &diagnostic.to_codespan()).unwrap();
+        emit(&mut writer, config, &file, &diagnostic.to_codespan()).unwrap();
     }
 }
