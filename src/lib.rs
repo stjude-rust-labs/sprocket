@@ -7,6 +7,8 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::sync::LazyLock;
+
 use clap::ValueEnum;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::Config;
@@ -14,7 +16,6 @@ use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::emit;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
-use std::sync::LazyLock;
 use wdl::ast::Diagnostic;
 
 pub mod commands;
