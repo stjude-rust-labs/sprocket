@@ -67,8 +67,6 @@ fn get_display_config(report_mode: Mode, no_color: bool) -> (&'static Config, St
     (config, writer)
 }
 
-
-
 /// Emits the given diagnostics to the terminal.
 fn emit_diagnostics<'a>(
     diagnostics: impl IntoIterator<Item = &'a Diagnostic>,
