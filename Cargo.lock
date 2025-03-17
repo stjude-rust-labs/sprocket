@@ -1978,7 +1978,6 @@ dependencies = [
  "indexmap",
  "indicatif",
  "nonempty",
- "once_cell",
  "pest",
  "pretty_assertions",
  "tokio",
