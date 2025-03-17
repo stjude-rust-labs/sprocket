@@ -139,12 +139,12 @@ impl Visitor for LineWidthRule {
     fn whitespace(&mut self, state: &mut Self::State, whitespace: &Whitespace) {
         self.detect_line_too_long(
             state,
-            whitespace.as_str(),
+            whitespace.text(),
             whitespace.span().start(),
             whitespace
-                .syntax()
+                .inner()
                 .prev_sibling_or_token()
-                .unwrap_or(SyntaxElement::from(whitespace.syntax().clone())),
+                .unwrap_or(SyntaxElement::from(whitespace.inner().clone())),
             &self.exceptable_nodes(),
         );
     }
@@ -152,9 +152,9 @@ impl Visitor for LineWidthRule {
     fn command_text(&mut self, state: &mut Self::State, text: &v1::CommandText) {
         self.detect_line_too_long(
             state,
-            text.as_str(),
+            text.text(),
             text.span().start(),
-            SyntaxElement::from(text.syntax().clone()),
+            SyntaxElement::from(text.inner().clone()),
             &self.exceptable_nodes(),
         );
     }

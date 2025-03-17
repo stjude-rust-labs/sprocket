@@ -65,7 +65,7 @@ const ID: &str = "MissingMetas";
 fn missing_section(name: Ident, section: Section, context: Context) -> Diagnostic {
     Diagnostic::note(format!(
         "{context} `{name}` is missing a `{section}` section",
-        name = name.as_str(),
+        name = name.text(),
     ))
     .with_rule(ID)
     .with_label(
@@ -79,7 +79,7 @@ fn missing_section(name: Ident, section: Section, context: Context) -> Diagnosti
 fn missing_sections(name: Ident, context: Context) -> Diagnostic {
     Diagnostic::note(format!(
         "{context} `{name}` is missing both `meta` and `parameter_meta` sections",
-        name = name.as_str(),
+        name = name.text(),
     ))
     .with_rule(ID)
     .with_label(
@@ -159,19 +159,19 @@ impl Visitor for MissingMetasRule {
         if inputs_present && task.metadata().is_none() && task.parameter_metadata().is_none() {
             state.exceptable_add(
                 missing_sections(task.name(), Context::Task),
-                SyntaxElement::from(task.syntax().clone()),
+                SyntaxElement::from(task.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if task.metadata().is_none() {
             state.exceptable_add(
                 missing_section(task.name(), Section::Meta, Context::Task),
-                SyntaxElement::from(task.syntax().clone()),
+                SyntaxElement::from(task.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if inputs_present && task.parameter_metadata().is_none() {
             state.exceptable_add(
                 missing_section(task.name(), Section::ParameterMeta, Context::Task),
-                SyntaxElement::from(task.syntax().clone()),
+                SyntaxElement::from(task.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }
@@ -195,19 +195,19 @@ impl Visitor for MissingMetasRule {
         {
             state.exceptable_add(
                 missing_sections(workflow.name(), Context::Workflow),
-                SyntaxElement::from(workflow.syntax().clone()),
+                SyntaxElement::from(workflow.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if workflow.metadata().is_none() {
             state.exceptable_add(
                 missing_section(workflow.name(), Section::Meta, Context::Workflow),
-                SyntaxElement::from(workflow.syntax().clone()),
+                SyntaxElement::from(workflow.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if inputs_present && workflow.parameter_metadata().is_none() {
             state.exceptable_add(
                 missing_section(workflow.name(), Section::ParameterMeta, Context::Workflow),
-                SyntaxElement::from(workflow.syntax().clone()),
+                SyntaxElement::from(workflow.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }
@@ -231,19 +231,19 @@ impl Visitor for MissingMetasRule {
         if def.metadata().next().is_none() && def.parameter_metadata().next().is_none() {
             state.exceptable_add(
                 missing_sections(def.name(), Context::Struct),
-                SyntaxElement::from(def.syntax().clone()),
+                SyntaxElement::from(def.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if def.metadata().next().is_none() {
             state.exceptable_add(
                 missing_section(def.name(), Section::Meta, Context::Struct),
-                SyntaxElement::from(def.syntax().clone()),
+                SyntaxElement::from(def.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if def.parameter_metadata().next().is_none() {
             state.exceptable_add(
                 missing_section(def.name(), Section::ParameterMeta, Context::Struct),
-                SyntaxElement::from(def.syntax().clone()),
+                SyntaxElement::from(def.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }

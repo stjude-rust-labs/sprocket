@@ -13,12 +13,12 @@ use crate::Render;
 pub(crate) fn render_value(value: &MetadataValue) -> Markup {
     match value {
         MetadataValue::String(s) => {
-            html! { (Markdown(s.text().map(|t| t.as_str().to_string()).unwrap_or_default()).render()) }
+            html! { (Markdown(s.text().map(|t| t.text().to_string()).unwrap_or_default()).render()) }
         }
-        MetadataValue::Boolean(b) => html! { code { (b.syntax().to_string()) } },
-        MetadataValue::Integer(i) => html! { code { (i.syntax().to_string()) } },
-        MetadataValue::Float(f) => html! { code { (f.syntax().to_string()) } },
-        MetadataValue::Null(n) => html! { code { (n.syntax().to_string()) } },
+        MetadataValue::Boolean(b) => html! { code { (b.text().to_string()) } },
+        MetadataValue::Integer(i) => html! { code { (i.text().to_string()) } },
+        MetadataValue::Float(f) => html! { code { (f.text().to_string()) } },
+        MetadataValue::Null(n) => html! { code { (n.text().to_string()) } },
         MetadataValue::Array(a) => {
             html! {
                 div {
@@ -31,7 +31,7 @@ pub(crate) fn render_value(value: &MetadataValue) -> Markup {
                                         (render_value(&item)) ","
                                     }
                                     _ => {
-                                        code { (item.syntax().to_string()) } ","
+                                        code { (item.text().to_string()) } ","
                                     }
                                 }
                             }
@@ -48,7 +48,7 @@ pub(crate) fn render_value(value: &MetadataValue) -> Markup {
                     ul {
                         @for item in o.items() {
                             li {
-                                b { (item.name().as_str()) ":" } " " (render_value(&item.value())) ","
+                                b { (item.name().text()) ":" } " " (render_value(&item.value())) ","
                             }
                         }
                     }

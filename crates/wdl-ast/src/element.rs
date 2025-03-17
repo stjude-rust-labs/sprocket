@@ -6,10 +6,11 @@ use crate::AstNode;
 use crate::AstToken;
 use crate::Comment;
 use crate::Ident;
-use crate::SyntaxElement;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::SyntaxToken;
+use crate::TreeNode;
+use crate::TreeToken;
 use crate::Version;
 use crate::VersionStatement;
 use crate::Whitespace;
@@ -22,8 +23,8 @@ macro_rules! ast_element_impl {
         $name:ident,
         // The improper name of the impl to be displayed (e.g., `node`).
         $display:ident,
-        // The prefix of the syntax element (e.g., `SyntaxNode`).
-        $syntax_prefix:ty,
+        // The implementation trait name (either `TreeNode` or `TreeToken`).
+        $trait_name:ty,
         // A mapping of all of the elements to map from syntax elements to ast
         // elements.
         //
@@ -31,21 +32,13 @@ macro_rules! ast_element_impl {
         [$($suffix:ident(): $syntax_kind:ty => $inner:ty => $variant:ty),*]
     ) => {
         paste::paste! {
-            impl $name {
-                #[doc = "Attempts to cast a [`SyntaxElement`] to a [`" $name "`]."]
-                pub fn cast(element: SyntaxElement) -> Option<Self> {
+            impl<T: $trait_name> $name<T> {
+                #[doc = "Attempts to cast an element to a [`" $name "`]."]
+                pub fn cast(element: T) -> Option<Self> {
                     match element.kind() {
                         $(
                             SyntaxKind::$syntax_kind => {
-                                let $display = element
-                                    .[<into_ $display>]()
-                                    .expect(
-                                        "`SyntaxElement` with kind \
-                                        `SyntaxKind::${stringify!($syntax_kind)}` could not \
-                                        be turned into a `${stringify!($syntax_prefix)}`"
-                                    );
-
-                                let inner = $inner::cast($display)
+                                let inner = $inner::<T>::cast(element)
                                     .expect(
                                         "couldn't cast ${stringify!($display)} to \
                                         `${stringify!($inner)}`
@@ -68,12 +61,11 @@ macro_rules! ast_element_impl {
                     }
                 }
 
-
-                #[doc = "Gets the inner [`" $syntax_prefix "`] from the [`" $name "`]."]
-                pub fn syntax(&self) -> &$syntax_prefix {
+                #[doc = "Gets the inner type from the [`" $name "`]."]
+                pub fn inner(&self) -> &T {
                     match self {
                         $(
-                            $name::$variant(inner) => inner.syntax(),
+                            $name::$variant(e) => e.inner(),
                         )*
                         // NOTE: a wildcard pattern (`_`) should not be required
                         // here. If one is suggested by the compiler, that means
@@ -88,7 +80,7 @@ macro_rules! ast_element_impl {
                     /// * If `self` is a [`${stringify!($variant)}`], then a reference to the
                     ///   inner [`${stringify!($inner)}`] wrapped in [`Some`] is returned.
                     /// * Else, [`None`] is returned.
-                    pub fn [<as_ $suffix>](&self) -> Option<&$inner> {
+                    pub fn [<as_ $suffix>](&self) -> Option<&$inner<T>> {
                         match self {
                             $name::$variant($suffix) => Some($suffix),
                             _ => None,
@@ -101,7 +93,7 @@ macro_rules! ast_element_impl {
                     /// * If `self` is a [`${stringify!($variant)}`], then the inner
                     ///   [`${stringify!($inner)}`] wrapped in [`Some`] is returned.
                     /// * Else, [`None`] is returned.
-                    pub fn [<into_ $suffix>](self) -> Option<$inner> {
+                    pub fn [<into_ $suffix>](self) -> Option<$inner<T>> {
                         match self {
                             $name::$variant($suffix) => Some($suffix),
                             _ => None,
@@ -113,7 +105,7 @@ macro_rules! ast_element_impl {
                     /// # Panics
                     ///
                     /// If `self` is not a [`${stringify!($variant)}`].
-                    pub fn [<unwrap_ $suffix>](self) -> $inner {
+                    pub fn [<unwrap_ $suffix>](self) -> $inner<T> {
                         self.[<into_ $suffix>]().expect(
                             "expected `${stringify!($variant)}` but got a different variant"
                         )
@@ -128,187 +120,187 @@ macro_rules! ast_element_impl {
 ///
 /// This enum has a variant for each struct implementing the [`AstNode`] trait.
 #[derive(Clone, Debug)]
-pub enum Node {
+pub enum Node<N: TreeNode = SyntaxNode> {
     /// An access expression.
-    AccessExpr(AccessExpr),
+    AccessExpr(AccessExpr<N>),
     /// An addition expression.
-    AdditionExpr(AdditionExpr),
+    AdditionExpr(AdditionExpr<N>),
     /// An array type.
-    ArrayType(ArrayType),
+    ArrayType(ArrayType<N>),
     /// A V1 abstract syntax tree.
-    Ast(Ast),
+    Ast(Ast<N>),
     /// A bound declaration.
-    BoundDecl(BoundDecl),
+    BoundDecl(BoundDecl<N>),
     /// An after clause in a call statement.
-    CallAfter(CallAfter),
+    CallAfter(CallAfter<N>),
     /// An alias clause in a call statement.
-    CallAlias(CallAlias),
+    CallAlias(CallAlias<N>),
     /// A call expression.
-    CallExpr(CallExpr),
+    CallExpr(CallExpr<N>),
     /// A call input item.
-    CallInputItem(CallInputItem),
+    CallInputItem(CallInputItem<N>),
     /// A call statement.
-    CallStatement(CallStatement),
+    CallStatement(CallStatement<N>),
     /// A target within a call statement.
-    CallTarget(CallTarget),
+    CallTarget(CallTarget<N>),
     /// A command section.
-    CommandSection(CommandSection),
+    CommandSection(CommandSection<N>),
     /// A conditional statement.
-    ConditionalStatement(ConditionalStatement),
+    ConditionalStatement(ConditionalStatement<N>),
     /// The `default` placeholder option.
-    DefaultOption(DefaultOption),
+    DefaultOption(DefaultOption<N>),
     /// A division expression.
-    DivisionExpr(DivisionExpr),
+    DivisionExpr(DivisionExpr<N>),
     /// An equality expression.
-    EqualityExpr(EqualityExpr),
+    EqualityExpr(EqualityExpr<N>),
     /// An exponentiation expression.
-    ExponentiationExpr(ExponentiationExpr),
+    ExponentiationExpr(ExponentiationExpr<N>),
     /// A greater than or equal to expression.
-    GreaterEqualExpr(GreaterEqualExpr),
+    GreaterEqualExpr(GreaterEqualExpr<N>),
     /// A greater than expression.
-    GreaterExpr(GreaterExpr),
+    GreaterExpr(GreaterExpr<N>),
     /// An if expression.
-    IfExpr(IfExpr),
+    IfExpr(IfExpr<N>),
     /// An import alias.
-    ImportAlias(ImportAlias),
+    ImportAlias(ImportAlias<N>),
     /// An import statement.
-    ImportStatement(ImportStatement),
+    ImportStatement(ImportStatement<N>),
     /// An index expression.
-    IndexExpr(IndexExpr),
+    IndexExpr(IndexExpr<N>),
     /// An inequality expression.
-    InequalityExpr(InequalityExpr),
+    InequalityExpr(InequalityExpr<N>),
     /// An input section.
-    InputSection(InputSection),
+    InputSection(InputSection<N>),
     /// A less than or equal to expression.
-    LessEqualExpr(LessEqualExpr),
+    LessEqualExpr(LessEqualExpr<N>),
     /// A less than expression.
-    LessExpr(LessExpr),
+    LessExpr(LessExpr<N>),
     /// A literal array.
-    LiteralArray(LiteralArray),
+    LiteralArray(LiteralArray<N>),
     /// A literal boolean.
-    LiteralBoolean(LiteralBoolean),
+    LiteralBoolean(LiteralBoolean<N>),
     /// A literal float.
-    LiteralFloat(LiteralFloat),
+    LiteralFloat(LiteralFloat<N>),
     /// A literal hints.
-    LiteralHints(LiteralHints),
+    LiteralHints(LiteralHints<N>),
     /// A literal hints item.
-    LiteralHintsItem(LiteralHintsItem),
+    LiteralHintsItem(LiteralHintsItem<N>),
     /// A literal input.
-    LiteralInput(LiteralInput),
+    LiteralInput(LiteralInput<N>),
     /// A literal input item.
-    LiteralInputItem(LiteralInputItem),
+    LiteralInputItem(LiteralInputItem<N>),
     /// A literal integer.
-    LiteralInteger(LiteralInteger),
+    LiteralInteger(LiteralInteger<N>),
     /// A literal map.
-    LiteralMap(LiteralMap),
+    LiteralMap(LiteralMap<N>),
     /// A literal map item.
-    LiteralMapItem(LiteralMapItem),
+    LiteralMapItem(LiteralMapItem<N>),
     /// A literal none.
-    LiteralNone(LiteralNone),
+    LiteralNone(LiteralNone<N>),
     /// A literal null.
-    LiteralNull(LiteralNull),
+    LiteralNull(LiteralNull<N>),
     /// A literal object.
-    LiteralObject(LiteralObject),
+    LiteralObject(LiteralObject<N>),
     /// A literal object item.
-    LiteralObjectItem(LiteralObjectItem),
+    LiteralObjectItem(LiteralObjectItem<N>),
     /// A literal output.
-    LiteralOutput(LiteralOutput),
+    LiteralOutput(LiteralOutput<N>),
     /// A literal output item.
-    LiteralOutputItem(LiteralOutputItem),
+    LiteralOutputItem(LiteralOutputItem<N>),
     /// A literal pair.
-    LiteralPair(LiteralPair),
+    LiteralPair(LiteralPair<N>),
     /// A literal string.
-    LiteralString(LiteralString),
+    LiteralString(LiteralString<N>),
     /// A literal struct.
-    LiteralStruct(LiteralStruct),
+    LiteralStruct(LiteralStruct<N>),
     /// A literal struct item.
-    LiteralStructItem(LiteralStructItem),
+    LiteralStructItem(LiteralStructItem<N>),
     /// A logical and expression.
-    LogicalAndExpr(LogicalAndExpr),
+    LogicalAndExpr(LogicalAndExpr<N>),
     /// A logical not expression.
-    LogicalNotExpr(LogicalNotExpr),
+    LogicalNotExpr(LogicalNotExpr<N>),
     /// A logical or expression.
-    LogicalOrExpr(LogicalOrExpr),
+    LogicalOrExpr(LogicalOrExpr<N>),
     /// A map type.
-    MapType(MapType),
+    MapType(MapType<N>),
     /// A metadata array.
-    MetadataArray(MetadataArray),
+    MetadataArray(MetadataArray<N>),
     /// A metadata object.
-    MetadataObject(MetadataObject),
+    MetadataObject(MetadataObject<N>),
     /// A metadata object item.
-    MetadataObjectItem(MetadataObjectItem),
+    MetadataObjectItem(MetadataObjectItem<N>),
     /// A metadata section.
-    MetadataSection(MetadataSection),
+    MetadataSection(MetadataSection<N>),
     /// A modulo expression.
-    ModuloExpr(ModuloExpr),
+    ModuloExpr(ModuloExpr<N>),
     /// A multiplication expression.
-    MultiplicationExpr(MultiplicationExpr),
+    MultiplicationExpr(MultiplicationExpr<N>),
     /// A reference to a name.
-    NameRef(NameRef),
+    NameRefExpr(NameRefExpr<N>),
     /// A negation expression.
-    NegationExpr(NegationExpr),
+    NegationExpr(NegationExpr<N>),
     /// An output section.
-    OutputSection(OutputSection),
+    OutputSection(OutputSection<N>),
     /// A pair type.
-    PairType(PairType),
+    PairType(PairType<N>),
     /// An object type.
-    ObjectType(ObjectType),
+    ObjectType(ObjectType<N>),
     /// A parameter metadata section.
-    ParameterMetadataSection(ParameterMetadataSection),
+    ParameterMetadataSection(ParameterMetadataSection<N>),
     /// A parenthesized expression.
-    ParenthesizedExpr(ParenthesizedExpr),
+    ParenthesizedExpr(ParenthesizedExpr<N>),
     /// A placeholder.
-    Placeholder(Placeholder),
+    Placeholder(Placeholder<N>),
     /// A primitive type.
-    PrimitiveType(PrimitiveType),
+    PrimitiveType(PrimitiveType<N>),
     /// A requirements item.
-    RequirementsItem(RequirementsItem),
+    RequirementsItem(RequirementsItem<N>),
     /// A requirements section.
-    RequirementsSection(RequirementsSection),
+    RequirementsSection(RequirementsSection<N>),
     /// A runtime item.
-    RuntimeItem(RuntimeItem),
+    RuntimeItem(RuntimeItem<N>),
     /// A runtime section.
-    RuntimeSection(RuntimeSection),
+    RuntimeSection(RuntimeSection<N>),
     /// A scatter statement.
-    ScatterStatement(ScatterStatement),
+    ScatterStatement(ScatterStatement<N>),
     /// The `sep` placeholder option.
-    SepOption(SepOption),
+    SepOption(SepOption<N>),
     /// A struct definition.
-    StructDefinition(StructDefinition),
+    StructDefinition(StructDefinition<N>),
     /// A subtraction expression.
-    SubtractionExpr(SubtractionExpr),
+    SubtractionExpr(SubtractionExpr<N>),
     /// A task definition.
-    TaskDefinition(TaskDefinition),
+    TaskDefinition(TaskDefinition<N>),
     /// A task item within a hints section.
-    TaskHintsItem(TaskHintsItem),
+    TaskHintsItem(TaskHintsItem<N>),
     /// A hints section within a task.
-    TaskHintsSection(TaskHintsSection),
+    TaskHintsSection(TaskHintsSection<N>),
     /// A `true`/`false` placeholder option.
-    TrueFalseOption(TrueFalseOption),
+    TrueFalseOption(TrueFalseOption<N>),
     /// A reference to a type.
-    TypeRef(TypeRef),
+    TypeRef(TypeRef<N>),
     /// An unbound declaration.
-    UnboundDecl(UnboundDecl),
+    UnboundDecl(UnboundDecl<N>),
     /// A version statement.
-    VersionStatement(VersionStatement),
+    VersionStatement(VersionStatement<N>),
     /// A workflow definition.
-    WorkflowDefinition(WorkflowDefinition),
+    WorkflowDefinition(WorkflowDefinition<N>),
     /// An array within a workflow hints section.
-    WorkflowHintsArray(WorkflowHintsArray),
+    WorkflowHintsArray(WorkflowHintsArray<N>),
     /// A hints item within a workflow hints section.
-    WorkflowHintsItem(WorkflowHintsItem),
+    WorkflowHintsItem(WorkflowHintsItem<N>),
     /// An object within a workflow hints section.
-    WorkflowHintsObject(WorkflowHintsObject),
+    WorkflowHintsObject(WorkflowHintsObject<N>),
     /// An item within an object within a workflow hints section.
-    WorkflowHintsObjectItem(WorkflowHintsObjectItem),
+    WorkflowHintsObjectItem(WorkflowHintsObjectItem<N>),
     /// A hints section within a workflow.
-    WorkflowHintsSection(WorkflowHintsSection),
+    WorkflowHintsSection(WorkflowHintsSection<N>),
 }
 
 ast_element_impl!(
     Node,
     node,
-    SyntaxNode,
+    TreeNode,
     [
         access_expr(): AccessExprNode => AccessExpr => AccessExpr,
         addition_expr(): AdditionExprNode => AdditionExpr => AdditionExpr,
@@ -367,7 +359,7 @@ ast_element_impl!(
         metadata_section(): MetadataSectionNode => MetadataSection => MetadataSection,
         modulo_expr(): ModuloExprNode => ModuloExpr => ModuloExpr,
         multiplication_expr(): MultiplicationExprNode => MultiplicationExpr => MultiplicationExpr,
-        name_ref(): NameRefNode => NameRef => NameRef,
+        name_ref_expr(): NameRefExprNode => NameRefExpr => NameRefExpr,
         negation_expr(): NegationExprNode => NegationExpr => NegationExpr,
         object_type(): ObjectTypeNode => ObjectType => ObjectType,
         output_section(): OutputSectionNode => OutputSection => OutputSection,
@@ -404,167 +396,167 @@ ast_element_impl!(
 ///
 /// This enum has a variant for each struct implementing the [`AstToken`] trait.
 #[derive(Clone, Debug)]
-pub enum Token {
+pub enum Token<T: TreeToken = SyntaxToken> {
     /// The `after` keyword.
-    AfterKeyword(AfterKeyword),
+    AfterKeyword(AfterKeyword<T>),
     /// The `alias` keyword.
-    AliasKeyword(AliasKeyword),
+    AliasKeyword(AliasKeyword<T>),
     /// The `Array` type keyword.
-    ArrayTypeKeyword(ArrayTypeKeyword),
+    ArrayTypeKeyword(ArrayTypeKeyword<T>),
     /// The `as` keyword.
-    AsKeyword(AsKeyword),
+    AsKeyword(AsKeyword<T>),
     /// The `=` symbol.
-    Assignment(Assignment),
+    Assignment(Assignment<T>),
     /// The `*` symbol.
-    Asterisk(Asterisk),
+    Asterisk(Asterisk<T>),
     /// The `Boolean` type keyword.
-    BooleanTypeKeyword(BooleanTypeKeyword),
+    BooleanTypeKeyword(BooleanTypeKeyword<T>),
     /// The `call` keyword.
-    CallKeyword(CallKeyword),
+    CallKeyword(CallKeyword<T>),
     /// The `}` symbol.
-    CloseBrace(CloseBrace),
+    CloseBrace(CloseBrace<T>),
     /// The `]` symbol.
-    CloseBracket(CloseBracket),
+    CloseBracket(CloseBracket<T>),
     /// The `>>>` symbol.
-    CloseHeredoc(CloseHeredoc),
+    CloseHeredoc(CloseHeredoc<T>),
     /// The `)` symbol.
-    CloseParen(CloseParen),
+    CloseParen(CloseParen<T>),
     /// The `:` symbol.
-    Colon(Colon),
+    Colon(Colon<T>),
     /// The `,` symbol.
-    Comma(Comma),
+    Comma(Comma<T>),
     /// The `command` keyword.
-    CommandKeyword(CommandKeyword),
+    CommandKeyword(CommandKeyword<T>),
     /// The text within a command section.
-    CommandText(CommandText),
+    CommandText(CommandText<T>),
     /// A comment.
-    Comment(Comment),
+    Comment(Comment<T>),
     /// The `Directory` type keyword.
-    DirectoryTypeKeyword(DirectoryTypeKeyword),
+    DirectoryTypeKeyword(DirectoryTypeKeyword<T>),
     /// The `.` symbol.
-    Dot(Dot),
+    Dot(Dot<T>),
     /// The `"` symbol.
-    DoubleQuote(DoubleQuote),
+    DoubleQuote(DoubleQuote<T>),
     /// The `else` keyword.
-    ElseKeyword(ElseKeyword),
+    ElseKeyword(ElseKeyword<T>),
     /// The `env` keyword.
-    EnvKeyword(EnvKeyword),
+    EnvKeyword(EnvKeyword<T>),
     /// The `==` symbol.
-    Equal(Equal),
+    Equal(Equal<T>),
     /// The `!` symbol.
-    Exclamation(Exclamation),
+    Exclamation(Exclamation<T>),
     /// The `**` symbol.
-    Exponentiation(Exponentiation),
+    Exponentiation(Exponentiation<T>),
     /// The `false` keyword.
-    FalseKeyword(FalseKeyword),
+    FalseKeyword(FalseKeyword<T>),
     /// The `File` type keyword.
-    FileTypeKeyword(FileTypeKeyword),
+    FileTypeKeyword(FileTypeKeyword<T>),
     /// A float.
-    Float(Float),
+    Float(Float<T>),
     /// The `Float` type keyword.
-    FloatTypeKeyword(FloatTypeKeyword),
+    FloatTypeKeyword(FloatTypeKeyword<T>),
     /// The `>` symbol.
-    Greater(Greater),
+    Greater(Greater<T>),
     /// The `>=` symbol.
-    GreaterEqual(GreaterEqual),
+    GreaterEqual(GreaterEqual<T>),
     /// The `hints` keyword.
-    HintsKeyword(HintsKeyword),
+    HintsKeyword(HintsKeyword<T>),
     /// An identity.
-    Ident(Ident),
+    Ident(Ident<T>),
     /// The `if` keyword.
-    IfKeyword(IfKeyword),
+    IfKeyword(IfKeyword<T>),
     /// The `import` keyword.
-    ImportKeyword(ImportKeyword),
+    ImportKeyword(ImportKeyword<T>),
     /// The `in` keyword.
-    InKeyword(InKeyword),
+    InKeyword(InKeyword<T>),
     /// The `input` keyword.
-    InputKeyword(InputKeyword),
+    InputKeyword(InputKeyword<T>),
     /// An integer.
-    Integer(Integer),
+    Integer(Integer<T>),
     /// The `Int` type keyword.
-    IntTypeKeyword(IntTypeKeyword),
+    IntTypeKeyword(IntTypeKeyword<T>),
     /// The `<` symbol.
-    Less(Less),
+    Less(Less<T>),
     /// The `<=` symbol.
-    LessEqual(LessEqual),
+    LessEqual(LessEqual<T>),
     /// The `&&` symbol.
-    LogicalAnd(LogicalAnd),
+    LogicalAnd(LogicalAnd<T>),
     /// The `||` symbol.
-    LogicalOr(LogicalOr),
+    LogicalOr(LogicalOr<T>),
     /// The `Map` type keyword.
-    MapTypeKeyword(MapTypeKeyword),
+    MapTypeKeyword(MapTypeKeyword<T>),
     /// The `meta` keyword.
-    MetaKeyword(MetaKeyword),
+    MetaKeyword(MetaKeyword<T>),
     /// The `-` symbol.
-    Minus(Minus),
+    Minus(Minus<T>),
     /// The `None` keyword.
-    NoneKeyword(NoneKeyword),
+    NoneKeyword(NoneKeyword<T>),
     /// The `!=` symbol.
-    NotEqual(NotEqual),
+    NotEqual(NotEqual<T>),
     /// The `null` keyword.
-    NullKeyword(NullKeyword),
+    NullKeyword(NullKeyword<T>),
     /// The `object` keyword.
-    ObjectKeyword(ObjectKeyword),
+    ObjectKeyword(ObjectKeyword<T>),
     /// The `Object` type keyword.
-    ObjectTypeKeyword(ObjectTypeKeyword),
+    ObjectTypeKeyword(ObjectTypeKeyword<T>),
     /// The `{` symbol.
-    OpenBrace(OpenBrace),
+    OpenBrace(OpenBrace<T>),
     /// The `[` symbol.
-    OpenBracket(OpenBracket),
+    OpenBracket(OpenBracket<T>),
     /// The `<<<` symbol.
-    OpenHeredoc(OpenHeredoc),
+    OpenHeredoc(OpenHeredoc<T>),
     /// The `(` symbol.
-    OpenParen(OpenParen),
+    OpenParen(OpenParen<T>),
     /// The `output` keyword.
-    OutputKeyword(OutputKeyword),
+    OutputKeyword(OutputKeyword<T>),
     /// The `Pair` type keyword.
-    PairTypeKeyword(PairTypeKeyword),
+    PairTypeKeyword(PairTypeKeyword<T>),
     /// The `parameter_meta` keyword.
-    ParameterMetaKeyword(ParameterMetaKeyword),
+    ParameterMetaKeyword(ParameterMetaKeyword<T>),
     /// The `%` symbol.
-    Percent(Percent),
+    Percent(Percent<T>),
     /// One of the placeholder open symbols.
-    PlaceholderOpen(PlaceholderOpen),
+    PlaceholderOpen(PlaceholderOpen<T>),
     /// The `+` symbol.
-    Plus(Plus),
+    Plus(Plus<T>),
     /// The `?` symbol.
-    QuestionMark(QuestionMark),
+    QuestionMark(QuestionMark<T>),
     /// The `requirements` keyword.
-    RequirementsKeyword(RequirementsKeyword),
+    RequirementsKeyword(RequirementsKeyword<T>),
     /// The `runtime` keyword.
-    RuntimeKeyword(RuntimeKeyword),
+    RuntimeKeyword(RuntimeKeyword<T>),
     /// The `scatter` keyword.
-    ScatterKeyword(ScatterKeyword),
+    ScatterKeyword(ScatterKeyword<T>),
     /// The `'` symbol.
-    SingleQuote(SingleQuote),
+    SingleQuote(SingleQuote<T>),
     /// The `/` symbol.
-    Slash(Slash),
+    Slash(Slash<T>),
     /// The textual part of a string.
-    StringText(StringText),
+    StringText(StringText<T>),
     /// The `String` type keyword.
-    StringTypeKeyword(StringTypeKeyword),
+    StringTypeKeyword(StringTypeKeyword<T>),
     /// The `struct` keyword.
-    StructKeyword(StructKeyword),
+    StructKeyword(StructKeyword<T>),
     /// The `task` keyword.
-    TaskKeyword(TaskKeyword),
+    TaskKeyword(TaskKeyword<T>),
     /// The `then` keyword.
-    ThenKeyword(ThenKeyword),
+    ThenKeyword(ThenKeyword<T>),
     /// The `true` keyword.
-    TrueKeyword(TrueKeyword),
+    TrueKeyword(TrueKeyword<T>),
     /// A version.
-    Version(Version),
+    Version(Version<T>),
     /// The `version` keyword.
-    VersionKeyword(VersionKeyword),
+    VersionKeyword(VersionKeyword<T>),
     /// Whitespace.
-    Whitespace(Whitespace),
+    Whitespace(Whitespace<T>),
     /// The `workflow` keyword.
-    WorkflowKeyword(WorkflowKeyword),
+    WorkflowKeyword(WorkflowKeyword<T>),
 }
 
 ast_element_impl!(
     Token,
     token,
-    SyntaxToken,
+    TreeToken,
     [
         after_keyword(): AfterKeyword => AfterKeyword => AfterKeyword,
         alias_keyword(): AliasKeyword => AliasKeyword => AliasKeyword,
@@ -575,7 +567,7 @@ ast_element_impl!(
         boolean_type_keyword(): BooleanTypeKeyword => BooleanTypeKeyword => BooleanTypeKeyword,
         call_keyword(): CallKeyword => CallKeyword => CallKeyword,
         close_brace(): CloseBrace => CloseBrace => CloseBrace,
-        close_brack(): CloseBracket => CloseBracket => CloseBracket,
+        close_bracket(): CloseBracket => CloseBracket => CloseBracket,
         close_heredoc(): CloseHeredoc => CloseHeredoc => CloseHeredoc,
         close_paren(): CloseParen => CloseParen => CloseParen,
         colon(): Colon => Colon => Colon,
@@ -589,7 +581,7 @@ ast_element_impl!(
         else_keyword(): ElseKeyword => ElseKeyword => ElseKeyword,
         env_keyword(): EnvKeyword => EnvKeyword => EnvKeyword,
         equal(): Equal => Equal => Equal,
-        exclaimation(): Exclamation => Exclamation => Exclamation,
+        exclamation(): Exclamation => Exclamation => Exclamation,
         exponentiation(): Exponentiation => Exponentiation => Exponentiation,
         false_keyword(): FalseKeyword => FalseKeyword => FalseKeyword,
         file_type_keyword(): FileTypeKeyword => FileTypeKeyword => FileTypeKeyword,
@@ -648,21 +640,21 @@ ast_element_impl!(
 
 /// An abstract syntax tree element.
 #[derive(Clone, Debug)]
-pub enum Element {
+pub enum Element<N: TreeNode = SyntaxNode> {
     /// An abstract syntax tree node.
-    Node(Node),
+    Node(Node<N>),
 
     /// An abstract syntax tree token.
-    Token(Token),
+    Token(Token<N::Token>),
 }
 
-impl Element {
+impl<N: TreeNode> Element<N> {
     /// Attempts to get a reference to the inner [`Node`].
     ///
     /// * If `self` is a [`Element::Node`], then a reference to the inner
     ///   [`Node`] wrapped in [`Some`] is returned.
     /// * Else, [`None`] is returned.
-    pub fn as_node(&self) -> Option<&Node> {
+    pub fn as_node(&self) -> Option<&Node<N>> {
         match self {
             Self::Node(node) => Some(node),
             _ => None,
@@ -674,7 +666,7 @@ impl Element {
     /// * If `self` is a [`Element::Node`], then the inner [`Node`] wrapped in
     ///   [`Some`] is returned.
     /// * Else, [`None`] is returned.
-    pub fn into_node(self) -> Option<Node> {
+    pub fn into_node(self) -> Option<Node<N>> {
         match self {
             Self::Node(node) => Some(node),
             _ => None,
@@ -686,7 +678,7 @@ impl Element {
     /// # Panics
     ///
     /// If `self` is not a [`Element::Node`].
-    pub fn unwrap_node(self) -> Node {
+    pub fn unwrap_node(self) -> Node<N> {
         self.into_node()
             .expect("expected `Element::Node` but got a different variant")
     }
@@ -696,7 +688,7 @@ impl Element {
     /// * If `self` is a [`Element::Token`], then a reference to the inner
     ///   [`Token`] wrapped in [`Some`] is returned.
     /// * Else, [`None`] is returned.
-    pub fn as_token(&self) -> Option<&Token> {
+    pub fn as_token(&self) -> Option<&Token<N::Token>> {
         match self {
             Self::Token(token) => Some(token),
             _ => None,
@@ -708,7 +700,7 @@ impl Element {
     /// * If `self` is a [`Element::Token`], then the inner [`Token`] wrapped in
     ///   [`Some`] is returned.
     /// * Else, [`None`] is returned.
-    pub fn into_token(self) -> Option<Token> {
+    pub fn into_token(self) -> Option<Token<N::Token>> {
         match self {
             Self::Token(token) => Some(token),
             _ => None,
@@ -720,47 +712,43 @@ impl Element {
     /// # Panics
     ///
     /// If `self` is not a [`Element::Token`].
-    pub fn unwrap_token(self) -> Token {
+    pub fn unwrap_token(self) -> Token<N::Token> {
         self.into_token()
             .expect("expected `Element::Token` but got a different variant")
     }
 
     /// Gets the underlying [`SyntaxElement`] from the [`Element`].
-    pub fn syntax(&self) -> SyntaxElement {
+    pub fn inner(&self) -> NodeOrToken<N, N::Token> {
         match self {
-            Element::Node(node) => SyntaxElement::Node(node.syntax().clone()),
-            Element::Token(token) => SyntaxElement::Token(token.syntax().clone()),
+            Element::Node(node) => NodeOrToken::Node(node.inner().clone()),
+            Element::Token(token) => NodeOrToken::Token(token.inner().clone()),
         }
     }
 
     /// Gets the underlying [`SyntaxKind`] from the [`Element`].
     pub fn kind(&self) -> SyntaxKind {
         match self {
-            Element::Node(node) => node.syntax().kind(),
-            Element::Token(token) => token.syntax().kind(),
+            Element::Node(node) => node.inner().kind(),
+            Element::Token(token) => token.inner().kind(),
         }
     }
 
     /// Returns whether the [`SyntaxElement`] represents trivia.
     pub fn is_trivia(&self) -> bool {
         match self {
-            Element::Node(node) => node.syntax().kind().is_trivia(),
-            Element::Token(token) => token.syntax().kind().is_trivia(),
+            Element::Node(node) => node.inner().kind().is_trivia(),
+            Element::Token(token) => token.inner().kind().is_trivia(),
         }
     }
 
-    /// Casts a [`SyntaxElement`] to an [`Element`].
-    ///
-    /// This is expected to always succeed, as any [`SyntaxElement`] _should_
-    /// have a corresponding [`Element`] (and, if it doesn't, that's very
-    /// likely a bug).
-    pub fn cast(element: SyntaxElement) -> Self {
-        match &element {
-            NodeOrToken::Node(_) => {
-                Self::Node(Node::cast(element).expect("a syntax node should cast to a Node"))
+    /// Casts an element from a node or a token.
+    pub fn cast(element: NodeOrToken<N, N::Token>) -> Self {
+        match element {
+            NodeOrToken::Node(n) => {
+                Self::Node(Node::cast(n).expect("a syntax node should cast to a Node"))
             }
-            NodeOrToken::Token(_) => {
-                Self::Token(Token::cast(element).expect("a syntax token should cast to a Token"))
+            NodeOrToken::Token(t) => {
+                Self::Token(Token::cast(t).expect("a syntax token should cast to a Token"))
             }
         }
     }

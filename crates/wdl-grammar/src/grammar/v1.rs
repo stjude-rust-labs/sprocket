@@ -2002,7 +2002,7 @@ fn atom_expr(
         Token::HintsKeyword => literal_hints(parser, marker),
         Token::InputKeyword => literal_input(parser, marker),
         Token::OutputKeyword => literal_output(parser, marker),
-        t if ANY_IDENT.contains(t.into_raw()) => name_ref(parser, marker),
+        t if ANY_IDENT.contains(t.into_raw()) => name_ref_expr(parser, marker),
         _ => unreachable!(),
     }
 }
@@ -2102,8 +2102,9 @@ fn object_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, D
     Ok(())
 }
 
-/// Parses a name reference, literal struct expression, or call expression.
-fn name_ref(
+/// Parses a name reference expression, literal struct expression, or call
+/// expression.
+fn name_ref_expr(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
@@ -2129,7 +2130,7 @@ fn name_ref(
     }
 
     // This is a name reference.
-    Ok(marker.complete(parser, SyntaxKind::NameRefNode))
+    Ok(marker.complete(parser, SyntaxKind::NameRefExprNode))
 }
 
 /// Parses a single item in a literal struct.

@@ -9,21 +9,21 @@ use petgraph::graph::DiGraph;
 use petgraph::graph::NodeIndex;
 use petgraph::visit::Visitable;
 use wdl_ast::AstNode;
-use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
-use wdl_ast::TokenStrHash;
+use wdl_ast::TokenText;
+use wdl_ast::TreeNode;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::ConditionalStatement;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::Expr;
-use wdl_ast::v1::NameRef;
+use wdl_ast::v1::NameRefExpr;
 use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::ScatterStatement;
@@ -46,24 +46,24 @@ use crate::document::TASK_VAR_NAME;
 
 /// Represents a node in an task evaluation graph.
 #[derive(Debug, Clone)]
-pub enum TaskGraphNode {
+pub enum TaskGraphNode<N: TreeNode = SyntaxNode> {
     /// The node is an input.
-    Input(Decl),
+    Input(Decl<N>),
     /// The node is a private decl.
-    Decl(Decl),
+    Decl(Decl<N>),
     /// The node is an output decl.
-    Output(Decl),
+    Output(Decl<N>),
     /// The node is a command section.
-    Command(CommandSection),
+    Command(CommandSection<N>),
     /// The node is a `runtime` section.
-    Runtime(RuntimeSection),
+    Runtime(RuntimeSection<N>),
     /// The node is a `requirements`` section.
-    Requirements(RequirementsSection),
+    Requirements(RequirementsSection<N>),
     /// The node is a `hints`` section.
-    Hints(TaskHintsSection),
+    Hints(TaskHintsSection<N>),
 }
 
-impl TaskGraphNode {
+impl<N: TreeNode> TaskGraphNode<N> {
     /// Gets the context of the name introduced by the node.
     ///
     /// Returns `None` if the node did not introduce a name.
@@ -79,7 +79,7 @@ impl TaskGraphNode {
     /// Gets the expression associated with the node.
     ///
     /// Returns `None` if the node has no expression.
-    fn expr(&self) -> Option<Expr> {
+    fn expr(&self) -> Option<Expr<N>> {
         match self {
             Self::Input(decl) | Self::Decl(decl) | Self::Output(decl) => decl.expr(),
             Self::Command(_) | Self::Runtime(_) | Self::Requirements(_) | Self::Hints(_) => None,
@@ -87,11 +87,11 @@ impl TaskGraphNode {
     }
 }
 
-impl fmt::Display for TaskGraphNode {
+impl<N: TreeNode> fmt::Display for TaskGraphNode<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Input(decl) | Self::Decl(decl) | Self::Output(decl) => {
-                write!(f, "`{name}`", name = decl.name().as_str())
+                write!(f, "`{name}`", name = decl.name().text())
             }
             Self::Command(_) => write!(f, "command section"),
             Self::Runtime(_) => write!(f, "runtime section"),
@@ -102,10 +102,10 @@ impl fmt::Display for TaskGraphNode {
 }
 
 /// A builder for task evaluation graphs.
-#[derive(Debug, Default)]
-pub struct TaskGraphBuilder {
+#[derive(Debug)]
+pub struct TaskGraphBuilder<N: TreeNode = SyntaxNode> {
     /// The map of declaration names to node indexes in the graph.
-    names: HashMap<TokenStrHash<Ident>, NodeIndex>,
+    names: HashMap<TokenText<N::Token>, NodeIndex>,
     /// The command node index.
     command: Option<NodeIndex>,
     /// The runtime node index.
@@ -115,10 +115,10 @@ pub struct TaskGraphBuilder {
     /// The hints node index.
     hints: Option<NodeIndex>,
     /// Space for DFS operations when building the graph.
-    space: DfsSpace<NodeIndex, <DiGraph<TaskGraphNode, ()> as Visitable>::Map>,
+    space: DfsSpace<NodeIndex, <DiGraph<TaskGraphNode<N>, ()> as Visitable>::Map>,
 }
 
-impl TaskGraphBuilder {
+impl<N: TreeNode> TaskGraphBuilder<N> {
     /// Builds a new task evaluation graph.
     ///
     /// The nodes are [`TaskGraphNode`] and the edges represent a reverse
@@ -134,9 +134,9 @@ impl TaskGraphBuilder {
     pub fn build(
         mut self,
         version: SupportedVersion,
-        task: &TaskDefinition,
+        task: &TaskDefinition<N>,
         diagnostics: &mut Vec<Diagnostic>,
-    ) -> DiGraph<TaskGraphNode, bool> {
+    ) -> DiGraph<TaskGraphNode<N>, bool> {
         // Populate the declaration types and build a name reference graph
         let mut graph = DiGraph::default();
         let mut saw_inputs = false;
@@ -253,15 +253,15 @@ impl TaskGraphBuilder {
     /// Adds a named node to the graph.
     fn add_named_node(
         &mut self,
-        name: Ident,
-        node: TaskGraphNode,
-        graph: &mut DiGraph<TaskGraphNode, bool>,
+        name: Ident<N::Token>,
+        node: TaskGraphNode<N>,
+        graph: &mut DiGraph<TaskGraphNode<N>, bool>,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Option<NodeIndex> {
         // Check for conflicting nodes
-        if let Some(existing) = self.names.get(name.as_str()) {
+        if let Some(existing) = self.names.get(name.text()) {
             diagnostics.push(name_conflict(
-                name.as_str(),
+                name.text(),
                 node.context().expect("node should have context").into(),
                 graph[*existing]
                     .context()
@@ -272,7 +272,7 @@ impl TaskGraphBuilder {
         }
 
         let index = graph.add_node(node);
-        self.names.insert(TokenStrHash::new(name), index);
+        self.names.insert(name.hashable(), index);
         Some(index)
     }
 
@@ -280,24 +280,24 @@ impl TaskGraphBuilder {
     fn add_section_edges(
         &mut self,
         from: NodeIndex,
-        descendants: impl Iterator<Item = SyntaxNode>,
+        descendants: impl Iterator<Item = NameRefExpr<N>>,
         allow_task_var: bool,
-        graph: &mut DiGraph<TaskGraphNode, bool>,
+        graph: &mut DiGraph<TaskGraphNode<N>, bool>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         // Add edges for any descendant name references
-        for r in descendants.filter_map(NameRef::cast) {
+        for r in descendants {
             let name = r.name();
 
             // Look up the name; we don't check for cycles here as decls can't
             // reference a section.
-            match self.names.get(name.as_str()) {
+            match self.names.get(name.text()) {
                 Some(to) => {
                     graph.update_edge(*to, from, false);
                 }
                 _ => {
-                    if name.as_str() != TASK_VAR_NAME || !allow_task_var {
-                        diagnostics.push(unknown_name(name.as_str(), name.span()));
+                    if name.text() != TASK_VAR_NAME || !allow_task_var {
+                        diagnostics.push(unknown_name(name.text(), name.span()));
                     }
                 }
             }
@@ -309,7 +309,7 @@ impl TaskGraphBuilder {
         &mut self,
         version: SupportedVersion,
         skip: Option<usize>,
-        graph: &mut DiGraph<TaskGraphNode, bool>,
+        graph: &mut DiGraph<TaskGraphNode<N>, bool>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         // Populate edges for any nodes that reference other nodes by name
@@ -338,7 +338,7 @@ impl TaskGraphBuilder {
                         if let CommandPart::Placeholder(p) = part {
                             self.add_section_edges(
                                 from,
-                                p.syntax().descendants(),
+                                p.descendants(),
                                 version >= SupportedVersion::V1(V1::Two),
                                 graph,
                                 diagnostics,
@@ -350,39 +350,21 @@ impl TaskGraphBuilder {
                     // Add name references from the runtime section to any decls in scope
                     let section = section.clone();
                     for item in section.items() {
-                        self.add_section_edges(
-                            from,
-                            item.syntax().descendants(),
-                            false,
-                            graph,
-                            diagnostics,
-                        );
+                        self.add_section_edges(from, item.descendants(), false, graph, diagnostics);
                     }
                 }
                 TaskGraphNode::Requirements(section) => {
                     // Add name references from the requirements section to any decls in scope
                     let section = section.clone();
                     for item in section.items() {
-                        self.add_section_edges(
-                            from,
-                            item.syntax().descendants(),
-                            false,
-                            graph,
-                            diagnostics,
-                        );
+                        self.add_section_edges(from, item.descendants(), false, graph, diagnostics);
                     }
                 }
                 TaskGraphNode::Hints(section) => {
                     // Add name references from the hints section to any decls in scope
                     let section = section.clone();
                     for item in section.items() {
-                        self.add_section_edges(
-                            from,
-                            item.syntax().descendants(),
-                            false,
-                            graph,
-                            diagnostics,
-                        );
+                        self.add_section_edges(from, item.descendants(), false, graph, diagnostics);
                     }
                 }
             }
@@ -393,21 +375,21 @@ impl TaskGraphBuilder {
     fn add_expr_edges(
         &mut self,
         from: NodeIndex,
-        expr: Expr,
+        expr: Expr<N>,
         allow_task_var: bool,
-        graph: &mut DiGraph<TaskGraphNode, bool>,
+        graph: &mut DiGraph<TaskGraphNode<N>, bool>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
-        for r in expr.syntax().descendants().filter_map(NameRef::cast) {
+        for r in expr.descendants::<NameRefExpr<N>>() {
             let name = r.name();
 
             // Only add an edge if the name is known
-            match self.names.get(name.as_str()) {
+            match self.names.get(name.text()) {
                 Some(to) => {
                     // Check to see if the node is self-referential
                     if *to == from {
                         diagnostics.push(self_referential(
-                            name.as_str(),
+                            name.text(),
                             graph[from]
                                 .context()
                                 .expect("node should have context")
@@ -422,7 +404,7 @@ impl TaskGraphBuilder {
                         diagnostics.push(task_reference_cycle(
                             &graph[from],
                             r.span(),
-                            name.as_str(),
+                            name.text(),
                             graph[*to]
                                 .expr()
                                 .expect("should have expr to form a cycle")
@@ -434,8 +416,8 @@ impl TaskGraphBuilder {
                     graph.update_edge(*to, from, false);
                 }
                 _ => {
-                    if name.as_str() != TASK_VAR_NAME || !allow_task_var {
-                        diagnostics.push(unknown_name(name.as_str(), name.span()));
+                    if name.text() != TASK_VAR_NAME || !allow_task_var {
+                        diagnostics.push(unknown_name(name.text(), name.span()));
                     }
                 }
             }
@@ -443,25 +425,38 @@ impl TaskGraphBuilder {
     }
 }
 
+impl<N: TreeNode> Default for TaskGraphBuilder<N> {
+    fn default() -> Self {
+        Self {
+            names: Default::default(),
+            command: Default::default(),
+            runtime: Default::default(),
+            requirements: Default::default(),
+            hints: Default::default(),
+            space: Default::default(),
+        }
+    }
+}
+
 /// Represents a node in an workflow evaluation graph.
 #[derive(Debug, Clone)]
-pub enum WorkflowGraphNode {
+pub enum WorkflowGraphNode<N: TreeNode = SyntaxNode> {
     /// The node is an input.
-    Input(Decl),
+    Input(Decl<N>),
     /// The node is a private decl.
-    Decl(Decl),
+    Decl(Decl<N>),
     /// The node is an output decl.
-    Output(Decl),
+    Output(Decl<N>),
     /// The node is a conditional statement.
     ///
     /// Stores the AST node along with the exit node index.
-    Conditional(ConditionalStatement, NodeIndex),
+    Conditional(ConditionalStatement<N>, NodeIndex),
     /// The node is a scatter statement.
     ///
     /// Stores the AST node along with the exit node index.
-    Scatter(ScatterStatement, NodeIndex),
+    Scatter(ScatterStatement<N>, NodeIndex),
     /// The node is a call statement.
-    Call(CallStatement),
+    Call(CallStatement<N>),
     /// The node is an exit of a conditional statement.
     ///
     /// This is a special node that is paired with each conditional statement
@@ -469,17 +464,17 @@ pub enum WorkflowGraphNode {
     ///
     /// It is the point by which the conditional is being exited and the outputs
     /// of the statement are introduced into the parent scope.
-    ExitConditional(ConditionalStatement),
+    ExitConditional(ConditionalStatement<N>),
     /// The node is an exit of a scatter statement.
     ///
     /// This is a special node that is paired with each scatter statement node.
     ///
     /// It is the point by which the scatter is being exited and the outputs of
     /// the statement are introduced into the parent scope.
-    ExitScatter(ScatterStatement),
+    ExitScatter(ScatterStatement<N>),
 }
 
-impl WorkflowGraphNode {
+impl<N: TreeNode> WorkflowGraphNode<N> {
     /// Gets the context of the name introduced by the node.
     ///
     /// Returns `None` if the node did not introduce a name.
@@ -505,28 +500,27 @@ impl WorkflowGraphNode {
         }
     }
 
-    /// Gets the syntax node associated with the graph node.
-    ///
-    /// Returns `None` for exit nodes.
-    pub fn syntax(&self) -> Option<&SyntaxNode> {
+    /// Gets the inner node representation for the workflow graph node.
+    pub fn inner(&self) -> &N {
         match self {
-            Self::Input(decl) | Self::Decl(decl) | Self::Output(decl) => Some(decl.syntax()),
-            Self::Conditional(statement, _) => Some(statement.syntax()),
-            Self::Scatter(statement, _) => Some(statement.syntax()),
-            Self::Call(statement) => Some(statement.syntax()),
-            Self::ExitConditional(_) | Self::ExitScatter(_) => None,
+            Self::Input(decl) | Self::Output(decl) | Self::Decl(decl) => decl.inner(),
+            Self::Conditional(stmt, ..) => stmt.inner(),
+            Self::Scatter(stmt, ..) => stmt.inner(),
+            Self::Call(stmt) => stmt.inner(),
+            Self::ExitConditional(stmt) => stmt.inner(),
+            Self::ExitScatter(stmt) => stmt.inner(),
         }
     }
 }
 
-impl fmt::Display for WorkflowGraphNode {
+impl<N: TreeNode> fmt::Display for WorkflowGraphNode<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Input(decl) | Self::Decl(decl) | Self::Output(decl) => {
-                write!(f, "`{name}`", name = decl.name().as_str())
+                write!(f, "`{name}`", name = decl.name().text())
             }
             Self::Scatter(statement, _) => {
-                write!(f, "`{name}`", name = statement.variable().as_str())
+                write!(f, "`{name}`", name = statement.variable().text())
             }
             Self::Call(statement) => write!(
                 f,
@@ -536,7 +530,7 @@ impl fmt::Display for WorkflowGraphNode {
                     .map(|a| a.name())
                     .or_else(|| statement.target().names().last())
                     .expect("should have name")
-                    .as_str()
+                    .text()
             ),
             Self::Conditional(..) => write!(f, "conditional expression"),
             Self::ExitConditional(_) | Self::ExitScatter(_) => write!(f, "exit"),
@@ -545,33 +539,33 @@ impl fmt::Display for WorkflowGraphNode {
 }
 
 /// Represents a builder of workflow evaluation graphs.
-#[derive(Debug, Default)]
-pub struct WorkflowGraphBuilder {
+#[derive(Debug)]
+pub struct WorkflowGraphBuilder<N: TreeNode = SyntaxNode> {
     /// The map of declaration names to node indexes in the graph.
-    names: HashMap<TokenStrHash<Ident>, NodeIndex>,
+    names: HashMap<TokenText<N::Token>, NodeIndex>,
     /// A stack of scatter variable names.
-    variables: Vec<Ident>,
+    variables: Vec<Ident<N::Token>>,
     /// A map of AST syntax nodes to their entry and exit nodes in the graph.
     ///
     /// This is used to add edges to the graph for references to names that are
     /// nested inside of conditional or scatter statements.
-    entry_exits: HashMap<SyntaxNode, (NodeIndex, NodeIndex)>,
+    entry_exits: HashMap<N, (NodeIndex, NodeIndex)>,
     /// Space for DFS operations when building the graph.
-    space: DfsSpace<NodeIndex, <DiGraph<TaskGraphNode, ()> as Visitable>::Map>,
+    space: DfsSpace<NodeIndex, <DiGraph<WorkflowGraphNode<N>, ()> as Visitable>::Map>,
     /// The common ancestor finder used when building the graph.
-    ancestor_finder: CommonAncestorFinder,
+    ancestor_finder: CommonAncestorFinder<N>,
 }
 
-impl WorkflowGraphBuilder {
+impl<N: TreeNode> WorkflowGraphBuilder<N> {
     /// Builds a new workflow evaluation graph.
     ///
     /// The nodes are [`WorkflowGraphNode`] and the edges represent a reverse
     /// dependency relationship (A -> B => "node A is depended on by B").
     pub fn build(
         mut self,
-        workflow: &WorkflowDefinition,
+        workflow: &WorkflowDefinition<N>,
         diagnostics: &mut Vec<Diagnostic>,
-    ) -> DiGraph<WorkflowGraphNode, ()> {
+    ) -> DiGraph<WorkflowGraphNode<N>, ()> {
         // Populate the declaration types and build a name reference graph
         let mut graph = DiGraph::new();
         let mut saw_inputs = false;
@@ -651,9 +645,9 @@ impl WorkflowGraphBuilder {
     /// Adds nodes from a workflow statement to the graph.
     fn add_workflow_statement(
         &mut self,
-        statement: WorkflowStatement,
+        statement: WorkflowStatement<N>,
         parent_entry_exit: Option<(NodeIndex, NodeIndex)>,
-        graph: &mut DiGraph<WorkflowGraphNode, ()>,
+        graph: &mut DiGraph<WorkflowGraphNode<N>, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         let entry_exit = match statement {
@@ -664,7 +658,7 @@ impl WorkflowGraphBuilder {
                 let entry = graph.add_node(WorkflowGraphNode::Conditional(statement.clone(), exit));
                 graph.update_edge(entry, exit, ());
                 self.entry_exits
-                    .insert(statement.syntax().clone(), (entry, exit));
+                    .insert(statement.inner().clone(), (entry, exit));
 
                 // Add all of the statement's statements
                 for statement in statement.statements() {
@@ -680,14 +674,14 @@ impl WorkflowGraphBuilder {
                 let entry = graph.add_node(WorkflowGraphNode::Scatter(statement.clone(), exit));
                 graph.update_edge(entry, exit, ());
                 self.entry_exits
-                    .insert(statement.syntax().clone(), (entry, exit));
+                    .insert(statement.inner().clone(), (entry, exit));
 
                 // Push the scatter variable onto the stack if it isn't already conflicting
                 let variable = statement.variable();
-                let pushed = match self.names.get(variable.as_str()) {
+                let pushed = match self.names.get(variable.text()) {
                     Some(existing) => {
                         diagnostics.push(name_conflict(
-                            variable.as_str(),
+                            variable.text(),
                             NameContext::ScatterVariable(variable.span()).into(),
                             graph[*existing]
                                 .context()
@@ -755,14 +749,14 @@ impl WorkflowGraphBuilder {
     /// Adds a named node to the graph.
     fn add_named_node(
         &mut self,
-        name: Ident,
-        node: WorkflowGraphNode,
-        graph: &mut DiGraph<WorkflowGraphNode, ()>,
+        name: Ident<N::Token>,
+        node: WorkflowGraphNode<N>,
+        graph: &mut DiGraph<WorkflowGraphNode<N>, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Option<NodeIndex> {
         // Check for a conflicting name, either from a declaration or from a scatter
         // variable
-        let (context, cont) = match self.names.get(name.as_str()) {
+        let (context, cont) = match self.names.get(name.text()) {
             Some(existing) => {
                 // Conflict with a declaration
                 (
@@ -775,7 +769,7 @@ impl WorkflowGraphBuilder {
                 )
             }
             _ => {
-                match self.variables.iter().find(|i| i.as_str() == name.as_str()) {
+                match self.variables.iter().find(|i| i.text() == name.text()) {
                     Some(existing) => {
                         // Conflict with a scatter variable; we continue to add the node so that any
                         // declaration overrides the scatter variable
@@ -796,7 +790,7 @@ impl WorkflowGraphBuilder {
                     call_conflict(&name, context, call.alias().is_none())
                 }
                 _ => name_conflict(
-                    name.as_str(),
+                    name.text(),
                     node.context().expect("node should have context").into(),
                     context.into(),
                 ),
@@ -810,7 +804,7 @@ impl WorkflowGraphBuilder {
         }
 
         let index = graph.add_node(node);
-        self.names.insert(TokenStrHash::new(name), index);
+        self.names.insert(name.hashable(), index);
         Some(index)
     }
 
@@ -818,7 +812,7 @@ impl WorkflowGraphBuilder {
     fn add_reference_edges(
         &mut self,
         skip: Option<usize>,
-        graph: &mut DiGraph<WorkflowGraphNode, ()>,
+        graph: &mut DiGraph<WorkflowGraphNode<N>, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         // Populate edges for any nodes that reference other nodes by name
@@ -848,7 +842,7 @@ impl WorkflowGraphBuilder {
                             }
                             _ => {
                                 if let Some(to) =
-                                    self.find_node_by_name(name.as_str(), input.syntax().clone())
+                                    self.find_node_by_name(name.text(), input.inner().clone())
                                 {
                                     // Check for a dependency cycle
                                     if has_path_connecting(
@@ -860,7 +854,7 @@ impl WorkflowGraphBuilder {
                                         diagnostics.push(workflow_reference_cycle(
                                             &graph[from],
                                             name.span(),
-                                            name.as_str(),
+                                            name.text(),
                                             graph[to]
                                                 .context()
                                                 .expect("node should have context")
@@ -878,15 +872,14 @@ impl WorkflowGraphBuilder {
                     // Add edges to other the requested calls
                     for after in statement.after() {
                         let name = after.name();
-                        if let Some(to) =
-                            self.find_node_by_name(name.as_str(), after.syntax().clone())
+                        if let Some(to) = self.find_node_by_name(name.text(), after.inner().clone())
                         {
                             // Check for a dependency cycle
                             if has_path_connecting(graph as &_, from, to, Some(&mut self.space)) {
                                 diagnostics.push(workflow_reference_cycle(
                                     &graph[from],
                                     name.span(),
-                                    name.as_str(),
+                                    name.text(),
                                     graph[to]
                                         .context()
                                         .expect("node should have context")
@@ -910,20 +903,20 @@ impl WorkflowGraphBuilder {
     fn add_expr_edges(
         &mut self,
         from: NodeIndex,
-        expr: Expr,
-        graph: &mut DiGraph<WorkflowGraphNode, ()>,
+        expr: Expr<N>,
+        graph: &mut DiGraph<WorkflowGraphNode<N>, ()>,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
-        for r in expr.syntax().descendants().filter_map(NameRef::cast) {
+        for r in expr.inner().descendants().filter_map(NameRefExpr::cast) {
             let name = r.name();
 
             // Only add an edge if the name is known
-            match self.find_node_by_name(name.as_str(), expr.syntax().clone()) {
+            match self.find_node_by_name(name.text(), expr.inner().clone()) {
                 Some(to) => {
                     // Check to see if the node is self-referential
                     if to == from {
                         diagnostics.push(self_referential(
-                            name.as_str(),
+                            name.text(),
                             graph[from]
                                 .context()
                                 .expect("node should have a context")
@@ -938,7 +931,7 @@ impl WorkflowGraphBuilder {
                         diagnostics.push(workflow_reference_cycle(
                             &graph[from],
                             r.span(),
-                            name.as_str(),
+                            name.text(),
                             graph[to]
                                 .context()
                                 .expect("node should have context")
@@ -950,7 +943,7 @@ impl WorkflowGraphBuilder {
                     self.add_dependency_edge(from, to, graph);
                 }
                 _ => {
-                    diagnostics.push(unknown_name(name.as_str(), name.span()));
+                    diagnostics.push(unknown_name(name.text(), name.span()));
                 }
             }
         }
@@ -975,19 +968,13 @@ impl WorkflowGraphBuilder {
         &mut self,
         from: NodeIndex,
         to: NodeIndex,
-        graph: &mut DiGraph<WorkflowGraphNode, ()>,
+        graph: &mut DiGraph<WorkflowGraphNode<N>, ()>,
     ) {
         assert!(from != to, "cannot add a self dependency edge");
 
         let (from, to) = match self.ancestor_finder.find_children_of_common_ancestor(
-            graph[from]
-                .syntax()
-                .expect("should have syntax node")
-                .ancestors(),
-            graph[to]
-                .syntax()
-                .expect("should have syntax node")
-                .ancestors(),
+            graph[from].inner().ancestors(),
+            graph[to].inner().ancestors(),
             SyntaxKind::WorkflowDefinitionNode,
         ) {
             Some((f, t)) => {
@@ -1019,7 +1006,7 @@ impl WorkflowGraphBuilder {
     /// Finds a node in the graph by name for the referencing expression.
     ///
     /// This takes into account finding a scatter variable that's in scope.
-    fn find_node_by_name(&self, name: &str, expr: SyntaxNode) -> Option<NodeIndex> {
+    fn find_node_by_name(&self, name: &str, expr: N) -> Option<NodeIndex> {
         // If the name came from a declaration or call, return the node
         if let Some(index) = self.names.get(name) {
             return Some(*index);
@@ -1032,7 +1019,7 @@ impl WorkflowGraphBuilder {
             if let SyntaxKind::ScatterStatementNode = parent.kind() {
                 let statement = ScatterStatement::cast(parent.clone()).expect("node should cast");
                 let variable = statement.variable();
-                if variable.as_str() == name {
+                if variable.text() == name {
                     // Return the entry node for the scatter statement
                     return Some(self.entry_exits[&parent].0);
                 }
@@ -1045,26 +1032,38 @@ impl WorkflowGraphBuilder {
     }
 }
 
+impl<N: TreeNode> Default for WorkflowGraphBuilder<N> {
+    fn default() -> Self {
+        Self {
+            names: Default::default(),
+            variables: Default::default(),
+            entry_exits: Default::default(),
+            space: Default::default(),
+            ancestor_finder: Default::default(),
+        }
+    }
+}
+
 /// A helper for finding the children of a common ancestor in the AST.
 ///
 /// This exists so we can reuse previously allocated space when adding
 /// dependency edges.
-#[derive(Debug, Default)]
-struct CommonAncestorFinder {
+#[derive(Debug)]
+struct CommonAncestorFinder<N: TreeNode = SyntaxNode> {
     /// The stack of ancestors for the `first` node.
-    first: Vec<SyntaxNode>,
+    first: Vec<N>,
     /// The stack of ancestors for the `second` node.
-    second: Vec<SyntaxNode>,
+    second: Vec<N>,
 }
 
-impl CommonAncestorFinder {
+impl<N: TreeNode> CommonAncestorFinder<N> {
     /// Finds the children of a common ancestor in two list of ancestors.
     fn find_children_of_common_ancestor(
         &mut self,
-        first: impl Iterator<Item = SyntaxNode>,
-        second: impl Iterator<Item = SyntaxNode>,
+        first: impl Iterator<Item = N>,
+        second: impl Iterator<Item = N>,
         stop: SyntaxKind,
-    ) -> Option<(SyntaxNode, SyntaxNode)> {
+    ) -> Option<(N, N)> {
         self.first.clear();
         for ancestor in first {
             self.first.push(ancestor.clone());
@@ -1090,5 +1089,14 @@ impl CommonAncestorFinder {
         }
 
         None
+    }
+}
+
+impl<N: TreeNode> Default for CommonAncestorFinder<N> {
+    fn default() -> Self {
+        Self {
+            first: Default::default(),
+            second: Default::default(),
+        }
     }
 }

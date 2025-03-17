@@ -14,7 +14,7 @@ use crate::rules::RULE_MAP;
 /// Detect if a comment is in-line or not by looking for `\n` in the prior
 /// whitespace.
 pub fn is_inline_comment(token: &Comment) -> bool {
-    if let Some(prior) = token.syntax().prev_sibling_or_token() {
+    if let Some(prior) = token.inner().prev_sibling_or_token() {
         let whitespace = prior.kind() == SyntaxKind::Whitespace;
         if !whitespace {
             return true;

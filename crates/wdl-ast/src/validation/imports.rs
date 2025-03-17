@@ -1,6 +1,6 @@
 //! Validation of imports.
 
-use crate::AstNodeExt;
+use crate::AstNode;
 use crate::Diagnostic;
 use crate::Diagnostics;
 use crate::Document;

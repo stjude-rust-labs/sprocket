@@ -2,6 +2,7 @@
 
 use maud::Markup;
 use maud::html;
+use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::MetadataValue;
@@ -37,7 +38,7 @@ impl Parameter {
 
     /// Get the name of the parameter.
     pub fn name(&self) -> String {
-        self.decl.name().as_str().to_owned()
+        self.decl.name().text().to_owned()
     }
 
     /// Get the type of the parameter.
@@ -54,7 +55,7 @@ impl Parameter {
     pub fn expr(&self) -> String {
         self.decl
             .expr()
-            .map(|expr| expr.syntax().to_string())
+            .map(|expr| expr.text().to_string())
             .unwrap_or("None".to_string())
     }
 
@@ -75,9 +76,9 @@ impl Parameter {
     pub fn group(&self) -> Option<Group> {
         if let Some(MetadataValue::Object(o)) = &self.meta {
             for item in o.items() {
-                if item.name().as_str() == "group" {
+                if item.name().text() == "group" {
                     if let MetadataValue::String(s) = item.value() {
-                        return s.text().map(|t| t.as_str().to_string()).map(Group);
+                        return s.text().map(|t| t.text().to_string()).map(Group);
                     }
                 }
             }
@@ -92,7 +93,7 @@ impl Parameter {
                 return render_value(meta);
             } else if let MetadataValue::Object(o) = meta {
                 for item in o.items() {
-                    if item.name().as_str() == "description" {
+                    if item.name().text() == "description" {
                         if let MetadataValue::String(_) = item.value() {
                             return render_value(&item.value());
                         }
@@ -109,13 +110,13 @@ impl Parameter {
     pub fn render_remaining_meta(&self) -> Markup {
         if let Some(MetadataValue::Object(o)) = &self.meta {
             let filtered_items = o.items().filter(|item| {
-                item.name().as_str() != "description" && item.name().as_str() != "group"
+                item.name().text() != "description" && item.name().text() != "group"
             });
             return html! {
                 ul {
                     @for item in filtered_items {
                         li {
-                            b { (item.name().as_str()) ":" } " " (render_value(&item.value()))
+                            b { (item.name().text()) ":" } " " (render_value(&item.value()))
                         }
                     }
                 }

@@ -23,7 +23,7 @@
 
 use rowan::WalkEvent;
 
-use crate::AstToken as _;
+use crate::AstToken;
 use crate::Comment;
 use crate::Document;
 use crate::SupportedVersion;
@@ -312,7 +312,7 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
 
                 let version = document
                     .version_statement()
-                    .and_then(|s| s.version().as_str().parse::<SupportedVersion>().ok())
+                    .and_then(|s| s.version().text().parse::<SupportedVersion>().ok())
                     .expect("only WDL documents with supported versions can be visited");
 
                 visitor.document(state, reason, &document, version)
@@ -425,7 +425,7 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
             SyntaxKind::LiteralNullNode => {
                 // Skip these nodes as they're part of a metadata section
             }
-            k if Expr::can_cast(k) => {
+            k if Expr::<SyntaxNode>::can_cast(k) => {
                 visitor.expr(
                     state,
                     reason,
@@ -457,7 +457,7 @@ pub(crate) fn visit<V: Visitor>(root: &SyntaxNode, state: &mut V::State, visitor
             | SyntaxKind::LiteralInputNode
             | SyntaxKind::LiteralOutputNode
             | SyntaxKind::ParenthesizedExprNode
-            | SyntaxKind::NameRefNode
+            | SyntaxKind::NameRefExprNode
             | SyntaxKind::IfExprNode
             | SyntaxKind::LogicalNotExprNode
             | SyntaxKind::NegationExprNode

@@ -8,7 +8,6 @@ use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::ImportStatement;
@@ -85,7 +84,7 @@ impl Visitor for ImportSortRule {
 
         // Collect all import statements
         let imports: Vec<_> = doc
-            .syntax()
+            .inner()
             .children_with_tokens()
             .filter(|n| n.kind() == SyntaxKind::ImportStatementNode)
             .filter_map(|c| c.into_node())
@@ -108,7 +107,7 @@ impl Visitor for ImportSortRule {
                 .uri()
                 .text()
                 .expect("import uri");
-            a_uri.as_str().cmp(b_uri.as_str())
+            a_uri.text().cmp(b_uri.text())
         });
 
         if imports != sorted_imports {
@@ -118,7 +117,7 @@ impl Visitor for ImportSortRule {
                 .first_token()
                 .expect("node should have a first token")
                 .text_range()
-                .to_span();
+                .into();
             state.add(import_not_sorted(
                 span,
                 sorted_imports
@@ -142,7 +141,7 @@ impl Visitor for ImportSortRule {
 
         // Check for comments inside this import statement.
         let internal_comments = stmt
-            .syntax()
+            .inner()
             .children_with_tokens()
             .filter(|c| c.kind() == SyntaxKind::Comment)
             .map(|c| c.into_token().unwrap());
@@ -151,7 +150,7 @@ impl Visitor for ImportSortRule {
             // Since this rule can only be excepted in a document-wide fashion,
             // if the rule is running we can directly add the diagnostic
             // without checking for the exceptable nodes
-            state.add(improper_comment(comment.text_range().to_span()));
+            state.add(improper_comment(comment.text_range().into()));
         }
     }
 }

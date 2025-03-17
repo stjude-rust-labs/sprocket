@@ -114,8 +114,8 @@ impl Visitor for MissingOutputRule {
         if task.output().is_none() {
             let name = task.name();
             state.exceptable_add(
-                missing_output_section(name.as_str(), Context::Task, name.span()),
-                SyntaxElement::from(task.syntax().clone()),
+                missing_output_section(name.text(), Context::Task, name.span()),
+                SyntaxElement::from(task.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }
@@ -134,8 +134,8 @@ impl Visitor for MissingOutputRule {
         if workflow.output().is_none() {
             let name = workflow.name();
             state.exceptable_add(
-                missing_output_section(name.as_str(), Context::Workflow, name.span()),
-                SyntaxElement::from(workflow.syntax().clone()),
+                missing_output_section(name.text(), Context::Workflow, name.span()),
+                SyntaxElement::from(workflow.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }

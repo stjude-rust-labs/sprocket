@@ -3,34 +3,29 @@
 use crate::AstToken;
 use crate::SyntaxKind;
 use crate::SyntaxToken;
+use crate::TreeToken;
 
 /// Defines an AST token struct.
 macro_rules! define_token_struct {
     ($name:ident, $doc:literal) => {
         #[derive(Clone, Debug)]
         #[doc = concat!("A token representing ", $doc, ".")]
-        pub struct $name(SyntaxToken);
+        pub struct $name<T: TreeToken = SyntaxToken>(T);
 
-        impl AstToken for $name {
-            fn can_cast(kind: SyntaxKind) -> bool
-            where
-                Self: Sized,
-            {
+        impl<T: TreeToken> AstToken<T> for $name<T> {
+            fn can_cast(kind: SyntaxKind) -> bool {
                 matches!(kind, SyntaxKind::$name)
             }
 
-            fn cast(syntax: SyntaxToken) -> Option<Self>
-            where
-                Self: Sized,
-            {
-                if Self::can_cast(syntax.kind()) {
-                    return Some(Self(syntax));
+            fn cast(inner: T) -> Option<Self> {
+                if Self::can_cast(inner.kind()) {
+                    return Some(Self(inner));
                 }
 
                 None
             }
 
-            fn syntax(&self) -> &SyntaxToken {
+            fn inner(&self) -> &T {
                 &self.0
             }
         }

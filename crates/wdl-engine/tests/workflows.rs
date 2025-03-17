@@ -45,6 +45,7 @@ use wdl_analysis::Analyzer;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::document::Document;
 use wdl_analysis::rules;
+use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::EvaluationError;
@@ -226,7 +227,7 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
 
 /// Creates a string from the given diagnostic.
 fn diagnostic_to_string(document: &Document, path: &str, diagnostic: &Diagnostic) -> String {
-    let source = document.node().syntax().text().to_string();
+    let source = document.root().text().to_string();
     let file = SimpleFile::new(path, &source);
 
     let mut buffer = Buffer::no_color();

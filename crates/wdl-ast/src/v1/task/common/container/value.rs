@@ -3,22 +3,22 @@
 
 use std::ops::Deref;
 
+use crate::AstNode;
+use crate::TreeNode;
 use crate::v1::Expr;
 use crate::v1::LiteralExpr;
 
 pub mod uri;
 
 pub use uri::Uri;
+use wdl_grammar::SyntaxNode;
 
 /// An error when parsing a [`Uri`] from an expression.
 #[derive(Debug)]
 pub enum ParseUriError {
     /// Attempted to create a [`Uri`] from an invalid expression within an
     /// array.
-    InvalidExpressionInArray {
-        /// The expression from which the [`Uri`] was attempted to be created.
-        expr: Expr,
-    },
+    InvalidExpressionInArray(String),
 
     /// An error occurred when parsing the text value of the expression.
     Uri(uri::Error),
@@ -28,11 +28,9 @@ impl std::fmt::Display for ParseUriError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParseUriError::Uri(err) => write!(f, "uri error: {err}"),
-            ParseUriError::InvalidExpressionInArray { expr } => write!(
-                f,
-                "uri cannot be created from the expression: {expr}",
-                expr = expr.syntax()
-            ),
+            ParseUriError::InvalidExpressionInArray(expr) => {
+                write!(f, "uri cannot be created from the expression: {expr}")
+            }
         }
     }
 }
@@ -48,10 +46,7 @@ pub enum Error {
     ParseArray(Vec<ParseUriError>),
 
     /// Attempted to create a [`Uri`] from an invalid expression.
-    InvalidExpression {
-        /// The expression from which the [`Uri`] was attempted to be created.
-        expr: Expr,
-    },
+    InvalidExpression(String),
 }
 
 impl std::fmt::Display for Error {
@@ -69,11 +64,9 @@ impl std::fmt::Display for Error {
                         .join("; ")
                 )
             }
-            Error::InvalidExpression { expr } => write!(
-                f,
-                "uri cannot be created from the expression: {expr}",
-                expr = expr.syntax()
-            ),
+            Error::InvalidExpression(expr) => {
+                write!(f, "uri cannot be created from the expression: {expr}")
+            }
         }
     }
 }
@@ -85,17 +78,17 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// The kind of the `container` item value.
 #[derive(Debug, Eq, PartialEq)]
-pub enum Kind {
+pub enum Kind<N: TreeNode = SyntaxNode> {
     /// A single container URI as a string literal.
-    String(Uri),
+    String(Uri<N>),
 
     /// An array of container URIs as an array.
-    Array(Vec<Uri>),
+    Array(Vec<Uri<N>>),
 }
 
-impl Kind {
+impl<N: TreeNode> Kind<N> {
     /// Gets the [`Uri`] present in this [`Value`] through an iterator.
-    pub fn uris(&self) -> Box<dyn Iterator<Item = &Uri> + '_> {
+    pub fn uris(&self) -> Box<dyn Iterator<Item = &Uri<N>> + '_> {
         match self {
             Kind::String(uri) => Box::new(std::iter::once(uri)),
             Kind::Array(uris) => Box::new(uris.iter()),
@@ -107,7 +100,7 @@ impl Kind {
     /// - If the value is a [`Kind::String`], a reference to the inner [`Uri`]
     ///   is returned.
     /// - Else, `None` is returned.
-    pub fn as_single_uri(&self) -> Option<&Uri> {
+    pub fn as_single_uri(&self) -> Option<&Uri<N>> {
         match self {
             Kind::String(uri) => Some(uri),
             _ => None,
@@ -118,7 +111,7 @@ impl Kind {
     ///
     /// - If the value is a [`Kind::String`], the inner [`Uri`] is returned.
     /// - Else, `None` is returned.
-    pub fn into_single_uri(self) -> Option<Uri> {
+    pub fn into_single_uri(self) -> Option<Uri<N>> {
         match self {
             Kind::String(uri) => Some(uri),
             _ => None,
@@ -130,7 +123,7 @@ impl Kind {
     /// # Panics
     ///
     /// Panics if the kind of the value is not [`Kind::String`].
-    pub fn unwrap_single_uri(self) -> Uri {
+    pub fn unwrap_single_uri(self) -> Uri<N> {
         self.into_single_uri()
             .expect("value is not a single, string literal URI")
     }
@@ -140,7 +133,7 @@ impl Kind {
     /// - If the value is a [`Kind::Array`], a reference to the inner [`Vec`] of
     ///   [`Uri`]s is returned.
     /// - Else, `None` is returned.
-    pub fn as_multiple_uris(&self) -> Option<&Vec<Uri>> {
+    pub fn as_multiple_uris(&self) -> Option<&Vec<Uri<N>>> {
         match self {
             Kind::Array(uri) => Some(uri),
             _ => None,
@@ -152,7 +145,7 @@ impl Kind {
     /// - If the value is a [`Kind::Array`], the inner [`Vec`] of [`Uri`]s is
     ///   returned.
     /// - Else, `None` is returned.
-    pub fn into_multiple_uris(self) -> Option<Vec<Uri>> {
+    pub fn into_multiple_uris(self) -> Option<Vec<Uri<N>>> {
         match self {
             Kind::Array(uri) => Some(uri),
             _ => None,
@@ -164,7 +157,7 @@ impl Kind {
     /// # Panics
     ///
     /// Panics if the value is not an array of uris.
-    pub fn unwrap_multiple_uris(self) -> Vec<Uri> {
+    pub fn unwrap_multiple_uris(self) -> Vec<Uri<N>> {
         self.into_multiple_uris()
             .expect("value is not an array of uris")
     }
@@ -172,58 +165,58 @@ impl Kind {
 
 /// The value of the `container` item.
 #[derive(Debug, Eq, PartialEq)]
-pub struct Value {
+pub struct Value<N: TreeNode = SyntaxNode> {
     /// The kind of the value.
-    kind: Kind,
+    kind: Kind<N>,
 
     /// The expression backing the value.
-    expr: Expr,
+    expr: Expr<N>,
 }
 
-impl Value {
+impl<N: TreeNode> Value<N> {
     /// Gets the kind of the [`Value`].
-    pub fn kind(&self) -> &Kind {
+    pub fn kind(&self) -> &Kind<N> {
         &self.kind
     }
 
     /// Consumes `self` and returns the kind of the [`Value`].
-    pub fn into_kind(self) -> Kind {
+    pub fn into_kind(self) -> Kind<N> {
         self.kind
     }
 
     /// Gets the backing expression of the [`Value`].
-    pub fn expr(&self) -> &Expr {
+    pub fn expr(&self) -> &Expr<N> {
         &self.expr
     }
 
     /// Consumes `self` and returns the node of the [`Value`].
-    pub fn into_expr(self) -> Expr {
+    pub fn into_expr(self) -> Expr<N> {
         self.expr
     }
 
     /// Consumes `self` and returns the parts of the [`Value`].
-    pub fn into_parts(self) -> (Kind, Expr) {
+    pub fn into_parts(self) -> (Kind<N>, Expr<N>) {
         (self.kind, self.expr)
     }
 }
 
-impl Deref for Value {
-    type Target = Kind;
+impl<N: TreeNode> Deref for Value<N> {
+    type Target = Kind<N>;
 
     fn deref(&self) -> &Self::Target {
         &self.kind
     }
 }
 
-impl TryFrom<Expr> for Value {
+impl<N: TreeNode> TryFrom<Expr<N>> for Value<N> {
     type Error = Error;
 
-    fn try_from(expr: Expr) -> Result<Self> {
+    fn try_from(expr: Expr<N>) -> Result<Self> {
         if let Expr::Literal(literal) = &expr {
             match literal {
                 // A single URI as a literal string.
                 LiteralExpr::String(s) => {
-                    return Uri::try_from(s.clone())
+                    return Uri::<N>::try_from(s.clone())
                         .map(|uri| Value {
                             kind: Kind::String(uri),
                             expr,
@@ -232,53 +225,36 @@ impl TryFrom<Expr> for Value {
                 }
                 // An array of literal strings.
                 LiteralExpr::Array(a) => {
-                    let mut all_errors: Vec<ParseUriError> = Vec::new();
+                    let mut errors: Vec<ParseUriError> = Vec::new();
 
-                    let (errors, literal_strings): (Vec<_>, Vec<_>) = a
+                    let uris: Vec<_> = a
                         .elements()
-                        .map(|expr| {
-                            expr.clone()
+                        .filter_map(|expr| {
+                            match expr
+                                .clone()
                                 .into_literal()
                                 .and_then(|literal| literal.into_string())
-                                .ok_or(ParseUriError::InvalidExpressionInArray { expr })
+                            {
+                                Some(s) => match Uri::try_from(s) {
+                                    Ok(uri) => Some(uri),
+                                    Err(e) => {
+                                        errors.push(ParseUriError::Uri(e));
+                                        None
+                                    }
+                                },
+                                None => {
+                                    errors.push(ParseUriError::InvalidExpressionInArray(
+                                        expr.text().to_string(),
+                                    ));
+                                    None
+                                }
+                            }
                         })
-                        .partition(std::result::Result::is_err);
-
-                    // SAFETY: we ensured that only results that are [`Err()`] are
-                    // partitioned into this vec, so each of these will always
-                    // unwrap.
-                    all_errors.extend(errors.into_iter().map(std::result::Result::unwrap_err));
-
-                    let (errors, uris): (Vec<_>, Vec<_>) = literal_strings
-                        .into_iter()
-                        // SAFETY: we ensured that only results that are [`Ok()`] are
-                        // partitioned into this vec, so each of these will always
-                        // unwrap.
-                        .map(std::result::Result::unwrap)
-                        .map(Uri::try_from)
-                        .partition(std::result::Result::is_err);
-
-                    // SAFETY: we ensured that only results that are [`Err()`] are
-                    // partitioned into this vec, so each of these will always
-                    // unwrap.
-                    all_errors.extend(
-                        errors
-                            .into_iter()
-                            .map(std::result::Result::unwrap_err)
-                            .map(ParseUriError::Uri),
-                    );
-
-                    if !all_errors.is_empty() {
-                        return Err(Error::ParseArray(all_errors));
-                    }
-
-                    let uris = uris
-                        .into_iter()
-                        // SAFETY: we ensured that only results that are [`Ok()`] are
-                        // partitioned into this vec, so each of these will always
-                        // unwrap.
-                        .map(std::result::Result::unwrap)
                         .collect();
+
+                    if !errors.is_empty() {
+                        return Err(Error::ParseArray(errors));
+                    }
 
                     return Ok(Value {
                         kind: Kind::Array(uris),
@@ -289,7 +265,7 @@ impl TryFrom<Expr> for Value {
             }
         }
 
-        Err(Error::InvalidExpression { expr })
+        Err(Error::InvalidExpression(expr.text().to_string()))
     }
 }
 

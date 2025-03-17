@@ -54,7 +54,7 @@ RootNode@0..374
           LiteralStringText@153..160 "Hello, "
           PlaceholderNode@160..164
             PlaceholderOpen@160..162 "~{"
-            NameRefNode@162..163
+            NameRefExprNode@162..163
               Ident@162..163 "a"
             CloseBrace@163..164 "}"
           DoubleQuote@164..165 "\""
@@ -127,7 +127,7 @@ RootNode@0..374
           LiteralStringText@288..295 "Hello, "
           PlaceholderNode@295..299
             PlaceholderOpen@295..297 "~{"
-            NameRefNode@297..298
+            NameRefExprNode@297..298
               Ident@297..298 "a"
             CloseBrace@298..299 "}"
           DoubleQuote@299..300 "\""

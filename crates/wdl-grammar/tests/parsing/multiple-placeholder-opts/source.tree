@@ -63,7 +63,7 @@ RootNode@0..156
               LiteralStringText@147..148 "N"
               DoubleQuote@148..149 "\""
           Whitespace@149..150 " "
-          NameRefNode@150..151
+          NameRefExprNode@150..151
             Ident@150..151 "v"
           CloseBrace@151..152 "}"
         DoubleQuote@152..153 "\""

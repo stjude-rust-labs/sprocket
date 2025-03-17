@@ -41,6 +41,7 @@ use wdl::cli::parse_inputs;
 use wdl::cli::run;
 use wdl::cli::validate_inputs;
 use wdl_analysis::path_to_uri;
+use wdl_ast::AstNode;
 use wdl_ast::Node;
 use wdl_ast::Severity;
 use wdl_doc::document_workspace;
@@ -149,7 +150,7 @@ impl CheckCommand {
                 bail!(e.to_owned());
             }
             document.diagnostics().iter().for_each(|d| {
-                let source = document.node().syntax().text().to_string();
+                let source = document.root().text().to_string();
                 emit_diagnostics(&document.uri().to_string(), &source, &[d.clone()]).unwrap();
             });
         }

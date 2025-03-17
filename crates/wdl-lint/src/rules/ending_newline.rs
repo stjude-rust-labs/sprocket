@@ -1,6 +1,7 @@
 //! A lint rule for newlines at the end of the document.
 
 use wdl_ast::Ast;
+use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
@@ -90,7 +91,7 @@ impl Visitor for EndingNewlineRule {
         }
 
         // Get the last token in the document and see if it's whitespace
-        match doc.syntax().last_child_or_token() {
+        match doc.inner().last_child_or_token() {
             Some(last) if last.kind() == SyntaxKind::Whitespace => {
                 // It's whitespace, check if it ends with a newline
                 let last = last.into_token().expect("whitespace should be a token");

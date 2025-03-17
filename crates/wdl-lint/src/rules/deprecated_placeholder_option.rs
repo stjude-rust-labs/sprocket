@@ -1,7 +1,6 @@
 //! A lint rule for flagging placeholder options as deprecated.
 
 use wdl_ast::AstNode;
-use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
@@ -154,7 +153,7 @@ impl Visitor for DeprecatedPlaceholderOptionRule {
             };
             state.exceptable_add(
                 diagnostic,
-                SyntaxElement::from(placeholder.syntax().clone()),
+                SyntaxElement::from(placeholder.inner().clone()),
                 &self.exceptable_nodes(),
             )
         }

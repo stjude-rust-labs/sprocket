@@ -1,9 +1,11 @@
 //! The `container` item within the `runtime` block.
 
-use rowan::ast::AstNode;
-use wdl_grammar::WorkflowDescriptionLanguage;
+use wdl_grammar::SyntaxKind;
+use wdl_grammar::SyntaxNode;
 
+use crate::AstNode;
 use crate::AstToken;
+use crate::TreeNode;
 use crate::v1::RuntimeItem;
 use crate::v1::TASK_REQUIREMENT_CONTAINER;
 use crate::v1::TASK_REQUIREMENT_CONTAINER_ALIAS;
@@ -12,44 +14,36 @@ use crate::v1::common::container::value::Value;
 
 /// The `container` item within a `runtime` block.
 #[derive(Debug)]
-pub struct Container(RuntimeItem);
+pub struct Container<N: TreeNode = SyntaxNode>(RuntimeItem<N>);
 
-impl Container {
+impl<N: TreeNode> Container<N> {
     /// Gets the [`Value`] from a [`Container`] (if it can be parsed).
-    pub fn value(&self) -> value::Result<Value> {
+    pub fn value(&self) -> value::Result<Value<N>> {
         Value::try_from(self.0.expr())
     }
 }
 
-impl AstNode for Container {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: <Self::Language as rowan::Language>::Kind) -> bool
-    where
-        Self: Sized,
-    {
-        RuntimeItem::can_cast(kind)
+impl<N: TreeNode> AstNode<N> for Container<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        RuntimeItem::<N>::can_cast(kind)
     }
 
-    fn cast(node: rowan::SyntaxNode<Self::Language>) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        RuntimeItem::cast(node).and_then(|item| Container::try_from(item).ok())
+    fn cast(inner: N) -> Option<Self> {
+        RuntimeItem::cast(inner).and_then(|item| Container::try_from(item).ok())
     }
 
-    fn syntax(&self) -> &rowan::SyntaxNode<Self::Language> {
-        self.0.syntax()
+    fn inner(&self) -> &N {
+        self.0.inner()
     }
 }
 
-impl TryFrom<RuntimeItem> for Container {
+impl<N: TreeNode> TryFrom<RuntimeItem<N>> for Container<N> {
     type Error = ();
 
-    fn try_from(value: RuntimeItem) -> Result<Self, Self::Error> {
+    fn try_from(value: RuntimeItem<N>) -> Result<Self, Self::Error> {
         if [TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS]
             .iter()
-            .any(|key| value.name().as_str() == *key)
+            .any(|key| value.name().text() == *key)
         {
             return Ok(Self(value));
         }
@@ -76,7 +70,7 @@ task hello {
 
         assert!(diagnostics.is_empty());
 
-        let container = document
+        let section = document
             .ast()
             .as_v1()
             .expect("v1 ast")
@@ -84,9 +78,9 @@ task hello {
             .next()
             .expect("the 'hello' task to exist")
             .runtime()
-            .expect("the 'runtime' block to exist")
-            .items()
-            .filter_map(|p| p.into_container());
+            .expect("the 'runtime' block to exist");
+
+        let container = section.items().filter_map(|p| p.into_container());
 
         assert!(container.count() == 1);
     }
@@ -105,7 +99,7 @@ task hello {
 
         assert!(diagnostics.is_empty());
 
-        let container = document
+        let section = document
             .ast()
             .as_v1()
             .expect("v1 ast")
@@ -113,9 +107,9 @@ task hello {
             .next()
             .expect("the 'hello' task to exist")
             .runtime()
-            .expect("the 'runtime' block to exist")
-            .items()
-            .filter_map(|p| p.into_container());
+            .expect("the 'runtime' block to exist");
+
+        let container = section.items().filter_map(|p| p.into_container());
 
         assert!(container.count() == 0);
     }
@@ -134,7 +128,7 @@ task hello {
 
         assert!(diagnostics.is_empty());
 
-        let container = document
+        let section = document
             .ast()
             .as_v1()
             .expect("v1 ast")
@@ -142,9 +136,9 @@ task hello {
             .next()
             .expect("the 'hello' task to exist")
             .runtime()
-            .expect("the 'runtime' block to exist")
-            .items()
-            .filter_map(|p| p.into_container());
+            .expect("the 'runtime' block to exist");
+
+        let container = section.items().filter_map(|p| p.into_container());
 
         assert!(container.count() == 1);
     }

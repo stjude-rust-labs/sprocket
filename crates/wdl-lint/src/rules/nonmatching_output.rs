@@ -2,7 +2,6 @@
 
 use indexmap::IndexMap;
 use wdl_ast::AstNode;
-use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
@@ -11,7 +10,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::MetadataSection;
@@ -260,14 +258,14 @@ impl Visitor for NonmatchingOutputRule<'_> {
     ) {
         match reason {
             VisitReason::Enter => {
-                self.name = Some(workflow.name().as_str().to_string());
+                self.name = Some(workflow.name().text().to_string());
                 self.ty = Some("workflow");
             }
             VisitReason::Exit => {
                 handle_meta_outputs_and_reset(
                     state,
                     self,
-                    SyntaxElement::from(workflow.syntax().clone()),
+                    SyntaxElement::from(workflow.inner().clone()),
                 );
             }
         }
@@ -281,14 +279,14 @@ impl Visitor for NonmatchingOutputRule<'_> {
     ) {
         match reason {
             VisitReason::Enter => {
-                self.name = Some(task.name().as_str().to_string());
+                self.name = Some(task.name().text().to_string());
                 self.ty = Some("task");
             }
             VisitReason::Exit => {
                 handle_meta_outputs_and_reset(
                     state,
                     self,
-                    SyntaxElement::from(task.syntax().clone()),
+                    SyntaxElement::from(task.inner().clone()),
                 );
             }
         }
@@ -304,11 +302,11 @@ impl Visitor for NonmatchingOutputRule<'_> {
             VisitReason::Enter => {
                 self.current_meta_span = Some(
                     section
-                        .syntax()
+                        .inner()
                         .first_token()
                         .expect("metadata section should have tokens")
                         .text_range()
-                        .to_span(),
+                        .into(),
                 );
                 self.in_meta = true;
             }
@@ -328,11 +326,11 @@ impl Visitor for NonmatchingOutputRule<'_> {
             VisitReason::Enter => {
                 self.current_output_span = Some(
                     section
-                        .syntax()
+                        .inner()
                         .first_token()
                         .expect("output section should have tokens")
                         .text_range()
-                        .to_span(),
+                        .into(),
                 );
                 self.in_output = true;
             }
@@ -350,7 +348,7 @@ impl Visitor for NonmatchingOutputRule<'_> {
     ) {
         if reason == VisitReason::Enter && self.in_output {
             self.output_keys
-                .insert(decl.name().as_str().to_string(), decl.name().span());
+                .insert(decl.name().text().to_string(), decl.name().span());
         }
     }
 
@@ -372,7 +370,7 @@ impl Visitor for NonmatchingOutputRule<'_> {
             }
             VisitReason::Enter => {
                 if let Some(_meta_span) = self.current_meta_span {
-                    if item.name().as_str() == "outputs" {
+                    if item.name().text() == "outputs" {
                         self.current_meta_outputs_span = Some(item.span());
                         match item.value() {
                             MetadataValue::Object(_) => {}
@@ -383,7 +381,7 @@ impl Visitor for NonmatchingOutputRule<'_> {
                                         self.name.as_deref().expect("should have a name"),
                                         self.ty.expect("should have a type"),
                                     ),
-                                    SyntaxElement::from(item.syntax().clone()),
+                                    SyntaxElement::from(item.inner().clone()),
                                     &self.exceptable_nodes(),
                                 );
                             }
@@ -399,12 +397,12 @@ impl Visitor for NonmatchingOutputRule<'_> {
                                 == "outputs"
                         {
                             self.meta_outputs_keys
-                                .insert(item.name().as_str().to_string(), item.span());
+                                .insert(item.name().text().to_string(), item.span());
                         }
                     }
                 }
                 if let MetadataValue::Object(_) = item.value() {
-                    self.prior_objects.push(item.name().as_str().to_string());
+                    self.prior_objects.push(item.name().text().to_string());
                 }
             }
         }

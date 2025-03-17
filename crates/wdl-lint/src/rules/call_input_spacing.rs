@@ -8,7 +8,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::CallStatement;
@@ -124,7 +123,7 @@ impl Visitor for CallInputSpacingRule {
 
         // Check for "{ input:" spacing
         if let Some(input_keyword) = call
-            .syntax()
+            .inner()
             .children_with_tokens()
             .find(|c| c.kind() == SyntaxKind::InputKeyword)
         {
@@ -132,15 +131,15 @@ impl Visitor for CallInputSpacingRule {
                 if whitespace.kind() != SyntaxKind::Whitespace {
                     // If there is no whitespace before the input keyword
                     state.exceptable_add(
-                        call_input_keyword_spacing(input_keyword.text_range().to_span()),
-                        SyntaxElement::from(call.syntax().clone()),
+                        call_input_keyword_spacing(input_keyword.text_range().into()),
+                        SyntaxElement::from(call.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                 } else if !whitespace.as_token().unwrap().text().eq(" ") {
                     // If there is anything other than one space before the input keyword
                     state.exceptable_add(
-                        call_input_incorrect_spacing(whitespace.text_range().to_span()),
-                        SyntaxElement::from(call.syntax().clone()),
+                        call_input_incorrect_spacing(whitespace.text_range().into()),
+                        SyntaxElement::from(call.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                 }
@@ -150,7 +149,7 @@ impl Visitor for CallInputSpacingRule {
         call.inputs().for_each(|input| {
             // Check for assignment spacing
             if let Some(assign) = input
-                .syntax()
+                .inner()
                 .children_with_tokens()
                 .find(|c| c.kind() == SyntaxKind::Assignment)
             {
@@ -161,8 +160,8 @@ impl Visitor for CallInputSpacingRule {
                     (SyntaxKind::Whitespace, SyntaxKind::Whitespace) => {}
                     _ => {
                         state.exceptable_add(
-                            call_input_assignment(assign.text_range().to_span()),
-                            SyntaxElement::from(call.syntax().clone()),
+                            call_input_assignment(assign.text_range().into()),
+                            SyntaxElement::from(call.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -172,7 +171,7 @@ impl Visitor for CallInputSpacingRule {
 
         // Check for one input per line
         let mut newline_seen = 0;
-        call.syntax()
+        call.inner()
             .children_with_tokens()
             .for_each(|c| match c.kind() {
                 SyntaxKind::Whitespace => {
@@ -183,8 +182,8 @@ impl Visitor for CallInputSpacingRule {
                 SyntaxKind::CallInputItemNode => {
                     if newline_seen == 0 && inputs > 1 {
                         state.exceptable_add(
-                            call_input_missing_newline(c.text_range().to_span()),
-                            SyntaxElement::from(call.syntax().clone()),
+                            call_input_missing_newline(c.text_range().into()),
+                            SyntaxElement::from(call.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }

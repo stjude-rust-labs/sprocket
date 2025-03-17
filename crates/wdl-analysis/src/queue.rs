@@ -620,7 +620,7 @@ where
                             None => continue,
                         };
 
-                        let import_uri = match graph.get(index).uri().join(text.as_str()) {
+                        let import_uri = match graph.get(index).uri().join(text.text()) {
                             Ok(uri) => uri,
                             Err(_) => continue,
                         };

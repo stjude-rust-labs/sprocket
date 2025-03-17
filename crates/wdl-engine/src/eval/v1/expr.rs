@@ -54,13 +54,11 @@ use wdl_analysis::types::v1::ExprTypeEvaluator;
 use wdl_analysis::types::v1::NumericOperator;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_ast::AstNode;
-use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxKind;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::Expr;
@@ -112,6 +110,8 @@ use crate::diagnostics::runtime_type_mismatch;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
+use crate::tree::SyntaxNode;
+use crate::tree::SyntaxToken;
 
 /// Represents a WDL V1 expression evaluator.
 #[derive(Debug)]
@@ -142,11 +142,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates the given expression.
-    pub fn evaluate_expr(&mut self, expr: &Expr) -> Result<Value, Diagnostic> {
+    pub fn evaluate_expr(&mut self, expr: &Expr<SyntaxNode>) -> Result<Value, Diagnostic> {
         let value = match expr {
             Expr::Literal(expr) => self.evaluate_literal_expr(expr),
-            Expr::Name(r) => self.context.resolve_name(&r.name()),
-            Expr::Parenthesized(expr) => self.evaluate_expr(&expr.inner()),
+            Expr::NameRef(r) => {
+                let name = r.name();
+                self.context.resolve_name(name.text(), name.span())
+            }
+            Expr::Parenthesized(expr) => self.evaluate_expr(&expr.expr()),
             Expr::If(expr) => self.evaluate_if_expr(expr),
             Expr::LogicalNot(expr) => self.evaluate_logical_not_expr(expr),
             Expr::Negation(expr) => self.evaluate_negation_expr(expr),
@@ -228,22 +231,16 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal expression.
-    fn evaluate_literal_expr(&mut self, expr: &LiteralExpr) -> Result<Value, Diagnostic> {
+    fn evaluate_literal_expr(
+        &mut self,
+        expr: &LiteralExpr<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         match expr {
             LiteralExpr::Boolean(lit) => Ok(lit.value().into()),
-            LiteralExpr::Integer(lit) => {
-                // Check to see if this literal is a direct child of a negation expression; if
-                // so, we want to negate the literal
-                let (value, span) = match lit.syntax().parent() {
-                    Some(parent) if parent.kind() == SyntaxKind::NegationExprNode => {
-                        let start = parent.text_range().start().into();
-                        (lit.negate(), Span::new(start, lit.span().end() - start))
-                    }
-                    _ => (lit.value(), lit.span()),
-                };
-
-                Ok(value.ok_or_else(|| integer_not_in_range(span))?.into())
-            }
+            LiteralExpr::Integer(lit) => Ok(lit
+                .value()
+                .ok_or_else(|| integer_not_in_range(lit.span()))?
+                .into()),
             LiteralExpr::Float(lit) => Ok(lit
                 .value()
                 .ok_or_else(|| float_not_in_range(lit.span()))?
@@ -264,13 +261,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     /// Evaluates a placeholder into the given string buffer.
     pub fn evaluate_placeholder(
         &mut self,
-        placeholder: &Placeholder,
+        placeholder: &Placeholder<SyntaxNode>,
         buffer: &mut String,
     ) -> Result<(), Diagnostic> {
         /// The actual implementation for evaluating placeholders
         fn imp<C: EvaluationContext>(
             evaluator: &mut ExprEvaluator<C>,
-            placeholder: &Placeholder,
+            placeholder: &Placeholder<SyntaxNode>,
             buffer: &mut String,
         ) -> Result<(), Diagnostic> {
             let expr = placeholder.expr();
@@ -379,7 +376,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal string expression.
-    fn evaluate_literal_string(&mut self, expr: &LiteralString) -> Result<Value, Diagnostic> {
+    fn evaluate_literal_string(
+        &mut self,
+        expr: &LiteralString<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         if expr.kind() == LiteralStringKind::Multiline
             && self.context.version() < SupportedVersion::V1(V1::Two)
         {
@@ -418,7 +418,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal array expression.
-    fn evaluate_literal_array(&mut self, expr: &LiteralArray) -> Result<Value, Diagnostic> {
+    fn evaluate_literal_array(
+        &mut self,
+        expr: &LiteralArray<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         // Look at the first array element to determine the element type
         // The remaining elements must have a common type
         let mut elements = expr.elements();
@@ -464,7 +467,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal pair expression.
-    fn evaluate_literal_pair(&mut self, expr: &LiteralPair) -> Result<Value, Diagnostic> {
+    fn evaluate_literal_pair(
+        &mut self,
+        expr: &LiteralPair<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let (left, right) = expr.exprs();
         let left = self.evaluate_expr(&left)?;
         let right = self.evaluate_expr(&right)?;
@@ -474,7 +480,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal map expression.
-    fn evaluate_literal_map(&mut self, expr: &LiteralMap) -> Result<Value, Diagnostic> {
+    fn evaluate_literal_map(&mut self, expr: &LiteralMap<SyntaxNode>) -> Result<Value, Diagnostic> {
         let mut items = expr.items();
         let (key_ty, value_ty, elements) = match items.next() {
             Some(item) => {
@@ -560,12 +566,15 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal object expression.
-    fn evaluate_literal_object(&mut self, expr: &LiteralObject) -> Result<Value, Diagnostic> {
+    fn evaluate_literal_object(
+        &mut self,
+        expr: &LiteralObject<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         Ok(Object::from(
             expr.items()
                 .map(|item| {
                     let (name, value) = item.name_value();
-                    Ok((name.as_str().to_string(), self.evaluate_expr(&value)?))
+                    Ok((name.text().to_string(), self.evaluate_expr(&value)?))
                 })
                 .collect::<Result<IndexMap<_, _>, _>>()?,
         )
@@ -573,27 +582,30 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal struct expression.
-    fn evaluate_literal_struct(&mut self, expr: &LiteralStruct) -> Result<Value, Diagnostic> {
+    fn evaluate_literal_struct(
+        &mut self,
+        expr: &LiteralStruct<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let name = expr.name();
-        let ty = self.context.resolve_type_name(&name)?;
+        let ty = self.context.resolve_type_name(name.text(), name.span())?;
         let struct_ty = ty.as_struct().expect("should be a struct type");
 
         // Evaluate the members
         let mut members = IndexMap::with_capacity(struct_ty.members().len());
         for item in expr.items() {
             let (n, v) = item.name_value();
-            match struct_ty.members().get(n.as_str()) {
+            match struct_ty.members().get(n.text()) {
                 Some(expected) => {
                     let value = self.evaluate_expr(&v)?;
                     let value = value.coerce(expected).map_err(|e| {
                         runtime_type_mismatch(e, expected, n.span(), &value.ty(), v.span())
                     })?;
 
-                    members.insert(n.as_str().to_string(), value);
+                    members.insert(n.text().to_string(), value);
                 }
                 _ => {
                     // Not a struct member
-                    return Err(not_a_struct_member(name.as_str(), &n));
+                    return Err(not_a_struct_member(name.text(), &n));
                 }
             }
         }
@@ -641,14 +653,17 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal hints expression.
-    fn evaluate_literal_hints(&mut self, expr: &LiteralHints) -> Result<Value, Diagnostic> {
+    fn evaluate_literal_hints(
+        &mut self,
+        expr: &LiteralHints<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let object: Object = expr
             .items()
             .map(|item| {
                 let name = item.name();
                 let expr = item.expr();
                 Ok((
-                    name.as_str().to_string(),
+                    name.text().to_string(),
                     self.evaluate_hints_item(&name, &expr)?,
                 ))
             })
@@ -662,11 +677,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     /// literal expression.
     pub(crate) fn evaluate_hints_item(
         &mut self,
-        name: &Ident,
-        expr: &Expr,
+        name: &Ident<SyntaxToken>,
+        expr: &Expr<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
         let value = self.evaluate_expr(expr)?;
-        if let Some(expected) = task_hint_types(self.context.version(), name.as_str(), true) {
+        if let Some(expected) = task_hint_types(self.context.version(), name.text(), true) {
             match expected.iter().find_map(|ty| value.coerce(ty).ok()) {
                 Some(value) => {
                     return Ok(value);
@@ -686,7 +701,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal input expression.
-    fn evaluate_literal_input(&mut self, expr: &LiteralInput) -> Result<Value, Diagnostic> {
+    fn evaluate_literal_input(
+        &mut self,
+        expr: &LiteralInput<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let object: Object = expr
             .items()
             .map(|item| self.evaluate_literal_io_item(item.names(), item.expr(), Io::Input))
@@ -697,7 +715,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal output expression.
-    fn evaluate_literal_output(&mut self, expr: &LiteralOutput) -> Result<Value, Diagnostic> {
+    fn evaluate_literal_output(
+        &mut self,
+        expr: &LiteralOutput<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let object: Object = expr
             .items()
             .map(|item| self.evaluate_literal_io_item(item.names(), item.expr(), Io::Output))
@@ -710,8 +731,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     /// Evaluates a literal input/output item.
     fn evaluate_literal_io_item(
         &mut self,
-        segments: impl Iterator<Item = Ident>,
-        expr: Expr,
+        segments: impl Iterator<Item = Ident<SyntaxToken>>,
+        expr: Expr<SyntaxNode>,
         io: Io,
     ) -> Result<(String, Value), Diagnostic> {
         let mut segments = segments.enumerate().peekable();
@@ -728,7 +749,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 name.push('.');
             }
 
-            name.push_str(segment.as_str());
+            name.push_str(segment.text());
 
             // The first name is an input or an output
             let ty = if i == 0 {
@@ -739,14 +760,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         .task()
                         .expect("should have task")
                         .inputs()
-                        .get(segment.as_str())
+                        .get(segment.text())
                         .map(|i| i.ty())
                 } else {
                     self.context
                         .task()
                         .expect("should have task")
                         .outputs()
-                        .get(segment.as_str())
+                        .get(segment.text())
                         .map(|o| o.ty())
                 } {
                     Some(ty) => ty,
@@ -763,7 +784,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 let start = span.unwrap().start();
                 span = Some(Span::new(start, segment.span().end() - start));
                 let s = struct_ty.unwrap();
-                match s.members().get(segment.as_str()) {
+                match s.members().get(segment.text()) {
                     Some(ty) => ty,
                     None => {
                         return Err(not_a_struct_member(s.name(), &segment));
@@ -798,7 +819,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates an `if` expression.
-    fn evaluate_if_expr(&mut self, expr: &IfExpr) -> Result<Value, Diagnostic> {
+    fn evaluate_if_expr(&mut self, expr: &IfExpr<SyntaxNode>) -> Result<Value, Diagnostic> {
         /// Used to translate an expression evaluation context to an expression
         /// type evaluation context.
         struct TypeContext<'a, C: EvaluationContext> {
@@ -813,12 +834,12 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 self.context.version()
             }
 
-            fn resolve_name(&self, name: &wdl_ast::Ident) -> Option<Type> {
-                self.context.resolve_name(name).map(|v| v.ty()).ok()
+            fn resolve_name(&self, name: &str, span: Span) -> Option<Type> {
+                self.context.resolve_name(name, span).map(|v| v.ty()).ok()
             }
 
-            fn resolve_type_name(&mut self, name: &wdl_ast::Ident) -> Result<Type, Diagnostic> {
-                self.context.resolve_type_name(name)
+            fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
+                self.context.resolve_type_name(name, span)
             }
 
             fn task(&self) -> Option<&Task> {
@@ -890,7 +911,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a `logical not` expression.
-    fn evaluate_logical_not_expr(&mut self, expr: &LogicalNotExpr) -> Result<Value, Diagnostic> {
+    fn evaluate_logical_not_expr(
+        &mut self,
+        expr: &LogicalNotExpr<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         // The operand should be a boolean
         let operand = expr.operand();
         let value = self.evaluate_expr(&operand)?;
@@ -902,26 +926,33 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a negation expression.
-    fn evaluate_negation_expr(&mut self, expr: &NegationExpr) -> Result<Value, Diagnostic> {
+    fn evaluate_negation_expr(
+        &mut self,
+        expr: &NegationExpr<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let operand = expr.operand();
+
+        // If the operand is a literal integer, use the `negate` method
+        // This handles literal values that aren't in range for negation
+        if let Expr::Literal(LiteralExpr::Integer(lit)) = &operand {
+            let start = expr.span().start();
+            let span = Span::new(start, lit.span().end() - start);
+            return Ok(lit
+                .negate()
+                .ok_or_else(|| integer_not_in_range(span))?
+                .into());
+        }
+
         let value = self.evaluate_expr(&operand)?;
         let ty = value.ty();
 
         // If the type is `Int`, treat it as `Int`
         if ty.eq(&PrimitiveType::Integer.into()) {
-            return match operand {
-                Expr::Literal(LiteralExpr::Integer(_)) => {
-                    // Already negated during integer literal evaluation
-                    Ok(value)
-                }
-                _ => {
-                    let value = value.unwrap_integer();
-                    Ok(value
-                        .checked_neg()
-                        .ok_or_else(|| integer_negation_not_in_range(value, operand.span()))?
-                        .into())
-                }
-            };
+            let value = value.unwrap_integer();
+            return Ok(value
+                .checked_neg()
+                .ok_or_else(|| integer_negation_not_in_range(value, operand.span()))?
+                .into());
         }
 
         // If the type is `Float`, treat it as `Float`
@@ -940,7 +971,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a `logical or` expression.
-    fn evaluate_logical_or_expr(&mut self, expr: &LogicalOrExpr) -> Result<Value, Diagnostic> {
+    fn evaluate_logical_or_expr(
+        &mut self,
+        expr: &LogicalOrExpr<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let (lhs, rhs) = expr.operands();
 
         // Evaluate the left-hand side first
@@ -962,7 +996,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a `logical and` expression.
-    fn evaluate_logical_and_expr(&mut self, expr: &LogicalAndExpr) -> Result<Value, Diagnostic> {
+    fn evaluate_logical_and_expr(
+        &mut self,
+        expr: &LogicalAndExpr<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let (lhs, rhs) = expr.operands();
 
         // Evaluate the left-hand side first
@@ -987,8 +1024,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     fn evaluate_comparison_expr(
         &mut self,
         op: ComparisonOperator,
-        lhs: &Expr,
-        rhs: &Expr,
+        lhs: &Expr<SyntaxNode>,
+        rhs: &Expr<SyntaxNode>,
         span: Span,
     ) -> Result<Value, Diagnostic> {
         let left = self.evaluate_expr(lhs)?;
@@ -1033,8 +1070,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     fn evaluate_numeric_expr(
         &mut self,
         op: NumericOperator,
-        lhs: &Expr,
-        rhs: &Expr,
+        lhs: &Expr<SyntaxNode>,
+        rhs: &Expr<SyntaxNode>,
         span: Span,
     ) -> Result<Value, Diagnostic> {
         /// Implements numeric operations on integer operands.
@@ -1141,9 +1178,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a call expression.
-    fn evaluate_call_expr(&mut self, expr: &CallExpr) -> Result<Value, Diagnostic> {
+    fn evaluate_call_expr(&mut self, expr: &CallExpr<SyntaxNode>) -> Result<Value, Diagnostic> {
         let target = expr.target();
-        match wdl_analysis::stdlib::STDLIB.function(target.as_str()) {
+        match wdl_analysis::stdlib::STDLIB.function(target.text()) {
             Some(f) => {
                 // Evaluate the argument expressions
                 let mut count = 0;
@@ -1173,22 +1210,22 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                             );
 
                             STDLIB
-                                .get(target.as_str())
+                                .get(target.text())
                                 .expect("should have implementation")
                                 .call(binding, context)
                         }
-                        Err(FunctionBindError::RequiresVersion(minimum)) => Err(
-                            unsupported_function(minimum, target.as_str(), target.span()),
-                        ),
+                        Err(FunctionBindError::RequiresVersion(minimum)) => {
+                            Err(unsupported_function(minimum, target.text(), target.span()))
+                        }
                         Err(FunctionBindError::TooFewArguments(minimum)) => Err(too_few_arguments(
-                            target.as_str(),
+                            target.text(),
                             target.span(),
                             minimum,
                             arguments.len(),
                         )),
                         Err(FunctionBindError::TooManyArguments(maximum)) => {
                             Err(too_many_arguments(
-                                target.as_str(),
+                                target.text(),
                                 target.span(),
                                 maximum,
                                 arguments.len(),
@@ -1197,7 +1234,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
                         Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
                             Err(argument_type_mismatch(
-                                target.as_str(),
+                                target.text(),
                                 &expected,
                                 &types[index],
                                 expr.arguments()
@@ -1207,7 +1244,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                             ))
                         }
                         Err(FunctionBindError::Ambiguous { first, second }) => Err(
-                            ambiguous_argument(target.as_str(), target.span(), &first, &second),
+                            ambiguous_argument(target.text(), target.span(), &first, &second),
                         ),
                     }
                 } else {
@@ -1216,7 +1253,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         Some((_, max)) => {
                             assert!(max <= MAX_PARAMETERS);
                             Err(too_many_arguments(
-                                target.as_str(),
+                                target.text(),
                                 target.span(),
                                 max,
                                 count,
@@ -1225,18 +1262,18 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
                         None => Err(unsupported_function(
                             f.minimum_version(),
-                            target.as_str(),
+                            target.text(),
                             target.span(),
                         )),
                     }
                 }
             }
-            None => Err(unknown_function(target.as_str(), target.span())),
+            None => Err(unknown_function(target.text(), target.span())),
         }
     }
 
     /// Evaluates the type of an index expression.
-    fn evaluate_index_expr(&mut self, expr: &IndexExpr) -> Result<Value, Diagnostic> {
+    fn evaluate_index_expr(&mut self, expr: &IndexExpr<SyntaxNode>) -> Result<Value, Diagnostic> {
         let (target, index) = expr.operands();
         match self.evaluate_expr(&target)? {
             Value::Compound(CompoundValue::Array(array)) => match self.evaluate_expr(&index)? {
@@ -1288,31 +1325,31 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates the type of an access expression.
-    fn evaluate_access_expr(&mut self, expr: &AccessExpr) -> Result<Value, Diagnostic> {
+    fn evaluate_access_expr(&mut self, expr: &AccessExpr<SyntaxNode>) -> Result<Value, Diagnostic> {
         let (target, name) = expr.operands();
 
         match self.evaluate_expr(&target)? {
-            Value::Compound(CompoundValue::Pair(pair)) => match name.as_str() {
+            Value::Compound(CompoundValue::Pair(pair)) => match name.text() {
                 "left" => Ok(pair.left().clone()),
                 "right" => Ok(pair.right().clone()),
                 _ => Err(not_a_pair_accessor(&name)),
             },
-            Value::Compound(CompoundValue::Struct(s)) => match s.get(name.as_str()) {
+            Value::Compound(CompoundValue::Struct(s)) => match s.get(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_struct_member(
                     s.ty().as_struct().expect("should be a struct type").name(),
                     &name,
                 )),
             },
-            Value::Compound(CompoundValue::Object(object)) => match object.get(name.as_str()) {
+            Value::Compound(CompoundValue::Object(object)) => match object.get(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_an_object_member(&name)),
             },
-            Value::Task(task) => match task.field(name.as_str()) {
+            Value::Task(task) => match task.field(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_task_member(&name)),
             },
-            Value::Call(call) => match call.outputs().get(name.as_str()) {
+            Value::Call(call) => match call.outputs().get(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(unknown_call_io(call.ty(), &name, Io::Output)),
             },
@@ -1333,7 +1370,7 @@ pub(crate) mod test {
     use wdl_analysis::diagnostics::unknown_name;
     use wdl_analysis::diagnostics::unknown_type;
     use wdl_analysis::types::StructType;
-    use wdl_ast::Ident;
+    use wdl_ast::NewRoot;
     use wdl_grammar::construct_tree;
     use wdl_grammar::grammar::v1;
     use wdl_grammar::lexer::Lexer;
@@ -1430,20 +1467,20 @@ pub(crate) mod test {
             self.version
         }
 
-        fn resolve_name(&self, name: &Ident) -> Result<Value, Diagnostic> {
+        fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
             self.env
                 .scope()
-                .lookup(name.as_str())
+                .lookup(name)
                 .cloned()
-                .ok_or_else(|| unknown_name(name.as_str(), name.span()))
+                .ok_or_else(|| unknown_name(name, span))
         }
 
-        fn resolve_type_name(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
+        fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             self.env
                 .structs
-                .get(name.as_str())
+                .get(name)
                 .cloned()
-                .ok_or_else(|| unknown_type(name.as_str(), name.span()))
+                .ok_or_else(|| unknown_type(name, span))
         }
 
         fn work_dir(&self) -> &Path {
@@ -1513,7 +1550,7 @@ pub(crate) mod test {
                     None,
                     "the provided WDL source failed to parse"
                 );
-                let expr = Expr::cast(construct_tree(source, output.events))
+                let expr = Expr::cast(SyntaxNode::new_root(construct_tree(source, output.events)))
                     .expect("should be an expression");
 
                 let mut evaluator = ExprEvaluator::new(context);

@@ -134,7 +134,7 @@ impl Visitor for CommentWhitespaceRule {
 
         if is_inline_comment(comment) {
             // check preceding whitespace for two spaces
-            if let Some(prior) = comment.syntax().prev_sibling_or_token() {
+            if let Some(prior) = comment.inner().prev_sibling_or_token() {
                 if prior.kind() != SyntaxKind::Whitespace
                     || prior.as_token().expect("should be a token").text() != "  "
                 {
@@ -142,7 +142,7 @@ impl Visitor for CommentWhitespaceRule {
                     let span = Span::new(comment.span().start(), 1);
                     state.exceptable_add(
                         inline_preceding_whitespace(span),
-                        SyntaxElement::from(comment.syntax().clone()),
+                        SyntaxElement::from(comment.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                 }
@@ -150,14 +150,14 @@ impl Visitor for CommentWhitespaceRule {
         } else {
             // Not an in-line comment, so check indentation level
             let ancestors = comment
-                .syntax()
+                .inner()
                 .parent_ancestors()
                 .filter(filter_parent_ancestors)
                 .count();
             let expected_indentation = INDENT.repeat(ancestors);
 
             match comment
-                .syntax()
+                .inner()
                 .prev_sibling_or_token()
                 .and_then(SyntaxElement::into_token)
             {
@@ -177,7 +177,7 @@ impl Visitor for CommentWhitespaceRule {
                                     expected_indentation.len() / INDENT.len(),
                                     this_indentation.len() / INDENT.len(),
                                 ),
-                                SyntaxElement::from(comment.syntax().clone()),
+                                SyntaxElement::from(comment.inner().clone()),
                                 &self.exceptable_nodes(),
                             ),
                             Ordering::Less => state.exceptable_add(
@@ -186,7 +186,7 @@ impl Visitor for CommentWhitespaceRule {
                                     expected_indentation.len() / INDENT.len(),
                                     this_indentation.len() / INDENT.len(),
                                 ),
-                                SyntaxElement::from(comment.syntax().clone()),
+                                SyntaxElement::from(comment.inner().clone()),
                                 &self.exceptable_nodes(),
                             ),
                             Ordering::Equal => {}
@@ -201,7 +201,7 @@ impl Visitor for CommentWhitespaceRule {
         }
 
         // check the comment for one space following the comment delimiter
-        let mut comment_chars = comment.as_str().chars().peekable();
+        let mut comment_chars = comment.text().chars().peekable();
 
         let mut n_delimiter = 0;
         while let Some('#') = comment_chars.peek() {
@@ -219,7 +219,7 @@ impl Visitor for CommentWhitespaceRule {
         if comment_chars.skip(n_whitespace).count() > 0 && n_whitespace == 0 {
             state.exceptable_add(
                 following_whitespace(Span::new(comment.span().start(), n_delimiter)),
-                SyntaxElement::from(comment.syntax().clone()),
+                SyntaxElement::from(comment.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }
@@ -315,7 +315,7 @@ task foo {
         let comment = Comment::cast(comment.as_token().unwrap().clone()).unwrap();
 
         let ancestors = comment
-            .syntax()
+            .inner()
             .parent_ancestors()
             .filter(super::filter_parent_ancestors)
             .count();
@@ -326,7 +326,7 @@ task foo {
         let comment = Comment::cast(comment.as_token().unwrap().clone()).unwrap();
 
         let ancestors = comment
-            .syntax()
+            .inner()
             .parent_ancestors()
             .filter(super::filter_parent_ancestors)
             .count();
@@ -337,7 +337,7 @@ task foo {
         let comment = Comment::cast(comment.as_token().unwrap().clone()).unwrap();
 
         let ancestors = comment
-            .syntax()
+            .inner()
             .parent_ancestors()
             .filter(super::filter_parent_ancestors)
             .count();
@@ -348,7 +348,7 @@ task foo {
         let comment = Comment::cast(comment.as_token().unwrap().clone()).unwrap();
 
         let ancestors = comment
-            .syntax()
+            .inner()
             .parent_ancestors()
             .filter(super::filter_parent_ancestors)
             .count();
@@ -359,7 +359,7 @@ task foo {
         let comment = Comment::cast(comment.as_token().unwrap().clone()).unwrap();
 
         let ancestors = comment
-            .syntax()
+            .inner()
             .parent_ancestors()
             .filter(super::filter_parent_ancestors)
             .count();

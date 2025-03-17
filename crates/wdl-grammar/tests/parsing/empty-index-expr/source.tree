@@ -20,7 +20,7 @@ RootNode@0..101
     Whitespace@92..93 " "
     Assignment@93..94 "="
     Whitespace@94..95 " "
-    NameRefNode@95..96
+    NameRefExprNode@95..96
       Ident@95..96 "x"
     OpenBracket@96..97 "["
     CloseBracket@97..98 "]"

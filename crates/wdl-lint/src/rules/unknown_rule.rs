@@ -75,7 +75,7 @@ impl Visitor for UnknownRule {
     }
 
     fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
-        if let Some(ids) = comment.as_str().strip_prefix(EXCEPT_COMMENT_PREFIX) {
+        if let Some(ids) = comment.text().strip_prefix(EXCEPT_COMMENT_PREFIX) {
             let start: usize = comment.span().start();
             let mut offset = EXCEPT_COMMENT_PREFIX.len();
             for id in ids.split(',') {

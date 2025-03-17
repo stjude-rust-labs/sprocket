@@ -4,94 +4,82 @@ use super::MetadataSection;
 use super::ParameterMetadataSection;
 use super::StructKeyword;
 use super::UnboundDecl;
-use crate::AstChildren;
 use crate::AstNode;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
-use crate::WorkflowDescriptionLanguage;
-use crate::support::children;
-use crate::token;
+use crate::TreeNode;
 
 /// Represents a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StructDefinition(pub(crate) SyntaxNode);
+pub struct StructDefinition<N: TreeNode = SyntaxNode>(pub(crate) N);
 
-impl StructDefinition {
+impl<N: TreeNode> StructDefinition<N> {
     /// Gets the name of the struct.
-    pub fn name(&self) -> Ident {
-        token(&self.0).expect("struct should have a name")
+    pub fn name(&self) -> Ident<N::Token> {
+        self.token().expect("struct should have a name")
     }
 
     /// Gets the `struct` keyword of the struct definition.
-    pub fn keyword(&self) -> StructKeyword {
-        token(&self.0).expect("struct should have a keyword")
+    pub fn keyword(&self) -> StructKeyword<N::Token> {
+        self.token().expect("struct should have a keyword")
     }
 
     /// Gets the items in the struct definition.
-    pub fn items(&self) -> impl Iterator<Item = StructItem> + use<> {
+    pub fn items(&self) -> impl Iterator<Item = StructItem<N>> + use<'_, N> {
         StructItem::children(&self.0)
     }
 
     /// Gets the member declarations of the struct.
-    pub fn members(&self) -> AstChildren<UnboundDecl> {
-        children(&self.0)
+    pub fn members(&self) -> impl Iterator<Item = UnboundDecl<N>> + use<'_, N> {
+        self.children()
     }
 
     /// Gets the metadata sections of the struct.
-    pub fn metadata(&self) -> AstChildren<MetadataSection> {
-        children(&self.0)
+    pub fn metadata(&self) -> impl Iterator<Item = MetadataSection<N>> + use<'_, N> {
+        self.children()
     }
 
     /// Gets the parameter metadata sections of the struct.
-    pub fn parameter_metadata(&self) -> AstChildren<ParameterMetadataSection> {
-        children(&self.0)
+    pub fn parameter_metadata(
+        &self,
+    ) -> impl Iterator<Item = ParameterMetadataSection<N>> + use<'_, N> {
+        self.children()
     }
 }
 
-impl AstNode for StructDefinition {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for StructDefinition<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::StructDefinitionNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::StructDefinitionNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::StructDefinitionNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents an item in a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum StructItem {
+pub enum StructItem<N: TreeNode = SyntaxNode> {
     /// The item is a member declaration.
-    Member(UnboundDecl),
+    Member(UnboundDecl<N>),
     /// The item is a metadata section.
-    Metadata(MetadataSection),
+    Metadata(MetadataSection<N>),
     /// The item is a parameter meta section.
-    ParameterMetadata(ParameterMetadataSection),
+    ParameterMetadata(ParameterMetadataSection<N>),
 }
 
-impl StructItem {
-    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
-    /// underlying members within the [`StructItem`].
-    pub fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> StructItem<N> {
+    /// Returns whether or not the given syntax kind can be cast to
+    /// [`StructItem`].
+    pub fn can_cast(kind: SyntaxKind) -> bool {
         matches!(
             kind,
             SyntaxKind::UnboundDeclNode
@@ -100,32 +88,30 @@ impl StructItem {
         )
     }
 
-    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
-    /// within the [`StructItem`].
-    pub fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
+    /// Casts the given node to [`StructItem`].
+    ///
+    /// Returns `None` if the node cannot be cast.
+    pub fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
             SyntaxKind::UnboundDeclNode => Some(Self::Member(
-                UnboundDecl::cast(syntax).expect("unbound decl to cast"),
+                UnboundDecl::cast(inner).expect("unbound decl to cast"),
             )),
             SyntaxKind::MetadataSectionNode => Some(Self::Metadata(
-                MetadataSection::cast(syntax).expect("metadata section to cast"),
+                MetadataSection::cast(inner).expect("metadata section to cast"),
             )),
             SyntaxKind::ParameterMetadataSectionNode => Some(Self::ParameterMetadata(
-                ParameterMetadataSection::cast(syntax).expect("parameter metadata section to cast"),
+                ParameterMetadataSection::cast(inner).expect("parameter metadata section to cast"),
             )),
             _ => None,
         }
     }
 
-    /// Gets a reference to the underlying [`SyntaxNode`].
-    pub fn syntax(&self) -> &SyntaxNode {
+    /// Gets a reference to the inner node.
+    pub fn inner(&self) -> &N {
         match self {
-            Self::Member(element) => element.syntax(),
-            Self::Metadata(element) => element.syntax(),
-            Self::ParameterMetadata(element) => element.syntax(),
+            Self::Member(element) => element.inner(),
+            Self::Metadata(element) => element.inner(),
+            Self::ParameterMetadata(element) => element.inner(),
         }
     }
 
@@ -134,9 +120,9 @@ impl StructItem {
     /// * If `self` is a [`StructItem::Member`], then a reference to the inner
     ///   [`UnboundDecl`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_unbound_decl(&self) -> Option<&UnboundDecl> {
+    pub fn as_unbound_decl(&self) -> Option<&UnboundDecl<N>> {
         match self {
-            Self::Member(unbound_decl) => Some(unbound_decl),
+            Self::Member(d) => Some(d),
             _ => None,
         }
     }
@@ -146,9 +132,9 @@ impl StructItem {
     /// * If `self` is a [`StructItem::Member`], then the inner [`UnboundDecl`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_unbound_decl(self) -> Option<UnboundDecl> {
+    pub fn into_unbound_decl(self) -> Option<UnboundDecl<N>> {
         match self {
-            Self::Member(unbound_decl) => Some(unbound_decl),
+            Self::Member(d) => Some(d),
             _ => None,
         }
     }
@@ -158,9 +144,9 @@ impl StructItem {
     /// * If `self` is a [`StructItem::Metadata`], then a reference to the inner
     ///   [`MetadataSection`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_metadata_section(&self) -> Option<&MetadataSection> {
+    pub fn as_metadata_section(&self) -> Option<&MetadataSection<N>> {
         match self {
-            Self::Metadata(metadata_section) => Some(metadata_section),
+            Self::Metadata(s) => Some(s),
             _ => None,
         }
     }
@@ -170,9 +156,9 @@ impl StructItem {
     /// * If `self` is a [`StructItem::Metadata`], then the inner
     ///   [`MetadataSection`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_metadata_section(self) -> Option<MetadataSection> {
+    pub fn into_metadata_section(self) -> Option<MetadataSection<N>> {
         match self {
-            Self::Metadata(metadata_section) => Some(metadata_section),
+            Self::Metadata(s) => Some(s),
             _ => None,
         }
     }
@@ -183,9 +169,9 @@ impl StructItem {
     ///   the inner [`ParameterMetadataSection`] is returned wrapped in
     ///   [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_parameter_metadata_section(&self) -> Option<&ParameterMetadataSection> {
+    pub fn as_parameter_metadata_section(&self) -> Option<&ParameterMetadataSection<N>> {
         match self {
-            Self::ParameterMetadata(parameter_metadata_section) => Some(parameter_metadata_section),
+            Self::ParameterMetadata(s) => Some(s),
             _ => None,
         }
     }
@@ -196,29 +182,21 @@ impl StructItem {
     /// * If `self` is a [`StructItem::ParameterMetadata`], then the inner
     ///   [`ParameterMetadataSection`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_parameter_metadata_section(self) -> Option<ParameterMetadataSection> {
+    pub fn into_parameter_metadata_section(self) -> Option<ParameterMetadataSection<N>> {
         match self {
-            Self::ParameterMetadata(parameter_metadata_section) => Some(parameter_metadata_section),
+            Self::ParameterMetadata(s) => Some(s),
             _ => None,
         }
     }
 
-    /// Finds the first child that can be cast to an [`StructItem`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::child`] without requiring [`StructItem`] to
-    /// implement the `AstNode` trait.
-    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
-        syntax.children().find_map(Self::cast)
+    /// Finds the first child that can be cast to a [`StructItem`].
+    pub fn child(node: &N) -> Option<Self> {
+        node.children().find_map(Self::cast)
     }
 
-    /// Finds all children that can be cast to an [`StructItem`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::children`] without requiring [`StructItem`] to
-    /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = StructItem> + use<> {
-        syntax.children().filter_map(Self::cast)
+    /// Finds all children that can be cast to a [`StructItem`].
+    pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
+        node.children().filter_map(Self::cast)
     }
 }
 
@@ -294,106 +272,106 @@ struct ComplexTypes {
         assert_eq!(structs.len(), 3);
 
         // First struct definition
-        assert_eq!(structs[0].name().as_str(), "Empty");
+        assert_eq!(structs[0].name().text(), "Empty");
         assert_eq!(structs[0].members().count(), 0);
 
         // Second struct definition
-        assert_eq!(structs[1].name().as_str(), "PrimitiveTypes");
+        assert_eq!(structs[1].name().text(), "PrimitiveTypes");
         let members: Vec<_> = structs[1].members().collect();
         assert_eq!(members.len(), 12);
 
         // First member
-        assert_eq!(members[0].name().as_str(), "a");
+        assert_eq!(members[0].name().text(), "a");
         assert_eq!(members[0].ty().to_string(), "Boolean");
         assert!(!members[0].ty().is_optional());
 
         // Second member
-        assert_eq!(members[1].name().as_str(), "b");
+        assert_eq!(members[1].name().text(), "b");
         assert_eq!(members[1].ty().to_string(), "Boolean?");
         assert!(members[1].ty().is_optional());
 
         // Third member
-        assert_eq!(members[2].name().as_str(), "c");
+        assert_eq!(members[2].name().text(), "c");
         assert_eq!(members[2].ty().to_string(), "Int");
         assert!(!members[2].ty().is_optional());
 
         // Fourth member
-        assert_eq!(members[3].name().as_str(), "d");
+        assert_eq!(members[3].name().text(), "d");
         assert_eq!(members[3].ty().to_string(), "Int?");
         assert!(members[3].ty().is_optional());
 
         // Fifth member
-        assert_eq!(members[4].name().as_str(), "e");
+        assert_eq!(members[4].name().text(), "e");
         assert_eq!(members[4].ty().to_string(), "Float");
         assert!(!members[4].ty().is_optional());
 
         // Sixth member
-        assert_eq!(members[5].name().as_str(), "f");
+        assert_eq!(members[5].name().text(), "f");
         assert_eq!(members[5].ty().to_string(), "Float?");
         assert!(members[5].ty().is_optional());
 
         // Seventh member
-        assert_eq!(members[6].name().as_str(), "g");
+        assert_eq!(members[6].name().text(), "g");
         assert_eq!(members[6].ty().to_string(), "String");
         assert!(!members[6].ty().is_optional());
 
         // Eighth member
-        assert_eq!(members[7].name().as_str(), "h");
+        assert_eq!(members[7].name().text(), "h");
         assert_eq!(members[7].ty().to_string(), "String?");
         assert!(members[7].ty().is_optional());
 
         // Ninth member
-        assert_eq!(members[8].name().as_str(), "i");
+        assert_eq!(members[8].name().text(), "i");
         assert_eq!(members[8].ty().to_string(), "File");
         assert!(!members[8].ty().is_optional());
 
         // Tenth member
-        assert_eq!(members[9].name().as_str(), "j");
+        assert_eq!(members[9].name().text(), "j");
         assert_eq!(members[9].ty().to_string(), "File?");
         assert!(members[9].ty().is_optional());
 
         // Eleventh member
-        assert_eq!(members[10].name().as_str(), "k");
+        assert_eq!(members[10].name().text(), "k");
         assert_eq!(members[10].ty().to_string(), "Directory");
         assert!(!members[10].ty().is_optional());
 
         // Twelfth member
-        assert_eq!(members[11].name().as_str(), "l");
+        assert_eq!(members[11].name().text(), "l");
         assert_eq!(members[11].ty().to_string(), "Directory?");
         assert!(members[11].ty().is_optional());
 
         // Third struct definition
-        assert_eq!(structs[2].name().as_str(), "ComplexTypes");
+        assert_eq!(structs[2].name().text(), "ComplexTypes");
         let members: Vec<_> = structs[2].members().collect();
         assert_eq!(members.len(), 11);
 
         // First member
-        assert_eq!(members[0].name().as_str(), "a");
+        assert_eq!(members[0].name().text(), "a");
         assert_eq!(members[0].ty().to_string(), "Map[Boolean, String]");
         assert!(!members[0].ty().is_optional());
 
         // Second member
-        assert_eq!(members[1].name().as_str(), "b");
+        assert_eq!(members[1].name().text(), "b");
         assert_eq!(members[1].ty().to_string(), "Map[Int?, Array[String]]?");
         assert!(members[1].ty().is_optional());
 
         // Third member
-        assert_eq!(members[2].name().as_str(), "c");
+        assert_eq!(members[2].name().text(), "c");
         assert_eq!(members[2].ty().to_string(), "Array[Boolean]");
         assert!(!members[2].ty().is_optional());
 
         // Fourth member
-        assert_eq!(members[3].name().as_str(), "d");
+        assert_eq!(members[3].name().text(), "d");
         assert_eq!(members[3].ty().to_string(), "Array[Array[Float]]");
         assert!(!members[3].ty().is_optional());
 
         // Fifth member
-        assert_eq!(members[4].name().as_str(), "e");
+        assert_eq!(members[4].name().text(), "e");
         assert_eq!(members[4].ty().to_string(), "Pair[Boolean, Boolean]");
         assert!(!members[4].ty().is_optional());
 
         // Sixth member
-        assert_eq!(members[5].name().as_str(), "f");
+        assert_eq!(members[5].name().text(), "f");
         assert_eq!(
             members[5].ty().to_string(),
             "Pair[Array[String], Array[String?]]"
@@ -401,27 +379,27 @@ struct ComplexTypes {
         assert!(!members[5].ty().is_optional());
 
         // Seventh member
-        assert_eq!(members[6].name().as_str(), "g");
+        assert_eq!(members[6].name().text(), "g");
         assert_eq!(members[6].ty().to_string(), "Object");
         assert!(!members[6].ty().is_optional());
 
         // Eighth member
-        assert_eq!(members[7].name().as_str(), "h");
+        assert_eq!(members[7].name().text(), "h");
         assert_eq!(members[7].ty().to_string(), "Object?");
         assert!(members[7].ty().is_optional());
 
         // Ninth member
-        assert_eq!(members[8].name().as_str(), "i");
+        assert_eq!(members[8].name().text(), "i");
         assert_eq!(members[8].ty().to_string(), "MyType");
         assert!(!members[8].ty().is_optional());
 
         // Tenth member
-        assert_eq!(members[9].name().as_str(), "j");
+        assert_eq!(members[9].name().text(), "j");
         assert_eq!(members[9].ty().to_string(), "MyType?");
         assert!(members[9].ty().is_optional());
 
         // Eleventh member
-        assert_eq!(members[10].name().as_str(), "k");
+        assert_eq!(members[10].name().text(), "k");
         assert_eq!(members[10].ty().to_string(), "Array[Directory]");
         assert!(!members[10].ty().is_optional());
 

@@ -108,7 +108,7 @@ impl Visitor for MalformedLintDirectiveRule {
     }
 
     fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
-        if let Some(lint_directive) = comment.as_str().strip_prefix("#@") {
+        if let Some(lint_directive) = comment.text().strip_prefix("#@") {
             let base_offset = comment.span().start();
 
             if is_inline_comment(comment) {

@@ -6,47 +6,12 @@ mod workflow;
 
 use anyhow::Result;
 pub use expr::*;
-use rowan::ast::AstPtr;
 pub use task::*;
-use wdl_analysis::document::Document;
-use wdl_ast::v1::BoundDecl;
-use wdl_ast::v1::Decl;
-use wdl_ast::v1::UnboundDecl;
 pub use workflow::*;
 
 use super::EvaluatedTask;
 use super::EvaluationResult;
 use crate::Outputs;
-
-/// Represents a pointer to a declaration node.
-///
-/// This type is cheaply cloned.
-#[derive(Debug, Clone)]
-enum DeclPtr {
-    /// The declaration is bound.
-    Bound(AstPtr<BoundDecl>),
-    /// The declaration is unbound.
-    Unbound(AstPtr<UnboundDecl>),
-}
-
-impl DeclPtr {
-    /// Constructs a new pointer to a declaration node given the declaration
-    /// node.
-    fn new(decl: &Decl) -> Self {
-        match decl {
-            Decl::Bound(decl) => Self::Bound(AstPtr::new(decl)),
-            Decl::Unbound(decl) => Self::Unbound(AstPtr::new(decl)),
-        }
-    }
-
-    /// Converts the pointer back to the declaration node.
-    fn to_node(&self, document: &Document) -> Decl {
-        match self {
-            Self::Bound(decl) => Decl::Bound(decl.to_node(document.node().syntax())),
-            Self::Unbound(decl) => Decl::Unbound(decl.to_node(document.node().syntax())),
-        }
-    }
-}
 
 /// Represents the kind of progress made during evaluation.
 #[derive(Debug, Clone, Copy)]

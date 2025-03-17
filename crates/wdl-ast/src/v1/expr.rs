@@ -1,88 +1,81 @@
 //! V1 AST representation for expressions.
 
+use rowan::NodeOrToken;
 use wdl_grammar::lexer::v1::EscapeToken;
 use wdl_grammar::lexer::v1::Logos;
 
-use crate::AstChildren;
+use super::Minus;
 use crate::AstNode;
 use crate::AstToken;
 use crate::Ident;
-use crate::SyntaxElement;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::SyntaxToken;
-use crate::WorkflowDescriptionLanguage;
-use crate::support;
-use crate::support::child;
-use crate::support::children;
-use crate::token;
-use crate::token_child;
+use crate::TreeNode;
+use crate::TreeToken;
 
 /// Represents an expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Expr {
+pub enum Expr<N: TreeNode = SyntaxNode> {
     /// The expression is a literal.
-    Literal(LiteralExpr),
+    Literal(LiteralExpr<N>),
     /// The expression is a name reference.
-    Name(NameRef),
+    NameRef(NameRefExpr<N>),
     /// The expression is a parenthesized expression.
-    Parenthesized(ParenthesizedExpr),
+    Parenthesized(ParenthesizedExpr<N>),
     /// The expression is an `if` expression.
-    If(IfExpr),
+    If(IfExpr<N>),
     /// The expression is a "logical not" expression.
-    LogicalNot(LogicalNotExpr),
+    LogicalNot(LogicalNotExpr<N>),
     /// The expression is a negation expression.
-    Negation(NegationExpr),
+    Negation(NegationExpr<N>),
     /// The expression is a "logical or" expression.
-    LogicalOr(LogicalOrExpr),
+    LogicalOr(LogicalOrExpr<N>),
     /// The expression is a "logical and" expression.
-    LogicalAnd(LogicalAndExpr),
+    LogicalAnd(LogicalAndExpr<N>),
     /// The expression is an equality expression.
-    Equality(EqualityExpr),
+    Equality(EqualityExpr<N>),
     /// The expression is an inequality expression.
-    Inequality(InequalityExpr),
+    Inequality(InequalityExpr<N>),
     /// The expression is a "less than" expression.
-    Less(LessExpr),
+    Less(LessExpr<N>),
     /// The expression is a "less than or equal to" expression.
-    LessEqual(LessEqualExpr),
+    LessEqual(LessEqualExpr<N>),
     /// The expression is a "greater" expression.
-    Greater(GreaterExpr),
+    Greater(GreaterExpr<N>),
     /// The expression is a "greater than or equal to" expression.
-    GreaterEqual(GreaterEqualExpr),
+    GreaterEqual(GreaterEqualExpr<N>),
     /// The expression is an addition expression.
-    Addition(AdditionExpr),
+    Addition(AdditionExpr<N>),
     /// The expression is a subtraction expression.
-    Subtraction(SubtractionExpr),
+    Subtraction(SubtractionExpr<N>),
     /// The expression is a multiplication expression.
-    Multiplication(MultiplicationExpr),
+    Multiplication(MultiplicationExpr<N>),
     /// The expression is a division expression.
-    Division(DivisionExpr),
+    Division(DivisionExpr<N>),
     /// The expression is a modulo expression.
-    Modulo(ModuloExpr),
+    Modulo(ModuloExpr<N>),
     /// The expression is an exponentiation expression.
-    Exponentiation(ExponentiationExpr),
+    Exponentiation(ExponentiationExpr<N>),
     /// The expression is a call expression.
-    Call(CallExpr),
+    Call(CallExpr<N>),
     /// The expression is an index expression.
-    Index(IndexExpr),
+    Index(IndexExpr<N>),
     /// The expression is a member access expression.
-    Access(AccessExpr),
+    Access(AccessExpr<N>),
 }
 
-impl Expr {
-    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
-    /// underlying members within the [`Expr`].
-    pub fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
-        if LiteralExpr::can_cast(kind) {
+impl<N: TreeNode> Expr<N> {
+    /// Returns whether or not the given syntax kind can be cast to
+    /// [`Expr`].
+    pub fn can_cast(kind: SyntaxKind) -> bool {
+        if LiteralExpr::<N>::can_cast(kind) {
             return true;
         }
 
         matches!(
             kind,
-            SyntaxKind::NameRefNode
+            SyntaxKind::NameRefExprNode
                 | SyntaxKind::ParenthesizedExprNode
                 | SyntaxKind::IfExprNode
                 | SyntaxKind::LogicalNotExprNode
@@ -107,112 +100,113 @@ impl Expr {
         )
     }
 
-    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
-    /// within the [`Expr`].
-    pub fn cast(syntax: SyntaxNode) -> Option<Self> {
-        if LiteralExpr::can_cast(syntax.kind()) {
+    /// Casts the given node to [`Expr`].
+    ///
+    /// Returns `None` if the node cannot be cast.
+    pub fn cast(inner: N) -> Option<Self> {
+        if LiteralExpr::<N>::can_cast(inner.kind()) {
             return Some(Self::Literal(
-                LiteralExpr::cast(syntax).expect("literal expr should cast"),
+                LiteralExpr::cast(inner).expect("literal expr should cast"),
             ));
         }
 
-        match syntax.kind() {
-            SyntaxKind::NameRefNode => Some(Self::Name(
-                NameRef::cast(syntax).expect("name ref should cast"),
+        match inner.kind() {
+            SyntaxKind::NameRefExprNode => Some(Self::NameRef(
+                NameRefExpr::cast(inner).expect("name ref should cast"),
             )),
             SyntaxKind::ParenthesizedExprNode => Some(Self::Parenthesized(
-                ParenthesizedExpr::cast(syntax).expect("parenthesized expr should cast"),
+                ParenthesizedExpr::cast(inner).expect("parenthesized expr should cast"),
             )),
             SyntaxKind::IfExprNode => {
-                Some(Self::If(IfExpr::cast(syntax).expect("if expr should cast")))
+                Some(Self::If(IfExpr::cast(inner).expect("if expr should cast")))
             }
             SyntaxKind::LogicalNotExprNode => Some(Self::LogicalNot(
-                LogicalNotExpr::cast(syntax).expect("logical not expr should cast"),
+                LogicalNotExpr::cast(inner).expect("logical not expr should cast"),
             )),
             SyntaxKind::NegationExprNode => Some(Self::Negation(
-                NegationExpr::cast(syntax).expect("negation expr should cast"),
+                NegationExpr::cast(inner).expect("negation expr should cast"),
             )),
             SyntaxKind::LogicalOrExprNode => Some(Self::LogicalOr(
-                LogicalOrExpr::cast(syntax).expect("logical or expr should cast"),
+                LogicalOrExpr::cast(inner).expect("logical or expr should cast"),
             )),
             SyntaxKind::LogicalAndExprNode => Some(Self::LogicalAnd(
-                LogicalAndExpr::cast(syntax).expect("logical and expr should cast"),
+                LogicalAndExpr::cast(inner).expect("logical and expr should cast"),
             )),
             SyntaxKind::EqualityExprNode => Some(Self::Equality(
-                EqualityExpr::cast(syntax).expect("equality expr should cast"),
+                EqualityExpr::cast(inner).expect("equality expr should cast"),
             )),
             SyntaxKind::InequalityExprNode => Some(Self::Inequality(
-                InequalityExpr::cast(syntax).expect("inequality expr should cast"),
+                InequalityExpr::cast(inner).expect("inequality expr should cast"),
             )),
             SyntaxKind::LessExprNode => Some(Self::Less(
-                LessExpr::cast(syntax).expect("less expr should cast"),
+                LessExpr::cast(inner).expect("less expr should cast"),
             )),
             SyntaxKind::LessEqualExprNode => Some(Self::LessEqual(
-                LessEqualExpr::cast(syntax).expect("less equal expr should cast"),
+                LessEqualExpr::cast(inner).expect("less equal expr should cast"),
             )),
             SyntaxKind::GreaterExprNode => Some(Self::Greater(
-                GreaterExpr::cast(syntax).expect("greater expr should cast"),
+                GreaterExpr::cast(inner).expect("greater expr should cast"),
             )),
             SyntaxKind::GreaterEqualExprNode => Some(Self::GreaterEqual(
-                GreaterEqualExpr::cast(syntax).expect("greater equal expr should cast"),
+                GreaterEqualExpr::cast(inner).expect("greater equal expr should cast"),
             )),
             SyntaxKind::AdditionExprNode => Some(Self::Addition(
-                AdditionExpr::cast(syntax).expect("addition expr should cast"),
+                AdditionExpr::cast(inner).expect("addition expr should cast"),
             )),
             SyntaxKind::SubtractionExprNode => Some(Self::Subtraction(
-                SubtractionExpr::cast(syntax).expect("subtraction expr should cast"),
+                SubtractionExpr::cast(inner).expect("subtraction expr should cast"),
             )),
             SyntaxKind::MultiplicationExprNode => Some(Self::Multiplication(
-                MultiplicationExpr::cast(syntax).expect("multiplication expr should cast"),
+                MultiplicationExpr::cast(inner).expect("multiplication expr should cast"),
             )),
             SyntaxKind::DivisionExprNode => Some(Self::Division(
-                DivisionExpr::cast(syntax).expect("division expr should cast"),
+                DivisionExpr::cast(inner).expect("division expr should cast"),
             )),
             SyntaxKind::ModuloExprNode => Some(Self::Modulo(
-                ModuloExpr::cast(syntax).expect("modulo expr should cast"),
+                ModuloExpr::cast(inner).expect("modulo expr should cast"),
             )),
             SyntaxKind::ExponentiationExprNode => Some(Self::Exponentiation(
-                ExponentiationExpr::cast(syntax).expect("exponentiation expr should cast"),
+                ExponentiationExpr::cast(inner).expect("exponentiation expr should cast"),
             )),
             SyntaxKind::CallExprNode => Some(Self::Call(
-                CallExpr::cast(syntax).expect("call expr should cast"),
+                CallExpr::cast(inner).expect("call expr should cast"),
             )),
             SyntaxKind::IndexExprNode => Some(Self::Index(
-                IndexExpr::cast(syntax).expect("index expr should cast"),
+                IndexExpr::cast(inner).expect("index expr should cast"),
             )),
             SyntaxKind::AccessExprNode => Some(Self::Access(
-                AccessExpr::cast(syntax).expect("access expr should cast"),
+                AccessExpr::cast(inner).expect("access expr should cast"),
             )),
             _ => None,
         }
     }
 
-    /// Gets a reference to the underlying [`SyntaxNode`].
-    pub fn syntax(&self) -> &SyntaxNode {
+    /// Gets a reference to the inner node.
+    pub fn inner(&self) -> &N {
         match self {
-            Expr::Literal(element) => element.syntax(),
-            Expr::Name(element) => element.syntax(),
-            Expr::Parenthesized(element) => element.syntax(),
-            Expr::If(element) => element.syntax(),
-            Expr::LogicalNot(element) => element.syntax(),
-            Expr::Negation(element) => element.syntax(),
-            Expr::LogicalOr(element) => element.syntax(),
-            Expr::LogicalAnd(element) => element.syntax(),
-            Expr::Equality(element) => element.syntax(),
-            Expr::Inequality(element) => element.syntax(),
-            Expr::Less(element) => element.syntax(),
-            Expr::LessEqual(element) => element.syntax(),
-            Expr::Greater(element) => element.syntax(),
-            Expr::GreaterEqual(element) => element.syntax(),
-            Expr::Addition(element) => element.syntax(),
-            Expr::Subtraction(element) => element.syntax(),
-            Expr::Multiplication(element) => element.syntax(),
-            Expr::Division(element) => element.syntax(),
-            Expr::Modulo(element) => element.syntax(),
-            Expr::Exponentiation(element) => element.syntax(),
-            Expr::Call(element) => element.syntax(),
-            Expr::Index(element) => element.syntax(),
-            Expr::Access(element) => element.syntax(),
+            Self::Literal(e) => e.inner(),
+            Self::NameRef(e) => e.inner(),
+            Self::Parenthesized(e) => e.inner(),
+            Self::If(e) => e.inner(),
+            Self::LogicalNot(e) => e.inner(),
+            Self::Negation(e) => e.inner(),
+            Self::LogicalOr(e) => e.inner(),
+            Self::LogicalAnd(e) => e.inner(),
+            Self::Equality(e) => e.inner(),
+            Self::Inequality(e) => e.inner(),
+            Self::Less(e) => e.inner(),
+            Self::LessEqual(e) => e.inner(),
+            Self::Greater(e) => e.inner(),
+            Self::GreaterEqual(e) => e.inner(),
+            Self::Addition(e) => e.inner(),
+            Self::Subtraction(e) => e.inner(),
+            Self::Multiplication(e) => e.inner(),
+            Self::Division(e) => e.inner(),
+            Self::Modulo(e) => e.inner(),
+            Self::Exponentiation(e) => e.inner(),
+            Self::Call(e) => e.inner(),
+            Self::Index(e) => e.inner(),
+            Self::Access(e) => e.inner(),
         }
     }
 
@@ -221,9 +215,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Literal`], then a reference to the inner
     ///   [`LiteralExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_literal(&self) -> Option<&LiteralExpr> {
+    pub fn as_literal(&self) -> Option<&LiteralExpr<N>> {
         match self {
-            Self::Literal(literal) => Some(literal),
+            Self::Literal(e) => Some(e),
             _ => None,
         }
     }
@@ -233,9 +227,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Literal`], then the inner [`LiteralExpr`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_literal(self) -> Option<LiteralExpr> {
+    pub fn into_literal(self) -> Option<LiteralExpr<N>> {
         match self {
-            Self::Literal(literal) => Some(literal),
+            Self::Literal(e) => Some(e),
             _ => None,
         }
     }
@@ -245,9 +239,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal expression.
-    pub fn unwrap_literal(self) -> LiteralExpr {
+    pub fn unwrap_literal(self) -> LiteralExpr<N> {
         match self {
-            Self::Literal(expr) => expr,
+            Self::Literal(e) => e,
             _ => panic!("not a literal expression"),
         }
     }
@@ -257,9 +251,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Name`], then a reference to the inner
     ///   [`NameRef`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_name_ref(&self) -> Option<&NameRef> {
+    pub fn as_name_ref(&self) -> Option<&NameRefExpr<N>> {
         match self {
-            Self::Name(name_ref) => Some(name_ref),
+            Self::NameRef(e) => Some(e),
             _ => None,
         }
     }
@@ -269,9 +263,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Name`], then the inner [`NameRef`] is returned
     ///   wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_name_ref(self) -> Option<NameRef> {
+    pub fn into_name_ref(self) -> Option<NameRefExpr<N>> {
         match self {
-            Self::Name(name_ref) => Some(name_ref),
+            Self::NameRef(e) => Some(e),
             _ => None,
         }
     }
@@ -281,9 +275,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a name reference.
-    pub fn unwrap_name_ref(self) -> NameRef {
+    pub fn unwrap_name_ref(self) -> NameRefExpr<N> {
         match self {
-            Self::Name(expr) => expr,
+            Self::NameRef(e) => e,
             _ => panic!("not a name reference"),
         }
     }
@@ -293,9 +287,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Parenthesized`], then a reference to the inner
     ///   [`ParenthesizedExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_parenthesized(&self) -> Option<&ParenthesizedExpr> {
+    pub fn as_parenthesized(&self) -> Option<&ParenthesizedExpr<N>> {
         match self {
-            Self::Parenthesized(parenthesized) => Some(parenthesized),
+            Self::Parenthesized(e) => Some(e),
             _ => None,
         }
     }
@@ -305,9 +299,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Parenthesized`], then the inner
     ///   [`ParenthesizedExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_parenthesized(self) -> Option<ParenthesizedExpr> {
+    pub fn into_parenthesized(self) -> Option<ParenthesizedExpr<N>> {
         match self {
-            Self::Parenthesized(parenthesized) => Some(parenthesized),
+            Self::Parenthesized(e) => Some(e),
             _ => None,
         }
     }
@@ -317,9 +311,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a parenthesized expression.
-    pub fn unwrap_parenthesized(self) -> ParenthesizedExpr {
+    pub fn unwrap_parenthesized(self) -> ParenthesizedExpr<N> {
         match self {
-            Self::Parenthesized(expr) => expr,
+            Self::Parenthesized(e) => e,
             _ => panic!("not a parenthesized expression"),
         }
     }
@@ -329,9 +323,9 @@ impl Expr {
     /// * If `self` is a [`Expr::If`], then a reference to the inner [`IfExpr`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_if(&self) -> Option<&IfExpr> {
+    pub fn as_if(&self) -> Option<&IfExpr<N>> {
         match self {
-            Self::If(r#if) => Some(r#if),
+            Self::If(e) => Some(e),
             _ => None,
         }
     }
@@ -341,9 +335,9 @@ impl Expr {
     /// * If `self` is a [`Expr::If`], then the inner [`IfExpr`] is returned
     ///   wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_if(self) -> Option<IfExpr> {
+    pub fn into_if(self) -> Option<IfExpr<N>> {
         match self {
-            Self::If(r#if) => Some(r#if),
+            Self::If(e) => Some(e),
             _ => None,
         }
     }
@@ -353,9 +347,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not an `if` expression.
-    pub fn unwrap_if(self) -> IfExpr {
+    pub fn unwrap_if(self) -> IfExpr<N> {
         match self {
-            Self::If(expr) => expr,
+            Self::If(e) => e,
             _ => panic!("not an `if` expression"),
         }
     }
@@ -365,9 +359,9 @@ impl Expr {
     /// * If `self` is a [`Expr::LogicalNot`], then a reference to the inner
     ///   [`LogicalNotExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_logical_not(&self) -> Option<&LogicalNotExpr> {
+    pub fn as_logical_not(&self) -> Option<&LogicalNotExpr<N>> {
         match self {
-            Self::LogicalNot(logical_not) => Some(logical_not),
+            Self::LogicalNot(e) => Some(e),
             _ => None,
         }
     }
@@ -377,9 +371,9 @@ impl Expr {
     /// * If `self` is a [`Expr::LogicalNot`], then the inner [`LogicalNotExpr`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_logical_not(self) -> Option<LogicalNotExpr> {
+    pub fn into_logical_not(self) -> Option<LogicalNotExpr<N>> {
         match self {
-            Self::LogicalNot(logical_not) => Some(logical_not),
+            Self::LogicalNot(e) => Some(e),
             _ => None,
         }
     }
@@ -389,9 +383,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a logical `not` expression.
-    pub fn unwrap_logical_not(self) -> LogicalNotExpr {
+    pub fn unwrap_logical_not(self) -> LogicalNotExpr<N> {
         match self {
-            Self::LogicalNot(expr) => expr,
+            Self::LogicalNot(e) => e,
             _ => panic!("not a logical `not` expression"),
         }
     }
@@ -401,9 +395,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Negation`], then a reference to the inner
     ///   [`NegationExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_negation(&self) -> Option<&NegationExpr> {
+    pub fn as_negation(&self) -> Option<&NegationExpr<N>> {
         match self {
-            Self::Negation(negation) => Some(negation),
+            Self::Negation(e) => Some(e),
             _ => None,
         }
     }
@@ -413,9 +407,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Negation`], then the inner [`NegationExpr`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_negation(self) -> Option<NegationExpr> {
+    pub fn into_negation(self) -> Option<NegationExpr<N>> {
         match self {
-            Self::Negation(negation) => Some(negation),
+            Self::Negation(e) => Some(e),
             _ => None,
         }
     }
@@ -425,9 +419,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a negation expression.
-    pub fn unwrap_negation(self) -> NegationExpr {
+    pub fn unwrap_negation(self) -> NegationExpr<N> {
         match self {
-            Self::Negation(expr) => expr,
+            Self::Negation(e) => e,
             _ => panic!("not a negation expression"),
         }
     }
@@ -437,9 +431,9 @@ impl Expr {
     /// * If `self` is a [`Expr::LogicalOr`], then a reference to the inner
     ///   [`LogicalOrExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_logical_or(&self) -> Option<&LogicalOrExpr> {
+    pub fn as_logical_or(&self) -> Option<&LogicalOrExpr<N>> {
         match self {
-            Self::LogicalOr(logical_or) => Some(logical_or),
+            Self::LogicalOr(e) => Some(e),
             _ => None,
         }
     }
@@ -449,9 +443,9 @@ impl Expr {
     /// * If `self` is a [`Expr::LogicalOr`], then the inner [`LogicalOrExpr`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_logical_or(self) -> Option<LogicalOrExpr> {
+    pub fn into_logical_or(self) -> Option<LogicalOrExpr<N>> {
         match self {
-            Self::LogicalOr(logical_or) => Some(logical_or),
+            Self::LogicalOr(e) => Some(e),
             _ => None,
         }
     }
@@ -461,9 +455,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a logical `or` expression.
-    pub fn unwrap_logical_or(self) -> LogicalOrExpr {
+    pub fn unwrap_logical_or(self) -> LogicalOrExpr<N> {
         match self {
-            Self::LogicalOr(expr) => expr,
+            Self::LogicalOr(e) => e,
             _ => panic!("not a logical `or` expression"),
         }
     }
@@ -473,9 +467,9 @@ impl Expr {
     /// * If `self` is a [`Expr::LogicalAnd`], then a reference to the inner
     ///   [`LogicalAndExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_logical_and(&self) -> Option<&LogicalAndExpr> {
+    pub fn as_logical_and(&self) -> Option<&LogicalAndExpr<N>> {
         match self {
-            Self::LogicalAnd(logical_and) => Some(logical_and),
+            Self::LogicalAnd(e) => Some(e),
             _ => None,
         }
     }
@@ -485,9 +479,9 @@ impl Expr {
     /// * If `self` is a [`Expr::LogicalAnd`], then the inner [`LogicalAndExpr`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_logical_and(self) -> Option<LogicalAndExpr> {
+    pub fn into_logical_and(self) -> Option<LogicalAndExpr<N>> {
         match self {
-            Self::LogicalAnd(logical_and) => Some(logical_and),
+            Self::LogicalAnd(e) => Some(e),
             _ => None,
         }
     }
@@ -497,9 +491,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a logical `and` expression.
-    pub fn unwrap_logical_and(self) -> LogicalAndExpr {
+    pub fn unwrap_logical_and(self) -> LogicalAndExpr<N> {
         match self {
-            Self::LogicalAnd(expr) => expr,
+            Self::LogicalAnd(e) => e,
             _ => panic!("not a logical `and` expression"),
         }
     }
@@ -509,9 +503,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Equality`], then a reference to the inner
     ///   [`EqualityExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_equality(&self) -> Option<&EqualityExpr> {
+    pub fn as_equality(&self) -> Option<&EqualityExpr<N>> {
         match self {
-            Self::Equality(equality) => Some(equality),
+            Self::Equality(e) => Some(e),
             _ => None,
         }
     }
@@ -521,9 +515,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Equality`], then the inner [`EqualityExpr`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_equality(self) -> Option<EqualityExpr> {
+    pub fn into_equality(self) -> Option<EqualityExpr<N>> {
         match self {
-            Self::Equality(equality) => Some(equality),
+            Self::Equality(e) => Some(e),
             _ => None,
         }
     }
@@ -533,9 +527,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not an equality expression.
-    pub fn unwrap_equality(self) -> EqualityExpr {
+    pub fn unwrap_equality(self) -> EqualityExpr<N> {
         match self {
-            Self::Equality(expr) => expr,
+            Self::Equality(e) => e,
             _ => panic!("not an equality expression"),
         }
     }
@@ -545,9 +539,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Inequality`], then a reference to the inner
     ///   [`InequalityExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_inequality(&self) -> Option<&InequalityExpr> {
+    pub fn as_inequality(&self) -> Option<&InequalityExpr<N>> {
         match self {
-            Self::Inequality(inequality) => Some(inequality),
+            Self::Inequality(e) => Some(e),
             _ => None,
         }
     }
@@ -557,9 +551,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Inequality`], then the inner [`InequalityExpr`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_inequality(self) -> Option<InequalityExpr> {
+    pub fn into_inequality(self) -> Option<InequalityExpr<N>> {
         match self {
-            Self::Inequality(inequality) => Some(inequality),
+            Self::Inequality(e) => Some(e),
             _ => None,
         }
     }
@@ -569,9 +563,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not an inequality expression.
-    pub fn unwrap_inequality(self) -> InequalityExpr {
+    pub fn unwrap_inequality(self) -> InequalityExpr<N> {
         match self {
-            Self::Inequality(expr) => expr,
+            Self::Inequality(e) => e,
             _ => panic!("not an inequality expression"),
         }
     }
@@ -581,9 +575,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Less`], then a reference to the inner
     ///   [`LessExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_less(&self) -> Option<&LessExpr> {
+    pub fn as_less(&self) -> Option<&LessExpr<N>> {
         match self {
-            Self::Less(less) => Some(less),
+            Self::Less(e) => Some(e),
             _ => None,
         }
     }
@@ -593,9 +587,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Less`], then the inner [`LessExpr`] is returned
     ///   wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_less(self) -> Option<LessExpr> {
+    pub fn into_less(self) -> Option<LessExpr<N>> {
         match self {
-            Self::Less(less) => Some(less),
+            Self::Less(e) => Some(e),
             _ => None,
         }
     }
@@ -605,9 +599,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a "less than" expression.
-    pub fn unwrap_less(self) -> LessExpr {
+    pub fn unwrap_less(self) -> LessExpr<N> {
         match self {
-            Self::Less(expr) => expr,
+            Self::Less(e) => e,
             _ => panic!("not a \"less than\" expression"),
         }
     }
@@ -617,9 +611,9 @@ impl Expr {
     /// * If `self` is a [`Expr::LessEqual`], then a reference to the inner
     ///   [`LessEqualExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_less_equal(&self) -> Option<&LessEqualExpr> {
+    pub fn as_less_equal(&self) -> Option<&LessEqualExpr<N>> {
         match self {
-            Self::LessEqual(less_equal) => Some(less_equal),
+            Self::LessEqual(e) => Some(e),
             _ => None,
         }
     }
@@ -629,9 +623,9 @@ impl Expr {
     /// * If `self` is a [`Expr::LessEqual`], then the inner [`LessEqualExpr`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_less_equal(self) -> Option<LessEqualExpr> {
+    pub fn into_less_equal(self) -> Option<LessEqualExpr<N>> {
         match self {
-            Self::LessEqual(less_equal) => Some(less_equal),
+            Self::LessEqual(e) => Some(e),
             _ => None,
         }
     }
@@ -641,9 +635,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a "less than or equal to" expression.
-    pub fn unwrap_less_equal(self) -> LessEqualExpr {
+    pub fn unwrap_less_equal(self) -> LessEqualExpr<N> {
         match self {
-            Self::LessEqual(expr) => expr,
+            Self::LessEqual(e) => e,
             _ => panic!("not a \"less than or equal to\" expression"),
         }
     }
@@ -653,9 +647,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Greater`], then a reference to the inner
     ///   [`GreaterExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_greater(&self) -> Option<&GreaterExpr> {
+    pub fn as_greater(&self) -> Option<&GreaterExpr<N>> {
         match self {
-            Self::Greater(greater) => Some(greater),
+            Self::Greater(e) => Some(e),
             _ => None,
         }
     }
@@ -665,9 +659,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Greater`], then the inner [`GreaterExpr`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_greater(self) -> Option<GreaterExpr> {
+    pub fn into_greater(self) -> Option<GreaterExpr<N>> {
         match self {
-            Self::Greater(greater) => Some(greater),
+            Self::Greater(e) => Some(e),
             _ => None,
         }
     }
@@ -677,9 +671,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a "greater than" expression.
-    pub fn unwrap_greater(self) -> GreaterExpr {
+    pub fn unwrap_greater(self) -> GreaterExpr<N> {
         match self {
-            Self::Greater(expr) => expr,
+            Self::Greater(e) => e,
             _ => panic!("not a \"greater than\" expression"),
         }
     }
@@ -689,9 +683,9 @@ impl Expr {
     /// * If `self` is a [`Expr::GreaterEqual`], then a reference to the inner
     ///   [`GreaterEqualExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_greater_equal(&self) -> Option<&GreaterEqualExpr> {
+    pub fn as_greater_equal(&self) -> Option<&GreaterEqualExpr<N>> {
         match self {
-            Self::GreaterEqual(greater_equal) => Some(greater_equal),
+            Self::GreaterEqual(e) => Some(e),
             _ => None,
         }
     }
@@ -701,9 +695,9 @@ impl Expr {
     /// * If `self` is a [`Expr::GreaterEqual`], then the inner
     ///   [`GreaterEqualExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_greater_equal(self) -> Option<GreaterEqualExpr> {
+    pub fn into_greater_equal(self) -> Option<GreaterEqualExpr<N>> {
         match self {
-            Self::GreaterEqual(greater_equal) => Some(greater_equal),
+            Self::GreaterEqual(e) => Some(e),
             _ => None,
         }
     }
@@ -713,9 +707,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a "greater than or equal to" expression.
-    pub fn unwrap_greater_equal(self) -> GreaterEqualExpr {
+    pub fn unwrap_greater_equal(self) -> GreaterEqualExpr<N> {
         match self {
-            Self::GreaterEqual(expr) => expr,
+            Self::GreaterEqual(e) => e,
             _ => panic!("not a \"greater than or equal to\" expression"),
         }
     }
@@ -725,9 +719,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Addition`], then a reference to the inner
     ///   [`AdditionExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_addition(&self) -> Option<&AdditionExpr> {
+    pub fn as_addition(&self) -> Option<&AdditionExpr<N>> {
         match self {
-            Self::Addition(addition) => Some(addition),
+            Self::Addition(e) => Some(e),
             _ => None,
         }
     }
@@ -737,9 +731,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Addition`], then the inner [`AdditionExpr`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_addition(self) -> Option<AdditionExpr> {
+    pub fn into_addition(self) -> Option<AdditionExpr<N>> {
         match self {
-            Self::Addition(addition) => Some(addition),
+            Self::Addition(e) => Some(e),
             _ => None,
         }
     }
@@ -749,9 +743,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not an addition expression.
-    pub fn unwrap_addition(self) -> AdditionExpr {
+    pub fn unwrap_addition(self) -> AdditionExpr<N> {
         match self {
-            Self::Addition(expr) => expr,
+            Self::Addition(e) => e,
             _ => panic!("not an addition expression"),
         }
     }
@@ -761,9 +755,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Subtraction`], then a reference to the inner
     ///   [`SubtractionExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_subtraction(&self) -> Option<&SubtractionExpr> {
+    pub fn as_subtraction(&self) -> Option<&SubtractionExpr<N>> {
         match self {
-            Self::Subtraction(subtraction) => Some(subtraction),
+            Self::Subtraction(e) => Some(e),
             _ => None,
         }
     }
@@ -773,9 +767,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Subtraction`], then the inner
     ///   [`SubtractionExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_subtraction(self) -> Option<SubtractionExpr> {
+    pub fn into_subtraction(self) -> Option<SubtractionExpr<N>> {
         match self {
-            Self::Subtraction(subtraction) => Some(subtraction),
+            Self::Subtraction(e) => Some(e),
             _ => None,
         }
     }
@@ -785,9 +779,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a subtraction expression.
-    pub fn unwrap_subtraction(self) -> SubtractionExpr {
+    pub fn unwrap_subtraction(self) -> SubtractionExpr<N> {
         match self {
-            Self::Subtraction(expr) => expr,
+            Self::Subtraction(e) => e,
             _ => panic!("not a subtraction expression"),
         }
     }
@@ -797,9 +791,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Multiplication`], then a reference to the inner
     ///   [`MultiplicationExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_multiplication(&self) -> Option<&MultiplicationExpr> {
+    pub fn as_multiplication(&self) -> Option<&MultiplicationExpr<N>> {
         match self {
-            Self::Multiplication(multiplication) => Some(multiplication),
+            Self::Multiplication(e) => Some(e),
             _ => None,
         }
     }
@@ -809,9 +803,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Multiplication`], then the inner
     ///   [`MultiplicationExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_multiplication(self) -> Option<MultiplicationExpr> {
+    pub fn into_multiplication(self) -> Option<MultiplicationExpr<N>> {
         match self {
-            Self::Multiplication(multiplication) => Some(multiplication),
+            Self::Multiplication(e) => Some(e),
             _ => None,
         }
     }
@@ -821,9 +815,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a multiplication expression.
-    pub fn unwrap_multiplication(self) -> MultiplicationExpr {
+    pub fn unwrap_multiplication(self) -> MultiplicationExpr<N> {
         match self {
-            Self::Multiplication(expr) => expr,
+            Self::Multiplication(e) => e,
             _ => panic!("not a multiplication expression"),
         }
     }
@@ -833,9 +827,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Division`], then a reference to the inner
     ///   [`DivisionExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_division(&self) -> Option<&DivisionExpr> {
+    pub fn as_division(&self) -> Option<&DivisionExpr<N>> {
         match self {
-            Self::Division(division) => Some(division),
+            Self::Division(e) => Some(e),
             _ => None,
         }
     }
@@ -845,9 +839,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Division`], then the inner [`DivisionExpr`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_division(self) -> Option<DivisionExpr> {
+    pub fn into_division(self) -> Option<DivisionExpr<N>> {
         match self {
-            Self::Division(division) => Some(division),
+            Self::Division(e) => Some(e),
             _ => None,
         }
     }
@@ -857,9 +851,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a division expression.
-    pub fn unwrap_division(self) -> DivisionExpr {
+    pub fn unwrap_division(self) -> DivisionExpr<N> {
         match self {
-            Self::Division(expr) => expr,
+            Self::Division(e) => e,
             _ => panic!("not a division expression"),
         }
     }
@@ -869,9 +863,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Modulo`], then a reference to the inner
     ///   [`ModuloExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_modulo(&self) -> Option<&ModuloExpr> {
+    pub fn as_modulo(&self) -> Option<&ModuloExpr<N>> {
         match self {
-            Self::Modulo(modulo) => Some(modulo),
+            Self::Modulo(e) => Some(e),
             _ => None,
         }
     }
@@ -881,9 +875,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Modulo`], then the inner [`ModuloExpr`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_modulo(self) -> Option<ModuloExpr> {
+    pub fn into_modulo(self) -> Option<ModuloExpr<N>> {
         match self {
-            Self::Modulo(modulo) => Some(modulo),
+            Self::Modulo(e) => Some(e),
             _ => None,
         }
     }
@@ -893,9 +887,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a modulo expression.
-    pub fn unwrap_modulo(self) -> ModuloExpr {
+    pub fn unwrap_modulo(self) -> ModuloExpr<N> {
         match self {
-            Self::Modulo(expr) => expr,
+            Self::Modulo(e) => e,
             _ => panic!("not a modulo expression"),
         }
     }
@@ -905,9 +899,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Exponentiation`], then a reference to the inner
     ///   [`ExponentiationExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_exponentiation(&self) -> Option<&ExponentiationExpr> {
+    pub fn as_exponentiation(&self) -> Option<&ExponentiationExpr<N>> {
         match self {
-            Self::Exponentiation(exponentiation) => Some(exponentiation),
+            Self::Exponentiation(e) => Some(e),
             _ => None,
         }
     }
@@ -917,9 +911,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Exponentiation`], then the inner
     ///   [`ExponentiationExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_exponentiation(self) -> Option<ExponentiationExpr> {
+    pub fn into_exponentiation(self) -> Option<ExponentiationExpr<N>> {
         match self {
-            Self::Exponentiation(exponentiation) => Some(exponentiation),
+            Self::Exponentiation(e) => Some(e),
             _ => None,
         }
     }
@@ -929,9 +923,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not an exponentiation expression.
-    pub fn unwrap_exponentiation(self) -> ExponentiationExpr {
+    pub fn unwrap_exponentiation(self) -> ExponentiationExpr<N> {
         match self {
-            Self::Exponentiation(expr) => expr,
+            Self::Exponentiation(e) => e,
             _ => panic!("not an exponentiation expression"),
         }
     }
@@ -941,9 +935,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Call`], then a reference to the inner
     ///   [`CallExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_call(&self) -> Option<&CallExpr> {
+    pub fn as_call(&self) -> Option<&CallExpr<N>> {
         match self {
-            Self::Call(call) => Some(call),
+            Self::Call(e) => Some(e),
             _ => None,
         }
     }
@@ -953,9 +947,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Call`], then the inner [`CallExpr`] is returned
     ///   wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_call(self) -> Option<CallExpr> {
+    pub fn into_call(self) -> Option<CallExpr<N>> {
         match self {
-            Self::Call(call) => Some(call),
+            Self::Call(e) => Some(e),
             _ => None,
         }
     }
@@ -965,9 +959,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not a call expression.
-    pub fn unwrap_call(self) -> CallExpr {
+    pub fn unwrap_call(self) -> CallExpr<N> {
         match self {
-            Self::Call(expr) => expr,
+            Self::Call(e) => e,
             _ => panic!("not a call expression"),
         }
     }
@@ -977,9 +971,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Index`], then a reference to the inner
     ///   [`IndexExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_index(&self) -> Option<&IndexExpr> {
+    pub fn as_index(&self) -> Option<&IndexExpr<N>> {
         match self {
-            Self::Index(index) => Some(index),
+            Self::Index(e) => Some(e),
             _ => None,
         }
     }
@@ -989,9 +983,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Index`], then the inner [`IndexExpr`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_index(self) -> Option<IndexExpr> {
+    pub fn into_index(self) -> Option<IndexExpr<N>> {
         match self {
-            Self::Index(index) => Some(index),
+            Self::Index(e) => Some(e),
             _ => None,
         }
     }
@@ -1001,9 +995,9 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not an index expression.
-    pub fn unwrap_index(self) -> IndexExpr {
+    pub fn unwrap_index(self) -> IndexExpr<N> {
         match self {
-            Self::Index(expr) => expr,
+            Self::Index(e) => e,
             _ => panic!("not an index expression"),
         }
     }
@@ -1013,9 +1007,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Access`], then a reference to the inner
     ///   [`AccessExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_access(&self) -> Option<&AccessExpr> {
+    pub fn as_access(&self) -> Option<&AccessExpr<N>> {
         match self {
-            Self::Access(access) => Some(access),
+            Self::Access(e) => Some(e),
             _ => None,
         }
     }
@@ -1025,9 +1019,9 @@ impl Expr {
     /// * If `self` is a [`Expr::Access`], then the inner [`AccessExpr`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_access(self) -> Option<AccessExpr> {
+    pub fn into_access(self) -> Option<AccessExpr<N>> {
         match self {
-            Self::Access(access) => Some(access),
+            Self::Access(e) => Some(e),
             _ => None,
         }
     }
@@ -1037,56 +1031,43 @@ impl Expr {
     /// # Panics
     ///
     /// Panics if the expression is not an access expression.
-    pub fn unwrap_access(self) -> AccessExpr {
+    pub fn unwrap_access(self) -> AccessExpr<N> {
         match self {
-            Self::Access(expr) => expr,
+            Self::Access(e) => e,
             _ => panic!("not an access expression"),
         }
     }
 
     /// Finds the first child that can be cast to an [`Expr`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::child`] without requiring [`Expr`] to implement
-    /// the `AstNode` trait.
-    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
-        syntax.children().find_map(Self::cast)
+    pub fn child(node: &N) -> Option<Self> {
+        node.children().find_map(Self::cast)
     }
 
     /// Finds all children that can be cast to an [`Expr`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::children`] without requiring [`Expr`] to
-    /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = Expr> + use<> {
-        syntax.children().filter_map(Self::cast)
+    pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
+        node.children().filter_map(Self::cast)
     }
 
     /// Determines if the expression is an empty array literal or any number of
     /// parenthesized expressions that terminate with an empty array literal.
     pub fn is_empty_array_literal(&self) -> bool {
         match self {
-            Self::Parenthesized(expr) => expr.inner().is_empty_array_literal(),
+            Self::Parenthesized(expr) => expr.expr().is_empty_array_literal(),
             Self::Literal(LiteralExpr::Array(expr)) => expr.elements().next().is_none(),
             _ => false,
         }
     }
 }
 
-impl AstNode for Expr {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
-        if LiteralExpr::can_cast(kind) {
+impl<N: TreeNode> AstNode<N> for Expr<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        if LiteralExpr::<N>::can_cast(kind) {
             return true;
         }
 
         matches!(
             kind,
-            SyntaxKind::NameRefNode
+            SyntaxKind::NameRefExprNode
                 | SyntaxKind::ParenthesizedExprNode
                 | SyntaxKind::IfExprNode
                 | SyntaxKind::LogicalNotExprNode
@@ -1111,51 +1092,48 @@ impl AstNode for Expr {
         )
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if LiteralExpr::can_cast(syntax.kind()) {
-            return LiteralExpr::cast(syntax).map(Self::Literal);
+    fn cast(inner: N) -> Option<Self> {
+        if LiteralExpr::<N>::can_cast(inner.kind()) {
+            return LiteralExpr::cast(inner).map(Self::Literal);
         }
 
-        match syntax.kind() {
-            SyntaxKind::NameRefNode => Some(Self::Name(NameRef(syntax))),
+        match inner.kind() {
+            SyntaxKind::NameRefExprNode => Some(Self::NameRef(NameRefExpr(inner))),
             SyntaxKind::ParenthesizedExprNode => {
-                Some(Self::Parenthesized(ParenthesizedExpr(syntax)))
+                Some(Self::Parenthesized(ParenthesizedExpr(inner)))
             }
-            SyntaxKind::IfExprNode => Some(Self::If(IfExpr(syntax))),
-            SyntaxKind::LogicalNotExprNode => Some(Self::LogicalNot(LogicalNotExpr(syntax))),
-            SyntaxKind::NegationExprNode => Some(Self::Negation(NegationExpr(syntax))),
-            SyntaxKind::LogicalOrExprNode => Some(Self::LogicalOr(LogicalOrExpr(syntax))),
-            SyntaxKind::LogicalAndExprNode => Some(Self::LogicalAnd(LogicalAndExpr(syntax))),
-            SyntaxKind::EqualityExprNode => Some(Self::Equality(EqualityExpr(syntax))),
-            SyntaxKind::InequalityExprNode => Some(Self::Inequality(InequalityExpr(syntax))),
-            SyntaxKind::LessExprNode => Some(Self::Less(LessExpr(syntax))),
-            SyntaxKind::LessEqualExprNode => Some(Self::LessEqual(LessEqualExpr(syntax))),
-            SyntaxKind::GreaterExprNode => Some(Self::Greater(GreaterExpr(syntax))),
-            SyntaxKind::GreaterEqualExprNode => Some(Self::GreaterEqual(GreaterEqualExpr(syntax))),
-            SyntaxKind::AdditionExprNode => Some(Self::Addition(AdditionExpr(syntax))),
-            SyntaxKind::SubtractionExprNode => Some(Self::Subtraction(SubtractionExpr(syntax))),
+            SyntaxKind::IfExprNode => Some(Self::If(IfExpr(inner))),
+            SyntaxKind::LogicalNotExprNode => Some(Self::LogicalNot(LogicalNotExpr(inner))),
+            SyntaxKind::NegationExprNode => Some(Self::Negation(NegationExpr(inner))),
+            SyntaxKind::LogicalOrExprNode => Some(Self::LogicalOr(LogicalOrExpr(inner))),
+            SyntaxKind::LogicalAndExprNode => Some(Self::LogicalAnd(LogicalAndExpr(inner))),
+            SyntaxKind::EqualityExprNode => Some(Self::Equality(EqualityExpr(inner))),
+            SyntaxKind::InequalityExprNode => Some(Self::Inequality(InequalityExpr(inner))),
+            SyntaxKind::LessExprNode => Some(Self::Less(LessExpr(inner))),
+            SyntaxKind::LessEqualExprNode => Some(Self::LessEqual(LessEqualExpr(inner))),
+            SyntaxKind::GreaterExprNode => Some(Self::Greater(GreaterExpr(inner))),
+            SyntaxKind::GreaterEqualExprNode => Some(Self::GreaterEqual(GreaterEqualExpr(inner))),
+            SyntaxKind::AdditionExprNode => Some(Self::Addition(AdditionExpr(inner))),
+            SyntaxKind::SubtractionExprNode => Some(Self::Subtraction(SubtractionExpr(inner))),
             SyntaxKind::MultiplicationExprNode => {
-                Some(Self::Multiplication(MultiplicationExpr(syntax)))
+                Some(Self::Multiplication(MultiplicationExpr(inner)))
             }
-            SyntaxKind::DivisionExprNode => Some(Self::Division(DivisionExpr(syntax))),
-            SyntaxKind::ModuloExprNode => Some(Self::Modulo(ModuloExpr(syntax))),
+            SyntaxKind::DivisionExprNode => Some(Self::Division(DivisionExpr(inner))),
+            SyntaxKind::ModuloExprNode => Some(Self::Modulo(ModuloExpr(inner))),
             SyntaxKind::ExponentiationExprNode => {
-                Some(Self::Exponentiation(ExponentiationExpr(syntax)))
+                Some(Self::Exponentiation(ExponentiationExpr(inner)))
             }
-            SyntaxKind::CallExprNode => Some(Self::Call(CallExpr(syntax))),
-            SyntaxKind::IndexExprNode => Some(Self::Index(IndexExpr(syntax))),
-            SyntaxKind::AccessExprNode => Some(Self::Access(AccessExpr(syntax))),
+            SyntaxKind::CallExprNode => Some(Self::Call(CallExpr(inner))),
+            SyntaxKind::IndexExprNode => Some(Self::Index(IndexExpr(inner))),
+            SyntaxKind::AccessExprNode => Some(Self::Access(AccessExpr(inner))),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         match self {
-            Self::Literal(l) => l.syntax(),
-            Self::Name(n) => &n.0,
+            Self::Literal(l) => l.inner(),
+            Self::NameRef(n) => &n.0,
             Self::Parenthesized(p) => &p.0,
             Self::If(i) => &i.0,
             Self::LogicalNot(n) => &n.0,
@@ -1183,42 +1161,39 @@ impl AstNode for Expr {
 
 /// Represents a literal expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum LiteralExpr {
+pub enum LiteralExpr<N: TreeNode = SyntaxNode> {
     /// The literal is a `Boolean`.
-    Boolean(LiteralBoolean),
+    Boolean(LiteralBoolean<N>),
     /// The literal is an `Int`.
-    Integer(LiteralInteger),
+    Integer(LiteralInteger<N>),
     /// The literal is a `Float`.
-    Float(LiteralFloat),
+    Float(LiteralFloat<N>),
     /// The literal is a `String`.
-    String(LiteralString),
+    String(LiteralString<N>),
     /// The literal is an `Array`.
-    Array(LiteralArray),
+    Array(LiteralArray<N>),
     /// The literal is a `Pair`.
-    Pair(LiteralPair),
+    Pair(LiteralPair<N>),
     /// The literal is a `Map`.
-    Map(LiteralMap),
+    Map(LiteralMap<N>),
     /// The literal is an `Object`.
-    Object(LiteralObject),
+    Object(LiteralObject<N>),
     /// The literal is a struct.
-    Struct(LiteralStruct),
+    Struct(LiteralStruct<N>),
     /// The literal is a `None`.
-    None(LiteralNone),
+    None(LiteralNone<N>),
     /// The literal is a `hints`.
-    Hints(LiteralHints),
+    Hints(LiteralHints<N>),
     /// The literal is an `input`.
-    Input(LiteralInput),
+    Input(LiteralInput<N>),
     /// The literal is an `output`.
-    Output(LiteralOutput),
+    Output(LiteralOutput<N>),
 }
 
-impl LiteralExpr {
-    /// Returns whether or not a [`SyntaxKind`] is able to be cast
-    /// to any of the underlying members within the [`Expr`].
-    pub fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> LiteralExpr<N> {
+    /// Returns whether or not the given syntax kind can be cast to
+    /// [`LiteralExpr`].
+    pub fn can_cast(kind: SyntaxKind) -> bool {
         matches!(
             kind,
             SyntaxKind::LiteralBooleanNode
@@ -1237,69 +1212,70 @@ impl LiteralExpr {
         )
     }
 
-    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
-    /// within the [`LiteralExpr`].
-    pub fn cast(syntax: SyntaxNode) -> Option<Self> {
-        match syntax.kind() {
+    /// Casts the given node to [`LiteralExpr`].
+    ///
+    /// Returns `None` if the node cannot be cast.
+    pub fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
             SyntaxKind::LiteralBooleanNode => Some(Self::Boolean(
-                LiteralBoolean::cast(syntax).expect("literal boolean to cast"),
+                LiteralBoolean::cast(inner).expect("literal boolean to cast"),
             )),
             SyntaxKind::LiteralIntegerNode => Some(Self::Integer(
-                LiteralInteger::cast(syntax).expect("literal integer to cast"),
+                LiteralInteger::cast(inner).expect("literal integer to cast"),
             )),
             SyntaxKind::LiteralFloatNode => Some(Self::Float(
-                LiteralFloat::cast(syntax).expect("literal float to cast"),
+                LiteralFloat::cast(inner).expect("literal float to cast"),
             )),
             SyntaxKind::LiteralStringNode => Some(Self::String(
-                LiteralString::cast(syntax).expect("literal string to cast"),
+                LiteralString::cast(inner).expect("literal string to cast"),
             )),
             SyntaxKind::LiteralArrayNode => Some(Self::Array(
-                LiteralArray::cast(syntax).expect("literal array to cast"),
+                LiteralArray::cast(inner).expect("literal array to cast"),
             )),
             SyntaxKind::LiteralPairNode => Some(Self::Pair(
-                LiteralPair::cast(syntax).expect("literal pair to cast"),
+                LiteralPair::cast(inner).expect("literal pair to cast"),
             )),
             SyntaxKind::LiteralMapNode => Some(Self::Map(
-                LiteralMap::cast(syntax).expect("literal map to case"),
+                LiteralMap::cast(inner).expect("literal map to case"),
             )),
             SyntaxKind::LiteralObjectNode => Some(Self::Object(
-                LiteralObject::cast(syntax).expect("literal object to cast"),
+                LiteralObject::cast(inner).expect("literal object to cast"),
             )),
             SyntaxKind::LiteralStructNode => Some(Self::Struct(
-                LiteralStruct::cast(syntax).expect("literal struct to cast"),
+                LiteralStruct::cast(inner).expect("literal struct to cast"),
             )),
             SyntaxKind::LiteralNoneNode => Some(Self::None(
-                LiteralNone::cast(syntax).expect("literal none to cast"),
+                LiteralNone::cast(inner).expect("literal none to cast"),
             )),
             SyntaxKind::LiteralHintsNode => Some(Self::Hints(
-                LiteralHints::cast(syntax).expect("literal hints to cast"),
+                LiteralHints::cast(inner).expect("literal hints to cast"),
             )),
             SyntaxKind::LiteralInputNode => Some(Self::Input(
-                LiteralInput::cast(syntax).expect("literal input to cast"),
+                LiteralInput::cast(inner).expect("literal input to cast"),
             )),
             SyntaxKind::LiteralOutputNode => Some(Self::Output(
-                LiteralOutput::cast(syntax).expect("literal output to cast"),
+                LiteralOutput::cast(inner).expect("literal output to cast"),
             )),
             _ => None,
         }
     }
 
-    /// Gets a reference to the underlying [`SyntaxNode`].
-    pub fn syntax(&self) -> &SyntaxNode {
+    /// Gets a reference to the inner node.
+    pub fn inner(&self) -> &N {
         match self {
-            Self::Boolean(element) => element.syntax(),
-            Self::Integer(element) => element.syntax(),
-            Self::Float(element) => element.syntax(),
-            Self::String(element) => element.syntax(),
-            Self::Array(element) => element.syntax(),
-            Self::Pair(element) => element.syntax(),
-            Self::Map(element) => element.syntax(),
-            Self::Object(element) => element.syntax(),
-            Self::Struct(element) => element.syntax(),
-            Self::None(element) => element.syntax(),
-            Self::Hints(element) => element.syntax(),
-            Self::Input(element) => element.syntax(),
-            Self::Output(element) => element.syntax(),
+            Self::Boolean(e) => e.inner(),
+            Self::Integer(e) => e.inner(),
+            Self::Float(e) => e.inner(),
+            Self::String(e) => e.inner(),
+            Self::Array(e) => e.inner(),
+            Self::Pair(e) => e.inner(),
+            Self::Map(e) => e.inner(),
+            Self::Object(e) => e.inner(),
+            Self::Struct(e) => e.inner(),
+            Self::None(e) => e.inner(),
+            Self::Hints(e) => e.inner(),
+            Self::Input(e) => e.inner(),
+            Self::Output(e) => e.inner(),
         }
     }
 
@@ -1308,9 +1284,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Boolean`], then a reference to the inner
     ///   [`LiteralBoolean`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_boolean(&self) -> Option<&LiteralBoolean> {
+    pub fn as_boolean(&self) -> Option<&LiteralBoolean<N>> {
         match self {
-            Self::Boolean(boolean) => Some(boolean),
+            Self::Boolean(e) => Some(e),
             _ => None,
         }
     }
@@ -1320,9 +1296,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Boolean`], then the inner
     ///   [`LiteralBoolean`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_boolean(self) -> Option<LiteralBoolean> {
+    pub fn into_boolean(self) -> Option<LiteralBoolean<N>> {
         match self {
-            Self::Boolean(boolean) => Some(boolean),
+            Self::Boolean(e) => Some(e),
             _ => None,
         }
     }
@@ -1332,9 +1308,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal boolean.
-    pub fn unwrap_boolean(self) -> LiteralBoolean {
+    pub fn unwrap_boolean(self) -> LiteralBoolean<N> {
         match self {
-            Self::Boolean(literal) => literal,
+            Self::Boolean(e) => e,
             _ => panic!("not a literal boolean"),
         }
     }
@@ -1344,9 +1320,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Integer`], then a reference to the inner
     ///   [`LiteralInteger`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_integer(&self) -> Option<&LiteralInteger> {
+    pub fn as_integer(&self) -> Option<&LiteralInteger<N>> {
         match self {
-            Self::Integer(integer) => Some(integer),
+            Self::Integer(e) => Some(e),
             _ => None,
         }
     }
@@ -1356,9 +1332,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Integer`], then the inner
     ///   [`LiteralInteger`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_integer(self) -> Option<LiteralInteger> {
+    pub fn into_integer(self) -> Option<LiteralInteger<N>> {
         match self {
-            Self::Integer(integer) => Some(integer),
+            Self::Integer(e) => Some(e),
             _ => None,
         }
     }
@@ -1368,9 +1344,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal integer.
-    pub fn unwrap_integer(self) -> LiteralInteger {
+    pub fn unwrap_integer(self) -> LiteralInteger<N> {
         match self {
-            Self::Integer(literal) => literal,
+            Self::Integer(e) => e,
             _ => panic!("not a literal integer"),
         }
     }
@@ -1380,9 +1356,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Float`], then a reference to the inner
     ///   [`LiteralFloat`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_float(&self) -> Option<&LiteralFloat> {
+    pub fn as_float(&self) -> Option<&LiteralFloat<N>> {
         match self {
-            Self::Float(float) => Some(float),
+            Self::Float(e) => Some(e),
             _ => None,
         }
     }
@@ -1392,9 +1368,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Float`], then the inner [`LiteralFloat`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_float(self) -> Option<LiteralFloat> {
+    pub fn into_float(self) -> Option<LiteralFloat<N>> {
         match self {
-            Self::Float(float) => Some(float),
+            Self::Float(e) => Some(e),
             _ => None,
         }
     }
@@ -1404,9 +1380,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal float.
-    pub fn unwrap_float(self) -> LiteralFloat {
+    pub fn unwrap_float(self) -> LiteralFloat<N> {
         match self {
-            Self::Float(literal) => literal,
+            Self::Float(e) => e,
             _ => panic!("not a literal float"),
         }
     }
@@ -1416,9 +1392,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::String`], then a reference to the inner
     ///   [`LiteralString`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_string(&self) -> Option<&LiteralString> {
+    pub fn as_string(&self) -> Option<&LiteralString<N>> {
         match self {
-            Self::String(string) => Some(string),
+            Self::String(e) => Some(e),
             _ => None,
         }
     }
@@ -1428,9 +1404,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::String`], then the inner
     ///   [`LiteralString`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_string(self) -> Option<LiteralString> {
+    pub fn into_string(self) -> Option<LiteralString<N>> {
         match self {
-            Self::String(string) => Some(string),
+            Self::String(e) => Some(e),
             _ => None,
         }
     }
@@ -1440,9 +1416,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal string.
-    pub fn unwrap_string(self) -> LiteralString {
+    pub fn unwrap_string(self) -> LiteralString<N> {
         match self {
-            Self::String(literal) => literal,
+            Self::String(e) => e,
             _ => panic!("not a literal string"),
         }
     }
@@ -1452,9 +1428,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Array`], then a reference to the inner
     ///   [`LiteralArray`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_array(&self) -> Option<&LiteralArray> {
+    pub fn as_array(&self) -> Option<&LiteralArray<N>> {
         match self {
-            Self::Array(array) => Some(array),
+            Self::Array(e) => Some(e),
             _ => None,
         }
     }
@@ -1464,9 +1440,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Array`], then the inner [`LiteralArray`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_array(self) -> Option<LiteralArray> {
+    pub fn into_array(self) -> Option<LiteralArray<N>> {
         match self {
-            Self::Array(array) => Some(array),
+            Self::Array(e) => Some(e),
             _ => None,
         }
     }
@@ -1476,9 +1452,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal array.
-    pub fn unwrap_array(self) -> LiteralArray {
+    pub fn unwrap_array(self) -> LiteralArray<N> {
         match self {
-            Self::Array(literal) => literal,
+            Self::Array(e) => e,
             _ => panic!("not a literal array"),
         }
     }
@@ -1488,9 +1464,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Pair`], then a reference to the inner
     ///   [`LiteralPair`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_pair(&self) -> Option<&LiteralPair> {
+    pub fn as_pair(&self) -> Option<&LiteralPair<N>> {
         match self {
-            Self::Pair(pair) => Some(pair),
+            Self::Pair(e) => Some(e),
             _ => None,
         }
     }
@@ -1500,9 +1476,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Pair`], then the inner [`LiteralPair`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_pair(self) -> Option<LiteralPair> {
+    pub fn into_pair(self) -> Option<LiteralPair<N>> {
         match self {
-            Self::Pair(pair) => Some(pair),
+            Self::Pair(e) => Some(e),
             _ => None,
         }
     }
@@ -1512,9 +1488,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal pair.
-    pub fn unwrap_pair(self) -> LiteralPair {
+    pub fn unwrap_pair(self) -> LiteralPair<N> {
         match self {
-            Self::Pair(literal) => literal,
+            Self::Pair(e) => e,
             _ => panic!("not a literal pair"),
         }
     }
@@ -1524,9 +1500,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Map`], then a reference to the inner
     ///   [`LiteralMap`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_map(&self) -> Option<&LiteralMap> {
+    pub fn as_map(&self) -> Option<&LiteralMap<N>> {
         match self {
-            Self::Map(map) => Some(map),
+            Self::Map(e) => Some(e),
             _ => None,
         }
     }
@@ -1536,9 +1512,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Map`], then the inner [`LiteralMap`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_map(self) -> Option<LiteralMap> {
+    pub fn into_map(self) -> Option<LiteralMap<N>> {
         match self {
-            Self::Map(map) => Some(map),
+            Self::Map(e) => Some(e),
             _ => None,
         }
     }
@@ -1548,9 +1524,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal map.
-    pub fn unwrap_map(self) -> LiteralMap {
+    pub fn unwrap_map(self) -> LiteralMap<N> {
         match self {
-            Self::Map(literal) => literal,
+            Self::Map(e) => e,
             _ => panic!("not a literal map"),
         }
     }
@@ -1560,9 +1536,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Object`], then a reference to the inner
     ///   [`LiteralObject`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_object(&self) -> Option<&LiteralObject> {
+    pub fn as_object(&self) -> Option<&LiteralObject<N>> {
         match self {
-            Self::Object(object) => Some(object),
+            Self::Object(e) => Some(e),
             _ => None,
         }
     }
@@ -1572,9 +1548,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Object`], then the inner
     ///   [`LiteralObject`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_object(self) -> Option<LiteralObject> {
+    pub fn into_object(self) -> Option<LiteralObject<N>> {
         match self {
-            Self::Object(object) => Some(object),
+            Self::Object(e) => Some(e),
             _ => None,
         }
     }
@@ -1584,9 +1560,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal object.
-    pub fn unwrap_object(self) -> LiteralObject {
+    pub fn unwrap_object(self) -> LiteralObject<N> {
         match self {
-            Self::Object(literal) => literal,
+            Self::Object(e) => e,
             _ => panic!("not a literal object"),
         }
     }
@@ -1596,9 +1572,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Struct`], then a reference to the inner
     ///   [`LiteralStruct`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_struct(&self) -> Option<&LiteralStruct> {
+    pub fn as_struct(&self) -> Option<&LiteralStruct<N>> {
         match self {
-            Self::Struct(r#struct) => Some(r#struct),
+            Self::Struct(e) => Some(e),
             _ => None,
         }
     }
@@ -1608,9 +1584,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Struct`], then the inner
     ///   [`LiteralStruct`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_struct(self) -> Option<LiteralStruct> {
+    pub fn into_struct(self) -> Option<LiteralStruct<N>> {
         match self {
-            Self::Struct(r#struct) => Some(r#struct),
+            Self::Struct(e) => Some(e),
             _ => None,
         }
     }
@@ -1620,9 +1596,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal struct.
-    pub fn unwrap_struct(self) -> LiteralStruct {
+    pub fn unwrap_struct(self) -> LiteralStruct<N> {
         match self {
-            Self::Struct(literal) => literal,
+            Self::Struct(e) => e,
             _ => panic!("not a literal struct"),
         }
     }
@@ -1632,9 +1608,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::None`], then a reference to the inner
     ///   [`LiteralNone`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_none(&self) -> Option<&LiteralNone> {
+    pub fn as_none(&self) -> Option<&LiteralNone<N>> {
         match self {
-            Self::None(none) => Some(none),
+            Self::None(e) => Some(e),
             _ => None,
         }
     }
@@ -1644,9 +1620,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::None`], then the inner [`LiteralNone`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_none(self) -> Option<LiteralNone> {
+    pub fn into_none(self) -> Option<LiteralNone<N>> {
         match self {
-            Self::None(none) => Some(none),
+            Self::None(e) => Some(e),
             _ => None,
         }
     }
@@ -1656,9 +1632,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal `None`.
-    pub fn unwrap_none(self) -> LiteralNone {
+    pub fn unwrap_none(self) -> LiteralNone<N> {
         match self {
-            Self::None(literal) => literal,
+            Self::None(e) => e,
             _ => panic!("not a literal `None`"),
         }
     }
@@ -1668,9 +1644,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Hints`], then a reference to the inner
     ///   [`LiteralHints`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_hints(&self) -> Option<&LiteralHints> {
+    pub fn as_hints(&self) -> Option<&LiteralHints<N>> {
         match self {
-            Self::Hints(hints) => Some(hints),
+            Self::Hints(e) => Some(e),
             _ => None,
         }
     }
@@ -1680,9 +1656,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Hints`], then the inner [`LiteralHints`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_hints(self) -> Option<LiteralHints> {
+    pub fn into_hints(self) -> Option<LiteralHints<N>> {
         match self {
-            Self::Hints(hints) => Some(hints),
+            Self::Hints(e) => Some(e),
             _ => None,
         }
     }
@@ -1692,9 +1668,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal `hints`.
-    pub fn unwrap_hints(self) -> LiteralHints {
+    pub fn unwrap_hints(self) -> LiteralHints<N> {
         match self {
-            Self::Hints(literal) => literal,
+            Self::Hints(e) => e,
             _ => panic!("not a literal `hints`"),
         }
     }
@@ -1704,9 +1680,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Input`], then a reference to the inner
     ///   [`LiteralInput`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_input(&self) -> Option<&LiteralInput> {
+    pub fn as_input(&self) -> Option<&LiteralInput<N>> {
         match self {
-            Self::Input(input) => Some(input),
+            Self::Input(e) => Some(e),
             _ => None,
         }
     }
@@ -1716,9 +1692,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Input`], then the inner [`LiteralInput`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_input(self) -> Option<LiteralInput> {
+    pub fn into_input(self) -> Option<LiteralInput<N>> {
         match self {
-            Self::Input(input) => Some(input),
+            Self::Input(e) => Some(e),
             _ => None,
         }
     }
@@ -1728,9 +1704,9 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal `input`.
-    pub fn unwrap_input(self) -> LiteralInput {
+    pub fn unwrap_input(self) -> LiteralInput<N> {
         match self {
-            Self::Input(literal) => literal,
+            Self::Input(e) => e,
             _ => panic!("not a literal `input`"),
         }
     }
@@ -1740,9 +1716,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Output`], then a reference to the inner
     ///   [`LiteralOutput`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_output(&self) -> Option<&LiteralOutput> {
+    pub fn as_output(&self) -> Option<&LiteralOutput<N>> {
         match self {
-            Self::Output(output) => Some(output),
+            Self::Output(e) => Some(e),
             _ => None,
         }
     }
@@ -1752,9 +1728,9 @@ impl LiteralExpr {
     /// * If `self` is a [`LiteralExpr::Output`], then the inner
     ///   [`LiteralOutput`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_output(self) -> Option<LiteralOutput> {
+    pub fn into_output(self) -> Option<LiteralOutput<N>> {
         match self {
-            Self::Output(output) => Some(output),
+            Self::Output(e) => Some(e),
             _ => None,
         }
     }
@@ -1764,107 +1740,87 @@ impl LiteralExpr {
     /// # Panics
     ///
     /// Panics if the expression is not a literal `output`.
-    pub fn unwrap_output(self) -> LiteralOutput {
+    pub fn unwrap_output(self) -> LiteralOutput<N> {
         match self {
-            Self::Output(literal) => literal,
+            Self::Output(e) => e,
             _ => panic!("not a literal `output`"),
         }
     }
 
-    /// Finds the first child that can be cast to an [`Expr`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::child`] without requiring [`LiteralExpr`] to
-    /// implement the `AstNode` trait.
-    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
-        syntax.children().find_map(Self::cast)
+    /// Finds the first child that can be cast to a [`LiteralExpr`].
+    pub fn child(node: &N) -> Option<Self> {
+        node.children().find_map(Self::cast)
     }
 
-    /// Finds all children that can be cast to an [`Expr`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::children`] without requiring [`LiteralExpr`] to
-    /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = LiteralExpr> + use<> {
-        syntax.children().filter_map(Self::cast)
+    /// Finds all children that can be cast to a [`LiteralExpr`].
+    pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
+        node.children().filter_map(Self::cast)
     }
 }
 
 /// Represents a literal boolean.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralBoolean(pub(super) SyntaxNode);
+pub struct LiteralBoolean<N: TreeNode = SyntaxNode>(pub(super) N);
 
-impl LiteralBoolean {
+impl<N: TreeNode> LiteralBoolean<N> {
     /// Gets the value of the literal boolean.
     pub fn value(&self) -> bool {
         self.0
             .children_with_tokens()
-            .find_map(|c| match c.kind() {
-                SyntaxKind::TrueKeyword => Some(true),
-                SyntaxKind::FalseKeyword => Some(false),
-                _ => None,
+            .find_map(|c| {
+                c.into_token().and_then(|t| match t.kind() {
+                    SyntaxKind::TrueKeyword => Some(true),
+                    SyntaxKind::FalseKeyword => Some(false),
+                    _ => None,
+                })
             })
             .expect("`true` or `false` keyword should be present")
     }
 }
 
-impl AstNode for LiteralBoolean {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralBoolean<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralBooleanNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralBooleanNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralBooleanNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents an integer token.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Integer(SyntaxToken);
+pub struct Integer<T: TreeToken = SyntaxToken>(T);
 
-impl AstToken for Integer {
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<T: TreeToken> AstToken<T> for Integer<T> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::Integer
     }
 
-    fn cast(syntax: SyntaxToken) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::Integer => Some(Self(syntax)),
+    fn cast(inner: T) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::Integer => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxToken {
+    fn inner(&self) -> &T {
         &self.0
     }
 }
 
 /// Represents a literal integer.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralInteger(pub(super) SyntaxNode);
+pub struct LiteralInteger<N: TreeNode = SyntaxNode>(pub(super) N);
 
-impl LiteralInteger {
+impl<N: TreeNode> LiteralInteger<N> {
     /// Gets the minus token for the literal integer.
     ///
     /// A minus token *only* occurs in metadata sections, where
@@ -1873,13 +1829,13 @@ impl LiteralInteger {
     ///
     /// Otherwise, a prefix `-` would be a negation expression and not
     /// part of the literal integer.
-    pub fn minus(&self) -> Option<SyntaxToken> {
-        support::token(&self.0, SyntaxKind::Minus)
+    pub fn minus(&self) -> Option<Minus<N::Token>> {
+        self.token()
     }
 
     /// Gets the integer token for the literal.
-    pub fn token(&self) -> Integer {
-        token(&self.0).expect("should have integer token")
+    pub fn integer(&self) -> Integer<N::Token> {
+        self.token().expect("should have integer token")
     }
 
     /// Gets the value of the literal integer.
@@ -1890,7 +1846,7 @@ impl LiteralInteger {
 
         // If there's a minus sign present, negate the value; this may
         // only occur in metadata sections
-        if support::token(&self.0, SyntaxKind::Minus).is_some() {
+        if self.minus().is_some() {
             if value == (i64::MAX as u64) + 1 {
                 return Some(i64::MIN);
             }
@@ -1914,7 +1870,7 @@ impl LiteralInteger {
         let value = self.as_u64()?;
 
         // Check for "double" negation
-        if support::token(&self.0, SyntaxKind::Minus).is_some() {
+        if self.minus().is_some() {
             // Can't negate i64::MIN as that would overflow
             if value == (i64::MAX as u64) + 1 {
                 return None;
@@ -1935,8 +1891,8 @@ impl LiteralInteger {
     /// This returns `None` if the integer is out of range for a 64-bit signed
     /// integer, excluding `i64::MAX + 1` to allow for negation.
     fn as_u64(&self) -> Option<u64> {
-        let token = self.token();
-        let text = token.as_str();
+        let token = self.integer();
+        let text = token.text();
         let i = if text == "0" {
             0
         } else if text.starts_with("0x") || text.starts_with("0X") {
@@ -1956,63 +1912,49 @@ impl LiteralInteger {
     }
 }
 
-impl AstNode for LiteralInteger {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralInteger<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralIntegerNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralIntegerNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralIntegerNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a float token.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Float(SyntaxToken);
+pub struct Float<T: TreeToken = SyntaxToken>(T);
 
-impl AstToken for Float {
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<T: TreeToken> AstToken<T> for Float<T> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::Float
     }
 
-    fn cast(syntax: SyntaxToken) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::Float => Some(Self(syntax)),
+    fn cast(inner: T) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::Float => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxToken {
+    fn inner(&self) -> &T {
         &self.0
     }
 }
 
 /// Represents a literal float.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralFloat(pub(crate) SyntaxNode);
+pub struct LiteralFloat<N: TreeNode = SyntaxNode>(pub(crate) N);
 
-impl LiteralFloat {
+impl<N: TreeNode> LiteralFloat<N> {
     /// Gets the minus token for the literal float.
     ///
     /// A minus token *only* occurs in metadata sections, where
@@ -2021,48 +1963,40 @@ impl LiteralFloat {
     ///
     /// Otherwise, a prefix `-` would be a negation expression and not
     /// part of the literal float.
-    pub fn minus(&self) -> Option<SyntaxToken> {
-        support::token(&self.0, SyntaxKind::Minus)
+    pub fn minus(&self) -> Option<Minus<N::Token>> {
+        self.token()
     }
 
     /// Gets the float token for the literal.
-    pub fn token(&self) -> Float {
-        token(&self.0).expect("should have float token")
+    pub fn float(&self) -> Float<N::Token> {
+        self.token().expect("should have float token")
     }
 
     /// Gets the value of the literal float.
     ///
     /// Returns `None` if the literal value is not in range.
     pub fn value(&self) -> Option<f64> {
-        self.token()
-            .as_str()
+        self.float()
+            .text()
             .parse()
             .ok()
             .and_then(|f: f64| if f.is_infinite() { None } else { Some(f) })
     }
 }
 
-impl AstNode for LiteralFloat {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralFloat<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralFloatNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralFloatNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralFloatNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
@@ -2082,11 +2016,11 @@ pub enum LiteralStringKind {
 /// and it's line continuations parsed. Placeholders are not changed and are
 /// copied as-is.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum StrippedStringPart {
+pub enum StrippedStringPart<N: TreeNode = SyntaxNode> {
     /// A textual part of the string.
     Text(String),
     /// A placeholder encountered in the string.
-    Placeholder(Placeholder),
+    Placeholder(Placeholder<N>),
 }
 
 /// Unescapes a multiline string.
@@ -2142,18 +2076,20 @@ fn unescape_multiline_string(s: &str) -> String {
 
 /// Represents a literal string.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralString(pub(super) SyntaxNode);
+pub struct LiteralString<N: TreeNode = SyntaxNode>(pub(super) N);
 
-impl LiteralString {
+impl<N: TreeNode> LiteralString<N> {
     /// Gets the kind of the string literal.
     pub fn kind(&self) -> LiteralStringKind {
         self.0
             .children_with_tokens()
-            .find_map(|c| match c.kind() {
-                SyntaxKind::SingleQuote => Some(LiteralStringKind::SingleQuoted),
-                SyntaxKind::DoubleQuote => Some(LiteralStringKind::DoubleQuoted),
-                SyntaxKind::OpenHeredoc => Some(LiteralStringKind::Multiline),
-                _ => None,
+            .find_map(|c| {
+                c.into_token().and_then(|t| match t.kind() {
+                    SyntaxKind::SingleQuote => Some(LiteralStringKind::SingleQuoted),
+                    SyntaxKind::DoubleQuote => Some(LiteralStringKind::DoubleQuoted),
+                    SyntaxKind::OpenHeredoc => Some(LiteralStringKind::Multiline),
+                    _ => None,
+                })
             })
             .expect("string is missing opening token")
     }
@@ -2170,7 +2106,7 @@ impl LiteralString {
     /// Gets the parts of the string.
     ///
     /// A part may be literal text or an interpolated expression.
-    pub fn parts(&self) -> impl Iterator<Item = StringPart> + use<> {
+    pub fn parts(&self) -> impl Iterator<Item = StringPart<N>> + use<'_, N> {
         self.0.children_with_tokens().filter_map(StringPart::cast)
     }
 
@@ -2180,7 +2116,7 @@ impl LiteralString {
     /// Returns `None` if the string is interpolated, as
     /// interpolated strings cannot be represented as a single
     /// span of text.
-    pub fn text(&self) -> Option<StringText> {
+    pub fn text(&self) -> Option<StringText<N::Token>> {
         let mut parts = self.parts();
         if let Some(StringPart::Text(text)) = parts.next() {
             if parts.next().is_none() {
@@ -2197,7 +2133,7 @@ impl LiteralString {
     /// unescaping the string.
     ///
     /// Returns `None` if not a multi-line string.
-    pub fn strip_whitespace(&self) -> Option<Vec<StrippedStringPart>> {
+    pub fn strip_whitespace(&self) -> Option<Vec<StrippedStringPart<N>>> {
         if self.kind() != LiteralStringKind::Multiline {
             return None;
         }
@@ -2208,7 +2144,7 @@ impl LiteralString {
             match part {
                 StringPart::Text(text) => {
                     result.push(StrippedStringPart::Text(unescape_multiline_string(
-                        text.as_str(),
+                        text.text(),
                     )));
                 }
                 StringPart::Placeholder(placeholder) => {
@@ -2332,47 +2268,39 @@ impl LiteralString {
     }
 }
 
-impl AstNode for LiteralString {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralString<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralStringNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralStringNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralStringNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a part of a string.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum StringPart {
+pub enum StringPart<N: TreeNode = SyntaxNode> {
     /// A textual part of the string.
-    Text(StringText),
+    Text(StringText<N::Token>),
     /// A placeholder encountered in the string.
-    Placeholder(Placeholder),
+    Placeholder(Placeholder<N>),
 }
 
-impl StringPart {
+impl<N: TreeNode> StringPart<N> {
     /// Unwraps the string part into text.
     ///
     /// # Panics
     ///
     /// Panics if the string part is not text.
-    pub fn unwrap_text(self) -> StringText {
+    pub fn unwrap_text(self) -> StringText<N::Token> {
         match self {
             Self::Text(text) => text,
             _ => panic!("not string text"),
@@ -2384,7 +2312,7 @@ impl StringPart {
     /// # Panics
     ///
     /// Panics if the string part is not a placeholder.
-    pub fn unwrap_placeholder(self) -> Placeholder {
+    pub fn unwrap_placeholder(self) -> Placeholder<N> {
         match self {
             Self::Placeholder(p) => p,
             _ => panic!("not a placeholder"),
@@ -2392,19 +2320,19 @@ impl StringPart {
     }
 
     /// Casts the given syntax element to a string part.
-    fn cast(syntax: SyntaxElement) -> Option<Self> {
-        match syntax {
-            SyntaxElement::Node(n) => Some(Self::Placeholder(Placeholder::cast(n)?)),
-            SyntaxElement::Token(t) => Some(Self::Text(StringText::cast(t)?)),
+    fn cast(element: NodeOrToken<N, N::Token>) -> Option<Self> {
+        match element {
+            NodeOrToken::Node(n) => Some(Self::Placeholder(Placeholder::cast(n)?)),
+            NodeOrToken::Token(t) => Some(Self::Text(StringText::cast(t)?)),
         }
     }
 }
 
 /// Represents a textual part of a string.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StringText(pub(crate) SyntaxToken);
+pub struct StringText<T: TreeToken = SyntaxToken>(pub(crate) T);
 
-impl StringText {
+impl<T: TreeToken> StringText<T> {
     /// Unescapes the string text to the given buffer.
     ///
     /// If the string text contains invalid escape sequences, they are left
@@ -2463,108 +2391,88 @@ impl StringText {
     }
 }
 
-impl AstToken for StringText {
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<T: TreeToken> AstToken<T> for StringText<T> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralStringText
     }
 
-    fn cast(syntax: SyntaxToken) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralStringText => Some(Self(syntax)),
+    fn cast(inner: T) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralStringText => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxToken {
+    fn inner(&self) -> &T {
         &self.0
     }
 }
 
 /// Represents a placeholder in a string or command.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Placeholder(pub(crate) SyntaxNode);
+pub struct Placeholder<N: TreeNode = SyntaxNode>(pub(crate) N);
 
-impl Placeholder {
+impl<N: TreeNode> Placeholder<N> {
     /// Returns whether or not placeholder has a tilde (`~`) opening.
     ///
     /// If this method returns false, the opening was a dollar sign (`$`).
     pub fn has_tilde(&self) -> bool {
         self.0
             .children_with_tokens()
-            .find_map(|c| match c.kind() {
-                SyntaxKind::PlaceholderOpen => Some(
-                    c.as_token()
-                        .expect("should be token")
-                        .text()
-                        .starts_with('~'),
-                ),
-                _ => None,
+            .find_map(|c| {
+                c.into_token().and_then(|t| match t.kind() {
+                    SyntaxKind::PlaceholderOpen => Some(t.text().starts_with('~')),
+                    _ => None,
+                })
             })
             .expect("should have a placeholder open token")
     }
 
     /// Gets the option for the placeholder.
-    pub fn option(&self) -> Option<PlaceholderOption> {
-        child(&self.0)
+    pub fn option(&self) -> Option<PlaceholderOption<N>> {
+        self.child()
     }
 
     /// Gets the placeholder expression.
-    pub fn expr(&self) -> Expr {
+    pub fn expr(&self) -> Expr<N> {
         Expr::child(&self.0).expect("placeholder should have an expression")
     }
 }
 
-impl AstNode for Placeholder {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for Placeholder<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::PlaceholderNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::PlaceholderNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::PlaceholderNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a placeholder option.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum PlaceholderOption {
+pub enum PlaceholderOption<N: TreeNode = SyntaxNode> {
     /// A `sep` option for specifying a delimiter for formatting arrays.
-    Sep(SepOption),
+    Sep(SepOption<N>),
     /// A `default` option for substituting a default value for an undefined
     /// expression.
-    Default(DefaultOption),
+    Default(DefaultOption<N>),
     /// A `true/false` option for substituting a value depending on whether a
     /// boolean expression is true or false.
-    TrueFalse(TrueFalseOption),
+    TrueFalse(TrueFalseOption<N>),
 }
 
-impl PlaceholderOption {
-    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
-    /// underlying members within the [`PlaceholderOption`].
-    pub fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> PlaceholderOption<N> {
+    /// Returns whether or not the given syntax kind can be cast to
+    /// [`PlaceholderOption`].
+    pub fn can_cast(kind: SyntaxKind) -> bool {
         matches!(
             kind,
             SyntaxKind::PlaceholderSepOptionNode
@@ -2573,32 +2481,30 @@ impl PlaceholderOption {
         )
     }
 
-    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
-    /// within the [`PlaceholderOption`].
-    pub fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
+    /// Casts the given node to [`PlaceholderOption`].
+    ///
+    /// Returns `None` if the node cannot be cast.
+    pub fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
             SyntaxKind::PlaceholderSepOptionNode => Some(Self::Sep(
-                SepOption::cast(syntax).expect("separator option to cast"),
+                SepOption::cast(inner).expect("separator option to cast"),
             )),
             SyntaxKind::PlaceholderDefaultOptionNode => Some(Self::Default(
-                DefaultOption::cast(syntax).expect("default option to cast"),
+                DefaultOption::cast(inner).expect("default option to cast"),
             )),
             SyntaxKind::PlaceholderTrueFalseOptionNode => Some(Self::TrueFalse(
-                TrueFalseOption::cast(syntax).expect("true false option to cast"),
+                TrueFalseOption::cast(inner).expect("true false option to cast"),
             )),
             _ => None,
         }
     }
 
-    /// Gets a reference to the underlying [`SyntaxNode`].
-    pub fn syntax(&self) -> &SyntaxNode {
+    /// Gets a reference to the inner node.
+    pub fn inner(&self) -> &N {
         match self {
-            Self::Sep(element) => element.syntax(),
-            Self::Default(element) => element.syntax(),
-            Self::TrueFalse(element) => element.syntax(),
+            Self::Sep(element) => element.inner(),
+            Self::Default(element) => element.inner(),
+            Self::TrueFalse(element) => element.inner(),
         }
     }
 
@@ -2607,9 +2513,9 @@ impl PlaceholderOption {
     /// * If `self` is a [`PlaceholderOption::Sep`], then a reference to the
     ///   inner [`SepOption`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_sep(&self) -> Option<&SepOption> {
+    pub fn as_sep(&self) -> Option<&SepOption<N>> {
         match self {
-            Self::Sep(sep) => Some(sep),
+            Self::Sep(o) => Some(o),
             _ => None,
         }
     }
@@ -2619,9 +2525,9 @@ impl PlaceholderOption {
     /// * If `self` is a [`PlaceholderOption::Sep`], then the inner
     ///   [`SepOption`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_sep(self) -> Option<SepOption> {
+    pub fn into_sep(self) -> Option<SepOption<N>> {
         match self {
-            Self::Sep(sep) => Some(sep),
+            Self::Sep(o) => Some(o),
             _ => None,
         }
     }
@@ -2631,9 +2537,9 @@ impl PlaceholderOption {
     /// # Panics
     ///
     /// Panics if the option is not a separator option.
-    pub fn unwrap_sep(self) -> SepOption {
+    pub fn unwrap_sep(self) -> SepOption<N> {
         match self {
-            Self::Sep(opt) => opt,
+            Self::Sep(o) => o,
             _ => panic!("not a separator option"),
         }
     }
@@ -2643,9 +2549,9 @@ impl PlaceholderOption {
     /// * If `self` is a [`PlaceholderOption::Default`], then a reference to the
     ///   inner [`DefaultOption`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_default(&self) -> Option<&DefaultOption> {
+    pub fn as_default(&self) -> Option<&DefaultOption<N>> {
         match self {
-            Self::Default(default) => Some(default),
+            Self::Default(o) => Some(o),
             _ => None,
         }
     }
@@ -2655,9 +2561,9 @@ impl PlaceholderOption {
     /// * If `self` is a [`PlaceholderOption::Default`], then the inner
     ///   [`DefaultOption`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_default(self) -> Option<DefaultOption> {
+    pub fn into_default(self) -> Option<DefaultOption<N>> {
         match self {
-            Self::Default(default) => Some(default),
+            Self::Default(o) => Some(o),
             _ => None,
         }
     }
@@ -2667,9 +2573,9 @@ impl PlaceholderOption {
     /// # Panics
     ///
     /// Panics if the option is not a default option.
-    pub fn unwrap_default(self) -> DefaultOption {
+    pub fn unwrap_default(self) -> DefaultOption<N> {
         match self {
-            Self::Default(opt) => opt,
+            Self::Default(o) => o,
             _ => panic!("not a default option"),
         }
     }
@@ -2679,9 +2585,9 @@ impl PlaceholderOption {
     /// * If `self` is a [`PlaceholderOption::TrueFalse`], then a reference to
     ///   the inner [`TrueFalseOption`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_true_false(&self) -> Option<&TrueFalseOption> {
+    pub fn as_true_false(&self) -> Option<&TrueFalseOption<N>> {
         match self {
-            Self::TrueFalse(true_false) => Some(true_false),
+            Self::TrueFalse(o) => Some(o),
             _ => None,
         }
     }
@@ -2691,9 +2597,9 @@ impl PlaceholderOption {
     /// * If `self` is a [`PlaceholderOption::TrueFalse`], then the inner
     ///   [`TrueFalseOption`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_true_false(self) -> Option<TrueFalseOption> {
+    pub fn into_true_false(self) -> Option<TrueFalseOption<N>> {
         match self {
-            Self::TrueFalse(true_false) => Some(true_false),
+            Self::TrueFalse(o) => Some(o),
             _ => None,
         }
     }
@@ -2703,39 +2609,26 @@ impl PlaceholderOption {
     /// # Panics
     ///
     /// Panics if the option is not a true/false option.
-    pub fn unwrap_true_false(self) -> TrueFalseOption {
+    pub fn unwrap_true_false(self) -> TrueFalseOption<N> {
         match self {
-            Self::TrueFalse(opt) => opt,
+            Self::TrueFalse(o) => o,
             _ => panic!("not a true/false option"),
         }
     }
 
-    /// Finds the first child that can be cast to an [`PlaceholderOption`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::child`] without requiring [`PlaceholderOption`]
-    /// to implement the `AstNode` trait.
-    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
-        syntax.children().find_map(Self::cast)
+    /// Finds the first child that can be cast to a [`PlaceholderOption`].
+    pub fn child(node: &N) -> Option<Self> {
+        node.children().find_map(Self::cast)
     }
 
-    /// Finds all children that can be cast to an [`PlaceholderOption`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::children`] without requiring
-    /// [`PlaceholderOption`] to implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = PlaceholderOption> + use<> {
-        syntax.children().filter_map(Self::cast)
+    /// Finds all children that can be cast to a [`PlaceholderOption`].
+    pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
+        node.children().filter_map(Self::cast)
     }
 }
 
-impl AstNode for PlaceholderOption {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for PlaceholderOption<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         matches!(
             kind,
             SyntaxKind::PlaceholderSepOptionNode
@@ -2744,21 +2637,18 @@ impl AstNode for PlaceholderOption {
         )
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::PlaceholderSepOptionNode => Some(Self::Sep(SepOption(syntax))),
-            SyntaxKind::PlaceholderDefaultOptionNode => Some(Self::Default(DefaultOption(syntax))),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::PlaceholderSepOptionNode => Some(Self::Sep(SepOption(inner))),
+            SyntaxKind::PlaceholderDefaultOptionNode => Some(Self::Default(DefaultOption(inner))),
             SyntaxKind::PlaceholderTrueFalseOptionNode => {
-                Some(Self::TrueFalse(TrueFalseOption(syntax)))
+                Some(Self::TrueFalse(TrueFalseOption(inner)))
             }
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         match self {
             Self::Sep(s) => &s.0,
             Self::Default(d) => &d.0,
@@ -2769,107 +2659,92 @@ impl AstNode for PlaceholderOption {
 
 /// Represents a `sep` option for a placeholder.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SepOption(SyntaxNode);
+pub struct SepOption<N: TreeNode = SyntaxNode>(N);
 
-impl SepOption {
+impl<N: TreeNode> SepOption<N> {
     /// Gets the separator to use for formatting an array.
-    pub fn separator(&self) -> LiteralString {
-        child(&self.0).expect("sep option should have a string literal")
+    pub fn separator(&self) -> LiteralString<N> {
+        self.child()
+            .expect("sep option should have a string literal")
     }
 }
 
-impl AstNode for SepOption {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for SepOption<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::PlaceholderSepOptionNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::PlaceholderSepOptionNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::PlaceholderSepOptionNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a `default` option for a placeholder.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DefaultOption(SyntaxNode);
+pub struct DefaultOption<N: TreeNode = SyntaxNode>(N);
 
-impl DefaultOption {
+impl<N: TreeNode> DefaultOption<N> {
     /// Gets the value to use for an undefined expression.
-    pub fn value(&self) -> LiteralString {
-        child(&self.0).expect("default option should have a string literal")
+    pub fn value(&self) -> LiteralString<N> {
+        self.child()
+            .expect("default option should have a string literal")
     }
 }
 
-impl AstNode for DefaultOption {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for DefaultOption<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::PlaceholderDefaultOptionNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::PlaceholderDefaultOptionNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::PlaceholderDefaultOptionNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a `true/false` option for a placeholder.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TrueFalseOption(SyntaxNode);
+pub struct TrueFalseOption<N: TreeNode = SyntaxNode>(N);
 
-impl TrueFalseOption {
+impl<N: TreeNode> TrueFalseOption<N> {
     /// Gets the `true` and `false`` values to use for a placeholder
     /// expression that evaluates to a boolean.
     ///
     /// The first value returned is the `true` value and the second
     /// value is the `false` value.
-    pub fn values(&self) -> (LiteralString, LiteralString) {
+    pub fn values(&self) -> (LiteralString<N>, LiteralString<N>) {
         let mut true_value = None;
         let mut false_value = None;
         let mut found = None;
         let mut children = self.0.children_with_tokens();
         for child in children.by_ref() {
-            match child.kind() {
-                SyntaxKind::TrueKeyword => {
+            match child {
+                NodeOrToken::Token(t) if t.kind() == SyntaxKind::TrueKeyword => {
                     found = Some(true);
                 }
-                SyntaxKind::FalseKeyword => {
+                NodeOrToken::Token(t) if t.kind() == SyntaxKind::FalseKeyword => {
                     found = Some(false);
                 }
-                k if LiteralString::can_cast(k) => {
-                    let child = child.into_node().expect("should be a node");
+                NodeOrToken::Node(n) if LiteralString::<N>::can_cast(n.kind()) => {
                     if found.expect("should have found true or false") {
                         assert!(true_value.is_none(), "multiple true values present");
-                        true_value = Some(LiteralString(child));
+                        true_value = Some(LiteralString(n));
                     } else {
                         assert!(false_value.is_none(), "multiple false values present");
-                        false_value = Some(LiteralString(child));
+                        false_value = Some(LiteralString(n));
                     }
 
                     if true_value.is_some() && false_value.is_some() {
@@ -2887,74 +2762,58 @@ impl TrueFalseOption {
     }
 }
 
-impl AstNode for TrueFalseOption {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for TrueFalseOption<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::PlaceholderTrueFalseOptionNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::PlaceholderTrueFalseOptionNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::PlaceholderTrueFalseOptionNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal array.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralArray(SyntaxNode);
+pub struct LiteralArray<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralArray {
+impl<N: TreeNode> LiteralArray<N> {
     /// Gets the elements of the literal array.
-    pub fn elements(&self) -> impl Iterator<Item = Expr> + use<> {
+    pub fn elements(&self) -> impl Iterator<Item = Expr<N>> + use<'_, N> {
         Expr::children(&self.0)
     }
 }
 
-impl AstNode for LiteralArray {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralArray<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralArrayNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralArrayNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralArrayNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal pair.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralPair(SyntaxNode);
+pub struct LiteralPair<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralPair {
+impl<N: TreeNode> LiteralPair<N> {
     /// Gets the first and second expressions in the literal pair.
-    pub fn exprs(&self) -> (Expr, Expr) {
+    pub fn exprs(&self) -> (Expr<N>, Expr<N>) {
         let mut children = self.0.children().filter_map(Expr::cast);
         let left = children.next().expect("pair should have a left expression");
         let right = children
@@ -2964,74 +2823,58 @@ impl LiteralPair {
     }
 }
 
-impl AstNode for LiteralPair {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralPair<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralPairNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralPairNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralPairNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal map.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralMap(SyntaxNode);
+pub struct LiteralMap<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralMap {
+impl<N: TreeNode> LiteralMap<N> {
     /// Gets the items of the literal map.
-    pub fn items(&self) -> AstChildren<LiteralMapItem> {
-        children(&self.0)
+    pub fn items(&self) -> impl Iterator<Item = LiteralMapItem<N>> + use<'_, N> {
+        self.children()
     }
 }
 
-impl AstNode for LiteralMap {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralMap<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralMapNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralMapNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralMapNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal map item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralMapItem(SyntaxNode);
+pub struct LiteralMapItem<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralMapItem {
+impl<N: TreeNode> LiteralMapItem<N> {
     /// Gets the key and the value of the item.
-    pub fn key_value(&self) -> (Expr, Expr) {
+    pub fn key_value(&self) -> (Expr<N>, Expr<N>) {
         let mut children = Expr::children(&self.0);
         let key = children.next().expect("expected a key expression");
         let value = children.next().expect("expected a value expression");
@@ -3039,541 +2882,428 @@ impl LiteralMapItem {
     }
 }
 
-impl AstNode for LiteralMapItem {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralMapItem<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralMapItemNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralMapItemNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralMapItemNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal object.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralObject(SyntaxNode);
+pub struct LiteralObject<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralObject {
+impl<N: TreeNode> LiteralObject<N> {
     /// Gets the items of the literal object.
-    pub fn items(&self) -> AstChildren<LiteralObjectItem> {
-        children(&self.0)
+    pub fn items(&self) -> impl Iterator<Item = LiteralObjectItem<N>> + use<'_, N> {
+        self.children()
     }
 }
 
-impl AstNode for LiteralObject {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralObject<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralObjectNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralObjectNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralObjectNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Gets the name and value of a object or struct literal item.
-fn name_value(parent: &SyntaxNode) -> (Ident, Expr) {
-    let key = token_child::<Ident>(parent).expect("expected a key token");
-    let value = Expr::child(parent).expect("expected a value expression");
-
+fn name_value<N: TreeNode, T: AstNode<N>>(parent: &T) -> (Ident<N::Token>, Expr<N>) {
+    let key = parent.token().expect("expected a key token");
+    let value = Expr::child(parent.inner()).expect("expected a value expression");
     (key, value)
 }
 
 /// Represents a literal object item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralObjectItem(SyntaxNode);
+pub struct LiteralObjectItem<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralObjectItem {
+impl<N: TreeNode> LiteralObjectItem<N> {
     /// Gets the name and the value of the item.
-    pub fn name_value(&self) -> (Ident, Expr) {
-        name_value(&self.0)
+    pub fn name_value(&self) -> (Ident<N::Token>, Expr<N>) {
+        name_value(self)
     }
 }
 
-impl AstNode for LiteralObjectItem {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralObjectItem<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralObjectItemNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralObjectItemNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralObjectItemNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal struct.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralStruct(SyntaxNode);
+pub struct LiteralStruct<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralStruct {
+impl<N: TreeNode> LiteralStruct<N> {
     /// Gets the name of the struct.
-    pub fn name(&self) -> Ident {
-        token(&self.0).expect("expected the struct to have a name")
+    pub fn name(&self) -> Ident<N::Token> {
+        self.token().expect("expected the struct to have a name")
     }
 
     /// Gets the items of the literal struct.
-    pub fn items(&self) -> AstChildren<LiteralStructItem> {
-        children(&self.0)
+    pub fn items(&self) -> impl Iterator<Item = LiteralStructItem<N>> + use<'_, N> {
+        self.children()
     }
 }
 
-impl AstNode for LiteralStruct {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralStruct<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralStructNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralStructNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralStructNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal struct item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralStructItem(SyntaxNode);
+pub struct LiteralStructItem<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralStructItem {
+impl<N: TreeNode> LiteralStructItem<N> {
     /// Gets the name and the value of the item.
-    pub fn name_value(&self) -> (Ident, Expr) {
-        name_value(&self.0)
+    pub fn name_value(&self) -> (Ident<N::Token>, Expr<N>) {
+        name_value(self)
     }
 }
 
-impl AstNode for LiteralStructItem {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralStructItem<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralStructItemNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralStructItemNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralStructItemNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal `None`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralNone(SyntaxNode);
+pub struct LiteralNone<N: TreeNode = SyntaxNode>(N);
 
-impl AstNode for LiteralNone {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralNone<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralNoneNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralNoneNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralNoneNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal `hints`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralHints(SyntaxNode);
+pub struct LiteralHints<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralHints {
+impl<N: TreeNode> LiteralHints<N> {
     /// Gets the items of the literal hints.
-    pub fn items(&self) -> AstChildren<LiteralHintsItem> {
-        children(&self.0)
+    pub fn items(&self) -> impl Iterator<Item = LiteralHintsItem<N>> + use<'_, N> {
+        self.children()
     }
 }
 
-impl AstNode for LiteralHints {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralHints<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralHintsNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralHintsNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralHintsNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal hints item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralHintsItem(SyntaxNode);
+pub struct LiteralHintsItem<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralHintsItem {
+impl<N: TreeNode> LiteralHintsItem<N> {
     /// Gets the name of the hints item.
-    pub fn name(&self) -> Ident {
-        token(&self.0).expect("expected an item name")
+    pub fn name(&self) -> Ident<N::Token> {
+        self.token().expect("expected an item name")
     }
 
     /// Gets the expression of the hints item.
-    pub fn expr(&self) -> Expr {
+    pub fn expr(&self) -> Expr<N> {
         Expr::child(&self.0).expect("expected an item expression")
     }
 }
 
-impl AstNode for LiteralHintsItem {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralHintsItem<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralHintsItemNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralHintsItemNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralHintsItemNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal `input`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralInput(SyntaxNode);
+pub struct LiteralInput<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralInput {
+impl<N: TreeNode> LiteralInput<N> {
     /// Gets the items of the literal input.
-    pub fn items(&self) -> AstChildren<LiteralInputItem> {
-        children(&self.0)
+    pub fn items(&self) -> impl Iterator<Item = LiteralInputItem<N>> + use<'_, N> {
+        self.children()
     }
 }
 
-impl AstNode for LiteralInput {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralInput<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralInputNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralInputNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralInputNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal input item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralInputItem(SyntaxNode);
+pub struct LiteralInputItem<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralInputItem {
+impl<N: TreeNode> LiteralInputItem<N> {
     /// Gets the names of the input item.
     ///
     /// More than one name indicates a struct member path.
-    pub fn names(&self) -> impl Iterator<Item = Ident> + use<> {
+    pub fn names(&self) -> impl Iterator<Item = Ident<N::Token>> + use<'_, N> {
         self.0
             .children_with_tokens()
-            .filter_map(SyntaxElement::into_token)
+            .filter_map(NodeOrToken::into_token)
             .filter_map(Ident::cast)
     }
 
     /// Gets the expression of the input item.
-    pub fn expr(&self) -> Expr {
+    pub fn expr(&self) -> Expr<N> {
         Expr::child(&self.0).expect("expected an item expression")
     }
 }
 
-impl AstNode for LiteralInputItem {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralInputItem<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralInputItemNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralInputItemNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralInputItemNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal `output`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralOutput(SyntaxNode);
+pub struct LiteralOutput<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralOutput {
+impl<N: TreeNode> LiteralOutput<N> {
     /// Gets the items of the literal output.
-    pub fn items(&self) -> AstChildren<LiteralOutputItem> {
-        children(&self.0)
+    pub fn items(&self) -> impl Iterator<Item = LiteralOutputItem<N>> + use<'_, N> {
+        self.children()
     }
 }
 
-impl AstNode for LiteralOutput {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralOutput<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralOutputNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralOutputNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralOutputNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a literal output item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LiteralOutputItem(SyntaxNode);
+pub struct LiteralOutputItem<N: TreeNode = SyntaxNode>(N);
 
-impl LiteralOutputItem {
+impl<N: TreeNode> LiteralOutputItem<N> {
     /// Gets the names of the output item.
     ///
     /// More than one name indicates a struct member path.
-    pub fn names(&self) -> impl Iterator<Item = Ident> + use<> {
+    pub fn names(&self) -> impl Iterator<Item = Ident<N::Token>> + use<'_, N> {
         self.0
             .children_with_tokens()
-            .filter_map(SyntaxElement::into_token)
+            .filter_map(NodeOrToken::into_token)
             .filter_map(Ident::cast)
     }
 
     /// Gets the expression of the output item.
-    pub fn expr(&self) -> Expr {
+    pub fn expr(&self) -> Expr<N> {
         Expr::child(&self.0).expect("expected an item expression")
     }
 }
 
-impl AstNode for LiteralOutputItem {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for LiteralOutputItem<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::LiteralOutputItemNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::LiteralOutputItemNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::LiteralOutputItemNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
-/// Represents a reference to a name.
+/// Represents a name reference expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NameRef(SyntaxNode);
+pub struct NameRefExpr<N: TreeNode = SyntaxNode>(N);
 
-impl NameRef {
+impl<N: TreeNode> NameRefExpr<N> {
     /// Gets the name being referenced.
-    pub fn name(&self) -> Ident {
-        token(&self.0).expect("expected a name")
+    pub fn name(&self) -> Ident<N::Token> {
+        self.token().expect("expected a name")
     }
 }
 
-impl AstNode for NameRef {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
-        kind == SyntaxKind::NameRefNode
+impl<N: TreeNode> AstNode<N> for NameRefExpr<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        kind == SyntaxKind::NameRefExprNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::NameRefNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::NameRefExprNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a parenthesized expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParenthesizedExpr(SyntaxNode);
+pub struct ParenthesizedExpr<N: TreeNode = SyntaxNode>(N);
 
-impl ParenthesizedExpr {
+impl<N: TreeNode> ParenthesizedExpr<N> {
     /// Gets the inner expression.
-    pub fn inner(&self) -> Expr {
+    pub fn expr(&self) -> Expr<N> {
         Expr::child(&self.0).expect("expected an inner expression")
     }
 }
 
-impl AstNode for ParenthesizedExpr {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for ParenthesizedExpr<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::ParenthesizedExprNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::ParenthesizedExprNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::ParenthesizedExprNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents an `if` expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct IfExpr(SyntaxNode);
+pub struct IfExpr<N: TreeNode = SyntaxNode>(N);
 
-impl IfExpr {
+impl<N: TreeNode> IfExpr<N> {
     /// Gets the three expressions of the `if` expression
     ///
     /// The first expression is the conditional.
     /// The second expression is the `true` expression.
     /// The third expression is the `false` expression.
-    pub fn exprs(&self) -> (Expr, Expr, Expr) {
+    pub fn exprs(&self) -> (Expr<N>, Expr<N>, Expr<N>) {
         let mut children = Expr::children(&self.0);
         let conditional = children
             .next()
@@ -3584,27 +3314,19 @@ impl IfExpr {
     }
 }
 
-impl AstNode for IfExpr {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for IfExpr<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::IfExprNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::IfExprNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::IfExprNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
@@ -3614,36 +3336,28 @@ macro_rules! prefix_expression {
     ($name:ident, $kind:ident, $desc:literal) => {
         #[doc = concat!("Represents a ", $desc, " expression.")]
         #[derive(Clone, Debug, PartialEq, Eq)]
-        pub struct $name(SyntaxNode);
+        pub struct $name<N: TreeNode = SyntaxNode>(N);
 
-        impl $name {
+        impl<N: TreeNode> $name<N> {
             /// Gets the operand expression.
-            pub fn operand(&self) -> Expr {
+            pub fn operand(&self) -> Expr<N> {
                 Expr::child(&self.0).expect("expected an operand expression")
             }
         }
 
-        impl AstNode for $name {
-            type Language = WorkflowDescriptionLanguage;
-
-            fn can_cast(kind: SyntaxKind) -> bool
-            where
-                Self: Sized,
-            {
+        impl<N: TreeNode> AstNode<N> for $name<N> {
+            fn can_cast(kind: SyntaxKind) -> bool {
                 kind == SyntaxKind::$kind
             }
 
-            fn cast(syntax: SyntaxNode) -> Option<Self>
-            where
-                Self: Sized,
-            {
-                match syntax.kind() {
-                    SyntaxKind::$kind => Some(Self(syntax)),
+            fn cast(inner: N) -> Option<Self> {
+                match inner.kind() {
+                    SyntaxKind::$kind => Some(Self(inner)),
                     _ => None,
                 }
             }
 
-            fn syntax(&self) -> &SyntaxNode {
+            fn inner(&self) -> &N {
                 &self.0
             }
         }
@@ -3655,11 +3369,11 @@ macro_rules! infix_expression {
     ($name:ident, $kind:ident, $desc:literal) => {
         #[doc = concat!("Represents a ", $desc, " expression.")]
         #[derive(Clone, Debug, PartialEq, Eq)]
-        pub struct $name(SyntaxNode);
+        pub struct $name<N: TreeNode = SyntaxNode>(N);
 
-        impl $name {
+        impl<N: TreeNode> $name<N> {
             /// Gets the operands of the expression.
-            pub fn operands(&self) -> (Expr, Expr) {
+            pub fn operands(&self) -> (Expr<N>, Expr<N>) {
                 let mut children = Expr::children(&self.0);
                 let lhs = children.next().expect("expected a lhs expression");
                 let rhs = children.next().expect("expected a rhs expression");
@@ -3667,27 +3381,19 @@ macro_rules! infix_expression {
             }
         }
 
-        impl AstNode for $name {
-            type Language = WorkflowDescriptionLanguage;
-
-            fn can_cast(kind: SyntaxKind) -> bool
-            where
-                Self: Sized,
-            {
+        impl<N: TreeNode> AstNode<N> for $name<N> {
+            fn can_cast(kind: SyntaxKind) -> bool {
                 kind == SyntaxKind::$kind
             }
 
-            fn cast(syntax: SyntaxNode) -> Option<Self>
-            where
-                Self: Sized,
-            {
-                match syntax.kind() {
-                    SyntaxKind::$kind => Some(Self(syntax)),
+            fn cast(inner: N) -> Option<Self> {
+                match inner.kind() {
+                    SyntaxKind::$kind => Some(Self(inner)),
                     _ => None,
                 }
             }
 
-            fn syntax(&self) -> &SyntaxNode {
+            fn inner(&self) -> &N {
                 &self.0
             }
         }
@@ -3717,55 +3423,47 @@ infix_expression!(ExponentiationExpr, ExponentiationExprNode, "exponentiation");
 
 /// Represents a call expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CallExpr(SyntaxNode);
+pub struct CallExpr<N: TreeNode = SyntaxNode>(N);
 
-impl CallExpr {
+impl<N: TreeNode> CallExpr<N> {
     /// Gets the call target expression.
-    pub fn target(&self) -> Ident {
-        token(&self.0).expect("expected a target identifier")
+    pub fn target(&self) -> Ident<N::Token> {
+        self.token().expect("expected a target identifier")
     }
 
     /// Gets the call arguments.
-    pub fn arguments(&self) -> impl Iterator<Item = Expr> + use<> {
+    pub fn arguments(&self) -> impl Iterator<Item = Expr<N>> + use<'_, N> {
         Expr::children(&self.0)
     }
 }
 
-impl AstNode for CallExpr {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for CallExpr<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::CallExprNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::CallExprNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::CallExprNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents an index expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct IndexExpr(SyntaxNode);
+pub struct IndexExpr<N: TreeNode = SyntaxNode>(N);
 
-impl IndexExpr {
+impl<N: TreeNode> IndexExpr<N> {
     /// Gets the operand and the index expressions.
     ///
     /// The first is the operand expression.
     /// The second is the index expression.
-    pub fn operands(&self) -> (Expr, Expr) {
+    pub fn operands(&self) -> (Expr<N>, Expr<N>) {
         let mut children = Expr::children(&self.0);
         let operand = children.next().expect("expected an operand expression");
         let index = children.next().expect("expected an index expression");
@@ -3773,41 +3471,33 @@ impl IndexExpr {
     }
 }
 
-impl AstNode for IndexExpr {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for IndexExpr<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::IndexExprNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::IndexExprNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::IndexExprNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents an access expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct AccessExpr(SyntaxNode);
+pub struct AccessExpr<N: TreeNode = SyntaxNode>(N);
 
-impl AccessExpr {
+impl<N: TreeNode> AccessExpr<N> {
     /// Gets the operand and the name of the access.
     ///
     /// The first is the operand expression.
     /// The second is the member name.
-    pub fn operands(&self) -> (Expr, Ident) {
+    pub fn operands(&self) -> (Expr<N>, Ident<N::Token>) {
         let operand = Expr::child(&self.0).expect("expected an operand expression");
         let name = Ident::cast(self.0.last_token().expect("expected a last token"))
             .expect("expected an ident token");
@@ -3815,27 +3505,19 @@ impl AccessExpr {
     }
 }
 
-impl AstNode for AccessExpr {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for AccessExpr<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::AccessExprNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::AccessExprNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::AccessExprNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
@@ -3872,7 +3554,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -3880,12 +3562,12 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Boolean");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert!(decls[0].expr().unwrap_literal().unwrap_boolean().value());
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Boolean");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert!(!decls[1].expr().unwrap_literal().unwrap_boolean().value());
 
         // Visit the literal boolean values in the tree
@@ -3943,7 +3625,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -3951,7 +3633,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -3964,7 +3646,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -3977,7 +3659,7 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Int");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         assert_eq!(
             decls[2]
                 .expr()
@@ -3990,7 +3672,7 @@ task test {
 
         // Fourth declaration
         assert_eq!(decls[3].ty().to_string(), "Int");
-        assert_eq!(decls[3].name().as_str(), "d");
+        assert_eq!(decls[3].name().text(), "d");
         assert_eq!(
             decls[3]
                 .expr()
@@ -4003,7 +3685,7 @@ task test {
 
         // Fifth declaration
         assert_eq!(decls[4].ty().to_string(), "Int");
-        assert_eq!(decls[4].name().as_str(), "e");
+        assert_eq!(decls[4].name().text(), "e");
         assert_eq!(
             decls[4]
                 .expr()
@@ -4016,7 +3698,7 @@ task test {
 
         // Sixth declaration
         assert_eq!(decls[5].ty().to_string(), "Int");
-        assert_eq!(decls[5].name().as_str(), "f");
+        assert_eq!(decls[5].name().text(), "f");
         assert_eq!(
             decls[5]
                 .expr()
@@ -4029,7 +3711,7 @@ task test {
 
         // Seventh declaration
         assert_eq!(decls[6].ty().to_string(), "Int");
-        assert_eq!(decls[6].name().as_str(), "g");
+        assert_eq!(decls[6].name().text(), "g");
         assert!(
             decls[6]
                 .expr()
@@ -4041,7 +3723,7 @@ task test {
 
         // Eighth declaration
         assert_eq!(decls[7].ty().to_string(), "Int");
-        assert_eq!(decls[7].name().as_str(), "h");
+        assert_eq!(decls[7].name().text(), "h");
         assert!(
             decls[7]
                 .expr()
@@ -4118,7 +3800,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -4126,7 +3808,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Float");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_relative_eq!(
             decls[0]
                 .expr()
@@ -4139,7 +3821,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Float");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_relative_eq!(
             decls[1]
                 .expr()
@@ -4152,7 +3834,7 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Float");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         assert_relative_eq!(
             decls[2]
                 .expr()
@@ -4165,7 +3847,7 @@ task test {
 
         // Fourth declaration
         assert_eq!(decls[3].ty().to_string(), "Float");
-        assert_eq!(decls[3].name().as_str(), "d");
+        assert_eq!(decls[3].name().text(), "d");
         assert_relative_eq!(
             decls[3]
                 .expr()
@@ -4178,7 +3860,7 @@ task test {
 
         // Fifth declaration
         assert_eq!(decls[4].ty().to_string(), "Float");
-        assert_eq!(decls[4].name().as_str(), "e");
+        assert_eq!(decls[4].name().text(), "e");
         assert_relative_eq!(
             decls[4]
                 .expr()
@@ -4191,7 +3873,7 @@ task test {
 
         // Sixth declaration
         assert_eq!(decls[5].ty().to_string(), "Float");
-        assert_eq!(decls[5].name().as_str(), "f");
+        assert_eq!(decls[5].name().text(), "f");
         assert_relative_eq!(
             decls[5]
                 .expr()
@@ -4204,7 +3886,7 @@ task test {
 
         // Seventh declaration
         assert_eq!(decls[6].ty().to_string(), "Float");
-        assert_eq!(decls[6].name().as_str(), "g");
+        assert_eq!(decls[6].name().text(), "g");
         assert_relative_eq!(
             decls[6]
                 .expr()
@@ -4217,7 +3899,7 @@ task test {
 
         // Eighth declaration
         assert_eq!(decls[7].ty().to_string(), "Float");
-        assert_eq!(decls[7].name().as_str(), "h");
+        assert_eq!(decls[7].name().text(), "h");
         assert!(
             decls[7]
                 .expr()
@@ -4289,7 +3971,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -4297,39 +3979,39 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "String");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         let s = decls[0].expr().unwrap_literal().unwrap_string();
         assert_eq!(s.kind(), LiteralStringKind::DoubleQuoted);
-        assert_eq!(s.text().unwrap().as_str(), "hello");
+        assert_eq!(s.text().unwrap().text(), "hello");
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "String");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let s = decls[1].expr().unwrap_literal().unwrap_string();
         assert_eq!(s.kind(), LiteralStringKind::SingleQuoted);
-        assert_eq!(s.text().unwrap().as_str(), "world");
+        assert_eq!(s.text().unwrap().text(), "world");
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "String");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let s = decls[2].expr().unwrap_literal().unwrap_string();
         assert_eq!(s.kind(), LiteralStringKind::DoubleQuoted);
         let parts: Vec<_> = s.parts().collect();
         assert_eq!(parts.len(), 3);
-        assert_eq!(parts[0].clone().unwrap_text().as_str(), "Hello, ");
+        assert_eq!(parts[0].clone().unwrap_text().text(), "Hello, ");
         let placeholder = parts[1].clone().unwrap_placeholder();
         assert!(!placeholder.has_tilde());
-        assert_eq!(placeholder.expr().unwrap_name_ref().name().as_str(), "name");
-        assert_eq!(parts[2].clone().unwrap_text().as_str(), "!");
+        assert_eq!(placeholder.expr().unwrap_name_ref().name().text(), "name");
+        assert_eq!(parts[2].clone().unwrap_text().text(), "!");
 
         // Fourth declaration
         assert_eq!(decls[3].ty().to_string(), "String");
-        assert_eq!(decls[3].name().as_str(), "d");
+        assert_eq!(decls[3].name().text(), "d");
         let s = decls[3].expr().unwrap_literal().unwrap_string();
         assert_eq!(s.kind(), LiteralStringKind::SingleQuoted);
         let parts: Vec<_> = s.parts().collect();
         assert_eq!(parts.len(), 3);
-        assert_eq!(parts[0].clone().unwrap_text().as_str(), "String");
+        assert_eq!(parts[0].clone().unwrap_text().text(), "String");
         let placeholder = parts[1].clone().unwrap_placeholder();
         assert!(placeholder.has_tilde());
         assert_eq!(
@@ -4339,36 +4021,30 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "ception"
         );
-        assert_eq!(parts[2].clone().unwrap_text().as_str(), "!");
+        assert_eq!(parts[2].clone().unwrap_text().text(), "!");
 
         // Fifth declaration
         assert_eq!(decls[4].ty().to_string(), "String");
-        assert_eq!(decls[4].name().as_str(), "e");
+        assert_eq!(decls[4].name().text(), "e");
         let s = decls[4].expr().unwrap_literal().unwrap_string();
         assert_eq!(s.kind(), LiteralStringKind::Multiline);
         let parts: Vec<_> = s.parts().collect();
         assert_eq!(parts.len(), 5);
         assert_eq!(
-            parts[0].clone().unwrap_text().as_str(),
+            parts[0].clone().unwrap_text().text(),
             " this is\n    a multiline \\\n    string!\n    "
         );
         let placeholder = parts[1].clone().unwrap_placeholder();
         assert!(!placeholder.has_tilde());
-        assert_eq!(
-            placeholder.expr().unwrap_name_ref().name().as_str(),
-            "first"
-        );
-        assert_eq!(parts[2].clone().unwrap_text().as_str(), "\n    ");
+        assert_eq!(placeholder.expr().unwrap_name_ref().name().text(), "first");
+        assert_eq!(parts[2].clone().unwrap_text().text(), "\n    ");
         let placeholder = parts[3].clone().unwrap_placeholder();
         assert!(!placeholder.has_tilde());
-        assert_eq!(
-            placeholder.expr().unwrap_name_ref().name().as_str(),
-            "second"
-        );
-        assert_eq!(parts[4].clone().unwrap_text().as_str(), "\n    ");
+        assert_eq!(placeholder.expr().unwrap_name_ref().name().text(), "second");
+        assert_eq!(parts[4].clone().unwrap_text().text(), "\n    ");
 
         // Use a visitor to visit all the string literals without placeholders
         struct MyVisitor(Vec<String>);
@@ -4393,7 +4069,7 @@ task test {
                 // Collect only the non-interpolated strings in the source
                 if let Expr::Literal(LiteralExpr::String(s)) = expr {
                     if let Some(s) = s.text() {
-                        self.0.push(s.as_str().to_string());
+                        self.0.push(s.text().to_string());
                     }
                 }
             }
@@ -4423,7 +4099,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -4431,7 +4107,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Array[Int]");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         let a = decls[0].expr().unwrap_literal().unwrap_array();
         let elements: Vec<_> = a.elements().collect();
         assert_eq!(elements.len(), 3);
@@ -4465,7 +4141,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Array[String]");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let a = decls[1].expr().unwrap_literal().unwrap_array();
         let elements: Vec<_> = a.elements().collect();
         assert_eq!(elements.len(), 3);
@@ -4476,7 +4152,7 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "hello"
         );
         assert_eq!(
@@ -4486,7 +4162,7 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "world"
         );
         assert_eq!(
@@ -4496,13 +4172,13 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "!"
         );
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Array[Array[Int]]");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let a = decls[2].expr().unwrap_literal().unwrap_array();
         let elements: Vec<_> = a.elements().collect();
         assert_eq!(elements.len(), 3);
@@ -4638,7 +4314,7 @@ task test {
                                 elements.push(i.value().unwrap().to_string())
                             }
                             Expr::Literal(LiteralExpr::String(s)) => {
-                                elements.push(s.text().unwrap().as_str().to_string())
+                                elements.push(s.text().unwrap().text().to_string())
                             }
                             Expr::Literal(LiteralExpr::Array(a)) => {
                                 for element in a.elements().map(|e| {
@@ -4690,7 +4366,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -4698,7 +4374,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Pair[Int, Int]");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         let p = decls[0].expr().unwrap_literal().unwrap_pair();
         let (left, right) = p.exprs();
         assert_eq!(
@@ -4721,7 +4397,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Pair[String, Int]");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let p = decls[1].expr().unwrap_literal().unwrap_pair();
         let (left, right) = p.exprs();
         assert_eq!(
@@ -4730,7 +4406,7 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "0x1000"
         );
         assert_eq!(
@@ -4745,7 +4421,7 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Array[Pair[Int, String]]");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let a = decls[2].expr().unwrap_literal().unwrap_array();
         let elements: Vec<_> = a.elements().collect();
         assert_eq!(elements.len(), 3);
@@ -4766,7 +4442,7 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "hello"
         );
         let p = elements[1].clone().unwrap_literal().unwrap_pair();
@@ -4786,7 +4462,7 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "world"
         );
         let p = elements[2].clone().unwrap_literal().unwrap_pair();
@@ -4806,7 +4482,7 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "!"
         );
 
@@ -4835,7 +4511,7 @@ task test {
 
                     let left = match left {
                         Expr::Literal(LiteralExpr::String(s)) => {
-                            s.text().unwrap().as_str().to_string()
+                            s.text().unwrap().text().to_string()
                         }
                         Expr::Literal(LiteralExpr::Integer(i)) => i.value().unwrap().to_string(),
                         _ => panic!("expected a string or integer"),
@@ -4843,7 +4519,7 @@ task test {
 
                     let right = match right {
                         Expr::Literal(LiteralExpr::String(s)) => {
-                            s.text().unwrap().as_str().to_string()
+                            s.text().unwrap().text().to_string()
                         }
                         Expr::Literal(LiteralExpr::Integer(i)) => i.value().unwrap().to_string(),
                         _ => panic!("expected a string or integer"),
@@ -4890,7 +4566,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -4898,24 +4574,20 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Map[Int, Int]");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         let m = decls[0].expr().unwrap_literal().unwrap_map();
         let items: Vec<_> = m.items().collect();
         assert_eq!(items.len(), 0);
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Map[String, String]");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let m = decls[1].expr().unwrap_literal().unwrap_map();
         let items: Vec<_> = m.items().collect();
         assert_eq!(items.len(), 2);
         let (key, value) = items[0].key_value();
         assert_eq!(
-            key.unwrap_literal()
-                .unwrap_string()
-                .text()
-                .unwrap()
-                .as_str(),
+            key.unwrap_literal().unwrap_string().text().unwrap().text(),
             "foo"
         );
         assert_eq!(
@@ -4924,16 +4596,12 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "bar"
         );
         let (key, value) = items[1].key_value();
         assert_eq!(
-            key.unwrap_literal()
-                .unwrap_string()
-                .text()
-                .unwrap()
-                .as_str(),
+            key.unwrap_literal().unwrap_string().text().unwrap().text(),
             "bar"
         );
         assert_eq!(
@@ -4942,7 +4610,7 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "baz"
         );
 
@@ -4975,14 +4643,14 @@ task test {
                                 .unwrap_string()
                                 .text()
                                 .unwrap()
-                                .as_str()
+                                .text()
                                 .to_string(),
                             value
                                 .unwrap_literal()
                                 .unwrap_string()
                                 .text()
                                 .unwrap()
-                                .as_str()
+                                .text()
                                 .to_string(),
                         );
                     }
@@ -5019,7 +4687,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -5027,33 +4695,33 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Object");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         let o = decls[0].expr().unwrap_literal().unwrap_object();
         let items: Vec<_> = o.items().collect();
         assert_eq!(items.len(), 0);
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Object");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let o = decls[1].expr().unwrap_literal().unwrap_object();
         let items: Vec<_> = o.items().collect();
         assert_eq!(items.len(), 3);
         let (name, value) = items[0].name_value();
-        assert_eq!(name.as_str(), "foo");
+        assert_eq!(name.text(), "foo");
         assert_eq!(
             value
                 .unwrap_literal()
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "bar"
         );
         let (name, value) = items[1].name_value();
-        assert_eq!(name.as_str(), "bar");
+        assert_eq!(name.text(), "bar");
         assert_eq!(value.unwrap_literal().unwrap_integer().value().unwrap(), 1);
         let (name, value) = items[2].name_value();
-        assert_eq!(name.as_str(), "baz");
+        assert_eq!(name.text(), "baz");
         let elements: Vec<_> = value.unwrap_literal().unwrap_array().elements().collect();
         assert_eq!(elements.len(), 3);
         assert_eq!(
@@ -5111,19 +4779,19 @@ task test {
                         match value {
                             Expr::Literal(LiteralExpr::Integer(i)) => {
                                 items.insert(
-                                    name.as_str().to_string(),
+                                    name.text().to_string(),
                                     i.value().unwrap().to_string(),
                                 );
                             }
                             Expr::Literal(LiteralExpr::String(s)) => {
                                 items.insert(
-                                    name.as_str().to_string(),
-                                    s.text().unwrap().as_str().to_string(),
+                                    name.text().to_string(),
+                                    s.text().unwrap().text().to_string(),
                                 );
                             }
                             Expr::Literal(LiteralExpr::Array(a)) => {
                                 items.insert(
-                                    name.as_str().to_string(),
+                                    name.text().to_string(),
                                     a.elements()
                                         .map(|e| {
                                             e.unwrap_literal().unwrap_integer().value().unwrap()
@@ -5174,7 +4842,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -5182,35 +4850,35 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Foo");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         let s = decls[0].expr().unwrap_literal().unwrap_struct();
-        assert_eq!(s.name().as_str(), "Foo");
+        assert_eq!(s.name().text(), "Foo");
         let items: Vec<_> = s.items().collect();
         assert_eq!(items.len(), 1);
         let (name, value) = items[0].name_value();
-        assert_eq!(name.as_str(), "foo");
+        assert_eq!(name.text(), "foo");
         assert_eq!(
             value
                 .unwrap_literal()
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "bar"
         );
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Bar");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let s = decls[1].expr().unwrap_literal().unwrap_struct();
-        assert_eq!(s.name().as_str(), "Bar");
+        assert_eq!(s.name().text(), "Bar");
         let items: Vec<_> = s.items().collect();
         assert_eq!(items.len(), 2);
         let (name, value) = items[0].name_value();
-        assert_eq!(name.as_str(), "bar");
+        assert_eq!(name.text(), "bar");
         assert_eq!(value.unwrap_literal().unwrap_integer().value().unwrap(), 1);
         let (name, value) = items[1].name_value();
-        assert_eq!(name.as_str(), "baz");
+        assert_eq!(name.text(), "baz");
         let elements: Vec<_> = value.unwrap_literal().unwrap_array().elements().collect();
         assert_eq!(elements.len(), 3);
         assert_eq!(
@@ -5268,19 +4936,19 @@ task test {
                         match value {
                             Expr::Literal(LiteralExpr::Integer(i)) => {
                                 items.insert(
-                                    name.as_str().to_string(),
+                                    name.text().to_string(),
                                     i.value().unwrap().to_string(),
                                 );
                             }
                             Expr::Literal(LiteralExpr::String(s)) => {
                                 items.insert(
-                                    name.as_str().to_string(),
-                                    s.text().unwrap().as_str().to_string(),
+                                    name.text().to_string(),
+                                    s.text().unwrap().text().to_string(),
                                 );
                             }
                             Expr::Literal(LiteralExpr::Array(a)) => {
                                 items.insert(
-                                    name.as_str().to_string(),
+                                    name.text().to_string(),
                                     a.elements()
                                         .map(|e| {
                                             e.unwrap_literal().unwrap_integer().value().unwrap()
@@ -5331,7 +4999,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -5339,14 +5007,14 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int?");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         decls[0].expr().unwrap_literal().unwrap_none();
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Boolean");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let (lhs, rhs) = decls[1].expr().unwrap_equality().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
         rhs.unwrap_literal().unwrap_none();
 
         // Use a visitor to count the number of literal `None` in the tree
@@ -5408,7 +5076,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task hints
         let hints = tasks[0].hints().expect("should have a hints section");
@@ -5416,7 +5084,7 @@ task test {
         assert_eq!(items.len(), 3);
 
         // First hints item
-        assert_eq!(items[0].name().as_str(), "foo");
+        assert_eq!(items[0].name().text(), "foo");
         let inner: Vec<_> = items[0]
             .expr()
             .unwrap_literal()
@@ -5424,7 +5092,7 @@ task test {
             .items()
             .collect();
         assert_eq!(inner.len(), 2);
-        assert_eq!(inner[0].name().as_str(), "bar");
+        assert_eq!(inner[0].name().text(), "bar");
         assert_eq!(
             inner[0]
                 .expr()
@@ -5432,10 +5100,10 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "bar"
         );
-        assert_eq!(inner[1].name().as_str(), "baz");
+        assert_eq!(inner[1].name().text(), "baz");
         assert_eq!(
             inner[1]
                 .expr()
@@ -5443,12 +5111,12 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "baz"
         );
 
         // Second hints item
-        assert_eq!(items[1].name().as_str(), "bar");
+        assert_eq!(items[1].name().text(), "bar");
         assert_eq!(
             items[1]
                 .expr()
@@ -5456,12 +5124,12 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "bar"
         );
 
         // Third hints item
-        assert_eq!(items[2].name().as_str(), "baz");
+        assert_eq!(items[2].name().text(), "baz");
         let inner: Vec<_> = items[2]
             .expr()
             .unwrap_literal()
@@ -5469,7 +5137,7 @@ task test {
             .items()
             .collect();
         assert_eq!(inner.len(), 3);
-        assert_eq!(inner[0].name().as_str(), "a");
+        assert_eq!(inner[0].name().text(), "a");
         assert_eq!(
             inner[0]
                 .expr()
@@ -5479,7 +5147,7 @@ task test {
                 .unwrap(),
             1
         );
-        assert_eq!(inner[1].name().as_str(), "b");
+        assert_eq!(inner[1].name().text(), "b");
         assert_relative_eq!(
             inner[1]
                 .expr()
@@ -5489,7 +5157,7 @@ task test {
                 .unwrap(),
             10.0
         );
-        assert_eq!(inner[2].name().as_str(), "c");
+        assert_eq!(inner[2].name().text(), "c");
         let map: Vec<_> = inner[2]
             .expr()
             .unwrap_literal()
@@ -5499,11 +5167,11 @@ task test {
         assert_eq!(map.len(), 1);
         let (k, v) = map[0].key_value();
         assert_eq!(
-            k.unwrap_literal().unwrap_string().text().unwrap().as_str(),
+            k.unwrap_literal().unwrap_string().text().unwrap().text(),
             "foo"
         );
         assert_eq!(
-            v.unwrap_literal().unwrap_string().text().unwrap().as_str(),
+            v.unwrap_literal().unwrap_string().text().unwrap().text(),
             "bar"
         );
 
@@ -5562,7 +5230,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task hints
         let hints = tasks[0].hints().expect("task should have hints section");
@@ -5570,7 +5238,7 @@ task test {
         assert_eq!(items.len(), 1);
 
         // First hints item
-        assert_eq!(items[0].name().as_str(), "inputs");
+        assert_eq!(items[0].name().text(), "inputs");
         let input: Vec<_> = items[0]
             .expr()
             .unwrap_literal()
@@ -5581,7 +5249,7 @@ task test {
         assert_eq!(
             input[0]
                 .names()
-                .map(|i| i.as_str().to_string())
+                .map(|i| i.text().to_string())
                 .collect::<Vec<_>>(),
             ["a"]
         );
@@ -5592,7 +5260,7 @@ task test {
             .items()
             .collect();
         assert_eq!(inner.len(), 1);
-        assert_eq!(inner[0].name().as_str(), "foo");
+        assert_eq!(inner[0].name().text(), "foo");
         assert_eq!(
             inner[0]
                 .expr()
@@ -5600,13 +5268,13 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "bar"
         );
         assert_eq!(
             input[1]
                 .names()
-                .map(|i| i.as_str().to_string())
+                .map(|i| i.text().to_string())
                 .collect::<Vec<_>>(),
             ["b", "c", "d"]
         );
@@ -5617,7 +5285,7 @@ task test {
             .items()
             .collect();
         assert_eq!(inner.len(), 1);
-        assert_eq!(inner[0].name().as_str(), "bar");
+        assert_eq!(inner[0].name().text(), "bar");
         assert_eq!(
             inner[0]
                 .expr()
@@ -5625,7 +5293,7 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "baz"
         );
 
@@ -5684,7 +5352,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task hints
         let hints = tasks[0].hints().expect("task should have a hints section");
@@ -5692,7 +5360,7 @@ task test {
         assert_eq!(items.len(), 1);
 
         // First hints item
-        assert_eq!(items[0].name().as_str(), "outputs");
+        assert_eq!(items[0].name().text(), "outputs");
         let output: Vec<_> = items[0]
             .expr()
             .unwrap_literal()
@@ -5703,7 +5371,7 @@ task test {
         assert_eq!(
             output[0]
                 .names()
-                .map(|i| i.as_str().to_string())
+                .map(|i| i.text().to_string())
                 .collect::<Vec<_>>(),
             ["a"]
         );
@@ -5714,7 +5382,7 @@ task test {
             .items()
             .collect();
         assert_eq!(inner.len(), 1);
-        assert_eq!(inner[0].name().as_str(), "foo");
+        assert_eq!(inner[0].name().text(), "foo");
         assert_eq!(
             inner[0]
                 .expr()
@@ -5722,13 +5390,13 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "bar"
         );
         assert_eq!(
             output[1]
                 .names()
-                .map(|i| i.as_str().to_string())
+                .map(|i| i.text().to_string())
                 .collect::<Vec<_>>(),
             ["b", "c", "d"]
         );
@@ -5739,7 +5407,7 @@ task test {
             .items()
             .collect();
         assert_eq!(inner.len(), 1);
-        assert_eq!(inner[0].name().as_str(), "bar");
+        assert_eq!(inner[0].name().text(), "bar");
         assert_eq!(
             inner[0]
                 .expr()
@@ -5747,7 +5415,7 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "baz"
         );
 
@@ -5798,7 +5466,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -5806,7 +5474,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -5819,8 +5487,8 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
-        assert_eq!(decls[1].expr().unwrap_name_ref().name().as_str(), "a");
+        assert_eq!(decls[1].name().text(), "b");
+        assert_eq!(decls[1].expr().unwrap_name_ref().name().text(), "a");
 
         // Use a visitor to visit every name reference in the tree
         struct MyVisitor(Vec<String>);
@@ -5842,8 +5510,8 @@ task test {
                     return;
                 }
 
-                if let Expr::Name(n) = expr {
-                    self.0.push(n.name().as_str().to_string());
+                if let Expr::NameRef(n) = expr {
+                    self.0.push(n.name().text().to_string());
                 }
             }
         }
@@ -5871,7 +5539,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -5879,12 +5547,12 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
                 .unwrap_parenthesized()
-                .inner()
+                .expr()
                 .unwrap_literal()
                 .unwrap_integer()
                 .value()
@@ -5894,17 +5562,17 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let (lhs, rhs) = decls[1]
             .expr()
             .unwrap_parenthesized()
-            .inner()
+            .expr()
             .unwrap_subtraction()
             .operands();
         assert_eq!(lhs.unwrap_literal().unwrap_integer().value().unwrap(), 10);
         let (lhs, rhs) = rhs
             .unwrap_parenthesized()
-            .inner()
+            .expr()
             .unwrap_addition()
             .operands();
         assert_eq!(lhs.unwrap_literal().unwrap_integer().value().unwrap(), 5);
@@ -5957,7 +5625,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -5965,7 +5633,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         let (c, t, f) = decls[0].expr().unwrap_if().exprs();
         assert!(c.unwrap_literal().unwrap_boolean().value());
         assert_eq!(t.unwrap_literal().unwrap_integer().value().unwrap(), 1);
@@ -5973,17 +5641,17 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "String");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let (c, t, f) = decls[1].expr().unwrap_if().exprs();
         let (lhs, rhs) = c.unwrap_greater().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
         assert_eq!(rhs.unwrap_literal().unwrap_integer().value().unwrap(), 0);
         assert_eq!(
-            t.unwrap_literal().unwrap_string().text().unwrap().as_str(),
+            t.unwrap_literal().unwrap_string().text().unwrap().text(),
             "yes"
         );
         assert_eq!(
-            f.unwrap_literal().unwrap_string().text().unwrap().as_str(),
+            f.unwrap_literal().unwrap_string().text().unwrap().text(),
             "no"
         );
 
@@ -6034,7 +5702,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6042,7 +5710,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Boolean");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert!(
             decls[0]
                 .expr()
@@ -6055,7 +5723,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Boolean");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -6067,7 +5735,7 @@ task test {
                 .operand()
                 .unwrap_name_ref()
                 .name()
-                .as_str(),
+                .text(),
             "a"
         );
 
@@ -6118,7 +5786,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6126,7 +5794,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -6141,7 +5809,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -6153,7 +5821,7 @@ task test {
                 .operand()
                 .unwrap_name_ref()
                 .name()
-                .as_str(),
+                .text(),
             "a"
         );
 
@@ -6205,7 +5873,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6213,20 +5881,20 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Boolean");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert!(!decls[0].expr().unwrap_literal().unwrap_boolean().value());
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Boolean");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert!(decls[1].expr().unwrap_literal().unwrap_boolean().value());
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Boolean");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_logical_or().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of logical `or` expressions in the tree
         struct MyVisitor(usize);
@@ -6276,7 +5944,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6284,20 +5952,20 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Boolean");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert!(decls[0].expr().unwrap_literal().unwrap_boolean().value());
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Boolean");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert!(decls[1].expr().unwrap_literal().unwrap_boolean().value());
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Boolean");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_logical_and().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of logical `and` expressions in the tree
         struct MyVisitor(usize);
@@ -6347,7 +6015,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6355,20 +6023,20 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Boolean");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert!(decls[0].expr().unwrap_literal().unwrap_boolean().value());
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Boolean");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert!(!decls[1].expr().unwrap_literal().unwrap_boolean().value());
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Boolean");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_equality().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of equality expressions in the tree
         struct MyVisitor(usize);
@@ -6418,7 +6086,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6426,20 +6094,20 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Boolean");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert!(decls[0].expr().unwrap_literal().unwrap_boolean().value());
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Boolean");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert!(!decls[1].expr().unwrap_literal().unwrap_boolean().value());
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Boolean");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_inequality().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of inequality expressions in the tree.
         struct MyVisitor(usize);
@@ -6489,7 +6157,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6497,7 +6165,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -6510,7 +6178,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -6523,10 +6191,10 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Boolean");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_less().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to visit the number of `<` expressions in the tree.
         struct MyVisitor(usize);
@@ -6576,7 +6244,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6584,7 +6252,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -6597,7 +6265,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -6610,10 +6278,10 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Boolean");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_less_equal().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of `<=` expressions in the tree.
         struct MyVisitor(usize);
@@ -6663,7 +6331,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6671,7 +6339,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -6684,7 +6352,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -6697,10 +6365,10 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Boolean");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_greater().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of `>` expressions in the tree
         struct MyVisitor(usize);
@@ -6750,7 +6418,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6758,7 +6426,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -6771,7 +6439,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -6784,10 +6452,10 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Boolean");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_greater_equal().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of `>=` expressions in the tree.
         struct MyVisitor(usize);
@@ -6837,7 +6505,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6845,7 +6513,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -6858,7 +6526,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -6871,10 +6539,10 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Int");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_addition().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of addition expressions in the tree
         struct MyVisitor(usize);
@@ -6924,7 +6592,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -6932,7 +6600,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -6945,7 +6613,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -6958,10 +6626,10 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Int");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_subtraction().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of subtraction expressions in the tree
         struct MyVisitor(usize);
@@ -7011,7 +6679,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -7019,7 +6687,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -7032,7 +6700,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -7045,10 +6713,10 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Int");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_multiplication().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of multiplication expressions in the tree
         struct MyVisitor(usize);
@@ -7098,7 +6766,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -7106,7 +6774,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -7119,7 +6787,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -7132,10 +6800,10 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Int");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_division().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of division expressions in the tree
         struct MyVisitor(usize);
@@ -7185,7 +6853,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -7193,7 +6861,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -7206,7 +6874,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -7219,10 +6887,10 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Int");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_modulo().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of modulo expressions in the tree
         struct MyVisitor(usize);
@@ -7272,7 +6940,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -7280,7 +6948,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Int");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         assert_eq!(
             decls[0]
                 .expr()
@@ -7293,7 +6961,7 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         assert_eq!(
             decls[1]
                 .expr()
@@ -7306,10 +6974,10 @@ task test {
 
         // Third declaration
         assert_eq!(decls[2].ty().to_string(), "Int");
-        assert_eq!(decls[2].name().as_str(), "c");
+        assert_eq!(decls[2].name().text(), "c");
         let (lhs, rhs) = decls[2].expr().unwrap_exponentiation().operands();
-        assert_eq!(lhs.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(rhs.unwrap_name_ref().name().as_str(), "b");
+        assert_eq!(lhs.unwrap_name_ref().name().text(), "a");
+        assert_eq!(rhs.unwrap_name_ref().name().text(), "b");
 
         // Use a visitor to count the number of exponentiation expressions in the tree
         struct MyVisitor(usize);
@@ -7358,7 +7026,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -7366,7 +7034,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Array[Int]");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         let elements: Vec<_> = decls[0]
             .expr()
             .unwrap_literal()
@@ -7404,9 +7072,9 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "String");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let call = decls[1].expr().unwrap_call();
-        assert_eq!(call.target().as_str(), "sep");
+        assert_eq!(call.target().text(), "sep");
         let args: Vec<_> = call.arguments().collect();
         assert_eq!(args.len(), 2);
         assert_eq!(
@@ -7416,10 +7084,10 @@ task test {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             " "
         );
-        assert_eq!(args[1].clone().unwrap_name_ref().name().as_str(), "a");
+        assert_eq!(args[1].clone().unwrap_name_ref().name().text(), "a");
 
         // Use a visitor to count the number of call expressions in the tree
         struct MyVisitor(usize);
@@ -7468,7 +7136,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -7476,7 +7144,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Array[Int]");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         let elements: Vec<_> = decls[0]
             .expr()
             .unwrap_literal()
@@ -7514,9 +7182,9 @@ task test {
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "Int");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let (expr, index) = decls[1].expr().unwrap_index().operands();
-        assert_eq!(expr.unwrap_name_ref().name().as_str(), "a");
+        assert_eq!(expr.unwrap_name_ref().name().text(), "a");
         assert_eq!(index.unwrap_literal().unwrap_integer().value().unwrap(), 1);
 
         // Use a visitor to count the number of index expressions in the tree
@@ -7566,7 +7234,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Task declarations
         let decls: Vec<_> = tasks[0].declarations().collect();
@@ -7574,7 +7242,7 @@ task test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "Object");
-        assert_eq!(decls[0].name().as_str(), "a");
+        assert_eq!(decls[0].name().text(), "a");
         let items: Vec<_> = decls[0]
             .expr()
             .unwrap_literal()
@@ -7583,23 +7251,23 @@ task test {
             .collect();
         assert_eq!(items.len(), 1);
         let (name, value) = items[0].name_value();
-        assert_eq!(name.as_str(), "foo");
+        assert_eq!(name.text(), "foo");
         assert_eq!(
             value
                 .unwrap_literal()
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "bar"
         );
 
         // Second declaration
         assert_eq!(decls[1].ty().to_string(), "String");
-        assert_eq!(decls[1].name().as_str(), "b");
+        assert_eq!(decls[1].name().text(), "b");
         let (expr, index) = decls[1].expr().unwrap_access().operands();
-        assert_eq!(expr.unwrap_name_ref().name().as_str(), "a");
-        assert_eq!(index.as_str(), "foo");
+        assert_eq!(expr.unwrap_name_ref().name().text(), "a");
+        assert_eq!(index.text(), "foo");
 
         // Use a visitor to count the number of access expressions in the tree
         struct MyVisitor(usize);
@@ -7652,7 +7320,7 @@ task test {
         assert_eq!(decls.len(), 1);
 
         let expr = decls[0].expr().unwrap_literal().unwrap_string();
-        assert_eq!(expr.text().unwrap().as_str(), "  foo  ");
+        assert_eq!(expr.text().unwrap().text(), "  foo  ");
 
         let stripped = expr.strip_whitespace();
         assert!(stripped.is_none());

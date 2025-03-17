@@ -7,6 +7,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::TreeToken;
 use wdl_ast::Version;
 
 use crate::UNNECESSARY_FUNCTION_CALL;
@@ -192,10 +193,14 @@ pub fn workflow_reference_cycle(
 }
 
 /// Creates a "call conflict" diagnostic.
-pub fn call_conflict(name: &Ident, first: NameContext, suggest_fix: bool) -> Diagnostic {
+pub fn call_conflict<T: TreeToken>(
+    name: &Ident<T>,
+    first: NameContext,
+    suggest_fix: bool,
+) -> Diagnostic {
     let diagnostic = Diagnostic::error(format!(
         "conflicting call name `{name}`",
-        name = name.as_str()
+        name = name.text()
     ))
     .with_label(
         "this call name conflicts with a previously used name",
@@ -235,9 +240,8 @@ pub fn namespace_conflict(
 }
 
 /// Creates an "unknown namespace" diagnostic.
-pub fn unknown_namespace(ns: &Ident) -> Diagnostic {
-    Diagnostic::error(format!("unknown namespace `{ns}`", ns = ns.as_str()))
-        .with_highlight(ns.span())
+pub fn unknown_namespace<T: TreeToken>(ns: &Ident<T>) -> Diagnostic {
+    Diagnostic::error(format!("unknown namespace `{ns}`", ns = ns.text())).with_highlight(ns.span())
 }
 
 /// Creates an "only one namespace" diagnostic.
@@ -271,7 +275,7 @@ pub fn incompatible_import(
         .with_label(
             format!(
                 "the importing document is version `{version}`",
-                version = importer_version.as_str()
+                version = importer_version.text()
             ),
             importer_version.span(),
         )
@@ -288,10 +292,10 @@ pub fn invalid_relative_import(error: &url::ParseError, span: Span) -> Diagnosti
 }
 
 /// Creates a "struct not in document" diagnostic.
-pub fn struct_not_in_document(name: &Ident) -> Diagnostic {
+pub fn struct_not_in_document<T: TreeToken>(name: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
         "a struct named `{name}` does not exist in the imported document",
-        name = name.as_str()
+        name = name.text()
     ))
     .with_label("this struct does not exist", name.span())
 }
@@ -328,10 +332,10 @@ pub fn struct_conflicts_with_import(name: &str, conflicting: Span, import: Span)
 }
 
 /// Creates a "duplicate workflow" diagnostic.
-pub fn duplicate_workflow(name: &Ident, first: Span) -> Diagnostic {
+pub fn duplicate_workflow<T: TreeToken>(name: &Ident<T>, first: Span) -> Diagnostic {
     Diagnostic::error(format!(
         "cannot define workflow `{name}` as only one workflow is allowed per source file",
-        name = name.as_str(),
+        name = name.text(),
     ))
     .with_label("consider moving this workflow to a new file", name.span())
     .with_label("first workflow is defined here", first)
@@ -371,14 +375,18 @@ pub fn non_empty_array_assignment(expected_span: Span, actual_span: Span) -> Dia
 }
 
 /// Creates a "call input type mismatch" diagnostic.
-pub fn call_input_type_mismatch(name: &Ident, expected: &Type, actual: &Type) -> Diagnostic {
+pub fn call_input_type_mismatch<T: TreeToken>(
+    name: &Ident<T>,
+    expected: &Type,
+    actual: &Type,
+) -> Diagnostic {
     Diagnostic::error(format!(
         "type mismatch: expected type `{expected}`, but found type `{actual}`",
     ))
     .with_label(
         format!(
             "input `{name}` is type `{expected}`, but name `{name}` is type `{actual}`",
-            name = name.as_str(),
+            name = name.text(),
         ),
         name.span(),
     )
@@ -420,48 +428,52 @@ pub fn multiple_type_mismatch(
 }
 
 /// Creates a "not a task member" diagnostic.
-pub fn not_a_task_member(member: &Ident) -> Diagnostic {
+pub fn not_a_task_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
         "the `task` variable does not have a member named `{member}`",
-        member = member.as_str()
+        member = member.text()
     ))
     .with_highlight(member.span())
 }
 
 /// Creates a "not a struct" diagnostic.
-pub fn not_a_struct(member: &Ident, input: bool) -> Diagnostic {
+pub fn not_a_struct<T: TreeToken>(member: &Ident<T>, input: bool) -> Diagnostic {
     Diagnostic::error(format!(
         "{kind} `{member}` is not a struct",
         kind = if input { "input" } else { "struct member" },
-        member = member.as_str()
+        member = member.text()
     ))
     .with_highlight(member.span())
 }
 
 /// Creates a "not a struct member" diagnostic.
-pub fn not_a_struct_member(name: &str, member: &Ident) -> Diagnostic {
+pub fn not_a_struct_member<T: TreeToken>(name: &str, member: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
         "struct `{name}` does not have a member named `{member}`",
-        member = member.as_str()
+        member = member.text()
     ))
     .with_highlight(member.span())
 }
 
 /// Creates a "not a pair accessor" diagnostic.
-pub fn not_a_pair_accessor(name: &Ident) -> Diagnostic {
+pub fn not_a_pair_accessor<T: TreeToken>(name: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
         "cannot access a pair with name `{name}`",
-        name = name.as_str()
+        name = name.text()
     ))
     .with_highlight(name.span())
     .with_fix("use `left` or `right` to access a pair")
 }
 
 /// Creates a "missing struct members" diagnostic.
-pub fn missing_struct_members(name: &Ident, count: usize, members: &str) -> Diagnostic {
+pub fn missing_struct_members<T: TreeToken>(
+    name: &Ident<T>,
+    count: usize,
+    members: &str,
+) -> Diagnostic {
     Diagnostic::error(format!(
         "struct `{name}` requires a value for member{s} {members}",
-        name = name.as_str(),
+        name = name.text(),
         s = if count > 1 { "s" } else { "" },
     ))
     .with_highlight(name.span())
@@ -670,21 +682,21 @@ pub fn unknown_task_or_workflow(namespace: Option<Span>, name: &str, span: Span)
 }
 
 /// Creates an "unknown call input/output" diagnostic.
-pub fn unknown_call_io(call: &CallType, name: &Ident, io: Io) -> Diagnostic {
+pub fn unknown_call_io<T: TreeToken>(call: &CallType, name: &Ident<T>, io: Io) -> Diagnostic {
     Diagnostic::error(format!(
         "{kind} `{call}` does not have an {io} named `{name}`",
         kind = call.kind(),
         call = call.name(),
-        name = name.as_str(),
+        name = name.text(),
     ))
     .with_highlight(name.span())
 }
 
 /// Creates an "unknown task input/output name" diagnostic.
-pub fn unknown_task_io(task_name: &str, name: &Ident, io: Io) -> Diagnostic {
+pub fn unknown_task_io<T: TreeToken>(task_name: &str, name: &Ident<T>, io: Io) -> Diagnostic {
     Diagnostic::error(format!(
         "task `{task_name}` does not have an {io} named `{name}`",
-        name = name.as_str(),
+        name = name.text(),
     ))
     .with_highlight(name.span())
 }
@@ -695,15 +707,15 @@ pub fn recursive_workflow_call(name: &str, span: Span) -> Diagnostic {
 }
 
 /// Creates a "missing call input" diagnostic.
-pub fn missing_call_input(
+pub fn missing_call_input<T: TreeToken>(
     kind: CallKind,
-    target: &Ident,
+    target: &Ident<T>,
     input: &str,
     nested_inputs_allowed: bool,
 ) -> Diagnostic {
     let message = format!(
         "missing required call input `{input}` for {kind} `{target}`",
-        target = target.as_str(),
+        target = target.text(),
     );
 
     if nested_inputs_allowed {

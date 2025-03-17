@@ -1,11 +1,9 @@
 //! AST representation for a 1.x WDL document.
 
-use crate::AstChildren;
 use crate::AstNode;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
-use crate::WorkflowDescriptionLanguage;
-use crate::support::children;
+use crate::TreeNode;
 
 mod decls;
 mod expr;
@@ -37,76 +35,68 @@ pub use workflow::*;
 ///
 /// [1]: crate::SyntaxTree
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Ast(SyntaxNode);
+pub struct Ast<N: TreeNode = SyntaxNode>(pub(crate) N);
 
-impl Ast {
+impl<N: TreeNode> Ast<N> {
     /// Gets all of the document items in the AST.
-    pub fn items(&self) -> impl Iterator<Item = DocumentItem> + use<> {
+    pub fn items(&self) -> impl Iterator<Item = DocumentItem<N>> + use<'_, N> {
         DocumentItem::children(&self.0)
     }
 
     /// Gets the import statements in the AST.
-    pub fn imports(&self) -> AstChildren<ImportStatement> {
-        children(&self.0)
+    pub fn imports(&self) -> impl Iterator<Item = ImportStatement<N>> + use<'_, N> {
+        self.children()
     }
 
     /// Gets the struct definitions in the AST.
-    pub fn structs(&self) -> AstChildren<StructDefinition> {
-        children(&self.0)
+    pub fn structs(&self) -> impl Iterator<Item = StructDefinition<N>> + use<'_, N> {
+        self.children()
     }
 
     /// Gets the task definitions in the AST.
-    pub fn tasks(&self) -> AstChildren<TaskDefinition> {
-        children(&self.0)
+    pub fn tasks(&self) -> impl Iterator<Item = TaskDefinition<N>> + use<'_, N> {
+        self.children()
     }
 
     /// Gets the workflow definitions in the AST.
-    pub fn workflows(&self) -> AstChildren<WorkflowDefinition> {
-        children(&self.0)
+    pub fn workflows(&self) -> impl Iterator<Item = WorkflowDefinition<N>> + use<'_, N> {
+        self.children()
     }
 }
 
-impl AstNode for Ast {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for Ast<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::RootNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::RootNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::RootNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a document item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum DocumentItem {
+pub enum DocumentItem<N: TreeNode = SyntaxNode> {
     /// The item is an import statement.
-    Import(ImportStatement),
+    Import(ImportStatement<N>),
     /// The item is a struct definition.
-    Struct(StructDefinition),
+    Struct(StructDefinition<N>),
     /// The item is a task definition.
-    Task(TaskDefinition),
+    Task(TaskDefinition<N>),
     /// The item is a workflow definition.
-    Workflow(WorkflowDefinition),
+    Workflow(WorkflowDefinition<N>),
 }
 
-impl DocumentItem {
-    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
-    /// underlying members within the [`DocumentItem`].
+impl<N: TreeNode> DocumentItem<N> {
+    // Returns whether or not the given syntax kind can be cast to
+    /// [`DocumentItem`].
     pub fn can_cast(kind: SyntaxKind) -> bool
     where
         Self: Sized,
@@ -120,36 +110,34 @@ impl DocumentItem {
         )
     }
 
-    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
-    /// within the [`DocumentItem`].
-    pub fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
+    /// Casts the given node to [`DocumentItem`].
+    ///
+    /// Returns `None` if the node cannot be cast.
+    pub fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
             SyntaxKind::ImportStatementNode => Some(Self::Import(
-                ImportStatement::cast(syntax).expect("import statement to cast"),
+                ImportStatement::cast(inner).expect("import statement to cast"),
             )),
             SyntaxKind::StructDefinitionNode => Some(Self::Struct(
-                StructDefinition::cast(syntax).expect("struct definition to cast"),
+                StructDefinition::cast(inner).expect("struct definition to cast"),
             )),
             SyntaxKind::TaskDefinitionNode => Some(Self::Task(
-                TaskDefinition::cast(syntax).expect("task definition to cast"),
+                TaskDefinition::cast(inner).expect("task definition to cast"),
             )),
             SyntaxKind::WorkflowDefinitionNode => Some(Self::Workflow(
-                WorkflowDefinition::cast(syntax).expect("workflow definition to cast"),
+                WorkflowDefinition::cast(inner).expect("workflow definition to cast"),
             )),
             _ => None,
         }
     }
 
-    /// Gets a reference to the underlying [`SyntaxNode`].
-    pub fn syntax(&self) -> &SyntaxNode {
+    /// Gets a reference to the inner node.
+    pub fn inner(&self) -> &N {
         match self {
-            Self::Import(element) => element.syntax(),
-            Self::Struct(element) => element.syntax(),
-            Self::Task(element) => element.syntax(),
-            Self::Workflow(element) => element.syntax(),
+            Self::Import(e) => e.inner(),
+            Self::Struct(e) => e.inner(),
+            Self::Task(e) => e.inner(),
+            Self::Workflow(e) => e.inner(),
         }
     }
 
@@ -158,9 +146,9 @@ impl DocumentItem {
     /// * If `self` is a [`DocumentItem::Import`], then a reference to the inner
     ///   [`ImportStatement`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_import_statement(&self) -> Option<&ImportStatement> {
+    pub fn as_import_statement(&self) -> Option<&ImportStatement<N>> {
         match self {
-            DocumentItem::Import(import) => Some(import),
+            Self::Import(i) => Some(i),
             _ => None,
         }
     }
@@ -170,9 +158,9 @@ impl DocumentItem {
     /// * If `self` is a [`DocumentItem::Import`], then the inner
     ///   [`ImportStatement`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_import_statement(self) -> Option<ImportStatement> {
+    pub fn into_import_statement(self) -> Option<ImportStatement<N>> {
         match self {
-            DocumentItem::Import(import) => Some(import),
+            Self::Import(i) => Some(i),
             _ => None,
         }
     }
@@ -182,9 +170,9 @@ impl DocumentItem {
     /// * If `self` is a [`DocumentItem::Struct`], then a reference to the inner
     ///   [`StructDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_struct_definition(&self) -> Option<&StructDefinition> {
+    pub fn as_struct_definition(&self) -> Option<&StructDefinition<N>> {
         match self {
-            DocumentItem::Struct(r#struct) => Some(r#struct),
+            Self::Struct(i) => Some(i),
             _ => None,
         }
     }
@@ -194,9 +182,9 @@ impl DocumentItem {
     /// * If `self` is a [`DocumentItem::Struct`], then the inner
     ///   [`StructDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_struct_definition(self) -> Option<StructDefinition> {
+    pub fn into_struct_definition(self) -> Option<StructDefinition<N>> {
         match self {
-            DocumentItem::Struct(r#struct) => Some(r#struct),
+            Self::Struct(i) => Some(i),
             _ => None,
         }
     }
@@ -206,9 +194,9 @@ impl DocumentItem {
     /// * If `self` is a [`DocumentItem::Task`], then a reference to the inner
     ///   [`TaskDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_task_definition(&self) -> Option<&TaskDefinition> {
+    pub fn as_task_definition(&self) -> Option<&TaskDefinition<N>> {
         match self {
-            DocumentItem::Task(task) => Some(task),
+            Self::Task(i) => Some(i),
             _ => None,
         }
     }
@@ -218,9 +206,9 @@ impl DocumentItem {
     /// * If `self` is a [`DocumentItem::Task`], then the inner
     ///   [`TaskDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_task_definition(self) -> Option<TaskDefinition> {
+    pub fn into_task_definition(self) -> Option<TaskDefinition<N>> {
         match self {
-            DocumentItem::Task(task) => Some(task),
+            Self::Task(i) => Some(i),
             _ => None,
         }
     }
@@ -230,9 +218,9 @@ impl DocumentItem {
     /// * If `self` is a [`DocumentItem::Workflow`], then a reference to the
     ///   inner [`WorkflowDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_workflow_definition(&self) -> Option<&WorkflowDefinition> {
+    pub fn as_workflow_definition(&self) -> Option<&WorkflowDefinition<N>> {
         match self {
-            DocumentItem::Workflow(workflow) => Some(workflow),
+            Self::Workflow(i) => Some(i),
             _ => None,
         }
     }
@@ -242,28 +230,20 @@ impl DocumentItem {
     /// * If `self` is a [`DocumentItem::Workflow`], then the inner
     ///   [`WorkflowDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_workflow_definition(self) -> Option<WorkflowDefinition> {
+    pub fn into_workflow_definition(self) -> Option<WorkflowDefinition<N>> {
         match self {
-            DocumentItem::Workflow(workflow) => Some(workflow),
+            Self::Workflow(i) => Some(i),
             _ => None,
         }
     }
 
-    /// Finds the first child that can be cast to an [`DocumentItem`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::child`] without requiring [`DocumentItem`] to
-    /// implement the `AstNode` trait.
-    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
-        syntax.children().find_map(Self::cast)
+    /// Finds the first child that can be cast to a [`DocumentItem`].
+    pub fn child(node: &N) -> Option<Self> {
+        node.children().find_map(Self::cast)
     }
 
-    /// Finds all children that can be cast to an [`DocumentItem`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::children`] without requiring [`DocumentItem`] to
-    /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = DocumentItem> + use<> {
-        syntax.children().filter_map(Self::cast)
+    /// Finds all children that can be cast to a [`DocumentItem`].
+    pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
+        node.children().filter_map(Self::cast)
     }
 }

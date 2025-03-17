@@ -1,0 +1,9 @@
+error: task `t` contains a duplicate requirements section
+   ┌─ tests/validation/duplicate-requirements/source.wdl:10:5
+   │
+ 6 │     requirements {
+   │     ------------ first requirements section is defined here
+   ·
+10 │     requirements {
+   │     ^^^^^^^^^^^^ this requirements section is a duplicate
+

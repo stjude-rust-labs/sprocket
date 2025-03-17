@@ -1,22 +1,24 @@
 //! Validation of supported syntax for WDL versions.
 
-use rowan::ast::support::token;
-use wdl_grammar::ToSpan;
 use wdl_grammar::version::V1;
 
 use crate::AstNode;
-use crate::AstNodeExt;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
 use crate::Document;
 use crate::Span;
 use crate::SupportedVersion;
-use crate::SyntaxKind;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::v1;
+use crate::v1::Exponentiation;
 use crate::v1::Expr;
+use crate::v1::HintsKeyword;
+use crate::v1::InputKeyword;
+use crate::v1::MetaKeyword;
+use crate::v1::ParameterMetaKeyword;
+use crate::v1::RequirementsKeyword;
 
 /// Creates an "exponentiation requirement" diagnostic.
 fn exponentiation_requirement(span: Span) -> Diagnostic {
@@ -104,10 +106,10 @@ impl Visitor for VersionVisitor {
         if let Some(version) = self.version {
             if version < SupportedVersion::V1(V1::Two) {
                 state.add(requirements_section(
-                    token(section.syntax(), SyntaxKind::RequirementsKeyword)
+                    section
+                        .token::<RequirementsKeyword<_>>()
                         .expect("should have keyword")
-                        .text_range()
-                        .to_span(),
+                        .span(),
                 ));
             }
         }
@@ -126,10 +128,10 @@ impl Visitor for VersionVisitor {
         if let Some(version) = self.version {
             if version < SupportedVersion::V1(V1::Two) {
                 state.add(hints_section(
-                    token(section.syntax(), SyntaxKind::HintsKeyword)
+                    section
+                        .token::<HintsKeyword<_>>()
                         .expect("should have keyword")
-                        .text_range()
-                        .to_span(),
+                        .span(),
                 ));
             }
         }
@@ -148,10 +150,10 @@ impl Visitor for VersionVisitor {
         if let Some(version) = self.version {
             if version < SupportedVersion::V1(V1::Two) {
                 state.add(hints_section(
-                    token(section.syntax(), SyntaxKind::HintsKeyword)
+                    section
+                        .token::<HintsKeyword<_>>()
                         .expect("should have keyword")
-                        .text_range()
-                        .to_span(),
+                        .span(),
                 ));
             }
         }
@@ -166,10 +168,9 @@ impl Visitor for VersionVisitor {
             match expr {
                 Expr::Exponentiation(e) if version < SupportedVersion::V1(V1::Two) => {
                     state.add(exponentiation_requirement(
-                        token(e.syntax(), SyntaxKind::Exponentiation)
+                        e.token::<Exponentiation<_>>()
                             .expect("should have operator")
-                            .text_range()
-                            .to_span(),
+                            .span(),
                     ));
                 }
                 v1::Expr::Literal(v1::LiteralExpr::String(s))
@@ -246,8 +247,7 @@ impl Visitor for VersionVisitor {
             if version < SupportedVersion::V1(V1::Two) {
                 // Ensure there is a input keyword child token if there are inputs
                 if let Some(input) = stmt.inputs().next() {
-                    if rowan::ast::support::token(stmt.syntax(), SyntaxKind::InputKeyword).is_none()
-                    {
+                    if stmt.token::<InputKeyword<_>>().is_none() {
                         state.add(input_keyword_requirement(input.span()));
                     }
                 }
@@ -270,20 +270,20 @@ impl Visitor for VersionVisitor {
                 if let Some(section) = def.metadata().next() {
                     state.add(struct_metadata_requirement(
                         "meta",
-                        token(section.syntax(), SyntaxKind::MetaKeyword)
+                        section
+                            .token::<MetaKeyword<_>>()
                             .expect("should have keyword")
-                            .text_range()
-                            .to_span(),
+                            .span(),
                     ));
                 }
 
                 if let Some(section) = def.parameter_metadata().next() {
                     state.add(struct_metadata_requirement(
                         "parameter_meta",
-                        token(section.syntax(), SyntaxKind::ParameterMetaKeyword)
+                        section
+                            .token::<ParameterMetaKeyword<_>>()
                             .expect("should have keyword")
-                            .text_range()
-                            .to_span(),
+                            .span(),
                     ));
                 }
             }

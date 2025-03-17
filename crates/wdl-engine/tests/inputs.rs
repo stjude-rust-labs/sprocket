@@ -39,6 +39,7 @@ use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::rules;
+use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::Inputs;
@@ -122,7 +123,7 @@ fn run_test(test: &Path, result: AnalysisResult, ntests: &AtomicUsize) -> Result
     };
 
     if let Some(diagnostic) = diagnostics.iter().find(|d| d.severity() == Severity::Error) {
-        let source = result.document().node().syntax().text().to_string();
+        let source = result.document().root().text().to_string();
         let file = SimpleFile::new(&path, &source);
 
         term::emit(

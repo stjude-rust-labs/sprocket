@@ -101,7 +101,7 @@ impl AstElementFormatExt for Element {
 /// This function ignores trivia.
 fn collate(node: &Node) -> Option<NonEmpty<Box<FormatElement>>> {
     let mut results = Vec::new();
-    let stream = node.syntax().children_with_tokens().filter_map(|syntax| {
+    let stream = node.inner().children_with_tokens().filter_map(|syntax| {
         if syntax.kind().is_trivia() {
             None
         } else {
@@ -168,7 +168,7 @@ workflow bar # This is an inline comment on the workflow ident.
 
         let version = children.next().expect("version statement element");
         assert_eq!(
-            version.element().syntax().kind(),
+            version.element().inner().kind(),
             SyntaxKind::VersionStatementNode
         );
 
@@ -186,7 +186,7 @@ workflow bar # This is an inline comment on the workflow ident.
 
         let task = children.next().expect("task element");
         assert_eq!(
-            task.element().syntax().kind(),
+            task.element().inner().kind(),
             SyntaxKind::TaskDefinitionNode
         );
 
@@ -216,7 +216,7 @@ workflow bar # This is an inline comment on the workflow ident.
 
         let workflow = children.next().expect("workflow element");
         assert_eq!(
-            workflow.element().syntax().kind(),
+            workflow.element().inner().kind(),
             SyntaxKind::WorkflowDefinitionNode
         );
 

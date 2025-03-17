@@ -1,9 +1,11 @@
 //! The `container` item within the `requirements` block.
 
-use rowan::ast::AstNode;
-use wdl_grammar::WorkflowDescriptionLanguage;
+use wdl_grammar::SyntaxKind;
+use wdl_grammar::SyntaxNode;
 
+use crate::AstNode;
 use crate::AstToken;
+use crate::TreeNode;
 use crate::v1::RequirementsItem;
 use crate::v1::TASK_REQUIREMENT_CONTAINER;
 use crate::v1::common::container::value;
@@ -11,42 +13,34 @@ use crate::v1::common::container::value::Value;
 
 /// The `container` item within a `requirements` block.
 #[derive(Debug)]
-pub struct Container(RequirementsItem);
+pub struct Container<N: TreeNode = SyntaxNode>(RequirementsItem<N>);
 
-impl Container {
+impl<N: TreeNode> Container<N> {
     /// Gets the [`Value`] from a [`Container`] (if it can be parsed).
-    pub fn value(&self) -> value::Result<Value> {
+    pub fn value(&self) -> value::Result<Value<N>> {
         Value::try_from(self.0.expr())
     }
 }
 
-impl AstNode for Container {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: <Self::Language as rowan::Language>::Kind) -> bool
-    where
-        Self: Sized,
-    {
-        RequirementsItem::can_cast(kind)
+impl<N: TreeNode> AstNode<N> for Container<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        RequirementsItem::<N>::can_cast(kind)
     }
 
-    fn cast(node: rowan::SyntaxNode<Self::Language>) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        RequirementsItem::cast(node).and_then(|item| Container::try_from(item).ok())
+    fn cast(inner: N) -> Option<Self> {
+        RequirementsItem::cast(inner).and_then(|item| Container::try_from(item).ok())
     }
 
-    fn syntax(&self) -> &rowan::SyntaxNode<Self::Language> {
-        self.0.syntax()
+    fn inner(&self) -> &N {
+        self.0.inner()
     }
 }
 
-impl TryFrom<RequirementsItem> for Container {
+impl<N: TreeNode> TryFrom<RequirementsItem<N>> for Container<N> {
     type Error = ();
 
-    fn try_from(value: RequirementsItem) -> Result<Self, Self::Error> {
-        if value.name().as_str() == TASK_REQUIREMENT_CONTAINER {
+    fn try_from(value: RequirementsItem<N>) -> Result<Self, Self::Error> {
+        if value.name().text() == TASK_REQUIREMENT_CONTAINER {
             return Ok(Self(value));
         }
 
@@ -72,7 +66,7 @@ task hello {
 
         assert!(diagnostics.is_empty());
 
-        let container = document
+        let section = document
             .ast()
             .as_v1()
             .expect("v1 ast")
@@ -80,9 +74,9 @@ task hello {
             .next()
             .expect("the 'hello' task to exist")
             .requirements()
-            .expect("the 'requirements' block to exist")
-            .items()
-            .filter_map(|p| p.into_container());
+            .expect("the 'requirements' block to exist");
+
+        let container = section.items().filter_map(|p| p.into_container());
 
         assert!(container.count() == 1);
     }
@@ -101,7 +95,7 @@ task hello {
 
         assert!(diagnostics.is_empty());
 
-        let container = document
+        let section = document
             .ast()
             .as_v1()
             .expect("v1 ast")
@@ -109,9 +103,9 @@ task hello {
             .next()
             .expect("the 'hello' task to exist")
             .requirements()
-            .expect("the 'requirements' block to exist")
-            .items()
-            .filter_map(|p| p.into_container());
+            .expect("the 'requirements' block to exist");
+
+        let container = section.items().filter_map(|p| p.into_container());
 
         assert_eq!(container.count(), 0);
     }
@@ -132,7 +126,7 @@ task hello {
 
         assert!(diagnostics.is_empty());
 
-        let container = document
+        let section = document
             .ast()
             .as_v1()
             .expect("v1 ast")
@@ -140,9 +134,9 @@ task hello {
             .next()
             .expect("the 'hello' task to exist")
             .requirements()
-            .expect("the 'requirements' block to exist")
-            .items()
-            .filter_map(|p| p.into_container());
+            .expect("the 'requirements' block to exist");
+
+        let container = section.items().filter_map(|p| p.into_container());
 
         assert_eq!(container.count(), 0);
     }

@@ -7,13 +7,11 @@ use crate::Diagnostics;
 use crate::Document;
 use crate::Span;
 use crate::SupportedVersion;
-use crate::SyntaxKind;
-use crate::ToSpan;
 use crate::VisitReason;
 use crate::Visitor;
-use crate::support;
 use crate::v1::Expr;
 use crate::v1::LiteralExpr;
+use crate::v1::Minus;
 
 /// Creates an "integer not in range" diagnostic
 fn integer_not_in_range(span: Span) -> Diagnostic {
@@ -93,11 +91,11 @@ impl Visitor for NumberVisitor {
 
                 let start = self
                     .negation_start
-                    .or_else(|| i.minus().map(|t| usize::from(t.text_range().start())));
-                let range = i.token().syntax().text_range();
+                    .or_else(|| i.minus().map(|t| t.span().start()));
+                let span = i.integer().span();
                 let span = match start {
-                    Some(start) => Span::new(start, usize::from(range.end()) - start),
-                    None => range.to_span(),
+                    Some(start) => Span::new(start, span.end() - start),
+                    None => span,
                 };
 
                 state.add(integer_not_in_range(span));
@@ -110,11 +108,11 @@ impl Visitor for NumberVisitor {
 
                 let start = self
                     .negation_start
-                    .or_else(|| f.minus().map(|t| usize::from(t.text_range().start())));
-                let range = f.token().syntax().text_range();
+                    .or_else(|| f.minus().map(|t| t.span().start()));
+                let span = f.float().span();
                 let span = match start {
-                    Some(start) => Span::new(start, usize::from(range.end()) - start),
-                    None => range.to_span(),
+                    Some(start) => Span::new(start, span.end() - start),
+                    None => span,
                 };
 
                 state.add(float_not_in_range(span));
@@ -126,11 +124,11 @@ impl Visitor for NumberVisitor {
                     Expr::Literal(LiteralExpr::Integer(_)) | Expr::Literal(LiteralExpr::Float(_))
                 ) {
                     self.negation_start = Some(
-                        support::token(negation.syntax(), SyntaxKind::Minus)
+                        negation
+                            .token::<Minus<_>>()
                             .expect("should have minus token")
-                            .text_range()
-                            .start()
-                            .into(),
+                            .span()
+                            .start(),
                     );
                 }
             }

@@ -20,13 +20,13 @@ impl Struct {
 
     /// Get the name of the struct.
     pub fn name(&self) -> String {
-        self.def.name().as_str().to_string()
+        self.def.name().text().to_string()
     }
 
     /// Get the members of the struct.
     pub fn members(&self) -> impl Iterator<Item = (String, String)> + '_ {
         self.def.members().map(|decl| {
-            let name = decl.name().as_str().to_owned();
+            let name = decl.name().text().to_owned();
             let ty = decl.ty().to_string();
             (name, ty)
         })

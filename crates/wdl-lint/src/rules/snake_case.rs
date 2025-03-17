@@ -225,10 +225,10 @@ impl Visitor for SnakeCaseRule {
         let name = task.name();
         check_name(
             Context::Task,
-            name.as_str(),
+            name.text(),
             name.span(),
             state,
-            SyntaxElement::from(task.syntax().clone()),
+            SyntaxElement::from(task.inner().clone()),
             &self.exceptable_nodes(),
         );
     }
@@ -246,10 +246,10 @@ impl Visitor for SnakeCaseRule {
         let name = workflow.name();
         check_name(
             Context::Workflow,
-            name.as_str(),
+            name.text(),
             name.span(),
             state,
-            SyntaxElement::from(workflow.syntax().clone()),
+            SyntaxElement::from(workflow.inner().clone()),
             &self.exceptable_nodes(),
         );
     }
@@ -263,10 +263,10 @@ impl Visitor for SnakeCaseRule {
         let context = self.determine_decl_context();
         check_name(
             context,
-            name.as_str(),
+            name.text(),
             name.span(),
             state,
-            SyntaxElement::from(decl.syntax().clone()),
+            SyntaxElement::from(decl.inner().clone()),
             &self.exceptable_nodes(),
         );
     }
@@ -280,10 +280,10 @@ impl Visitor for SnakeCaseRule {
         let context = self.determine_decl_context();
         check_name(
             context,
-            name.as_str(),
+            name.text(),
             name.span(),
             state,
-            SyntaxElement::from(decl.syntax().clone()),
+            SyntaxElement::from(decl.inner().clone()),
             &self.exceptable_nodes(),
         );
     }

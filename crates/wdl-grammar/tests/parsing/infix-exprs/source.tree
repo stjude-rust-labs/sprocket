@@ -39,7 +39,7 @@ RootNode@0..354
       Assignment@99..100 "="
       Whitespace@100..101 " "
       LogicalAndExprNode@101..110
-        NameRefNode@101..102
+        NameRefExprNode@101..102
           Ident@101..102 "a"
         Whitespace@102..103 " "
         LogicalAnd@103..105 "&&"
@@ -56,12 +56,12 @@ RootNode@0..354
       Assignment@125..126 "="
       Whitespace@126..127 " "
       EqualityExprNode@127..133
-        NameRefNode@127..128
+        NameRefExprNode@127..128
           Ident@127..128 "a"
         Whitespace@128..129 " "
         Equal@129..131 "=="
         Whitespace@131..132 " "
-        NameRefNode@132..133
+        NameRefExprNode@132..133
           Ident@132..133 "b"
     Whitespace@133..138 "\n    "
     BoundDeclNode@138..160
@@ -73,7 +73,7 @@ RootNode@0..354
       Assignment@148..149 "="
       Whitespace@149..150 " "
       InequalityExprNode@150..160
-        NameRefNode@150..151
+        NameRefExprNode@150..151
           Ident@150..151 "c"
         Whitespace@151..152 " "
         NotEqual@152..154 "!="

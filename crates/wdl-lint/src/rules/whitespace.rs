@@ -82,7 +82,7 @@ impl Visitor for WhitespaceRule {
     type State = Diagnostics;
 
     fn comment(&mut self, state: &mut Self::State, comment: &wdl_ast::Comment) {
-        let comment_str = comment.as_str();
+        let comment_str = comment.text();
         let span = comment.span();
         let trimmed_end = comment_str.trim_end();
         if comment_str != trimmed_end {
@@ -92,7 +92,7 @@ impl Visitor for WhitespaceRule {
                     span.start() + trimmed_end.len(),
                     comment_str.len() - trimmed_end.len(),
                 )),
-                SyntaxElement::from(comment.syntax().clone()),
+                SyntaxElement::from(comment.inner().clone()),
                 &self.exceptable_nodes(),
             )
         }
@@ -136,14 +136,14 @@ impl Visitor for WhitespaceRule {
         // Check to see if this whitespace is the last token in the document (i.e. the
         // parent is the root and there is no sibling)
         let is_last = whitespace
-            .syntax()
+            .inner()
             .parent()
             .expect("should have a parent")
             .kind()
             == SyntaxKind::RootNode
-            && whitespace.syntax().next_sibling_or_token().is_none();
+            && whitespace.inner().next_sibling_or_token().is_none();
 
-        let text = whitespace.as_str();
+        let text = whitespace.text();
         let span = whitespace.span();
         let mut blank_start = None;
         for (i, (line, start, next_start)) in lines_with_offset(text).enumerate() {
@@ -157,13 +157,13 @@ impl Visitor for WhitespaceRule {
                 if i == 0 {
                     state.exceptable_add(
                         trailing_whitespace(Span::new(span.start() + start, line.len())),
-                        SyntaxElement::from(whitespace.syntax().clone()),
+                        SyntaxElement::from(whitespace.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                 } else {
                     state.exceptable_add(
                         only_whitespace(Span::new(span.start() + start, line.len())),
-                        SyntaxElement::from(whitespace.syntax().clone()),
+                        SyntaxElement::from(whitespace.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                 }
@@ -181,7 +181,7 @@ impl Visitor for WhitespaceRule {
         if !is_last && blank_start.is_some() {
             state.exceptable_add(
                 more_than_one_blank_line(span),
-                SyntaxElement::from(whitespace.syntax().clone()),
+                SyntaxElement::from(whitespace.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }

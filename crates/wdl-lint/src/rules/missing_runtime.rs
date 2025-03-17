@@ -92,8 +92,8 @@ impl Visitor for MissingRuntimeRule {
             if minor_version <= V1::One && task.runtime().is_none() {
                 let name = task.name();
                 state.exceptable_add(
-                    missing_runtime_section(name.as_str(), name.span()),
-                    SyntaxElement::from(task.syntax().clone()),
+                    missing_runtime_section(name.text(), name.span()),
+                    SyntaxElement::from(task.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             }

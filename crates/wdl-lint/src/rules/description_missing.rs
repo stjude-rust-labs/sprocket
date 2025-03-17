@@ -9,7 +9,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::MetadataSection;
@@ -33,7 +32,7 @@ fn description_missing(span: Span, parent: SectionParent) -> Diagnostic {
 
     Diagnostic::note(format!(
         "{ty} `{name}` is missing a description key",
-        name = name.as_str()
+        name = name.text()
     ))
     .with_rule(ID)
     .with_highlight(span)
@@ -124,20 +123,20 @@ impl Visitor for DescriptionMissingRule {
 
         let description = section
             .items()
-            .find(|entry| entry.name().syntax().to_string() == "description");
+            .find(|entry| entry.name().inner().to_string() == "description");
 
         if description.is_none() {
             state.exceptable_add(
                 description_missing(
                     section
-                        .syntax()
+                        .inner()
                         .first_token()
                         .expect("metadata section should have tokens")
                         .text_range()
-                        .to_span(),
+                        .into(),
                     section.parent(),
                 ),
-                SyntaxElement::from(section.syntax().clone()),
+                SyntaxElement::from(section.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }

@@ -26,6 +26,7 @@ use tokio::runtime::Handle;
 use tracing::debug;
 use tracing::info;
 use url::Url;
+use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::SyntaxNode;
 use wdl_ast::Validator;
@@ -357,7 +358,7 @@ impl DocumentGraphNode {
 
         Ok(ParseState::Parsed {
             version,
-            root: document.syntax().green().into(),
+            root: document.inner().green().into(),
             lines,
             diagnostics,
         })

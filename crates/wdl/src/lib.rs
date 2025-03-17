@@ -102,13 +102,13 @@ pub mod cli;
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashSet;
-
     /// This is a test for checking that the reserved rules in `wdl-lint` match
     /// those from `wdl-analysis`.
     #[cfg(all(feature = "analysis", feature = "lint"))]
     #[test]
     fn reserved_rule_ids() {
+        use std::collections::HashSet;
+
         let rules: HashSet<_> = wdl_analysis::rules().iter().map(|r| r.id()).collect();
         let reserved: HashSet<_> = wdl_lint::RESERVED_RULE_IDS.iter().copied().collect();
 

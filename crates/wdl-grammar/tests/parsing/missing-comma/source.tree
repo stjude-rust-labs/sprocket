@@ -33,7 +33,7 @@ RootNode@0..195
         OpenBrace@107..108 "{"
         Whitespace@108..117 "\n        "
         LiteralMapItemNode@117..127
-          NameRefNode@117..120
+          NameRefExprNode@117..120
             Ident@117..120 "foo"
           Colon@120..121 ":"
           Whitespace@121..122 " "
@@ -44,7 +44,7 @@ RootNode@0..195
         Comma@127..128 ","
         Whitespace@128..137 "\n        "
         LiteralMapItemNode@137..147
-          NameRefNode@137..140
+          NameRefExprNode@137..140
             Ident@137..140 "bar"
           Colon@140..141 ":"
           Whitespace@141..142 " "
@@ -62,7 +62,7 @@ RootNode@0..195
         Comma@166..167 ","
         Whitespace@167..176 "\n        "
         LiteralMapItemNode@176..186
-          NameRefNode@176..179
+          NameRefExprNode@176..179
             Ident@176..179 "qux"
           Colon@179..180 ":"
           Whitespace@180..181 " "

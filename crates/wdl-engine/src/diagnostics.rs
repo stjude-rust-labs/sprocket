@@ -8,6 +8,7 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::Span;
+use wdl_ast::TreeToken;
 
 /// Creates an "integer not in range" diagnostic.
 pub fn integer_not_in_range(span: Span) -> Diagnostic {
@@ -64,10 +65,10 @@ pub fn exponent_not_in_range(span: Span) -> Diagnostic {
 }
 
 /// Creates a "cannot call" diagnostic.
-pub fn cannot_call(target: &Ident) -> Diagnostic {
+pub fn cannot_call<T: TreeToken>(target: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
         "function `{target}` can only be called from task outputs",
-        target = target.as_str()
+        target = target.text()
     ))
     .with_highlight(target.span())
 }
@@ -141,10 +142,10 @@ pub fn map_key_not_found(span: Span) -> Diagnostic {
 }
 
 /// Creates a "not an object member" diagnostic.
-pub fn not_an_object_member(member: &Ident) -> Diagnostic {
+pub fn not_an_object_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
         "object does not have a member named `{member}`",
-        member = member.as_str()
+        member = member.text()
     ))
     .with_highlight(member.span())
 }

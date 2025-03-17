@@ -12,6 +12,7 @@ use anyhow::bail;
 use ftree::FenwickTree;
 use rand::distr::Alphanumeric;
 use rand::distr::SampleString;
+use rowan::ast::support;
 use serde::Deserialize;
 use serde_json;
 use tracing::debug;
@@ -24,10 +25,8 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
-use wdl_ast::support;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::Placeholder;
@@ -236,7 +235,7 @@ impl Rule for ShellCheckRule {
 /// depending on whether or not the variable needs to be treated as a
 /// declaration, expansion, or literal.
 fn to_bash_var(placeholder: &Placeholder) -> String {
-    let placeholder_len: usize = placeholder.syntax().text_range().len().into();
+    let placeholder_len: usize = placeholder.inner().text_range().len().into();
     // don't start variable with numbers
     let mut bash_var = String::from("WDL");
     bash_var
@@ -249,12 +248,12 @@ fn gather_task_declarations(task: &TaskDefinition) -> HashSet<String> {
     let mut decls = HashSet::new();
     if let Some(input) = task.input() {
         for decl in input.declarations() {
-            decls.insert(decl.name().as_str().to_owned());
+            decls.insert(decl.name().text().to_owned());
         }
     }
 
     for decl in task.declarations() {
-        decls.insert(decl.name().as_str().to_owned());
+        decls.insert(decl.name().text().to_owned());
     }
     decls
 }
@@ -399,7 +398,7 @@ fn map_shellcheck_lines(
     for part in section.parts() {
         match part {
             CommandPart::Text(ref text) => {
-                for (line, line_start, _) in lines_with_offset(text.as_str()) {
+                for (line, line_start, _) in lines_with_offset(text.text()) {
                     // this occurs after encountering a placeholder
                     if skip_next_line {
                         skip_next_line = false;
@@ -479,7 +478,7 @@ impl Visitor for ShellCheckRule {
 
         if !SHELLCHECK_EXISTS.get_or_init(|| {
             if !program_exists(SHELLCHECK_BIN) {
-                let command_keyword = support::token(section.syntax(), SyntaxKind::CommandKeyword)
+                let command_keyword = support::token(section.inner(), SyntaxKind::CommandKeyword)
                     .expect(
                         "should have a
                 command keyword token",
@@ -488,13 +487,13 @@ impl Visitor for ShellCheckRule {
                     Diagnostic::note("running `shellcheck` on command section")
                         .with_label(
                             "could not find `shellcheck` executable.",
-                            command_keyword.text_range().to_span(),
+                            command_keyword.text_range(),
                         )
                         .with_rule(ID)
                         .with_fix(
                             "install shellcheck (https://www.shellcheck.net) or disable this lint.",
                         ),
-                    SyntaxElement::from(section.syntax().clone()),
+                    SyntaxElement::from(section.inner().clone()),
                     &self.exceptable_nodes(),
                 );
                 return false;
@@ -541,20 +540,20 @@ impl Visitor for ShellCheckRule {
                     }
                     state.exceptable_add(
                         shellcheck_lint(&diagnostic, &sanitized_command, &line_map, &shift_tree),
-                        SyntaxElement::from(section.syntax().clone()),
+                        SyntaxElement::from(section.inner().clone()),
                         &self.exceptable_nodes(),
                     )
                 }
             }
             Err(e) => {
-                let command_keyword = support::token(section.syntax(), SyntaxKind::CommandKeyword)
+                let command_keyword = support::token(section.inner(), SyntaxKind::CommandKeyword)
                     .expect("should have a command keyword token");
                 state.exceptable_add(
                     Diagnostic::error("running `shellcheck` on command section")
-                        .with_label(e.to_string(), command_keyword.text_range().to_span())
+                        .with_label(e.to_string(), command_keyword.text_range())
                         .with_rule(ID)
                         .with_fix("address reported error."),
-                    SyntaxElement::from(section.syntax().clone()),
+                    SyntaxElement::from(section.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             }

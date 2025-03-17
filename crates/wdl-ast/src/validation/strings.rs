@@ -1,12 +1,9 @@
 //! Validation of string literals in an AST.
 
-use rowan::ast::AstChildren;
-use rowan::ast::AstNode;
-use rowan::ast::support::children;
 use wdl_grammar::lexer::v1::EscapeToken;
 use wdl_grammar::lexer::v1::Logos;
 
-use crate::AstNodeExt;
+use crate::AstNode;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
@@ -154,17 +151,12 @@ impl Visitor for LiteralTextVisitor {
     }
 
     fn string_text(&mut self, state: &mut Self::State, text: &v1::StringText) {
-        let string = v1::LiteralString::cast(text.syntax().parent().expect("should have a parent"))
-            .expect("node should cast");
+        let string: v1::LiteralString<_> = text.parent().expect("should have a parent");
         match string.kind() {
             LiteralStringKind::SingleQuoted | LiteralStringKind::DoubleQuoted => {
                 // Check the text of a normal string to ensure escape sequences are correct and
                 // characters that are required to be escaped are actually escaped.
-                check_text(
-                    state,
-                    text.syntax().text_range().start().into(),
-                    text.as_str(),
-                );
+                check_text(state, text.span().start(), text.text());
             }
             LiteralStringKind::Multiline => {
                 // Don't check the text of multiline strings as they are treated
@@ -186,7 +178,7 @@ impl Visitor for LiteralTextVisitor {
             return;
         }
 
-        let mut placeholders: AstChildren<PlaceholderOption> = children(placeholder.syntax());
+        let mut placeholders = placeholder.children::<PlaceholderOption<_>>();
         if let Some(first) = placeholders.next() {
             for additional in placeholders {
                 state.add(multiple_placeholder_options(

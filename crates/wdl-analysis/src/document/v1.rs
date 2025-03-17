@@ -11,7 +11,6 @@ use petgraph::graph::NodeIndex;
 use petgraph::prelude::DiGraphMap;
 use url::Url;
 use wdl_ast::AstNode;
-use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
@@ -19,7 +18,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxNodeExt;
-use wdl_ast::TokenStrHash;
 use wdl_ast::Version;
 use wdl_ast::v1::Ast;
 use wdl_ast::v1::CallStatement;
@@ -289,7 +287,7 @@ fn add_namespace(
                         source: uri.clone(),
                         document: imported.clone(),
                         used: false,
-                        excepted: import.syntax().is_rule_excepted(UNUSED_IMPORT_RULE_ID),
+                        excepted: import.inner().is_rule_excepted(UNUSED_IMPORT_RULE_ID),
                     },
                 );
                 ns
@@ -307,12 +305,12 @@ fn add_namespace(
         .aliases()
         .filter_map(|a| {
             let (from, to) = a.names();
-            if !imported.data.structs.contains_key(from.as_str()) {
+            if !imported.data.structs.contains_key(from.text()) {
                 document.diagnostics.push(struct_not_in_document(&from));
                 return None;
             }
 
-            Some((from.as_str().to_string(), to))
+            Some((from.text().to_string(), to))
         })
         .collect::<HashMap<_, _>>();
 
@@ -320,7 +318,7 @@ fn add_namespace(
     for (name, s) in &imported.data.structs {
         let (span, aliased_name, aliased) = aliases
             .get(name)
-            .map(|n| (n.span(), n.as_str(), true))
+            .map(|n| (n.span(), n.text(), true))
             .unwrap_or_else(|| (span, name, false));
         match document.structs.get(aliased_name) {
             Some(prev) => {
@@ -366,7 +364,7 @@ fn add_namespace(
 /// Compares two structs for structural equality.
 fn are_structs_equal(a: &StructDefinition, b: &StructDefinition) -> bool {
     for (a, b) in a.members().zip(b.members()) {
-        if a.name().as_str() != b.name().as_str() {
+        if a.name().text() != b.name().text() {
             return false;
         }
 
@@ -381,20 +379,20 @@ fn are_structs_equal(a: &StructDefinition, b: &StructDefinition) -> bool {
 /// Adds a struct to the document.
 fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
     let name = definition.name();
-    if let Some(prev) = document.structs.get(name.as_str()) {
+    if let Some(prev) = document.structs.get(name.text()) {
         if prev.namespace.is_some() {
             let prev_def = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
                 .expect("node should cast");
             if !are_structs_equal(definition, &prev_def) {
                 document.diagnostics.push(struct_conflicts_with_import(
-                    name.as_str(),
+                    name.text(),
                     name.span(),
                     prev.span,
                 ))
             }
         } else {
             document.diagnostics.push(name_conflict(
-                name.as_str(),
+                name.text(),
                 Context::Struct(name.span()),
                 Context::Struct(prev.span),
             ));
@@ -406,27 +404,27 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
     let mut members = IndexMap::new();
     for decl in definition.members() {
         let name = decl.name();
-        match members.get(name.as_str()) {
+        match members.get(name.text()) {
             Some(prev_span) => {
                 document.diagnostics.push(name_conflict(
-                    name.as_str(),
+                    name.text(),
                     Context::StructMember(name.span()),
                     Context::StructMember(*prev_span),
                 ));
             }
             _ => {
-                members.insert(name.as_str().to_string(), name.span());
+                members.insert(name.text().to_string(), name.span());
             }
         }
     }
 
     document.structs.insert(
-        name.as_str().to_string(),
+        name.text().to_string(),
         Struct {
             span: name.span(),
             namespace: None,
             offset: definition.span().start(),
-            node: definition.syntax().green().into(),
+            node: definition.inner().green().into(),
             ty: None,
         },
     );
@@ -438,10 +436,10 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
     struct Resolver<'a>(&'a mut DocumentData);
 
     impl TypeNameResolver for Resolver<'_> {
-        fn resolve(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
+        fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             self.0
                 .structs
-                .get(name.as_str())
+                .get(name)
                 .map(|s| {
                     // Mark the struct's namespace as used
                     if let Some(ns) = &s.namespace {
@@ -450,7 +448,7 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
 
                     s.ty().expect("struct should have type").clone()
                 })
-                .ok_or_else(|| unknown_type(name.as_str(), name.span()))
+                .ok_or_else(|| unknown_type(name, span))
         }
     }
 
@@ -472,7 +470,7 @@ fn create_input_type_map(
     let mut map = IndexMap::new();
     for decl in declarations {
         let name = decl.name();
-        if map.contains_key(name.as_str()) {
+        if map.contains_key(name.text()) {
             // Ignore the duplicate
             continue;
         }
@@ -480,7 +478,7 @@ fn create_input_type_map(
         let ty = convert_ast_type(document, &decl.ty());
         let optional = ty.is_optional();
         map.insert(
-            name.as_str().to_string(),
+            name.text().to_string(),
             Input {
                 ty,
                 required: decl.expr().is_none() && !optional,
@@ -499,13 +497,13 @@ fn create_output_type_map(
     let mut map = IndexMap::new();
     for decl in declarations {
         let name = decl.name();
-        if map.contains_key(name.as_str()) {
+        if map.contains_key(name.text()) {
             // Ignore the duplicate
             continue;
         }
 
         let ty = convert_ast_type(document, &decl.ty());
-        map.insert(name.as_str().to_string(), Output { ty });
+        map.insert(name.text().to_string(), Output { ty });
     }
 
     map.into()
@@ -532,10 +530,10 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
 
     // Check for a name conflict with another task or workflow
     let name = definition.name();
-    match document.tasks.get(name.as_str()) {
+    match document.tasks.get(name.text()) {
         Some(s) => {
             document.diagnostics.push(name_conflict(
-                name.as_str(),
+                name.text(),
                 Context::Task(name.span()),
                 Context::Task(s.name_span),
             ));
@@ -543,9 +541,9 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
         }
         _ => {
             if let Some(s) = &document.workflow {
-                if s.name == name.as_str() {
+                if s.name == name.text() {
                     document.diagnostics.push(name_conflict(
-                        name.as_str(),
+                        name.text(),
                         Context::Task(name.span()),
                         Context::Workflow(s.name_span),
                     ));
@@ -555,21 +553,15 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
         }
     }
 
-    // Populate type maps for the task's inputs and outputs
-    let inputs = create_input_type_map(
-        document,
-        definition
-            .input()
-            .into_iter()
-            .flat_map(|s| s.declarations()),
-    );
-    let outputs = create_output_type_map(
-        document,
-        definition
-            .output()
-            .into_iter()
-            .flat_map(|s| s.declarations().map(Decl::Bound)),
-    );
+    // Populate type maps for the tasks's inputs and outputs
+    let inputs = match definition.input() {
+        Some(section) => create_input_type_map(document, section.declarations()),
+        None => Default::default(),
+    };
+    let outputs = match definition.output() {
+        Some(section) => create_output_type_map(document, section.declarations().map(Decl::Bound)),
+        None => Default::default(),
+    };
 
     // Process the task in evaluation order
     let graph = TaskGraphBuilder::default().build(
@@ -580,7 +572,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
 
     let mut task = Task {
         name_span: name.span(),
-        name: name.as_str().to_string(),
+        name: name.text().to_string(),
         scopes: vec![Scope::new(
             None,
             definition
@@ -619,14 +611,13 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
                             let name = decl.name();
 
                             // Determine if the input is really used based on its name and type
-                            if is_input_used(name.as_str(), &task.inputs[name.as_str()].ty) {
+                            if is_input_used(name.text(), &task.inputs[name.text()].ty) {
                                 continue;
                             }
 
-                            if !decl.syntax().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
+                            if !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
                                 document.diagnostics.push(
-                                    unused_input(name.as_str(), name.span())
-                                        .with_severity(severity),
+                                    unused_input(name.text(), name.span()).with_severity(severity),
                                 );
                             }
                         }
@@ -653,10 +644,10 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
                             .edges_directed(index, Direction::Outgoing)
                             .next()
                             .is_none()
-                        && !decl.syntax().is_rule_excepted(UNUSED_DECL_RULE_ID)
+                        && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
                     {
                         document.diagnostics.push(
-                            unused_declaration(name.as_str(), name.span()).with_severity(severity),
+                            unused_declaration(name.text(), name.span()).with_severity(severity),
                         );
                     }
                 }
@@ -752,7 +743,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
 
     // Sort the scopes
     sort_scopes(&mut task.scopes);
-    document.tasks.insert(name.as_str().to_string(), task);
+    document.tasks.insert(name.text().to_string(), task);
 }
 
 /// Adds a declaration to a scope.
@@ -764,14 +755,13 @@ fn add_decl(
     ty: impl FnOnce(&mut DocumentData, &str, &Decl) -> Type,
 ) -> bool {
     let (name, expr) = (decl.name(), decl.expr());
-    if scope.lookup(name.as_str()).is_some() {
+    if scope.lookup(name.text()).is_some() {
         // The declaration is conflicting; don't add to the scope
         return false;
     }
 
-    let ty = ty(document, name.as_str(), decl);
-
-    scope.insert(name.as_str(), name.span(), ty.clone());
+    let ty = ty(document, name.text(), decl);
+    scope.insert(name.text(), name.span(), ty.clone());
 
     if let Some(expr) = expr {
         type_check_expr(
@@ -794,10 +784,10 @@ fn add_decl(
 fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> bool {
     // Check for conflicts with task names or an existing workspace
     let name = workflow.name();
-    match document.tasks.get(name.as_str()) {
+    match document.tasks.get(name.text()) {
         Some(s) => {
             document.diagnostics.push(name_conflict(
-                name.as_str(),
+                name.text(),
                 Context::Workflow(name.span()),
                 Context::Task(s.name_span),
             ));
@@ -819,7 +809,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
 
     document.workflow = Some(Workflow {
         name_span: name.span(),
-        name: name.as_str().to_string(),
+        name: name.text().to_string(),
         scopes: Default::default(),
         inputs: Default::default(),
         outputs: Default::default(),
@@ -840,17 +830,14 @@ fn populate_workflow(
     workflow: &WorkflowDefinition,
 ) {
     // Populate type maps for the workflow's inputs and outputs
-    let inputs = create_input_type_map(
-        document,
-        workflow.input().into_iter().flat_map(|s| s.declarations()),
-    );
-    let outputs = create_output_type_map(
-        document,
-        workflow
-            .output()
-            .into_iter()
-            .flat_map(|s| s.declarations().map(Decl::Bound)),
-    );
+    let inputs = match workflow.input() {
+        Some(section) => create_input_type_map(document, section.declarations()),
+        None => Default::default(),
+    };
+    let outputs = match workflow.output() {
+        Some(section) => create_output_type_map(document, section.declarations().map(Decl::Bound)),
+        None => Default::default(),
+    };
 
     // Keep a map of scopes from syntax node that introduced the scope to the scope
     // index
@@ -886,13 +873,13 @@ fn populate_workflow(
                         .is_none()
                     {
                         // Determine if the input is really used based on its name and type
-                        if is_input_used(name.as_str(), &inputs[name.as_str()].ty) {
+                        if is_input_used(name.text(), &inputs[name.text()].ty) {
                             continue;
                         }
 
-                        if !decl.syntax().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
+                        if !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
                             document.diagnostics.push(
-                                unused_input(name.as_str(), name.span()).with_severity(severity),
+                                unused_input(name.text(), name.span()).with_severity(severity),
                             );
                         }
                     }
@@ -900,7 +887,7 @@ fn populate_workflow(
             }
             WorkflowGraphNode::Decl(decl) => {
                 let scope_index = scope_indexes
-                    .get(&decl.syntax().parent().expect("should have parent"))
+                    .get(&decl.inner().parent().expect("should have parent"))
                     .copied()
                     .unwrap_or(ScopeIndex(0));
 
@@ -921,10 +908,10 @@ fn populate_workflow(
                         .edges_directed(index, Direction::Outgoing)
                         .next()
                         .is_none()
-                        && !decl.syntax().is_rule_excepted(UNUSED_DECL_RULE_ID)
+                        && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
                     {
                         document.diagnostics.push(
-                            unused_declaration(name.as_str(), name.span()).with_severity(severity),
+                            unused_declaration(name.text(), name.span()).with_severity(severity),
                         );
                     }
                 }
@@ -953,7 +940,7 @@ fn populate_workflow(
             }
             WorkflowGraphNode::Conditional(statement, _) => {
                 let parent = scope_indexes
-                    .get(&statement.syntax().parent().expect("should have parent"))
+                    .get(&statement.inner().parent().expect("should have parent"))
                     .copied()
                     .unwrap_or(ScopeIndex(0));
                 add_conditional_statement(
@@ -967,7 +954,7 @@ fn populate_workflow(
             }
             WorkflowGraphNode::Scatter(statement, _) => {
                 let parent = scope_indexes
-                    .get(&statement.syntax().parent().expect("should have parent"))
+                    .get(&statement.inner().parent().expect("should have parent"))
                     .copied()
                     .unwrap_or(ScopeIndex(0));
                 add_scatter_statement(
@@ -981,13 +968,13 @@ fn populate_workflow(
             }
             WorkflowGraphNode::Call(statement) => {
                 let scope_index = scope_indexes
-                    .get(&statement.syntax().parent().expect("should have parent"))
+                    .get(&statement.inner().parent().expect("should have parent"))
                     .copied()
                     .unwrap_or(ScopeIndex(0));
                 add_call_statement(
                     config,
                     document,
-                    workflow.name().as_str(),
+                    workflow.name().text(),
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &statement,
                     document
@@ -1003,7 +990,7 @@ fn populate_workflow(
                         .edges_directed(index, Direction::Outgoing)
                         .next()
                         .is_none()
-                        && !statement.syntax().is_rule_excepted(UNUSED_CALL_RULE_ID)
+                        && !statement.inner().is_rule_excepted(UNUSED_CALL_RULE_ID)
                     {
                         let target_name = statement
                             .target()
@@ -1018,27 +1005,27 @@ fn populate_workflow(
 
                         document
                             .diagnostics
-                            .push(unused_call(name.as_str(), name.span()).with_severity(severity));
+                            .push(unused_call(name.text(), name.span()).with_severity(severity));
                     }
                 }
             }
             WorkflowGraphNode::ExitConditional(statement) => {
                 let scope_index = scope_indexes
-                    .get(statement.syntax())
+                    .get(statement.inner())
                     .copied()
                     .expect("should have scope");
                 promote_scope(&mut scopes, scope_index, None, PromotionKind::Conditional);
             }
             WorkflowGraphNode::ExitScatter(statement) => {
                 let scope_index = scope_indexes
-                    .get(statement.syntax())
+                    .get(statement.inner())
                     .copied()
                     .expect("should have scope");
                 let variable = statement.variable();
                 promote_scope(
                     &mut scopes,
                     scope_index,
-                    Some(variable.as_str()),
+                    Some(variable.text()),
                     PromotionKind::Scatter,
                 );
             }
@@ -1073,7 +1060,7 @@ fn add_conditional_statement(
                 .expect("should have braced scope span"),
         ),
     );
-    scope_indexes.insert(statement.syntax().clone(), scope_index);
+    scope_indexes.insert(statement.inner().clone(), scope_index);
 
     // Evaluate the statement's expression; it is expected to be a boolean
     let expr = statement.expr();
@@ -1106,7 +1093,7 @@ fn add_scatter_statement(
                 .expect("should have braced scope span"),
         ),
     );
-    scopes_indexes.insert(statement.syntax().clone(), scope_index);
+    scopes_indexes.insert(statement.inner().clone(), scope_index);
 
     // Evaluate the statement expression; it is expected to be an array
     let expr = statement.expr();
@@ -1126,7 +1113,7 @@ fn add_scatter_statement(
 
     // Introduce the scatter variable into the scope
     let variable = statement.variable();
-    scopes[scope_index.0].insert(variable.as_str().to_string(), variable.span(), element_ty);
+    scopes[scope_index.0].insert(variable.text().to_string(), variable.span(), element_ty);
 }
 
 /// Adds a call statement to the current scope.
@@ -1160,7 +1147,7 @@ fn add_call_statement(
 
                 let expected_ty = ty
                     .inputs()
-                    .get(input_name.as_str())
+                    .get(input_name.text())
                     .map(|i| i.ty.clone())
                     .unwrap_or_else(|| {
                         document
@@ -1180,7 +1167,7 @@ fn add_call_statement(
                             input_name.span(),
                         );
                     }
-                    None => match scope.lookup(input_name.as_str()) {
+                    None => match scope.lookup(input_name.text()) {
                         Some(name) => {
                             if !matches!(expected_ty, Type::Union)
                                 && !name.ty.is_coercible_to(&expected_ty)
@@ -1195,12 +1182,12 @@ fn add_call_statement(
                         None => {
                             document
                                 .diagnostics
-                                .push(unknown_name(input_name.as_str(), input_name.span()));
+                                .push(unknown_name(input_name.text(), input_name.span()));
                         }
                     },
                 }
 
-                seen.insert(TokenStrHash::new(input_name));
+                seen.insert(input_name.hashable());
             }
 
             for (name, input) in ty.inputs() {
@@ -1220,8 +1207,8 @@ fn add_call_statement(
                 .as_mut()
                 .expect("should have workflow")
                 .calls;
-            if !calls.contains_key(name.as_str()) {
-                calls.insert(name.as_str().to_string(), ty.clone());
+            if !calls.contains_key(name.text()) {
+                calls.insert(name.text().to_string(), ty.clone());
             }
 
             ty.into()
@@ -1230,8 +1217,8 @@ fn add_call_statement(
     };
 
     // Don't modify the scope if there's a conflict
-    if scope.lookup(name.as_str()).is_none() {
-        scope.insert(name.as_str(), name.span(), ty);
+    if scope.lookup(name.text()).is_none() {
+        scope.insert(name.text(), name.span(), ty);
     }
 }
 
@@ -1243,7 +1230,8 @@ fn resolve_call_type(
     workflow_name: &str,
     statement: &CallStatement,
 ) -> Option<CallType> {
-    let mut targets = statement.target().names().peekable();
+    let target = statement.target();
+    let mut targets = target.names().peekable();
     let mut namespace = None;
     let mut name = None;
     while let Some(target) = targets.next() {
@@ -1257,10 +1245,10 @@ fn resolve_call_type(
             return None;
         }
 
-        match document.namespaces.get_mut(target.as_str()) {
+        match document.namespaces.get_mut(target.text()) {
             Some(ns) => {
                 ns.used = true;
-                namespace = Some(&document.namespaces[target.as_str()])
+                namespace = Some(&document.namespaces[target.text()])
             }
             None => {
                 document.diagnostics.push(unknown_namespace(&target));
@@ -1273,17 +1261,17 @@ fn resolve_call_type(
         .map(|ns| ns.document.data.as_ref())
         .unwrap_or(document);
     let name = name.expect("should have name");
-    if namespace.is_none() && name.as_str() == workflow_name {
+    if namespace.is_none() && name.text() == workflow_name {
         document
             .diagnostics
-            .push(recursive_workflow_call(name.as_str(), name.span()));
+            .push(recursive_workflow_call(name.text(), name.span()));
         return None;
     }
 
-    let (kind, inputs, outputs) = match target.tasks.get(name.as_str()) {
+    let (kind, inputs, outputs) = match target.tasks.get(name.text()) {
         Some(task) => (CallKind::Task, task.inputs.clone(), task.outputs.clone()),
         _ => match &target.workflow {
-            Some(workflow) if workflow.name == name.as_str() => (
+            Some(workflow) if workflow.name == name.text() => (
                 CallKind::Workflow,
                 workflow.inputs.clone(),
                 workflow.outputs.clone(),
@@ -1291,7 +1279,7 @@ fn resolve_call_type(
             _ => {
                 document.diagnostics.push(unknown_task_or_workflow(
                     namespace.map(|ns| ns.span),
-                    name.as_str(),
+                    name.text(),
                     name.span(),
                 ));
                 return None;
@@ -1302,27 +1290,21 @@ fn resolve_call_type(
     let specified = Arc::new(
         statement
             .inputs()
-            .map(|i| i.name().as_str().to_string())
+            .map(|i| i.name().text().to_string())
             .collect(),
     );
 
     if namespace.is_some() {
         Some(CallType::namespaced(
             kind,
-            statement.target().names().next().unwrap().as_str(),
-            name.as_str(),
+            statement.target().names().next().unwrap().text(),
+            name.text(),
             specified,
             inputs,
             outputs,
         ))
     } else {
-        Some(CallType::new(
-            kind,
-            name.as_str(),
-            specified,
-            inputs,
-            outputs,
-        ))
+        Some(CallType::new(kind, name.text(), specified, inputs, outputs))
     }
 }
 
@@ -1366,7 +1348,7 @@ fn resolve_import(
         }
     };
 
-    let uri = match graph.get(importer_index).uri().join(text.as_str()) {
+    let uri = match graph.get(importer_index).uri().join(text.text()) {
         Ok(uri) => uri,
         Err(e) => return Err(Some(invalid_relative_import(&e, span))),
     };
@@ -1381,7 +1363,7 @@ fn resolve_import(
 
     // Check for a failure to load the import
     if let ParseState::Error(e) = import_node.parse_state() {
-        return Err(Some(import_failure(text.as_str(), e, span)));
+        return Err(Some(import_failure(text.text(), e, span)));
     }
 
     // Ensure the import has a matching WDL version
@@ -1395,10 +1377,10 @@ fn resolve_import(
     match import_root.version_statement() {
         Some(stmt) => {
             let our_version = stmt.version();
-            if matches!((our_version.as_str().split('.').next(), importer_version.as_str().split('.').next()), (Some(our_major), Some(their_major)) if our_major != their_major)
+            if matches!((our_version.text().split('.').next(), importer_version.text().split('.').next()), (Some(our_major), Some(their_major)) if our_major != their_major)
             {
                 return Err(Some(incompatible_import(
-                    our_version.as_str(),
+                    our_version.text(),
                     span,
                     importer_version,
                 )));
@@ -1423,8 +1405,8 @@ fn set_struct_types(document: &mut DocumentData) {
     }
 
     impl TypeNameResolver for Resolver<'_> {
-        fn resolve(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
-            match self.document.structs.get(name.as_str()) {
+        fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
+            match self.document.structs.get(name) {
                 Some(s) => {
                     // Mark the struct's namespace as used
                     if let Some(ns) = &s.namespace {
@@ -1434,9 +1416,8 @@ fn set_struct_types(document: &mut DocumentData) {
                     Ok(s.ty().cloned().unwrap_or(Type::Union))
                 }
                 _ => {
-                    let span = name.span();
                     self.document.diagnostics.push(unknown_type(
-                        name.as_str(),
+                        name,
                         Span::new(span.start() + self.offset, span.len()),
                     ));
                     Ok(Type::Union)
@@ -1465,7 +1446,7 @@ fn set_struct_types(document: &mut DocumentData) {
         for member in definition.members() {
             if let wdl_ast::v1::Type::Ref(r) = member.ty() {
                 // Add an edge to the referenced struct
-                if let Some(to) = document.structs.get_index_of(r.name().as_str()) {
+                if let Some(to) = document.structs.get_index_of(r.name().text()) {
                     // Only add an edge to another local struct definition
                     if document.structs[to].namespace.is_some() {
                         continue;
@@ -1477,7 +1458,7 @@ fn set_struct_types(document: &mut DocumentData) {
                         let name_span = name.span();
                         let member_span = member.name().span();
                         document.diagnostics.push(recursive_struct(
-                            name.as_str(),
+                            name.text(),
                             Span::new(name_span.start() + s.offset, name_span.len()),
                             Span::new(member_span.start() + s.offset, member_span.len()),
                         ));
@@ -1564,14 +1545,14 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
             .expect("document should have a version")
     }
 
-    fn resolve_name(&self, name: &Ident) -> Option<Type> {
-        self.scope.lookup(name.as_str()).map(|n| n.ty().clone())
+    fn resolve_name(&self, name: &str, _: Span) -> Option<Type> {
+        self.scope.lookup(name).map(|n| n.ty().clone())
     }
 
-    fn resolve_type_name(&mut self, name: &Ident) -> Result<Type, Diagnostic> {
+    fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         self.document
             .structs
-            .get(name.as_str())
+            .get(name)
             .map(|s| {
                 // Mark the struct's namespace as used
                 if let Some(ns) = &s.namespace {
@@ -1580,7 +1561,7 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
                 s.ty().expect("struct should have type").clone()
             })
-            .ok_or_else(|| unknown_type(name.as_str(), name.span()))
+            .ok_or_else(|| unknown_type(name, span))
     }
 
     fn task(&self) -> Option<&Task> {

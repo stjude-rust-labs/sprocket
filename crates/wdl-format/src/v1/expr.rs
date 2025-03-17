@@ -104,7 +104,7 @@ pub fn format_placeholder(element: &FormatElement, stream: &mut TokenStream<PreT
 
     let open = children.next().expect("placeholder open");
     assert!(open.element().kind() == SyntaxKind::PlaceholderOpen);
-    let syntax = open.element().syntax();
+    let syntax = open.element().inner();
     let text = syntax.as_token().expect("token").text();
     match text {
         "${" => {
@@ -141,7 +141,7 @@ pub fn format_literal_string(element: &FormatElement, stream: &mut TokenStream<P
             }
             SyntaxKind::LiteralStringText => {
                 let mut replacement = String::new();
-                let syntax = child.element().syntax();
+                let syntax = child.element().inner();
                 let mut chars = syntax.as_token().expect("token").text().chars().peekable();
                 let mut prev_c = None;
                 while let Some(c) = chars.next() {
@@ -258,7 +258,7 @@ pub fn format_literal_float(element: &FormatElement, stream: &mut TokenStream<Pr
 }
 
 /// Formats a [`NameRef`](wdl_ast::v1::NameRef).
-pub fn format_name_ref(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_name_ref_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("name ref children");
     let name = children.next().expect("name ref name");
     (&name).write(stream);

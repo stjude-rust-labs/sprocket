@@ -3,8 +3,6 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use wdl_grammar::SyntaxToken;
-
 use crate::Ast;
 use crate::AstNode;
 use crate::AstToken;
@@ -14,23 +12,29 @@ use crate::Document;
 use crate::Ident;
 use crate::Span;
 use crate::SupportedVersion;
-use crate::SyntaxKind;
 use crate::SyntaxNode;
-use crate::ToSpan;
-use crate::TokenStrHash;
+use crate::TokenText;
 use crate::VisitReason;
 use crate::Visitor;
-use crate::support;
+use crate::v1::CommandKeyword;
 use crate::v1::CommandSection;
+use crate::v1::HintsKeyword;
+use crate::v1::InputKeyword;
 use crate::v1::InputSection;
+use crate::v1::MetaKeyword;
 use crate::v1::MetadataSection;
+use crate::v1::OutputKeyword;
 use crate::v1::OutputSection;
+use crate::v1::ParameterMetaKeyword;
 use crate::v1::ParameterMetadataSection;
+use crate::v1::RequirementsKeyword;
 use crate::v1::RequirementsSection;
+use crate::v1::RuntimeKeyword;
 use crate::v1::RuntimeSection;
 use crate::v1::SectionParent;
 use crate::v1::StructDefinition;
 use crate::v1::TaskDefinition;
+use crate::v1::TaskHintsSection;
 use crate::v1::WorkflowDefinition;
 
 /// Represents section context of an error.
@@ -44,6 +48,8 @@ enum Section {
     Output,
     /// The error occurred in a requirements section.
     Requirements,
+    /// The error occurred in a hints section.
+    Hints,
     /// The error occurred in a task runtime section.
     Runtime,
     /// The error occurred in a metadata section.
@@ -59,6 +65,7 @@ impl fmt::Display for Section {
             Self::Input => write!(f, "input"),
             Self::Output => write!(f, "output"),
             Self::Requirements => write!(f, "requirements"),
+            Self::Hints => write!(f, "hints"),
             Self::Runtime => write!(f, "runtime"),
             Self::Metadata => write!(f, "metadata"),
             Self::ParameterMetadata => write!(f, "parameter metadata"),
@@ -75,24 +82,47 @@ fn at_least_one_definition() -> Diagnostic {
 fn missing_command_section(task: Ident) -> Diagnostic {
     Diagnostic::error(format!(
         "task `{task}` is missing a command section",
-        task = task.as_str()
+        task = task.text()
     ))
     .with_label("this task must have a command section", task.span())
 }
 
-/// Gets the keyword token for a given section node.
-fn keyword(node: &SyntaxNode, section: Section) -> SyntaxToken {
-    let kind = match section {
-        Section::Command => SyntaxKind::CommandKeyword,
-        Section::Input => SyntaxKind::InputKeyword,
-        Section::Output => SyntaxKind::OutputKeyword,
-        Section::Requirements => SyntaxKind::RequirementsKeyword,
-        Section::Runtime => SyntaxKind::RuntimeKeyword,
-        Section::Metadata => SyntaxKind::MetaKeyword,
-        Section::ParameterMetadata => SyntaxKind::ParameterMetaKeyword,
-    };
-
-    support::token(node, kind).expect("should have keyword token")
+/// Gets the span of the keyword token for a given section node.
+fn keyword_span(node: &impl AstNode<SyntaxNode>, section: Section) -> Span {
+    match section {
+        Section::Command => node
+            .token::<CommandKeyword<_>>()
+            .expect("should have keyword")
+            .span(),
+        Section::Input => node
+            .token::<InputKeyword<_>>()
+            .expect("should have keyword")
+            .span(),
+        Section::Output => node
+            .token::<OutputKeyword<_>>()
+            .expect("should have keyword")
+            .span(),
+        Section::Requirements => node
+            .token::<RequirementsKeyword<_>>()
+            .expect("should have keyword")
+            .span(),
+        Section::Hints => node
+            .token::<HintsKeyword<_>>()
+            .expect("should have keyword")
+            .span(),
+        Section::Runtime => node
+            .token::<RuntimeKeyword<_>>()
+            .expect("should have keyword")
+            .span(),
+        Section::Metadata => node
+            .token::<MetaKeyword<_>>()
+            .expect("should have keyword")
+            .span(),
+        Section::ParameterMetadata => node
+            .token::<ParameterMetaKeyword<_>>()
+            .expect("should have keyword")
+            .span(),
+    }
 }
 
 /// Creates a "duplicate section" diagnostic
@@ -100,9 +130,9 @@ fn duplicate_section(
     parent: SectionParent,
     section: Section,
     first: Span,
-    duplicate: &SyntaxNode,
+    duplicate: &impl AstNode<SyntaxNode>,
 ) -> Diagnostic {
-    let token = keyword(duplicate, section);
+    let keyword_span = keyword_span(duplicate, section);
     let (context, name) = match parent {
         SectionParent::Task(t) => ("task", t.name()),
         SectionParent::Workflow(w) => ("workflow", w.name()),
@@ -111,11 +141,11 @@ fn duplicate_section(
 
     Diagnostic::error(format!(
         "{context} `{name}` contains a duplicate {section} section",
-        name = name.as_str()
+        name = name.text()
     ))
     .with_label(
         format!("this {section} section is a duplicate"),
-        token.text_range(),
+        keyword_span,
     )
     .with_label(format!("first {section} section is defined here"), first)
 }
@@ -124,11 +154,11 @@ fn duplicate_section(
 fn conflicting_section(
     parent: SectionParent,
     section: Section,
-    conflicting: &SyntaxNode,
+    conflicting: &impl AstNode<SyntaxNode>,
     first_span: Span,
     first_section: Section,
 ) -> Diagnostic {
-    let token = keyword(conflicting, section);
+    let keyword_span = keyword_span(conflicting, section);
     let (context, name) = match parent {
         SectionParent::Task(t) => ("task", t.name()),
         SectionParent::Workflow(w) => ("workflow", w.name()),
@@ -137,11 +167,11 @@ fn conflicting_section(
 
     Diagnostic::error(format!(
         "{context} `{name}` contains a conflicting section",
-        name = name.as_str()
+        name = name.text()
     ))
     .with_label(
         format!("this {section} section conflicts with a {first_section} section"),
-        token.text_range(),
+        keyword_span,
     )
     .with_label(
         format!("the conflicting {first_section} section is defined here"),
@@ -153,7 +183,7 @@ fn conflicting_section(
 fn empty_struct(name: Ident) -> Diagnostic {
     Diagnostic::error(format!(
         "struct `{name}` must have at least one declared member",
-        name = name.as_str()
+        name = name.text()
     ))
     .with_label("this struct cannot be empty", name.span())
 }
@@ -168,13 +198,14 @@ fn empty_struct(name: Ident) -> Diagnostic {
 /// * Contains at most one input section in a task or workflow
 /// * Contains at most one output section in a task or workflow
 /// * Contains at most one requirements or runtime section in a task
+/// * Contains at most one hints section in a task
 /// * Contains at most one meta section in a task or workflow
 /// * Contains at most one parameter meta section in a task or workflow
 /// * Contains non-empty structs
 #[derive(Default, Debug)]
 pub struct CountingVisitor {
     /// Keeps track of what task names we've seen.
-    tasks_seen: HashSet<TokenStrHash<Ident>>,
+    tasks_seen: HashSet<TokenText>,
     /// Whether or not we should ignore the task or workflow.
     ignore_current: bool,
     /// Whether or not the document has at least one workflow.
@@ -189,6 +220,8 @@ pub struct CountingVisitor {
     output: Option<Span>,
     /// The span of the first requirements section in the task.
     requirements: Option<Span>,
+    /// The span of the first hints section in the task.
+    hints: Option<Span>,
     /// The span of the first runtime section in the task.
     runtime: Option<Span>,
     /// The span of the first metadata section in the task, workflow, or struct.
@@ -206,6 +239,7 @@ impl CountingVisitor {
         self.input = None;
         self.output = None;
         self.requirements = None;
+        self.hints = None;
         self.runtime = None;
         self.metadata = None;
         self.param_metadata = None;
@@ -268,7 +302,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        self.ignore_current = !self.tasks_seen.insert(TokenStrHash::new(task.name()));
+        self.ignore_current = !self.tasks_seen.insert(task.name().hashable());
     }
 
     fn struct_definition(
@@ -304,14 +338,15 @@ impl Visitor for CountingVisitor {
                 section.parent(),
                 Section::Command,
                 command,
-                section.syntax(),
+                section,
             ));
             return;
         }
 
-        let token = support::token(section.syntax(), SyntaxKind::CommandKeyword)
+        let token: CommandKeyword<_> = section
+            .token()
             .expect("should have a command keyword token");
-        self.command = Some(token.text_range().to_span());
+        self.command = Some(token.span());
     }
 
     fn input_section(
@@ -329,14 +364,13 @@ impl Visitor for CountingVisitor {
                 section.parent(),
                 Section::Input,
                 input,
-                section.syntax(),
+                section,
             ));
             return;
         }
 
-        let token = support::token(section.syntax(), SyntaxKind::InputKeyword)
-            .expect("should have an input keyword token");
-        self.input = Some(token.text_range().to_span());
+        let token: InputKeyword<_> = section.token().expect("should have an input keyword token");
+        self.input = Some(token.span());
     }
 
     fn output_section(
@@ -354,14 +388,15 @@ impl Visitor for CountingVisitor {
                 section.parent(),
                 Section::Output,
                 output,
-                section.syntax(),
+                section,
             ));
             return;
         }
 
-        let token = support::token(section.syntax(), SyntaxKind::OutputKeyword)
+        let token: OutputKeyword<_> = section
+            .token()
             .expect("should have an output keyword token");
-        self.output = Some(token.text_range().to_span());
+        self.output = Some(token.span());
     }
 
     fn requirements_section(
@@ -379,7 +414,7 @@ impl Visitor for CountingVisitor {
                 section.parent(),
                 Section::Requirements,
                 requirements,
-                section.syntax(),
+                section,
             ));
             return;
         }
@@ -388,16 +423,65 @@ impl Visitor for CountingVisitor {
             state.add(conflicting_section(
                 section.parent(),
                 Section::Requirements,
-                section.syntax(),
+                section,
                 runtime,
                 Section::Runtime,
             ));
             return;
         }
 
-        let token = support::token(section.syntax(), SyntaxKind::RequirementsKeyword)
+        let token: RequirementsKeyword<_> = section
+            .token()
             .expect("should have a requirements keyword token");
-        self.requirements = Some(token.text_range().to_span());
+        self.requirements = Some(token.span());
+    }
+
+    fn task_hints_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &TaskHintsSection,
+    ) {
+        if self.ignore_current || reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(hints) = self.hints {
+            state.add(duplicate_section(
+                SectionParent::Task(section.parent()),
+                Section::Hints,
+                hints,
+                section,
+            ));
+            return;
+        }
+
+        let token: HintsKeyword<_> = section.token().expect("should have a hints keyword token");
+        self.hints = Some(token.span());
+    }
+
+    fn workflow_hints_section(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        section: &crate::v1::WorkflowHintsSection,
+    ) {
+        if self.ignore_current || reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(hints) = self.hints {
+            state.add(duplicate_section(
+                SectionParent::Workflow(section.parent()),
+                Section::Hints,
+                hints,
+                section,
+            ));
+            return;
+        }
+
+        let token: HintsKeyword<_> = section.token().expect("should have a hints keyword token");
+        self.hints = Some(token.span());
     }
 
     fn runtime_section(
@@ -415,7 +499,7 @@ impl Visitor for CountingVisitor {
                 section.parent(),
                 Section::Runtime,
                 runtime,
-                section.syntax(),
+                section,
             ));
             return;
         }
@@ -424,16 +508,17 @@ impl Visitor for CountingVisitor {
             state.add(conflicting_section(
                 section.parent(),
                 Section::Runtime,
-                section.syntax(),
+                section,
                 requirements,
                 Section::Requirements,
             ));
             return;
         }
 
-        let token = support::token(section.syntax(), SyntaxKind::RuntimeKeyword)
+        let token: RuntimeKeyword<_> = section
+            .token()
             .expect("should have a runtime keyword token");
-        self.runtime = Some(token.text_range().to_span());
+        self.runtime = Some(token.span());
     }
 
     fn metadata_section(
@@ -451,14 +536,13 @@ impl Visitor for CountingVisitor {
                 section.parent(),
                 Section::Metadata,
                 metadata,
-                section.syntax(),
+                section,
             ));
             return;
         }
 
-        let token = support::token(section.syntax(), SyntaxKind::MetaKeyword)
-            .expect("should have a meta keyword token");
-        self.metadata = Some(token.text_range().to_span());
+        let token: MetaKeyword<_> = section.token().expect("should have a meta keyword token");
+        self.metadata = Some(token.span());
     }
 
     fn parameter_metadata_section(
@@ -476,13 +560,14 @@ impl Visitor for CountingVisitor {
                 section.parent(),
                 Section::ParameterMetadata,
                 metadata,
-                section.syntax(),
+                section,
             ));
             return;
         }
 
-        let token = support::token(section.syntax(), SyntaxKind::ParameterMetaKeyword)
+        let token: ParameterMetaKeyword<_> = section
+            .token()
             .expect("should have a parameter meta keyword token");
-        self.param_metadata = Some(token.text_range().to_span());
+        self.param_metadata = Some(token.span());
     }
 }

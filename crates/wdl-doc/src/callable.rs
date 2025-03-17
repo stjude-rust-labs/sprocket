@@ -230,7 +230,7 @@ pub trait Callable {
 fn parse_meta(meta: &MetadataSection) -> MetaMap {
     meta.items()
         .map(|m| {
-            let name = m.name().as_str().to_owned();
+            let name = m.name().text().to_owned();
             let item = m.value();
             (name, item)
         })
@@ -242,7 +242,7 @@ fn parse_parameter_meta(parameter_meta: &ParameterMetadataSection) -> MetaMap {
     parameter_meta
         .items()
         .map(|m| {
-            let name = m.name().as_str().to_owned();
+            let name = m.name().text().to_owned();
             let item = m.value();
             (name, item)
         })
@@ -254,7 +254,7 @@ fn parse_inputs(input_section: &InputSection, parameter_meta: &MetaMap) -> Vec<P
     input_section
         .declarations()
         .map(|decl| {
-            let name = decl.name().as_str().to_owned();
+            let name = decl.name().text().to_owned();
             let meta = parameter_meta.get(&name);
             Parameter::new(decl.clone(), meta.cloned(), InputOutput::Input)
         })
@@ -275,7 +275,7 @@ fn parse_outputs(
         })
         .map(|o| {
             o.items()
-                .map(|i| (i.name().as_str().to_owned(), i.value().clone()))
+                .map(|i| (i.name().text().to_owned(), i.value().clone()))
                 .collect()
         })
         .unwrap_or_default();
@@ -283,7 +283,7 @@ fn parse_outputs(
     output_section
         .declarations()
         .map(|decl| {
-            let name = decl.name().as_str().to_owned();
+            let name = decl.name().text().to_owned();
             let meta = parameter_meta.get(&name).or_else(|| output_meta.get(&name));
             Parameter::new(
                 wdl_ast::v1::Decl::Bound(decl.clone()),
@@ -353,7 +353,7 @@ mod tests {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "Workflow"
         );
         assert_eq!(
@@ -364,7 +364,7 @@ mod tests {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "A workflow"
         );
     }
@@ -410,7 +410,7 @@ mod tests {
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "An integer"
         );
     }

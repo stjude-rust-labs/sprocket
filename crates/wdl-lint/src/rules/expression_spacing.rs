@@ -2,7 +2,6 @@
 
 use rowan::Direction;
 use wdl_ast::AstNode;
-use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
@@ -10,7 +9,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::Expr;
@@ -233,7 +231,7 @@ impl Visitor for ExpressionSpacingRule {
             Expr::LogicalNot(_) | Expr::Negation(_) => {
                 // No following spacing allowed
                 if expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .filter(|t| t.kind() == SyntaxKind::Whitespace)
                     .count()
@@ -241,7 +239,7 @@ impl Visitor for ExpressionSpacingRule {
                 {
                     state.exceptable_add(
                         prefix_whitespace(expr.span()),
-                        SyntaxElement::from(expr.syntax().clone()),
+                        SyntaxElement::from(expr.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                 }
@@ -249,12 +247,12 @@ impl Visitor for ExpressionSpacingRule {
             Expr::Parenthesized(_) => {
                 // Find the actual open and close parentheses
                 let open = expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| t.kind() == SyntaxKind::OpenParen)
                     .expect("parenthesized expression should have an opening parenthesis");
                 let close = expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| t.kind() == SyntaxKind::CloseParen)
                     .expect("parenthesized expression should have an closing parenthesis");
@@ -263,10 +261,10 @@ impl Visitor for ExpressionSpacingRule {
                 // parenthesis, or a negation (!). The parenthesized expression
                 // can be the first thing at its level if it is wrapped in a
                 // EqualityExpressionNode.
-                let mut prev = expr.syntax().prev_sibling_or_token();
+                let mut prev = expr.inner().prev_sibling_or_token();
                 if prev.is_none() {
                     // No prior elements, so we need to go up a level.
-                    match expr.syntax().parent() {
+                    match expr.inner().parent() {
                         Some(parent) => {
                             if let Some(parent_prev) = parent.prev_sibling_or_token() {
                                 prev = Some(parent_prev);
@@ -286,7 +284,7 @@ impl Visitor for ExpressionSpacingRule {
                         | SyntaxKind::OpenParen
                         | SyntaxKind::NegationExprNode
                         | SyntaxKind::Exclamation
-                        | SyntaxKind::NameRefNode // Function calls can precede without whitespace
+                        | SyntaxKind::NameRefExprNode // Function calls can precede without whitespace
                         | SyntaxKind::PlaceholderOpen // Opening placeholders can precede a paren
                         | SyntaxKind::Plus // This and all below will report on those tokens.
                         | SyntaxKind::Minus
@@ -302,7 +300,7 @@ impl Visitor for ExpressionSpacingRule {
                         | SyntaxKind::LogicalOr => {}
                         _ => {
                             // opening parens should be preceded by whitespace
-                            state.exceptable_add(missing_preceding_whitespace(open.text_range().to_span()), SyntaxElement::from(expr.syntax().clone()), &self.exceptable_nodes());
+                            state.exceptable_add(missing_preceding_whitespace(open.text_range().into()), SyntaxElement::from(expr.inner().clone()), &self.exceptable_nodes());
                         }
                     }
                 }
@@ -319,8 +317,8 @@ impl Visitor for ExpressionSpacingRule {
                         {
                             // opening parens should not be followed by non-newline whitespace
                             state.exceptable_add(
-                                disallowed_space(token.text_range().to_span()),
-                                SyntaxElement::from(expr.syntax().clone()),
+                                disallowed_space(token.text_range().into()),
+                                SyntaxElement::from(expr.inner().clone()),
                                 &self.exceptable_nodes(),
                             );
                         }
@@ -340,8 +338,8 @@ impl Visitor for ExpressionSpacingRule {
                         // closing parenthesis should not be preceded by whitespace without a
                         // newline
                         state.exceptable_add(
-                            disallowed_space(close_prev.text_range().to_span()),
-                            SyntaxElement::from(expr.syntax().clone()),
+                            disallowed_space(close_prev.text_range().into()),
+                            SyntaxElement::from(expr.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -350,7 +348,7 @@ impl Visitor for ExpressionSpacingRule {
             Expr::LogicalAnd(_) | Expr::LogicalOr(_) => {
                 // find the operator
                 let op = expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| matches!(t.kind(), SyntaxKind::LogicalAnd | SyntaxKind::LogicalOr))
                     .expect("expression node should have an operator");
@@ -360,7 +358,7 @@ impl Visitor for ExpressionSpacingRule {
             Expr::Equality(_) | Expr::Inequality(_) => {
                 // find the operator
                 let op = expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| matches!(t.kind(), SyntaxKind::Equal | SyntaxKind::NotEqual))
                     .expect("expression node should have an operator");
@@ -375,7 +373,7 @@ impl Visitor for ExpressionSpacingRule {
             | Expr::Exponentiation(_) => {
                 // find the operator
                 let op = expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| {
                         matches!(
@@ -396,7 +394,7 @@ impl Visitor for ExpressionSpacingRule {
             Expr::Less(_) | Expr::LessEqual(_) | Expr::Greater(_) | Expr::GreaterEqual(_) => {
                 // find the operator
                 let op = expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| {
                         matches!(
@@ -414,23 +412,23 @@ impl Visitor for ExpressionSpacingRule {
             Expr::If(_) => {
                 // find the if keyword
                 let if_keyword = expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| t.kind() == SyntaxKind::IfKeyword)
                     .expect("if expression node should have an if keyword");
                 let then_keyword = expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| t.kind() == SyntaxKind::ThenKeyword)
                     .expect("if expression node should have a then keyword");
                 let else_keyword = expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| t.kind() == SyntaxKind::ElseKeyword)
                     .expect("if expression node should have an else keyword");
 
                 let newlines = expr
-                    .syntax()
+                    .inner()
                     .descendants_with_tokens()
                     .filter(|t| {
                         if t.kind() == SyntaxKind::Whitespace
@@ -450,7 +448,7 @@ impl Visitor for ExpressionSpacingRule {
                 if newlines > 0 {
                     // If expression should be preceded by a opening parenthesis and a newline (plus
                     // indentation whitespace).
-                    let prior = expr.syntax().siblings_with_tokens(Direction::Prev).skip(1);
+                    let prior = expr.inner().siblings_with_tokens(Direction::Prev).skip(1);
 
                     let mut newline = false;
                     let mut open_paren = false;
@@ -478,8 +476,8 @@ impl Visitor for ExpressionSpacingRule {
                     }
                     if !open_paren || !newline {
                         state.exceptable_add(
-                            multiline_if_open_paren(if_keyword.text_range().to_span()),
-                            SyntaxElement::from(expr.syntax().clone()),
+                            multiline_if_open_paren(if_keyword.text_range().into()),
+                            SyntaxElement::from(expr.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -498,8 +496,8 @@ impl Visitor for ExpressionSpacingRule {
                     {
                         // then should be preceded by a newline
                         state.exceptable_add(
-                            multiline_then_space(then_keyword.text_range().to_span()),
-                            SyntaxElement::from(expr.syntax().clone()),
+                            multiline_then_space(then_keyword.text_range().into()),
+                            SyntaxElement::from(expr.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -517,14 +515,14 @@ impl Visitor for ExpressionSpacingRule {
                     {
                         // then should be preceded by a newline
                         state.exceptable_add(
-                            multiline_else_space(else_keyword.text_range().to_span()),
-                            SyntaxElement::from(expr.syntax().clone()),
+                            multiline_else_space(else_keyword.text_range().into()),
+                            SyntaxElement::from(expr.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
 
                     // check the closing parenthesis
-                    let next_tokens = expr.syntax().siblings_with_tokens(Direction::Next).skip(1);
+                    let next_tokens = expr.inner().siblings_with_tokens(Direction::Next).skip(1);
 
                     let mut newline = false;
                     let mut close_paren = false;
@@ -551,8 +549,8 @@ impl Visitor for ExpressionSpacingRule {
                     }
                     if !close_paren || !newline {
                         state.exceptable_add(
-                            multiline_if_close_paren(else_keyword.text_range().to_span()),
-                            SyntaxElement::from(expr.syntax().clone()),
+                            multiline_if_close_paren(else_keyword.text_range().into()),
+                            SyntaxElement::from(expr.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -560,12 +558,12 @@ impl Visitor for ExpressionSpacingRule {
             }
             Expr::Index(_) => {
                 let open_bracket = expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| t.kind() == SyntaxKind::OpenBracket)
                     .expect("index expression node should have an opening bracket");
                 let close_bracket = expr
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| t.kind() == SyntaxKind::CloseBracket)
                     .expect("index expression node should have a closing bracket");
@@ -588,8 +586,8 @@ impl Visitor for ExpressionSpacingRule {
                 checks.iter().for_each(|f| {
                     if let Some(ws) = f {
                         state.exceptable_add(
-                            disallowed_space(ws.text_range().to_span()),
-                            SyntaxElement::from(expr.syntax().clone()),
+                            disallowed_space(ws.text_range().into()),
+                            SyntaxElement::from(expr.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -597,7 +595,7 @@ impl Visitor for ExpressionSpacingRule {
             }
             Expr::Access(acc) => {
                 let op = acc
-                    .syntax()
+                    .inner()
                     .children_with_tokens()
                     .find(|t| t.kind() == SyntaxKind::Dot)
                     .expect("access expression node should have a dot operator");
@@ -610,15 +608,15 @@ impl Visitor for ExpressionSpacingRule {
 
                 if let Some(ws) = before_ws {
                     state.exceptable_add(
-                        disallowed_space(ws.text_range().to_span()),
-                        SyntaxElement::from(acc.syntax().clone()),
+                        disallowed_space(ws.text_range().into()),
+                        SyntaxElement::from(acc.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                 }
                 if let Some(ws) = after_ws {
                     state.exceptable_add(
-                        disallowed_space(ws.text_range().to_span()),
-                        SyntaxElement::from(acc.syntax().clone()),
+                        disallowed_space(ws.text_range().into()),
+                        SyntaxElement::from(acc.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                 }
@@ -627,7 +625,7 @@ impl Visitor for ExpressionSpacingRule {
                 match l {
                     LiteralExpr::Array(_) | LiteralExpr::Map(_) | LiteralExpr::Object(_) => {
                         let newlines = l
-                            .syntax()
+                            .inner()
                             .descendants_with_tokens()
                             .filter(|t| {
                                 if t.kind() == SyntaxKind::Whitespace
@@ -645,7 +643,7 @@ impl Visitor for ExpressionSpacingRule {
                         if newlines > 0 {
                             // Find the opening and closing brackets
                             let open_bracket = expr
-                                .syntax()
+                                .inner()
                                 .children_with_tokens()
                                 .find(|t| {
                                     matches!(
@@ -658,7 +656,7 @@ impl Visitor for ExpressionSpacingRule {
                                 .expect("literal expression node should have an opening bracket");
 
                             let close_bracket = expr
-                                .syntax()
+                                .inner()
                                 .children_with_tokens()
                                 .find(|t| {
                                     matches!(
@@ -696,9 +694,9 @@ impl Visitor for ExpressionSpacingRule {
                             if !newline {
                                 state.exceptable_add(
                                     multiline_literal_open_newline(
-                                        open_bracket.text_range().to_span(),
+                                        open_bracket.text_range().into(),
                                     ),
-                                    SyntaxElement::from(expr.syntax().clone()),
+                                    SyntaxElement::from(expr.inner().clone()),
                                     &self.exceptable_nodes(),
                                 );
                             }
@@ -730,9 +728,9 @@ impl Visitor for ExpressionSpacingRule {
                             if !newline {
                                 state.exceptable_add(
                                     multiline_literal_close_newline(
-                                        close_bracket.text_range().to_span(),
+                                        close_bracket.text_range().into(),
                                     ),
-                                    SyntaxElement::from(expr.syntax().clone()),
+                                    SyntaxElement::from(expr.inner().clone()),
                                     &self.exceptable_nodes(),
                                 );
                             }
@@ -757,7 +755,7 @@ impl Visitor for ExpressionSpacingRule {
         }
 
         if let Some(assign) = decl
-            .syntax()
+            .inner()
             .descendants_with_tokens()
             .find(|t| t.kind() == SyntaxKind::Assignment)
         {
@@ -769,22 +767,22 @@ impl Visitor for ExpressionSpacingRule {
             if !before_ws && !after_ws {
                 // assignments must be surrounded by whitespace
                 state.exceptable_add(
-                    assignment_missing_surrounding_whitespace(assign.text_range().to_span()),
-                    SyntaxElement::from(decl.syntax().clone()),
+                    assignment_missing_surrounding_whitespace(assign.text_range().into()),
+                    SyntaxElement::from(decl.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             } else if !before_ws {
                 // assignments must be preceded by whitespace
                 state.exceptable_add(
-                    assignment_missing_preceding_whitespace(assign.text_range().to_span()),
-                    SyntaxElement::from(decl.syntax().clone()),
+                    assignment_missing_preceding_whitespace(assign.text_range().into()),
+                    SyntaxElement::from(decl.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             } else if !after_ws {
                 // assignments must be followed by whitespace
                 state.exceptable_add(
-                    assignment_missing_following_whitespace(assign.text_range().to_span()),
-                    SyntaxElement::from(decl.syntax().clone()),
+                    assignment_missing_following_whitespace(assign.text_range().into()),
+                    SyntaxElement::from(decl.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             }
@@ -804,21 +802,21 @@ fn check_required_surrounding_ws(
     if !before_ws && !after_ws {
         // must be surrounded by whitespace
         state.exceptable_add(
-            missing_surrounding_whitespace(op.text_range().to_span()),
+            missing_surrounding_whitespace(op.text_range().into()),
             op.clone(),
             exceptable_nodes,
         );
     } else if !before_ws {
         // must be preceded by whitespace
         state.exceptable_add(
-            missing_preceding_whitespace(op.text_range().to_span()),
+            missing_preceding_whitespace(op.text_range().into()),
             op.clone(),
             exceptable_nodes,
         );
     } else if !after_ws {
         // must be followed by whitespace
         state.exceptable_add(
-            missing_following_whitespace(op.text_range().to_span()),
+            missing_following_whitespace(op.text_range().into()),
             op.clone(),
             exceptable_nodes,
         );

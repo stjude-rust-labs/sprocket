@@ -11,7 +11,6 @@ use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxToken;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::BoundDecl;
@@ -152,10 +151,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             return;
         }
 
-        let first = is_first_element(task.syntax());
-        let actual_start = skip_preceding_comments(task.syntax());
+        let first = is_first_element(task.inner());
+        let actual_start = skip_preceding_comments(task.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(task.syntax(), state, &self.exceptable_nodes());
+        check_last_token(task.inner(), state, &self.exceptable_nodes());
     }
 
     fn workflow_definition(
@@ -168,10 +167,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             return;
         }
 
-        let first = is_first_element(workflow.syntax());
-        let actual_start = skip_preceding_comments(workflow.syntax());
+        let first = is_first_element(workflow.inner());
+        let actual_start = skip_preceding_comments(workflow.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(workflow.syntax(), state, &self.exceptable_nodes());
+        check_last_token(workflow.inner(), state, &self.exceptable_nodes());
     }
 
     fn metadata_section(
@@ -187,10 +186,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             self.state = State::MetaSection;
         }
 
-        let first = is_first_element(section.syntax());
-        let actual_start = skip_preceding_comments(section.syntax());
+        let first = is_first_element(section.inner());
+        let actual_start = skip_preceding_comments(section.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
@@ -207,10 +206,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             self.state = State::ParameterMetaSection;
         }
 
-        let first = is_first_element(section.syntax());
-        let actual_start = skip_preceding_comments(section.syntax());
+        let first = is_first_element(section.inner());
+        let actual_start = skip_preceding_comments(section.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
@@ -227,10 +226,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             self.state = State::InputSection;
         }
 
-        let first = is_first_element(section.syntax());
-        let actual_start = skip_preceding_comments(section.syntax());
+        let first = is_first_element(section.inner());
+        let actual_start = skip_preceding_comments(section.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(section.syntax(), state, &self.exceptable_nodes());
+        check_last_token(section.inner(), state, &self.exceptable_nodes());
     }
 
     fn command_section(
@@ -243,10 +242,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             return;
         }
 
-        let first = is_first_element(section.syntax());
-        let actual_start = skip_preceding_comments(section.syntax());
+        let first = is_first_element(section.inner());
+        let actual_start = skip_preceding_comments(section.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(section.syntax(), state, &self.exceptable_nodes());
+        check_last_token(section.inner(), state, &self.exceptable_nodes());
     }
 
     fn output_section(
@@ -261,10 +260,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
         } else {
             self.state = State::OutputSection;
         }
-        let first = is_first_element(section.syntax());
-        let actual_start = skip_preceding_comments(section.syntax());
+        let first = is_first_element(section.inner());
+        let actual_start = skip_preceding_comments(section.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(section.syntax(), state, &self.exceptable_nodes());
+        check_last_token(section.inner(), state, &self.exceptable_nodes());
     }
 
     fn runtime_section(
@@ -280,10 +279,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             self.state = State::RuntimeSection;
         }
 
-        let first = is_first_element(section.syntax());
-        let actual_start = skip_preceding_comments(section.syntax());
+        let first = is_first_element(section.inner());
+        let actual_start = skip_preceding_comments(section.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
@@ -300,14 +299,14 @@ impl Visitor for BlankLinesBetweenElementsRule {
 
         // We only care about spacing for calls if they're the "first" thing in a
         // workflow body.
-        let first = is_first_body(stmt.syntax());
+        let first = is_first_body(stmt.inner());
 
-        let prev = skip_preceding_comments(stmt.syntax());
+        let prev = skip_preceding_comments(stmt.inner());
 
         if first {
             check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
         }
-        check_last_token(stmt.syntax(), state, &self.exceptable_nodes());
+        check_last_token(stmt.inner(), state, &self.exceptable_nodes());
     }
 
     fn scatter_statement(
@@ -320,14 +319,14 @@ impl Visitor for BlankLinesBetweenElementsRule {
             return;
         }
 
-        let first = is_first_body(stmt.syntax());
+        let first = is_first_body(stmt.inner());
 
-        let prev = skip_preceding_comments(stmt.syntax());
+        let prev = skip_preceding_comments(stmt.inner());
 
         if first {
             check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
         }
-        check_last_token(stmt.syntax(), state, &self.exceptable_nodes());
+        check_last_token(stmt.inner(), state, &self.exceptable_nodes());
     }
 
     fn struct_definition(
@@ -340,10 +339,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             return;
         }
 
-        let first = is_first_element(def.syntax());
-        let actual_start = skip_preceding_comments(def.syntax());
+        let first = is_first_element(def.inner());
+        let actual_start = skip_preceding_comments(def.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(def.syntax(), state, &self.exceptable_nodes());
+        check_last_token(def.inner(), state, &self.exceptable_nodes());
     }
 
     fn requirements_section(
@@ -356,10 +355,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             return;
         }
 
-        let first = is_first_element(section.syntax());
-        let actual_start = skip_preceding_comments(section.syntax());
+        let first = is_first_element(section.inner());
+        let actual_start = skip_preceding_comments(section.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
@@ -373,10 +372,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             return;
         }
 
-        let first = is_first_element(section.syntax());
-        let actual_start = skip_preceding_comments(section.syntax());
+        let first = is_first_element(section.inner());
+        let actual_start = skip_preceding_comments(section.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
@@ -390,10 +389,10 @@ impl Visitor for BlankLinesBetweenElementsRule {
             return;
         }
 
-        let first = is_first_element(section.syntax());
-        let actual_start = skip_preceding_comments(section.syntax());
+        let first = is_first_element(section.inner());
+        let actual_start = skip_preceding_comments(section.inner());
         check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.syntax(), state, &self.exceptable_nodes());
+        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
@@ -403,7 +402,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
         }
 
         let prior = decl
-            .syntax()
+            .inner()
             .prev_sibling_or_token()
             .and_then(SyntaxElement::into_token);
         if let Some(p) = prior {
@@ -414,15 +413,15 @@ impl Visitor for BlankLinesBetweenElementsRule {
                 if self.state == State::InputSection || self.state == State::OutputSection {
                     if count > 1 {
                         state.exceptable_add(
-                            excess_blank_line(p.text_range().to_span()),
-                            SyntaxElement::from(decl.syntax().clone()),
+                            excess_blank_line(p.text_range().into()),
+                            SyntaxElement::from(decl.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
                 } else {
-                    let first = is_first_body(decl.syntax());
+                    let first = is_first_body(decl.inner());
 
-                    let prev = skip_preceding_comments(decl.syntax());
+                    let prev = skip_preceding_comments(decl.inner());
 
                     if first {
                         check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
@@ -437,7 +436,7 @@ impl Visitor for BlankLinesBetweenElementsRule {
             return;
         }
 
-        let actual_start = skip_preceding_comments(decl.syntax());
+        let actual_start = skip_preceding_comments(decl.inner());
 
         let prior = actual_start
             .prev_sibling_or_token()
@@ -450,15 +449,15 @@ impl Visitor for BlankLinesBetweenElementsRule {
                 if self.state == State::InputSection || self.state == State::OutputSection {
                     if count > 1 {
                         state.exceptable_add(
-                            excess_blank_line(p.text_range().to_span()),
-                            SyntaxElement::from(decl.syntax().clone()),
+                            excess_blank_line(p.text_range().into()),
+                            SyntaxElement::from(decl.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
                 } else {
-                    let first = is_first_body(decl.syntax());
+                    let first = is_first_body(decl.inner());
 
-                    let prev = skip_preceding_comments(decl.syntax());
+                    let prev = skip_preceding_comments(decl.inner());
 
                     if first {
                         check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
@@ -478,14 +477,14 @@ impl Visitor for BlankLinesBetweenElementsRule {
             return;
         }
 
-        let first = is_first_body(stmt.syntax());
+        let first = is_first_body(stmt.inner());
 
-        let prev = skip_preceding_comments(stmt.syntax());
+        let prev = skip_preceding_comments(stmt.inner());
 
         if first {
             check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
         }
-        check_last_token(stmt.syntax(), state, &self.exceptable_nodes());
+        check_last_token(stmt.inner(), state, &self.exceptable_nodes());
     }
 }
 
@@ -532,7 +531,7 @@ fn flag_all_blank_lines_within(
                 .count();
             if count > 1 {
                 state.exceptable_add(
-                    excess_blank_line(c.text_range().to_span()),
+                    excess_blank_line(c.text_range().into()),
                     SyntaxElement::from(syntax.clone()),
                     exceptable_nodes,
                 );
@@ -591,7 +590,7 @@ fn check_prior_spacing(
                             .is_some_and(|p| p.kind() != SyntaxKind::VersionStatementNode)
                     {
                         state.exceptable_add(
-                            excess_blank_line(prior.text_range().to_span()),
+                            excess_blank_line(prior.text_range().into()),
                             SyntaxElement::from(syntax.clone()),
                             exceptable_nodes,
                         );
@@ -635,7 +634,7 @@ fn check_last_token(
             let count = prev.text().chars().filter(|c| *c == '\n').count();
             if count > 1 {
                 state.exceptable_add(
-                    excess_blank_line(prev.text_range().to_span()),
+                    excess_blank_line(prev.text_range().into()),
                     SyntaxElement::from(syntax.clone()),
                     exceptable_nodes,
                 );

@@ -129,7 +129,7 @@ impl<T: AsRef<str>> Render for Markdown<T> {
 fn parse_preamble_comments(version: VersionStatement) -> String {
     let comments = version
         .keyword()
-        .syntax()
+        .inner()
         .preceding_trivia()
         .map(|t| match t.kind() {
             wdl_ast::SyntaxKind::Comment => match t.to_string().strip_prefix("## ") {
@@ -180,7 +180,7 @@ impl Document {
 
     /// Get the version of the document as text.
     pub fn version(&self) -> String {
-        self.version.version().as_str().to_string()
+        self.version.version().text().to_string()
     }
 
     /// Get the preamble comments of the document.
@@ -290,7 +290,7 @@ pub async fn document_workspace(
         if !cur_dir.exists() {
             std::fs::create_dir_all(&cur_dir)?;
         }
-        let ast_doc = result.document().node();
+        let ast_doc = result.document().root();
         let version = ast_doc
             .version_statement()
             .expect("document should have a version statement");
@@ -301,7 +301,7 @@ pub async fn document_workspace(
         for item in ast.items() {
             match item {
                 DocumentItem::Struct(s) => {
-                    let name = s.name().as_str().to_owned();
+                    let name = s.name().text().to_owned();
                     let path = cur_dir.join(format!("{}-struct.html", name));
 
                     let r#struct = r#struct::Struct::new(s.clone());
@@ -311,7 +311,7 @@ pub async fn document_workspace(
                     local_pages.push((diff_paths(path, &cur_dir).unwrap(), page));
                 }
                 DocumentItem::Task(t) => {
-                    let name = t.name().as_str().to_owned();
+                    let name = t.name().text().to_owned();
                     let path = cur_dir.join(format!("{}-task.html", name));
 
                     let task = task::Task::new(
@@ -328,7 +328,7 @@ pub async fn document_workspace(
                     local_pages.push((diff_paths(path, &cur_dir).unwrap(), page));
                 }
                 DocumentItem::Workflow(w) => {
-                    let name = w.name().as_str().to_owned();
+                    let name = w.name().text().to_owned();
                     let path = cur_dir.join(format!("{}-workflow.html", name));
 
                     let workflow = workflow::Workflow::new(
@@ -418,7 +418,7 @@ mod tests {
         let doc_item = document.ast().into_v1().unwrap().items().next().unwrap();
         let ast_workflow = doc_item.into_workflow_definition().unwrap();
         let workflow = workflow::Workflow::new(
-            ast_workflow.name().as_str().to_string(),
+            ast_workflow.name().text().to_string(),
             ast_workflow.metadata(),
             ast_workflow.parameter_metadata(),
             ast_workflow.input(),

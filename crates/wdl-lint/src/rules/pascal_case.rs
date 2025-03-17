@@ -113,10 +113,10 @@ impl Visitor for PascalCaseRule {
 
         let name = def.name();
         check_name(
-            name.as_str(),
+            name.text(),
             name.span(),
             state,
-            SyntaxElement::from(def.syntax().clone()),
+            SyntaxElement::from(def.inner().clone()),
             &self.exceptable_nodes(),
         );
     }

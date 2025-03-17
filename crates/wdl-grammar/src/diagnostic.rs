@@ -2,7 +2,6 @@
 
 use std::cmp::Ordering;
 use std::fmt;
-use std::num::TryFromIntError;
 
 use rowan::TextRange;
 
@@ -16,7 +15,7 @@ pub struct Span {
 }
 
 impl Span {
-    /// Creates a new span from the given start and end.
+    /// Creates a new span from the given start and length.
     pub const fn new(start: usize, len: usize) -> Self {
         Self {
             start,
@@ -48,6 +47,32 @@ impl Span {
     pub fn contains(&self, offset: usize) -> bool {
         offset >= self.start && offset < self.end
     }
+
+    /// Calculates an intersection of two spans, if one exists.
+    ///
+    /// If spans are adjacent, a zero-length span is returned.
+    ///
+    /// Returns `None` if the two spans are disjoint.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use wdl_grammar::Span;
+    /// assert_eq!(
+    ///     Span::intersect(Span::new(0, 10), Span::new(5, 10)),
+    ///     Some(Span::new(5, 5)),
+    /// );
+    /// ```
+    #[inline]
+    pub fn intersect(self, other: Self) -> Option<Self> {
+        let start = self.start.max(other.start);
+        let end = self.end.min(other.end);
+        if end < start {
+            return None;
+        }
+
+        Some(Self { start, end })
+    }
 }
 
 impl fmt::Display for Span {
@@ -62,14 +87,10 @@ impl From<logos::Span> for Span {
     }
 }
 
-impl TryFrom<Span> for TextRange {
-    type Error = TryFromIntError;
-
-    fn try_from(value: Span) -> Result<Self, Self::Error> {
-        Ok(TextRange::new(
-            value.start.try_into()?,
-            value.end.try_into()?,
-        ))
+impl From<TextRange> for Span {
+    fn from(value: TextRange) -> Self {
+        let start = usize::from(value.start());
+        Self::new(start, usize::from(value.end()) - start)
     }
 }
 
@@ -182,16 +203,16 @@ impl Diagnostic {
     /// Adds a highlight to the diagnostic.
     ///
     /// This is equivalent to adding a label with an empty message.
-    pub fn with_highlight(mut self, span: impl ToSpan) -> Self {
-        self.labels.push(Label::new(String::new(), span));
+    pub fn with_highlight(mut self, span: impl Into<Span>) -> Self {
+        self.labels.push(Label::new(String::new(), span.into()));
         self
     }
 
     /// Adds a label to the diagnostic.
     ///
     /// The first label added is considered the primary label.
-    pub fn with_label(mut self, message: impl Into<String>, span: impl ToSpan) -> Self {
-        self.labels.push(Label::new(message, span));
+    pub fn with_label(mut self, message: impl Into<String>, span: impl Into<Span>) -> Self {
+        self.labels.push(Label::new(message, span.into()));
         self
     }
 
@@ -314,10 +335,10 @@ impl PartialOrd for Label {
 
 impl Label {
     /// Creates a new label with the given message and span.
-    pub fn new(message: impl Into<String>, span: impl ToSpan) -> Self {
+    pub fn new(message: impl Into<String>, span: impl Into<Span>) -> Self {
         Self {
             message: message.into(),
-            span: span.to_span(),
+            span: span.into(),
         }
     }
 
@@ -332,26 +353,7 @@ impl Label {
     }
 
     /// Sets the span of the label.
-    pub fn set_span(&mut self, span: Span) {
-        self.span = span;
-    }
-}
-
-/// A trait implemented on types that convert to spans.
-pub trait ToSpan {
-    /// Converts the type to a span.
-    fn to_span(&self) -> Span;
-}
-
-impl ToSpan for TextRange {
-    fn to_span(&self) -> Span {
-        let start = usize::from(self.start());
-        Span::new(start, usize::from(self.end()) - start)
-    }
-}
-
-impl ToSpan for Span {
-    fn to_span(&self) -> Span {
-        *self
+    pub fn set_span(&mut self, span: impl Into<Span>) {
+        self.span = span.into();
     }
 }

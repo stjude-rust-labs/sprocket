@@ -1,7 +1,6 @@
 //! A lint rule for key-value pairs to ensure each element is on a newline.
 
 use wdl_ast::AstNode;
-use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
@@ -9,7 +8,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::MetadataArray;
@@ -134,7 +132,7 @@ impl Visitor for KeyValuePairsRule {
         }
 
         let tmp = item
-            .syntax()
+            .inner()
             .parent()
             .expect("should have a parent")
             .prev_sibling_or_token()
@@ -144,10 +142,10 @@ impl Visitor for KeyValuePairsRule {
             .to_string();
         let parent_ws = tmp.split('\n').last().expect("should have indentation");
 
-        if !item.syntax().to_string().contains('\n') {
+        if !item.inner().to_string().contains('\n') {
             state.exceptable_add(
                 all_on_one_line(item.span()),
-                SyntaxElement::from(item.syntax().clone()),
+                SyntaxElement::from(item.inner().clone()),
                 &self.exceptable_nodes(),
             );
             return;
@@ -155,14 +153,14 @@ impl Visitor for KeyValuePairsRule {
 
         // Check if the open delimiter has a newline after it
         let open_delim = item
-            .syntax()
+            .inner()
             .first_token()
             .expect("should have an opening delimiter");
         if let Some(open_ws) = open_delim.next_sibling_or_token() {
             if open_ws.kind() != SyntaxKind::Whitespace || !open_ws.to_string().contains('\n') {
                 state.exceptable_add(
-                    missing_trailing_newline(open_delim.text_range().to_span()),
-                    SyntaxElement::from(item.syntax().clone()),
+                    missing_trailing_newline(open_delim.text_range().into()),
+                    SyntaxElement::from(item.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             }
@@ -170,27 +168,27 @@ impl Visitor for KeyValuePairsRule {
 
         // Check if object is multi-line
         let close_delim = item
-            .syntax()
+            .inner()
             .last_token()
             .expect("should have a closing delimiter");
         for child in item.items() {
-            let (next_newline, _newline_is_next) = find_next_newline(child.syntax());
+            let (next_newline, _newline_is_next) = find_next_newline(child.inner());
             if next_newline.is_none() {
                 // No newline found, report missing
                 let s = child.span();
-                let end = match find_next_comma(child.syntax()).0 {
+                let end = match find_next_comma(child.inner()).0 {
                     Some(next) => next.text_range().end(),
                     _ => close_delim.text_range().start(),
                 };
                 state.exceptable_add(
                     missing_trailing_newline(Span::new(s.start(), usize::from(end) - s.start())),
-                    SyntaxElement::from(child.syntax().clone()),
+                    SyntaxElement::from(child.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             }
             // Check indentation. If there is no prior whitespace, that will have been
             // reported already.
-            if let Some(prior_ws) = child.syntax().prev_sibling_or_token() {
+            if let Some(prior_ws) = child.inner().prev_sibling_or_token() {
                 if prior_ws.kind() == SyntaxKind::Whitespace && prior_ws.to_string().contains('\n')
                 {
                     // If there was no newline, that is already reported
@@ -200,12 +198,8 @@ impl Visitor for KeyValuePairsRule {
 
                     if ws != expected_ws {
                         state.exceptable_add(
-                            incorrect_indentation(
-                                prior_ws.text_range().to_span(),
-                                &expected_ws,
-                                ws,
-                            ),
-                            SyntaxElement::from(child.syntax().clone()),
+                            incorrect_indentation(prior_ws.text_range().into(), &expected_ws, ws),
+                            SyntaxElement::from(child.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -234,7 +228,7 @@ impl Visitor for KeyValuePairsRule {
                             &expected_ws,
                             ws,
                         ),
-                        SyntaxElement::from(item.syntax().clone()),
+                        SyntaxElement::from(item.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                 }
@@ -253,7 +247,7 @@ impl Visitor for KeyValuePairsRule {
         }
 
         let tmp = item
-            .syntax()
+            .inner()
             .parent()
             .expect("should have a parent")
             .prev_sibling_or_token()
@@ -264,10 +258,10 @@ impl Visitor for KeyValuePairsRule {
         let parent_ws = tmp.split('\n').last().expect("should have indentation");
 
         // If the array is all on one line, report that
-        if !item.syntax().to_string().contains('\n') {
+        if !item.inner().to_string().contains('\n') {
             state.exceptable_add(
                 all_on_one_line(item.span()),
-                SyntaxElement::from(item.syntax().clone()),
+                SyntaxElement::from(item.inner().clone()),
                 &self.exceptable_nodes(),
             );
             return;
@@ -275,14 +269,14 @@ impl Visitor for KeyValuePairsRule {
 
         // Check if the open delimiter has a newline after it
         let open_delim = item
-            .syntax()
+            .inner()
             .first_token()
             .expect("should have an opening delimiter");
         if let Some(open_ws) = open_delim.next_sibling_or_token() {
             if open_ws.kind() != SyntaxKind::Whitespace || !open_ws.to_string().contains('\n') {
                 state.exceptable_add(
-                    missing_trailing_newline(open_delim.text_range().to_span()),
-                    SyntaxElement::from(item.syntax().clone()),
+                    missing_trailing_newline(open_delim.text_range().into()),
+                    SyntaxElement::from(item.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             }
@@ -290,27 +284,27 @@ impl Visitor for KeyValuePairsRule {
 
         // Metadata arrays should be one element per line
         let close_delim = item
-            .syntax()
+            .inner()
             .last_token()
             .expect("should have a closing delimiter");
         for child in item.elements() {
-            let (next_newline, _newline_is_next) = find_next_newline(child.syntax());
+            let (next_newline, _newline_is_next) = find_next_newline(child.inner());
             if next_newline.is_none() {
                 // No newline found, report missing
                 let s = child.span();
-                let end = match find_next_comma(child.syntax()).0 {
+                let end = match find_next_comma(child.inner()).0 {
                     Some(next) => next.text_range().end(),
                     _ => close_delim.text_range().start(),
                 };
                 state.exceptable_add(
                     missing_trailing_newline(Span::new(s.start(), usize::from(end) - s.start())),
-                    SyntaxElement::from(child.syntax().clone()),
+                    SyntaxElement::from(child.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             }
             // Check indentation. If there is no prior whitespace, that will have been
             // reported already.
-            if let Some(prior_ws) = child.syntax().prev_sibling_or_token() {
+            if let Some(prior_ws) = child.inner().prev_sibling_or_token() {
                 if prior_ws.kind() == SyntaxKind::Whitespace && prior_ws.to_string().contains('\n')
                 {
                     // If there was no newline, that is already reported
@@ -323,12 +317,8 @@ impl Visitor for KeyValuePairsRule {
 
                     if ws != expected_ws {
                         state.exceptable_add(
-                            incorrect_indentation(
-                                prior_ws.text_range().to_span(),
-                                &expected_ws,
-                                ws,
-                            ),
-                            SyntaxElement::from(child.syntax().clone()),
+                            incorrect_indentation(prior_ws.text_range().into(), &expected_ws, ws),
+                            SyntaxElement::from(child.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -357,7 +347,7 @@ impl Visitor for KeyValuePairsRule {
                             &expected_ws,
                             ws,
                         ),
-                        SyntaxElement::from(item.syntax().clone()),
+                        SyntaxElement::from(item.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                 }

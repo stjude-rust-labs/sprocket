@@ -25,7 +25,7 @@ use crate::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 fn unsupported_requirements_key(name: &Ident) -> Diagnostic {
     Diagnostic::error(format!(
         "unsupported requirements key `{name}`",
-        name = name.as_str()
+        name = name.text()
     ))
     .with_highlight(name.span())
 }
@@ -80,7 +80,7 @@ impl Visitor for RequirementsVisitor {
 
         for item in section.items() {
             let name = item.name();
-            if !SUPPORTED_KEYS.contains(&name.as_str()) {
+            if !SUPPORTED_KEYS.contains(&name.text()) {
                 state.add(unsupported_requirements_key(&name))
             }
         }

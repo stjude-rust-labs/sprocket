@@ -9,7 +9,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::TaskDefinition;
@@ -109,15 +108,15 @@ impl Visitor for MissingRequirementsRule {
                         let name = task.name();
                         state.exceptable_add(
                             deprecated_runtime_section(
-                                name.as_str(),
+                                name.text(),
                                 runtime
-                                    .syntax()
+                                    .inner()
                                     .first_token()
                                     .expect("runtime section should have tokens")
                                     .text_range()
-                                    .to_span(),
+                                    .into(),
                             ),
-                            SyntaxElement::from(runtime.syntax().clone()),
+                            SyntaxElement::from(runtime.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -125,8 +124,8 @@ impl Visitor for MissingRequirementsRule {
                         if task.requirements().is_none() {
                             let name = task.name();
                             state.exceptable_add(
-                                missing_requirements_section(name.as_str(), name.span()),
-                                SyntaxElement::from(task.syntax().clone()),
+                                missing_requirements_section(name.text(), name.span()),
+                                SyntaxElement::from(task.inner().clone()),
                                 &self.exceptable_nodes(),
                             );
                         }

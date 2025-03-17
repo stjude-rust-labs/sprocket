@@ -10,7 +10,7 @@ use crate::Document;
 use crate::Ident;
 use crate::Span;
 use crate::SupportedVersion;
-use crate::TokenStrHash;
+use crate::TokenText;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::v1::CallStatement;
@@ -87,7 +87,7 @@ fn duplicate_key(context: Context, name: &Ident, first: Span) -> Diagnostic {
 
     Diagnostic::error(format!(
         "duplicate {kind} `{name}` in {context}",
-        name = name.as_str(),
+        name = name.text(),
     ))
     .with_label(format!("this {kind} is a duplicate"), name.span())
     .with_label(format!("first {kind} with this name is here"), first)
@@ -97,7 +97,7 @@ fn duplicate_key(context: Context, name: &Ident, first: Span) -> Diagnostic {
 fn conflicting_key(context: Context, name: &Ident, first: Span) -> Diagnostic {
     Diagnostic::error(format!(
         "conflicting key `{name}` in {context}",
-        name = name.as_str(),
+        name = name.text(),
     ))
     .with_label("this key conflicts with an alias", name.span())
     .with_label("the conflicting alias is here", first)
@@ -105,7 +105,7 @@ fn conflicting_key(context: Context, name: &Ident, first: Span) -> Diagnostic {
 
 /// Checks the given set of keys for duplicates
 fn check_duplicate_keys(
-    keys: &mut HashSet<TokenStrHash<Ident>>,
+    keys: &mut HashSet<TokenText>,
     aliases: &[(&str, &str)],
     names: impl Iterator<Item = Ident>,
     context: Context,
@@ -113,27 +113,27 @@ fn check_duplicate_keys(
 ) {
     keys.clear();
     for name in names {
-        if let Some(first) = keys.get(name.as_str()) {
-            diagnostics.add(duplicate_key(context, &name, first.as_ref().span()));
+        if let Some(first) = keys.get(name.text()) {
+            diagnostics.add(duplicate_key(context, &name, first.span()));
             continue;
         }
 
         for (first, second) in aliases {
-            let alias = if *first == name.as_str() {
+            let alias = if *first == name.text() {
                 second
-            } else if *second == name.as_str() {
+            } else if *second == name.text() {
                 first
             } else {
                 continue;
             };
 
             if let Some(first) = keys.get(*alias) {
-                diagnostics.add(conflicting_key(context, &name, first.as_ref().span()));
+                diagnostics.add(conflicting_key(context, &name, first.span()));
                 break;
             }
         }
 
-        keys.insert(TokenStrHash::new(name));
+        keys.insert(name.hashable());
     }
 }
 
@@ -148,7 +148,7 @@ fn check_duplicate_keys(
 /// * object literals
 /// * struct literals
 #[derive(Default, Debug)]
-pub struct UniqueKeysVisitor(HashSet<TokenStrHash<Ident>>);
+pub struct UniqueKeysVisitor(HashSet<TokenText>);
 
 impl Visitor for UniqueKeysVisitor {
     type State = Diagnostics;

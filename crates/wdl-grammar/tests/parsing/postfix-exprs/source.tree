@@ -50,7 +50,7 @@ RootNode@0..324
             Integer@108..111 "100"
           Comma@111..112 ","
           Whitespace@112..113 " "
-          NameRefNode@113..114
+          NameRefExprNode@113..114
             Ident@113..114 "a"
           CloseParen@114..115 ")"
         Comma@115..116 ","
@@ -100,16 +100,16 @@ RootNode@0..324
       Assignment@172..173 "="
       Whitespace@173..174 " "
       IndexExprNode@174..182
-        NameRefNode@174..175
+        NameRefExprNode@174..175
           Ident@174..175 "c"
         OpenBracket@175..176 "["
         AdditionExprNode@176..181
-          NameRefNode@176..177
+          NameRefExprNode@176..177
             Ident@176..177 "a"
           Whitespace@177..178 " "
           Plus@178..179 "+"
           Whitespace@179..180 " "
-          NameRefNode@180..181
+          NameRefExprNode@180..181
             Ident@180..181 "b"
         CloseBracket@181..182 "]"
     Whitespace@182..187 "\n    "
@@ -168,7 +168,7 @@ RootNode@0..324
           Whitespace@306..307 " "
           AccessExprNode@307..316
             AccessExprNode@307..312
-              NameRefNode@307..308
+              NameRefExprNode@307..308
                 Ident@307..308 "e"
               Dot@308..309 "."
               Ident@309..312 "foo"

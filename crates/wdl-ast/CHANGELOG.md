@@ -9,8 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Refactored AST API to support different syntax tree element representations ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
 * Refactored whitespace counting out of `strip_whitespace` into `count_whitespace` method ([#317](https://github.com/stjude-rust-labs/wdl/pull/317)).
+
+### Fixed
+
+* AST validation now checks for duplicate `hints` sections in 1.2 documents ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 
 ## 0.10.0 - 01-17-2025
 

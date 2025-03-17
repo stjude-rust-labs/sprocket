@@ -26,13 +26,13 @@ RootNode@0..291
         LiteralStringText@101..241 "\n        Hello! This  ..."
         PlaceholderNode@241..249
           PlaceholderOpen@241..243 "${"
-          NameRefNode@243..248
+          NameRefExprNode@243..248
             Ident@243..248 "value"
           CloseBrace@248..249 "}"
         LiteralStringText@249..253 " or "
         PlaceholderNode@253..261
           PlaceholderOpen@253..255 "~{"
-          NameRefNode@255..260
+          NameRefExprNode@255..260
             Ident@255..260 "value"
           CloseBrace@260..261 "}"
         LiteralStringText@261..285 " for interpolations\n    "

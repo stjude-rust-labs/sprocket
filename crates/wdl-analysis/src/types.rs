@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use indexmap::IndexMap;
 use wdl_ast::Diagnostic;
-use wdl_ast::Ident;
+use wdl_ast::Span;
 
 use crate::document::Input;
 use crate::document::Output;
@@ -46,7 +46,7 @@ pub fn display_types(slice: &[Type]) -> impl fmt::Display + use<'_> {
 /// A trait implemented on type name resolvers.
 pub trait TypeNameResolver {
     /// Resolves the given type name to a type.
-    fn resolve(&mut self, name: &Ident) -> Result<Type, Diagnostic>;
+    fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 }
 
 /// A trait implemented on types that may be optional.

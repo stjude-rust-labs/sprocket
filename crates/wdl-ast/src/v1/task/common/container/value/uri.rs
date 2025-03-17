@@ -4,9 +4,11 @@
 use std::ops::Deref;
 use std::str::FromStr;
 
-use rowan::ast::AstNode;
+use wdl_grammar::SyntaxNode;
 
+use crate::AstNode;
 use crate::AstToken;
+use crate::TreeNode;
 use crate::v1::LiteralString;
 
 /// The value of the key that signifies _any_ POSIX-compliant operating
@@ -32,22 +34,17 @@ pub enum Error {
     /// An empty tag was encountered.
     EmptyTag,
 
-    /// Attemped to create a [`Uri`] from an interpolated, literal string.
-    Interpolated {
-        /// The literal string from which the [`Uri`] was attempted to be
-        /// created.
-        literal_string: LiteralString,
-    },
+    /// Attempted to create a [`Uri`] from an interpolated, literal string.
+    Interpolated(String),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::EmptyTag => write!(f, "tag of a container URI cannot be empty"),
-            Error::Interpolated { literal_string } => write!(
+            Error::Interpolated(s) => write!(
                 f,
-                "cannot create a uri from an interpolated string literal: {literal_string}",
-                literal_string = literal_string.syntax()
+                "cannot create a uri from an interpolated string literal: {s}",
             ),
         }
     }
@@ -288,15 +285,15 @@ impl FromStr for Kind {
 
 /// A container URI as defined by the WDL specification.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Uri {
+pub struct Uri<N: TreeNode = SyntaxNode> {
     /// The kind of the container URI.
     kind: Kind,
 
     /// The literal string backing this container URI.
-    literal_string: LiteralString,
+    literal_string: LiteralString<N>,
 }
 
-impl Uri {
+impl<N: TreeNode> Uri<N> {
     /// Gets the kind of the [`Uri`].
     pub fn kind(&self) -> &Kind {
         &self.kind
@@ -308,22 +305,22 @@ impl Uri {
     }
 
     /// Gets the backing literal string of the [`Uri`].
-    pub fn literal_string(&self) -> &LiteralString {
+    pub fn literal_string(&self) -> &LiteralString<N> {
         &self.literal_string
     }
 
     /// Consumes `self` and returns the literal string backing the [`Uri`].
-    pub fn into_literal_string(self) -> LiteralString {
+    pub fn into_literal_string(self) -> LiteralString<N> {
         self.literal_string
     }
 
     /// Consumes `self` and returns the parts of the [`Uri`].
-    pub fn into_parts(self) -> (Kind, LiteralString) {
+    pub fn into_parts(self) -> (Kind, LiteralString<N>) {
         (self.kind, self.literal_string)
     }
 }
 
-impl Deref for Uri {
+impl<N: TreeNode> Deref for Uri<N> {
     type Target = Kind;
 
     fn deref(&self) -> &Self::Target {
@@ -331,16 +328,14 @@ impl Deref for Uri {
     }
 }
 
-impl TryFrom<LiteralString> for Uri {
+impl<N: TreeNode> TryFrom<LiteralString<N>> for Uri<N> {
     type Error = Error;
 
-    fn try_from(literal_string: LiteralString) -> Result<Self> {
+    fn try_from(literal_string: LiteralString<N>) -> Result<Self> {
         let kind = literal_string
             .text()
-            .ok_or(Error::Interpolated {
-                literal_string: literal_string.clone(),
-            })?
-            .as_str()
+            .ok_or_else(|| Error::Interpolated(literal_string.inner().text().to_string()))?
+            .text()
             .parse::<Kind>()?;
 
         Ok(Uri {

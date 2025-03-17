@@ -1,5 +1,6 @@
 //! A lint rule for ensuring no curly commands are used.
 
+use rowan::ast::support;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -9,10 +10,8 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
-use wdl_ast::support;
 use wdl_ast::v1::CommandSection;
 
 use crate::Rule;
@@ -93,12 +92,12 @@ impl Visitor for NoCurlyCommandsRule {
 
         if !section.is_heredoc() {
             let name = section.parent().name();
-            let command_keyword = support::token(section.syntax(), SyntaxKind::CommandKeyword)
+            let command_keyword = support::token(section.inner(), SyntaxKind::CommandKeyword)
                 .expect("should have a command keyword token");
 
             state.exceptable_add(
-                curly_commands(name.as_str(), command_keyword.text_range().to_span()),
-                SyntaxElement::from(section.syntax().clone()),
+                curly_commands(name.text(), command_keyword.text_range().into()),
+                SyntaxElement::from(section.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }

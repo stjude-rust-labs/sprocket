@@ -26,7 +26,7 @@ RootNode@0..235
       DoubleQuote@124..125 "\""
       PlaceholderNode@125..133
         PlaceholderOpen@125..127 "~{"
-        NameRefNode@127..132
+        NameRefExprNode@127..132
           Ident@127..132 "value"
         CloseBrace@132..133 "}"
       DoubleQuote@133..134 "\""
@@ -48,13 +48,13 @@ RootNode@0..235
       OpenHeredoc@183..186 "<<<"
       PlaceholderNode@186..194
         PlaceholderOpen@186..188 "~{"
-        NameRefNode@188..193
+        NameRefExprNode@188..193
           Ident@188..193 "value"
         CloseBrace@193..194 "}"
       LiteralStringText@194..195 " "
       PlaceholderNode@195..203
         PlaceholderOpen@195..197 "${"
-        NameRefNode@197..202
+        NameRefExprNode@197..202
           Ident@197..202 "value"
         CloseBrace@202..203 "}"
       CloseHeredoc@203..206 ">>>"

@@ -36,6 +36,7 @@ use wdl_analysis::Analyzer;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::path_to_uri;
 use wdl_analysis::rules;
+use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 
 /// Finds tests to run as part of the analysis test suite.
@@ -124,7 +125,7 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
         };
 
         if !diagnostics.is_empty() {
-            let source = result.document().node().syntax().text().to_string();
+            let source = result.document().root().text().to_string();
             let file = SimpleFile::new(path, &source);
             for diagnostic in diagnostics.as_ref() {
                 term::emit(

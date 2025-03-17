@@ -130,14 +130,14 @@ fn check_decl_name(
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
     let name = decl.name();
-    let name = name.as_str();
+    let name = name.text();
 
     let length = name.len();
     if length < 3 {
         // name is too short
         state.exceptable_add(
             decl_identifier_too_short(decl.name().span()),
-            SyntaxElement::from(decl.syntax().clone()),
+            SyntaxElement::from(decl.inner().clone()),
             exceptable_nodes,
         );
     }
@@ -154,7 +154,7 @@ fn check_decl_name(
                             // name starts with "out"
                             state.exceptable_add(
                                 decl_identifier_starts_with_out(decl.name().span()),
-                                SyntaxElement::from(decl.syntax().clone()),
+                                SyntaxElement::from(decl.inner().clone()),
                                 exceptable_nodes,
                             );
                         } else {
@@ -163,7 +163,7 @@ fn check_decl_name(
                                 // name starts with "output"
                                 state.exceptable_add(
                                     decl_identifier_starts_with_output(decl.name().span()),
-                                    SyntaxElement::from(decl.syntax().clone()),
+                                    SyntaxElement::from(decl.inner().clone()),
                                     exceptable_nodes,
                                 );
                             }

@@ -67,7 +67,7 @@ impl Workflow {
     /// Returns the `category` entry from the meta section, if it exists.
     pub fn category(&self) -> Option<String> {
         self.meta.get("category").and_then(|v| match v {
-            MetadataValue::String(s) => Some(s.text().unwrap().as_str().to_string()),
+            MetadataValue::String(s) => Some(s.text().unwrap().text().to_string()),
             _ => None,
         })
     }
@@ -157,7 +157,7 @@ mod tests {
         let ast_workflow = doc_item.into_workflow_definition().unwrap();
 
         let workflow = Workflow::new(
-            ast_workflow.name().as_str().to_string(),
+            ast_workflow.name().text().to_string(),
             ast_workflow.metadata(),
             ast_workflow.parameter_metadata(),
             ast_workflow.input(),

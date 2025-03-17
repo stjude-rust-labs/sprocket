@@ -81,7 +81,7 @@ RootNode@0..651
       IfKeyword@597..599 "if"
       Whitespace@599..600 " "
       OpenParen@600..601 "("
-      NameRefNode@601..604
+      NameRefExprNode@601..604
         Ident@601..604 "foo"
       CloseParen@604..605 ")"
       Whitespace@605..606 " "

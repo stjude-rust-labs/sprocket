@@ -310,8 +310,8 @@ pub enum SyntaxKind {
     LiteralOutputItemNode,
     /// Represents a parenthesized expression node.
     ParenthesizedExprNode,
-    /// Represents a name reference node.
-    NameRefNode,
+    /// Represents a name reference expression node.
+    NameRefExprNode,
     /// Represents an `if` expression node.
     IfExprNode,
     /// Represents a logical not expression node.
@@ -529,7 +529,7 @@ impl SyntaxKind {
             Self::LiteralOutputNode => "literal output",
             Self::LiteralOutputItemNode => "literal output item",
             Self::ParenthesizedExprNode => "parenthesized expression",
-            Self::NameRefNode => "name reference",
+            Self::NameRefExprNode => "name reference expression",
             Self::IfExprNode => "`if` expression",
             Self::LogicalNotExprNode => "logical not expression",
             Self::NegationExprNode => "negation expression",

@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use rowan::ast::support;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -11,10 +12,8 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
-use wdl_ast::support;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
 
@@ -141,7 +140,7 @@ impl Visitor for CommandSectionMixedIndentationRule {
         'outer: for part in section.parts() {
             match part {
                 CommandPart::Text(text) => {
-                    for (line, start, _) in lines_with_offset(text.as_str()) {
+                    for (line, start, _) in lines_with_offset(text.text()) {
                         // Check to see if we should skip the next line
                         // This happens after we encounter a placeholder
                         if skip_next_line {
@@ -177,16 +176,16 @@ impl Visitor for CommandSectionMixedIndentationRule {
         }
 
         if let Some(span) = mixed_span {
-            let command_keyword = support::token(section.syntax(), SyntaxKind::CommandKeyword)
+            let command_keyword = support::token(section.inner(), SyntaxKind::CommandKeyword)
                 .expect("should have a command keyword token");
 
             state.exceptable_add(
                 mixed_indentation(
-                    command_keyword.text_range().to_span(),
+                    command_keyword.text_range().into(),
                     span,
                     kind.expect("an indentation kind should be present"),
                 ),
-                SyntaxElement::from(section.syntax().clone()),
+                SyntaxElement::from(section.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }

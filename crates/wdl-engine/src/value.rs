@@ -26,6 +26,7 @@ use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::AstToken;
+use wdl_ast::TreeNode;
 use wdl_ast::v1;
 use wdl_ast::v1::TASK_FIELD_ATTEMPT;
 use wdl_ast::v1::TASK_FIELD_CONTAINER;
@@ -92,7 +93,7 @@ impl Value {
     /// # Panics
     ///
     /// Panics if the metadata value contains an invalid numeric value.
-    pub fn from_v1_metadata(value: &v1::MetadataValue) -> Self {
+    pub fn from_v1_metadata<N: TreeNode>(value: &v1::MetadataValue<N>) -> Self {
         match value {
             v1::MetadataValue::Boolean(v) => v.value().into(),
             v1::MetadataValue::Integer(v) => v.value().expect("number should be in range").into(),
@@ -100,7 +101,7 @@ impl Value {
             v1::MetadataValue::String(v) => PrimitiveValue::new_string(
                 v.text()
                     .expect("metadata strings shouldn't have placeholders")
-                    .as_str(),
+                    .text(),
             )
             .into(),
             v1::MetadataValue::Null(_) => Self::None,
@@ -1708,11 +1709,13 @@ impl Object {
     }
 
     /// Creates an object from an iterator of V1 AST metadata items.
-    pub fn from_v1_metadata(items: impl Iterator<Item = v1::MetadataObjectItem>) -> Self {
+    pub fn from_v1_metadata<N: TreeNode>(
+        items: impl Iterator<Item = v1::MetadataObjectItem<N>>,
+    ) -> Self {
         items
             .map(|i| {
                 (
-                    i.name().as_str().to_string(),
+                    i.name().text().to_string(),
                     Value::from_v1_metadata(&i.value()),
                 )
             })
@@ -2692,10 +2695,10 @@ pub struct TaskValue {
 
 impl TaskValue {
     /// Constructs a new task value with the given name and identifier.
-    pub(crate) fn new_v1(
+    pub(crate) fn new_v1<N: TreeNode>(
         name: impl Into<String>,
         id: impl Into<String>,
-        definition: &v1::TaskDefinition,
+        definition: &v1::TaskDefinition<N>,
         constraints: TaskExecutionConstraints,
         attempt: i64,
     ) -> Self {

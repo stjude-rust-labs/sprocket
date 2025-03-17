@@ -68,10 +68,10 @@ impl Visitor for TodoRule {
     }
 
     fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
-        for (offset, pattern) in comment.as_str().match_indices(TODO) {
+        for (offset, pattern) in comment.text().match_indices(TODO) {
             state.exceptable_add(
                 todo_comment(pattern, comment.span(), offset),
-                SyntaxElement::from(comment.syntax().clone()),
+                SyntaxElement::from(comment.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }

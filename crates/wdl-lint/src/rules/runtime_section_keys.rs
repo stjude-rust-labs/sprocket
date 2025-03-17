@@ -17,8 +17,7 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
-use wdl_ast::TokenStrHash;
+use wdl_ast::TokenText;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::RuntimeItem;
@@ -170,28 +169,25 @@ fn serialize_oxford_comma<T: std::fmt::Display>(items: &[T]) -> Option<String> {
 fn deprecated_runtime_key(key: &Ident, replacement: &str) -> Diagnostic {
     Diagnostic::note(format!(
         "the `{key}` runtime key has been deprecated in favor of `{replacement}`",
-        key = key.as_str()
+        key = key.text()
     ))
     .with_rule(ID)
     .with_highlight(key.span())
     .with_fix(format!(
         "replace the `{key}` key with `{replacement}`",
-        key = key.as_str()
+        key = key.text()
     ))
 }
 
 /// Creates an "non-reserved runtime key" diagnostic.
 fn report_non_reserved_runtime_keys(
-    keys: &HashSet<TokenStrHash<Ident>>,
+    keys: &HashSet<TokenText>,
     runtime_span: Span,
     specification: &str,
 ) -> Diagnostic {
     assert!(!keys.is_empty());
 
-    let mut key_names = keys
-        .iter()
-        .map(|key| key.as_ref().as_str())
-        .collect::<Vec<_>>();
+    let mut key_names = keys.iter().map(|key| key.text()).collect::<Vec<_>>();
     key_names.sort();
 
     let (message, fix) = if key_names.len() == 1 {
@@ -239,9 +235,8 @@ fn report_non_reserved_runtime_keys(
         .with_fix(fix);
 
     for key in keys.iter() {
-        let key = key.as_ref();
         diagnostic = diagnostic.with_label(
-            format!("the `{key}` key should be removed", key = key.as_str()),
+            format!("the `{key}` key should be removed", key = key.text()),
             key.span(),
         );
     }
@@ -305,7 +300,7 @@ pub struct RuntimeSectionKeysRule {
     /// All keys encountered in the current runtime section.
     encountered_keys: Vec<Ident>,
     /// All non-reserved keys encountered in the current runtime section.
-    non_reserved_keys: HashSet<TokenStrHash<Ident>>,
+    non_reserved_keys: HashSet<TokenText>,
 }
 
 impl Rule for RuntimeSectionKeysRule {
@@ -404,7 +399,7 @@ impl Visitor for RuntimeSectionKeysRule {
                 let runtime_node = def
                     .runtime()
                     .expect("runtime section should exist")
-                    .syntax()
+                    .inner()
                     .clone();
 
                 // SAFETY: the version must always be set before we get to this
@@ -431,9 +426,7 @@ impl Visitor for RuntimeSectionKeysRule {
                     };
 
                     let missing_keys = recommended_keys
-                        .filter(|(key, _)| {
-                            !self.encountered_keys.iter().any(|s| s.as_str() == *key)
-                        })
+                        .filter(|(key, _)| !self.encountered_keys.iter().any(|s| s.text() == *key))
                         .map(|(key, _)| key)
                         .collect::<Vec<_>>();
 
@@ -476,11 +469,11 @@ impl Visitor for RuntimeSectionKeysRule {
                     Some(_) => unreachable!(),
                     None => Some(
                         section
-                            .syntax()
+                            .inner()
                             .first_token()
                             .expect("runtime section should have tokens")
                             .text_range()
-                            .to_span(),
+                            .into(),
                     ),
                 };
             }
@@ -514,7 +507,7 @@ impl Visitor for RuntimeSectionKeysRule {
             //   version of 1.2 or later should ignore the keys and report the section as
             //   deprecated (in another rule).
             if minor_version == V1::One {
-                match keys_v1_1().get(key_name.as_str()) {
+                match keys_v1_1().get(key_name.text()) {
                     Some(kind) => {
                         // If the key was found in the map, the only potential
                         // problem that can be encountered is if the key is
@@ -522,7 +515,7 @@ impl Visitor for RuntimeSectionKeysRule {
                         if let KeyKind::Deprecated(replacement) = kind {
                             state.exceptable_add(
                                 deprecated_runtime_key(&key_name, replacement),
-                                SyntaxElement::from(item.syntax().clone()),
+                                SyntaxElement::from(item.inner().clone()),
                                 &self.exceptable_nodes(),
                             );
                         }
@@ -530,8 +523,7 @@ impl Visitor for RuntimeSectionKeysRule {
                     None => {
                         // If the key was _not_ found in the map, that means the
                         // key was not one of the permitted values for WDL v1.1.
-                        self.non_reserved_keys
-                            .insert(TokenStrHash::new(key_name.clone()));
+                        self.non_reserved_keys.insert(key_name.hashable());
                     }
                 }
             }

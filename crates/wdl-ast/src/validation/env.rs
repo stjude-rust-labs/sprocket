@@ -1,6 +1,6 @@
 //! Validation of `env` declarations.
 
-use crate::AstNodeExt;
+use crate::AstNode;
 use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;

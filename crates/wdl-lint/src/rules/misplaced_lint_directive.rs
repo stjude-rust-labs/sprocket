@@ -13,7 +13,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 
@@ -47,7 +46,7 @@ fn misplaced_lint_directive(
     .with_label("cannot make an exception for this rule", span)
     .with_label(
         "invalid element for this lint directive",
-        wrong_element.text_range().to_span(),
+        wrong_element.text_range(),
     )
     .with_fix(format!(
         "valid locations for this directive are above: {locations}"
@@ -104,12 +103,12 @@ impl Visitor for MisplacedLintDirectiveRule {
     }
 
     fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
-        if let Some(ids) = comment.as_str().strip_prefix(EXCEPT_COMMENT_PREFIX) {
+        if let Some(ids) = comment.text().strip_prefix(EXCEPT_COMMENT_PREFIX) {
             let start: usize = comment.span().start();
             let mut offset = EXCEPT_COMMENT_PREFIX.len();
 
             let excepted_element = comment
-                .syntax()
+                .inner()
                 .siblings_with_tokens(rowan::Direction::Next)
                 .find_map(|s| {
                     if s.kind() == SyntaxKind::Whitespace || s.kind() == SyntaxKind::Comment {

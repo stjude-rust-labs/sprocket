@@ -5,7 +5,6 @@
 //! `runtime`/`requirements` sections.
 
 use wdl_ast::AstNode;
-use wdl_ast::AstNodeExt;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
@@ -164,7 +163,7 @@ impl Visitor for ContainerValue {
                 check_container_value(
                     state,
                     value,
-                    SyntaxElement::from(section.syntax().clone()),
+                    SyntaxElement::from(section.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             }
@@ -186,7 +185,7 @@ impl Visitor for ContainerValue {
                 check_container_value(
                     state,
                     value,
-                    SyntaxElement::from(section.syntax().clone()),
+                    SyntaxElement::from(section.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             }

@@ -1,6 +1,6 @@
 //! A lint rule for using double quoted strings.
 
-use wdl_ast::AstNodeExt;
+use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
@@ -93,7 +93,7 @@ impl Visitor for DoubleQuotesRule {
             if s.kind() == LiteralStringKind::SingleQuoted {
                 state.exceptable_add(
                     use_double_quotes(s.span()),
-                    SyntaxElement::from(expr.syntax().clone()),
+                    SyntaxElement::from(expr.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             }

@@ -41,7 +41,7 @@ RootNode@0..450
           Whitespace@142..143 " "
           InKeyword@143..145 "in"
           Whitespace@145..146 " "
-          NameRefNode@146..147
+          NameRefExprNode@146..147
             Ident@146..147 "y"
           CloseParen@147..148 ")"
           Whitespace@148..149 " "
@@ -75,7 +75,7 @@ RootNode@0..450
         IfKeyword@323..325 "if"
         Whitespace@325..326 " "
         OpenParen@326..327 "("
-        NameRefNode@327..328
+        NameRefExprNode@327..328
           Ident@327..328 "x"
         CloseParen@328..329 ")"
         Whitespace@329..330 " "

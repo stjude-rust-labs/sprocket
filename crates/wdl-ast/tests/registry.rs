@@ -23,12 +23,13 @@ use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Ident;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxNode;
+use wdl_ast::SyntaxToken;
 use wdl_ast::Version;
 use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
 use wdl_grammar::ALL_SYNTAX_KIND;
-use wdl_grammar::WorkflowDescriptionLanguage;
 
 /// A private module for sealed traits.
 ///
@@ -154,7 +155,7 @@ static REGISTRY: LazyLock<HashMap<&'static str, Box<[SyntaxKind]>>> = LazyLock::
         v1::Minus::register(),
         v1::ModuloExpr::register(),
         v1::MultiplicationExpr::register(),
-        v1::NameRef::register(),
+        v1::NameRefExpr::register(),
         v1::NegationExpr::register(),
         v1::NoneKeyword::register(),
         v1::NotEqual::register(),
@@ -260,9 +261,9 @@ trait AstNodeRegistrant: private::SealedNode {
     fn register() -> (&'static str, Box<[SyntaxKind]>);
 }
 
-impl<T: AstNode<Language = WorkflowDescriptionLanguage> + 'static> private::SealedNode for T {}
+impl<T: AstNode<SyntaxNode> + 'static> private::SealedNode for T {}
 
-impl<T: AstNode<Language = WorkflowDescriptionLanguage> + 'static> AstNodeRegistrant for T {
+impl<T: AstNode<SyntaxNode> + 'static> AstNodeRegistrant for T {
     fn register() -> (&'static str, Box<[SyntaxKind]>) {
         (
             type_name::<T>(),
@@ -282,9 +283,9 @@ trait AstTokenRegistrant: private::SealedToken {
     fn register() -> (&'static str, Box<[SyntaxKind]>);
 }
 
-impl<T: AstToken + 'static> private::SealedToken for T {}
+impl<T: AstToken<SyntaxToken> + 'static> private::SealedToken for T {}
 
-impl<T: AstToken + 'static> AstTokenRegistrant for T {
+impl<T: AstToken<SyntaxToken> + 'static> AstTokenRegistrant for T {
     fn register() -> (&'static str, Box<[SyntaxKind]>) {
         (
             type_name::<T>(),

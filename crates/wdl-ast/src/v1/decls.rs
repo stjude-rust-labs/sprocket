@@ -4,22 +4,23 @@ use std::fmt;
 
 use super::EnvKeyword;
 use super::Expr;
+use super::Plus;
+use super::QuestionMark;
 use crate::AstNode;
 use crate::AstToken;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
-use crate::WorkflowDescriptionLanguage;
-use crate::support;
-use crate::token;
+use crate::TreeNode;
+use crate::TreeToken;
 
 /// Represents a `Map` type.
 #[derive(Clone, Debug, Eq)]
-pub struct MapType(SyntaxNode);
+pub struct MapType<N: TreeNode = SyntaxNode>(N);
 
-impl MapType {
+impl<N: TreeNode> MapType<N> {
     /// Gets the key and value types of the `Map`.
-    pub fn types(&self) -> (PrimitiveType, Type) {
+    pub fn types(&self) -> (PrimitiveType<N>, Type<N>) {
         let mut children = self.0.children().filter_map(Type::cast);
         let key = children
             .next()
@@ -38,33 +39,25 @@ impl MapType {
     }
 }
 
-impl PartialEq for MapType {
+impl<N: TreeNode> PartialEq for MapType<N> {
     fn eq(&self, other: &Self) -> bool {
         self.is_optional() == other.is_optional() && self.types() == other.types()
     }
 }
 
-impl AstNode for MapType {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for MapType<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::MapTypeNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::MapTypeNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::MapTypeNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
@@ -82,29 +75,26 @@ impl fmt::Display for MapType {
 
 /// Represents an `Array` type.
 #[derive(Clone, Debug, Eq)]
-pub struct ArrayType(SyntaxNode);
+pub struct ArrayType<N: TreeNode = SyntaxNode>(N);
 
-impl ArrayType {
+impl<N: TreeNode> ArrayType<N> {
     /// Gets the element type of the array.
-    pub fn element_type(&self) -> Type {
+    pub fn element_type(&self) -> Type<N> {
         Type::child(&self.0).expect("array should have an element type")
     }
 
     /// Determines if the type has the "non-empty" qualifier.
     pub fn is_non_empty(&self) -> bool {
-        support::token(&self.0, SyntaxKind::Plus).is_some()
+        self.token::<Plus<N::Token>>().is_some()
     }
 
     /// Determines if the type is optional.
     pub fn is_optional(&self) -> bool {
-        matches!(
-            self.0.last_token().map(|t| t.kind()),
-            Some(SyntaxKind::QuestionMark)
-        )
+        self.last_token::<QuestionMark<N::Token>>().is_some()
     }
 }
 
-impl PartialEq for ArrayType {
+impl<N: TreeNode> PartialEq for ArrayType<N> {
     fn eq(&self, other: &Self) -> bool {
         self.is_optional() == other.is_optional()
             && self.is_non_empty() == other.is_non_empty()
@@ -112,27 +102,19 @@ impl PartialEq for ArrayType {
     }
 }
 
-impl AstNode for ArrayType {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for ArrayType<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::ArrayTypeNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::ArrayTypeNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::ArrayTypeNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
@@ -151,11 +133,11 @@ impl fmt::Display for ArrayType {
 
 /// Represents a `Pair` type.
 #[derive(Clone, Debug, Eq)]
-pub struct PairType(SyntaxNode);
+pub struct PairType<N: TreeNode = SyntaxNode>(N);
 
-impl PairType {
+impl<N: TreeNode> PairType<N> {
     /// Gets the first and second types of the `Pair`.
-    pub fn types(&self) -> (Type, Type) {
+    pub fn types(&self) -> (Type<N>, Type<N>) {
         let mut children = self.0.children().filter_map(Type::cast);
         let left = children.next().expect("pair should have a left type");
         let right = children.next().expect("pair should have a right type");
@@ -171,33 +153,25 @@ impl PairType {
     }
 }
 
-impl PartialEq for PairType {
+impl<N: TreeNode> PartialEq for PairType<N> {
     fn eq(&self, other: &Self) -> bool {
         self.is_optional() == other.is_optional() && self.types() == other.types()
     }
 }
 
-impl AstNode for PairType {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for PairType<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::PairTypeNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::PairTypeNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::PairTypeNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
@@ -215,9 +189,9 @@ impl fmt::Display for PairType {
 
 /// Represents a `Object` type.
 #[derive(Clone, Debug, Eq)]
-pub struct ObjectType(SyntaxNode);
+pub struct ObjectType<N: TreeNode = SyntaxNode>(N);
 
-impl ObjectType {
+impl<N: TreeNode> ObjectType<N> {
     /// Determines if the type is optional.
     pub fn is_optional(&self) -> bool {
         matches!(
@@ -227,33 +201,25 @@ impl ObjectType {
     }
 }
 
-impl PartialEq for ObjectType {
+impl<N: TreeNode> PartialEq for ObjectType<N> {
     fn eq(&self, other: &Self) -> bool {
         self.is_optional() == other.is_optional()
     }
 }
 
-impl AstNode for ObjectType {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for ObjectType<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::ObjectTypeNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::ObjectTypeNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::ObjectTypeNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
@@ -270,12 +236,12 @@ impl fmt::Display for ObjectType {
 
 /// Represents a reference to a type.
 #[derive(Clone, Debug, Eq)]
-pub struct TypeRef(SyntaxNode);
+pub struct TypeRef<N: TreeNode = SyntaxNode>(N);
 
-impl TypeRef {
+impl<N: TreeNode> TypeRef<N> {
     /// Gets the name of the type reference.
-    pub fn name(&self) -> Ident {
-        token(&self.0).expect("type reference should have a name")
+    pub fn name(&self) -> Ident<N::Token> {
+        self.token().expect("type reference should have a name")
     }
 
     /// Determines if the type is optional.
@@ -287,33 +253,25 @@ impl TypeRef {
     }
 }
 
-impl PartialEq for TypeRef {
+impl<N: TreeNode> PartialEq for TypeRef<N> {
     fn eq(&self, other: &Self) -> bool {
-        self.is_optional() == other.is_optional() && self.name().as_str() == other.name().as_str()
+        self.is_optional() == other.is_optional() && self.name().text() == other.name().text()
     }
 }
 
-impl AstNode for TypeRef {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for TypeRef<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::TypeRefNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::TypeRefNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::TypeRefNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
@@ -323,7 +281,7 @@ impl fmt::Display for TypeRef {
         write!(
             f,
             "{n}{o}",
-            n = self.name().as_str(),
+            n = self.name().text(),
             o = if self.is_optional() { "?" } else { "" }
         )
     }
@@ -348,21 +306,23 @@ pub enum PrimitiveTypeKind {
 
 /// Represents a primitive type.
 #[derive(Clone, Debug, Eq)]
-pub struct PrimitiveType(SyntaxNode);
+pub struct PrimitiveType<N: TreeNode = SyntaxNode>(N);
 
-impl PrimitiveType {
+impl<N: TreeNode> PrimitiveType<N> {
     /// Gets the kind of the primitive type.
     pub fn kind(&self) -> PrimitiveTypeKind {
         self.0
             .children_with_tokens()
-            .find_map(|t| match t.kind() {
-                SyntaxKind::BooleanTypeKeyword => Some(PrimitiveTypeKind::Boolean),
-                SyntaxKind::IntTypeKeyword => Some(PrimitiveTypeKind::Integer),
-                SyntaxKind::FloatTypeKeyword => Some(PrimitiveTypeKind::Float),
-                SyntaxKind::StringTypeKeyword => Some(PrimitiveTypeKind::String),
-                SyntaxKind::FileTypeKeyword => Some(PrimitiveTypeKind::File),
-                SyntaxKind::DirectoryTypeKeyword => Some(PrimitiveTypeKind::Directory),
-                _ => None,
+            .find_map(|c| {
+                c.into_token().and_then(|t| match t.kind() {
+                    SyntaxKind::BooleanTypeKeyword => Some(PrimitiveTypeKind::Boolean),
+                    SyntaxKind::IntTypeKeyword => Some(PrimitiveTypeKind::Integer),
+                    SyntaxKind::FloatTypeKeyword => Some(PrimitiveTypeKind::Float),
+                    SyntaxKind::StringTypeKeyword => Some(PrimitiveTypeKind::String),
+                    SyntaxKind::FileTypeKeyword => Some(PrimitiveTypeKind::File),
+                    SyntaxKind::DirectoryTypeKeyword => Some(PrimitiveTypeKind::Directory),
+                    _ => None,
+                })
             })
             .expect("type should have a kind")
     }
@@ -376,33 +336,25 @@ impl PrimitiveType {
     }
 }
 
-impl PartialEq for PrimitiveType {
+impl<N: TreeNode> PartialEq for PrimitiveType<N> {
     fn eq(&self, other: &Self) -> bool {
         self.kind() == other.kind()
     }
 }
 
-impl AstNode for PrimitiveType {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for PrimitiveType<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::PrimitiveTypeNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::PrimitiveTypeNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::PrimitiveTypeNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
@@ -427,29 +379,26 @@ impl fmt::Display for PrimitiveType {
 }
 
 /// Represents a type.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Type {
+#[derive(Clone, Debug, Eq)]
+pub enum Type<N: TreeNode = SyntaxNode> {
     /// The type is a map.
-    Map(MapType),
+    Map(MapType<N>),
     /// The type is an array.
-    Array(ArrayType),
+    Array(ArrayType<N>),
     /// The type is a pair.
-    Pair(PairType),
+    Pair(PairType<N>),
     /// The type is an object.
-    Object(ObjectType),
+    Object(ObjectType<N>),
     /// The type is a reference to custom type.
-    Ref(TypeRef),
+    Ref(TypeRef<N>),
     /// The type is a primitive.
-    Primitive(PrimitiveType),
+    Primitive(PrimitiveType<N>),
 }
 
-impl Type {
-    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
-    /// underlying members within the [`Type`].
-    pub fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> Type<N> {
+    //// Returns whether or not the given syntax kind can be cast to
+    /// [`Type`].
+    pub fn can_cast(kind: SyntaxKind) -> bool {
         matches!(
             kind,
             SyntaxKind::MapTypeNode
@@ -461,41 +410,42 @@ impl Type {
         )
     }
 
-    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
-    /// within the [`Type`].
-    pub fn cast(syntax: SyntaxNode) -> Option<Self> {
-        match syntax.kind() {
+    /// Casts the given node to [`Type`].
+    ///
+    /// Returns `None` if the node cannot be cast.
+    pub fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
             SyntaxKind::MapTypeNode => {
-                Some(Self::Map(MapType::cast(syntax).expect("map type to cast")))
+                Some(Self::Map(MapType::cast(inner).expect("map type to cast")))
             }
             SyntaxKind::ArrayTypeNode => Some(Self::Array(
-                ArrayType::cast(syntax).expect("array type to cast"),
+                ArrayType::cast(inner).expect("array type to cast"),
             )),
             SyntaxKind::PairTypeNode => Some(Self::Pair(
-                PairType::cast(syntax).expect("pair type to cast"),
+                PairType::cast(inner).expect("pair type to cast"),
             )),
             SyntaxKind::ObjectTypeNode => Some(Self::Object(
-                ObjectType::cast(syntax).expect("object type to cast"),
+                ObjectType::cast(inner).expect("object type to cast"),
             )),
             SyntaxKind::TypeRefNode => {
-                Some(Self::Ref(TypeRef::cast(syntax).expect("type ref to cast")))
+                Some(Self::Ref(TypeRef::cast(inner).expect("type ref to cast")))
             }
             SyntaxKind::PrimitiveTypeNode => Some(Self::Primitive(
-                PrimitiveType::cast(syntax).expect("primitive type to cast"),
+                PrimitiveType::cast(inner).expect("primitive type to cast"),
             )),
             _ => None,
         }
     }
 
-    /// Gets a reference to the underlying [`SyntaxNode`].
-    pub fn syntax(&self) -> &SyntaxNode {
+    /// Gets a reference to the inner node.
+    pub fn inner(&self) -> &N {
         match self {
-            Type::Map(element) => element.syntax(),
-            Type::Array(element) => element.syntax(),
-            Type::Pair(element) => element.syntax(),
-            Type::Object(element) => element.syntax(),
-            Type::Ref(element) => element.syntax(),
-            Type::Primitive(element) => element.syntax(),
+            Self::Map(ty) => ty.inner(),
+            Self::Array(ty) => ty.inner(),
+            Self::Pair(ty) => ty.inner(),
+            Self::Object(ty) => ty.inner(),
+            Self::Ref(ty) => ty.inner(),
+            Self::Primitive(ty) => ty.inner(),
         }
     }
 
@@ -516,9 +466,9 @@ impl Type {
     /// * If `self` is a [`Type::Map`], then a reference to the inner
     ///   [`MapType`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_map_type(&self) -> Option<&MapType> {
+    pub fn as_map_type(&self) -> Option<&MapType<N>> {
         match self {
-            Self::Map(map) => Some(map),
+            Self::Map(ty) => Some(ty),
             _ => None,
         }
     }
@@ -528,9 +478,9 @@ impl Type {
     /// * If `self` is a [`Type::Map`], then the inner [`MapType`] is returned
     ///   wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_map_type(self) -> Option<MapType> {
+    pub fn into_map_type(self) -> Option<MapType<N>> {
         match self {
-            Self::Map(map) => Some(map),
+            Self::Map(ty) => Some(ty),
             _ => None,
         }
     }
@@ -540,7 +490,7 @@ impl Type {
     /// # Panics
     ///
     /// Panics if the type is not a map type.
-    pub fn unwrap_map_type(self) -> MapType {
+    pub fn unwrap_map_type(self) -> MapType<N> {
         match self {
             Self::Map(ty) => ty,
             _ => panic!("not a map type"),
@@ -552,9 +502,9 @@ impl Type {
     /// * If `self` is a [`Type::Array`], then a reference to the inner
     ///   [`ArrayType`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_array_type(&self) -> Option<&ArrayType> {
+    pub fn as_array_type(&self) -> Option<&ArrayType<N>> {
         match self {
-            Self::Array(array) => Some(array),
+            Self::Array(ty) => Some(ty),
             _ => None,
         }
     }
@@ -564,9 +514,9 @@ impl Type {
     /// * If `self` is a [`Type::Array`], then the inner [`ArrayType`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_array_type(self) -> Option<ArrayType> {
+    pub fn into_array_type(self) -> Option<ArrayType<N>> {
         match self {
-            Self::Array(array) => Some(array),
+            Self::Array(ty) => Some(ty),
             _ => None,
         }
     }
@@ -576,7 +526,7 @@ impl Type {
     /// # Panics
     ///
     /// Panics if the type is not an array type.
-    pub fn unwrap_array_type(self) -> ArrayType {
+    pub fn unwrap_array_type(self) -> ArrayType<N> {
         match self {
             Self::Array(ty) => ty,
             _ => panic!("not an array type"),
@@ -588,9 +538,9 @@ impl Type {
     /// * If `self` is a [`Type::Pair`], then a reference to the inner
     ///   [`PairType`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_pair_type(&self) -> Option<&PairType> {
+    pub fn as_pair_type(&self) -> Option<&PairType<N>> {
         match self {
-            Self::Pair(pair) => Some(pair),
+            Self::Pair(ty) => Some(ty),
             _ => None,
         }
     }
@@ -600,9 +550,9 @@ impl Type {
     /// * If `self` is a [`Type::Pair`], then the inner [`PairType`] is returned
     ///   wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_pair_type(self) -> Option<PairType> {
+    pub fn into_pair_type(self) -> Option<PairType<N>> {
         match self {
-            Self::Pair(pair) => Some(pair),
+            Self::Pair(ty) => Some(ty),
             _ => None,
         }
     }
@@ -612,7 +562,7 @@ impl Type {
     /// # Panics
     ///
     /// Panics if the type is not a pair type.
-    pub fn unwrap_pair_type(self) -> PairType {
+    pub fn unwrap_pair_type(self) -> PairType<N> {
         match self {
             Self::Pair(ty) => ty,
             _ => panic!("not a pair type"),
@@ -624,9 +574,9 @@ impl Type {
     /// * If `self` is a [`Type::Object`], then a reference to the inner
     ///   [`ObjectType`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_object_type(&self) -> Option<&ObjectType> {
+    pub fn as_object_type(&self) -> Option<&ObjectType<N>> {
         match self {
-            Self::Object(object) => Some(object),
+            Self::Object(ty) => Some(ty),
             _ => None,
         }
     }
@@ -636,9 +586,9 @@ impl Type {
     /// * If `self` is a [`Type::Object`], then the inner [`ObjectType`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_object_type(self) -> Option<ObjectType> {
+    pub fn into_object_type(self) -> Option<ObjectType<N>> {
         match self {
-            Self::Object(object) => Some(object),
+            Self::Object(ty) => Some(ty),
             _ => None,
         }
     }
@@ -648,7 +598,7 @@ impl Type {
     /// # Panics
     ///
     /// Panics if the type is not an object type.
-    pub fn unwrap_object_type(self) -> ObjectType {
+    pub fn unwrap_object_type(self) -> ObjectType<N> {
         match self {
             Self::Object(ty) => ty,
             _ => panic!("not an object type"),
@@ -660,9 +610,9 @@ impl Type {
     /// * If `self` is a [`Type::Ref`], then a reference to the inner
     ///   [`TypeRef`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_type_ref(&self) -> Option<&TypeRef> {
+    pub fn as_type_ref(&self) -> Option<&TypeRef<N>> {
         match self {
-            Self::Ref(type_ref) => Some(type_ref),
+            Self::Ref(ty) => Some(ty),
             _ => None,
         }
     }
@@ -672,9 +622,9 @@ impl Type {
     /// * If `self` is a [`Type::Ref`], then the inner [`TypeRef`] is returned
     ///   wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_type_ref(self) -> Option<TypeRef> {
+    pub fn into_type_ref(self) -> Option<TypeRef<N>> {
         match self {
-            Self::Ref(type_ref) => Some(type_ref),
+            Self::Ref(ty) => Some(ty),
             _ => None,
         }
     }
@@ -684,9 +634,9 @@ impl Type {
     /// # Panics
     ///
     /// Panics if the type is not a type reference.
-    pub fn unwrap_type_ref(self) -> TypeRef {
+    pub fn unwrap_type_ref(self) -> TypeRef<N> {
         match self {
-            Self::Ref(r) => r,
+            Self::Ref(ty) => ty,
             _ => panic!("not a type reference"),
         }
     }
@@ -696,9 +646,9 @@ impl Type {
     /// * If `self` is a [`Type::Primitive`], then a reference to the inner
     ///   [`PrimitiveType`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_primitive_type(&self) -> Option<&PrimitiveType> {
+    pub fn as_primitive_type(&self) -> Option<&PrimitiveType<N>> {
         match self {
-            Self::Primitive(primitive) => Some(primitive),
+            Self::Primitive(ty) => Some(ty),
             _ => None,
         }
     }
@@ -708,9 +658,9 @@ impl Type {
     /// * If `self` is a [`Type::Primitive`], then the inner [`PrimitiveType`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_primitive_type(self) -> Option<PrimitiveType> {
+    pub fn into_primitive_type(self) -> Option<PrimitiveType<N>> {
         match self {
-            Self::Primitive(primitive) => Some(primitive),
+            Self::Primitive(ty) => Some(ty),
             _ => None,
         }
     }
@@ -720,7 +670,7 @@ impl Type {
     /// # Panics
     ///
     /// Panics if the type is not a primitive type.
-    pub fn unwrap_primitive_type(self) -> PrimitiveType {
+    pub fn unwrap_primitive_type(self) -> PrimitiveType<N> {
         match self {
             Self::Primitive(ty) => ty,
             _ => panic!("not a primitive type"),
@@ -728,21 +678,27 @@ impl Type {
     }
 
     /// Finds the first child that can be cast to a [`Type`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::child`] without requiring [`Type`] to implement
-    /// the `AstNode` trait.
-    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
-        syntax.children().find_map(Self::cast)
+    pub fn child(node: &N) -> Option<Self> {
+        node.children().find_map(Self::cast)
     }
 
     /// Finds all children that can be cast to a [`Type`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::children`] without requiring [`Type`] to
-    /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = Type> + use<> {
-        syntax.children().filter_map(Self::cast)
+    pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
+        node.children().filter_map(Self::cast)
+    }
+}
+
+impl<N: TreeNode> PartialEq for Type<N> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Map(l), Self::Map(r)) => l == r,
+            (Self::Array(l), Self::Array(r)) => l == r,
+            (Self::Pair(l), Self::Pair(r)) => l == r,
+            (Self::Object(l), Self::Object(r)) => l == r,
+            (Self::Ref(l), Self::Ref(r)) => l == r,
+            (Self::Primitive(l), Self::Primitive(r)) => l == r,
+            _ => false,
+        }
     }
 }
 
@@ -761,147 +717,127 @@ impl fmt::Display for Type {
 
 /// Represents an unbound declaration.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct UnboundDecl(pub(crate) SyntaxNode);
+pub struct UnboundDecl<N: TreeNode = SyntaxNode>(pub(crate) N);
 
-impl UnboundDecl {
+impl<N: TreeNode> UnboundDecl<N> {
     /// Gets the `env` token, if present.
     ///
     /// This may only return a token for task inputs (WDL 1.2+).
-    pub fn env(&self) -> Option<EnvKeyword> {
-        token(&self.0)
+    pub fn env(&self) -> Option<EnvKeyword<N::Token>> {
+        self.token()
     }
 
     /// Gets the type of the declaration.
-    pub fn ty(&self) -> Type {
+    pub fn ty(&self) -> Type<N> {
         Type::child(&self.0).expect("unbound declaration should have a type")
     }
 
     /// Gets the name of the declaration.
-    pub fn name(&self) -> Ident {
-        token(&self.0).expect("unbound declaration should have a name")
+    pub fn name(&self) -> Ident<N::Token> {
+        self.token()
+            .expect("unbound declaration should have a name")
     }
 }
 
-impl AstNode for UnboundDecl {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for UnboundDecl<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::UnboundDeclNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::UnboundDeclNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::UnboundDeclNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a bound declaration in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BoundDecl(pub(crate) SyntaxNode);
+pub struct BoundDecl<N: TreeNode = SyntaxNode>(pub(crate) N);
 
-impl BoundDecl {
+impl<N: TreeNode> BoundDecl<N> {
     /// Gets the `env` token, if present.
     ///
     /// This may only return a token for task inputs and private declarations
     /// (WDL 1.2+).
-    pub fn env(&self) -> Option<EnvKeyword> {
-        token(&self.0)
+    pub fn env(&self) -> Option<EnvKeyword<N::Token>> {
+        self.token()
     }
 
     /// Gets the type of the declaration.
-    pub fn ty(&self) -> Type {
+    pub fn ty(&self) -> Type<N> {
         Type::child(&self.0).expect("bound declaration should have a type")
     }
 
     /// Gets the name of the declaration.
-    pub fn name(&self) -> Ident {
-        token(&self.0).expect("bound declaration should have a name")
+    pub fn name(&self) -> Ident<N::Token> {
+        self.token().expect("bound declaration should have a name")
     }
 
     /// Gets the expression the declaration is bound to.
-    pub fn expr(&self) -> Expr {
+    pub fn expr(&self) -> Expr<N> {
         Expr::child(&self.0).expect("bound declaration should have an expression")
     }
 }
 
-impl AstNode for BoundDecl {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for BoundDecl<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::BoundDeclNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::BoundDeclNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::BoundDeclNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a declaration in an input section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Decl {
+pub enum Decl<N: TreeNode = SyntaxNode> {
     /// The declaration is bound.
-    Bound(BoundDecl),
+    Bound(BoundDecl<N>),
     /// The declaration is unbound.
-    Unbound(UnboundDecl),
+    Unbound(UnboundDecl<N>),
 }
 
-impl Decl {
-    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
-    /// underlying members within the [`Decl`].
-    pub fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> Decl<N> {
+    /// Returns whether or not the given syntax kind can be cast to
+    /// [`Decl`].
+    pub fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::BoundDeclNode || kind == SyntaxKind::UnboundDeclNode
     }
 
-    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
-    /// within the [`Decl`].
-    pub fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
+    /// Casts the given node to [`Decl`].
+    ///
+    /// Returns `None` if the node cannot be cast.
+    pub fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
             SyntaxKind::BoundDeclNode => Some(Self::Bound(
-                BoundDecl::cast(syntax).expect("bound decl to cast"),
+                BoundDecl::cast(inner).expect("bound decl to cast"),
             )),
             SyntaxKind::UnboundDeclNode => Some(Self::Unbound(
-                UnboundDecl::cast(syntax).expect("unbound decl to cast"),
+                UnboundDecl::cast(inner).expect("unbound decl to cast"),
             )),
             _ => None,
         }
     }
 
-    /// Gets a reference to the underlying [`SyntaxNode`].
-    pub fn syntax(&self) -> &SyntaxNode {
+    /// Gets a reference to the inner node.
+    pub fn inner(&self) -> &N {
         match self {
-            Self::Bound(element) => element.syntax(),
-            Self::Unbound(element) => element.syntax(),
+            Self::Bound(d) => d.inner(),
+            Self::Unbound(d) => d.inner(),
         }
     }
 
@@ -909,7 +845,7 @@ impl Decl {
     ///
     /// This may only return a token for task inputs and private declarations
     /// (WDL 1.2+).
-    pub fn env(&self) -> Option<EnvKeyword> {
+    pub fn env(&self) -> Option<EnvKeyword<N::Token>> {
         match self {
             Self::Bound(d) => d.env(),
             Self::Unbound(d) => d.env(),
@@ -917,7 +853,7 @@ impl Decl {
     }
 
     /// Gets the type of the declaration.
-    pub fn ty(&self) -> Type {
+    pub fn ty(&self) -> Type<N> {
         match self {
             Self::Bound(d) => d.ty(),
             Self::Unbound(d) => d.ty(),
@@ -925,7 +861,7 @@ impl Decl {
     }
 
     /// Gets the name of the declaration.
-    pub fn name(&self) -> Ident {
+    pub fn name(&self) -> Ident<N::Token> {
         match self {
             Self::Bound(d) => d.name(),
             Self::Unbound(d) => d.name(),
@@ -935,7 +871,7 @@ impl Decl {
     /// Gets the expression of the declaration.
     ///
     /// Returns `None` for unbound declarations.
-    pub fn expr(&self) -> Option<Expr> {
+    pub fn expr(&self) -> Option<Expr<N>> {
         match self {
             Self::Bound(d) => Some(d.expr()),
             Self::Unbound(_) => None,
@@ -947,9 +883,9 @@ impl Decl {
     /// * If `self` is a [`Decl::Bound`], then a reference to the inner
     ///   [`BoundDecl`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_bound_decl(&self) -> Option<&BoundDecl> {
+    pub fn as_bound_decl(&self) -> Option<&BoundDecl<N>> {
         match self {
-            Self::Bound(bound_decl) => Some(bound_decl),
+            Self::Bound(d) => Some(d),
             _ => None,
         }
     }
@@ -959,9 +895,9 @@ impl Decl {
     /// * If `self` is a [`Decl::Bound`], then the inner [`BoundDecl`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_bound_decl(self) -> Option<BoundDecl> {
+    pub fn into_bound_decl(self) -> Option<BoundDecl<N>> {
         match self {
-            Self::Bound(bound_decl) => Some(bound_decl),
+            Self::Bound(d) => Some(d),
             _ => None,
         }
     }
@@ -971,9 +907,9 @@ impl Decl {
     /// # Panics
     ///
     /// Panics if the declaration is not a bound declaration.
-    pub fn unwrap_bound_decl(self) -> BoundDecl {
+    pub fn unwrap_bound_decl(self) -> BoundDecl<N> {
         match self {
-            Self::Bound(decl) => decl,
+            Self::Bound(d) => d,
             _ => panic!("not a bound declaration"),
         }
     }
@@ -983,9 +919,9 @@ impl Decl {
     /// * If `self` is a [`Decl::Unbound`], then a reference to the inner
     ///   [`UnboundDecl`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn as_unbound_decl(&self) -> Option<&UnboundDecl> {
+    pub fn as_unbound_decl(&self) -> Option<&UnboundDecl<N>> {
         match self {
-            Self::Unbound(unbound_decl) => Some(unbound_decl),
+            Self::Unbound(d) => Some(d),
             _ => None,
         }
     }
@@ -995,9 +931,9 @@ impl Decl {
     /// * If `self` is a [`Decl::Unbound`], then the inner [`UnboundDecl`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
-    pub fn into_unbound_decl(self) -> Option<UnboundDecl> {
+    pub fn into_unbound_decl(self) -> Option<UnboundDecl<N>> {
         match self {
-            Self::Unbound(unbound_decl) => Some(unbound_decl),
+            Self::Unbound(d) => Some(d),
             _ => None,
         }
     }
@@ -1007,29 +943,21 @@ impl Decl {
     /// # Panics
     ///
     /// Panics if the declaration is not an unbound declaration.
-    pub fn unwrap_unbound_decl(self) -> UnboundDecl {
+    pub fn unwrap_unbound_decl(self) -> UnboundDecl<N> {
         match self {
-            Self::Unbound(decl) => decl,
+            Self::Unbound(d) => d,
             _ => panic!("not an unbound declaration"),
         }
     }
 
     /// Finds the first child that can be cast to a [`Decl`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::child`] without requiring [`Decl`] to implement
-    /// the `AstNode` trait.
-    pub fn child(syntax: &SyntaxNode) -> Option<Self> {
-        syntax.children().find_map(Self::cast)
+    pub fn child(node: &N) -> Option<Self> {
+        node.children().find_map(Self::cast)
     }
 
     /// Finds all children that can be cast to a [`Decl`].
-    ///
-    /// This is meant to emulate the functionality of
-    /// [`rowan::ast::support::children`] without requiring [`Decl`] to
-    /// implement the `AstNode` trait.
-    pub fn children(syntax: &SyntaxNode) -> impl Iterator<Item = Decl> + use<> {
-        syntax.children().filter_map(Self::cast)
+    pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
+        node.children().filter_map(Self::cast)
     }
 }
 
@@ -1070,7 +998,7 @@ task test {
         let ast = ast.as_v1().expect("should be a V1 AST");
         let tasks: Vec<_> = ast.tasks().collect();
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].name().as_str(), "test");
+        assert_eq!(tasks[0].name().text(), "test");
 
         // Inputs
         let input = tasks[0].input().expect("task should have an input section");
@@ -1080,12 +1008,12 @@ task test {
         // First input declaration
         let decl = decls[0].clone().unwrap_unbound_decl();
         assert_eq!(decl.ty().to_string(), "Boolean");
-        assert_eq!(decl.name().as_str(), "a");
+        assert_eq!(decl.name().text(), "a");
 
         // Second input declaration
         let decl = decls[1].clone().unwrap_bound_decl();
         assert_eq!(decl.ty().to_string(), "Int");
-        assert_eq!(decl.name().as_str(), "b");
+        assert_eq!(decl.name().text(), "b");
         assert_eq!(
             decl.expr()
                 .unwrap_literal()
@@ -1098,37 +1026,37 @@ task test {
         // Third input declaration
         let decl = decls[2].clone().unwrap_bound_decl();
         assert_eq!(decl.ty().to_string(), "Float?");
-        assert_eq!(decl.name().as_str(), "c");
+        assert_eq!(decl.name().text(), "c");
         decl.expr().unwrap_literal().unwrap_none();
 
         // Fourth input declaration
         let decl = decls[3].clone().unwrap_unbound_decl();
         assert_eq!(decl.ty().to_string(), "String");
-        assert_eq!(decl.name().as_str(), "d");
+        assert_eq!(decl.name().text(), "d");
 
         // Fifth input declaration
         let decl = decls[4].clone().unwrap_bound_decl();
         assert_eq!(decl.ty().to_string(), "File");
-        assert_eq!(decl.name().as_str(), "e");
+        assert_eq!(decl.name().text(), "e");
         assert_eq!(
             decl.expr()
                 .unwrap_literal()
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "foo.wdl"
         );
 
         // Sixth input declaration
         let decl = decls[5].clone().unwrap_unbound_decl();
         assert_eq!(decl.ty().to_string(), "Map[Int, Int]");
-        assert_eq!(decl.name().as_str(), "f");
+        assert_eq!(decl.name().text(), "f");
 
         // Seventh input declaration
         let decl = decls[6].clone().unwrap_bound_decl();
         assert_eq!(decl.ty().to_string(), "Array[String]");
-        assert_eq!(decl.name().as_str(), "g");
+        assert_eq!(decl.name().text(), "g");
         assert_eq!(
             decl.expr()
                 .unwrap_literal()
@@ -1141,12 +1069,12 @@ task test {
         // Eighth input declaration
         let decl = decls[7].clone().unwrap_unbound_decl();
         assert_eq!(decl.ty().to_string(), "Pair[Boolean, Int]");
-        assert_eq!(decl.name().as_str(), "h");
+        assert_eq!(decl.name().text(), "h");
 
         // Ninth input declaration
         let decl = decls[8].clone().unwrap_bound_decl();
         assert_eq!(decl.ty().to_string(), "Object");
-        assert_eq!(decl.name().as_str(), "i");
+        assert_eq!(decl.name().text(), "i");
         assert_eq!(
             decl.expr().unwrap_literal().unwrap_object().items().count(),
             0
@@ -1155,19 +1083,19 @@ task test {
         // Tenth input declaration
         let decl = decls[9].clone().unwrap_unbound_decl();
         assert_eq!(decl.ty().to_string(), "MyStruct");
-        assert_eq!(decl.name().as_str(), "j");
+        assert_eq!(decl.name().text(), "j");
 
         // Eleventh input declaration
         let decl = decls[10].clone().unwrap_bound_decl();
         assert_eq!(decl.ty().to_string(), "Directory");
-        assert_eq!(decl.name().as_str(), "k");
+        assert_eq!(decl.name().text(), "k");
         assert_eq!(
             decl.expr()
                 .unwrap_literal()
                 .unwrap_string()
                 .text()
                 .unwrap()
-                .as_str(),
+                .text(),
             "foo"
         );
 

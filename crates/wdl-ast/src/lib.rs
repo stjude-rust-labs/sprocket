@@ -40,9 +40,11 @@ use std::collections::HashSet;
 use std::fmt;
 
 pub use rowan::Direction;
-pub use rowan::ast::AstChildren;
-pub use rowan::ast::AstNode;
-pub use rowan::ast::support;
+use rowan::NodeOrToken;
+use v1::CloseBrace;
+use v1::CloseHeredoc;
+use v1::OpenBrace;
+use v1::OpenHeredoc;
 pub use wdl_grammar::Diagnostic;
 pub use wdl_grammar::Label;
 pub use wdl_grammar::Severity;
@@ -55,7 +57,6 @@ pub use wdl_grammar::SyntaxNode;
 pub use wdl_grammar::SyntaxToken;
 pub use wdl_grammar::SyntaxTokenExt;
 pub use wdl_grammar::SyntaxTree;
-pub use wdl_grammar::ToSpan;
 pub use wdl_grammar::WorkflowDescriptionLanguage;
 pub use wdl_grammar::version;
 
@@ -69,12 +70,326 @@ pub use element::*;
 pub use validation::*;
 pub use visitor::*;
 
-/// Gets a token of a given parent that can cast to the given type.
-fn token<T: AstToken>(parent: &SyntaxNode) -> Option<T> {
-    parent
-        .children_with_tokens()
-        .filter_map(SyntaxElement::into_token)
-        .find_map(T::cast)
+/// A trait that abstracts the underlying representation of a syntax tree node.
+///
+/// The default node type is `SyntaxNode` for all AST nodes.
+pub trait TreeNode: Clone + fmt::Debug + PartialEq + Eq + std::hash::Hash {
+    /// The associated token type for the tree node.
+    type Token: TreeToken;
+
+    /// Gets the parent node of the node.
+    ///
+    /// Returns `None` if the node is a root.
+    fn parent(&self) -> Option<Self>;
+
+    /// Gets the syntax kind of the node.
+    fn kind(&self) -> SyntaxKind;
+
+    /// Gets the text of the node.
+    ///
+    /// Node text is not contiguous, so the returned value implements `Display`.
+    fn text(&self) -> impl fmt::Display;
+
+    /// Gets the span of the node.
+    fn span(&self) -> Span;
+
+    /// Gets the children nodes of the node.
+    fn children(&self) -> impl Iterator<Item = Self>;
+
+    /// Gets all the children of the node, including tokens.
+    fn children_with_tokens(&self) -> impl Iterator<Item = NodeOrToken<Self, Self::Token>>;
+
+    /// Gets the last token of the node.
+    fn last_token(&self) -> Option<Self::Token>;
+
+    /// Gets the node descendants of the node.
+    fn descendants(&self) -> impl Iterator<Item = Self>;
+
+    /// Gets the ancestors of the node.
+    fn ancestors(&self) -> impl Iterator<Item = Self>;
+
+    /// Determines if a given rule id is excepted for the node.
+    fn is_rule_excepted(&self, id: &str) -> bool;
+}
+
+/// A trait that abstracts the underlying representation of a syntax token.
+pub trait TreeToken: Clone + fmt::Debug + PartialEq + Eq + std::hash::Hash {
+    /// The associated node type for the token.
+    type Node: TreeNode;
+
+    /// Gets the parent node of the token.
+    fn parent(&self) -> Self::Node;
+
+    /// Gets the syntax kind for the token.
+    fn kind(&self) -> SyntaxKind;
+
+    /// Gets the text of the token.
+    fn text(&self) -> &str;
+
+    /// Gets the span of the token.
+    fn span(&self) -> Span;
+}
+
+/// A trait implemented by AST nodes.
+pub trait AstNode<N: TreeNode>: Sized {
+    /// Determines if the kind can be cast to this representation.
+    fn can_cast(kind: SyntaxKind) -> bool;
+
+    /// Casts the given inner type to the this representation.
+    fn cast(inner: N) -> Option<Self>;
+
+    /// Gets the inner type from this representation.
+    fn inner(&self) -> &N;
+
+    /// Gets the syntax kind of the node.
+    fn kind(&self) -> SyntaxKind {
+        self.inner().kind()
+    }
+
+    /// Gets the text of the node.
+    ///
+    /// As node text is not contiguous, this returns a type that implements
+    /// `Display`.
+    fn text<'a>(&'a self) -> impl fmt::Display
+    where
+        N: 'a,
+    {
+        self.inner().text()
+    }
+
+    /// Gets the span of the node.
+    fn span(&self) -> Span {
+        self.inner().span()
+    }
+
+    /// Gets the first token child that can cast to an expected type.
+    fn token<C>(&self) -> Option<C>
+    where
+        C: AstToken<N::Token>,
+    {
+        self.inner()
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .find_map(|t| C::cast(t))
+    }
+
+    /// Gets all the token children that can cast to an expected type.
+    fn tokens<'a, C>(&'a self) -> impl Iterator<Item = C>
+    where
+        C: AstToken<N::Token>,
+        N: 'a,
+    {
+        self.inner()
+            .children_with_tokens()
+            .filter_map(|e| e.into_token().and_then(C::cast))
+    }
+
+    /// Gets the last token of the node and attempts to cast it to an expected
+    /// type.
+    ///
+    /// Returns `None` if there is no last token or if it cannot be casted to
+    /// the expected type.
+    fn last_token<C>(&self) -> Option<C>
+    where
+        C: AstToken<N::Token>,
+    {
+        self.inner().last_token().and_then(C::cast)
+    }
+
+    /// Gets the first node child that can cast to an expected type.
+    fn child<C>(&self) -> Option<C>
+    where
+        C: AstNode<N>,
+    {
+        self.inner().children().find_map(C::cast)
+    }
+
+    /// Gets all node children that can cast to an expected type.
+    fn children<'a, C>(&'a self) -> impl Iterator<Item = C>
+    where
+        C: AstNode<N>,
+        N: 'a,
+    {
+        self.inner().children().filter_map(C::cast)
+    }
+
+    /// Gets the parent of the node if the underlying tree node has a parent.
+    ///
+    /// Returns `None` if the node has no parent or if the parent node is not of
+    /// the expected type.
+    fn parent<'a, P>(&self) -> Option<P>
+    where
+        P: AstNode<N>,
+        N: 'a,
+    {
+        P::cast(self.inner().parent()?)
+    }
+
+    /// Calculates the span of a scope given the node where the scope is
+    /// visible.
+    ///
+    /// Returns `None` if the node does not contain the open and close tokens as
+    /// children.
+    fn scope_span<O, C>(&self) -> Option<Span>
+    where
+        O: AstToken<N::Token>,
+        C: AstToken<N::Token>,
+    {
+        let open = self.token::<O>()?.span();
+        let close = self.last_token::<C>()?.span();
+
+        // The span starts after the opening brace and before the closing brace
+        Some(Span::new(open.end(), close.start() - open.end()))
+    }
+
+    /// Gets the interior span of child opening and closing brace tokens for the
+    /// node.
+    ///
+    /// The span starts from immediately after the opening brace token and ends
+    /// immediately before the closing brace token.
+    ///
+    /// Returns `None` if the node does not contain child brace tokens.
+    fn braced_scope_span(&self) -> Option<Span> {
+        self.scope_span::<OpenBrace<N::Token>, CloseBrace<N::Token>>()
+    }
+
+    /// Gets the interior span of child opening and closing heredoc tokens for
+    /// the node.
+    ///
+    /// The span starts from immediately after the opening heredoc token and
+    /// ends immediately before the closing heredoc token.
+    ///
+    /// Returns `None` if the node does not contain child heredoc tokens.
+    fn heredoc_scope_span(&self) -> Option<Span> {
+        self.scope_span::<OpenHeredoc<N::Token>, CloseHeredoc<N::Token>>()
+    }
+
+    /// Gets the node descendants (including self) from this node that can be
+    /// cast to the expected type.
+    fn descendants<'a, D>(&'a self) -> impl Iterator<Item = D>
+    where
+        D: AstNode<N>,
+        N: 'a,
+    {
+        self.inner().descendants().filter_map(|d| D::cast(d))
+    }
+}
+
+/// A trait implemented by AST tokens.
+pub trait AstToken<T: TreeToken>: Sized {
+    /// Determines if the kind can be cast to this representation.
+    fn can_cast(kind: SyntaxKind) -> bool;
+
+    /// Casts the given inner type to the this representation.
+    fn cast(inner: T) -> Option<Self>;
+
+    /// Gets the inner type from this representation.
+    fn inner(&self) -> &T;
+
+    /// Gets the syntax kind of the token.
+    fn kind(&self) -> SyntaxKind {
+        self.inner().kind()
+    }
+
+    /// Gets the text of the token.
+    fn text<'a>(&'a self) -> &'a str
+    where
+        T: 'a,
+    {
+        self.inner().text()
+    }
+
+    /// Gets the span of the token.
+    fn span(&self) -> Span {
+        self.inner().span()
+    }
+
+    /// Gets the parent of the token.
+    ///
+    /// Returns `None` if the parent node cannot be cast to the expected type.
+    fn parent<'a, P>(&self) -> Option<P>
+    where
+        P: AstNode<T::Node>,
+        T: 'a,
+    {
+        P::cast(self.inner().parent())
+    }
+}
+
+/// Implemented by nodes that can create a new root from a different tree node
+/// type.
+pub trait NewRoot<N: TreeNode>: Sized {
+    /// Constructs a new root node from the give root node of a different tree
+    /// node type.
+    fn new_root(root: N) -> Self;
+}
+
+impl TreeNode for SyntaxNode {
+    type Token = SyntaxToken;
+
+    fn parent(&self) -> Option<SyntaxNode> {
+        self.parent()
+    }
+
+    fn kind(&self) -> SyntaxKind {
+        self.kind()
+    }
+
+    fn children(&self) -> impl Iterator<Item = Self> {
+        self.children()
+    }
+
+    fn children_with_tokens(&self) -> impl Iterator<Item = NodeOrToken<Self, Self::Token>> {
+        self.children_with_tokens()
+    }
+
+    fn text(&self) -> impl fmt::Display {
+        self.text()
+    }
+
+    fn span(&self) -> Span {
+        let range = self.text_range();
+        let start = usize::from(range.start());
+        Span::new(start, usize::from(range.end()) - start)
+    }
+
+    fn last_token(&self) -> Option<Self::Token> {
+        self.last_token()
+    }
+
+    fn descendants(&self) -> impl Iterator<Item = Self> {
+        self.descendants()
+    }
+
+    fn ancestors(&self) -> impl Iterator<Item = Self> {
+        self.ancestors()
+    }
+
+    fn is_rule_excepted(&self, id: &str) -> bool {
+        <Self as SyntaxNodeExt>::is_rule_excepted(self, id)
+    }
+}
+
+impl TreeToken for SyntaxToken {
+    type Node = SyntaxNode;
+
+    fn parent(&self) -> SyntaxNode {
+        self.parent().expect("token should have a parent")
+    }
+
+    fn kind(&self) -> SyntaxKind {
+        self.kind()
+    }
+
+    fn text(&self) -> &str {
+        self.text()
+    }
+
+    fn span(&self) -> Span {
+        let range = self.text_range();
+        let start = usize::from(range.start());
+        Span::new(start, usize::from(range.end()) - start)
+    }
 }
 
 /// Represents the reason an AST node has been visited.
@@ -87,69 +402,6 @@ pub enum VisitReason {
     Enter,
     /// The visit has exited the node.
     Exit,
-}
-
-/// Calculates the span of a scope given the node where the scope is visible.
-fn scope_span(parent: &crate::SyntaxNode, open: SyntaxKind, close: SyntaxKind) -> Option<Span> {
-    let open = rowan::ast::support::token(parent, open)?
-        .text_range()
-        .to_span();
-    let close = parent
-        .last_child_or_token()
-        .and_then(|c| {
-            if c.kind() == close {
-                c.into_token()
-            } else {
-                None
-            }
-        })?
-        .text_range()
-        .to_span();
-
-    // The span starts after the opening brace and before the closing brace
-    Some(Span::new(open.end(), close.start() - open.end()))
-}
-
-/// An extension trait for AST nodes.
-pub trait AstNodeExt {
-    /// Gets the source span of the node.
-    fn span(&self) -> Span;
-
-    /// Gets the interior span of child opening and closing brace tokens for the
-    /// node.
-    ///
-    /// The span starts from immediately after the opening brace token and ends
-    /// immediately before the closing brace token.
-    ///
-    /// Returns `None` if the node does not contain child brace tokens.
-    fn braced_scope_span(&self) -> Option<Span>;
-
-    /// Gets the interior span of child opening and closing heredoc tokens for
-    /// the node.
-    ///
-    /// The span starts from immediately after the opening heredoc token and
-    /// ends immediately before the closing heredoc token.
-    ///
-    /// Returns `None` if the node does not contain child heredoc tokens.
-    fn heredoc_scope_span(&self) -> Option<Span>;
-}
-
-impl<T: AstNode<Language = WorkflowDescriptionLanguage>> AstNodeExt for T {
-    fn span(&self) -> Span {
-        self.syntax().text_range().to_span()
-    }
-
-    fn braced_scope_span(&self) -> Option<Span> {
-        scope_span(self.syntax(), SyntaxKind::OpenBrace, SyntaxKind::CloseBrace)
-    }
-
-    fn heredoc_scope_span(&self) -> Option<Span> {
-        scope_span(
-            self.syntax(),
-            SyntaxKind::OpenHeredoc,
-            SyntaxKind::CloseHeredoc,
-        )
-    }
 }
 
 /// An extension trait for syntax nodes.
@@ -208,66 +460,22 @@ impl SyntaxNodeExt for SyntaxNode {
     }
 }
 
-/// The trait implemented on AST tokens to go from untyped `SyntaxToken`
-/// to a typed representation.
-///
-/// The design of `AstToken` is directly inspired by `rust-analyzer`.
-pub trait AstToken {
-    /// Determines if the kind can be cast to this type representation.
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized;
-
-    /// Casts the untyped `SyntaxToken` to the typed representation.
-    fn cast(syntax: SyntaxToken) -> Option<Self>
-    where
-        Self: Sized;
-
-    /// Gets the untyped `SyntaxToken` of this AST token.
-    fn syntax(&self) -> &SyntaxToken;
-
-    /// Gets the text of the token.
-    fn as_str(&self) -> &str {
-        self.syntax().text()
-    }
-
-    /// Gets the source span of the token.
-    fn span(&self) -> Span {
-        self.syntax().text_range().to_span()
-    }
-}
-
-/// Finds the first child that casts to a particular [`AstToken`].
-pub fn token_child<T: AstToken>(parent: &SyntaxNode) -> Option<T> {
-    parent
-        .children_with_tokens()
-        .filter_map(|c| c.into_token())
-        .find_map(T::cast)
-}
-
-/// Finds all children that cast to a particular [`AstToken`].
-pub fn token_children<T: AstToken>(parent: &SyntaxNode) -> impl Iterator<Item = T> + use<T> {
-    parent
-        .children_with_tokens()
-        .filter_map(|c| c.into_token().and_then(T::cast))
-}
-
 /// Represents the AST of a [Document].
 ///
 /// See [Document::ast].
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Ast {
+pub enum Ast<N: TreeNode = SyntaxNode> {
     /// The WDL document specifies an unsupported version.
     Unsupported,
     /// The WDL document is V1.
-    V1(v1::Ast),
+    V1(v1::Ast<N>),
 }
 
-impl Ast {
+impl<N: TreeNode> Ast<N> {
     /// Gets the AST as a V1 AST.
     ///
     /// Returns `None` if the AST is not a V1 AST.
-    pub fn as_v1(&self) -> Option<&v1::Ast> {
+    pub fn as_v1(&self) -> Option<&v1::Ast<N>> {
         match self {
             Self::V1(ast) => Some(ast),
             _ => None,
@@ -275,7 +483,7 @@ impl Ast {
     }
 
     /// Consumes `self` and attempts to return the V1 AST.
-    pub fn into_v1(self) -> Option<v1::Ast> {
+    pub fn into_v1(self) -> Option<v1::Ast<N>> {
         match self {
             Self::V1(ast) => Some(ast),
             _ => None,
@@ -287,7 +495,7 @@ impl Ast {
     /// # Panics
     ///
     /// Panics if the AST is not a V1 AST.
-    pub fn unwrap_v1(self) -> v1::Ast {
+    pub fn unwrap_v1(self) -> v1::Ast<N> {
         self.into_v1().expect("the AST is not a V1 AST")
     }
 }
@@ -297,30 +505,27 @@ impl Ast {
 /// See [Document::ast] for getting a version-specific Abstract
 /// Syntax Tree.
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct Document(SyntaxNode);
+pub struct Document<N: TreeNode = SyntaxNode>(N);
 
-impl Document {
-    /// Returns whether or not a [`SyntaxKind`] is able to be cast to any of the
-    /// underlying members within the [`Document`].
-    pub fn can_cast(kind: SyntaxKind) -> bool {
+impl<N: TreeNode> AstNode<N> for Document<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::RootNode
     }
 
-    /// Attempts to cast the [`SyntaxNode`] to any of the underlying members
-    /// within the [`Document`].
-    pub fn cast(syntax: SyntaxNode) -> Option<Self> {
-        if Self::can_cast(syntax.kind()) {
-            Some(Self(syntax))
+    fn cast(inner: N) -> Option<Self> {
+        if Self::can_cast(inner.kind()) {
+            Some(Self(inner))
         } else {
             None
         }
     }
 
-    /// Gets a reference to the underlying [`SyntaxNode`].
-    pub fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
+}
 
+impl Document {
     /// Parses a document from the given source.
     ///
     /// A document and its AST elements are trivially cloned.
@@ -337,7 +542,7 @@ impl Document {
     ///         .version_statement()
     ///         .expect("should have version statement")
     ///         .version()
-    ///         .as_str(),
+    ///         .text(),
     ///     "1.1"
     /// );
     ///
@@ -355,26 +560,39 @@ impl Document {
             diagnostics,
         )
     }
+}
 
+impl<N: TreeNode> Document<N> {
     /// Gets the version statement of the document.
     ///
     /// This can be used to determine the version of the document that was
     /// parsed.
     ///
     /// A return value of `None` signifies a missing version statement.
-    pub fn version_statement(&self) -> Option<VersionStatement> {
-        support::child(&self.0)
+    pub fn version_statement(&self) -> Option<VersionStatement<N>> {
+        self.child()
     }
 
     /// Gets the AST representation of the document.
-    pub fn ast(&self) -> Ast {
+    pub fn ast(&self) -> Ast<N> {
         self.version_statement()
             .as_ref()
-            .and_then(|s| s.version().as_str().parse::<SupportedVersion>().ok())
-            .map(|_| Ast::V1(v1::Ast::cast(self.0.clone()).expect("root should cast")))
+            .and_then(|s| s.version().text().parse::<SupportedVersion>().ok())
+            .map(|v| match v {
+                SupportedVersion::V1(_) => Ast::V1(v1::Ast(self.0.clone())),
+                _ => Ast::Unsupported,
+            })
             .unwrap_or(Ast::Unsupported)
     }
 
+    /// Morphs a document of one node type to a document of a different node
+    /// type.
+    pub fn morph<U: TreeNode + NewRoot<N>>(self) -> Document<U> {
+        Document(U::new_root(self.0))
+    }
+}
+
+impl Document<SyntaxNode> {
     /// Visits the document with a pre-order traversal using the provided
     /// visitor to visit each element in the document.
     pub fn visit<V: Visitor>(&self, state: &mut V::State, visitor: &mut V) {
@@ -390,190 +608,169 @@ impl fmt::Debug for Document {
 
 /// Represents a whitespace token in the AST.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Whitespace(SyntaxToken);
+pub struct Whitespace<T: TreeToken = SyntaxToken>(T);
 
-impl AstToken for Whitespace {
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<T: TreeToken> AstToken<T> for Whitespace<T> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::Whitespace
     }
 
-    fn cast(syntax: SyntaxToken) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::Whitespace => Some(Self(syntax)),
+    fn cast(inner: T) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::Whitespace => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxToken {
+    fn inner(&self) -> &T {
         &self.0
     }
 }
 
 /// Represents a comment token in the AST.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Comment(SyntaxToken);
+pub struct Comment<T: TreeToken = SyntaxToken>(T);
 
-impl AstToken for Comment {
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<T: TreeToken> AstToken<T> for Comment<T> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::Comment
     }
 
-    fn cast(syntax: SyntaxToken) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::Comment => Some(Self(syntax)),
+    fn cast(inner: T) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::Comment => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxToken {
+    fn inner(&self) -> &T {
         &self.0
     }
 }
 
 /// Represents a version statement in a WDL AST.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct VersionStatement(SyntaxNode);
+pub struct VersionStatement<N: TreeNode = SyntaxNode>(N);
 
-impl VersionStatement {
+impl<N: TreeNode> VersionStatement<N> {
     /// Gets the version of the version statement.
-    pub fn version(&self) -> Version {
-        token(&self.0).expect("version statement must have a version token")
+    pub fn version(&self) -> Version<N::Token> {
+        self.token()
+            .expect("version statement must have a version token")
     }
 
     /// Gets the version keyword of the version statement.
-    pub fn keyword(&self) -> v1::VersionKeyword {
-        token(&self.0).expect("version statement must have a version keyword")
+    pub fn keyword(&self) -> v1::VersionKeyword<N::Token> {
+        self.token()
+            .expect("version statement must have a version keyword")
     }
 }
 
-impl AstNode for VersionStatement {
-    type Language = WorkflowDescriptionLanguage;
-
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<N: TreeNode> AstNode<N> for VersionStatement<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::VersionStatementNode
     }
 
-    fn cast(syntax: SyntaxNode) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::VersionStatementNode => Some(Self(syntax)),
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::VersionStatementNode => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn inner(&self) -> &N {
         &self.0
     }
 }
 
 /// Represents a version in the AST.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Version(SyntaxToken);
+pub struct Version<T: TreeToken = SyntaxToken>(T);
 
-impl AstToken for Version {
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<T: TreeToken> AstToken<T> for Version<T> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::Version
     }
 
-    fn cast(syntax: SyntaxToken) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::Version => Some(Self(syntax)),
+    fn cast(inner: T) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::Version => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxToken {
+    fn inner(&self) -> &T {
         &self.0
     }
 }
 
 /// Represents an identifier token.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Ident(SyntaxToken);
+pub struct Ident<T: TreeToken = SyntaxToken>(T);
 
-impl AstToken for Ident {
-    fn can_cast(kind: SyntaxKind) -> bool
-    where
-        Self: Sized,
-    {
+impl<T: TreeToken> Ident<T> {
+    /// Gets a hashable representation of the identifier.
+    pub fn hashable(&self) -> TokenText<T> {
+        TokenText(self.0.clone())
+    }
+}
+
+impl<T: TreeToken> AstToken<T> for Ident<T> {
+    fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::Ident
     }
 
-    fn cast(syntax: SyntaxToken) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        match syntax.kind() {
-            SyntaxKind::Ident => Some(Self(syntax)),
+    fn cast(inner: T) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::Ident => Some(Self(inner)),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxToken {
+    fn inner(&self) -> &T {
         &self.0
     }
 }
 
-/// Helper for hashing any AST token on string representation alone.
+/// Helper for hashing tokens by their text.
 ///
-/// Normally an AST token's equality and hash implementation work by comparing
-/// the token's element in the AST; thus, two `Ident` tokens with the same name
+/// Normally a token's equality and hash implementation work by comparing
+/// the token's element in the tree; thus, two tokens with the same text
 /// but different positions in the tree will compare and hash differently.
+///
+/// With this hash implementation, two tokens compare and hash identically if
+/// their text is identical.
 #[derive(Debug, Clone)]
-pub struct TokenStrHash<T>(T);
+pub struct TokenText<T: TreeToken = SyntaxToken>(T);
 
-impl<T: AstToken> TokenStrHash<T> {
-    /// Constructs a new token hash for the given token.
-    pub fn new(token: T) -> Self {
-        Self(token)
+impl TokenText {
+    /// Gets the text of the underlying token.
+    pub fn text(&self) -> &str {
+        self.0.text()
+    }
+
+    /// Gets the span of the underlying token.
+    pub fn span(&self) -> Span {
+        self.0.span()
     }
 }
 
-impl<T: AstToken> PartialEq for TokenStrHash<T> {
+impl<T: TreeToken> PartialEq for TokenText<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.0.as_str() == other.0.as_str()
+        self.0.text() == other.0.text()
     }
 }
 
-impl<T: AstToken> Eq for TokenStrHash<T> {}
+impl<T: TreeToken> Eq for TokenText<T> {}
 
-impl<T: AstToken> std::hash::Hash for TokenStrHash<T> {
+impl<T: TreeToken> std::hash::Hash for TokenText<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.as_str().hash(state);
+        self.0.text().hash(state);
     }
 }
 
-impl<T: AstToken> std::borrow::Borrow<str> for TokenStrHash<T> {
+impl<T: TreeToken> std::borrow::Borrow<str> for TokenText<T> {
     fn borrow(&self) -> &str {
-        self.0.as_str()
-    }
-}
-
-impl<T: AstToken> AsRef<T> for TokenStrHash<T> {
-    fn as_ref(&self) -> &T {
-        &self.0
+        self.0.text()
     }
 }

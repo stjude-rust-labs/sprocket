@@ -498,13 +498,13 @@ impl Document {
 
         let root = node.root().expect("node should have been parsed");
         let (version, config) = match root.version_statement() {
-            Some(stmt) => (stmt.version(), config.excepted_for_node(stmt.syntax())),
+            Some(stmt) => (stmt.version(), config.excepted_for_node(stmt.inner())),
             None => {
                 // Don't process a document with a missing version
                 return Self {
                     data: Arc::new(DocumentData::new(
                         node.uri().clone(),
-                        Some(root.syntax().green().into()),
+                        Some(root.inner().green().into()),
                         None,
                         diagnostics,
                     )),
@@ -514,8 +514,8 @@ impl Document {
 
         let mut data = DocumentData::new(
             node.uri().clone(),
-            Some(root.syntax().green().into()),
-            SupportedVersion::from_str(version.as_str()).ok(),
+            Some(root.inner().green().into()),
+            SupportedVersion::from_str(version.text()).ok(),
             diagnostics,
         );
         match root.ast() {
@@ -554,7 +554,11 @@ impl Document {
     }
 
     /// Gets the root AST document node.
-    pub fn node(&self) -> wdl_ast::Document {
+    ///
+    /// # Panics
+    ///
+    /// Panics if the document was not parsed.
+    pub fn root(&self) -> wdl_ast::Document {
         wdl_ast::Document::cast(SyntaxNode::new_root(
             self.data.root.clone().expect("should have a root"),
         ))

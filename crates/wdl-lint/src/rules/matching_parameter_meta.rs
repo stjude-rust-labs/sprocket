@@ -37,7 +37,7 @@ fn missing_param_meta(parent: &SectionParent, missing: &str, span: Span) -> Diag
 
     Diagnostic::warning(format!(
         "{context} `{parent}` is missing a parameter metadata key for input `{missing}`",
-        parent = parent.as_str(),
+        parent = parent.text(),
     ))
     .with_rule(ID)
     .with_label(
@@ -60,7 +60,7 @@ fn extra_param_meta(parent: &SectionParent, extra: &str, span: Span) -> Diagnost
 
     Diagnostic::note(format!(
         "{context} `{parent}` has an extraneous parameter metadata key named `{extra}`",
-        parent = parent.as_str(),
+        parent = parent.text(),
     ))
     .with_rule(ID)
     .with_label(
@@ -112,13 +112,13 @@ fn check_parameter_meta(
     diagnostics: &mut Diagnostics,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
-    let expected: HashMap<_, _> = expected.map(|(i, s)| (i.as_str().to_string(), s)).collect();
+    let expected: HashMap<_, _> = expected.map(|(i, s)| (i.text().to_string(), s)).collect();
 
     let actual: HashMap<_, _> = param_meta
         .items()
         .map(|m| {
             let name = m.name();
-            (name.as_str().to_string(), name.span())
+            (name.text().to_string(), name.span())
         })
         .collect();
 
@@ -126,7 +126,7 @@ fn check_parameter_meta(
         if !actual.contains_key(name) {
             diagnostics.exceptable_add(
                 missing_param_meta(parent, name, *span),
-                SyntaxElement::from(param_meta.syntax().clone()),
+                SyntaxElement::from(param_meta.inner().clone()),
                 exceptable_nodes,
             );
         }
@@ -136,7 +136,7 @@ fn check_parameter_meta(
         if !expected.contains_key(name) {
             diagnostics.exceptable_add(
                 extra_param_meta(parent, name, *span),
-                SyntaxElement::from(param_meta.syntax().clone()),
+                SyntaxElement::from(param_meta.inner().clone()),
                 exceptable_nodes,
             );
         }

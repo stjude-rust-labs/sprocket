@@ -39,7 +39,7 @@ RootNode@0..472
         LiteralStringText@110..116 "Hello "
         PlaceholderNode@116..123
           PlaceholderOpen@116..118 "${"
-          NameRefNode@118..122
+          NameRefExprNode@118..122
             Ident@118..122 "name"
           CloseBrace@122..123 "}"
         SingleQuote@123..124 "'"
@@ -57,7 +57,7 @@ RootNode@0..472
         LiteralStringText@141..147 "Hello "
         PlaceholderNode@147..155
           PlaceholderOpen@147..149 "~{"
-          NameRefNode@149..154
+          NameRefExprNode@149..154
             Ident@149..154 "world"
           CloseBrace@154..155 "}"
         DoubleQuote@155..156 "\""
@@ -125,7 +125,7 @@ RootNode@0..472
                 LiteralStringText@256..261 "you, "
                 PlaceholderNode@261..269
                   PlaceholderOpen@261..263 "~{"
-                  NameRefNode@263..268
+                  NameRefExprNode@263..268
                     Ident@263..268 "world"
                   CloseBrace@268..269 "}"
                 DoubleQuote@269..270 "\""

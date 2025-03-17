@@ -9,7 +9,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::TaskDefinition;
@@ -173,14 +172,14 @@ impl Visitor for SectionOrderingRule {
                     state.exceptable_add(
                         task_section_order(
                             task.name().span(),
-                            task.name().as_str(),
-                            item.syntax()
+                            task.name().text(),
+                            item.inner()
                                 .first_token()
                                 .expect("task item should have tokens")
                                 .text_range()
-                                .to_span(),
+                                .into(),
                         ),
-                        SyntaxElement::from(task.syntax().clone()),
+                        SyntaxElement::from(task.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                     break;
@@ -229,14 +228,14 @@ impl Visitor for SectionOrderingRule {
                     state.exceptable_add(
                         workflow_section_order(
                             workflow.name().span(),
-                            workflow.name().as_str(),
-                            item.syntax()
+                            workflow.name().text(),
+                            item.inner()
                                 .first_token()
                                 .expect("workflow item should have tokens")
                                 .text_range()
-                                .to_span(),
+                                .into(),
                         ),
-                        SyntaxElement::from(workflow.syntax().clone()),
+                        SyntaxElement::from(workflow.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                     break;

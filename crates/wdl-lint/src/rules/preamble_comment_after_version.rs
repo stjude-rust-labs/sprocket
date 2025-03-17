@@ -99,12 +99,12 @@ impl Visitor for PreambleCommentAfterVersionRule {
             return;
         }
 
-        if !comment.as_str().starts_with("## ") {
+        if !comment.text().starts_with("## ") {
             return;
         }
 
         let mut span = comment.span();
-        let mut current = comment.syntax().next_sibling_or_token();
+        let mut current = comment.inner().next_sibling_or_token();
         while let Some(sibling) = current {
             match sibling.kind() {
                 SyntaxKind::Comment => {
@@ -137,7 +137,7 @@ impl Visitor for PreambleCommentAfterVersionRule {
 
         state.exceptable_add(
             preamble_comment_outside_preamble(span),
-            SyntaxElement::from(comment.syntax().clone()),
+            SyntaxElement::from(comment.inner().clone()),
             &self.exceptable_nodes(),
         );
     }

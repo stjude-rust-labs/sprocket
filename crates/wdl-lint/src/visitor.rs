@@ -90,7 +90,7 @@ impl Visitor for LintVisitor {
         self.document_exceptions.extend(
             doc.version_statement()
                 .expect("document should have version statement")
-                .syntax()
+                .inner()
                 .rule_exceptions(),
         );
 

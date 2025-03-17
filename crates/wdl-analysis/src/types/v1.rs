@@ -6,14 +6,14 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 
 use wdl_ast::AstNode;
-use wdl_ast::AstNodeExt;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxNodeExt;
+use wdl_ast::TreeNode;
+use wdl_ast::TreeToken;
 use wdl_ast::v1;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
@@ -390,7 +390,7 @@ where
     ///
     /// If a type could not created, an error with the relevant diagnostic is
     /// returned.
-    pub fn convert_type(&mut self, ty: &v1::Type) -> Result<Type, Diagnostic> {
+    pub fn convert_type<N: TreeNode>(&mut self, ty: &v1::Type<N>) -> Result<Type, Diagnostic> {
         let optional = ty.is_optional();
 
         let ty: Type = match ty {
@@ -407,7 +407,10 @@ where
                 ty.into()
             }
             v1::Type::Object(_) => Type::Object,
-            v1::Type::Ref(r) => self.0.resolve(&r.name())?,
+            v1::Type::Ref(r) => {
+                let name = r.name();
+                self.0.resolve(name.text(), name.span())?
+            }
             v1::Type::Primitive(ty) => Type::Primitive(ty.kind().into(), false),
         };
 
@@ -418,7 +421,10 @@ where
     ///
     /// If a type could not created, an error with the relevant diagnostic is
     /// returned.
-    pub fn convert_array_type(&mut self, ty: &v1::ArrayType) -> Result<ArrayType, Diagnostic> {
+    pub fn convert_array_type<N: TreeNode>(
+        &mut self,
+        ty: &v1::ArrayType<N>,
+    ) -> Result<ArrayType, Diagnostic> {
         let element_type = self.convert_type(&ty.element_type())?;
         if ty.is_non_empty() {
             Ok(ArrayType::non_empty(element_type))
@@ -431,7 +437,10 @@ where
     ///
     /// If a type could not created, an error with the relevant diagnostic is
     /// returned.
-    pub fn convert_pair_type(&mut self, ty: &v1::PairType) -> Result<PairType, Diagnostic> {
+    pub fn convert_pair_type<N: TreeNode>(
+        &mut self,
+        ty: &v1::PairType<N>,
+    ) -> Result<PairType, Diagnostic> {
         let (left_type, right_type) = ty.types();
         Ok(PairType::new(
             self.convert_type(&left_type)?,
@@ -443,7 +452,10 @@ where
     ///
     /// If a type could not created, an error with the relevant diagnostic is
     /// returned.
-    pub fn convert_map_type(&mut self, ty: &v1::MapType) -> Result<MapType, Diagnostic> {
+    pub fn convert_map_type<N: TreeNode>(
+        &mut self,
+        ty: &v1::MapType<N>,
+    ) -> Result<MapType, Diagnostic> {
         let (key_type, value_type) = ty.types();
         let optional = key_type.is_optional();
         Ok(MapType::new(
@@ -456,15 +468,15 @@ where
     ///
     /// If the type could not created, an error with the relevant diagnostic is
     /// returned.
-    pub fn convert_struct_type(
+    pub fn convert_struct_type<N: TreeNode>(
         &mut self,
-        definition: &v1::StructDefinition,
+        definition: &v1::StructDefinition<N>,
     ) -> Result<StructType, Diagnostic> {
         Ok(StructType {
-            name: Arc::new(definition.name().as_str().to_string()),
+            name: Arc::new(definition.name().text().to_string()),
             members: definition
                 .members()
-                .map(|d| Ok((d.name().as_str().to_string(), self.convert_type(&d.ty())?)))
+                .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
                 .collect::<Result<_, _>>()?,
         })
     }
@@ -489,10 +501,10 @@ pub trait EvaluationContext {
     fn version(&self) -> SupportedVersion;
 
     /// Gets the type of the given name in scope.
-    fn resolve_name(&self, name: &Ident) -> Option<Type>;
+    fn resolve_name(&self, name: &str, span: Span) -> Option<Type>;
 
     /// Resolves a type name to a type.
-    fn resolve_type_name(&mut self, name: &Ident) -> Result<Type, Diagnostic>;
+    fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 
     /// Gets the task associated with the evaluation context.
     ///
@@ -533,11 +545,14 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     /// Evaluates the type of the given expression in the given scope.
     ///
     /// Returns `None` if the type of the expression is indeterminate.
-    pub fn evaluate_expr(&mut self, expr: &Expr) -> Option<Type> {
+    pub fn evaluate_expr<N: TreeNode>(&mut self, expr: &Expr<N>) -> Option<Type> {
         match expr {
             Expr::Literal(expr) => self.evaluate_literal_expr(expr),
-            Expr::Name(r) => self.context.resolve_name(&r.name()),
-            Expr::Parenthesized(expr) => self.evaluate_expr(&expr.inner()),
+            Expr::NameRef(r) => {
+                let name = r.name();
+                self.context.resolve_name(name.text(), name.span())
+            }
+            Expr::Parenthesized(expr) => self.evaluate_expr(&expr.expr()),
             Expr::If(expr) => self.evaluate_if_expr(expr),
             Expr::LogicalNot(expr) => self.evaluate_logical_not_expr(expr),
             Expr::Negation(expr) => self.evaluate_negation_expr(expr),
@@ -613,7 +628,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal expression.
-    fn evaluate_literal_expr(&mut self, expr: &LiteralExpr) -> Option<Type> {
+    fn evaluate_literal_expr<N: TreeNode>(&mut self, expr: &LiteralExpr<N>) -> Option<Type> {
         match expr {
             LiteralExpr::Boolean(_) => Some(PrimitiveType::Boolean.into()),
             LiteralExpr::Integer(_) => Some(PrimitiveType::Integer.into()),
@@ -640,7 +655,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Checks a placeholder expression.
-    pub(crate) fn check_placeholder(&mut self, placeholder: &Placeholder) {
+    pub(crate) fn check_placeholder<N: TreeNode>(&mut self, placeholder: &Placeholder<N>) {
         self.placeholders += 1;
 
         // Evaluate the placeholder expression and check that the resulting type is
@@ -678,7 +693,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal array expression.
-    fn evaluate_literal_array(&mut self, expr: &LiteralArray) -> Type {
+    fn evaluate_literal_array<N: TreeNode>(&mut self, expr: &LiteralArray<N>) -> Type {
         // Look at the first array element to determine the element type
         // The remaining elements must have a common type
         let mut elements = expr.elements();
@@ -715,7 +730,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal pair expression.
-    fn evaluate_literal_pair(&mut self, expr: &LiteralPair) -> Type {
+    fn evaluate_literal_pair<N: TreeNode>(&mut self, expr: &LiteralPair<N>) -> Type {
         let (left, right) = expr.exprs();
         let left = self.evaluate_expr(&left).unwrap_or(Type::Union);
         let right = self.evaluate_expr(&right).unwrap_or(Type::Union);
@@ -723,8 +738,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal map expression.
-    fn evaluate_literal_map(&mut self, expr: &LiteralMap) -> Type {
-        let map_item_type = |item: LiteralMapItem| {
+    fn evaluate_literal_map<N: TreeNode>(&mut self, expr: &LiteralMap<N>) -> Type {
+        let map_item_type = |item: LiteralMapItem<N>| {
             let (key, value) = item.key_value();
             let expected_key = self.evaluate_expr(&key)?;
             match expected_key {
@@ -800,7 +815,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal object expression.
-    fn evaluate_literal_object(&mut self, expr: &LiteralObject) -> Type {
+    fn evaluate_literal_object<N: TreeNode>(&mut self, expr: &LiteralObject<N>) -> Type {
         // Validate the member expressions
         for item in expr.items() {
             let (_, v) = item.name_value();
@@ -811,9 +826,9 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal struct expression.
-    fn evaluate_literal_struct(&mut self, expr: &LiteralStruct) -> Option<Type> {
+    fn evaluate_literal_struct<N: TreeNode>(&mut self, expr: &LiteralStruct<N>) -> Option<Type> {
         let name = expr.name();
-        match self.context.resolve_type_name(&name) {
+        match self.context.resolve_type_name(name.text(), name.span()) {
             Ok(ty) => {
                 let ty = match ty {
                     Type::Compound(CompoundType::Struct(ty), false) => ty,
@@ -826,7 +841,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 // Validate the member types
                 for item in expr.items() {
                     let (n, v) = item.name_value();
-                    match ty.members.get_full(n.as_str()) {
+                    match ty.members.get_full(n.text()) {
                         Some((index, _, expected)) => {
                             present[index] = true;
                             if let Some(actual) = self.evaluate_expr(&v) {
@@ -843,7 +858,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         _ => {
                             // Not a struct member
                             self.context
-                                .add_diagnostic(not_a_struct_member(name.as_str(), &n));
+                                .add_diagnostic(not_a_struct_member(name.text(), &n));
                         }
                     }
                 }
@@ -895,12 +910,16 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates a `runtime` section item.
-    pub(crate) fn evaluate_runtime_item(&mut self, name: &Ident, expr: &Expr) {
+    pub(crate) fn evaluate_runtime_item<N: TreeNode>(
+        &mut self,
+        name: &Ident<N::Token>,
+        expr: &Expr<N>,
+    ) {
         let expr_ty = self.evaluate_expr(expr).unwrap_or(Type::Union);
         if !self.evaluate_requirement(name, expr, &expr_ty) {
             // Always use object types for `runtime` section `inputs` and `outputs` keys as
             // only `hints` sections can use input/output hidden types
-            if let Some(expected) = task_hint_types(self.context.version(), name.as_str(), false) {
+            if let Some(expected) = task_hint_types(self.context.version(), name.text(), false) {
                 if !expected
                     .iter()
                     .any(|target| expr_ty.is_coercible_to(target))
@@ -917,7 +936,11 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates a `requirements` section item.
-    pub(crate) fn evaluate_requirements_item(&mut self, name: &Ident, expr: &Expr) {
+    pub(crate) fn evaluate_requirements_item<N: TreeNode>(
+        &mut self,
+        name: &Ident<N::Token>,
+        expr: &Expr<N>,
+    ) {
         let expr_ty = self.evaluate_expr(expr).unwrap_or(Type::Union);
         self.evaluate_requirement(name, expr, &expr_ty);
     }
@@ -927,8 +950,13 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     ///
     /// Returns `true` if the name matched a requirement or `false` if it did
     /// not.
-    fn evaluate_requirement(&mut self, name: &Ident, expr: &Expr, expr_ty: &Type) -> bool {
-        if let Some(expected) = task_requirement_types(self.context.version(), name.as_str()) {
+    fn evaluate_requirement<N: TreeNode>(
+        &mut self,
+        name: &Ident<N::Token>,
+        expr: &Expr<N>,
+        expr_ty: &Type,
+    ) -> bool {
+        if let Some(expected) = task_requirement_types(self.context.version(), name.text()) {
             if !expected
                 .iter()
                 .any(|target| expr_ty.is_coercible_to(target))
@@ -948,7 +976,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal hints expression.
-    fn evaluate_literal_hints(&mut self, expr: &LiteralHints) -> Option<Type> {
+    fn evaluate_literal_hints<N: TreeNode>(&mut self, expr: &LiteralHints<N>) -> Option<Type> {
         self.context.task()?;
 
         for item in expr.items() {
@@ -960,9 +988,13 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
     /// Evaluates a hints item, whether in task `hints` section or a `hints`
     /// literal expression.
-    pub(crate) fn evaluate_hints_item(&mut self, name: &Ident, expr: &Expr) {
+    pub(crate) fn evaluate_hints_item<N: TreeNode>(
+        &mut self,
+        name: &Ident<N::Token>,
+        expr: &Expr<N>,
+    ) {
         let expr_ty = self.evaluate_expr(expr).unwrap_or(Type::Union);
-        if let Some(expected) = task_hint_types(self.context.version(), name.as_str(), true) {
+        if let Some(expected) = task_hint_types(self.context.version(), name.text(), true) {
             if !expected
                 .iter()
                 .any(|target| expr_ty.is_coercible_to(target))
@@ -978,7 +1010,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal input expression.
-    fn evaluate_literal_input(&mut self, expr: &LiteralInput) -> Option<Type> {
+    fn evaluate_literal_input<N: TreeNode>(&mut self, expr: &LiteralInput<N>) -> Option<Type> {
         // Check to see if inputs literals are supported in the evaluation scope
         self.context.task()?;
 
@@ -991,7 +1023,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal output expression.
-    fn evaluate_literal_output(&mut self, expr: &LiteralOutput) -> Option<Type> {
+    fn evaluate_literal_output<N: TreeNode>(&mut self, expr: &LiteralOutput<N>) -> Option<Type> {
         // Check to see if output literals are supported in the evaluation scope
         self.context.task()?;
 
@@ -1004,7 +1036,12 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates a literal input/output item.
-    fn evaluate_literal_io_item(&mut self, names: impl Iterator<Item = Ident>, expr: Expr, io: Io) {
+    fn evaluate_literal_io_item<N: TreeNode>(
+        &mut self,
+        names: impl Iterator<Item = Ident<N::Token>>,
+        expr: Expr<N>,
+        io: Io,
+    ) {
         let mut names = names.enumerate().peekable();
         let expr_ty = self.evaluate_expr(&expr).unwrap_or(Type::Union);
 
@@ -1022,14 +1059,14 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         .task()
                         .expect("should have task")
                         .inputs()
-                        .get(name.as_str())
+                        .get(name.text())
                         .map(|i| i.ty())
                 } else {
                     self.context
                         .task()
                         .expect("should have task")
                         .outputs()
-                        .get(name.as_str())
+                        .get(name.text())
                         .map(|o| o.ty())
                 } {
                     Some(ty) => ty,
@@ -1047,7 +1084,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 let start = span.unwrap().start();
                 span = Some(Span::new(start, name.span().end() - start));
                 let s = s.unwrap();
-                match s.members.get(name.as_str()) {
+                match s.members.get(name.text()) {
                     Some(ty) => ty,
                     None => {
                         self.context
@@ -1087,7 +1124,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of an `if` expression.
-    fn evaluate_if_expr(&mut self, expr: &IfExpr) -> Option<Type> {
+    fn evaluate_if_expr<N: TreeNode>(&mut self, expr: &IfExpr<N>) -> Option<Type> {
         let (cond_expr, true_expr, false_expr) = expr.exprs();
 
         // The conditional should be a boolean
@@ -1122,7 +1159,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a `logical not` expression.
-    fn evaluate_logical_not_expr(&mut self, expr: &LogicalNotExpr) -> Option<Type> {
+    fn evaluate_logical_not_expr<N: TreeNode>(&mut self, expr: &LogicalNotExpr<N>) -> Option<Type> {
         // The operand should be a boolean
         let operand = expr.operand();
         let ty = self.evaluate_expr(&operand).unwrap_or(Type::Union);
@@ -1135,7 +1172,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a negation expression.
-    fn evaluate_negation_expr(&mut self, expr: &NegationExpr) -> Option<Type> {
+    fn evaluate_negation_expr<N: TreeNode>(&mut self, expr: &NegationExpr<N>) -> Option<Type> {
         // The operand should be a int or float
         let operand = expr.operand();
         let ty = self.evaluate_expr(&operand)?;
@@ -1157,7 +1194,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a `logical or` expression.
-    fn evaluate_logical_or_expr(&mut self, expr: &LogicalOrExpr) -> Option<Type> {
+    fn evaluate_logical_or_expr<N: TreeNode>(&mut self, expr: &LogicalOrExpr<N>) -> Option<Type> {
         // Both operands should be booleans
         let (lhs, rhs) = expr.operands();
 
@@ -1177,7 +1214,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a `logical and` expression.
-    fn evaluate_logical_and_expr(&mut self, expr: &LogicalAndExpr) -> Option<Type> {
+    fn evaluate_logical_and_expr<N: TreeNode>(&mut self, expr: &LogicalAndExpr<N>) -> Option<Type> {
         // Both operands should be booleans
         let (lhs, rhs) = expr.operands();
 
@@ -1197,11 +1234,11 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a comparison expression.
-    fn evaluate_comparison_expr(
+    fn evaluate_comparison_expr<N: TreeNode>(
         &mut self,
         op: ComparisonOperator,
-        lhs: &Expr,
-        rhs: &Expr,
+        lhs: &Expr<N>,
+        rhs: &Expr<N>,
         span: Span,
     ) -> Option<Type> {
         let lhs_ty = self.evaluate_expr(lhs).unwrap_or(Type::Union);
@@ -1294,12 +1331,12 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a numeric expression.
-    fn evaluate_numeric_expr(
+    fn evaluate_numeric_expr<N: TreeNode>(
         &mut self,
         op: NumericOperator,
         span: Span,
-        lhs: &Expr,
-        rhs: &Expr,
+        lhs: &Expr<N>,
+        rhs: &Expr<N>,
     ) -> Option<Type> {
         let lhs_ty = self.evaluate_expr(lhs).unwrap_or(Type::Union);
         let rhs_ty = self.evaluate_expr(rhs).unwrap_or(Type::Union);
@@ -1377,9 +1414,9 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a call expression.
-    fn evaluate_call_expr(&mut self, expr: &CallExpr) -> Option<Type> {
+    fn evaluate_call_expr<N: TreeNode>(&mut self, expr: &CallExpr<N>) -> Option<Type> {
         let target = expr.target();
-        match STDLIB.function(target.as_str()) {
+        match STDLIB.function(target.text()) {
             Some(f) => {
                 // Evaluate the argument expressions
                 let mut count = 0;
@@ -1399,7 +1436,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                             if let Some(severity) =
                                 self.context.diagnostics_config().unnecessary_function_call
                             {
-                                if !expr.syntax().is_rule_excepted(UNNECESSARY_FUNCTION_CALL) {
+                                if !expr.inner().is_rule_excepted(UNNECESSARY_FUNCTION_CALL) {
                                     self.check_unnecessary_call(
                                         &target,
                                         arguments,
@@ -1413,13 +1450,13 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         Err(FunctionBindError::RequiresVersion(minimum)) => {
                             self.context.add_diagnostic(unsupported_function(
                                 minimum,
-                                target.as_str(),
+                                target.text(),
                                 target.span(),
                             ));
                         }
                         Err(FunctionBindError::TooFewArguments(minimum)) => {
                             self.context.add_diagnostic(too_few_arguments(
-                                target.as_str(),
+                                target.text(),
                                 target.span(),
                                 minimum,
                                 count,
@@ -1427,7 +1464,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         }
                         Err(FunctionBindError::TooManyArguments(maximum)) => {
                             self.context.add_diagnostic(too_many_arguments(
-                                target.as_str(),
+                                target.text(),
                                 target.span(),
                                 maximum,
                                 arguments.len(),
@@ -1436,7 +1473,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         }
                         Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
                             self.context.add_diagnostic(argument_type_mismatch(
-                                target.as_str(),
+                                target.text(),
                                 &expected,
                                 &arguments[index],
                                 expr.arguments()
@@ -1447,7 +1484,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         }
                         Err(FunctionBindError::Ambiguous { first, second }) => {
                             self.context.add_diagnostic(ambiguous_argument(
-                                target.as_str(),
+                                target.text(),
                                 target.span(),
                                 &first,
                                 &second,
@@ -1460,7 +1497,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         Some((_, max)) => {
                             assert!(max <= MAX_PARAMETERS);
                             self.context.add_diagnostic(too_many_arguments(
-                                target.as_str(),
+                                target.text(),
                                 target.span(),
                                 max,
                                 count,
@@ -1470,7 +1507,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         None => {
                             self.context.add_diagnostic(unsupported_function(
                                 f.minimum_version(),
-                                target.as_str(),
+                                target.text(),
                                 target.span(),
                             ));
                         }
@@ -1481,14 +1518,14 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             }
             None => {
                 self.context
-                    .add_diagnostic(unknown_function(target.as_str(), target.span()));
+                    .add_diagnostic(unknown_function(target.text(), target.span()));
                 None
             }
         }
     }
 
     /// Evaluates the type of an index expression.
-    fn evaluate_index_expr(&mut self, expr: &IndexExpr) -> Option<Type> {
+    fn evaluate_index_expr<N: TreeNode>(&mut self, expr: &IndexExpr<N>) -> Option<Type> {
         let (target, index) = expr.operands();
 
         // Determine the expected index type and result type of the expression
@@ -1527,12 +1564,12 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of an access expression.
-    fn evaluate_access_expr(&mut self, expr: &AccessExpr) -> Option<Type> {
+    fn evaluate_access_expr<N: TreeNode>(&mut self, expr: &AccessExpr<N>) -> Option<Type> {
         let (target, name) = expr.operands();
         let ty = self.evaluate_expr(&target)?;
 
         if matches!(ty, Type::Task) {
-            return match task_member_type(name.as_str()) {
+            return match task_member_type(name.text()) {
                 Some(ty) => Some(ty),
                 None => {
                     self.context.add_diagnostic(not_a_task_member(&name));
@@ -1544,7 +1581,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         // Check to see if it's a compound type or call output
         match &ty {
             Type::Compound(CompoundType::Struct(ty), _) => {
-                if let Some(ty) = ty.members.get(name.as_str()) {
+                if let Some(ty) = ty.members.get(name.text()) {
                     return Some(ty.clone());
                 }
 
@@ -1554,7 +1591,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             }
             Type::Compound(CompoundType::Pair(ty), _) => {
                 // Support `left` and `right` accessors for pairs
-                return match name.as_str() {
+                return match name.text() {
                     "left" => Some(ty.left_type.clone()),
                     "right" => Some(ty.right_type.clone()),
                     _ => {
@@ -1564,7 +1601,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 };
             }
             Type::Call(ty) => {
-                if let Some(output) = ty.outputs().get(name.as_str()) {
+                if let Some(output) = ty.outputs().get(name.text()) {
                     return Some(output.ty().clone());
                 }
 
@@ -1587,14 +1624,14 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Checks for unnecessary function calls.
-    fn check_unnecessary_call(
+    fn check_unnecessary_call<T: TreeToken>(
         &mut self,
-        target: &Ident,
+        target: &Ident<T>,
         arguments: &[Type],
         mut spans: impl Iterator<Item = Span>,
         severity: Severity,
     ) {
-        let (label, span, fix) = match target.as_str() {
+        let (label, span, fix) = match target.text() {
             "select_first" => {
                 let ty = &arguments[0]
                     .as_array()
@@ -1640,7 +1677,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         };
 
         self.context.add_diagnostic(
-            unnecessary_function_call(target.as_str(), target.span(), &label, span)
+            unnecessary_function_call(target.text(), target.span(), &label, span)
                 .with_severity(severity)
                 .with_fix(fix),
         )

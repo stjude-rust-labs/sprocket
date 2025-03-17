@@ -148,8 +148,8 @@ impl TokenStream<PreToken> {
 
     /// Inserts any preceding trivia into the stream.
     fn push_preceding_trivia(&mut self, token: &wdl_ast::Token) {
-        assert!(!token.syntax().kind().is_trivia());
-        let preceding_trivia = token.syntax().preceding_trivia();
+        assert!(!token.inner().kind().is_trivia());
+        let preceding_trivia = token.inner().preceding_trivia();
         for token in preceding_trivia {
             match token.kind() {
                 SyntaxKind::Whitespace => {
@@ -172,8 +172,8 @@ impl TokenStream<PreToken> {
 
     /// Inserts any inline trivia into the stream.
     fn push_inline_trivia(&mut self, token: &wdl_ast::Token) {
-        assert!(!token.syntax().kind().is_trivia());
-        if let Some(token) = token.syntax().inline_comment() {
+        assert!(!token.inner().kind().is_trivia());
+        if let Some(token) = token.inner().inline_comment() {
             let inline_comment = PreToken::Trivia(Trivia::Comment(Comment::Inline(Rc::new(
                 token.text().trim_end().to_owned(),
             ))));
@@ -189,8 +189,8 @@ impl TokenStream<PreToken> {
     pub fn push_ast_token(&mut self, token: &wdl_ast::Token) {
         self.push_preceding_trivia(token);
         self.0.push(PreToken::Literal(
-            Rc::new(token.syntax().text().to_owned()),
-            token.syntax().kind(),
+            Rc::new(token.inner().text().to_owned()),
+            token.inner().kind(),
         ));
         self.push_inline_trivia(token);
     }
@@ -202,7 +202,7 @@ impl TokenStream<PreToken> {
         self.push_preceding_trivia(token);
         self.0.push(PreToken::Literal(
             Rc::new(replacement),
-            token.syntax().kind(),
+            token.inner().kind(),
         ));
         self.push_inline_trivia(token);
     }

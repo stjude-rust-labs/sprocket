@@ -11,7 +11,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1;
@@ -146,7 +145,7 @@ fn compare_pair_types(a: &v1::PairType, b: &v1::PairType) -> Ordering {
 
 /// Compares the ordering of two type references.
 fn compare_type_refs(a: &v1::TypeRef, b: &v1::TypeRef) -> Ordering {
-    let cmp = a.name().as_str().cmp(b.name().as_str());
+    let cmp = a.name().text().cmp(b.name().text());
     if cmp != Ordering::Equal {
         return cmp;
     }
@@ -259,7 +258,7 @@ impl Visitor for InputNotSortedRule {
         let input_string: String = sorted_decls
             .clone()
             .into_iter()
-            .map(|decl| decl.syntax().text().to_string() + "\n")
+            .map(|decl| decl.inner().text().to_string() + "\n")
             .collect::<String>();
         let mut errors = 0;
 
@@ -273,14 +272,14 @@ impl Visitor for InputNotSortedRule {
             });
         if errors > 0 {
             let span = input
-                .syntax()
+                .inner()
                 .first_token()
                 .expect("input section should have tokens")
                 .text_range()
-                .to_span();
+                .into();
             state.exceptable_add(
                 input_not_sorted(span, input_string),
-                SyntaxElement::from(input.syntax().clone()),
+                SyntaxElement::from(input.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }

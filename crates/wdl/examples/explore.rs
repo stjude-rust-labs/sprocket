@@ -117,10 +117,10 @@ pub fn main() -> Result<()> {
 /// Explores metadata.
 fn explore_metadata(metadata: &MetadataSection) {
     for item in metadata.items() {
-        let value = item.value().syntax().text().to_string();
+        let value = item.value().text().to_string();
         println!(
             "`{name}`: `{value}`",
-            name = item.name().as_str(),
+            name = item.name().text(),
             value = value.trim()
         );
     }
@@ -131,7 +131,7 @@ fn explore_input(input: &InputSection) {
     for decl in input.declarations() {
         println!(
             "`{name}`: `{ty}`",
-            name = decl.name().as_str(),
+            name = decl.name().text(),
             ty = decl.ty()
         );
     }
@@ -142,7 +142,7 @@ fn explore_output(output: &OutputSection) {
     for decl in output.declarations() {
         println!(
             "`{name}`: `{ty}`",
-            name = decl.name().as_str(),
+            name = decl.name().text(),
             ty = decl.ty()
         );
     }
@@ -150,7 +150,7 @@ fn explore_output(output: &OutputSection) {
 
 /// Prints the metadata, input, and output sections from a WDL task.
 fn explore_task(task: &TaskDefinition) {
-    println!("## Task `{name}`", name = task.name().as_str());
+    println!("## Task `{name}`", name = task.name().text());
 
     if let Some(metadata) = task.metadata() {
         println!("\n### Metadata");
@@ -170,7 +170,7 @@ fn explore_task(task: &TaskDefinition) {
 
 /// Prints the metadata, input, and output block from a WDL workflow.
 fn explore_workflow(workflow: &WorkflowDefinition) {
-    println!("## Workflow `{name}`", name = workflow.name().as_str());
+    println!("## Workflow `{name}`", name = workflow.name().text());
 
     if let Some(metadata) = workflow.metadata() {
         println!("\n### Metadata");

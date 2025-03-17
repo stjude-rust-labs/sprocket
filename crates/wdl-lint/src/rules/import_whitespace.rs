@@ -8,7 +8,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::ToSpan;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
 use wdl_ast::v1::ImportStatement;
@@ -114,7 +113,7 @@ impl Visitor for ImportWhitespaceRule {
 
         // First, check internal whitespace.
         let internal_whitespace = stmt
-            .syntax()
+            .inner()
             .children_with_tokens()
             .filter(|c| c.kind() == SyntaxKind::Whitespace)
             .map(|c| c.into_token().unwrap());
@@ -122,7 +121,7 @@ impl Visitor for ImportWhitespaceRule {
         for token in internal_whitespace {
             if token.text() != " " && token.prev_token().unwrap().kind() != SyntaxKind::Comment {
                 state.exceptable_add(
-                    improper_whitespace_within_import(token.text_range().to_span()),
+                    improper_whitespace_within_import(token.text_range().into()),
                     SyntaxElement::from(token),
                     &self.exceptable_nodes(),
                 );
@@ -131,14 +130,14 @@ impl Visitor for ImportWhitespaceRule {
 
         // Second, check for whitespace before the import.
         let prev_token = stmt
-            .syntax()
+            .inner()
             .prev_sibling_or_token()
             .and_then(SyntaxElement::into_token);
 
         if let Some(token) = prev_token {
             if token.kind() == SyntaxKind::Whitespace && !token.text().ends_with('\n') {
                 // Find the span of just the leading whitespace
-                let span = token.text_range().to_span();
+                let span: Span = token.text_range().into();
                 for (text, offset, _) in lines_with_offset(token.text()) {
                     if !text.is_empty() {
                         state.exceptable_add(
@@ -156,7 +155,7 @@ impl Visitor for ImportWhitespaceRule {
 
         // Third, check for whitespace between imports.
         let between_imports = stmt
-            .syntax()
+            .inner()
             .prev_sibling()
             .map(|s| s.kind() == SyntaxKind::ImportStatementNode)
             .unwrap_or(false);
@@ -166,7 +165,7 @@ impl Visitor for ImportWhitespaceRule {
         }
 
         let mut prev_token = stmt
-            .syntax()
+            .inner()
             .prev_sibling_or_token()
             .and_then(SyntaxElement::into_token);
 
@@ -183,7 +182,7 @@ impl Visitor for ImportWhitespaceRule {
                 }
 
                 if should_warn {
-                    let span = token.text_range().to_span();
+                    let span = token.text_range().into();
                     state.exceptable_add(
                         blank_between_imports(span),
                         SyntaxElement::from(token.clone()),

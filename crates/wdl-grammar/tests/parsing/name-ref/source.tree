@@ -34,7 +34,7 @@ RootNode@0..118
       Whitespace@90..91 " "
       NegationExprNode@91..93
         Minus@91..92 "-"
-        NameRefNode@92..93
+        NameRefExprNode@92..93
           Ident@92..93 "x"
     Whitespace@93..98 "\n    "
     BoundDeclNode@98..115
@@ -46,18 +46,18 @@ RootNode@0..118
       Assignment@104..105 "="
       Whitespace@105..106 " "
       AdditionExprNode@106..115
-        NameRefNode@106..107
+        NameRefExprNode@106..107
           Ident@106..107 "x"
         Whitespace@107..108 " "
         Plus@108..109 "+"
         Whitespace@109..110 " "
         MultiplicationExprNode@110..115
-          NameRefNode@110..111
+          NameRefExprNode@110..111
             Ident@110..111 "y"
           Whitespace@111..112 " "
           Asterisk@112..113 "*"
           Whitespace@113..114 " "
-          NameRefNode@114..115
+          NameRefExprNode@114..115
             Ident@114..115 "x"
     Whitespace@115..116 "\n"
     CloseBrace@116..117 "}"

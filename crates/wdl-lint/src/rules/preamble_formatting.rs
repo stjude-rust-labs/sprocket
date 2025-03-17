@@ -188,7 +188,7 @@ impl Visitor for PreambleFormattingRule {
         // If the next sibling is the version statement, let the VersionFormatting rule
         // handle this particular whitespace
         if whitespace
-            .syntax()
+            .inner()
             .next_sibling_or_token()
             .map(|s| s.kind() == SyntaxKind::VersionStatementNode)
             .unwrap_or(false)
@@ -196,16 +196,16 @@ impl Visitor for PreambleFormattingRule {
             return;
         }
 
-        let s = whitespace.as_str();
+        let s = whitespace.text();
         // If there is a previous token, it must be a comment
-        match whitespace.syntax().prev_token() {
+        match whitespace.inner().prev_token() {
             Some(prev_comment) => {
                 let prev_text = prev_comment.text();
                 let prev_is_lint_directive = is_lint_directive(prev_text);
                 let prev_is_preamble_comment = is_preamble_comment(prev_text);
 
                 let next_token = whitespace
-                    .syntax()
+                    .inner()
                     .next_token()
                     .expect("should have a next token");
                 assert!(
@@ -320,7 +320,7 @@ impl Visitor for PreambleFormattingRule {
             return;
         }
 
-        let text = comment.as_str();
+        let text = comment.text();
         let lint_directive = is_lint_directive(text);
         let preamble_comment = is_preamble_comment(text);
 
@@ -356,7 +356,7 @@ impl Visitor for PreambleFormattingRule {
         // Otherwise, look for the next siblings that might also be problematic;
         // if so, consolidate them into a single diagnostic
         let mut span = comment.span();
-        let mut current = comment.syntax().next_sibling_or_token();
+        let mut current = comment.inner().next_sibling_or_token();
         while let Some(sibling) = current {
             match sibling.kind() {
                 SyntaxKind::Comment => {

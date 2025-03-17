@@ -2,19 +2,19 @@
 
 use std::fmt;
 
-use rowan::ast::support::token;
-
 use crate::AstNode;
+use crate::AstToken;
 use crate::Diagnostic;
 use crate::Diagnostics;
 use crate::Document;
 use crate::Span;
 use crate::SupportedVersion;
-use crate::SyntaxKind;
-use crate::ToSpan;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::v1;
+use crate::v1::HintsKeyword;
+use crate::v1::InputKeyword;
+use crate::v1::OutputKeyword;
 use crate::version::V1;
 
 /// Creates a "hints scope required" diagnostic.
@@ -126,22 +126,19 @@ impl Visitor for ScopedExprVisitor {
 
         let literal = match expr {
             v1::Expr::Literal(v1::LiteralExpr::Hints(l)) => Literal::Hints(
-                token(l.syntax(), SyntaxKind::HintsKeyword)
+                l.token::<HintsKeyword<_>>()
                     .expect("should have keyword")
-                    .text_range()
-                    .to_span(),
+                    .span(),
             ),
             v1::Expr::Literal(v1::LiteralExpr::Input(l)) => Literal::Input(
-                token(l.syntax(), SyntaxKind::InputKeyword)
+                l.token::<InputKeyword<_>>()
                     .expect("should have keyword")
-                    .text_range()
-                    .to_span(),
+                    .span(),
             ),
             v1::Expr::Literal(v1::LiteralExpr::Output(l)) => Literal::Output(
-                token(l.syntax(), SyntaxKind::OutputKeyword)
+                l.token::<OutputKeyword<_>>()
                     .expect("should have keyword")
-                    .text_range()
-                    .to_span(),
+                    .span(),
             ),
             _ => return,
         };
