@@ -14,6 +14,7 @@ readme = "README.md"
 anyhow = "1.0.91"
 clap = { version = "4.5.20", features = ["derive", "string"] }
 codespan-reporting = "0.11.1"
+once_cell = "1.19"
 git-testament = "0.2.5"
 indexmap = "2.6.0"
 nonempty = "0.10.0"

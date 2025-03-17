@@ -14,9 +14,20 @@ use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::emit;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
+use once_cell::sync::Lazy;
 use wdl::ast::Diagnostic;
 
 pub mod commands;
+
+static FULL_CONFIG: Lazy<Config> = Lazy::new(|| Config {
+    display_style: DisplayStyle::Rich,
+    ..Default::default()
+});
+
+static ONE_LINE_CONFIG: Lazy<Config> = Lazy::new(|| Config {
+    display_style: DisplayStyle::Short,
+    ..Default::default()
+});
 
 /// The diagnostic mode to use for reporting diagnostics.
 #[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
@@ -39,15 +50,10 @@ impl std::fmt::Display for Mode {
 }
 
 /// Gets the display config to use for reporting diagnostics.
-fn get_display_config(report_mode: Mode, no_color: bool) -> (Config, StandardStream) {
-    let display_style = match report_mode {
-        Mode::Full => DisplayStyle::Rich,
-        Mode::OneLine => DisplayStyle::Short,
-    };
-
-    let config = Config {
-        display_style,
-        ..Default::default()
+fn get_display_config(report_mode: Mode, no_color: bool) -> (&'static Config, StandardStream) {
+    let config = match report_mode {
+        Mode::Full => &*FULL_CONFIG,
+        Mode::OneLine => &*ONE_LINE_CONFIG,
     };
 
     let color_choice = if no_color {
@@ -60,6 +66,7 @@ fn get_display_config(report_mode: Mode, no_color: bool) -> (Config, StandardStr
 
     (config, writer)
 }
+
 
 /// Emits the given diagnostics to the terminal.
 fn emit_diagnostics<'a>(
