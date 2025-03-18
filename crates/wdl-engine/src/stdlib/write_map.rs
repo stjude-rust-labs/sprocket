@@ -112,11 +112,11 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn write_map() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn write_map() {
+        let env = TestEnv::default();
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_map({})").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_map({})").await.unwrap();
         assert!(
             value
                 .as_file()
@@ -131,10 +131,11 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_map({ 'foo': 'bar', 'bar': 'baz', 'qux': 'jam' })",
         )
+        .await
         .unwrap();
         assert!(
             value

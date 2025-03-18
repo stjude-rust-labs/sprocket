@@ -54,7 +54,7 @@ impl From<anyhow::Error> for EvaluationError {
 pub type EvaluationResult<T> = Result<T, EvaluationError>;
 
 /// Represents context to an expression evaluator.
-pub trait EvaluationContext {
+pub trait EvaluationContext: Send + Sync {
     /// Gets the supported version of the document being evaluated.
     fn version(&self) -> SupportedVersion;
 

@@ -80,32 +80,39 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn read_float() {
+    #[tokio::test]
+    async fn read_float() {
         let mut env = TestEnv::default();
         env.write_file("foo", "12345.6789 hello world!");
         env.write_file("bar", "\t \t 12345.6789   \n");
         env.insert_name("file", PrimitiveValue::new_file("bar"));
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_float('does-not-exist')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_float('does-not-exist')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
                 .starts_with("call to function `read_float` failed: failed to read file")
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "read_float('foo')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_float('foo')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
                 .contains("does not contain a float value on a single line")
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_float('bar')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_float('bar')")
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 12345.6789);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_float(file)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_float(file)")
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 12345.6789);
     }
 }

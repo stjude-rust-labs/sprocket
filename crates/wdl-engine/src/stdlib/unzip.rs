@@ -75,17 +75,19 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn unzip() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn unzip() {
+        let env = TestEnv::default();
 
-        let value = eval_v1_expr(&mut env, V1::One, "unzip([])")
+        let value = eval_v1_expr(&env, V1::One, "unzip([])")
+            .await
             .unwrap()
             .unwrap_pair();
         assert_eq!(value.left().as_array().unwrap().len(), 0);
         assert_eq!(value.right().as_array().unwrap().len(), 0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "unzip([(1, 'a'), (2, 'b'), (3, 'c')])")
+        let value = eval_v1_expr(&env, V1::One, "unzip([(1, 'a'), (2, 'b'), (3, 'c')])")
+            .await
             .unwrap()
             .unwrap_pair();
         let left: Vec<_> = value

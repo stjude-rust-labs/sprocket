@@ -52,8 +52,8 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn read_string() {
+    #[tokio::test]
+    async fn read_string() {
         let mut env = TestEnv::default();
         env.write_file("foo", "hello\nworld!\n\r\n");
         env.insert_name(
@@ -66,18 +66,23 @@ mod test {
             ),
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_string('does-not-exist')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_string('does-not-exist')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
                 .starts_with("call to function `read_string` failed: failed to read file")
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_string('foo')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_string('foo')")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hello\nworld!");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_string(file)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_string(file)")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hello\nworld!");
     }
 }

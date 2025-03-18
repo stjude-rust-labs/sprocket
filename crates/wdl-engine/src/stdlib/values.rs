@@ -54,8 +54,8 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn values() {
+    #[tokio::test]
+    async fn values() {
         let mut env = TestEnv::default();
 
         let ty = StructType::new(
@@ -69,11 +69,12 @@ mod test {
 
         env.insert_struct("Foo", ty);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "values({})").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "values({})").await.unwrap();
         assert_eq!(value.unwrap_array().len(), 0);
 
-        let value =
-            eval_v1_expr(&mut env, V1::Two, "values({'foo': 1, 'bar': 2, 'baz': 3})").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "values({'foo': 1, 'bar': 2, 'baz': 3})")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -83,12 +84,9 @@ mod test {
             .collect();
         assert_eq!(elements, [1, 2, 3]);
 
-        let value = eval_v1_expr(
-            &mut env,
-            V1::Two,
-            "values({'foo': 1, 'bar': None, 'baz': 3})",
-        )
-        .unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "values({'foo': 1, 'bar': None, 'baz': 3})")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()

@@ -59,19 +59,16 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn as_pairs() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn as_pairs() {
+        let env = TestEnv::default();
 
-        let value = eval_v1_expr(&mut env, V1::One, "as_pairs({})").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "as_pairs({})").await.unwrap();
         assert_eq!(value.unwrap_array().len(), 0);
 
-        let value = eval_v1_expr(
-            &mut env,
-            V1::One,
-            "as_pairs({ 'foo': 'bar', 'bar': 'baz' })",
-        )
-        .unwrap();
+        let value = eval_v1_expr(&env, V1::One, "as_pairs({ 'foo': 'bar', 'bar': 'baz' })")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -87,7 +84,9 @@ mod test {
             .collect();
         assert_eq!(elements, [("foo", "bar"), ("bar", "baz")]);
 
-        let value = eval_v1_expr(&mut env, V1::One, "as_pairs({'a': 1, 'c': 3, 'b': 2})").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "as_pairs({'a': 1, 'c': 3, 'b': 2})")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -103,7 +102,9 @@ mod test {
             .collect();
         assert_eq!(elements, [("a", 1), ("c", 3), ("b", 2)]);
 
-        let value = eval_v1_expr(&mut env, V1::One, "as_pairs({'a': 1, None: 3, 'b': 2})").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "as_pairs({'a': 1, None: 3, 'b': 2})")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()

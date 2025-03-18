@@ -43,23 +43,30 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn matches() {
-        let mut env = TestEnv::default();
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "matches('foo bar baz', '?')").unwrap_err();
+    #[tokio::test]
+    async fn matches() {
+        let env = TestEnv::default();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "matches('foo bar baz', '?')")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "regex parse error:\n    ?\n    ^\nerror: repetition operator missing expression"
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "matches('hello world', 'e..o')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "matches('hello world', 'e..o')")
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Two, "matches('hello world', 'goodbye')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "matches('hello world', 'goodbye')")
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Two, "matches('hello\tBob', '\\t')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "matches('hello\tBob', '\\t')")
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
     }
 }

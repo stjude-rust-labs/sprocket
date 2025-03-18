@@ -1656,7 +1656,7 @@ impl WorkflowEvaluator {
             &state.work_dir,
             &state.temp_dir,
         ));
-        Ok(evaluator.evaluate_expr(expr)?)
+        Ok(evaluator.evaluate_expr(expr).await?)
     }
 
     /// Evaluates the call inputs of a call statement.
@@ -1682,7 +1682,7 @@ impl WorkflowEvaluator {
                         &state.temp_dir,
                     ));
 
-                    evaluator.evaluate_expr(&expr)?
+                    evaluator.evaluate_expr(&expr).await?
                 }
                 None => scopes
                     .reference(scope)

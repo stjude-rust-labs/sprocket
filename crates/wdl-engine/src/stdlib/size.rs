@@ -213,8 +213,8 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn size() {
+    #[tokio::test]
+    async fn size() {
         let mut env = TestEnv::default();
 
         // 10 byte file
@@ -238,15 +238,18 @@ mod test {
             PrimitiveValue::new_directory(env.work_dir().to_str().expect("should be UTF-8")),
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "size('foo', 'invalid')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "size('foo', 'invalid')")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "invalid storage unit `invalid`; supported units are `B`, `KB`, `K`, `MB`, `M`, `GB`, \
              `G`, `TB`, `T`, `KiB`, `Ki`, `MiB`, `Mi`, `GiB`, `Gi`, `TiB`, and `Ti`"
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "size('does-not-exist', 'B')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "size('does-not-exist', 'B')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -254,7 +257,7 @@ mod test {
         );
 
         let source = format!("size('{path}', 'B')", path = env.work_dir().display());
-        let value = eval_v1_expr(&mut env, V1::Two, &source).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, &source).await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 60.0);
 
         for (expected, unit) in [
@@ -276,38 +279,50 @@ mod test {
             (0.000000000009094947017729282, "Ti"),
             (0.000000000009094947017729282, "TiB"),
         ] {
-            let value = eval_v1_expr(&mut env, V1::Two, &format!("size('foo', '{unit}')")).unwrap();
+            let value = eval_v1_expr(&env, V1::Two, &format!("size('foo', '{unit}')"))
+                .await
+                .unwrap();
             approx::assert_relative_eq!(value.unwrap_float(), expected);
         }
 
-        let value = eval_v1_expr(&mut env, V1::Two, "size(None, 'B')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "size(None, 'B')")
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.0);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "size(file, 'B')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "size(file, 'B')")
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 20.0);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "size(dir, 'B')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "size(dir, 'B')").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 60.0);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "size((dir, dir), 'B')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "size((dir, dir), 'B')")
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 120.0);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "size([file, file, file], 'B')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "size([file, file, file], 'B')")
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 60.0);
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "size({ 'a': file, 'b': file, 'c': file }, 'B')",
         )
+        .await
         .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 60.0);
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "size(object { a: file, b: file, c: file }, 'B')",
         )
+        .await
         .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 60.0);
     }

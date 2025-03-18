@@ -249,9 +249,9 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn read_tsv() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn read_tsv() {
+        let env = TestEnv::default();
         env.write_file(
             "foo.tsv",
             "row1_1\trow1_2\trow1_3\nrow2_1\trow2_2\trow2_3\trow2_4\nrow3_1\trow3_2\n",
@@ -275,24 +275,32 @@ mod test {
             "foo\tbar\tfoo\nrow1_1\trow1_2\trow1_3\nrow2_1\trow2_2\trow2_3\nrow3_1\trow3_2\trow3_3",
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "read_tsv('unknown.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_tsv('unknown.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
                 .contains("call to function `read_tsv` failed: failed to open file")
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_tsv('empty.tsv')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_tsv('empty.tsv')")
+            .await
+            .unwrap();
         assert!(value.unwrap_array().is_empty());
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "read_tsv('foo.tsv', false)").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_tsv('foo.tsv', false)")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `read_tsv` failed: argument specifying presence of a file header \
              must be `true`"
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_tsv('foo.tsv')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_tsv('foo.tsv')")
+            .await
+            .unwrap();
         let elements = value
             .as_array()
             .unwrap()
@@ -316,7 +324,9 @@ mod test {
             ]
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_tsv('bar.tsv', true)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_tsv('bar.tsv', true)")
+            .await
+            .unwrap();
         let elements = value
             .as_array()
             .unwrap()
@@ -340,10 +350,11 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "read_tsv('bar.tsv', true, ['qux', 'jam', 'cakes'])",
         )
+        .await
         .unwrap();
         let elements = value
             .as_array()
@@ -367,8 +378,9 @@ mod test {
             ]
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_tsv('bar.tsv', true, ['nope'])").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_tsv('bar.tsv', true, ['nope'])")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -380,8 +392,9 @@ mod test {
                 .contains("does not have the expected number of column")
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_tsv('missing_column.tsv', true)").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_tsv('missing_column.tsv', true)")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -394,10 +407,11 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "read_tsv('baz.tsv', false, ['foo', 'bar', 'baz'])",
         )
+        .await
         .unwrap();
         let elements = value
             .as_array()
@@ -422,10 +436,11 @@ mod test {
         );
 
         let diagnostic = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "read_tsv('missing_column.tsv', true, ['not-valid'])",
         )
+        .await
         .unwrap_err();
         assert_eq!(
             diagnostic.message(),
@@ -434,10 +449,11 @@ mod test {
         );
 
         let diagnostic = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "read_tsv('missing_column.tsv', true, ['not-valid'])",
         )
+        .await
         .unwrap_err();
         assert_eq!(
             diagnostic.message(),
@@ -445,8 +461,9 @@ mod test {
              object field name"
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_tsv('invalid_name.tsv', true)").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_tsv('invalid_name.tsv', true)")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -458,21 +475,19 @@ mod test {
                 .contains("is not a valid WDL object field name")
         );
 
-        let diagnostic = eval_v1_expr(
-            &mut env,
-            V1::Two,
-            "read_tsv('duplicate_column_name.tsv', true)",
-        )
-        .unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_tsv('duplicate_column_name.tsv', true)")
+            .await
+            .unwrap_err();
         assert!(diagnostic.message().contains(
             "call to function `read_tsv` failed: duplicate column name `foo` found in file"
         ));
 
         let diagnostic = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "read_tsv('bar.tsv', true, ['foo', 'bar', 'foo'])",
         )
+        .await
         .unwrap_err();
         assert_eq!(
             diagnostic.message(),

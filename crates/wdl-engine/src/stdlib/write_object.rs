@@ -150,8 +150,8 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn write_object() {
+    #[tokio::test]
+    async fn write_object() {
         let mut env = TestEnv::default();
 
         let ty = StructType::new(
@@ -165,7 +165,9 @@ mod test {
 
         env.insert_struct("Foo", ty);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_object(object {})").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_object(object {})")
+            .await
+            .unwrap();
         assert!(
             value
                 .as_file()
@@ -180,10 +182,11 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_object(object { foo: 'bar', bar: 1, baz: 3.5 })",
         )
+        .await
         .unwrap();
         assert!(
             value
@@ -199,10 +202,11 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_object(Foo { foo: 1, bar: 'foo', baz: true })",
         )
+        .await
         .unwrap();
         assert!(
             value
@@ -218,10 +222,11 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_object(object { foo: 1, bar: None, baz: true })",
         )
+        .await
         .unwrap();
         assert!(
             value
@@ -236,15 +241,17 @@ mod test {
             "foo\tbar\tbaz\n1\t\ttrue\n",
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "write_object(object { foo: [] })").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "write_object(object { foo: [] })")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `write_object` failed: member `foo` is not a primitive value"
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "write_object(object { foo: '\tbar' })").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "write_object(object { foo: '\tbar' })")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `write_object` failed: member `foo` contains a tab character"

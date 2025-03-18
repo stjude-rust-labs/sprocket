@@ -85,14 +85,16 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn zip() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn zip() {
+        let env = TestEnv::default();
 
-        let value = eval_v1_expr(&mut env, V1::One, "zip([], [])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "zip([], [])").await.unwrap();
         assert_eq!(value.as_array().unwrap().len(), 0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "zip([1, 2, 3], ['a', 'b', 'c'])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "zip([1, 2, 3], ['a', 'b', 'c'])")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -108,7 +110,9 @@ mod test {
             .collect();
         assert_eq!(elements, [(1, "a"), (2, "b"), (3, "c")]);
 
-        let diagnostic = eval_v1_expr(&mut env, V1::One, "zip([1, 2, 3], ['a'])").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "zip([1, 2, 3], ['a'])")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `zip` failed: expected an array of length 3, but this is an array \

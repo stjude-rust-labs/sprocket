@@ -82,8 +82,8 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn read_boolean() {
+    #[tokio::test]
+    async fn read_boolean() {
         let mut env = TestEnv::default();
         env.write_file("foo", "true false hello world!");
         env.write_file("bar", "\t\tTrUe   \n");
@@ -91,31 +91,42 @@ mod test {
         env.insert_name("t", PrimitiveValue::new_file("bar"));
         env.insert_name("f", PrimitiveValue::new_file("baz"));
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_boolean('does-not-exist')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_boolean('does-not-exist')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
                 .starts_with("call to function `read_boolean` failed: failed to read file")
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "read_boolean('foo')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_boolean('foo')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
                 .contains("does not contain a boolean value on a single line")
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_boolean('bar')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_boolean('bar')")
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_boolean(t)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_boolean(t)")
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_boolean('baz')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_boolean('baz')")
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_boolean(f)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_boolean(f)")
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
     }
 }

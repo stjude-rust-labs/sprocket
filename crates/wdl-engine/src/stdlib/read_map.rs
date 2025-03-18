@@ -102,15 +102,17 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn read_map() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn read_map() {
+        let env = TestEnv::default();
         env.write_file("empty.tsv", "");
         env.write_file("map.tsv", "foo\tbar\nbaz\tqux\njam\tcakes\n");
         env.write_file("wrong.tsv", "foo\tbar\nbaz\tqux\twrong\njam\tcakes\n");
         env.write_file("duplicate.tsv", "foo\tbar\nbaz\tqux\nfoo\tcakes\n");
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "read_map('wrong.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_map('wrong.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -122,7 +124,9 @@ mod test {
                 .contains("does not contain exactly two columns")
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "read_map('duplicate.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_map('duplicate.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -134,10 +138,14 @@ mod test {
                 .contains("contains duplicate key name `foo`")
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_map('empty.tsv')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_map('empty.tsv')")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_map().to_string(), "{}");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_map('map.tsv')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_map('map.tsv')")
+            .await
+            .unwrap();
         assert_eq!(
             value.unwrap_map().to_string(),
             r#"{"foo": "bar", "baz": "qux", "jam": "cakes"}"#

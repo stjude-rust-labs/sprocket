@@ -63,47 +63,62 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn select_first() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn select_first() {
+        let env = TestEnv::default();
 
-        let diagnostic = eval_v1_expr(&mut env, V1::One, "select_first([])").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "select_first([])")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `select_first` failed: array is empty"
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::One, "select_first([], 1)").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "select_first([], 1)")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `select_first` failed: array is empty"
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::One, "select_first([None, None, None])").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "select_first([None, None, None])")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `select_first` failed: array contains only `None` values"
         );
 
-        let value =
-            eval_v1_expr(&mut env, V1::One, "select_first([None, None, None], 12345)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "select_first([None, None, None], 12345)")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 12345);
 
-        let value = eval_v1_expr(&mut env, V1::One, "select_first([1, None, 3])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "select_first([1, None, 3])")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 1);
 
-        let value = eval_v1_expr(&mut env, V1::One, "select_first([None, 2, 3])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "select_first([None, 2, 3])")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 2);
 
-        let value = eval_v1_expr(&mut env, V1::One, "select_first([None, None, 3])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "select_first([None, None, 3])")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 3);
 
-        let value =
-            eval_v1_expr(&mut env, V1::One, "select_first([None, 2, None], 12345)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "select_first([None, 2, None], 12345)")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 2);
 
-        let value = eval_v1_expr(&mut env, V1::One, "select_first([1, 2, 3])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "select_first([1, 2, 3])")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 1);
     }
 }

@@ -57,22 +57,21 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn flatten() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn flatten() {
+        let env = TestEnv::default();
 
-        let value = eval_v1_expr(&mut env, V1::One, "flatten([])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "flatten([])").await.unwrap();
         assert_eq!(value.as_array().unwrap().len(), 0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "flatten([[], [], []])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "flatten([[], [], []])")
+            .await
+            .unwrap();
         assert_eq!(value.as_array().unwrap().len(), 0);
 
-        let value = eval_v1_expr(
-            &mut env,
-            V1::One,
-            "flatten([[1, 2, 3], [4, 5, 6, 7], [8, 9]])",
-        )
-        .unwrap();
+        let value = eval_v1_expr(&env, V1::One, "flatten([[1, 2, 3], [4, 5, 6, 7], [8, 9]])")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -83,10 +82,11 @@ mod test {
         assert_eq!(elements, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "flatten(chunk([1, 2, 3, 4, 5, 6, 7, 8, 9], 1))",
         )
+        .await
         .unwrap();
         let elements: Vec<_> = value
             .as_array()

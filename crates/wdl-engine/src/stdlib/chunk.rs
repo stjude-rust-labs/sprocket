@@ -67,14 +67,16 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn chunk() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn chunk() {
+        let env = TestEnv::default();
 
-        let value = eval_v1_expr(&mut env, V1::Two, "chunk([], 10)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "chunk([], 10)").await.unwrap();
         assert_eq!(value.as_array().unwrap().len(), 0);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "chunk([1, 2, 3, 4, 5], 1)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "chunk([1, 2, 3, 4, 5], 1)")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -91,7 +93,9 @@ mod test {
             .collect();
         assert_eq!(elements, [[1], [2], [3], [4], [5]]);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "chunk([1, 2, 3, 4, 5], 2)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "chunk([1, 2, 3, 4, 5], 2)")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -108,7 +112,9 @@ mod test {
             .collect();
         assert_eq!(elements, [[1, 2].as_slice(), &[3, 4], &[5]]);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "chunk([1, 2, 3, 4, 5], 3)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "chunk([1, 2, 3, 4, 5], 3)")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -125,7 +131,9 @@ mod test {
             .collect();
         assert_eq!(elements, [[1, 2, 3].as_slice(), &[4, 5]]);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "chunk([1, 2, 3, 4, 5], 4)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "chunk([1, 2, 3, 4, 5], 4)")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -142,7 +150,9 @@ mod test {
             .collect();
         assert_eq!(elements, [[1, 2, 3, 4].as_slice(), &[5]]);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "chunk([1, 2, 3, 4, 5], 5)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "chunk([1, 2, 3, 4, 5], 5)")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -159,7 +169,9 @@ mod test {
             .collect();
         assert_eq!(elements, [[1, 2, 3, 4, 5]]);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "chunk([1, 2, 3, 4, 5], 10)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "chunk([1, 2, 3, 4, 5], 10)")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -176,7 +188,9 @@ mod test {
             .collect();
         assert_eq!(elements, [[1, 2, 3, 4, 5]]);
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "chunk([1, 2, 3], -10)").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "chunk([1, 2, 3], -10)")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `chunk` failed: chunk size cannot be negative"

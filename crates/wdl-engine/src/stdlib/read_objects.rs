@@ -145,9 +145,9 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn read_objects() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn read_objects() {
+        let env = TestEnv::default();
         env.write_file("empty.tsv", "");
         env.write_file(
             "objects.tsv",
@@ -159,14 +159,19 @@ mod test {
         env.write_file("duplicate.tsv", "foo\tbar\tfoo\nbaz\tqux\tfoo\n");
         env.write_file("invalid-name.tsv", "foo\tbar-wrong\tfoo\nbaz\tqux\tfoo\n");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_objects('empty.tsv')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_objects('empty.tsv')")
+            .await
+            .unwrap();
         assert!(value.unwrap_array().is_empty());
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_objects('only-header.tsv')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_objects('only-header.tsv')")
+            .await
+            .unwrap();
         assert!(value.unwrap_array().is_empty());
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_objects('too-many-columns.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_objects('too-many-columns.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -178,8 +183,9 @@ mod test {
                 .contains("does not contain the expected number of columns")
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_objects('too-few-columns.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_objects('too-few-columns.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -191,21 +197,25 @@ mod test {
                 .contains("does not contain the expected number of columns")
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_objects('duplicate.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_objects('duplicate.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
                 .starts_with("call to function `read_objects` failed: duplicate column name `foo`")
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_objects('invalid-name.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_objects('invalid-name.tsv')")
+            .await
+            .unwrap_err();
         assert!(diagnostic.message().starts_with(
             "call to function `read_objects` failed: invalid column name `bar-wrong`"
         ));
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_objects('objects.tsv')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_objects('objects.tsv')")
+            .await
+            .unwrap();
         assert_eq!(
             value.unwrap_array().to_string(),
             r#"[object {k0: "a0", k1: "a1", k2: "a2"}, object {k0: "b0", k1: "b1", k2: "b2"}, object {k0: "c0", k1: "c1", k2: "c2"}]"#

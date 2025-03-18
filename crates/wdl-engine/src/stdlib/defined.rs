@@ -30,23 +30,27 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn defined() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn defined() {
+        let env = TestEnv::default();
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "defined('foo')").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "defined('foo')")
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "defined(['foo'])").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "defined(['foo'])")
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "defined(1)").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "defined(1)").await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "defined({})").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "defined({})").await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "defined(None)").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "defined(None)").await.unwrap();
         assert!(!value.unwrap_boolean());
     }
 }

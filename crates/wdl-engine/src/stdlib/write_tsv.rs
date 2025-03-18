@@ -417,8 +417,8 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn write_tsv() {
+    #[tokio::test]
+    async fn write_tsv() {
         let mut env = TestEnv::default();
 
         let ty: Type = StructType::new(
@@ -433,7 +433,7 @@ mod test {
 
         env.insert_struct("Foo", ty);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_tsv([])").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_tsv([])").await.unwrap();
         assert!(
             value
                 .as_file()
@@ -448,10 +448,11 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_tsv([['foo'], ['foo', 'bar'], ['foo', 'bar', 'baz']])",
         )
+        .await
         .unwrap();
         assert!(
             value
@@ -466,12 +467,9 @@ mod test {
             "foo\nfoo\tbar\nfoo\tbar\tbaz\n",
         );
 
-        let value = eval_v1_expr(
-            &mut env,
-            V1::Two,
-            "write_tsv([], true, ['foo', 'bar', 'baz'])",
-        )
-        .unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_tsv([], true, ['foo', 'bar', 'baz'])")
+            .await
+            .unwrap();
         assert!(
             value
                 .as_file()
@@ -486,11 +484,12 @@ mod test {
         );
 
         let diagnostic = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_tsv([['foo'], ['foo', 'bar'], ['foo', 'bar', 'baz']], true, ['foo', 'bar', \
              'baz'])",
         )
+        .await
         .unwrap_err();
         assert_eq!(
             diagnostic.message(),
@@ -499,11 +498,12 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_tsv([['foo'], ['foo', 'bar'], ['foo', 'bar', 'baz']], false, ['foo', 'bar', \
              'baz'])",
         )
+        .await
         .unwrap();
         assert!(
             value
@@ -519,11 +519,12 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_tsv([Foo { foo: 1, bar: 'hi', baz: true }, Foo { foo: 1234, bar: 'there', baz: \
              false }])",
         )
+        .await
         .unwrap();
         assert!(
             value
@@ -539,11 +540,12 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_tsv([Foo { foo: 1, bar: 'hi', baz: false }, Foo { foo: 1234, bar: 'there' }], \
              false)",
         )
+        .await
         .unwrap();
         assert!(
             value
@@ -559,11 +561,12 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_tsv([Foo { foo: 1, bar: 'hi', baz: true }, Foo { foo: 1234, bar: 'there', baz: \
              false }], true)",
         )
+        .await
         .unwrap();
         assert!(
             value
@@ -579,11 +582,12 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_tsv([Foo { foo: 1, bar: 'hi' }, Foo { foo: 1234, bar: 'there', baz: false }], \
              true, ['qux', 'jam', 'cakes'])",
         )
+        .await
         .unwrap();
         assert!(
             value
@@ -599,11 +603,12 @@ mod test {
         );
 
         let diagnostic = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_tsv([Foo { foo: 1, bar: 'hi', baz: true }, Foo { foo: 1234, bar: 'there', baz: \
              false }], true, ['qux'])",
         )
+        .await
         .unwrap_err();
         assert_eq!(
             diagnostic.message(),
@@ -611,15 +616,18 @@ mod test {
              but only given 1 header"
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "write_tsv([['\tfoo']])").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "write_tsv([['\tfoo']])")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `write_tsv` failed: element of array at index 0 contains a tab \
              character"
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "write_tsv([['foo']], true, ['\tfoo'])").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "write_tsv([['foo']], true, ['\tfoo'])")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `write_tsv` failed: specified column name at index 0 contains a tab \
@@ -627,11 +635,12 @@ mod test {
         );
 
         let diagnostic = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_tsv([Foo { foo: 1, bar: 'hi', baz: true }, Foo { foo: 1234, bar: 'there', baz: \
              false }], true, ['foo', '\tbar', 'baz'])",
         )
+        .await
         .unwrap_err();
         assert_eq!(
             diagnostic.message(),

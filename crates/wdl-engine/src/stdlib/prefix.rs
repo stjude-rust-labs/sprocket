@@ -65,10 +65,12 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn prefix() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Zero, "prefix('foo', [1, 2, 3])").unwrap();
+    #[tokio::test]
+    async fn prefix() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Zero, "prefix('foo', [1, 2, 3])")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -78,7 +80,9 @@ mod test {
             .collect();
         assert_eq!(elements, ["foo1", "foo2", "foo3"]);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "prefix('foo', [1.0, 1.1, 1.2])").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "prefix('foo', [1.0, 1.1, 1.2])")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -88,8 +92,9 @@ mod test {
             .collect();
         assert_eq!(elements, ["foo1.000000", "foo1.100000", "foo1.200000"]);
 
-        let value =
-            eval_v1_expr(&mut env, V1::Zero, "prefix('foo', ['bar', 'baz', 'qux'])").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "prefix('foo', ['bar', 'baz', 'qux'])")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -99,7 +104,9 @@ mod test {
             .collect();
         assert_eq!(elements, ["foobar", "foobaz", "fooqux"]);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "prefix('foo', [1, None, 3])").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "prefix('foo', [1, None, 3])")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -109,7 +116,9 @@ mod test {
             .collect();
         assert_eq!(elements, ["foo1", "foo", "foo3"]);
 
-        let value = eval_v1_expr(&mut env, V1::One, "prefix('foo', [])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "prefix('foo', [])")
+            .await
+            .unwrap();
         assert!(value.unwrap_array().is_empty());
     }
 }

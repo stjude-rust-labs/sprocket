@@ -62,74 +62,79 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn max() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::One, "max(7, 42)").unwrap();
+    #[tokio::test]
+    async fn max() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::One, "max(7, 42)").await.unwrap();
         assert_eq!(value.unwrap_integer(), 42);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(42, 7)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(42, 7)").await.unwrap();
         assert_eq!(value.unwrap_integer(), 42);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(-42, 7)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(-42, 7)").await.unwrap();
         assert_eq!(value.unwrap_integer(), 7);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(0, -42)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(0, -42)").await.unwrap();
         assert_eq!(value.unwrap_integer(), 0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(0, 42)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(0, 42)").await.unwrap();
         assert_eq!(value.unwrap_integer(), 42);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(7.0, 42)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(7.0, 42)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 42.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(42.0, 7)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(42.0, 7)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 42.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(-42.0, 7)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(-42.0, 7)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 7.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(0.0, -42)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(0.0, -42)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(0.0, 42)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(0.0, 42)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 42.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(7, 42.0)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(7, 42.0)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 42.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(42, 7.0)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(42, 7.0)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 42.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(-42, 7.0)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(-42, 7.0)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 7.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(0, -42.0)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(0, -42.0)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(0, 42.0)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(0, 42.0)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 42.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(7.0, 42.0)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(7.0, 42.0)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 42.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(42.0, 7.0)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(42.0, 7.0)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 42.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(-42.0, 7.0)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(-42.0, 7.0)")
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 7.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(0.0, -42.0)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(0.0, -42.0)")
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.0);
 
-        let value = eval_v1_expr(&mut env, V1::One, "max(0.0, 42.0)").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "max(0.0, 42.0)").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 42.0);
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::One,
             "max(12345, max(-100, max(54321, 1234.5678)))",
         )
+        .await
         .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 54321.0);
     }

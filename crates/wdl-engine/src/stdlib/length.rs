@@ -128,42 +128,42 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn length() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn length() {
+        let env = TestEnv::default();
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "length([])").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "length([])").await.unwrap();
         assert_eq!(value.unwrap_integer(), 0);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "length({})").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "length({})").await.unwrap();
         assert_eq!(value.unwrap_integer(), 0);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "length(object {})").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "length(object {})")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 0);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "length('')").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "length('')").await.unwrap();
         assert_eq!(value.unwrap_integer(), 0);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "length([1, 2, 3, 4, 5])").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "length([1, 2, 3, 4, 5])")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 5);
 
-        let value = eval_v1_expr(
-            &mut env,
-            V1::Zero,
-            "length({ 'foo': 1, 'bar': 2, 'baz': 3})",
-        )
-        .unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "length({ 'foo': 1, 'bar': 2, 'baz': 3})")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 3);
 
-        let value = eval_v1_expr(
-            &mut env,
-            V1::Zero,
-            "length(object { foo: 1, bar: 2, baz: 3})",
-        )
-        .unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "length(object { foo: 1, bar: 2, baz: 3})")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 3);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, "length('hello world!')").unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, "length('hello world!')")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 12);
     }
 }

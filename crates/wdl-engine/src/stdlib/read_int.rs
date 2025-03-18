@@ -81,31 +81,37 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn read_int() {
+    #[tokio::test]
+    async fn read_int() {
         let mut env = TestEnv::default();
         env.write_file("foo", "12345 hello world!");
         env.write_file("bar", "     \t   \t12345   \n");
         env.insert_name("file", PrimitiveValue::new_file("bar"));
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "read_int('does-not-exist')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_int('does-not-exist')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
                 .starts_with("call to function `read_int` failed: failed to read file")
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "read_int('foo')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_int('foo')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
                 .contains("does not contain an integer value on a single line")
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_int('bar')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_int('bar')")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 12345);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_int(file)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_int(file)").await.unwrap();
         assert_eq!(value.unwrap_integer(), 12345);
     }
 }

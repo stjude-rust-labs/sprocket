@@ -93,7 +93,7 @@ impl CallArgument {
 /// Represents function call context.
 pub struct CallContext<'a> {
     /// The evaluation context for the call.
-    context: &'a mut dyn EvaluationContext,
+    context: &'a dyn EvaluationContext,
     /// The call site span.
     call_site: Span,
     /// The arguments to the call.
@@ -105,7 +105,7 @@ pub struct CallContext<'a> {
 impl<'a> CallContext<'a> {
     /// Constructs a new call context given the call arguments.
     pub fn new(
-        context: &'a mut dyn EvaluationContext,
+        context: &'a dyn EvaluationContext,
         call_site: Span,
         arguments: &'a [CallArgument],
         return_type: Type,

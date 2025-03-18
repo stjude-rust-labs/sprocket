@@ -102,11 +102,13 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn write_lines() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn write_lines() {
+        let env = TestEnv::default();
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_lines([])").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_lines([])")
+            .await
+            .unwrap();
         assert!(
             value
                 .as_file()
@@ -120,12 +122,9 @@ mod test {
             "",
         );
 
-        let value = eval_v1_expr(
-            &mut env,
-            V1::Two,
-            "write_lines(['hello', 'world', '!\n', '!'])",
-        )
-        .unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_lines(['hello', 'world', '!\n', '!'])")
+            .await
+            .unwrap();
         assert!(
             value
                 .as_file()

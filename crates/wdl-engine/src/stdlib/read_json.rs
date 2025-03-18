@@ -60,9 +60,9 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn read_json() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn read_json() {
+        let env = TestEnv::default();
         env.write_file("empty.json", "");
         env.write_file("not-json.json", "not json!");
         env.write_file("null.json", "null");
@@ -82,7 +82,9 @@ mod test {
             r#"{ "foo": "bar", "bar!": 12345, "baz": [1, 2, 3] }"#,
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::One, "read_json('empty.json')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "read_json('empty.json')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -94,7 +96,9 @@ mod test {
                 .contains("EOF while parsing a value at line 1 column 0")
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::One, "read_json('not-json.json')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "read_json('not-json.json')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -106,22 +110,34 @@ mod test {
                 .contains("expected ident at line 1 column 2")
         );
 
-        let value = eval_v1_expr(&mut env, V1::One, "read_json('true.json')").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "read_json('true.json')")
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::One, "read_json('false.json')").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "read_json('false.json')")
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::One, "read_json('string.json')").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "read_json('string.json')")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hello\nworld!");
 
-        let value = eval_v1_expr(&mut env, V1::One, "read_json('int.json')").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "read_json('int.json')")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 12345);
 
-        let value = eval_v1_expr(&mut env, V1::One, "read_json('float.json')").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "read_json('float.json')")
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 12345.6789);
 
-        let value = eval_v1_expr(&mut env, V1::One, "read_json('array.json')").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "read_json('array.json')")
+            .await
+            .unwrap();
         assert_eq!(
             value
                 .unwrap_array()
@@ -133,8 +149,9 @@ mod test {
             [1, 2, 3]
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::One, "read_json('bad_array.json')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "read_json('bad_array.json')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -146,7 +163,8 @@ mod test {
                 .contains("a common element type does not exist between `Int` and `String`")
         );
 
-        let value = eval_v1_expr(&mut env, V1::One, "read_json('object.json')")
+        let value = eval_v1_expr(&env, V1::One, "read_json('object.json')")
+            .await
             .unwrap()
             .unwrap_object();
         assert_eq!(
@@ -168,8 +186,9 @@ mod test {
             [1, 2, 3]
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::One, "read_json('bad_object.json')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "read_json('bad_object.json')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()

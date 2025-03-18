@@ -69,23 +69,32 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn basename() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Two, "basename('/path/to/file.txt')").unwrap();
+    #[tokio::test]
+    async fn basename() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Two, "basename('/path/to/file.txt')")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "file.txt");
 
-        let value =
-            eval_v1_expr(&mut env, V1::Two, "basename('/path/to/file.txt', '.txt')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "basename('/path/to/file.txt', '.txt')")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "file");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "basename('/path/to/dir')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "basename('/path/to/dir')")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "dir");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "basename('file.txt')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "basename('file.txt')")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "file.txt");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "basename('file.txt', '.txt')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "basename('file.txt', '.txt')")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "file");
     }
 }

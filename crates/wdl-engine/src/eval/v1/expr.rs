@@ -6,6 +6,8 @@ use std::iter::once;
 use std::path::Path;
 use std::sync::Arc;
 
+use futures::FutureExt;
+use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use ordered_float::Pow;
 use wdl_analysis::DiagnosticsConfig;
@@ -142,96 +144,139 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates the given expression.
-    pub fn evaluate_expr(&mut self, expr: &Expr<SyntaxNode>) -> Result<Value, Diagnostic> {
-        let value = match expr {
-            Expr::Literal(expr) => self.evaluate_literal_expr(expr),
-            Expr::NameRef(r) => {
-                let name = r.name();
-                self.context.resolve_name(name.text(), name.span())
-            }
-            Expr::Parenthesized(expr) => self.evaluate_expr(&expr.expr()),
-            Expr::If(expr) => self.evaluate_if_expr(expr),
-            Expr::LogicalNot(expr) => self.evaluate_logical_not_expr(expr),
-            Expr::Negation(expr) => self.evaluate_negation_expr(expr),
-            Expr::LogicalOr(expr) => self.evaluate_logical_or_expr(expr),
-            Expr::LogicalAnd(expr) => self.evaluate_logical_and_expr(expr),
-            Expr::Equality(expr) => {
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_comparison_expr(ComparisonOperator::Equality, &lhs, &rhs, expr.span())
-            }
-            Expr::Inequality(expr) => {
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_comparison_expr(
-                    ComparisonOperator::Inequality,
-                    &lhs,
-                    &rhs,
-                    expr.span(),
-                )
-            }
-            Expr::Less(expr) => {
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_comparison_expr(ComparisonOperator::Less, &lhs, &rhs, expr.span())
-            }
-            Expr::LessEqual(expr) => {
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_comparison_expr(
-                    ComparisonOperator::LessEqual,
-                    &lhs,
-                    &rhs,
-                    expr.span(),
-                )
-            }
-            Expr::Greater(expr) => {
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_comparison_expr(ComparisonOperator::Greater, &lhs, &rhs, expr.span())
-            }
-            Expr::GreaterEqual(expr) => {
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_comparison_expr(
-                    ComparisonOperator::GreaterEqual,
-                    &lhs,
-                    &rhs,
-                    expr.span(),
-                )
-            }
-            Expr::Addition(expr) => {
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(NumericOperator::Addition, &lhs, &rhs, expr.span())
-            }
-            Expr::Subtraction(expr) => {
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(NumericOperator::Subtraction, &lhs, &rhs, expr.span())
-            }
-            Expr::Multiplication(expr) => {
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(NumericOperator::Multiplication, &lhs, &rhs, expr.span())
-            }
-            Expr::Division(expr) => {
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(NumericOperator::Division, &lhs, &rhs, expr.span())
-            }
-            Expr::Modulo(expr) => {
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(NumericOperator::Modulo, &lhs, &rhs, expr.span())
-            }
-            Expr::Exponentiation(expr) => {
-                if self.context.version() < SupportedVersion::V1(V1::Two) {
-                    return Err(exponentiation_requirement(expr.span()));
+    pub fn evaluate_expr<'a>(
+        &'a mut self,
+        expr: &'a Expr<SyntaxNode>,
+    ) -> BoxFuture<'a, Result<Value, Diagnostic>> {
+        async move {
+            let value = match expr {
+                Expr::Literal(expr) => self.evaluate_literal_expr(expr).await,
+                Expr::NameRef(r) => {
+                    let name = r.name();
+                    self.context.resolve_name(name.text(), name.span())
                 }
-                let (lhs, rhs) = expr.operands();
-                self.evaluate_numeric_expr(NumericOperator::Exponentiation, &lhs, &rhs, expr.span())
-            }
-            Expr::Call(expr) => self.evaluate_call_expr(expr),
-            Expr::Index(expr) => self.evaluate_index_expr(expr),
-            Expr::Access(expr) => self.evaluate_access_expr(expr),
-        }?;
+                Expr::Parenthesized(expr) => self.evaluate_expr(&expr.expr()).await,
+                Expr::If(expr) => self.evaluate_if_expr(expr).await,
+                Expr::LogicalNot(expr) => self.evaluate_logical_not_expr(expr).await,
+                Expr::Negation(expr) => self.evaluate_negation_expr(expr).await,
+                Expr::LogicalOr(expr) => self.evaluate_logical_or_expr(expr).await,
+                Expr::LogicalAnd(expr) => self.evaluate_logical_and_expr(expr).await,
+                Expr::Equality(expr) => {
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_comparison_expr(
+                        ComparisonOperator::Equality,
+                        &lhs,
+                        &rhs,
+                        expr.span(),
+                    )
+                    .await
+                }
+                Expr::Inequality(expr) => {
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_comparison_expr(
+                        ComparisonOperator::Inequality,
+                        &lhs,
+                        &rhs,
+                        expr.span(),
+                    )
+                    .await
+                }
+                Expr::Less(expr) => {
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_comparison_expr(ComparisonOperator::Less, &lhs, &rhs, expr.span())
+                        .await
+                }
+                Expr::LessEqual(expr) => {
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_comparison_expr(
+                        ComparisonOperator::LessEqual,
+                        &lhs,
+                        &rhs,
+                        expr.span(),
+                    )
+                    .await
+                }
+                Expr::Greater(expr) => {
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_comparison_expr(
+                        ComparisonOperator::Greater,
+                        &lhs,
+                        &rhs,
+                        expr.span(),
+                    )
+                    .await
+                }
+                Expr::GreaterEqual(expr) => {
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_comparison_expr(
+                        ComparisonOperator::GreaterEqual,
+                        &lhs,
+                        &rhs,
+                        expr.span(),
+                    )
+                    .await
+                }
+                Expr::Addition(expr) => {
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_numeric_expr(NumericOperator::Addition, &lhs, &rhs, expr.span())
+                        .await
+                }
+                Expr::Subtraction(expr) => {
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_numeric_expr(
+                        NumericOperator::Subtraction,
+                        &lhs,
+                        &rhs,
+                        expr.span(),
+                    )
+                    .await
+                }
+                Expr::Multiplication(expr) => {
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_numeric_expr(
+                        NumericOperator::Multiplication,
+                        &lhs,
+                        &rhs,
+                        expr.span(),
+                    )
+                    .await
+                }
+                Expr::Division(expr) => {
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_numeric_expr(NumericOperator::Division, &lhs, &rhs, expr.span())
+                        .await
+                }
+                Expr::Modulo(expr) => {
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_numeric_expr(NumericOperator::Modulo, &lhs, &rhs, expr.span())
+                        .await
+                }
+                Expr::Exponentiation(expr) => {
+                    if self.context.version() < SupportedVersion::V1(V1::Two) {
+                        return Err(exponentiation_requirement(expr.span()));
+                    }
+                    let (lhs, rhs) = expr.operands();
+                    self.evaluate_numeric_expr(
+                        NumericOperator::Exponentiation,
+                        &lhs,
+                        &rhs,
+                        expr.span(),
+                    )
+                    .await
+                }
+                Expr::Call(expr) => self.evaluate_call_expr(expr).await,
+                Expr::Index(expr) => self.evaluate_index_expr(expr).await,
+                Expr::Access(expr) => self.evaluate_access_expr(expr).await,
+            }?;
 
-        self.evaluated_none |= self.placeholders > 0 && value.is_none();
-        Ok(value)
+            self.evaluated_none |= self.placeholders > 0 && value.is_none();
+            Ok(value)
+        }
+        .boxed()
     }
 
     /// Evaluates a literal expression.
-    fn evaluate_literal_expr(
+    async fn evaluate_literal_expr(
         &mut self,
         expr: &LiteralExpr<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
@@ -245,38 +290,39 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 .value()
                 .ok_or_else(|| float_not_in_range(lit.span()))?
                 .into()),
-            LiteralExpr::String(lit) => self.evaluate_literal_string(lit),
-            LiteralExpr::Array(lit) => self.evaluate_literal_array(lit),
-            LiteralExpr::Pair(lit) => self.evaluate_literal_pair(lit),
-            LiteralExpr::Map(lit) => self.evaluate_literal_map(lit),
-            LiteralExpr::Object(lit) => self.evaluate_literal_object(lit),
-            LiteralExpr::Struct(lit) => self.evaluate_literal_struct(lit),
+            LiteralExpr::String(lit) => self.evaluate_literal_string(lit).await,
+            LiteralExpr::Array(lit) => self.evaluate_literal_array(lit).await,
+            LiteralExpr::Pair(lit) => self.evaluate_literal_pair(lit).await,
+            LiteralExpr::Map(lit) => self.evaluate_literal_map(lit).await,
+            LiteralExpr::Object(lit) => self.evaluate_literal_object(lit).await,
+            LiteralExpr::Struct(lit) => self.evaluate_literal_struct(lit).await,
             LiteralExpr::None(_) => Ok(Value::None),
-            LiteralExpr::Hints(lit) => self.evaluate_literal_hints(lit),
-            LiteralExpr::Input(lit) => self.evaluate_literal_input(lit),
-            LiteralExpr::Output(lit) => self.evaluate_literal_output(lit),
+            LiteralExpr::Hints(lit) => self.evaluate_literal_hints(lit).await,
+            LiteralExpr::Input(lit) => self.evaluate_literal_input(lit).await,
+            LiteralExpr::Output(lit) => self.evaluate_literal_output(lit).await,
         }
     }
 
     /// Evaluates a placeholder into the given string buffer.
-    pub fn evaluate_placeholder(
-        &mut self,
-        placeholder: &Placeholder<SyntaxNode>,
-        buffer: &mut String,
-    ) -> Result<(), Diagnostic> {
+    pub fn evaluate_placeholder<'a>(
+        &'a mut self,
+        placeholder: &'a Placeholder<SyntaxNode>,
+        buffer: &'a mut String,
+    ) -> BoxFuture<'a, Result<(), Diagnostic>> {
         /// The actual implementation for evaluating placeholders
-        fn imp<C: EvaluationContext>(
+        async fn imp<C: EvaluationContext>(
             evaluator: &mut ExprEvaluator<C>,
             placeholder: &Placeholder<SyntaxNode>,
             buffer: &mut String,
         ) -> Result<(), Diagnostic> {
             let expr = placeholder.expr();
-            match evaluator.evaluate_expr(&expr)? {
+            match evaluator.evaluate_expr(&expr).await? {
                 Value::None => {
                     if let Some(o) = placeholder.option().as_ref().and_then(|o| o.as_default()) {
                         buffer.push_str(
                             &evaluator
-                                .evaluate_literal_string(&o.value())?
+                                .evaluate_literal_string(&o.value())
+                                .await?
                                 .unwrap_string(),
                         )
                     }
@@ -291,11 +337,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                             let (t, f) = o.values();
                             if v {
                                 buffer.push_str(
-                                    &evaluator.evaluate_literal_string(&t)?.unwrap_string(),
+                                    &evaluator.evaluate_literal_string(&t).await?.unwrap_string(),
                                 );
                             } else {
                                 buffer.push_str(
-                                    &evaluator.evaluate_literal_string(&f)?.unwrap_string(),
+                                    &evaluator.evaluate_literal_string(&f).await?.unwrap_string(),
                                 );
                             }
                         }
@@ -328,7 +374,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     let option = placeholder.option().unwrap().unwrap_sep();
 
                     let sep = evaluator
-                        .evaluate_literal_string(&option.separator())?
+                        .evaluate_literal_string(&option.separator())
+                        .await?
                         .unwrap_string();
                     for (i, e) in v.as_slice().iter().enumerate() {
                         if i > 0 {
@@ -352,31 +399,34 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             Ok(())
         }
 
-        // Keep track of the start in case there is a `None` evaluated and an error
-        let start = buffer.len();
+        async {
+            // Keep track of the start in case there is a `None` evaluated and an error
+            let start = buffer.len();
 
-        // Bump the placeholder count while evaluating the placeholder
-        self.placeholders += 1;
-        let result = imp(self, placeholder, buffer);
-        self.placeholders -= 1;
+            // Bump the placeholder count while evaluating the placeholder
+            self.placeholders += 1;
+            let result = imp(self, placeholder, buffer).await;
+            self.placeholders -= 1;
 
-        // Reset the evaluated none flag
-        if self.placeholders == 0 {
-            let evaluated_none = std::mem::replace(&mut self.evaluated_none, false);
+            // Reset the evaluated none flag when we're done evaluating placeholders
+            if self.placeholders == 0 {
+                let evaluated_none = std::mem::replace(&mut self.evaluated_none, false);
 
-            // If a `None` was evaluated and an error occurred, truncate to the start of the
-            // placeholder evaluation
-            if evaluated_none && result.is_err() {
-                buffer.truncate(start);
-                return Ok(());
+                // If a `None` was evaluated and an error occurred, truncate to the start of the
+                // placeholder evaluation
+                if evaluated_none && result.is_err() {
+                    buffer.truncate(start);
+                    return Ok(());
+                }
             }
-        }
 
-        result
+            result
+        }
+        .boxed()
     }
 
     /// Evaluates a literal string expression.
-    fn evaluate_literal_string(
+    async fn evaluate_literal_string(
         &mut self,
         expr: &LiteralString<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
@@ -395,7 +445,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                             s.push_str(&t);
                         }
                         StrippedStringPart::Placeholder(placeholder) => {
-                            self.evaluate_placeholder(&placeholder, &mut s)?;
+                            self.evaluate_placeholder(&placeholder, &mut s).await?;
                         }
                     }
                 }
@@ -407,7 +457,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                             t.unescape_to(&mut s);
                         }
                         StringPart::Placeholder(placeholder) => {
-                            self.evaluate_placeholder(&placeholder, &mut s)?;
+                            self.evaluate_placeholder(&placeholder, &mut s).await?;
                         }
                     }
                 }
@@ -418,7 +468,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal array expression.
-    fn evaluate_literal_array(
+    async fn evaluate_literal_array(
         &mut self,
         expr: &LiteralArray<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
@@ -428,14 +478,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let (element_ty, values) = match elements.next() {
             Some(expr) => {
                 let mut values = Vec::new();
-                let value = self.evaluate_expr(&expr)?;
+                let value = self.evaluate_expr(&expr).await?;
                 let mut expected: Type = value.ty();
                 let mut expected_span = expr.span();
                 values.push(value);
 
                 // Ensure the remaining element types share a common type
                 for expr in elements {
-                    let value = self.evaluate_expr(&expr)?;
+                    let value = self.evaluate_expr(&expr).await?;
                     let actual = value.ty();
 
                     match expected.common_type(&actual) {
@@ -467,20 +517,23 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal pair expression.
-    fn evaluate_literal_pair(
+    async fn evaluate_literal_pair(
         &mut self,
         expr: &LiteralPair<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
         let (left, right) = expr.exprs();
-        let left = self.evaluate_expr(&left)?;
-        let right = self.evaluate_expr(&right)?;
+        let left = self.evaluate_expr(&left).await?;
+        let right = self.evaluate_expr(&right).await?;
         Ok(Pair::new(PairType::new(left.ty(), right.ty()), left, right)
             .expect("types should coerce")
             .into())
     }
 
     /// Evaluates a literal map expression.
-    fn evaluate_literal_map(&mut self, expr: &LiteralMap<SyntaxNode>) -> Result<Value, Diagnostic> {
+    async fn evaluate_literal_map(
+        &mut self,
+        expr: &LiteralMap<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let mut items = expr.items();
         let (key_ty, value_ty, elements) = match items.next() {
             Some(item) => {
@@ -488,10 +541,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                 // Evaluate the first key-value pair
                 let (key, value) = item.key_value();
-                let expected_key = self.evaluate_expr(&key)?;
+                let expected_key = self.evaluate_expr(&key).await?;
                 let mut expected_key_ty = expected_key.ty();
                 let mut expected_key_span = key.span();
-                let expected_value = self.evaluate_expr(&value)?;
+                let expected_value = self.evaluate_expr(&value).await?;
                 let mut expected_value_ty = expected_value.ty();
                 let mut expected_value_span = value.span();
 
@@ -509,9 +562,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 // Ensure the remaining items types share common types
                 for item in items {
                     let (key, value) = item.key_value();
-                    let actual_key = self.evaluate_expr(&key)?;
+                    let actual_key = self.evaluate_expr(&key).await?;
                     let actual_key_ty = actual_key.ty();
-                    let actual_value = self.evaluate_expr(&value)?;
+                    let actual_value = self.evaluate_expr(&value).await?;
                     let actual_value_ty = actual_value.ty();
 
                     match expected_key_ty.common_type(&actual_key_ty) {
@@ -566,23 +619,22 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal object expression.
-    fn evaluate_literal_object(
+    async fn evaluate_literal_object(
         &mut self,
         expr: &LiteralObject<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
-        Ok(Object::from(
-            expr.items()
-                .map(|item| {
-                    let (name, value) = item.name_value();
-                    Ok((name.text().to_string(), self.evaluate_expr(&value)?))
-                })
-                .collect::<Result<IndexMap<_, _>, _>>()?,
-        )
-        .into())
+        let mut members = IndexMap::new();
+        for item in expr.items() {
+            let (name, expr) = item.name_value();
+            let value = self.evaluate_expr(&expr).await?;
+            members.insert(name.text().to_string(), value);
+        }
+
+        Ok(Object::from(members).into())
     }
 
     /// Evaluates a literal struct expression.
-    fn evaluate_literal_struct(
+    async fn evaluate_literal_struct(
         &mut self,
         expr: &LiteralStruct<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
@@ -596,7 +648,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             let (n, v) = item.name_value();
             match struct_ty.members().get(n.text()) {
                 Some(expected) => {
-                    let value = self.evaluate_expr(&v)?;
+                    let value = self.evaluate_expr(&v).await?;
                     let value = value.coerce(expected).map_err(|e| {
                         runtime_type_mismatch(e, expected, n.span(), &value.ty(), v.span())
                     })?;
@@ -653,34 +705,28 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal hints expression.
-    fn evaluate_literal_hints(
+    async fn evaluate_literal_hints(
         &mut self,
         expr: &LiteralHints<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
-        let object: Object = expr
-            .items()
-            .map(|item| {
-                let name = item.name();
-                let expr = item.expr();
-                Ok((
-                    name.text().to_string(),
-                    self.evaluate_hints_item(&name, &expr)?,
-                ))
-            })
-            .collect::<Result<IndexMap<_, _>, _>>()?
-            .into();
+        let mut members = IndexMap::new();
+        for item in expr.items() {
+            let name = item.name();
+            let value = self.evaluate_hints_item(&name, &item.expr()).await?;
+            members.insert(name.text().to_string(), value);
+        }
 
-        Ok(Value::Hints(object.into()))
+        Ok(Object::from(members).into())
     }
 
     /// Evaluates a hints item, whether in task `hints` section or a `hints`
     /// literal expression.
-    pub(crate) fn evaluate_hints_item(
+    pub(crate) async fn evaluate_hints_item(
         &mut self,
         name: &Ident<SyntaxToken>,
         expr: &Expr<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
-        let value = self.evaluate_expr(expr)?;
+        let value = self.evaluate_expr(expr).await?;
         if let Some(expected) = task_hint_types(self.context.version(), name.text(), true) {
             match expected.iter().find_map(|ty| value.coerce(ty).ok()) {
                 Some(value) => {
@@ -701,35 +747,39 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a literal input expression.
-    fn evaluate_literal_input(
+    async fn evaluate_literal_input(
         &mut self,
         expr: &LiteralInput<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
-        let object: Object = expr
-            .items()
-            .map(|item| self.evaluate_literal_io_item(item.names(), item.expr(), Io::Input))
-            .collect::<Result<IndexMap<_, _>, _>>()?
-            .into();
+        let mut members = IndexMap::new();
+        for item in expr.items() {
+            let (name, value) = self
+                .evaluate_literal_io_item(item.names(), item.expr(), Io::Input)
+                .await?;
+            members.insert(name, value);
+        }
 
-        Ok(Value::Input(object.into()))
+        Ok(Object::from(members).into())
     }
 
     /// Evaluates a literal output expression.
-    fn evaluate_literal_output(
+    async fn evaluate_literal_output(
         &mut self,
         expr: &LiteralOutput<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
-        let object: Object = expr
-            .items()
-            .map(|item| self.evaluate_literal_io_item(item.names(), item.expr(), Io::Output))
-            .collect::<Result<IndexMap<_, _>, _>>()?
-            .into();
+        let mut members = IndexMap::new();
+        for item in expr.items() {
+            let (name, value) = self
+                .evaluate_literal_io_item(item.names(), item.expr(), Io::Output)
+                .await?;
+            members.insert(name, value);
+        }
 
-        Ok(Value::Output(object.into()))
+        Ok(Object::from(members).into())
     }
 
     /// Evaluates a literal input/output item.
-    fn evaluate_literal_io_item(
+    async fn evaluate_literal_io_item(
         &mut self,
         segments: impl Iterator<Item = Ident<SyntaxToken>>,
         expr: Expr<SyntaxNode>,
@@ -738,7 +788,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let mut segments = segments.enumerate().peekable();
 
         let mut name = String::new();
-        let value = self.evaluate_expr(&expr)?;
+        let value = self.evaluate_expr(&expr).await?;
 
         // The first name should be an input/output and then the remainder should be a
         // struct member
@@ -819,12 +869,12 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates an `if` expression.
-    fn evaluate_if_expr(&mut self, expr: &IfExpr<SyntaxNode>) -> Result<Value, Diagnostic> {
+    async fn evaluate_if_expr(&mut self, expr: &IfExpr<SyntaxNode>) -> Result<Value, Diagnostic> {
         /// Used to translate an expression evaluation context to an expression
         /// type evaluation context.
         struct TypeContext<'a, C: EvaluationContext> {
             /// The expression evaluation context.
-            context: &'a mut C,
+            context: &'a C,
             /// The diagnostics from evaluating the type of an expression.
             diagnostics: Vec<Diagnostic>,
         }
@@ -859,7 +909,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
         // Evaluate the conditional expression and the true expression or the false
         // expression, depending on the result of the conditional expression
-        let cond = self.evaluate_expr(&cond_expr)?;
+        let cond = self.evaluate_expr(&cond_expr).await?;
         let (value, true_ty, false_ty) = if cond
             .coerce(&PrimitiveType::Boolean.into())
             .map_err(|_| if_conditional_mismatch(&cond.ty(), cond_expr.span()))?
@@ -867,9 +917,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         {
             // Evaluate the `true` expression and calculate the type of the `false`
             // expression
-            let value = self.evaluate_expr(&true_expr)?;
+            let value = self.evaluate_expr(&true_expr).await?;
             let mut context = TypeContext {
-                context: &mut self.context,
+                context: &self.context,
                 diagnostics: Vec::new(),
             };
             let false_ty = ExprTypeEvaluator::new(&mut context)
@@ -885,9 +935,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         } else {
             // Evaluate the `false` expression and calculate the type of the `true`
             // expression
-            let value = self.evaluate_expr(&false_expr)?;
+            let value = self.evaluate_expr(&false_expr).await?;
             let mut context = TypeContext {
-                context: &mut self.context,
+                context: &self.context,
                 diagnostics: Vec::new(),
             };
             let true_ty = ExprTypeEvaluator::new(&mut context)
@@ -911,13 +961,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a `logical not` expression.
-    fn evaluate_logical_not_expr(
+    async fn evaluate_logical_not_expr(
         &mut self,
         expr: &LogicalNotExpr<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
         // The operand should be a boolean
         let operand = expr.operand();
-        let value = self.evaluate_expr(&operand)?;
+        let value = self.evaluate_expr(&operand).await?;
         Ok((!value
             .coerce(&PrimitiveType::Boolean.into())
             .map_err(|_| logical_not_mismatch(&value.ty(), operand.span()))?
@@ -926,7 +976,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a negation expression.
-    fn evaluate_negation_expr(
+    async fn evaluate_negation_expr(
         &mut self,
         expr: &NegationExpr<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
@@ -943,7 +993,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 .into());
         }
 
-        let value = self.evaluate_expr(&operand)?;
+        let value = self.evaluate_expr(&operand).await?;
         let ty = value.ty();
 
         // If the type is `Int`, treat it as `Int`
@@ -971,14 +1021,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a `logical or` expression.
-    fn evaluate_logical_or_expr(
+    async fn evaluate_logical_or_expr(
         &mut self,
         expr: &LogicalOrExpr<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
         let (lhs, rhs) = expr.operands();
 
         // Evaluate the left-hand side first
-        let left = self.evaluate_expr(&lhs)?;
+        let left = self.evaluate_expr(&lhs).await?;
         if left
             .coerce(&PrimitiveType::Boolean.into())
             .map_err(|_| logical_or_mismatch(&left.ty(), lhs.span()))?
@@ -989,21 +1039,21 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         }
 
         // Otherwise, evaluate the right-hand side
-        let right = self.evaluate_expr(&rhs)?;
+        let right = self.evaluate_expr(&rhs).await?;
         right
             .coerce(&PrimitiveType::Boolean.into())
             .map_err(|_| logical_or_mismatch(&right.ty(), rhs.span()))
     }
 
     /// Evaluates a `logical and` expression.
-    fn evaluate_logical_and_expr(
+    async fn evaluate_logical_and_expr(
         &mut self,
         expr: &LogicalAndExpr<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
         let (lhs, rhs) = expr.operands();
 
         // Evaluate the left-hand side first
-        let left = self.evaluate_expr(&lhs)?;
+        let left = self.evaluate_expr(&lhs).await?;
         if !left
             .coerce(&PrimitiveType::Boolean.into())
             .map_err(|_| logical_and_mismatch(&left.ty(), lhs.span()))?
@@ -1014,22 +1064,22 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         }
 
         // Otherwise, evaluate the right-hand side
-        let right = self.evaluate_expr(&rhs)?;
+        let right = self.evaluate_expr(&rhs).await?;
         right
             .coerce(&PrimitiveType::Boolean.into())
             .map_err(|_| logical_and_mismatch(&right.ty(), rhs.span()))
     }
 
     /// Evaluates a comparison expression.
-    fn evaluate_comparison_expr(
+    async fn evaluate_comparison_expr(
         &mut self,
         op: ComparisonOperator,
         lhs: &Expr<SyntaxNode>,
         rhs: &Expr<SyntaxNode>,
         span: Span,
     ) -> Result<Value, Diagnostic> {
-        let left = self.evaluate_expr(lhs)?;
-        let right = self.evaluate_expr(rhs)?;
+        let left = self.evaluate_expr(lhs).await?;
+        let right = self.evaluate_expr(rhs).await?;
 
         match op {
             ComparisonOperator::Equality => Value::equals(&left, &right),
@@ -1067,7 +1117,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a numeric expression.
-    fn evaluate_numeric_expr(
+    async fn evaluate_numeric_expr(
         &mut self,
         op: NumericOperator,
         lhs: &Expr<SyntaxNode>,
@@ -1130,8 +1180,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             }
         }
 
-        let left = self.evaluate_expr(lhs)?;
-        let right = self.evaluate_expr(rhs)?;
+        let left = self.evaluate_expr(lhs).await?;
+        let right = self.evaluate_expr(rhs).await?;
         match (&left, &right) {
             (
                 Value::Primitive(PrimitiveValue::Integer(left)),
@@ -1178,7 +1228,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates a call expression.
-    fn evaluate_call_expr(&mut self, expr: &CallExpr<SyntaxNode>) -> Result<Value, Diagnostic> {
+    async fn evaluate_call_expr(
+        &mut self,
+        expr: &CallExpr<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let target = expr.target();
         match wdl_analysis::stdlib::STDLIB.function(target.text()) {
             Some(f) => {
@@ -1188,7 +1241,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 let mut arguments = [const { CallArgument::none() }; MAX_PARAMETERS];
                 for arg in expr.arguments() {
                     if count < MAX_PARAMETERS {
-                        let v = self.evaluate_expr(&arg)?;
+                        let v = self.evaluate_expr(&arg).await?;
                         types[count] = v.ty();
                         arguments[count] = CallArgument::new(v, arg.span());
                     }
@@ -1203,7 +1256,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     match f.bind(self.context.version(), types) {
                         Ok(binding) => {
                             let context = CallContext::new(
-                                &mut self.context,
+                                &self.context,
                                 target.span(),
                                 arguments,
                                 binding.return_type().clone(),
@@ -1273,10 +1326,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates the type of an index expression.
-    fn evaluate_index_expr(&mut self, expr: &IndexExpr<SyntaxNode>) -> Result<Value, Diagnostic> {
+    async fn evaluate_index_expr(
+        &mut self,
+        expr: &IndexExpr<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let (target, index) = expr.operands();
-        match self.evaluate_expr(&target)? {
-            Value::Compound(CompoundValue::Array(array)) => match self.evaluate_expr(&index)? {
+        match self.evaluate_expr(&target).await? {
+            Value::Compound(CompoundValue::Array(array)) => match self.evaluate_expr(&index).await?
+            {
                 Value::Primitive(PrimitiveValue::Integer(i)) => {
                     match i.try_into().map(|i: usize| array.as_slice().get(i)) {
                         Ok(Some(value)) => Ok(value.clone()),
@@ -1303,7 +1360,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     .as_primitive()
                     .expect("key type should be primitive");
 
-                let i = match self.evaluate_expr(&index)? {
+                let i = match self.evaluate_expr(&index).await? {
                     Value::None if Type::None.is_coercible_to(&key_type.into()) => None,
                     Value::Primitive(i) if i.ty().is_coercible_to(&key_type.into()) => Some(i),
                     value => {
@@ -1325,10 +1382,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     }
 
     /// Evaluates the type of an access expression.
-    fn evaluate_access_expr(&mut self, expr: &AccessExpr<SyntaxNode>) -> Result<Value, Diagnostic> {
+    async fn evaluate_access_expr(
+        &mut self,
+        expr: &AccessExpr<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
         let (target, name) = expr.operands();
 
-        match self.evaluate_expr(&target)? {
+        match self.evaluate_expr(&target).await? {
             Value::Compound(CompoundValue::Pair(pair)) => match name.text() {
                 "left" => Ok(pair.left().clone()),
                 "right" => Ok(pair.right().clone()),
@@ -1430,7 +1490,7 @@ pub(crate) mod test {
 
     /// Represents test evaluation context to an expression evaluator.
     pub struct TestEvaluationContext<'a> {
-        env: &'a mut TestEnv,
+        env: &'a TestEnv,
         /// The supported version of WDL being evaluated.
         version: SupportedVersion,
         /// The stdout value from a task's execution.
@@ -1440,7 +1500,7 @@ pub(crate) mod test {
     }
 
     impl<'a> TestEvaluationContext<'a> {
-        pub fn new(env: &'a mut TestEnv, version: SupportedVersion) -> Self {
+        pub fn new(env: &'a TestEnv, version: SupportedVersion) -> Self {
             Self {
                 env,
                 version,
@@ -1508,15 +1568,20 @@ pub(crate) mod test {
         }
     }
 
-    pub fn eval_v1_expr(env: &mut TestEnv, version: V1, source: &str) -> Result<Value, Diagnostic> {
+    pub async fn eval_v1_expr(
+        env: &TestEnv,
+        version: V1,
+        source: &str,
+    ) -> Result<Value, Diagnostic> {
         eval_v1_expr_with_context(
             TestEvaluationContext::new(env, SupportedVersion::V1(version)),
             source,
         )
+        .await
     }
 
-    pub fn eval_v1_expr_with_stdio(
-        env: &mut TestEnv,
+    pub async fn eval_v1_expr_with_stdio(
+        env: &TestEnv,
         version: V1,
         source: &str,
         stdout: impl Into<Value>,
@@ -1528,9 +1593,10 @@ pub(crate) mod test {
                 .with_stderr(stderr),
             source,
         )
+        .await
     }
 
-    fn eval_v1_expr_with_context(
+    async fn eval_v1_expr_with_context(
         context: TestEvaluationContext<'_>,
         source: &str,
     ) -> Result<Value, Diagnostic> {
@@ -1554,7 +1620,7 @@ pub(crate) mod test {
                     .expect("should be an expression");
 
                 let mut evaluator = ExprEvaluator::new(context);
-                evaluator.evaluate_expr(&expr)
+                evaluator.evaluate_expr(&expr).await
             }
             Err((marker, diagnostic)) => {
                 marker.abandon(&mut parser);
@@ -1563,51 +1629,55 @@ pub(crate) mod test {
         }
     }
 
-    #[test]
-    fn literal_none_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Two, "None").unwrap();
+    #[tokio::test]
+    async fn literal_none_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Two, "None").await.unwrap();
         assert_eq!(value.to_string(), "None");
     }
 
-    #[test]
-    fn literal_bool_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Two, "true").unwrap();
+    #[tokio::test]
+    async fn literal_bool_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Two, "true").await.unwrap();
         assert_eq!(value.unwrap_boolean(), true);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "false").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "false").await.unwrap();
         assert_eq!(value.unwrap_boolean(), false);
     }
 
-    #[test]
-    fn literal_int_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Two, "12345").unwrap();
+    #[tokio::test]
+    async fn literal_int_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Two, "12345").await.unwrap();
         assert_eq!(value.unwrap_integer(), 12345);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "-54321").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "-54321").await.unwrap();
         assert_eq!(value.unwrap_integer(), -54321);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "0xdeadbeef").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "0xdeadbeef").await.unwrap();
         assert_eq!(value.unwrap_integer(), 0xDEADBEEF);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "0777").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "0777").await.unwrap();
         assert_eq!(value.unwrap_integer(), 0o777);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "-9223372036854775808").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "-9223372036854775808")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), -9223372036854775808);
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "9223372036854775808").expect_err("should fail");
+        let diagnostic = eval_v1_expr(&env, V1::Two, "9223372036854775808")
+            .await
+            .expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
             "literal integer exceeds the range for a 64-bit signed integer \
              (-9223372036854775808..=9223372036854775807)"
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "-9223372036854775809").expect_err("should fail");
+        let diagnostic = eval_v1_expr(&env, V1::Two, "-9223372036854775809")
+            .await
+            .expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
             "literal integer exceeds the range for a 64-bit signed integer \
@@ -1615,31 +1685,37 @@ pub(crate) mod test {
         );
     }
 
-    #[test]
-    fn literal_float_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Two, "12345.6789").unwrap();
+    #[tokio::test]
+    async fn literal_float_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Two, "12345.6789").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 12345.6789);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "-12345.6789").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "-12345.6789").await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -12345.6789);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "1.7976931348623157E+308").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "1.7976931348623157E+308")
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 1.797_693_134_862_315_7E308);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "-1.7976931348623157E+308").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "-1.7976931348623157E+308")
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -1.797_693_134_862_315_7E308);
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "2.7976931348623157E+308").expect_err("should fail");
+        let diagnostic = eval_v1_expr(&env, V1::Two, "2.7976931348623157E+308")
+            .await
+            .expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
             "literal float exceeds the range for a 64-bit float \
              (-1.7976931348623157e308..=+1.7976931348623157e308)"
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "-2.7976931348623157E+308").expect_err("should fail");
+        let diagnostic = eval_v1_expr(&env, V1::Two, "-2.7976931348623157E+308")
+            .await
+            .expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
             "literal float exceeds the range for a 64-bit float \
@@ -1647,23 +1723,26 @@ pub(crate) mod test {
         );
     }
 
-    #[test]
-    fn literal_string_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Two, "'hello\nworld'").unwrap();
+    #[tokio::test]
+    async fn literal_string_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Two, "'hello\nworld'").await.unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hello\nworld");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#""hello world""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""hello world""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hello world");
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             r#"<<<
         <<< hello \\ \${foo} \~{bar}  \
             world \>\>\>
     >>>"#,
         )
+        .await
         .unwrap();
         assert_eq!(
             value.unwrap_string().as_str(),
@@ -1671,16 +1750,17 @@ pub(crate) mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             r#""\\\n\r\t\'\"\~\$\101\x41\u0041\U00000041\?""#,
         )
+        .await
         .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "\\\n\r\t'\"~$AAAA\\?");
     }
 
-    #[test]
-    fn string_placeholders() {
+    #[tokio::test]
+    async fn string_placeholders() {
         let mut env = TestEnv::default();
         env.insert_name("str", PrimitiveValue::new_string("foo"));
         env.insert_name("file", PrimitiveValue::new_file("bar"));
@@ -1692,60 +1772,70 @@ pub(crate) mod test {
         env.insert_name("name", PrimitiveValue::new_string("Henry"));
         env.insert_name("company", PrimitiveValue::new_string("Acme"));
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#""~{None}""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""~{None}""#).await.unwrap();
         assert_eq!(value.unwrap_string().as_str(), "");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#""~{default="hi" None}""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""~{default="hi" None}""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hi");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#""~{true}""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""~{true}""#).await.unwrap();
         assert_eq!(value.unwrap_string().as_str(), "true");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#""~{false}""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""~{false}""#).await.unwrap();
         assert_eq!(value.unwrap_string().as_str(), "false");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#""~{true="yes" false="no" false}""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""~{true="yes" false="no" false}""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "no");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#""~{12345}""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""~{12345}""#).await.unwrap();
         assert_eq!(value.unwrap_string().as_str(), "12345");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#""~{12345.6789}""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""~{12345.6789}""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "12345.678900");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#""~{str}""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""~{str}""#).await.unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foo");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#""~{file}""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""~{file}""#).await.unwrap();
         assert_eq!(value.unwrap_string().as_str(), "bar");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#""~{dir}""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""~{dir}""#).await.unwrap();
         assert_eq!(value.unwrap_string().as_str(), "baz");
 
-        let value =
-            eval_v1_expr(&mut env, V1::Two, r#""~{sep="+" [1,2,3]} = ~{1 + 2 + 3}""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#""~{sep="+" [1,2,3]} = ~{1 + 2 + 3}""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "1+2+3 = 6");
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, r#""~{[1, 2, 3]}""#).expect_err("should fail");
+        let diagnostic = eval_v1_expr(&env, V1::Two, r#""~{[1, 2, 3]}""#)
+            .await
+            .expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
             "cannot coerce type `Array[Int]` to `String`"
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             r#""~{salutation + ' ' + name1 + ', '}nice to meet you!""#,
         )
+        .await
         .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "nice to meet you!");
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             r#""${salutation + ' ' + name2 + ', '}nice to meet you!""#,
         )
+        .await
         .unwrap();
         assert_eq!(
             value.unwrap_string().as_str(),
@@ -1753,7 +1843,7 @@ pub(crate) mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             r#"
     <<<
@@ -1761,6 +1851,7 @@ pub(crate) mod test {
         ~{spaces}Welcome to ~{company}!
     >>>"#,
         )
+        .await
         .unwrap();
         assert_eq!(
             value.unwrap_string().as_str(),
@@ -1768,100 +1859,122 @@ pub(crate) mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             r#""~{1 + 2 + 3 + 4 * 10 * 10} ~{"~{<<<~{'!' + '='}>>>}"} ~{10**3}""#,
         )
+        .await
         .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "406 != 1000");
     }
 
-    #[test]
-    fn literal_array_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Two, "[]").unwrap();
+    #[tokio::test]
+    async fn literal_array_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Two, "[]").await.unwrap();
         assert_eq!(value.unwrap_array().to_string(), "[]");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "[1, 2, 3]").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "[1, 2, 3]").await.unwrap();
         assert_eq!(value.unwrap_array().to_string(), "[1, 2, 3]");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "[[1], [2], [3.0]]").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "[[1], [2], [3.0]]")
+            .await
+            .unwrap();
         assert_eq!(
             value.unwrap_array().to_string(),
             "[[1.000000], [2.000000], [3.000000]]"
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#"["foo", "bar", "baz"]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#"["foo", "bar", "baz"]"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_array().to_string(), r#"["foo", "bar", "baz"]"#);
     }
 
-    #[test]
-    fn literal_pair_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Two, "(true, false)").unwrap();
+    #[tokio::test]
+    async fn literal_pair_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Two, "(true, false)").await.unwrap();
         assert_eq!(value.unwrap_pair().to_string(), "(true, false)");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "([1, 2, 3], [4, 5, 6])").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "([1, 2, 3], [4, 5, 6])")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_pair().to_string(), "([1, 2, 3], [4, 5, 6])");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "([], {})").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "([], {})").await.unwrap();
         assert_eq!(value.unwrap_pair().to_string(), "([], {})");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#"("foo", "bar")"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#"("foo", "bar")"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_pair().to_string(), r#"("foo", "bar")"#);
     }
 
-    #[test]
-    fn literal_map_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Two, "{}").unwrap();
+    #[tokio::test]
+    async fn literal_map_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Two, "{}").await.unwrap();
         assert_eq!(value.unwrap_map().to_string(), "{}");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "{ 1: 2, 3: 4, 5: 6 }").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "{ 1: 2, 3: 4, 5: 6 }")
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_map().to_string(), "{1: 2, 3: 4, 5: 6}");
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#"{"foo": "bar", "baz": "qux"}"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#"{"foo": "bar", "baz": "qux"}"#)
+            .await
+            .unwrap();
         assert_eq!(
             value.unwrap_map().to_string(),
             r#"{"foo": "bar", "baz": "qux"}"#
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#"{"foo": { 1: 2 }, "baz": {}}"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#"{"foo": { 1: 2 }, "baz": {}}"#)
+            .await
+            .unwrap();
         assert_eq!(
             value.unwrap_map().to_string(),
             r#"{"foo": {1: 2}, "baz": {}}"#
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#"{"foo": 100, "baz": 2.5}"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#"{"foo": 100, "baz": 2.5}"#)
+            .await
+            .unwrap();
         assert_eq!(
             value.unwrap_map().to_string(),
             r#"{"foo": 100.000000, "baz": 2.500000}"#
         );
     }
 
-    #[test]
-    fn literal_object_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Two, "object {}").unwrap();
+    #[tokio::test]
+    async fn literal_object_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Two, "object {}").await.unwrap();
         assert_eq!(value.unwrap_object().to_string(), "object {}");
 
-        let value = eval_v1_expr(&mut env, V1::Two, "object { foo: 2, bar: 4, baz: 6 }").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "object { foo: 2, bar: 4, baz: 6 }")
+            .await
+            .unwrap();
         assert_eq!(
             value.unwrap_object().to_string(),
             "object {foo: 2, bar: 4, baz: 6}"
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#"object {foo: "bar", baz: "qux"}"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#"object {foo: "bar", baz: "qux"}"#)
+            .await
+            .unwrap();
         assert_eq!(
             value.unwrap_object().to_string(),
             r#"object {foo: "bar", baz: "qux"}"#
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             r#"object {foo: { 1: 2 }, bar: [], qux: "jam"}"#,
         )
+        .await
         .unwrap();
         assert_eq!(
             value.unwrap_object().to_string(),
@@ -1869,10 +1982,11 @@ pub(crate) mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             r#"object {foo: 1.0, bar: object { baz: "qux" }}"#,
         )
+        .await
         .unwrap();
         assert_eq!(
             value.unwrap_object().to_string(),
@@ -1880,8 +1994,8 @@ pub(crate) mod test {
         );
     }
 
-    #[test]
-    fn literal_struct_expr() {
+    #[tokio::test]
+    async fn literal_struct_expr() {
         let mut env = TestEnv::default();
         let bar_ty: Type = StructType::new(
             "Bar",
@@ -1904,939 +2018,1205 @@ pub(crate) mod test {
         env.insert_struct("Bar", bar_ty);
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             r#"Foo { foo: 1.0, bar: Bar { foo: "baz", bar: 2 }}"#,
         )
+        .await
         .unwrap();
         assert_eq!(
             value.unwrap_struct().to_string(),
             r#"Foo {foo: 1.000000, bar: Bar {foo: "baz", bar: 2}}"#
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} == Foo { foo: 1.0, bar: Bar { foo: "baz", bar: 2 }}"#)
-            .unwrap();
+        let value = eval_v1_expr(&env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} == Foo { foo: 1.0, bar: Bar { foo: "baz", bar: 2 }}"#)
+            .await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} == Foo { foo: 1.0, bar: Bar { foo: "jam", bar: 2 }}"#)
-            .unwrap();
+        let value = eval_v1_expr(&env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} == Foo { foo: 1.0, bar: Bar { foo: "jam", bar: 2 }}"#)
+            .await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} != Foo { foo: 1.0, bar: Bar { foo: "baz", bar: 2 }}"#)
-            .unwrap();
+        let value = eval_v1_expr(&env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} != Foo { foo: 1.0, bar: Bar { foo: "baz", bar: 2 }}"#)
+            .await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} != Foo { foo: 1.0, bar: Bar { foo: "jam", bar: 2 }}"#)
-            .unwrap();
+        let value = eval_v1_expr(&env, V1::Two,r#"Foo { foo: 1, bar: Bar { foo: "baz", bar: 2 }} != Foo { foo: 1.0, bar: Bar { foo: "jam", bar: 2 }}"#)
+            .await.unwrap();
         assert!(value.unwrap_boolean());
     }
 
-    #[test]
-    fn name_ref_expr() {
+    #[tokio::test]
+    async fn name_ref_expr() {
         let mut env = TestEnv::default();
         env.insert_name("foo", 1234);
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), 1234);
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"bar"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"bar"#).await.unwrap_err();
         assert_eq!(diagnostic.message(), "unknown name `bar`");
     }
 
-    #[test]
-    fn parenthesized_expr() {
+    #[tokio::test]
+    async fn parenthesized_expr() {
         let mut env = TestEnv::default();
         env.insert_name("foo", 1234);
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"(foo - foo) + (1234 - foo)"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"(foo - foo) + (1234 - foo)"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 0);
     }
 
-    #[test]
-    fn if_expr() {
+    #[tokio::test]
+    async fn if_expr() {
         let mut env = TestEnv::default();
         env.insert_name("foo", true);
         env.insert_name("bar", false);
         env.insert_name("baz", PrimitiveValue::new_file("file"));
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (foo) then "foo" else "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"if (foo) then "foo" else "bar""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foo");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (bar) then "foo" else "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"if (bar) then "foo" else "bar""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "bar");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (foo) then 1234 else 0.5"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"if (foo) then 1234 else 0.5"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 1234.0);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (bar) then 1234 else 0.5"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"if (bar) then 1234 else 0.5"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.5);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (foo) then baz else "str""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"if (foo) then baz else "str""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_file().as_str(), "file");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"if (bar) then baz else "path""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"if (bar) then baz else "path""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_file().as_str(), "path");
     }
 
-    #[test]
-    fn logical_not_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"!true"#).unwrap();
+    #[tokio::test]
+    async fn logical_not_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Zero, r#"!true"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"!false"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"!false"#).await.unwrap();
         assert!(value.unwrap_boolean());
     }
 
-    #[test]
-    fn negation_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"-1234"#).unwrap();
+    #[tokio::test]
+    async fn negation_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Zero, r#"-1234"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), -1234);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"-(1234)"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"-(1234)"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), -1234);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"----1234"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"----1234"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), 1234);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"-1234.5678"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"-1234.5678"#).await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -1234.5678);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"-(1234.5678)"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"-(1234.5678)"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -1234.5678);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"----1234.5678"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"----1234.5678"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 1234.5678);
     }
 
-    #[test]
-    fn logical_or_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"false || false"#).unwrap();
+    #[tokio::test]
+    async fn logical_or_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Zero, r#"false || false"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"false || true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"false || true"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true || false"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true || false"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true || true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true || true"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true || nope"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true || nope"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"false || nope"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"false || nope"#)
+            .await
+            .unwrap_err();
         assert_eq!(diagnostic.message(), "unknown name `nope`");
     }
 
-    #[test]
-    fn logical_and_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"false && false"#).unwrap();
+    #[tokio::test]
+    async fn logical_and_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Zero, r#"false && false"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"false && true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"false && true"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true && false"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true && false"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true && true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true && true"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"false && nope"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"false && nope"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"true && nope"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"true && nope"#)
+            .await
+            .unwrap_err();
         assert_eq!(diagnostic.message(), "unknown name `nope`");
     }
 
-    #[test]
-    fn equality_expr() {
+    #[tokio::test]
+    async fn equality_expr() {
         let mut env = TestEnv::default();
         env.insert_name("foo", PrimitiveValue::new_file("foo"));
         env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"None == None"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"None == None"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true == true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true == true"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 == 1234"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234 == 1234"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 == 4321"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234 == 4321"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 == 1234.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234 == 1234.0"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"4321 == 1234.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"4321 == 1234.0"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.0 == 1234"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234.0 == 1234"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.0 == 4321"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234.0 == 4321"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.5678 == 1234.5678"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234.5678 == 1234.5678"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.5678 == 8765.4321"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234.5678 == 8765.4321"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" == "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" == "foo""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" == "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" == "bar""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" == foo"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" == foo"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" == bar"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" == bar"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo == "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo == "foo""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo == "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo == "bar""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar == "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar == "bar""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar == "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar == "foo""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"(1234, "bar") == (1234, "bar")"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"(1234, "bar") == (1234, "bar")"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"(1234, "bar") == (1234, "baz")"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"(1234, "bar") == (1234, "baz")"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1, 2, 3] == [1, 2, 3]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"[1, 2, 3] == [1, 2, 3]"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1] == [2, 3]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"[1] == [2, 3]"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1] == [2]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"[1] == [2]"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} == {"foo": 1, "bar": 2, "baz": 3}"#,
         )
+        .await
         .unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} == {"foo": 1, "baz": 3, "bar": 2}"#,
         )
+        .await
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} == {"foo": 1, "baz": 3}"#,
         )
+        .await
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} == {"foo": 3, "bar": 2, "baz": 1}"#,
         )
+        .await
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} == object {foo: 1, bar: 2, baz: "3"}"#,
         )
+        .await
         .unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} == object {foo: 1, baz: "3"}"#,
         )
+        .await
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} == object {foo: 3, bar: 2, baz: "1"}"#,
         )
+        .await
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         // Note: struct equality is handled in the struct literal test
     }
 
-    #[test]
-    fn inequality_expr() {
+    #[tokio::test]
+    async fn inequality_expr() {
         let mut env = TestEnv::default();
         env.insert_name("foo", PrimitiveValue::new_file("foo"));
         env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"None != None"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"None != None"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true != true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true != true"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 != 1234"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234 != 1234"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 != 4321"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234 != 4321"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 != 1234.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234 != 1234.0"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"4321 != 1234.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"4321 != 1234.0"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.0 != 1234"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234.0 != 1234"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.0 != 4321"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234.0 != 4321"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.5678 != 1234.5678"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234.5678 != 1234.5678"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.5678 != 8765.4321"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234.5678 != 8765.4321"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" != "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" != "foo""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" != "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" != "bar""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" != foo"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" != foo"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" != bar"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" != bar"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo != "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo != "foo""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo != "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo != "bar""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar != "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar != "bar""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar != "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar != "foo""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"(1234, "bar") != (1234, "bar")"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"(1234, "bar") != (1234, "bar")"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"(1234, "bar") != (1234, "baz")"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"(1234, "bar") != (1234, "baz")"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1, 2, 3] != [1, 2, 3]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"[1, 2, 3] != [1, 2, 3]"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1] != [2, 3]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"[1] != [2, 3]"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"[1] != [2]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"[1] != [2]"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} != {"foo": 1, "bar": 2, "baz": 3}"#,
         )
+        .await
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} != {"foo": 1, "baz": 3}"#,
         )
+        .await
         .unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"{"foo": 1, "bar": 2, "baz": 3} != {"foo": 3, "bar": 2, "baz": 1}"#,
         )
+        .await
         .unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} != object {foo: 1, bar: 2, baz: "3"}"#,
         )
+        .await
         .unwrap();
         assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} != object {foo: 1, baz: "3"}"#,
         )
+        .await
         .unwrap();
         assert!(value.unwrap_boolean());
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Zero,
             r#"object {foo: 1, bar: 2, baz: "3"} != object {foo: 3, bar: 2, baz: "1"}"#,
         )
+        .await
         .unwrap();
         assert!(value.unwrap_boolean());
 
         // Note: struct inequality is handled in the struct literal test
     }
 
-    #[test]
-    fn less_expr() {
+    #[tokio::test]
+    async fn less_expr() {
         let mut env = TestEnv::default();
         env.insert_name("foo", PrimitiveValue::new_file("foo"));
         env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"false < true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"false < true"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true < false"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true < false"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true < true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true < true"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 < 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0 < 1"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 < 0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 < 0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 < 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 < 1"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 < 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0 < 1.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 < 0.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 < 0.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 < 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 < 1.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 < 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0.0 < 1"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 < 0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 < 0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 < 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 < 1"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 < 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0.0 < 1.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 < 0.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 < 0.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 < 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 < 1.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" < "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""bar" < "foo""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" < "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" < "bar""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" < "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" < "foo""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar < "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar < "foo""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar < bar"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar < bar"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo < "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo < "bar""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo < foo"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo < foo"#).await.unwrap();
         assert!(!value.unwrap_boolean());
     }
 
-    #[test]
-    fn less_equal_expr() {
+    #[tokio::test]
+    async fn less_equal_expr() {
         let mut env = TestEnv::default();
         env.insert_name("foo", PrimitiveValue::new_file("foo"));
         env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"false <= true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"false <= true"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true <= false"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true <= false"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true <= true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true <= true"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 <= 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0 <= 1"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 <= 0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 <= 0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 <= 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 <= 1"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 <= 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0 <= 1.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 <= 0.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 <= 0.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 <= 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 <= 1.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 <= 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0.0 <= 1"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 <= 0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 <= 0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 <= 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 <= 1"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 <= 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0.0 <= 1.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 <= 0.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 <= 0.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 <= 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 <= 1.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" <= "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""bar" <= "foo""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" <= "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" <= "bar""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" <= "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" <= "foo""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar <= "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar <= "foo""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar <= bar"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar <= bar"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo <= "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo <= "bar""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo <= foo"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo <= foo"#).await.unwrap();
         assert!(value.unwrap_boolean());
     }
 
-    #[test]
-    fn greater_expr() {
+    #[tokio::test]
+    async fn greater_expr() {
         let mut env = TestEnv::default();
         env.insert_name("foo", PrimitiveValue::new_file("foo"));
         env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"false > true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"false > true"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true > false"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true > false"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true > true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true > true"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 > 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0 > 1"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 > 0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 > 0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 > 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 > 1"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 > 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0 > 1.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 > 0.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 > 0.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 > 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 > 1.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 > 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0.0 > 1"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 > 0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 > 0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 > 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 > 1"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 > 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0.0 > 1.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 > 0.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 > 0.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 > 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 > 1.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" > "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""bar" > "foo""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" > "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" > "bar""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" > "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" > "foo""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar > "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar > "foo""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar > bar"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar > bar"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo > "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo > "bar""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo > foo"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo > foo"#).await.unwrap();
         assert!(!value.unwrap_boolean());
     }
 
-    #[test]
-    fn greater_equal_expr() {
+    #[tokio::test]
+    async fn greater_equal_expr() {
         let mut env = TestEnv::default();
         env.insert_name("foo", PrimitiveValue::new_file("foo"));
         env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"false >= true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"false >= true"#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true >= false"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true >= false"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"true >= true"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"true >= true"#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 >= 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0 >= 1"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 >= 0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 >= 0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 >= 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 >= 1"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0 >= 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0 >= 1.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 >= 0.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 >= 0.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 >= 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 >= 1.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 >= 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0.0 >= 1"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 >= 0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 >= 0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 >= 1"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 >= 1"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"0.0 >= 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"0.0 >= 1.0"#).await.unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 >= 0.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 >= 0.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1.0 >= 1.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1.0 >= 1.0"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" >= "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""bar" >= "foo""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" >= "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" >= "bar""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" >= "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" >= "foo""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar >= "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar >= "foo""#)
+            .await
+            .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar >= bar"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar >= bar"#).await.unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo >= "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo >= "bar""#)
+            .await
+            .unwrap();
         assert!(value.unwrap_boolean());
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo >= foo"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo >= foo"#).await.unwrap();
         assert!(value.unwrap_boolean());
     }
 
-    #[test]
-    fn addition_expr() {
+    #[tokio::test]
+    async fn addition_expr() {
         let mut env = TestEnv::default();
         env.insert_name("foo", PrimitiveValue::new_file("foo"));
         env.insert_name("bar", PrimitiveValue::new_directory("bar"));
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 + 2 + 3 + 4"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 + 2 + 3 + 4"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 10);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"10 + 20.0 + 30 + 40.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"10 + 20.0 + 30 + 40.0"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 100.0);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"100.0 + 200 + 300.0 + 400"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"100.0 + 200 + 300.0 + 400"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 1000.0);
 
-        let value =
-            eval_v1_expr(&mut env, V1::Zero, r#"1000.5 + 2000.5 + 3000.5 + 4000.5"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1000.5 + 2000.5 + 3000.5 + 4000.5"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 10002.0);
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Zero, &format!(r#"{max} + 1"#, max = i64::MAX)).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, &format!(r#"{max} + 1"#, max = i64::MAX))
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "evaluation of arithmetic expression resulted in overflow"
         );
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" + 1234"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" + 1234"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foo1234");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234 + "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234 + "foo""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "1234foo");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" + 1234.456"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" + 1234.456"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foo1234.456000");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1234.456 + "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1234.456 + "foo""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "1234.456000foo");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" + "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" + "bar""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foobar");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" + "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""bar" + "foo""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "barfoo");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo + "bar""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo + "bar""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foobar");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""bar" + foo"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""bar" + foo"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "barfoo");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#""foo" + bar"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#""foo" + bar"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foobar");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar + "foo""#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar + "foo""#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "barfoo");
     }
 
-    #[test]
-    fn subtraction_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"-1 - 2 - 3 - 4"#).unwrap();
+    #[tokio::test]
+    async fn subtraction_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Zero, r#"-1 - 2 - 3 - 4"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), -10);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"-10 - 20.0 - 30 - 40.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"-10 - 20.0 - 30 - 40.0"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -100.0);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"-100.0 - 200 - 300.0 - 400"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"-100.0 - 200 - 300.0 - 400"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -1000.0);
 
-        let value =
-            eval_v1_expr(&mut env, V1::Zero, r#"-1000.5 - 2000.5 - 3000.5 - 4000.5"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"-1000.5 - 2000.5 - 3000.5 - 4000.5"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), -10002.0);
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Zero, &format!(r#"{min} - 1"#, min = i64::MIN)).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, &format!(r#"{min} - 1"#, min = i64::MIN))
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "evaluation of arithmetic expression resulted in overflow"
         );
     }
 
-    #[test]
-    fn multiplication_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"1 * 2 * 3 * 4"#).unwrap();
+    #[tokio::test]
+    async fn multiplication_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1 * 2 * 3 * 4"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 24);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"10 * 20.0 * 30 * 40.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"10 * 20.0 * 30 * 40.0"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 240000.0);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"100.0 * 200 * 300.0 * 400"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"100.0 * 200 * 300.0 * 400"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 2400000000.0);
 
-        let value =
-            eval_v1_expr(&mut env, V1::Zero, r#"1000.5 * 2000.5 * 3000.5 * 4000.5"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1000.5 * 2000.5 * 3000.5 * 4000.5"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 24025008751250.063);
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Zero, &format!(r#"{max} * 2"#, max = i64::MAX)).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, &format!(r#"{max} * 2"#, max = i64::MAX))
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "evaluation of arithmetic expression resulted in overflow"
         );
     }
 
-    #[test]
-    fn division_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"5 / 2"#).unwrap();
+    #[tokio::test]
+    async fn division_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Zero, r#"5 / 2"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), 2);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"10 / 20.0 / 30 / 40.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"10 / 20.0 / 30 / 40.0"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.00041666666666666664);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"100.0 / 200 / 300.0 / 400"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"100.0 / 200 / 300.0 / 400"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 4.166666666666667e-6);
 
-        let value =
-            eval_v1_expr(&mut env, V1::Zero, r#"1000.5 / 2000.5 / 3000.5 / 4000.5"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"1000.5 / 2000.5 / 3000.5 / 4000.5"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 4.166492759125078e-8);
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"10 / 0"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"10 / 0"#).await.unwrap_err();
         assert_eq!(diagnostic.message(), "attempt to divide by zero");
 
-        let diagnostic = eval_v1_expr(
-            &mut env,
-            V1::Zero,
-            &format!(r#"{min} / -1"#, min = i64::MIN),
-        )
-        .unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, &format!(r#"{min} / -1"#, min = i64::MIN))
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "evaluation of arithmetic expression resulted in overflow"
         );
     }
 
-    #[test]
-    fn modulo_expr() {
-        let mut env = TestEnv::default();
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"5 % 2"#).unwrap();
+    #[tokio::test]
+    async fn modulo_expr() {
+        let env = TestEnv::default();
+        let value = eval_v1_expr(&env, V1::Zero, r#"5 % 2"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), 1);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"5.5 % 2"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"5.5 % 2"#).await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 1.5);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"5 % 2.5"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"5 % 2.5"#).await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.0);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"5.25 % 1.3"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"5.25 % 1.3"#).await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.04999999999999982);
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"5 % 0"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"5 % 0"#).await.unwrap_err();
         assert_eq!(diagnostic.message(), "attempt to divide by zero");
 
-        let diagnostic = eval_v1_expr(
-            &mut env,
-            V1::Zero,
-            &format!(r#"{min} % -1"#, min = i64::MIN),
-        )
-        .unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, &format!(r#"{min} % -1"#, min = i64::MIN))
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "evaluation of arithmetic expression resulted in overflow"
         );
     }
 
-    #[test]
-    fn exponentiation_expr() {
-        let mut env = TestEnv::default();
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"10 ** 0"#).unwrap_err();
+    #[tokio::test]
+    async fn exponentiation_expr() {
+        let env = TestEnv::default();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"10 ** 0"#)
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "use of the exponentiation operator requires WDL version 1.2"
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#"5 ** 2 ** 2"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#"5 ** 2 ** 2"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), 625);
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#"5 ** 2.0 ** 2"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#"5 ** 2.0 ** 2"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 625.0);
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#"5 ** 2 ** 2.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#"5 ** 2 ** 2.0"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 625.0);
 
-        let value = eval_v1_expr(&mut env, V1::Two, r#"5.0 ** 2.0 ** 2.0"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Two, r#"5.0 ** 2.0 ** 2.0"#)
+            .await
+            .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 625.0);
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, &format!(r#"{max} ** 2"#, max = i64::MAX)).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, &format!(r#"{max} ** 2"#, max = i64::MAX))
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "evaluation of arithmetic expression resulted in overflow"
         );
     }
 
-    #[test]
-    fn call_expr() {
+    #[tokio::test]
+    async fn call_expr() {
         // This test will just check for errors; testing of the function implementations
         // is in `stdlib.rs`
-        let mut env = TestEnv::default();
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, "min(1, 2)").unwrap_err();
+        let env = TestEnv::default();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, "min(1, 2)").await.unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "this use of function `min` requires a minimum WDL version of 1.1"
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Zero, "min(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, "min(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "this use of function `min` requires a minimum WDL version of 1.1"
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::One, "min(1)").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "min(1)").await.unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "function `min` requires at least 2 arguments but 1 was supplied"
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::One, "min(1, 2, 3)").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "min(1, 2, 3)")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "function `min` requires no more than 2 arguments but 3 were supplied"
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::One, "min(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "min(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "function `min` requires no more than 2 arguments but 10 were supplied"
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::One, "min('1', 2)").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "min('1', 2)")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "type mismatch: argument to function `min` expects type `Int` or `Float`, but found \
@@ -2844,8 +3224,8 @@ pub(crate) mod test {
         );
     }
 
-    #[test]
-    fn index_expr() {
+    #[tokio::test]
+    async fn index_expr() {
         let mut env = TestEnv::default();
         let array_ty = ArrayType::new(PrimitiveType::Integer);
         let map_ty = MapType::new(PrimitiveType::String, PrimitiveType::Integer);
@@ -2864,51 +3244,61 @@ pub(crate) mod test {
         );
         env.insert_name("baz", PrimitiveValue::new_file("bar"));
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo[1]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo[1]"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), 2);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo[foo[[1, 2, 3][0]]]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo[foo[[1, 2, 3][0]]]"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 3);
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"foo[10]"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"foo[10]"#)
+            .await
+            .unwrap_err();
         assert_eq!(diagnostic.message(), "array index 10 is out of range");
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"foo["10"]"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"foo["10"]"#)
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "type mismatch: expected index to be type `Int`, but found type `String`"
         );
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar["foo"]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar["foo"]"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), 1);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar[baz]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar[baz]"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), 2);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo[bar["foo"]]"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo[bar["foo"]]"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 2);
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"bar["does not exist"]"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"bar["does not exist"]"#)
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "the map does not contain an entry for the specified key"
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"bar[1]"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"bar[1]"#).await.unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "type mismatch: expected index to be type `String`, but found type `Int`"
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"1[0]"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"1[0]"#).await.unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "indexing is only allowed on `Array` and `Map` types"
         );
     }
 
-    #[test]
-    fn access_expr() {
+    #[tokio::test]
+    async fn access_expr() {
         let mut env = TestEnv::default();
         let pair_ty = PairType::new(PrimitiveType::Integer, PrimitiveType::String);
         let struct_ty = StructType::new(
@@ -2936,43 +3326,52 @@ pub(crate) mod test {
         );
         env.insert_name("baz", 1);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo.left"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo.left"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), 1);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"foo.right"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"foo.right"#).await.unwrap();
         assert_eq!(value.unwrap_string().as_str(), "foo");
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"foo.bar"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"foo.bar"#)
+            .await
+            .unwrap_err();
         assert_eq!(diagnostic.message(), "cannot access a pair with name `bar`");
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar.foo"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar.foo"#).await.unwrap();
         assert_eq!(value.unwrap_integer(), 1);
 
-        let value = eval_v1_expr(&mut env, V1::Zero, r#"bar.bar"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"bar.bar"#).await.unwrap();
         assert_eq!(value.unwrap_string().as_str(), "bar");
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"bar.baz"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"bar.baz"#)
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "struct `Foo` does not have a member named `baz`"
         );
 
-        let value =
-            eval_v1_expr(&mut env, V1::Zero, r#"object { foo: 1, bar: "bar" }.foo"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"object { foo: 1, bar: "bar" }.foo"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_integer(), 1);
 
-        let value =
-            eval_v1_expr(&mut env, V1::Zero, r#"object { foo: 1, bar: "bar" }.bar"#).unwrap();
+        let value = eval_v1_expr(&env, V1::Zero, r#"object { foo: 1, bar: "bar" }.bar"#)
+            .await
+            .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "bar");
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Zero, r#"object { foo: 1, bar: "bar" }.baz"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"object { foo: 1, bar: "bar" }.baz"#)
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "object does not have a member named `baz`"
         );
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Zero, r#"baz.foo"#).unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"baz.foo"#)
+            .await
+            .unwrap_err();
         assert_eq!(diagnostic.message(), "cannot access type `Int`");
     }
 }

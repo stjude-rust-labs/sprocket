@@ -119,8 +119,8 @@ mod test {
         );
     }
 
-    #[test]
-    fn write_json() {
+    #[tokio::test]
+    async fn write_json() {
         let mut env = TestEnv::default();
 
         let ty = StructType::new(
@@ -135,89 +135,104 @@ mod test {
         env.insert_name("foo", PrimitiveValue::new_file("foo"));
         env.insert_name("bar", PrimitiveValue::new_file("bar"));
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_json(None)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json(None)")
+            .await
+            .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             "null",
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_json(true)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json(true)")
+            .await
+            .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             "true",
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_json(false)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json(false)")
+            .await
+            .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             "false",
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_json(12345)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json(12345)")
+            .await
+            .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             "12345",
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_json(12345.6789)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json(12345.6789)")
+            .await
+            .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             "12345.6789",
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_json('hello world!')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json('hello world!')")
+            .await
+            .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             r#""hello world!""#,
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_json(foo)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json(foo)")
+            .await
+            .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             r#""foo""#,
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_json(bar)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json(bar)")
+            .await
+            .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             r#""bar""#,
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_json([])").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json([])").await.unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             "[]",
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_json([1, 2, 3])").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json([1, 2, 3])")
+            .await
+            .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             "[\n  1,\n  2,\n  3\n]",
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "write_json({})").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json({})").await.unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
             "{}",
         );
 
-        let value = eval_v1_expr(
-            &mut env,
-            V1::Two,
-            "write_json({'foo': 'bar', 'baz': 'qux'})",
-        )
-        .unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "write_json({'foo': 'bar', 'baz': 'qux'})")
+            .await
+            .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
             fs::read_to_string(value.unwrap_file().as_str()).expect("failed to read file"),
@@ -225,10 +240,11 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_json(object { foo: 1, bar: 'baz', baz: 1.9 })",
         )
+        .await
         .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(
@@ -237,10 +253,11 @@ mod test {
         );
 
         let value = eval_v1_expr(
-            &mut env,
+            &env,
             V1::Two,
             "write_json(Foo { foo: 1, bar: 'baz', baz: 1.9 })",
         )
+        .await
         .unwrap();
         assert_file_in_temp(&env, &value);
         assert_eq!(

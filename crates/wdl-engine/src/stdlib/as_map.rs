@@ -91,19 +91,16 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn as_map() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn as_map() {
+        let env = TestEnv::default();
 
-        let value = eval_v1_expr(&mut env, V1::One, "as_map([])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "as_map([])").await.unwrap();
         assert_eq!(value.unwrap_map().len(), 0);
 
-        let value = eval_v1_expr(
-            &mut env,
-            V1::One,
-            "as_map([('foo', 'bar'), ('bar', 'baz')])",
-        )
-        .unwrap();
+        let value = eval_v1_expr(&env, V1::One, "as_map([('foo', 'bar'), ('bar', 'baz')])")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_map()
             .unwrap()
@@ -117,8 +114,9 @@ mod test {
             .collect();
         assert_eq!(elements, [("foo", "bar"), ("bar", "baz")]);
 
-        let value =
-            eval_v1_expr(&mut env, V1::One, "as_map([('a', 1), ('c', 3), ('b', 2)])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "as_map([('a', 1), ('c', 3), ('b', 2)])")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_map()
             .unwrap()
@@ -132,8 +130,9 @@ mod test {
             .collect();
         assert_eq!(elements, [("a", 1), ("c", 3), ("b", 2)]);
 
-        let value =
-            eval_v1_expr(&mut env, V1::One, "as_map([('a', 1), (None, 3), ('b', 2)])").unwrap();
+        let value = eval_v1_expr(&env, V1::One, "as_map([('a', 1), (None, 3), ('b', 2)])")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_map()
             .unwrap()
@@ -147,12 +146,9 @@ mod test {
             .collect();
         assert_eq!(elements, [(Some("a"), 1), (None, 3), (Some("b"), 2)]);
 
-        let value = eval_v1_expr(
-            &mut env,
-            V1::One,
-            "as_map(as_pairs({'a': 1, 'c': 3, 'b': 2}))",
-        )
-        .unwrap();
+        let value = eval_v1_expr(&env, V1::One, "as_map(as_pairs({'a': 1, 'c': 3, 'b': 2}))")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_map()
             .unwrap()
@@ -166,19 +162,17 @@ mod test {
             .collect();
         assert_eq!(elements, [("a", 1), ("c", 3), ("b", 2)]);
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::One, "as_map([('a', 1), ('c', 3), ('a', 2)])").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "as_map([('a', 1), ('c', 3), ('a', 2)])")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `as_map` failed: array contains a duplicate entry for map key `a`"
         );
 
-        let diagnostic = eval_v1_expr(
-            &mut env,
-            V1::One,
-            "as_map([(None, 1), ('c', 3), (None, 2)])",
-        )
-        .unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::One, "as_map([(None, 1), ('c', 3), (None, 2)])")
+            .await
+            .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "call to function `as_map` failed: array contains a duplicate entry for map key `None`"

@@ -567,10 +567,10 @@ impl TaskEvaluator {
         while current < nodes.len() {
             match &graph[nodes[current]] {
                 TaskGraphNode::Input(decl) => {
-                    self.evaluate_input(id, &mut state, decl, inputs)?;
+                    self.evaluate_input(id, &mut state, decl, inputs).await?;
                 }
                 TaskGraphNode::Decl(decl) => {
-                    self.evaluate_decl(id, &mut state, decl)?;
+                    self.evaluate_decl(id, &mut state, decl).await?;
                 }
                 TaskGraphNode::Output(_) => {
                     // Stop at the first output
@@ -601,7 +601,9 @@ impl TaskEvaluator {
                 requirements,
                 hints,
                 mounts,
-            } = self.evaluate_sections(id, &mut state, &definition, inputs, attempt)?;
+            } = self
+                .evaluate_sections(id, &mut state, &definition, inputs, attempt)
+                .await?;
 
             // Get the maximum number of retries, either from the task's requirements or
             // from configuration
@@ -711,10 +713,11 @@ impl TaskEvaluator {
         for index in &nodes[current..] {
             match &graph[*index] {
                 TaskGraphNode::Decl(decl) => {
-                    self.evaluate_decl(id, &mut state, decl)?;
+                    self.evaluate_decl(id, &mut state, decl).await?;
                 }
                 TaskGraphNode::Output(decl) => {
-                    self.evaluate_output(id, &mut state, decl, &evaluated, &mounts)?;
+                    self.evaluate_output(id, &mut state, decl, &evaluated, &mounts)
+                        .await?;
                 }
                 _ => {
                     unreachable!(
@@ -740,7 +743,7 @@ impl TaskEvaluator {
     }
 
     /// Evaluates a task input.
-    fn evaluate_input(
+    async fn evaluate_input(
         &self,
         id: &str,
         state: &mut State<'_>,
@@ -768,7 +771,7 @@ impl TaskEvaluator {
                         state.root.temp_dir(),
                         ROOT_SCOPE_INDEX,
                     ));
-                    let value = evaluator.evaluate_expr(&expr)?;
+                    let value = evaluator.evaluate_expr(&expr).await?;
                     (value, expr.span())
                 }
                 _ => {
@@ -799,7 +802,7 @@ impl TaskEvaluator {
     }
 
     /// Evaluates a task private declaration.
-    fn evaluate_decl(
+    async fn evaluate_decl(
         &self,
         id: &str,
         state: &mut State<'_>,
@@ -824,7 +827,7 @@ impl TaskEvaluator {
         ));
 
         let expr = decl.expr().expect("private decls should have expressions");
-        let value = evaluator.evaluate_expr(&expr)?;
+        let value = evaluator.evaluate_expr(&expr).await?;
         let value = value
             .coerce(&ty)
             .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
@@ -848,7 +851,7 @@ impl TaskEvaluator {
     /// Evaluates the runtime section.
     ///
     /// Returns both the task's hints and requirements.
-    fn evaluate_runtime_section(
+    async fn evaluate_runtime_section(
         &self,
         id: &str,
         state: &State<'_>,
@@ -900,7 +903,7 @@ impl TaskEvaluator {
 
             // Evaluate and coerce to the expected type
             let expr = item.expr();
-            let mut value = evaluator.evaluate_expr(&expr)?;
+            let mut value = evaluator.evaluate_expr(&expr).await?;
             if let Some(types) = types {
                 value = types
                     .iter()
@@ -921,7 +924,7 @@ impl TaskEvaluator {
     }
 
     /// Evaluates the requirements section.
-    fn evaluate_requirements_section(
+    async fn evaluate_requirements_section(
         &self,
         id: &str,
         state: &State<'_>,
@@ -959,7 +962,7 @@ impl TaskEvaluator {
 
             // Evaluate and coerce to the expected type
             let expr = item.expr();
-            let value = evaluator.evaluate_expr(&expr)?;
+            let value = evaluator.evaluate_expr(&expr).await?;
             let value = types
                 .iter()
                 .find_map(|ty| value.coerce(ty).ok())
@@ -974,7 +977,7 @@ impl TaskEvaluator {
     }
 
     /// Evaluates the hints section.
-    fn evaluate_hints_section(
+    async fn evaluate_hints_section(
         &self,
         id: &str,
         state: &State<'_>,
@@ -1002,7 +1005,7 @@ impl TaskEvaluator {
                     .with_task(),
             );
 
-            let value = evaluator.evaluate_hints_item(&name, &item.expr())?;
+            let value = evaluator.evaluate_hints_item(&name, &item.expr()).await?;
             hints.insert(name.text().to_string(), value);
         }
 
@@ -1013,7 +1016,7 @@ impl TaskEvaluator {
     ///
     /// Returns the evaluated command and the mounts to use for spawning the
     /// task.
-    fn evaluate_command(
+    async fn evaluate_command(
         &self,
         id: &str,
         state: &State<'_>,
@@ -1089,7 +1092,9 @@ impl TaskEvaluator {
                             command.push_str(t.as_str());
                         }
                         StrippedCommandPart::Placeholder(placeholder) => {
-                            evaluator.evaluate_placeholder(&placeholder, &mut command)?;
+                            evaluator
+                                .evaluate_placeholder(&placeholder, &mut command)
+                                .await?;
                         }
                     }
                 }
@@ -1118,7 +1123,9 @@ impl TaskEvaluator {
                             t.unescape_to(heredoc, &mut command);
                         }
                         CommandPart::Placeholder(placeholder) => {
-                            evaluator.evaluate_placeholder(&placeholder, &mut command)?;
+                            evaluator
+                                .evaluate_placeholder(&placeholder, &mut command)
+                                .await?;
                         }
                     }
                 }
@@ -1135,7 +1142,7 @@ impl TaskEvaluator {
     ///   * requirements
     ///   * hints
     ///   * command
-    fn evaluate_sections(
+    async fn evaluate_sections(
         &self,
         id: &str,
         state: &mut State<'_>,
@@ -1145,18 +1152,25 @@ impl TaskEvaluator {
     ) -> EvaluationResult<EvaluatedSections> {
         // Start by evaluating requirements and hints
         let (requirements, hints) = match definition.runtime() {
-            Some(section) => self.evaluate_runtime_section(id, state, &section, inputs)?,
+            Some(section) => {
+                self.evaluate_runtime_section(id, state, &section, inputs)
+                    .await?
+            }
             _ => (
-                definition
-                    .requirements()
-                    .map(|s| self.evaluate_requirements_section(id, state, &s, inputs))
-                    .transpose()?
-                    .unwrap_or_default(),
-                definition
-                    .hints()
-                    .map(|s| self.evaluate_hints_section(id, state, &s, inputs))
-                    .transpose()?
-                    .unwrap_or_default(),
+                match definition.requirements() {
+                    Some(section) => {
+                        self.evaluate_requirements_section(id, state, &section, inputs)
+                            .await?
+                    }
+                    None => Default::default(),
+                },
+                match definition.hints() {
+                    Some(section) => {
+                        self.evaluate_hints_section(id, state, &section, inputs)
+                            .await?
+                    }
+                    None => Default::default(),
+                },
             ),
         };
 
@@ -1196,11 +1210,13 @@ impl TaskEvaluator {
             }
         }
 
-        let (command, mounts) = self.evaluate_command(
-            id,
-            state,
-            &definition.command().expect("must have command section"),
-        )?;
+        let (command, mounts) = self
+            .evaluate_command(
+                id,
+                state,
+                &definition.command().expect("must have command section"),
+            )
+            .await?;
 
         Ok(EvaluatedSections {
             command,
@@ -1211,7 +1227,7 @@ impl TaskEvaluator {
     }
 
     /// Evaluates a task output.
-    fn evaluate_output(
+    async fn evaluate_output(
         &mut self,
         id: &str,
         state: &mut State<'_>,
@@ -1237,7 +1253,7 @@ impl TaskEvaluator {
         );
 
         let expr = decl.expr().expect("outputs should have expressions");
-        let value = evaluator.evaluate_expr(&expr)?;
+        let value = evaluator.evaluate_expr(&expr).await?;
 
         // First coerce the output value to the expected type
         let mut value = value

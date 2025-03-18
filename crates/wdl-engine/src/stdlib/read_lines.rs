@@ -75,22 +75,25 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn read_lines() {
+    #[tokio::test]
+    async fn read_lines() {
         let mut env = TestEnv::default();
         env.write_file("foo", "\nhello!\nworld!\n\r\nhi!\r\nthere!");
         env.write_file("empty", "");
         env.insert_name("file", PrimitiveValue::new_file("foo"));
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_lines('does-not-exist')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_lines('does-not-exist')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
                 .starts_with("call to function `read_lines` failed: failed to open file")
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_lines('foo')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_lines('foo')")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -100,7 +103,9 @@ mod test {
             .collect();
         assert_eq!(elements, ["", "hello!", "world!", "", "hi!", "there!"]);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_lines(file)").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_lines(file)")
+            .await
+            .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()
@@ -110,7 +115,9 @@ mod test {
             .collect();
         assert_eq!(elements, ["", "hello!", "world!", "", "hi!", "there!"]);
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_lines('empty')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_lines('empty')")
+            .await
+            .unwrap();
         assert!(value.unwrap_array().is_empty());
     }
 }

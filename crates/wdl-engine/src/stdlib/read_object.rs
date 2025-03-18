@@ -138,9 +138,9 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[test]
-    fn read_object() {
-        let mut env = TestEnv::default();
+    #[tokio::test]
+    async fn read_object() {
+        let env = TestEnv::default();
         env.write_file("empty.tsv", "");
         env.write_file("object.tsv", "foo\tbar\nbaz\tqux");
         env.write_file("too-many-lines.tsv", "foo\tbar\nbaz\tqux\njam\tcakes\n");
@@ -150,31 +150,36 @@ mod test {
         env.write_file("duplicate.tsv", "foo\tbar\tfoo\nbaz\tqux\tfoo\n");
         env.write_file("invalid-name.tsv", "foo\tbar-wrong\tfoo\nbaz\tqux\tfoo\n");
 
-        let diagnostic = eval_v1_expr(&mut env, V1::Two, "read_object('empty.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_object('empty.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic.message().contains(
                 "call to function `read_object` failed: expected exactly two lines in file"
             )
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_object('too-many-lines.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_object('too-many-lines.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic.message().contains(
                 "call to function `read_object` failed: expected exactly two lines in file"
             )
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_object('too-few-lines.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_object('too-few-lines.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic.message().contains(
                 "call to function `read_object` failed: expected exactly two lines in file"
             )
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_object('too-many-columns.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_object('too-many-columns.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -186,8 +191,9 @@ mod test {
                 .contains("does not contain the expected number of columns")
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_object('too-few-columns.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_object('too-few-columns.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
@@ -199,23 +205,27 @@ mod test {
                 .contains("does not contain the expected number of columns")
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_object('duplicate.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_object('duplicate.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic
                 .message()
                 .starts_with("call to function `read_object` failed: duplicate column name `foo`")
         );
 
-        let diagnostic =
-            eval_v1_expr(&mut env, V1::Two, "read_object('invalid-name.tsv')").unwrap_err();
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_object('invalid-name.tsv')")
+            .await
+            .unwrap_err();
         assert!(
             diagnostic.message().starts_with(
                 "call to function `read_object` failed: invalid column name `bar-wrong`"
             )
         );
 
-        let value = eval_v1_expr(&mut env, V1::Two, "read_object('object.tsv')").unwrap();
+        let value = eval_v1_expr(&env, V1::Two, "read_object('object.tsv')")
+            .await
+            .unwrap();
         assert_eq!(
             value.unwrap_object().to_string(),
             r#"object {foo: "baz", bar: "qux"}"#
