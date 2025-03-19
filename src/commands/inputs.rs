@@ -1,3 +1,5 @@
+//! Implementation of the inputs command.
+
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -5,7 +7,6 @@ use anyhow::Result;
 use clap::Parser;
 use indexmap::IndexMap;
 use serde_json::Value;
-use serde_json::json;
 use url::Url;
 use wdl::analysis::document::Document;
 use wdl::analysis::document::Input;
@@ -15,49 +16,56 @@ use wdl::ast::AstToken;
 use wdl::ast::Diagnostic;
 use wdl::ast::Document as AstDocument;
 use wdl::ast::SupportedVersion;
-use wdl::ast::SyntaxKind;
 use wdl::ast::VisitReason;
 use wdl::ast::Visitor;
 use wdl::ast::v1::Expr::Literal;
-use wdl::ast::v1::Expr::{self};
 use wdl::ast::v1::InputSection;
-use wdl::ast::v1::{self};
 use wdl::cli::analyze;
-use wdl::doc;
 
+/// Command-line arguments for generating input JSON from a WDL document
 #[derive(Parser, Debug)]
 #[command(about = "Generate input JSON from a WDL document", version, about)]
 pub struct InputsArgs {
     #[arg(required = true)]
     #[clap(value_name = "input path")]
+    /// Path to the WDL document to generate inputs for
     pub document: String,
 
     #[arg(short, long)]
     #[clap(value_name = "workflow or task name")]
+    /// Name of the workflow or task to generate inputs for
     pub name: Option<String>,
 
     #[arg(short, long)]
     #[clap(value_name = "output path")]
+    /// Path to save the generated input JSON file
     pub output: Option<PathBuf>,
 
     #[arg(short, long)]
     #[clap(value_name = "nested inputs", short = 'N')]
+    /// Include nested inputs from called tasks
     pub nested_inputs: bool,
 
     #[arg(short, long)]
     #[clap(value_name = "hide defaults", short = 'D')]
+    /// Hide inputs with default values
     pub hide_defaults: bool,
 
     #[arg(short, long)]
     #[clap(value_name = "hide expressions", short = 'E')]
+    /// Hide inputs with non-literal default values
     pub hide_expressions: bool,
 }
 
+/// Type alias for mapping input names to whether they have default values
 type InputDefaultMap = IndexMap<String, bool>; // input_name -> has_default
 
+/// Visitor for AST traversal to extract input information
 struct InputVisitor {
+    /// Maps input names to whether they have any default values
     inputs: InputDefaultMap,
-    literal_defaults: IndexMap<String, bool>, // input_name -> has_literal_default
+    /// Maps input names to whether they have literal default values
+    literal_defaults: IndexMap<String, bool>,
 }
 
 impl Visitor for InputVisitor {
@@ -100,9 +108,7 @@ impl Visitor for InputVisitor {
     }
 }
 
-// --hide-expressions hides any input which isn't defaulted to a literal or
-// required
-
+/// Generate input JSON from a WDL document
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     let results: Vec<wdl::analysis::AnalysisResult> =
         analyze(args.document.as_str(), vec![], false, false).await?;
@@ -133,18 +139,18 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
 
     for (parent_name, name, input) in inputs_with_parents {
         // Skip if hide_defaults is true and input has any default
-        if args.hide_defaults && has_default(document, args.document.as_str(), name) {
+        if args.hide_defaults && has_default(document, name) {
             continue;
         }
 
         // Skip if hide_expressions is true and input has non-literal default
-        if args.hide_expressions && !has_literal_default(document, args.document.as_str(), name) {
+        if args.hide_expressions && !has_literal_default(document, name) {
             continue;
         }
 
         let v: &wdl::analysis::types::Type = input.ty();
         let key = format!("{}.{}", parent_name, name);
-        let value = type_to_json(&v);
+        let value = type_to_json(v);
         template.insert(key, value);
     }
 
@@ -159,6 +165,7 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     Ok(())
 }
 
+/// Converts a WDL type to its JSON representation
 fn type_to_json(ty: &Type) -> Value {
     match ty {
         Type::Primitive(ty, _bool) => match ty {
@@ -176,7 +183,8 @@ fn type_to_json(ty: &Type) -> Value {
     }
 }
 
-fn has_default(document: &Document, document_path: &str, input_name: &str) -> bool {
+/// Checks if an input has a default value
+fn has_default(document: &Document, input_name: &str) -> bool {
     let ast_doc: AstDocument = document.node();
 
     let mut visitor = InputVisitor {
@@ -189,7 +197,8 @@ fn has_default(document: &Document, document_path: &str, input_name: &str) -> bo
     visitor.inputs.get(input_name).cloned().unwrap_or(false)
 }
 
-fn has_literal_default(document: &Document, document_path: &str, input_name: &str) -> bool {
+/// Checks if an input has a literal default value
+fn has_literal_default(document: &Document, input_name: &str) -> bool {
     let ast_doc: AstDocument = document.node();
 
     let mut visitor = InputVisitor {
@@ -206,7 +215,7 @@ fn has_literal_default(document: &Document, document_path: &str, input_name: &st
         .unwrap_or(false)
 }
 
-// Collects inputs with their parent names
+/// Collects inputs with their parent names
 fn collect_inputs_with_parents<'a>(
     args: &'a InputsArgs,
     document: &'a Document,
