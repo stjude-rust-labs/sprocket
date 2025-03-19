@@ -257,7 +257,7 @@ pub fn format_literal_float(element: &FormatElement, stream: &mut TokenStream<Pr
     }
 }
 
-/// Formats a [`NameRef`](wdl_ast::v1::NameRef).
+/// Formats a [`NameRefExpr`](wdl_ast::v1::NameRefExpr).
 pub fn format_name_ref_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("name ref children");
     let name = children.next().expect("name ref name");

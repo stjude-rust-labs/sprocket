@@ -4,7 +4,7 @@
 //! files to bump the version of all crates.
 //!
 //! The binary was adapted from this script written by the bytecodealliance
-//! team: https://github.com/bytecodealliance/cargo-component/blob/5cf73a6e8fee84c12f6f0c13bf74ebe938fa9514/ci/publish.rs
+//! team: <https://github.com/bytecodealliance/cargo-component/blob/5cf73a6e8fee84c12f6f0c13bf74ebe938fa9514/ci/publish.rs>
 //!
 //! The binary is intended to be run in two phases:
 //!

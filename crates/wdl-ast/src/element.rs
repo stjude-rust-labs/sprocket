@@ -717,7 +717,7 @@ impl<N: TreeNode> Element<N> {
             .expect("expected `Element::Token` but got a different variant")
     }
 
-    /// Gets the underlying [`SyntaxElement`] from the [`Element`].
+    /// Gets the inner node or token from the [`Element`].
     pub fn inner(&self) -> NodeOrToken<N, N::Token> {
         match self {
             Element::Node(node) => NodeOrToken::Node(node.inner().clone()),
@@ -733,7 +733,7 @@ impl<N: TreeNode> Element<N> {
         }
     }
 
-    /// Returns whether the [`SyntaxElement`] represents trivia.
+    /// Returns whether the [`Element`] represents trivia.
     pub fn is_trivia(&self) -> bool {
         match self {
             Element::Node(node) => node.inner().kind().is_trivia(),

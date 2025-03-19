@@ -20,7 +20,7 @@ use crate::parameter::InputOutput;
 use crate::parameter::Parameter;
 
 /// A map of metadata key-value pairs, sorted by key.
-type MetaMap = BTreeMap<String, MetadataValue>;
+pub type MetaMap = BTreeMap<String, MetadataValue>;
 
 /// A group of inputs.
 #[derive(Debug, Eq, PartialEq)]

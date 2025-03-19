@@ -246,10 +246,10 @@ impl<N: TreeNode> Expr<N> {
         }
     }
 
-    /// Attempts to get a reference to the inner [`NameRef`].
+    /// Attempts to get a reference to the inner [`NameRefExpr`].
     ///
-    /// * If `self` is a [`Expr::Name`], then a reference to the inner
-    ///   [`NameRef`] is returned wrapped in [`Some`].
+    /// * If `self` is a [`Expr::NameRef`], then a reference to the inner
+    ///   [`NameRefExpr`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
     pub fn as_name_ref(&self) -> Option<&NameRefExpr<N>> {
         match self {
@@ -258,10 +258,10 @@ impl<N: TreeNode> Expr<N> {
         }
     }
 
-    /// Consumes `self` and attempts to return the inner [`NameRef`].
+    /// Consumes `self` and attempts to return the inner [`NameRefExpr`].
     ///
-    /// * If `self` is a [`Expr::Name`], then the inner [`NameRef`] is returned
-    ///   wrapped in [`Some`].
+    /// * If `self` is a [`Expr::NameRef`], then the inner [`NameRefExpr`] is
+    ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
     pub fn into_name_ref(self) -> Option<NameRefExpr<N>> {
         match self {
