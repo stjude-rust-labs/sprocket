@@ -1,16 +1,18 @@
 //! Implements the `read_map` function from the WDL standard library.
 
-use std::fs;
-use std::io::BufRead;
-use std::io::BufReader;
-
 use anyhow::Context;
+use futures::FutureExt;
+use futures::future::BoxFuture;
 use indexmap::IndexMap;
+use tokio::fs;
+use tokio::io::AsyncBufReadExt;
+use tokio::io::BufReader;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Map;
@@ -32,66 +34,80 @@ use crate::diagnostics::function_call_failed;
 /// If the file is empty, an empty map is returned.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_map
-fn read_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.map_string_string_type().clone()));
+fn read_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
+    async move {
+        debug_assert!(context.arguments.len() == 1);
+        debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.map_string_string_type().clone()));
 
-    let path = context.work_dir().join(
-        context
-            .coerce_argument(0, PrimitiveType::File)
-            .unwrap_file()
-            .as_str(),
-    );
-    let file = fs::File::open(&path)
-        .with_context(|| format!("failed to open file `{path}`", path = path.display()))
-        .map_err(|e| function_call_failed("read_map", format!("{e:?}"), context.call_site))?;
+        let path = context.work_dir().join(
+            context
+                .coerce_argument(0, PrimitiveType::File)
+                .unwrap_file()
+                .as_str(),
+        );
 
-    let mut map: IndexMap<Option<PrimitiveValue>, Value> = IndexMap::new();
-    for (i, line) in BufReader::new(file).lines().enumerate() {
-        let line = line
-            .with_context(|| format!("failed to read file `{path}`", path = path.display()))
+        let file = fs::File::open(&path)
+            .await
+            .with_context(|| format!("failed to open file `{path}`", path = path.display()))
             .map_err(|e| function_call_failed("read_map", format!("{e:?}"), context.call_site))?;
 
-        let (key, value) = match line.split_once('\t') {
-            Some((key, value)) if !value.contains('\t') => (key, value),
-            _ => {
+        let mut i = 1;
+        let mut lines = BufReader::new(file).lines();
+        let mut map: IndexMap<Option<PrimitiveValue>, Value> = IndexMap::new();
+        while let Some(line) = lines
+            .next_line()
+            .await
+            .map_err(|e| function_call_failed("read_map", format!("{e:?}"), context.call_site))?
+        {
+            let (key, value) = match line.split_once('\t') {
+                Some((key, value)) if !value.contains('\t') => (key, value),
+                _ => {
+                    return Err(function_call_failed(
+                        "read_map",
+                        format!(
+                            "line {i} in file `{path}` does not contain exactly two columns",
+                            path = path.display()
+                        ),
+                        context.call_site,
+                    ));
+                }
+            };
+
+            if map
+                .insert(
+                    Some(PrimitiveValue::new_string(key)),
+                    PrimitiveValue::new_string(value).into(),
+                )
+                .is_some()
+            {
                 return Err(function_call_failed(
                     "read_map",
                     format!(
-                        "line {i} in file `{path}` does not contain exactly two columns",
-                        i = i + 1,
+                        "line {i} in file `{path}` contains duplicate key name `{key}`",
                         path = path.display()
                     ),
                     context.call_site,
                 ));
             }
-        };
 
-        if map
-            .insert(
-                Some(PrimitiveValue::new_string(key)),
-                PrimitiveValue::new_string(value).into(),
-            )
-            .is_some()
-        {
-            return Err(function_call_failed(
-                "read_map",
-                format!(
-                    "line {i} in file `{path}` contains duplicate key name `{key}`",
-                    i = i + 1,
-                    path = path.display()
-                ),
-                context.call_site,
-            ));
+            i += 1;
         }
-    }
 
-    Ok(Map::new_unchecked(ANALYSIS_STDLIB.map_string_string_type().clone(), map).into())
+        Ok(Map::new_unchecked(ANALYSIS_STDLIB.map_string_string_type().clone(), map).into())
+    }
+    .boxed()
 }
 
 /// Gets the function describing `read_map`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(File) -> Map[String, String]", read_map)] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(File) -> Map[String, String]",
+                Callback::Async(read_map),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

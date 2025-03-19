@@ -5,6 +5,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -38,7 +39,7 @@ fn range(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `range`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(Int) -> Array[Int]", range)] })
+    Function::new(const { &[Signature::new("(Int) -> Array[Int]", Callback::Sync(range))] })
 }
 
 #[cfg(test)]

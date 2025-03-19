@@ -3,6 +3,7 @@
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -46,7 +47,14 @@ fn flatten(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `flatten`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(Array[Array[X]]) -> Array[X]", flatten)] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(Array[Array[X]]) -> Array[X]",
+                Callback::Sync(flatten),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

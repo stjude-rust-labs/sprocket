@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
 
+use futures::future::BoxFuture;
 use wdl_analysis::stdlib::Binding;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
@@ -162,7 +163,13 @@ impl<'a> CallContext<'a> {
 }
 
 /// Represents a WDL function implementation callback.
-type Callback = fn(context: CallContext<'_>) -> Result<Value, Diagnostic>;
+#[derive(Debug, Clone, Copy)]
+enum Callback {
+    /// The callback is synchronous.
+    Sync(fn(context: CallContext<'_>) -> Result<Value, Diagnostic>),
+    /// The callback is asynchronous.
+    Async(for<'a> fn(context: CallContext<'a>) -> BoxFuture<'a, Result<Value, Diagnostic>>),
+}
 
 /// Represents an implementation signature for a WDL standard library function.
 #[derive(Debug, Clone, Copy)]
@@ -198,12 +205,15 @@ impl Function {
 
     /// Calls the function given the binding and call context.
     #[inline]
-    pub fn call(
+    pub async fn call(
         &self,
         binding: Binding<'_>,
         context: CallContext<'_>,
     ) -> Result<Value, Diagnostic> {
-        (self.signatures[binding.index()].callback)(context)
+        match self.signatures[binding.index()].callback {
+            Callback::Sync(cb) => cb(context),
+            Callback::Async(cb) => cb(context).await,
+        }
     }
 }
 

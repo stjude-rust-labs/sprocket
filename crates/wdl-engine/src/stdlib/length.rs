@@ -5,6 +5,7 @@ use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Value;
@@ -111,10 +112,10 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(Array[X]) -> Int", array_length),
-                Signature::new("(Map[K, V]) -> Int", map_length),
-                Signature::new("(Object) -> Int", object_length),
-                Signature::new("(String) -> Int", string_length),
+                Signature::new("(Array[X]) -> Int", Callback::Sync(array_length)),
+                Signature::new("(Map[K, V]) -> Int", Callback::Sync(map_length)),
+                Signature::new("(Object) -> Int", Callback::Sync(object_length)),
+                Signature::new("(String) -> Int", Callback::Sync(string_length)),
             ]
         },
     )

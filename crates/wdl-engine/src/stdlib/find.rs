@@ -7,6 +7,7 @@ use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::PrimitiveValue;
@@ -40,7 +41,14 @@ fn find(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `find`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(String, String) -> String?", find)] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(String, String) -> String?",
+                Callback::Sync(find),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

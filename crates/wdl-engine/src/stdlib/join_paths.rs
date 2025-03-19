@@ -9,6 +9,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::PrimitiveValue;
@@ -128,9 +129,9 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(File, String) -> File", join_paths_simple),
-                Signature::new("(File, Array[String]+) -> File", join_paths),
-                Signature::new("(Array[String]+) -> File", join_paths),
+                Signature::new("(File, String) -> File", Callback::Sync(join_paths_simple)),
+                Signature::new("(File, Array[String]+) -> File", Callback::Sync(join_paths)),
+                Signature::new("(Array[String]+) -> File", Callback::Sync(join_paths)),
             ]
         },
     )

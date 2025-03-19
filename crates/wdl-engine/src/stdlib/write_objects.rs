@@ -1,17 +1,21 @@
 //! Implements the `write_objects` function from the WDL standard library.
 
-use std::io::BufWriter;
-use std::io::Write;
 use std::path::Path;
 
+use futures::FutureExt;
+use futures::future::BoxFuture;
 use itertools::Either;
 use tempfile::NamedTempFile;
+use tokio::fs;
+use tokio::io::AsyncWriteExt;
+use tokio::io::BufWriter;
 use wdl_analysis::types::CompoundType;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::CompoundValue;
@@ -40,147 +44,166 @@ use crate::stdlib::write_tsv::write_tsv_value;
 /// has a compound member value results in an error.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_objects
-fn write_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(PrimitiveType::File));
+fn write_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
+    async move {
+        debug_assert!(context.arguments.len() == 1);
+        debug_assert!(context.return_type_eq(PrimitiveType::File));
 
-    // Helper for handling errors while writing to the file.
-    let write_error = |e: std::io::Error| {
-        function_call_failed(
-            "write_objects",
-            format!("failed to write to temporary file: {e}"),
-            context.call_site,
-        )
-    };
-
-    let array = context.arguments[0]
-        .value
-        .as_array()
-        .expect("argument should be an array");
-
-    // Create a temporary file that will be persisted after writing the map
-    let mut file = NamedTempFile::with_prefix_in("tmp", context.temp_dir()).map_err(|e| {
-        function_call_failed(
-            "write_objects",
-            format!("failed to create temporary file: {e}"),
-            context.call_site,
-        )
-    })?;
-
-    let ty = context.arguments[0].value.ty();
-    let element_type = match &ty {
-        Type::Compound(CompoundType::Array(ty), ..) => ty.element_type(),
-        _ => panic!("expected an array type for the argument"),
-    };
-
-    // If it's an array of objects, we need to ensure each object has the exact same
-    // member names
-    let mut empty = array.is_empty();
-    if matches!(element_type, Type::Object) {
-        let mut iter = array.as_slice().iter();
-        let expected = iter
-            .next()
-            .expect("should be non-empty")
-            .as_object()
-            .expect("should be object");
-
-        empty = expected.is_empty();
-        for v in iter {
-            let next = v.as_object().expect("element should be an object");
-
-            if next.len() != expected.len() || next.keys().any(|k| !expected.contains_key(k)) {
-                return Err(function_call_failed(
-                    "write_objects",
-                    "expected every object to have the same member names",
-                    context.call_site,
-                ));
-            }
-        }
-    }
-
-    let mut writer = BufWriter::new(file.as_file_mut());
-    if !empty {
-        // Write the header first
-        let keys = match array.as_slice().first().expect("array should not be empty") {
-            Value::Compound(CompoundValue::Object(object)) => Either::Left(object.keys()),
-            Value::Compound(CompoundValue::Struct(s)) => Either::Right(s.keys()),
-            _ => unreachable!("value should either be an object or struct"),
+        // Helper for handling errors while writing to the file.
+        let write_error = |e: std::io::Error| {
+            function_call_failed(
+                "write_objects",
+                format!("failed to write to temporary file: {e}"),
+                context.call_site,
+            )
         };
 
-        for (i, key) in keys.enumerate() {
-            if i > 0 {
-                writer.write(b"\t").map_err(write_error)?;
-            }
+        let array = context.arguments[0]
+            .value
+            .as_array()
+            .expect("argument should be an array");
 
-            writer.write(key.as_bytes()).map_err(write_error)?;
+        let ty = context.arguments[0].value.ty();
+        let element_type = match &ty {
+            Type::Compound(CompoundType::Array(ty), ..) => ty.element_type(),
+            _ => panic!("expected an array type for the argument"),
+        };
+
+        // If it's an array of objects, we need to ensure each object has the exact same
+        // member names
+        let mut empty = array.is_empty();
+        if matches!(element_type, Type::Object) {
+            let mut iter = array.as_slice().iter();
+            let expected = iter
+                .next()
+                .expect("should be non-empty")
+                .as_object()
+                .expect("should be object");
+
+            empty = expected.is_empty();
+            for v in iter {
+                let next = v.as_object().expect("element should be an object");
+
+                if next.len() != expected.len() || next.keys().any(|k| !expected.contains_key(k)) {
+                    return Err(function_call_failed(
+                        "write_objects",
+                        "expected every object to have the same member names",
+                        context.call_site,
+                    ));
+                }
+            }
         }
 
-        writeln!(&mut writer).map_err(write_error)?;
+        // Create a temporary file that will be persisted after writing the map
+        let path = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
+            .map_err(|e| {
+                function_call_failed(
+                    "write_objects",
+                    format!("failed to create temporary file: {e}"),
+                    context.call_site,
+                )
+            })?
+            .into_temp_path();
 
-        // Next, write a row for each object/struct
-        for v in array.as_slice().iter() {
-            let iter = match v {
-                Value::Compound(CompoundValue::Object(object)) => Either::Left(object.iter()),
-                Value::Compound(CompoundValue::Struct(s)) => Either::Right(s.iter()),
+        // Re-open the file for asynchronous write
+        let file = fs::File::create(&path).await.map_err(|e| {
+            function_call_failed(
+                "write_objects",
+                format!(
+                    "failed to open temporary file `{path}`: {e}",
+                    path = path.display()
+                ),
+                context.call_site,
+            )
+        })?;
+
+        let mut writer = BufWriter::new(file);
+        if !empty {
+            // Write the header first
+            let keys = match array.as_slice().first().expect("array should not be empty") {
+                Value::Compound(CompoundValue::Object(object)) => Either::Left(object.keys()),
+                Value::Compound(CompoundValue::Struct(s)) => Either::Right(s.keys()),
                 _ => unreachable!("value should either be an object or struct"),
             };
 
-            for (i, (k, v)) in iter.enumerate() {
+            for (i, key) in keys.enumerate() {
                 if i > 0 {
-                    writer.write(b"\t").map_err(write_error)?;
+                    writer.write_all(b"\t").await.map_err(write_error)?;
                 }
 
-                match v {
-                    Value::None => {}
-                    Value::Primitive(v) => {
-                        if !write_tsv_value(&mut writer, v).map_err(write_error)? {
+                writer
+                    .write_all(key.as_bytes())
+                    .await
+                    .map_err(write_error)?;
+            }
+
+            writer.write_all(b"\n").await.map_err(write_error)?;
+
+            // Next, write a row for each object/struct
+            for v in array.as_slice().iter() {
+                let iter = match v {
+                    Value::Compound(CompoundValue::Object(object)) => Either::Left(object.iter()),
+                    Value::Compound(CompoundValue::Struct(s)) => Either::Right(s.iter()),
+                    _ => unreachable!("value should either be an object or struct"),
+                };
+
+                for (i, (k, v)) in iter.enumerate() {
+                    if i > 0 {
+                        writer.write_all(b"\t").await.map_err(write_error)?;
+                    }
+
+                    match v {
+                        Value::None => {}
+                        Value::Primitive(v) => {
+                            if !write_tsv_value(&mut writer, v).await.map_err(write_error)? {
+                                return Err(function_call_failed(
+                                    "write_objects",
+                                    format!("member `{k}` contains a tab character"),
+                                    context.call_site,
+                                ));
+                            }
+                        }
+                        _ => {
                             return Err(function_call_failed(
                                 "write_objects",
-                                format!("member `{k}` contains a tab character"),
+                                format!("member `{k}` is not a primitive value"),
                                 context.call_site,
                             ));
                         }
                     }
-                    _ => {
-                        return Err(function_call_failed(
-                            "write_objects",
-                            format!("member `{k}` is not a primitive value"),
-                            context.call_site,
-                        ));
-                    }
                 }
+
+                writer.write_all(b"\n").await.map_err(write_error)?;
             }
-
-            writeln!(&mut writer).map_err(write_error)?;
         }
-    }
 
-    // Consume the writer, flushing the buffer to disk.
-    writer
-        .into_inner()
-        .map_err(|e| write_error(e.into_error()))?;
+        // Flush the writer and drop it
+        writer.flush().await.map_err(write_error)?;
+        drop(writer);
 
-    let (_, path) = file.keep().map_err(|e| {
-        function_call_failed(
-            "write_objects",
-            format!("failed to keep temporary file: {e}"),
-            context.call_site,
-        )
-    })?;
-
-    Ok(
-        PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
+        let path = path.keep().map_err(|e| {
             function_call_failed(
                 "write_objects",
-                format!(
-                    "path `{path}` cannot be represented as UTF-8",
-                    path = Path::new(&path).display()
-                ),
+                format!("failed to keep temporary file: {e}"),
                 context.call_site,
             )
-        })?)
-        .into(),
-    )
+        })?;
+
+        Ok(
+            PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
+                function_call_failed(
+                    "write_objects",
+                    format!(
+                        "path `{path}` cannot be represented as UTF-8",
+                        path = Path::new(&path).display()
+                    ),
+                    context.call_site,
+                )
+            })?)
+            .into(),
+        )
+    }
+    .boxed()
 }
 
 /// Gets the function describing `write_objects`.
@@ -188,10 +211,10 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(Array[Object]) -> File", write_objects),
+                Signature::new("(Array[Object]) -> File", Callback::Async(write_objects)),
                 Signature::new(
                     "(Array[S]) -> File where `S`: any structure containing only primitive types",
-                    write_objects,
+                    Callback::Async(write_objects),
                 ),
             ]
         },

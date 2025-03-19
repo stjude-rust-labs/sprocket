@@ -4,6 +4,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Value;
@@ -45,10 +46,10 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(Int, Int) -> Int", int_max),
-                Signature::new("(Int, Float) -> Float", float_max),
-                Signature::new("(Float, Int) -> Float", float_max),
-                Signature::new("(Float, Float) -> Float", float_max),
+                Signature::new("(Int, Int) -> Int", Callback::Sync(int_max)),
+                Signature::new("(Int, Float) -> Float", Callback::Sync(float_max)),
+                Signature::new("(Float, Int) -> Float", Callback::Sync(float_max)),
+                Signature::new("(Float, Float) -> Float", Callback::Sync(float_max)),
             ]
         },
     )

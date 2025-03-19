@@ -3,6 +3,7 @@
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -38,7 +39,14 @@ fn select_all(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `select_all`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(Array[X]) -> Array[X]", select_all)] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(Array[X]) -> Array[X]",
+                Callback::Sync(select_all),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

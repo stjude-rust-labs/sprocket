@@ -9,6 +9,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::PrimitiveValue;
@@ -88,7 +89,9 @@ pub const fn descriptor() -> Function {
         const {
             &[Signature::new(
                 "(X) -> File where `X`: any JSON-serializable type",
-                write_json,
+                // The `write_json` callback does not need to be async as `serde-json` doesn't
+                // support async writers
+                Callback::Sync(write_json),
             )]
         },
     )

@@ -6,6 +6,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::PrimitiveValue;
@@ -64,7 +65,7 @@ pub const fn descriptor() -> Function {
         const {
             &[Signature::new(
                 "(String, Array[P]) -> String where `P`: any primitive type",
-                sep,
+                Callback::Sync(sep),
             )]
         },
     )

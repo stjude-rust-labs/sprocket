@@ -3,6 +3,7 @@
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -53,10 +54,13 @@ pub const fn descriptor() -> Function {
             &[
                 Signature::new(
                     "(Map[K, V]) -> Array[K] where `K`: any primitive type",
-                    keys,
+                    Callback::Sync(keys),
                 ),
-                Signature::new("(S) -> Array[String] where `S`: any structure", keys),
-                Signature::new("(Object) -> Array[String]", keys),
+                Signature::new(
+                    "(S) -> Array[String] where `S`: any structure",
+                    Callback::Sync(keys),
+                ),
+                Signature::new("(Object) -> Array[String]", Callback::Sync(keys)),
             ]
         },
     )

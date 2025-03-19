@@ -4,6 +4,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Value;
@@ -24,7 +25,7 @@ fn round(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `round`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(Float) -> Int", round)] })
+    Function::new(const { &[Signature::new("(Float) -> Int", Callback::Sync(round))] })
 }
 
 #[cfg(test)]

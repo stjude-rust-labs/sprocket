@@ -6,6 +6,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::PrimitiveValue;
@@ -53,9 +54,9 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(File, <String>) -> String", basename),
-                Signature::new("(String, <String>) -> String", basename),
-                Signature::new("(Directory, <String>) -> String", basename),
+                Signature::new("(File, <String>) -> String", Callback::Sync(basename)),
+                Signature::new("(String, <String>) -> String", Callback::Sync(basename)),
+                Signature::new("(Directory, <String>) -> String", Callback::Sync(basename)),
             ]
         },
     )

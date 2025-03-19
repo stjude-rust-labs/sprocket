@@ -1,15 +1,19 @@
 //! Implements the `write_object` function from the WDL standard library.
 
-use std::io::BufWriter;
-use std::io::Write;
 use std::path::Path;
 
+use futures::FutureExt;
+use futures::future::BoxFuture;
 use tempfile::NamedTempFile;
+use tokio::fs;
+use tokio::io::AsyncWriteExt;
+use tokio::io::BufWriter;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::PrimitiveValue;
@@ -29,98 +33,117 @@ use crate::stdlib::write_tsv::write_tsv_value;
 /// columns is unspecified.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_object
-fn write_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(PrimitiveType::File));
+fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
+    async move {
+        debug_assert!(context.arguments.len() == 1);
+        debug_assert!(context.return_type_eq(PrimitiveType::File));
 
-    // Helper for handling errors while writing to the file.
-    let write_error = |e: std::io::Error| {
-        function_call_failed(
-            "write_object",
-            format!("failed to write to temporary file: {e}"),
-            context.call_site,
-        )
-    };
+        // Helper for handling errors while writing to the file.
+        let write_error = |e: std::io::Error| {
+            function_call_failed(
+                "write_object",
+                format!("failed to write to temporary file: {e}"),
+                context.call_site,
+            )
+        };
 
-    let object = context.coerce_argument(0, Type::Object).unwrap_object();
+        let object = context.coerce_argument(0, Type::Object).unwrap_object();
 
-    // Create a temporary file that will be persisted after writing the map
-    let mut file = NamedTempFile::with_prefix_in("tmp", context.temp_dir()).map_err(|e| {
-        function_call_failed(
-            "write_object",
-            format!("failed to create temporary file: {e}"),
-            context.call_site,
-        )
-    })?;
+        // Create a temporary file that will be persisted after writing the map
+        let path = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
+            .map_err(|e| {
+                function_call_failed(
+                    "write_object",
+                    format!("failed to create temporary file: {e}"),
+                    context.call_site,
+                )
+            })?
+            .into_temp_path();
 
-    let mut writer = BufWriter::new(file.as_file_mut());
-    if !object.is_empty() {
-        // Write the header first
-        for (i, key) in object.keys().enumerate() {
-            if i > 0 {
-                writer.write(b"\t").map_err(write_error)?;
+        // Re-open the file for asynchronous write
+        let file = fs::File::create(&path).await.map_err(|e| {
+            function_call_failed(
+                "write_object",
+                format!(
+                    "failed to open temporary file `{path}`: {e}",
+                    path = path.display()
+                ),
+                context.call_site,
+            )
+        })?;
+
+        let mut writer = BufWriter::new(file);
+        if !object.is_empty() {
+            // Write the header first
+            for (i, key) in object.keys().enumerate() {
+                if i > 0 {
+                    writer.write_all(b"\t").await.map_err(write_error)?;
+                }
+
+                writer
+                    .write_all(key.as_bytes())
+                    .await
+                    .map_err(write_error)?;
             }
 
-            writer.write(key.as_bytes()).map_err(write_error)?;
-        }
+            writer.write_all(b"\n").await.map_err(write_error)?;
 
-        writeln!(&mut writer).map_err(write_error)?;
+            for (i, (key, value)) in object.iter().enumerate() {
+                if i > 0 {
+                    writer.write_all(b"\t").await.map_err(write_error)?;
+                }
 
-        for (i, (key, value)) in object.iter().enumerate() {
-            if i > 0 {
-                writer.write(b"\t").map_err(write_error)?;
-            }
-
-            match value {
-                Value::None => {}
-                Value::Primitive(v) => {
-                    if !write_tsv_value(&mut writer, v).map_err(write_error)? {
+                match value {
+                    Value::None => {}
+                    Value::Primitive(v) => {
+                        if !write_tsv_value(&mut writer, v).await.map_err(write_error)? {
+                            return Err(function_call_failed(
+                                "write_object",
+                                format!("member `{key}` contains a tab character"),
+                                context.call_site,
+                            ));
+                        }
+                    }
+                    _ => {
                         return Err(function_call_failed(
                             "write_object",
-                            format!("member `{key}` contains a tab character"),
+                            format!("member `{key}` is not a primitive value"),
                             context.call_site,
                         ));
                     }
                 }
-                _ => {
-                    return Err(function_call_failed(
-                        "write_object",
-                        format!("member `{key}` is not a primitive value"),
-                        context.call_site,
-                    ));
-                }
             }
+
+            writer.write_all(b"\n").await.map_err(write_error)?;
         }
 
-        writeln!(&mut writer).map_err(write_error)?;
-    }
+        // Flush the writer and drop it
+        writer.flush().await.map_err(write_error)?;
+        drop(writer);
 
-    // Consume the writer, flushing the buffer to disk.
-    writer
-        .into_inner()
-        .map_err(|e| write_error(e.into_error()))?;
-
-    let (_, path) = file.keep().map_err(|e| {
-        function_call_failed(
-            "write_object",
-            format!("failed to keep temporary file: {e}"),
-            context.call_site,
-        )
-    })?;
-
-    Ok(
-        PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
+        let path = path.keep().map_err(|e| {
             function_call_failed(
                 "write_object",
-                format!(
-                    "path `{path}` cannot be represented as UTF-8",
-                    path = Path::new(&path).display()
-                ),
+                format!("failed to keep temporary file: {e}"),
                 context.call_site,
             )
-        })?)
-        .into(),
-    )
+        })?;
+
+        Ok(
+            PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
+                function_call_failed(
+                    "write_object",
+                    format!(
+                        "path `{path}` cannot be represented as UTF-8",
+                        path = Path::new(&path).display()
+                    ),
+                    context.call_site,
+                )
+            })?)
+            .into(),
+        )
+    }
+    .boxed()
 }
 
 /// Gets the function describing `write_object`.
@@ -128,10 +151,10 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(Object) -> File", write_object),
+                Signature::new("(Object) -> File", Callback::Async(write_object)),
                 Signature::new(
                     "(S) -> File where `S`: any structure containing only primitive types",
-                    write_object,
+                    Callback::Async(write_object),
                 ),
             ]
         },

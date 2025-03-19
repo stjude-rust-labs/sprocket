@@ -4,6 +4,7 @@ use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -77,7 +78,7 @@ pub const fn descriptor() -> Function {
         const {
             &[Signature::new(
                 "(Array[Array[X]]) -> Array[Array[X]]",
-                transpose,
+                Callback::Sync(transpose),
             )]
         },
     )

@@ -4,6 +4,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Value;
@@ -23,7 +24,7 @@ fn ceil(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `ceil`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(Float) -> Int", ceil)] })
+    Function::new(const { &[Signature::new("(Float) -> Int", Callback::Sync(ceil))] })
 }
 
 #[cfg(test)]

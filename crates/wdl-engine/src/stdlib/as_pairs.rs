@@ -3,6 +3,7 @@
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -43,7 +44,7 @@ pub const fn descriptor() -> Function {
         const {
             &[Signature::new(
                 "(Map[K, V]) -> Array[Pair[K, V]] where `K`: any primitive type",
-                as_pairs,
+                Callback::Sync(as_pairs),
             )]
         },
     )

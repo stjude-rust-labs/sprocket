@@ -4,6 +4,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Value;
@@ -36,7 +37,7 @@ pub const fn descriptor() -> Function {
         const {
             &[Signature::new(
                 "(Array[P], P) -> Boolean where `P`: any primitive type",
-                contains,
+                Callback::Sync(contains),
             )]
         },
     )

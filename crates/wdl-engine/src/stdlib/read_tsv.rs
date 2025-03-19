@@ -1,20 +1,22 @@
 //! Implements the `read_tsv` function from the WDL standard library.
 
-use std::fs;
-use std::io::BufRead;
-use std::io::BufReader;
-
 use anyhow::Context;
+use futures::FutureExt;
+use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use itertools::Either;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
+use tokio::fs;
+use tokio::io::AsyncBufReadExt;
+use tokio::io::BufReader;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 use wdl_grammar::lexer::v1::is_ident;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -59,34 +61,43 @@ impl TsvHeader {
 /// table are all the same length.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
-fn read_tsv_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_array_string_type().clone()));
+fn read_tsv_simple(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
+    async move {
+        debug_assert!(context.arguments.len() == 1);
+        debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_array_string_type().clone()));
 
-    let path = context.work_dir().join(
-        context
-            .coerce_argument(0, PrimitiveType::File)
-            .unwrap_file()
-            .as_str(),
-    );
+        let path = context.work_dir().join(
+            context
+                .coerce_argument(0, PrimitiveType::File)
+                .unwrap_file()
+                .as_str(),
+        );
 
-    let file = fs::File::open(&path)
-        .with_context(|| format!("failed to open file `{path}`", path = path.display()))
-        .map_err(|e| function_call_failed("read_tsv", format!("{e:?}"), context.call_site))?;
-
-    let mut rows: Vec<Value> = Vec::new();
-    for line in BufReader::new(file).lines() {
-        let line = line
-            .with_context(|| format!("failed to read file `{path}`", path = path.display()))
+        let file = fs::File::open(&path)
+            .await
+            .with_context(|| format!("failed to open file `{path}`", path = path.display()))
             .map_err(|e| function_call_failed("read_tsv", format!("{e:?}"), context.call_site))?;
-        let values = line
-            .split('\t')
-            .map(|s| PrimitiveValue::new_string(s).into())
-            .collect::<Vec<Value>>();
-        rows.push(Array::new_unchecked(ANALYSIS_STDLIB.array_string_type().clone(), values).into());
-    }
 
-    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_array_string_type().clone(), rows).into())
+        let mut lines = BufReader::new(file).lines();
+        let mut rows: Vec<Value> = Vec::new();
+        while let Some(line) = lines
+            .next_line()
+            .await
+            .with_context(|| format!("failed to read file `{path}`", path = path.display()))
+            .map_err(|e| function_call_failed("read_tsv", format!("{e:?}"), context.call_site))?
+        {
+            let values = line
+                .split('\t')
+                .map(|s| PrimitiveValue::new_string(s).into())
+                .collect::<Vec<Value>>();
+            rows.push(
+                Array::new_unchecked(ANALYSIS_STDLIB.array_string_type().clone(), values).into(),
+            );
+        }
+
+        Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_array_string_type().clone(), rows).into())
+    }
+    .boxed()
 }
 
 /// Reads a tab-separated value (TSV) file as an Array[Object] representing a
@@ -109,123 +120,132 @@ fn read_tsv_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// line is ignored).
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
-fn read_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(context.arguments.len() >= 2 && context.arguments.len() <= 3);
-    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type().clone()));
+fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
+    async move {
+        debug_assert!(context.arguments.len() >= 2 && context.arguments.len() <= 3);
+        debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type().clone()));
 
-    let path = context.work_dir().join(
-        context
-            .coerce_argument(0, PrimitiveType::File)
-            .unwrap_file()
-            .as_str(),
-    );
-
-    let file = fs::File::open(&path)
-        .with_context(|| format!("failed to open file `{path}`", path = path.display()))
-        .map_err(|e| function_call_failed("read_tsv", format!("{e:?}"), context.call_site))?;
-
-    let mut lines = BufReader::new(file).lines();
-
-    // Read the file header if there is one; ignore it if the header was directly
-    // specified.
-    let file_has_header = context
-        .coerce_argument(1, PrimitiveType::Boolean)
-        .unwrap_boolean();
-    let header = if context.arguments.len() == 3 {
-        if file_has_header {
-            lines.next();
-        }
-
-        TsvHeader::Specified(
+        let path = context.work_dir().join(
             context
-                .coerce_argument(2, ANALYSIS_STDLIB.array_string_type().clone())
-                .unwrap_array(),
-        )
-    } else if !file_has_header {
-        return Err(function_call_failed(
-            "read_tsv",
-            "argument specifying presence of a file header must be `true`",
-            context.arguments[1].span,
-        ));
-    } else {
-        TsvHeader::File(
-            lines
-                .next()
-                .unwrap_or_else(|| Ok(String::default()))
-                .with_context(|| format!("failed to read file `{path}`", path = path.display()))
-                .map_err(|e| {
-                    function_call_failed("read_tsv", format!("{e:?}"), context.call_site)
-                })?,
-        )
-    };
+                .coerce_argument(0, PrimitiveType::File)
+                .unwrap_file()
+                .as_str(),
+        );
 
-    let mut column_count = 0;
-    if let Some(invalid) = header.columns().find(|c| {
-        column_count += 1;
-        !is_ident(c)
-    }) {
-        return Err(function_call_failed(
-            "read_tsv",
-            if context.arguments.len() == 2 {
-                format!(
-                    "column name `{invalid}` in file `{path}` is not a valid WDL object field name",
-                    path = path.display()
-                )
-            } else {
-                format!("specified name `{invalid}` is not a valid WDL object field name")
-            },
-            context.call_site,
-        ));
-    }
+        let read_error = |e: std::io::Error| {
+            function_call_failed(
+                "read_tsv",
+                format!("failed to read file `{path}`: {e}", path = path.display()),
+                context.call_site,
+            )
+        };
 
-    let mut rows: Vec<Value> = Vec::new();
-    for (index, line) in lines.enumerate() {
-        let line = line
-            .with_context(|| format!("failed to read file `{path}`", path = path.display()))
+        let file = fs::File::open(&path)
+            .await
+            .with_context(|| format!("failed to open file `{path}`", path = path.display()))
             .map_err(|e| function_call_failed("read_tsv", format!("{e:?}"), context.call_site))?;
 
-        let mut members: IndexMap<String, Value> = IndexMap::with_capacity(column_count);
+        let mut lines = BufReader::new(file).lines();
 
-        for e in header.columns().zip_longest(line.split('\t')) {
-            match e {
-                EitherOrBoth::Both(c, v) => {
-                    if members
-                        .insert(c.to_string(), PrimitiveValue::new_string(v).into())
-                        .is_some()
-                    {
+        // Read the file header if there is one; ignore it if the header was directly
+        // specified.
+        let file_has_header = context
+            .coerce_argument(1, PrimitiveType::Boolean)
+            .unwrap_boolean();
+        let header = if context.arguments.len() == 3 {
+            if file_has_header {
+                // Skip the first line
+                lines.next_line().await.map_err(read_error)?;
+            }
+
+            TsvHeader::Specified(
+                context
+                    .coerce_argument(2, ANALYSIS_STDLIB.array_string_type().clone())
+                    .unwrap_array(),
+            )
+        } else if !file_has_header {
+            return Err(function_call_failed(
+                "read_tsv",
+                "argument specifying presence of a file header must be `true`",
+                context.arguments[1].span,
+            ));
+        } else {
+            TsvHeader::File(
+                lines
+                    .next_line()
+                    .await
+                    .map_err(read_error)?
+                    .unwrap_or_default(),
+            )
+        };
+
+        let mut column_count = 0;
+        if let Some(invalid) = header.columns().find(|c| {
+            column_count += 1;
+            !is_ident(c)
+        }) {
+            return Err(function_call_failed(
+                "read_tsv",
+                if context.arguments.len() == 2 {
+                    format!(
+                        "column name `{invalid}` in file `{path}` is not a valid WDL object field \
+                         name",
+                        path = path.display()
+                    )
+                } else {
+                    format!("specified name `{invalid}` is not a valid WDL object field name")
+                },
+                context.call_site,
+            ));
+        }
+
+        let mut rows: Vec<Value> = Vec::new();
+        let mut i = 1 + if file_has_header { 1 } else { 0 };
+        while let Some(line) = lines.next_line().await.map_err(read_error)? {
+            let mut members: IndexMap<String, Value> = IndexMap::with_capacity(column_count);
+
+            for e in header.columns().zip_longest(line.split('\t')) {
+                match e {
+                    EitherOrBoth::Both(c, v) => {
+                        if members
+                            .insert(c.to_string(), PrimitiveValue::new_string(v).into())
+                            .is_some()
+                        {
+                            return Err(function_call_failed(
+                                "read_tsv",
+                                if context.arguments.len() == 2 {
+                                    format!(
+                                        "duplicate column name `{c}` found in file `{path}`",
+                                        path = path.display()
+                                    )
+                                } else {
+                                    format!("duplicate column name `{c}` was specified")
+                                },
+                                context.call_site,
+                            ));
+                        }
+                    }
+                    _ => {
                         return Err(function_call_failed(
                             "read_tsv",
-                            if context.arguments.len() == 2 {
-                                format!(
-                                    "duplicate column name `{c}` found in file `{path}`",
-                                    path = path.display()
-                                )
-                            } else {
-                                format!("duplicate column name `{c}` was specified")
-                            },
+                            format!(
+                                "line {i} in file `{path}` does not have the expected number of \
+                                 columns",
+                                path = path.display()
+                            ),
                             context.call_site,
                         ));
                     }
                 }
-                _ => {
-                    return Err(function_call_failed(
-                        "read_tsv",
-                        format!(
-                            "line {index} in file `{path}` does not have the expected number of \
-                             columns",
-                            index = index + 1 + if file_has_header { 1 } else { 0 },
-                            path = path.display()
-                        ),
-                        context.call_site,
-                    ));
-                }
             }
+
+            rows.push(CompoundValue::Object(members.into()).into());
+            i += 1;
         }
 
-        rows.push(CompoundValue::Object(members.into()).into());
+        Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type().clone(), rows).into())
     }
-
-    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type().clone(), rows).into())
+    .boxed()
 }
 
 /// Gets the function describing `read_tsv`.
@@ -233,9 +253,18 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(File) -> Array[Array[String]]", read_tsv_simple),
-                Signature::new("(File, Boolean) -> Array[Object]", read_tsv),
-                Signature::new("(File, Boolean, Array[String]) -> Array[Object]", read_tsv),
+                Signature::new(
+                    "(File) -> Array[Array[String]]",
+                    Callback::Async(read_tsv_simple),
+                ),
+                Signature::new(
+                    "(File, Boolean) -> Array[Object]",
+                    Callback::Async(read_tsv),
+                ),
+                Signature::new(
+                    "(File, Boolean, Array[String]) -> Array[Object]",
+                    Callback::Async(read_tsv),
+                ),
             ]
         },
     )

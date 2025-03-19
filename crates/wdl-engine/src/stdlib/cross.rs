@@ -4,6 +4,7 @@ use itertools::Itertools;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -55,7 +56,7 @@ pub const fn descriptor() -> Function {
         const {
             &[Signature::new(
                 "(Array[X], Array[Y]) -> Array[Pair[X, Y]]",
-                cross,
+                Callback::Sync(cross),
             )]
         },
     )

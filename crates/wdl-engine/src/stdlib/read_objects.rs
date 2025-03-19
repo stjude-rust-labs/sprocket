@@ -1,19 +1,21 @@
 //! Implements the `read_objects` function from the WDL standard library.
 
-use std::fs;
-use std::io::BufRead;
-use std::io::BufReader;
-
 use anyhow::Context;
+use futures::FutureExt;
+use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
+use tokio::fs;
+use tokio::io::AsyncBufReadExt;
+use tokio::io::BufReader;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 use wdl_grammar::lexer::v1::is_ident;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -40,101 +42,113 @@ use crate::diagnostics::function_call_failed;
 /// returned.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_objects
-fn read_objects(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type().clone()));
+fn read_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
+    async move {
+        debug_assert!(context.arguments.len() == 1);
+        debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type().clone()));
 
-    let path = context.work_dir().join(
-        context
-            .coerce_argument(0, PrimitiveType::File)
-            .unwrap_file()
-            .as_str(),
-    );
+        let path = context.work_dir().join(
+            context
+                .coerce_argument(0, PrimitiveType::File)
+                .unwrap_file()
+                .as_str(),
+        );
 
-    let file = fs::File::open(&path)
-        .with_context(|| format!("failed to open file `{path}`", path = path.display()))
-        .map_err(|e| function_call_failed("read_objects", format!("{e:?}"), context.call_site))?;
-
-    let mut lines = BufReader::new(file).lines();
-    let names = match lines.next() {
-        Some(line) => line
-            .with_context(|| format!("failed to read file `{path}`", path = path.display()))
-            .map_err(|e| {
-                function_call_failed("read_objects", format!("{e:?}"), context.call_site)
-            })?,
-        None => {
-            return Ok(Array::new_unchecked(
-                ANALYSIS_STDLIB.array_object_type().clone(),
-                Vec::new(),
-            )
-            .into());
-        }
-    };
-
-    for name in names.split('\t') {
-        if !is_ident(name) {
-            return Err(function_call_failed(
+        let read_error = |e: std::io::Error| {
+            function_call_failed(
                 "read_objects",
-                format!(
-                    "invalid column name `{name}` at {path}:1: column name must be a valid WDL \
-                     identifier",
-                    path = path.display()
-                ),
+                format!("failed to read file `{path}`: {e}", path = path.display()),
                 context.call_site,
-            ));
-        }
-    }
+            )
+        };
 
-    let mut objects = Vec::new();
-    for (i, line) in lines.enumerate() {
-        let line = line
-            .with_context(|| format!("failed to read file `{path}`", path = path.display()))
+        let file = fs::File::open(&path)
+            .await
+            .with_context(|| format!("failed to open file `{path}`", path = path.display()))
             .map_err(|e| {
                 function_call_failed("read_objects", format!("{e:?}"), context.call_site)
             })?;
 
-        let mut members = IndexMap::new();
-        for e in names.split('\t').zip_longest(line.split('\t')) {
-            match e {
-                EitherOrBoth::Both(name, value) => {
-                    if members
-                        .insert(name.to_string(), PrimitiveValue::new_string(value).into())
-                        .is_some()
-                    {
+        let mut lines = BufReader::new(file).lines();
+        let names = match lines.next_line().await.map_err(read_error)? {
+            Some(line) => line,
+            None => {
+                return Ok(Array::new_unchecked(
+                    ANALYSIS_STDLIB.array_object_type().clone(),
+                    Vec::new(),
+                )
+                .into());
+            }
+        };
+
+        for name in names.split('\t') {
+            if !is_ident(name) {
+                return Err(function_call_failed(
+                    "read_objects",
+                    format!(
+                        "invalid column name `{name}` at {path}:1: column name must be a valid \
+                         WDL identifier",
+                        path = path.display()
+                    ),
+                    context.call_site,
+                ));
+            }
+        }
+
+        let mut objects = Vec::new();
+        let mut i = 2;
+        while let Some(line) = lines.next_line().await.map_err(read_error)? {
+            let mut members = IndexMap::new();
+            for e in names.split('\t').zip_longest(line.split('\t')) {
+                match e {
+                    EitherOrBoth::Both(name, value) => {
+                        if members
+                            .insert(name.to_string(), PrimitiveValue::new_string(value).into())
+                            .is_some()
+                        {
+                            return Err(function_call_failed(
+                                "read_objects",
+                                format!(
+                                    "duplicate column name `{name}` at {path}:1",
+                                    path = path.display()
+                                ),
+                                context.call_site,
+                            ));
+                        }
+                    }
+                    EitherOrBoth::Left(_) | EitherOrBoth::Right(_) => {
                         return Err(function_call_failed(
                             "read_objects",
                             format!(
-                                "duplicate column name `{name}` at {path}:1",
+                                "line {i} of file `{path}` does not contain the expected number \
+                                 of columns",
                                 path = path.display()
                             ),
                             context.call_site,
                         ));
                     }
                 }
-                EitherOrBoth::Left(_) | EitherOrBoth::Right(_) => {
-                    return Err(function_call_failed(
-                        "read_objects",
-                        format!(
-                            "line {i} of file `{path}` does not contain the expected number of \
-                             columns",
-                            i = i + 2,
-                            path = path.display()
-                        ),
-                        context.call_site,
-                    ));
-                }
             }
+
+            objects.push(Object::from(members).into());
+            i += 1;
         }
 
-        objects.push(Object::from(members).into());
+        Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type().clone(), objects).into())
     }
-
-    Ok(Array::new_unchecked(ANALYSIS_STDLIB.array_object_type().clone(), objects).into())
+    .boxed()
 }
 
 /// Gets the function describing `read_objects`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(File) -> Array[Object]", read_objects)] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(File) -> Array[Object]",
+                Callback::Async(read_objects),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

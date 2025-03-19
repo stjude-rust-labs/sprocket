@@ -7,6 +7,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -79,7 +80,14 @@ fn glob(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `glob`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(String) -> Array[File]", glob)] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(String) -> Array[File]",
+                Callback::Sync(glob),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

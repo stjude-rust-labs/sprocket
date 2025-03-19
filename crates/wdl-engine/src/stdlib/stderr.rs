@@ -4,6 +4,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Value;
@@ -35,7 +36,7 @@ fn stderr(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `stderr`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("() -> File", stderr)] })
+    Function::new(const { &[Signature::new("() -> File", Callback::Sync(stderr))] })
 }
 
 #[cfg(test)]

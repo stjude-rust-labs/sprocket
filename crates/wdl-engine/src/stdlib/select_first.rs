@@ -3,6 +3,7 @@
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Value;
@@ -52,7 +53,14 @@ fn select_first(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `select_first`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(Array[X], <X>) -> X", select_first)] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(Array[X], <X>) -> X",
+                Callback::Sync(select_first),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

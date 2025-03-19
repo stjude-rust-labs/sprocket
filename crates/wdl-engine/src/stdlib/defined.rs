@@ -4,6 +4,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Value;
@@ -20,7 +21,7 @@ fn defined(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `defined`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(X) -> Boolean", defined)] })
+    Function::new(const { &[Signature::new("(X) -> Boolean", Callback::Sync(defined))] })
 }
 
 #[cfg(test)]

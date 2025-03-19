@@ -1,16 +1,21 @@
 //! Implements the `write_tsv` function from the WDL standard library.
 
-use std::io::BufWriter;
-use std::io::Write;
 use std::path::Path;
 
+use futures::FutureExt;
+use futures::future::BoxFuture;
 use tempfile::NamedTempFile;
+use tokio::fs;
+use tokio::io::AsyncWrite;
+use tokio::io::AsyncWriteExt;
+use tokio::io::BufWriter;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -25,8 +30,8 @@ use crate::diagnostics::function_call_failed;
 /// Returns `Ok(false)` if the value contains a tab character.
 ///
 /// Returns `Err(_)` if there was an I/O error.
-pub(crate) fn write_tsv_value<W: Write>(
-    mut writer: &mut W,
+pub(crate) async fn write_tsv_value<W: AsyncWrite + Unpin>(
+    writer: &mut W,
     value: &PrimitiveValue,
 ) -> Result<bool, std::io::Error> {
     match value {
@@ -36,14 +41,14 @@ pub(crate) fn write_tsv_value<W: Write>(
             Ok(false)
         }
         v => {
-            write!(&mut writer, "{v}", v = v.raw())?;
+            writer.write_all(v.raw().to_string().as_bytes()).await?;
             Ok(true)
         }
     }
 }
 
 /// Helper for writing a `Array[Array[String]]` to a TSV file.
-fn write_array_tsv_file(
+async fn write_array_tsv_file(
     tmp: &Path,
     rows: Array,
     header: Option<Array>,
@@ -59,15 +64,29 @@ fn write_array_tsv_file(
     };
 
     // Create a temporary file that will be persisted after writing
-    let mut file = NamedTempFile::with_prefix_in("tmp", tmp).map_err(|e| {
+    let path = NamedTempFile::with_prefix_in("tmp", tmp)
+        .map_err(|e| {
+            function_call_failed(
+                "write_tsv",
+                format!("failed to create temporary file: {e}"),
+                call_site,
+            )
+        })?
+        .into_temp_path();
+
+    // Re-open the file for asynchronous write
+    let file = fs::File::create(&path).await.map_err(|e| {
         function_call_failed(
             "write_tsv",
-            format!("failed to create temporary file: {e}"),
+            format!(
+                "failed to open temporary file `{path}`: {e}",
+                path = path.display()
+            ),
             call_site,
         )
     })?;
 
-    let mut writer = BufWriter::new(file.as_file_mut());
+    let mut writer = BufWriter::new(file);
 
     // Start by writing the header, if one was provided
     let column_count = match header {
@@ -83,13 +102,16 @@ fn write_array_tsv_file(
                 }
 
                 if i > 0 {
-                    writer.write(b"\t").map_err(write_error)?;
+                    writer.write_all(b"\t").await.map_err(write_error)?;
                 }
 
-                writer.write(name.as_bytes()).map_err(write_error)?;
+                writer
+                    .write_all(name.as_bytes())
+                    .await
+                    .map_err(write_error)?;
             }
 
-            writeln!(&mut writer).map_err(write_error)?;
+            writer.write_all(b"\n").await.map_err(write_error)?;
             Some(header.len())
         }
         _ => None,
@@ -124,21 +146,23 @@ fn write_array_tsv_file(
             }
 
             if i > 0 {
-                writer.write(b"\t").map_err(write_error)?;
+                writer.write_all(b"\t").await.map_err(write_error)?;
             }
 
-            writer.write(column.as_bytes()).map_err(write_error)?;
+            writer
+                .write_all(column.as_bytes())
+                .await
+                .map_err(write_error)?;
         }
 
-        writeln!(&mut writer).map_err(write_error)?;
+        writer.write_all(b"\n").await.map_err(write_error)?;
     }
 
-    // Consume the writer, flushing the buffer to disk.
-    writer
-        .into_inner()
-        .map_err(|e| write_error(e.into_error()))?;
+    // Flush the writer and drop it
+    writer.flush().await.map_err(write_error)?;
+    drop(writer);
 
-    let (_, path) = file.keep().map_err(|e| {
+    let path = path.keep().map_err(|e| {
         function_call_failed(
             "write_tsv",
             format!("failed to keep temporary file: {e}"),
@@ -169,15 +193,18 @@ fn write_array_tsv_file(
 /// row.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
-fn write_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(PrimitiveType::File));
+fn write_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
+    async move {
+        debug_assert!(context.arguments.len() == 1);
+        debug_assert!(context.return_type_eq(PrimitiveType::File));
 
-    let rows = context
-        .coerce_argument(0, ANALYSIS_STDLIB.array_array_string_type().clone())
-        .unwrap_array();
+        let rows = context
+            .coerce_argument(0, ANALYSIS_STDLIB.array_array_string_type().clone())
+            .unwrap_array();
 
-    write_array_tsv_file(context.temp_dir(), rows, None, context.call_site)
+        write_array_tsv_file(context.temp_dir(), rows, None, context.call_site).await
+    }
+    .boxed()
 }
 
 /// Given an Array of elements, writes a tab-separated value (TSV) file with one
@@ -190,26 +217,30 @@ fn write_tsv(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// header array.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
-fn write_tsv_with_header(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(context.arguments.len() == 3);
-    debug_assert!(context.return_type_eq(PrimitiveType::File));
+fn write_tsv_with_header(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
+    async move {
+        debug_assert!(context.arguments.len() == 3);
+        debug_assert!(context.return_type_eq(PrimitiveType::File));
 
-    let rows = context
-        .coerce_argument(0, ANALYSIS_STDLIB.array_array_string_type().clone())
-        .unwrap_array();
-    let write_header = context
-        .coerce_argument(1, PrimitiveType::Boolean)
-        .unwrap_boolean();
-    let header = context
-        .coerce_argument(2, ANALYSIS_STDLIB.array_string_type().clone())
-        .unwrap_array();
+        let rows = context
+            .coerce_argument(0, ANALYSIS_STDLIB.array_array_string_type().clone())
+            .unwrap_array();
+        let write_header = context
+            .coerce_argument(1, PrimitiveType::Boolean)
+            .unwrap_boolean();
+        let header = context
+            .coerce_argument(2, ANALYSIS_STDLIB.array_string_type().clone())
+            .unwrap_array();
 
-    write_array_tsv_file(
-        context.temp_dir(),
-        rows,
-        if write_header { Some(header) } else { None },
-        context.call_site,
-    )
+        write_array_tsv_file(
+            context.temp_dir(),
+            rows,
+            if write_header { Some(header) } else { None },
+            context.call_site,
+        )
+        .await
+    }
+    .boxed()
 }
 
 /// Given an Array of elements, writes a tab-separated value (TSV) file with one
@@ -223,164 +254,188 @@ fn write_tsv_with_header(context: CallContext<'_>) -> Result<Value, Diagnostic> 
 /// to specify column names to use instead of the struct field names.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
-fn write_tsv_struct(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(!context.arguments.is_empty() && context.arguments.len() <= 3);
-    debug_assert!(context.return_type_eq(PrimitiveType::File));
+fn write_tsv_struct(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
+    async move {
+        debug_assert!(!context.arguments.is_empty() && context.arguments.len() <= 3);
+        debug_assert!(context.return_type_eq(PrimitiveType::File));
 
-    // Helper for handling errors while writing to the file.
-    let write_error = |e: std::io::Error| {
-        function_call_failed(
-            "write_tsv",
-            format!("failed to write to temporary file: {e}"),
-            context.call_site,
-        )
-    };
+        // Helper for handling errors while writing to the file.
+        let write_error = |e: std::io::Error| {
+            function_call_failed(
+                "write_tsv",
+                format!("failed to write to temporary file: {e}"),
+                context.call_site,
+            )
+        };
 
-    let rows = context.arguments[0].value.as_array().unwrap();
-    let write_header = if context.arguments.len() >= 2 {
-        context
-            .coerce_argument(1, PrimitiveType::Boolean)
-            .unwrap_boolean()
-    } else {
-        false
-    };
-    let header = if context.arguments.len() == 3 {
-        Some(
+        let rows = context.arguments[0].value.as_array().unwrap();
+        let write_header = if context.arguments.len() >= 2 {
             context
-                .coerce_argument(2, ANALYSIS_STDLIB.array_string_type().clone())
-                .unwrap_array(),
-        )
-    } else {
-        None
-    };
+                .coerce_argument(1, PrimitiveType::Boolean)
+                .unwrap_boolean()
+        } else {
+            false
+        };
+        let header = if context.arguments.len() == 3 {
+            Some(
+                context
+                    .coerce_argument(2, ANALYSIS_STDLIB.array_string_type().clone())
+                    .unwrap_array(),
+            )
+        } else {
+            None
+        };
 
-    // Create a temporary file that will be persisted after writing
-    let mut file = NamedTempFile::with_prefix_in("tmp", context.temp_dir()).map_err(|e| {
-        function_call_failed(
-            "write_tsv",
-            format!("failed to create temporary file: {e}"),
-            context.call_site,
-        )
-    })?;
+        // Create a temporary file that will be persisted after writing
+        let path = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
+            .map_err(|e| {
+                function_call_failed(
+                    "write_tsv",
+                    format!("failed to create temporary file: {e}"),
+                    context.call_site,
+                )
+            })?
+            .into_temp_path();
 
-    let mut writer = BufWriter::new(file.as_file_mut());
-
-    // Get the struct type to print the columns; we need to do this even when the
-    // array is empty
-    let rows_ty = rows.ty();
-    let ty = match rows_ty.as_array() {
-        Some(ty) => ty
-            .element_type()
-            .as_struct()
-            .expect("should be struct type"),
-        _ => panic!("expected an array"),
-    };
-
-    // Start by writing the header
-    if write_header {
-        match header {
-            Some(header) => {
-                // Ensure the header count matches the element count
-                if header.len() != ty.members().len() {
-                    return Err(function_call_failed(
-                        "write_tsv",
-                        format!(
-                            "expected {expected} header{s1} as the struct has {expected} \
-                             member{s1}, but only given {actual} header{s2}",
-                            expected = ty.members().len(),
-                            s1 = if ty.members().len() == 1 { "" } else { "s" },
-                            actual = header.len(),
-                            s2 = if header.len() == 1 { "" } else { "s" },
-                        ),
-                        context.arguments[2].span,
-                    ));
-                }
-
-                // Header was explicitly specified, write out the values
-                for (i, name) in header.as_slice().iter().enumerate() {
-                    let name = name.as_string().unwrap();
-                    if name.contains('\t') {
-                        return Err(function_call_failed(
-                            "write_tsv",
-                            format!("specified column name at index {i} contains a tab character"),
-                            context.call_site,
-                        ));
-                    }
-
-                    if i > 0 {
-                        writer.write(b"\t").map_err(write_error)?;
-                    }
-
-                    writer.write(name.as_bytes()).map_err(write_error)?;
-                }
-            }
-            _ => {
-                // Write out the names of each struct member
-                for (i, name) in ty.members().keys().enumerate() {
-                    if i > 0 {
-                        writer.write(b"\t").map_err(write_error)?;
-                    }
-
-                    writer.write(name.as_bytes()).map_err(write_error)?;
-                }
-            }
-        }
-
-        writeln!(&mut writer).map_err(write_error)?;
-    }
-
-    // Write the rows
-    for row in rows.as_slice() {
-        let row = row.as_struct().unwrap();
-        for (i, (name, column)) in row.iter().enumerate() {
-            if i > 0 {
-                writer.write(b"\t").map_err(write_error)?;
-            }
-
-            match column {
-                Value::None => {}
-                Value::Primitive(v) => {
-                    if !write_tsv_value(&mut writer, v).map_err(write_error)? {
-                        return Err(function_call_failed(
-                            "write_tsv",
-                            format!("member `{name}` contains a tab character"),
-                            context.call_site,
-                        ));
-                    }
-                }
-                _ => panic!("value is expected to be primitive"),
-            }
-        }
-
-        writeln!(&mut writer).map_err(write_error)?;
-    }
-
-    // Consume the writer, flushing the buffer to disk.
-    writer
-        .into_inner()
-        .map_err(|e| write_error(e.into_error()))?;
-
-    let (_, path) = file.keep().map_err(|e| {
-        function_call_failed(
-            "write_tsv",
-            format!("failed to keep temporary file: {e}"),
-            context.call_site,
-        )
-    })?;
-
-    Ok(
-        PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
+        // Re-open the file for asynchronous write
+        let file = fs::File::create(&path).await.map_err(|e| {
             function_call_failed(
                 "write_tsv",
                 format!(
-                    "path `{path}` cannot be represented as UTF-8",
-                    path = Path::new(&path).display()
+                    "failed to open temporary file `{path}`: {e}",
+                    path = path.display()
                 ),
                 context.call_site,
             )
-        })?)
-        .into(),
-    )
+        })?;
+
+        let mut writer = BufWriter::new(file);
+
+        // Get the struct type to print the columns; we need to do this even when the
+        // array is empty
+        let rows_ty = rows.ty();
+        let ty = match rows_ty.as_array() {
+            Some(ty) => ty
+                .element_type()
+                .as_struct()
+                .expect("should be struct type"),
+            _ => panic!("expected an array"),
+        };
+
+        // Start by writing the header
+        if write_header {
+            match header {
+                Some(header) => {
+                    // Ensure the header count matches the element count
+                    if header.len() != ty.members().len() {
+                        return Err(function_call_failed(
+                            "write_tsv",
+                            format!(
+                                "expected {expected} header{s1} as the struct has {expected} \
+                                 member{s1}, but only given {actual} header{s2}",
+                                expected = ty.members().len(),
+                                s1 = if ty.members().len() == 1 { "" } else { "s" },
+                                actual = header.len(),
+                                s2 = if header.len() == 1 { "" } else { "s" },
+                            ),
+                            context.arguments[2].span,
+                        ));
+                    }
+
+                    // Header was explicitly specified, write out the values
+                    for (i, name) in header.as_slice().iter().enumerate() {
+                        let name = name.as_string().unwrap();
+                        if name.contains('\t') {
+                            return Err(function_call_failed(
+                                "write_tsv",
+                                format!(
+                                    "specified column name at index {i} contains a tab character"
+                                ),
+                                context.call_site,
+                            ));
+                        }
+
+                        if i > 0 {
+                            writer.write_all(b"\t").await.map_err(write_error)?;
+                        }
+
+                        writer
+                            .write_all(name.as_bytes())
+                            .await
+                            .map_err(write_error)?;
+                    }
+                }
+                _ => {
+                    // Write out the names of each struct member
+                    for (i, name) in ty.members().keys().enumerate() {
+                        if i > 0 {
+                            writer.write_all(b"\t").await.map_err(write_error)?;
+                        }
+
+                        writer
+                            .write_all(name.as_bytes())
+                            .await
+                            .map_err(write_error)?;
+                    }
+                }
+            }
+
+            writer.write_all(b"\n").await.map_err(write_error)?;
+        }
+
+        // Write the rows
+        for row in rows.as_slice() {
+            let row = row.as_struct().unwrap();
+            for (i, (name, column)) in row.iter().enumerate() {
+                if i > 0 {
+                    writer.write_all(b"\t").await.map_err(write_error)?;
+                }
+
+                match column {
+                    Value::None => {}
+                    Value::Primitive(v) => {
+                        if !write_tsv_value(&mut writer, v).await.map_err(write_error)? {
+                            return Err(function_call_failed(
+                                "write_tsv",
+                                format!("member `{name}` contains a tab character"),
+                                context.call_site,
+                            ));
+                        }
+                    }
+                    _ => panic!("value is expected to be primitive"),
+                }
+            }
+
+            writer.write_all(b"\n").await.map_err(write_error)?;
+        }
+
+        // Flush the writer and drop it
+        writer.flush().await.map_err(write_error)?;
+        drop(writer);
+
+        let path = path.keep().map_err(|e| {
+            function_call_failed(
+                "write_tsv",
+                format!("failed to keep temporary file: {e}"),
+                context.call_site,
+            )
+        })?;
+
+        Ok(
+            PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
+                function_call_failed(
+                    "write_tsv",
+                    format!(
+                        "path `{path}` cannot be represented as UTF-8",
+                        path = Path::new(&path).display()
+                    ),
+                    context.call_site,
+                )
+            })?)
+            .into(),
+        )
+    }
+    .boxed()
 }
 
 /// Gets the function describing `write_tsv`.
@@ -388,15 +443,15 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(Array[Array[String]]) -> File", write_tsv),
+                Signature::new("(Array[Array[String]]) -> File", Callback::Async(write_tsv)),
                 Signature::new(
                     "(Array[Array[String]], Boolean, Array[String]) -> File",
-                    write_tsv_with_header,
+                    Callback::Async(write_tsv_with_header),
                 ),
                 Signature::new(
                     "(Array[S], <Boolean>, <Array[String]>) -> File where `S`: any structure \
                      containing only primitive types",
-                    write_tsv_struct,
+                    Callback::Async(write_tsv_struct),
                 ),
             ]
         },

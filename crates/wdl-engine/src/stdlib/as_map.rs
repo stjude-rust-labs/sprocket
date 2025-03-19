@@ -6,6 +6,7 @@ use indexmap::IndexMap;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Map;
@@ -77,7 +78,7 @@ pub const fn descriptor() -> Function {
         const {
             &[Signature::new(
                 "(Array[Pair[K, V]]) -> Map[K, V] where `K`: any primitive type",
-                as_map,
+                Callback::Sync(as_map),
             )]
         },
     )

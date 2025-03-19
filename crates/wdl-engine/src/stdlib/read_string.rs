@@ -1,12 +1,14 @@
 //! Implements the `read_string` function from the WDL standard library.
 
-use std::fs;
-
 use anyhow::Context;
+use futures::FutureExt;
+use futures::future::BoxFuture;
+use tokio::fs;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::PrimitiveValue;
@@ -19,28 +21,41 @@ use crate::diagnostics::function_call_failed;
 /// If the file is empty, an empty string is returned.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_string
-fn read_string(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(PrimitiveType::String));
+fn read_string(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
+    async move {
+        debug_assert!(context.arguments.len() == 1);
+        debug_assert!(context.return_type_eq(PrimitiveType::String));
 
-    let path = context.work_dir().join(
-        context
-            .coerce_argument(0, PrimitiveType::File)
-            .unwrap_file()
-            .as_str(),
-    );
-    let mut contents = fs::read_to_string(&path)
-        .with_context(|| format!("failed to read file `{path}`", path = path.display()))
-        .map_err(|e| function_call_failed("read_string", format!("{e:?}"), context.call_site))?;
+        let path = context.work_dir().join(
+            context
+                .coerce_argument(0, PrimitiveType::File)
+                .unwrap_file()
+                .as_str(),
+        );
+        let mut contents = fs::read_to_string(&path)
+            .await
+            .with_context(|| format!("failed to read file `{path}`", path = path.display()))
+            .map_err(|e| {
+                function_call_failed("read_string", format!("{e:?}"), context.call_site)
+            })?;
 
-    let trimmed = contents.trim_end_matches(['\r', '\n']);
-    contents.truncate(trimmed.len());
-    Ok(PrimitiveValue::new_string(contents).into())
+        let trimmed = contents.trim_end_matches(['\r', '\n']);
+        contents.truncate(trimmed.len());
+        Ok(PrimitiveValue::new_string(contents).into())
+    }
+    .boxed()
 }
 
 /// Gets the function describing `read_string`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(File) -> String", read_string)] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(File) -> String",
+                Callback::Async(read_string),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

@@ -1266,6 +1266,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                                 .get(target.text())
                                 .expect("should have implementation")
                                 .call(binding, context)
+                                .await
                         }
                         Err(FunctionBindError::RequiresVersion(minimum)) => {
                             Err(unsupported_function(minimum, target.text(), target.span()))

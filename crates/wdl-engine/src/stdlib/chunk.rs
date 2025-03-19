@@ -3,6 +3,7 @@
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -56,7 +57,14 @@ fn chunk(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `chunk`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(Array[X], Int) -> Array[Array[X]]", chunk)] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(Array[X], Int) -> Array[Array[X]]",
+                Callback::Sync(chunk),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

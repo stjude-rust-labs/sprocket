@@ -4,6 +4,7 @@ use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
@@ -46,7 +47,7 @@ pub const fn descriptor() -> Function {
         const {
             &[Signature::new(
                 "(Array[P]) -> Array[String] where `P`: any primitive type",
-                quote,
+                Callback::Sync(quote),
             )]
         },
     )

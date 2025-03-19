@@ -8,6 +8,7 @@ use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 
 use super::CallContext;
+use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::CompoundValue;
@@ -115,18 +116,24 @@ pub const fn descriptor() -> Function {
             &[
                 Signature::new(
                     "(Map[K, V], K) -> Boolean where `K`: any primitive type",
-                    contains_key_map,
+                    Callback::Sync(contains_key_map),
                 ),
-                Signature::new("(Object, String) -> Boolean", contains_key_object),
+                Signature::new(
+                    "(Object, String) -> Boolean",
+                    Callback::Sync(contains_key_object),
+                ),
                 Signature::new(
                     "(Map[String, V], Array[String]) -> Boolean",
-                    contains_key_recursive,
+                    Callback::Sync(contains_key_recursive),
                 ),
                 Signature::new(
                     "(S, Array[String]) -> Boolean where `S`: any structure",
-                    contains_key_recursive,
+                    Callback::Sync(contains_key_recursive),
                 ),
-                Signature::new("(Object, Array[String]) -> Boolean", contains_key_recursive),
+                Signature::new(
+                    "(Object, Array[String]) -> Boolean",
+                    Callback::Sync(contains_key_recursive),
+                ),
             ]
         },
     )
