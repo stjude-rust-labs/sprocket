@@ -736,7 +736,11 @@ impl WorkflowEvaluator {
 
         // Build an evaluation graph for the workflow
         let mut diagnostics = Vec::new();
-        let graph = WorkflowGraphBuilder::default().build(&definition, &mut diagnostics);
+
+        // We need to provide inputs to the workflow graph builder to avoid adding
+        // dependency edges from the default expressions if a value was provided
+        let graph = WorkflowGraphBuilder::default()
+            .build(&definition, &mut diagnostics, |name| inputs.contains(name));
         if let Some(diagnostic) = diagnostics.pop() {
             return Err(diagnostic.into());
         }

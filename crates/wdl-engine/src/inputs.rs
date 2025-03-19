@@ -330,6 +330,13 @@ impl WorkflowInputs {
         self.inputs.insert(name.into(), value.into())
     }
 
+    /// Checks if the inputs contain a value with the specified name.
+    ///
+    /// This does not check nested call inputs.
+    pub fn contains(&self, name: &str) -> bool {
+        self.inputs.contains_key(name)
+    }
+
     /// Replaces any `File` or `Directory` input values with joining the
     /// specified path with the value.
     ///

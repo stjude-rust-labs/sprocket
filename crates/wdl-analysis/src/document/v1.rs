@@ -849,7 +849,11 @@ fn populate_workflow(
             .expect("should have braced scope span"),
     )];
     let mut output_scope = None;
-    let graph = WorkflowGraphBuilder::default().build(workflow, &mut document.diagnostics);
+
+    // For static analysis, we don't need to provide inputs to the workflow graph
+    // builder
+    let graph =
+        WorkflowGraphBuilder::default().build(workflow, &mut document.diagnostics, |_| false);
 
     for index in toposort(&graph, None).expect("graph should be acyclic") {
         match graph[index].clone() {

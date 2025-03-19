@@ -565,6 +565,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         mut self,
         workflow: &WorkflowDefinition<N>,
         diagnostics: &mut Vec<Diagnostic>,
+        input_present: impl Fn(&str) -> bool,
     ) -> DiGraph<WorkflowGraphNode<N>, ()> {
         // Populate the declaration types and build a name reference graph
         let mut graph = DiGraph::new();
@@ -623,7 +624,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         }
 
         // Add name reference edges before adding the outputs
-        self.add_reference_edges(None, &mut graph, diagnostics);
+        self.add_reference_edges(None, &mut graph, diagnostics, &input_present);
 
         let count = graph.node_count();
         if let Some(section) = outputs {
@@ -638,7 +639,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         }
 
         // Add reference edges again, but only for the output declaration nodes
-        self.add_reference_edges(Some(count), &mut graph, diagnostics);
+        self.add_reference_edges(Some(count), &mut graph, diagnostics, &input_present);
         graph
     }
 
@@ -814,13 +815,21 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         skip: Option<usize>,
         graph: &mut DiGraph<WorkflowGraphNode<N>, ()>,
         diagnostics: &mut Vec<Diagnostic>,
+        input_present: impl Fn(&str) -> bool,
     ) {
         // Populate edges for any nodes that reference other nodes by name
         for from in graph.node_indices().skip(skip.unwrap_or(0)) {
             match graph[from].clone() {
-                WorkflowGraphNode::Input(decl)
-                | WorkflowGraphNode::Decl(decl)
-                | WorkflowGraphNode::Output(decl) => {
+                WorkflowGraphNode::Input(decl) => {
+                    // Only add edges for default expressions if the input wasn't provided
+                    if !input_present(decl.name().text()) {
+                        if let Some(expr) = decl.expr() {
+                            self.add_expr_edges(from, expr, graph, diagnostics);
+                        }
+                    }
+                }
+
+                WorkflowGraphNode::Decl(decl) | WorkflowGraphNode::Output(decl) => {
                     if let Some(expr) = decl.expr() {
                         self.add_expr_edges(from, expr, graph, diagnostics);
                     }
@@ -1098,5 +1107,126 @@ impl<N: TreeNode> Default for CommonAncestorFinder<N> {
             first: Default::default(),
             second: Default::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use wdl_ast::Document;
+
+    use super::*;
+
+    #[test]
+    fn test_input_dependency_handling() {
+        let source = r#"
+        version 1.1
+
+        task my_task {
+            input {
+                Int i
+            }
+
+            command <<<>>>
+
+            output {
+                Int out = i
+            }
+        }
+
+        workflow foo {
+            input {
+                Int x = 10
+                Int y = t1.out
+            }
+
+            call my_task as t1 { input: i = x }
+            call my_task as t2 { input: i = y }
+        }
+        "#;
+
+        let (document, diagnostics) = Document::parse(source);
+        assert!(
+            diagnostics.is_empty(),
+            "parsing should succeed without diagnostics"
+        );
+
+        let workflow = document
+            .ast()
+            .into_v1()
+            .expect("document should be v1")
+            .workflows()
+            .next()
+            .expect("document should have a workflow");
+
+        let mut diagnostics = Vec::new();
+
+        // Testing without providing inputs i.e. static analysis
+        let graph = WorkflowGraphBuilder::default().build(&workflow, &mut diagnostics, |_| false);
+
+        let t1_out = graph
+            .node_indices()
+            .find(|i| {
+                if let WorkflowGraphNode::Call(call) = &graph[*i] {
+                    call.alias().map(|a| a.name().text().to_string()) == Some("t1".to_string())
+                } else {
+                    false
+                }
+            })
+            .expect("t1 node not found");
+
+        let y = graph
+            .node_indices()
+            .find(|i| {
+                if let WorkflowGraphNode::Input(input) = &graph[*i] {
+                    input.name().text() == "y"
+                } else {
+                    false
+                }
+            })
+            .expect("y node not found");
+
+        assert!(
+            graph.contains_edge(t1_out, y),
+            "y should depend on t1.out when input 'y' is not provided"
+        );
+
+        let y_input = graph
+            .node_indices()
+            .find(|i| {
+                if let WorkflowGraphNode::Input(input) = &graph[*i] {
+                    input.name().text() == "y"
+                } else {
+                    false
+                }
+            })
+            .expect("y node not found");
+
+        let t2 = graph
+            .node_indices()
+            .find(|i| {
+                if let WorkflowGraphNode::Call(call) = &graph[*i] {
+                    call.alias().map(|a| a.name().text().to_string()) == Some("t2".to_string())
+                } else {
+                    false
+                }
+            })
+            .expect("t2 node not found");
+
+        assert!(graph.contains_edge(y_input, t2), "t2 should depend on y");
+
+        // Testing with providing input y i.e. runtime analysis - case for wdl_engine
+        let mut diagnostics = Vec::new();
+        let graph =
+            WorkflowGraphBuilder::default().build(&workflow, &mut diagnostics, |name| name == "y");
+
+        assert!(
+            !graph.contains_edge(t1_out, y),
+            "y should not depend on t1.out when input 'y' is provided"
+        );
+
+        assert!(
+            graph.contains_edge(y_input, t2),
+            "t2 should depend on y even when input y is provided"
+        );
     }
 }
