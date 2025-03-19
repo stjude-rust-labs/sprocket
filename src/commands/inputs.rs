@@ -132,6 +132,9 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         anyhow::bail!("Failed to parse WDL document: {:?}", diagnostics);
     }
 
+    // Collect all input information in a single visit of the AST
+    let (input_defaults, literal_defaults) = collect_all_input_info(document);
+
     let mut template = serde_json::Map::new();
 
     // Collect inputs and their parent information
@@ -139,12 +142,12 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
 
     for (parent_name, name, input) in inputs_with_parents {
         // Skip if hide_defaults is true and input has any default
-        if args.hide_defaults && has_default(document, name) {
+        if args.hide_defaults && input_defaults.get(name).copied().unwrap_or(false) {
             continue;
         }
 
         // Skip if hide_expressions is true and input has non-literal default
-        if args.hide_expressions && !has_literal_default(document, name) {
+        if args.hide_expressions && !literal_defaults.get(name).copied().unwrap_or(false) {
             continue;
         }
 
@@ -165,6 +168,23 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     Ok(())
 }
 
+/// Collects all input information in a single pass through the AST
+fn collect_all_input_info(document: &Document) -> (IndexMap<String, bool>, IndexMap<String, bool>) {
+    let ast_doc: AstDocument = document.node();
+
+    let input_defaults = IndexMap::new();
+    let literal_defaults = IndexMap::new();
+
+    let mut visitor = InputVisitor {
+        inputs: input_defaults,
+        literal_defaults,
+    };
+
+    ast_doc.visit(&mut (), &mut visitor);
+
+    (visitor.inputs, visitor.literal_defaults)
+}
+
 /// Converts a WDL type to its JSON representation
 fn type_to_json(ty: &Type) -> Value {
     match ty {
@@ -181,38 +201,6 @@ fn type_to_json(ty: &Type) -> Value {
 
         _ => Value::Null,
     }
-}
-
-/// Checks if an input has a default value
-fn has_default(document: &Document, input_name: &str) -> bool {
-    let ast_doc: AstDocument = document.node();
-
-    let mut visitor = InputVisitor {
-        inputs: IndexMap::new(),
-        literal_defaults: IndexMap::new(),
-    };
-
-    ast_doc.visit(&mut (), &mut visitor);
-
-    visitor.inputs.get(input_name).cloned().unwrap_or(false)
-}
-
-/// Checks if an input has a literal default value
-fn has_literal_default(document: &Document, input_name: &str) -> bool {
-    let ast_doc: AstDocument = document.node();
-
-    let mut visitor = InputVisitor {
-        inputs: IndexMap::new(),
-        literal_defaults: IndexMap::new(),
-    };
-
-    ast_doc.visit(&mut (), &mut visitor);
-
-    visitor
-        .literal_defaults
-        .get(input_name)
-        .cloned()
-        .unwrap_or(false)
 }
 
 /// Collects inputs with their parent names
