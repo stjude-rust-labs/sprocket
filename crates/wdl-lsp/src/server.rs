@@ -438,25 +438,27 @@ impl LanguageServer for Server {
 
         debug!("received `textDocument/didOpen` request: {params:#?}");
 
-        if let Ok(path) = params.text_document.uri.to_file_path() {
-            if let Err(e) = self.analyzer.add_directory(path).await {
-                error!(
-                    "failed to add document {uri}: {e}",
-                    uri = params.text_document.uri
-                );
-                return;
-            }
+        if let Err(e) = self
+            .analyzer
+            .add_document(params.text_document.uri.clone())
+            .await
+        {
+            error!(
+                "failed to add document {uri}: {e}",
+                uri = params.text_document.uri
+            );
+            return;
+        }
 
-            if let Err(e) = self.analyzer.notify_incremental_change(
-                params.text_document.uri,
-                IncrementalChange {
-                    version: params.text_document.version,
-                    start: Some(params.text_document.text),
-                    edits: Vec::new(),
-                },
-            ) {
-                error!("failed to notify incremental change: {e}");
-            }
+        if let Err(e) = self.analyzer.notify_incremental_change(
+            params.text_document.uri,
+            IncrementalChange {
+                version: params.text_document.version,
+                start: Some(params.text_document.text),
+                edits: Vec::new(),
+            },
+        ) {
+            error!("failed to notify incremental change: {e}");
         }
     }
 
