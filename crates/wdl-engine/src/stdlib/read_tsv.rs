@@ -1,6 +1,8 @@
 //! Implements the `read_tsv` function from the WDL standard library.
 
-use anyhow::Context;
+use std::borrow::Cow;
+use std::path::Path;
+
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
@@ -66,26 +68,43 @@ fn read_tsv_simple(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diag
         debug_assert!(context.arguments.len() == 1);
         debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_array_string_type().clone()));
 
-        let path = context.work_dir().join(
-            context
-                .coerce_argument(0, PrimitiveType::File)
-                .unwrap_file()
-                .as_str(),
-        );
+        let path = context
+            .coerce_argument(0, PrimitiveType::File)
+            .unwrap_file();
 
-        let file = fs::File::open(&path)
+        let location = context
+            .context
+            .downloader()
+            .download(&path)
             .await
-            .with_context(|| format!("failed to open file `{path}`", path = path.display()))
-            .map_err(|e| function_call_failed("read_tsv", format!("{e:?}"), context.call_site))?;
+            .map_err(|e| {
+                function_call_failed(
+                    "read_tsv",
+                    format!("failed to download file `{path}`: {e:?}"),
+                    context.call_site,
+                )
+            })?;
 
+        let cache_path: Cow<'_, Path> = location
+            .as_deref()
+            .map(Into::into)
+            .unwrap_or_else(|| context.work_dir().join(path.as_str()).into());
+
+        let read_error = |e: std::io::Error| {
+            function_call_failed(
+                "read_tsv",
+                format!(
+                    "failed to read file `{path}`: {e}",
+                    path = cache_path.display()
+                ),
+                context.call_site,
+            )
+        };
+
+        let file = fs::File::open(&cache_path).await.map_err(read_error)?;
         let mut lines = BufReader::new(file).lines();
         let mut rows: Vec<Value> = Vec::new();
-        while let Some(line) = lines
-            .next_line()
-            .await
-            .with_context(|| format!("failed to read file `{path}`", path = path.display()))
-            .map_err(|e| function_call_failed("read_tsv", format!("{e:?}"), context.call_site))?
-        {
+        while let Some(line) = lines.next_line().await.map_err(read_error)? {
             let values = line
                 .split('\t')
                 .map(|s| PrimitiveValue::new_string(s).into())
@@ -125,25 +144,40 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
         debug_assert!(context.arguments.len() >= 2 && context.arguments.len() <= 3);
         debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type().clone()));
 
-        let path = context.work_dir().join(
-            context
-                .coerce_argument(0, PrimitiveType::File)
-                .unwrap_file()
-                .as_str(),
-        );
+        let path = context
+            .coerce_argument(0, PrimitiveType::File)
+            .unwrap_file();
+
+        let location = context
+            .context
+            .downloader()
+            .download(&path)
+            .await
+            .map_err(|e| {
+                function_call_failed(
+                    "read_tsv",
+                    format!("failed to download file `{path}`: {e:?}"),
+                    context.call_site,
+                )
+            })?;
+
+        let cache_path: Cow<'_, Path> = location
+            .as_deref()
+            .map(Into::into)
+            .unwrap_or_else(|| context.work_dir().join(path.as_str()).into());
 
         let read_error = |e: std::io::Error| {
             function_call_failed(
                 "read_tsv",
-                format!("failed to read file `{path}`: {e}", path = path.display()),
+                format!(
+                    "failed to read file `{path}`: {e}",
+                    path = cache_path.display()
+                ),
                 context.call_site,
             )
         };
 
-        let file = fs::File::open(&path)
-            .await
-            .with_context(|| format!("failed to open file `{path}`", path = path.display()))
-            .map_err(|e| function_call_failed("read_tsv", format!("{e:?}"), context.call_site))?;
+        let file = fs::File::open(&cache_path).await.map_err(read_error)?;
 
         let mut lines = BufReader::new(file).lines();
 
@@ -189,8 +223,7 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
                 if context.arguments.len() == 2 {
                     format!(
                         "column name `{invalid}` in file `{path}` is not a valid WDL object field \
-                         name",
-                        path = path.display()
+                         name"
                     )
                 } else {
                     format!("specified name `{invalid}` is not a valid WDL object field name")
@@ -214,10 +247,7 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
                             return Err(function_call_failed(
                                 "read_tsv",
                                 if context.arguments.len() == 2 {
-                                    format!(
-                                        "duplicate column name `{c}` found in file `{path}`",
-                                        path = path.display()
-                                    )
+                                    format!("duplicate column name `{c}` found in file `{path}`")
                                 } else {
                                     format!("duplicate column name `{c}` was specified")
                                 },
@@ -230,8 +260,7 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
                             "read_tsv",
                             format!(
                                 "line {i} in file `{path}` does not have the expected number of \
-                                 columns",
-                                path = path.display()
+                                 columns"
                             ),
                             context.call_site,
                         ));
@@ -310,7 +339,7 @@ mod test {
         assert!(
             diagnostic
                 .message()
-                .contains("call to function `read_tsv` failed: failed to open file")
+                .contains("call to function `read_tsv` failed: failed to read file")
         );
 
         let value = eval_v1_expr(&env, V1::Two, "read_tsv('empty.tsv')")
@@ -327,31 +356,34 @@ mod test {
              must be `true`"
         );
 
-        let value = eval_v1_expr(&env, V1::Two, "read_tsv('foo.tsv')")
-            .await
-            .unwrap();
-        let elements = value
-            .as_array()
-            .unwrap()
-            .as_slice()
-            .iter()
-            .map(|v| {
-                v.as_array()
-                    .unwrap()
-                    .as_slice()
-                    .iter()
-                    .map(|v| v.as_string().unwrap().as_str())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            elements,
-            [
-                Vec::from_iter(["row1_1", "row1_2", "row1_3"]),
-                Vec::from_iter(["row2_1", "row2_2", "row2_3", "row2_4"]),
-                Vec::from_iter(["row3_1", "row3_2"])
-            ]
-        );
+        for file in ["foo.tsv", "https://example.com/foo.tsv"] {
+            let value = eval_v1_expr(&env, V1::Two, &format!("read_tsv('{file}')"))
+                .await
+                .unwrap();
+
+            let elements = value
+                .as_array()
+                .unwrap()
+                .as_slice()
+                .iter()
+                .map(|v| {
+                    v.as_array()
+                        .unwrap()
+                        .as_slice()
+                        .iter()
+                        .map(|v| v.as_string().unwrap().as_str())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                elements,
+                [
+                    Vec::from_iter(["row1_1", "row1_2", "row1_3"]),
+                    Vec::from_iter(["row2_1", "row2_2", "row2_3", "row2_4"]),
+                    Vec::from_iter(["row3_1", "row3_2"])
+                ]
+            );
+        }
 
         let value = eval_v1_expr(&env, V1::Two, "read_tsv('bar.tsv', true)")
             .await
@@ -378,61 +410,54 @@ mod test {
             ]
         );
 
-        let value = eval_v1_expr(
-            &env,
-            V1::Two,
-            "read_tsv('bar.tsv', true, ['qux', 'jam', 'cakes'])",
-        )
-        .await
-        .unwrap();
-        let elements = value
-            .as_array()
-            .unwrap()
-            .as_slice()
-            .iter()
-            .map(|v| {
-                v.as_object()
-                    .unwrap()
-                    .iter()
-                    .map(|(k, v)| (k, v.as_string().unwrap().as_str()))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            elements,
-            [
-                Vec::from_iter([("qux", "row1_1"), ("jam", "row1_2"), ("cakes", "row1_3")]),
-                Vec::from_iter([("qux", "row2_1"), ("jam", "row2_2"), ("cakes", "row2_3")]),
-                Vec::from_iter([("qux", "row3_1"), ("jam", "row3_2"), ("cakes", "row3_3")]),
-            ]
-        );
+        for file in ["bar.tsv", "https://example.com/bar.tsv"] {
+            let value = eval_v1_expr(
+                &env,
+                V1::Two,
+                &format!("read_tsv('{file}', true, ['qux', 'jam', 'cakes'])"),
+            )
+            .await
+            .unwrap();
+
+            let elements = value
+                .as_array()
+                .unwrap()
+                .as_slice()
+                .iter()
+                .map(|v| {
+                    v.as_object()
+                        .unwrap()
+                        .iter()
+                        .map(|(k, v)| (k, v.as_string().unwrap().as_str()))
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                elements,
+                [
+                    Vec::from_iter([("qux", "row1_1"), ("jam", "row1_2"), ("cakes", "row1_3")]),
+                    Vec::from_iter([("qux", "row2_1"), ("jam", "row2_2"), ("cakes", "row2_3")]),
+                    Vec::from_iter([("qux", "row3_1"), ("jam", "row3_2"), ("cakes", "row3_3")]),
+                ]
+            );
+        }
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_tsv('bar.tsv', true, ['nope'])")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("call to function `read_tsv` failed: line 2 in file")
-        );
-        assert!(
-            diagnostic
-                .message()
-                .contains("does not have the expected number of column")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_tsv` failed: line 2 in file `bar.tsv` does not have the \
+             expected number of columns"
         );
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_tsv('missing_column.tsv', true)")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("call to function `read_tsv` failed: line 3 in file")
-        );
-        assert!(
-            diagnostic
-                .message()
-                .contains("does not have the expected number of column")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_tsv` failed: line 3 in file `missing_column.tsv` does not \
+             have the expected number of columns"
         );
 
         let value = eval_v1_expr(
@@ -493,23 +518,20 @@ mod test {
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_tsv('invalid_name.tsv', true)")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("call to function `read_tsv` failed: column name `invalid-name`")
-        );
-        assert!(
-            diagnostic
-                .message()
-                .contains("is not a valid WDL object field name")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_tsv` failed: column name `invalid-name` in file \
+             `invalid_name.tsv` is not a valid WDL object field name"
         );
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_tsv('duplicate_column_name.tsv', true)")
             .await
             .unwrap_err();
-        assert!(diagnostic.message().contains(
-            "call to function `read_tsv` failed: duplicate column name `foo` found in file"
-        ));
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_tsv` failed: duplicate column name `foo` found in file \
+             `duplicate_column_name.tsv`"
+        );
 
         let diagnostic = eval_v1_expr(
             &env,

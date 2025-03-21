@@ -1,7 +1,9 @@
 //! Implements the `read_json` function from the WDL standard library.
 
+use std::borrow::Cow;
 use std::fs;
 use std::io::BufReader;
+use std::path::Path;
 
 use anyhow::Context;
 use futures::FutureExt;
@@ -27,27 +29,39 @@ fn read_json(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
         debug_assert!(context.arguments.len() == 1);
         debug_assert!(context.return_type_eq(Type::Union));
 
-        let path = context.work_dir().join(
-            context
-                .coerce_argument(0, PrimitiveType::File)
-                .unwrap_file()
-                .as_str(),
-        );
+        let path = context
+            .coerce_argument(0, PrimitiveType::File)
+            .unwrap_file();
+
+        let location = context
+            .context
+            .downloader()
+            .download(&path)
+            .await
+            .map_err(|e| {
+                function_call_failed(
+                    "read_json",
+                    format!("failed to download file `{path}`: {e:?}"),
+                    context.call_site,
+                )
+            })?;
+
+        let cache_path: Cow<'_, Path> = location
+            .as_deref()
+            .map(Into::into)
+            .unwrap_or_else(|| context.work_dir().join(path.as_str()).into());
 
         // Note: `serde-json` does not support asynchronous readers, so we are
         // performing a synchronous read here
-        let file = fs::File::open(&path)
-            .with_context(|| format!("failed to open file `{path}`", path = path.display()))
+        let file = fs::File::open(&cache_path)
+            .with_context(|| format!("failed to open file `{path}`", path = cache_path.display()))
             .map_err(|e| function_call_failed("read_json", format!("{e:?}"), context.call_site))?;
 
         let mut deserializer = serde_json::Deserializer::from_reader(BufReader::new(file));
         Value::deserialize(&mut deserializer).map_err(|e| {
             function_call_failed(
                 "read_json",
-                format!(
-                    "failed to read JSON file `{path}`: {e}",
-                    path = path.display()
-                ),
+                format!("failed to deserialize JSON file `{path}`: {e}"),
                 context.call_site,
             )
         })
@@ -101,35 +115,27 @@ mod test {
         let diagnostic = eval_v1_expr(&env, V1::One, "read_json('empty.json')")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("call to function `read_json` failed: failed to read JSON file")
-        );
-        assert!(
-            diagnostic
-                .message()
-                .contains("EOF while parsing a value at line 1 column 0")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_json` failed: failed to deserialize JSON file `empty.json`: \
+             EOF while parsing a value at line 1 column 0"
         );
 
         let diagnostic = eval_v1_expr(&env, V1::One, "read_json('not-json.json')")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("call to function `read_json` failed: failed to read JSON file")
-        );
-        assert!(
-            diagnostic
-                .message()
-                .contains("expected ident at line 1 column 2")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_json` failed: failed to deserialize JSON file \
+             `not-json.json`: expected ident at line 1 column 2"
         );
 
-        let value = eval_v1_expr(&env, V1::One, "read_json('true.json')")
-            .await
-            .unwrap();
-        assert!(value.unwrap_boolean());
+        for file in ["true.json", "https://example.com/true.json"] {
+            let value = eval_v1_expr(&env, V1::Two, &format!("read_json('{file}')"))
+                .await
+                .unwrap();
+            assert!(value.unwrap_boolean());
+        }
 
         let value = eval_v1_expr(&env, V1::One, "read_json('false.json')")
             .await
@@ -168,15 +174,11 @@ mod test {
         let diagnostic = eval_v1_expr(&env, V1::One, "read_json('bad_array.json')")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("call to function `read_json` failed: failed to read JSON file")
-        );
-        assert!(
-            diagnostic
-                .message()
-                .contains("a common element type does not exist between `Int` and `String`")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_json` failed: failed to deserialize JSON file \
+             `bad_array.json`: a common element type does not exist between `Int` and `String` at \
+             line 1 column 11"
         );
 
         let value = eval_v1_expr(&env, V1::One, "read_json('object.json')")
@@ -205,15 +207,11 @@ mod test {
         let diagnostic = eval_v1_expr(&env, V1::One, "read_json('bad_object.json')")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("call to function `read_json` failed: failed to read JSON file")
-        );
-        assert!(
-            diagnostic
-                .message()
-                .contains("object key `bar!` is not a valid WDL identifier")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_json` failed: failed to deserialize JSON file \
+             `bad_object.json`: object key `bar!` is not a valid WDL identifier at line 1 column \
+             23",
         );
     }
 }

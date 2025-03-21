@@ -1,6 +1,8 @@
 //! Implements the `read_string` function from the WDL standard library.
 
-use anyhow::Context;
+use std::borrow::Cow;
+use std::path::Path;
+
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tokio::fs;
@@ -26,19 +28,40 @@ fn read_string(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
         debug_assert!(context.arguments.len() == 1);
         debug_assert!(context.return_type_eq(PrimitiveType::String));
 
-        let path = context.work_dir().join(
-            context
-                .coerce_argument(0, PrimitiveType::File)
-                .unwrap_file()
-                .as_str(),
-        );
-        let mut contents = fs::read_to_string(&path)
+        let path = context
+            .coerce_argument(0, PrimitiveType::File)
+            .unwrap_file();
+
+        let location = context
+            .context
+            .downloader()
+            .download(&path)
             .await
-            .with_context(|| format!("failed to read file `{path}`", path = path.display()))
             .map_err(|e| {
-                function_call_failed("read_string", format!("{e:?}"), context.call_site)
+                function_call_failed(
+                    "read_string",
+                    format!("failed to download file `{path}`: {e:?}"),
+                    context.call_site,
+                )
             })?;
 
+        let cache_path: Cow<'_, Path> = location
+            .as_deref()
+            .map(Into::into)
+            .unwrap_or_else(|| context.work_dir().join(path.as_str()).into());
+
+        let read_error = |e: std::io::Error| {
+            function_call_failed(
+                "read_string",
+                format!(
+                    "failed to read file `{path}`: {e}",
+                    path = cache_path.display()
+                ),
+                context.call_site,
+            )
+        };
+
+        let mut contents = fs::read_to_string(&cache_path).await.map_err(read_error)?;
         let trimmed = contents.trim_end_matches(['\r', '\n']);
         contents.truncate(trimmed.len());
         Ok(PrimitiveValue::new_string(contents).into())
@@ -90,10 +113,12 @@ mod test {
                 .starts_with("call to function `read_string` failed: failed to read file")
         );
 
-        let value = eval_v1_expr(&env, V1::Two, "read_string('foo')")
-            .await
-            .unwrap();
-        assert_eq!(value.unwrap_string().as_str(), "hello\nworld!");
+        for file in ["foo", "https://example.com/foo"] {
+            let value = eval_v1_expr(&env, V1::Two, &format!("read_string('{file}')"))
+                .await
+                .unwrap();
+            assert_eq!(value.unwrap_string().as_str(), "hello\nworld!");
+        }
 
         let value = eval_v1_expr(&env, V1::Two, "read_string(file)")
             .await

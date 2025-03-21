@@ -1,6 +1,8 @@
 //! Implements the `read_lines` function from the WDL standard library.
 
-use anyhow::Context;
+use std::borrow::Cow;
+use std::path::Path;
+
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tokio::fs;
@@ -35,26 +37,43 @@ fn read_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnosti
         debug_assert!(context.arguments.len() == 1);
         debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_string_type().clone()));
 
-        let path = context.work_dir().join(
-            context
-                .coerce_argument(0, PrimitiveType::File)
-                .unwrap_file()
-                .as_str(),
-        );
+        let path = context
+            .coerce_argument(0, PrimitiveType::File)
+            .unwrap_file();
 
-        let file = fs::File::open(&path)
+        let location = context
+            .context
+            .downloader()
+            .download(&path)
             .await
-            .with_context(|| format!("failed to open file `{path}`", path = path.display()))
-            .map_err(|e| function_call_failed("read_lines", format!("{e:?}"), context.call_site))?;
+            .map_err(|e| {
+                function_call_failed(
+                    "read_lines",
+                    format!("failed to download file `{path}`: {e:?}"),
+                    context.call_site,
+                )
+            })?;
 
+        let cache_path: Cow<'_, Path> = location
+            .as_deref()
+            .map(Into::into)
+            .unwrap_or_else(|| context.work_dir().join(path.as_str()).into());
+
+        let read_error = |e: std::io::Error| {
+            function_call_failed(
+                "read_lines",
+                format!(
+                    "failed to read file `{path}`: {e}",
+                    path = cache_path.display()
+                ),
+                context.call_site,
+            )
+        };
+
+        let file = fs::File::open(&cache_path).await.map_err(read_error)?;
         let mut lines = BufReader::new(file).lines();
-
         let mut elements = Vec::new();
-        while let Some(line) = lines
-            .next_line()
-            .await
-            .map_err(|e| function_call_failed("read_lines", format!("{e:?}"), context.call_site))?
-        {
+        while let Some(line) = lines.next_line().await.map_err(read_error)? {
             elements.push(PrimitiveValue::new_string(line).into());
         }
 
@@ -97,20 +116,22 @@ mod test {
         assert!(
             diagnostic
                 .message()
-                .starts_with("call to function `read_lines` failed: failed to open file")
+                .starts_with("call to function `read_lines` failed: failed to read file")
         );
 
-        let value = eval_v1_expr(&env, V1::Two, "read_lines('foo')")
-            .await
-            .unwrap();
-        let elements: Vec<_> = value
-            .as_array()
-            .unwrap()
-            .as_slice()
-            .iter()
-            .map(|v| v.as_string().unwrap().as_str())
-            .collect();
-        assert_eq!(elements, ["", "hello!", "world!", "", "hi!", "there!"]);
+        for file in ["foo", "https://example.com/foo"] {
+            let value = eval_v1_expr(&env, V1::Two, &format!("read_lines('{file}')"))
+                .await
+                .unwrap();
+            let elements: Vec<_> = value
+                .as_array()
+                .unwrap()
+                .as_slice()
+                .iter()
+                .map(|v| v.as_string().unwrap().as_str())
+                .collect();
+            assert_eq!(elements, ["", "hello!", "world!", "", "hi!", "there!"]);
+        }
 
         let value = eval_v1_expr(&env, V1::Two, "read_lines(file)")
             .await

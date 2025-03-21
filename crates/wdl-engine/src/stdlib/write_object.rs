@@ -50,7 +50,7 @@ fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
         let object = context.coerce_argument(0, Type::Object).unwrap_object();
 
         // Create a temporary file that will be persisted after writing the map
-        let path = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
+        let (file, path) = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
             .map_err(|e| {
                 function_call_failed(
                     "write_object",
@@ -58,21 +58,9 @@ fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
                     context.call_site,
                 )
             })?
-            .into_temp_path();
+            .into_parts();
 
-        // Re-open the file for asynchronous write
-        let file = fs::File::create(&path).await.map_err(|e| {
-            function_call_failed(
-                "write_object",
-                format!(
-                    "failed to open temporary file `{path}`: {e}",
-                    path = path.display()
-                ),
-                context.call_site,
-            )
-        })?;
-
-        let mut writer = BufWriter::new(file);
+        let mut writer = BufWriter::new(fs::File::from(file));
         if !object.is_empty() {
             // Write the header first
             for (i, key) in object.keys().enumerate() {

@@ -47,7 +47,7 @@ fn write_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
             .unwrap_array();
 
         // Create a temporary file that will be persisted after writing the lines
-        let path = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
+        let (file, path) = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
             .map_err(|e| {
                 function_call_failed(
                     "write_lines",
@@ -55,22 +55,10 @@ fn write_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
                     context.call_site,
                 )
             })?
-            .into_temp_path();
-
-        // Re-open the file for asynchronous write
-        let file = fs::File::create(&path).await.map_err(|e| {
-            function_call_failed(
-                "write_lines",
-                format!(
-                    "failed to open temporary file `{path}`: {e}",
-                    path = path.display()
-                ),
-                context.call_site,
-            )
-        })?;
+            .into_parts();
 
         // Write the lines
-        let mut writer = BufWriter::new(file);
+        let mut writer = BufWriter::new(fs::File::from(file));
         for line in lines.as_slice() {
             writer
                 .write_all(line.as_string().unwrap().as_bytes())

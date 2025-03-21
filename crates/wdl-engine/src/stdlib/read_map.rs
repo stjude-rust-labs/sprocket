@@ -1,6 +1,8 @@
 //! Implements the `read_map` function from the WDL standard library.
 
-use anyhow::Context;
+use std::borrow::Cow;
+use std::path::Path;
+
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
@@ -39,35 +41,51 @@ fn read_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
         debug_assert!(context.arguments.len() == 1);
         debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.map_string_string_type().clone()));
 
-        let path = context.work_dir().join(
-            context
-                .coerce_argument(0, PrimitiveType::File)
-                .unwrap_file()
-                .as_str(),
-        );
+        let path = context
+            .coerce_argument(0, PrimitiveType::File)
+            .unwrap_file();
 
-        let file = fs::File::open(&path)
+        let location = context
+            .context
+            .downloader()
+            .download(&path)
             .await
-            .with_context(|| format!("failed to open file `{path}`", path = path.display()))
-            .map_err(|e| function_call_failed("read_map", format!("{e:?}"), context.call_site))?;
+            .map_err(|e| {
+                function_call_failed(
+                    "read_map",
+                    format!("failed to download file `{path}`: {e:?}"),
+                    context.call_site,
+                )
+            })?;
+
+        let cache_path: Cow<'_, Path> = location
+            .as_deref()
+            .map(Into::into)
+            .unwrap_or_else(|| context.work_dir().join(path.as_str()).into());
+
+        let read_error = |e: std::io::Error| {
+            function_call_failed(
+                "read_map",
+                format!(
+                    "failed to read file `{path}`: {e}",
+                    path = cache_path.display()
+                ),
+                context.call_site,
+            )
+        };
+
+        let file = fs::File::open(&cache_path).await.map_err(read_error)?;
 
         let mut i = 1;
         let mut lines = BufReader::new(file).lines();
         let mut map: IndexMap<Option<PrimitiveValue>, Value> = IndexMap::new();
-        while let Some(line) = lines
-            .next_line()
-            .await
-            .map_err(|e| function_call_failed("read_map", format!("{e:?}"), context.call_site))?
-        {
+        while let Some(line) = lines.next_line().await.map_err(read_error)? {
             let (key, value) = match line.split_once('\t') {
                 Some((key, value)) if !value.contains('\t') => (key, value),
                 _ => {
                     return Err(function_call_failed(
                         "read_map",
-                        format!(
-                            "line {i} in file `{path}` does not contain exactly two columns",
-                            path = path.display()
-                        ),
+                        format!("line {i} in file `{path}` does not contain exactly two columns",),
                         context.call_site,
                     ));
                 }
@@ -82,10 +100,7 @@ fn read_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
             {
                 return Err(function_call_failed(
                     "read_map",
-                    format!(
-                        "line {i} in file `{path}` contains duplicate key name `{key}`",
-                        path = path.display()
-                    ),
+                    format!("line {i} in file `{path}` contains duplicate key name `{key}`",),
                     context.call_site,
                 ));
             }
@@ -129,29 +144,19 @@ mod test {
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_map('wrong.tsv')")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("call to function `read_map` failed: line 2 in file")
-        );
-        assert!(
-            diagnostic
-                .message()
-                .contains("does not contain exactly two columns")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_map` failed: line 2 in file `wrong.tsv` does not contain \
+             exactly two columns"
         );
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_map('duplicate.tsv')")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("call to function `read_map` failed: line 3 in file")
-        );
-        assert!(
-            diagnostic
-                .message()
-                .contains("contains duplicate key name `foo`")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_map` failed: line 3 in file `duplicate.tsv` contains \
+             duplicate key name `foo`"
         );
 
         let value = eval_v1_expr(&env, V1::Two, "read_map('empty.tsv')")
@@ -159,12 +164,15 @@ mod test {
             .unwrap();
         assert_eq!(value.unwrap_map().to_string(), "{}");
 
-        let value = eval_v1_expr(&env, V1::Two, "read_map('map.tsv')")
-            .await
-            .unwrap();
-        assert_eq!(
-            value.unwrap_map().to_string(),
-            r#"{"foo": "bar", "baz": "qux", "jam": "cakes"}"#
-        );
+        for file in ["map.tsv", "https://example.com/map.tsv"] {
+            let value = eval_v1_expr(&env, V1::Two, &format!("read_map('{file}')"))
+                .await
+                .unwrap();
+
+            assert_eq!(
+                value.unwrap_map().to_string(),
+                r#"{"foo": "bar", "baz": "qux", "jam": "cakes"}"#
+            );
+        }
     }
 }

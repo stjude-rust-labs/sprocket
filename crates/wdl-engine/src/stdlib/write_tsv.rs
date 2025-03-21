@@ -64,7 +64,7 @@ async fn write_array_tsv_file(
     };
 
     // Create a temporary file that will be persisted after writing
-    let path = NamedTempFile::with_prefix_in("tmp", tmp)
+    let (file, path) = NamedTempFile::with_prefix_in("tmp", tmp)
         .map_err(|e| {
             function_call_failed(
                 "write_tsv",
@@ -72,21 +72,9 @@ async fn write_array_tsv_file(
                 call_site,
             )
         })?
-        .into_temp_path();
+        .into_parts();
 
-    // Re-open the file for asynchronous write
-    let file = fs::File::create(&path).await.map_err(|e| {
-        function_call_failed(
-            "write_tsv",
-            format!(
-                "failed to open temporary file `{path}`: {e}",
-                path = path.display()
-            ),
-            call_site,
-        )
-    })?;
-
-    let mut writer = BufWriter::new(file);
+    let mut writer = BufWriter::new(fs::File::from(file));
 
     // Start by writing the header, if one was provided
     let column_count = match header {
@@ -287,7 +275,7 @@ fn write_tsv_struct(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Dia
         };
 
         // Create a temporary file that will be persisted after writing
-        let path = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
+        let (file, path) = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
             .map_err(|e| {
                 function_call_failed(
                     "write_tsv",
@@ -295,21 +283,9 @@ fn write_tsv_struct(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Dia
                     context.call_site,
                 )
             })?
-            .into_temp_path();
+            .into_parts();
 
-        // Re-open the file for asynchronous write
-        let file = fs::File::create(&path).await.map_err(|e| {
-            function_call_failed(
-                "write_tsv",
-                format!(
-                    "failed to open temporary file `{path}`: {e}",
-                    path = path.display()
-                ),
-                context.call_site,
-            )
-        })?;
-
-        let mut writer = BufWriter::new(file);
+        let mut writer = BufWriter::new(fs::File::from(file));
 
         // Get the struct type to print the columns; we need to do this even when the
         // array is empty

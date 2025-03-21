@@ -78,6 +78,8 @@ use crate::diagnostics::call_failed;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::output_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
+use crate::http::Downloader;
+use crate::http::HttpDownloader;
 use crate::tree::SyntaxNode;
 use crate::v1::ExprEvaluator;
 use crate::v1::TaskEvaluator;
@@ -135,6 +137,8 @@ struct WorkflowEvaluationContext<'a, 'b> {
     work_dir: &'a Path,
     /// The workflow's temporary directory.
     temp_dir: &'a Path,
+    /// The downloader for expression evaluation.
+    downloader: &'a HttpDownloader,
 }
 
 impl<'a, 'b> WorkflowEvaluationContext<'a, 'b> {
@@ -144,12 +148,14 @@ impl<'a, 'b> WorkflowEvaluationContext<'a, 'b> {
         scope: ScopeRef<'b>,
         work_dir: &'a Path,
         temp_dir: &'a Path,
+        downloader: &'a HttpDownloader,
     ) -> Self {
         Self {
             document,
             scope,
             work_dir,
             temp_dir,
+            downloader,
         }
     }
 }
@@ -194,6 +200,10 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
 
     fn translate_path(&self, _path: &Path) -> Option<Cow<'_, Path>> {
         None
+    }
+
+    fn downloader(&self) -> &dyn Downloader {
+        self.downloader
     }
 }
 
@@ -575,6 +585,8 @@ struct State {
     temp_dir: PathBuf,
     /// The calls directory path.
     calls_dir: PathBuf,
+    /// The downloader for expression evaluation.
+    downloader: HttpDownloader,
 }
 
 /// Represents a WDL V1 workflow evaluator.
@@ -588,6 +600,8 @@ pub struct WorkflowEvaluator {
     backend: Arc<dyn TaskExecutionBackend>,
     /// The cancellation token for cancelling workflow evaluation.
     token: CancellationToken,
+    /// The downloader for expression evaluation.
+    downloader: HttpDownloader,
 }
 
 impl WorkflowEvaluator {
@@ -613,10 +627,16 @@ impl WorkflowEvaluator {
     ) -> Result<Self> {
         config.validate()?;
 
+        let downloader = match &config.http.cache {
+            Some(cache) => HttpDownloader::new_with_cache(cache),
+            None => HttpDownloader::new()?,
+        };
+
         Ok(Self {
             config: Arc::new(config),
             backend,
             token,
+            downloader,
         })
     }
 
@@ -624,7 +644,7 @@ impl WorkflowEvaluator {
     ///
     /// Upon success, returns the outputs of the workflow.
     pub async fn evaluate<P, R>(
-        &mut self,
+        &self,
         document: &Document,
         inputs: WorkflowInputs,
         root_dir: impl AsRef<Path>,
@@ -651,7 +671,7 @@ impl WorkflowEvaluator {
     /// Evaluates the workflow of the given document with the given shared
     /// progress callback.
     async fn evaluate_with_progress<P, R>(
-        &mut self,
+        &self,
         document: &Document,
         inputs: WorkflowInputs,
         root_dir: &Path,
@@ -680,7 +700,7 @@ impl WorkflowEvaluator {
     /// Evaluates the workflow of the given document with the given shared
     /// progress callback.
     async fn perform_evaluation<P, R>(
-        &mut self,
+        &self,
         document: &Document,
         inputs: WorkflowInputs,
         root_dir: &Path,
@@ -787,6 +807,7 @@ impl WorkflowEvaluator {
             work_dir,
             temp_dir,
             calls_dir,
+            downloader: self.downloader.clone(),
         });
 
         // Evaluate the root graph to completion
@@ -1463,13 +1484,13 @@ impl WorkflowEvaluator {
                 R: Future<Output = ()> + Send,
             {
                 match self {
-                    Evaluator::Task(task, mut evaluator) => {
+                    Evaluator::Task(task, evaluator) => {
                         debug!(caller_id, callee_id, "evaluating call to task");
                         evaluator
                             .evaluate_with_progress(
                                 document,
                                 task,
-                                inputs.as_task_inputs().expect("should be task inputs"),
+                                &inputs.unwrap_task_inputs(),
                                 root_dir,
                                 callee_id,
                                 progress.clone(),
@@ -1477,7 +1498,7 @@ impl WorkflowEvaluator {
                             .await?
                             .outputs
                     }
-                    Evaluator::Workflow(mut evaluator) => {
+                    Evaluator::Workflow(evaluator) => {
                         debug!(caller_id, callee_id, "evaluating call to workflow");
                         evaluator
                             .evaluate_with_progress(
@@ -1560,6 +1581,7 @@ impl WorkflowEvaluator {
                         state.config.clone(),
                         state.backend.clone(),
                         state.token.clone(),
+                        state.downloader.clone(),
                     ),
                 ),
                 CallKind::Task,
@@ -1571,6 +1593,7 @@ impl WorkflowEvaluator {
                         config: state.config.clone(),
                         backend: state.backend.clone(),
                         token: state.token.clone(),
+                        downloader: state.downloader.clone(),
                     }),
                     CallKind::Workflow,
                 ),
@@ -1659,6 +1682,7 @@ impl WorkflowEvaluator {
             scopes.reference(scope),
             &state.work_dir,
             &state.temp_dir,
+            &state.downloader,
         ));
         Ok(evaluator.evaluate_expr(expr).await?)
     }
@@ -1684,6 +1708,7 @@ impl WorkflowEvaluator {
                         scopes.reference(scope),
                         &state.work_dir,
                         &state.temp_dir,
+                        &state.downloader,
                     ));
 
                     evaluator.evaluate_expr(&expr).await?
@@ -1786,7 +1811,7 @@ workflow w {
 
         let state = Arc::<State>::default();
         let state_cloned = state.clone();
-        let mut evaluator = WorkflowEvaluator::new(config, CancellationToken::new())
+        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new())
             .await
             .unwrap();
 

@@ -1428,6 +1428,7 @@ pub(crate) mod test {
 
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
+    use url::Url;
     use wdl_analysis::diagnostics::unknown_name;
     use wdl_analysis::diagnostics::unknown_type;
     use wdl_analysis::types::StructType;
@@ -1439,6 +1440,8 @@ pub(crate) mod test {
     use super::*;
     use crate::ScopeRef;
     use crate::eval::Scope;
+    use crate::http::Downloader;
+    use crate::http::Location;
 
     /// Represents a test environment.
     pub struct TestEnv {
@@ -1486,6 +1489,37 @@ pub(crate) mod test {
                 temp_dir: TempDir::new().expect("failed to create temp directory"),
                 work_dir: TempDir::new().expect("failed to create work directory"),
             }
+        }
+    }
+
+    impl Downloader for TestEnv {
+        fn download<'a, 'b, 'c>(
+            &'a self,
+            url: &'b str,
+        ) -> BoxFuture<'c, Result<Option<crate::http::Location>, Arc<anyhow::Error>>>
+        where
+            'a: 'c,
+            'b: 'c,
+            Self: 'c,
+        {
+            async {
+                let url: Url = match url.parse() {
+                    Ok(url) => url,
+                    Err(_) => return Ok(None),
+                };
+
+                // For tests, redirect requests to example.com to files relative to the work dir
+                if url.authority() == "example.com" {
+                    return Ok(Some(Location::Path(
+                        self.work_dir
+                            .path()
+                            .join(url.path().strip_prefix('/').unwrap_or(url.path())),
+                    )));
+                }
+
+                Ok(None)
+            }
+            .boxed()
         }
     }
 
@@ -1566,6 +1600,10 @@ pub(crate) mod test {
 
         fn translate_path(&self, _path: &Path) -> Option<Cow<'_, Path>> {
             None
+        }
+
+        fn downloader(&self) -> &dyn Downloader {
+            self.env
         }
     }
 

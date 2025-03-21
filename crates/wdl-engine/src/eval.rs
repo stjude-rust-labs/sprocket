@@ -26,6 +26,7 @@ use crate::Outputs;
 use crate::PrimitiveValue;
 use crate::TaskExecutionRoot;
 use crate::Value;
+use crate::http::Downloader;
 
 pub mod v1;
 
@@ -89,6 +90,9 @@ pub trait EvaluationContext: Send + Sync {
     ///
     /// Returns `None` if no translation is available.
     fn translate_path(&self, path: &Path) -> Option<Cow<'_, Path>>;
+
+    /// Gets the downloader to use for evaluating expressions.
+    fn downloader(&self) -> &dyn Downloader;
 }
 
 /// Represents an index of a scope in a collection of scopes.

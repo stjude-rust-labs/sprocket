@@ -35,6 +35,10 @@ tokio-util = { workspace = true }
 nonempty = { workspace = true }
 path-clean = { workspace = true }
 url = { workspace = true }
+http-cache-stream-reqwest = { workspace = true }
+reqwest = { workspace = true }
+reqwest-middleware = { workspace = true }
+dirs = { workspace =  true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

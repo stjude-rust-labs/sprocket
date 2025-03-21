@@ -1,6 +1,8 @@
 //! Implements the `read_objects` function from the WDL standard library.
 
-use anyhow::Context;
+use std::borrow::Cow;
+use std::path::Path;
+
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
@@ -47,27 +49,40 @@ fn read_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
         debug_assert!(context.arguments.len() == 1);
         debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_object_type().clone()));
 
-        let path = context.work_dir().join(
-            context
-                .coerce_argument(0, PrimitiveType::File)
-                .unwrap_file()
-                .as_str(),
-        );
+        let path = context
+            .coerce_argument(0, PrimitiveType::File)
+            .unwrap_file();
+
+        let location = context
+            .context
+            .downloader()
+            .download(&path)
+            .await
+            .map_err(|e| {
+                function_call_failed(
+                    "read_objects",
+                    format!("failed to download file `{path}`: {e:?}"),
+                    context.call_site,
+                )
+            })?;
+
+        let cache_path: Cow<'_, Path> = location
+            .as_deref()
+            .map(Into::into)
+            .unwrap_or_else(|| context.work_dir().join(path.as_str()).into());
 
         let read_error = |e: std::io::Error| {
             function_call_failed(
                 "read_objects",
-                format!("failed to read file `{path}`: {e}", path = path.display()),
+                format!(
+                    "failed to read file `{path}`: {e}",
+                    path = cache_path.display()
+                ),
                 context.call_site,
             )
         };
 
-        let file = fs::File::open(&path)
-            .await
-            .with_context(|| format!("failed to open file `{path}`", path = path.display()))
-            .map_err(|e| {
-                function_call_failed("read_objects", format!("{e:?}"), context.call_site)
-            })?;
+        let file = fs::File::open(&cache_path).await.map_err(read_error)?;
 
         let mut lines = BufReader::new(file).lines();
         let names = match lines.next_line().await.map_err(read_error)? {
@@ -86,9 +101,8 @@ fn read_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
                 return Err(function_call_failed(
                     "read_objects",
                     format!(
-                        "invalid column name `{name}` at {path}:1: column name must be a valid \
-                         WDL identifier",
-                        path = path.display()
+                        "line 1 of file `{path}` contains invalid column name `{name}`: column \
+                         name must be a valid WDL identifier"
                     ),
                     context.call_site,
                 ));
@@ -109,8 +123,8 @@ fn read_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
                             return Err(function_call_failed(
                                 "read_objects",
                                 format!(
-                                    "duplicate column name `{name}` at {path}:1",
-                                    path = path.display()
+                                    "line 1 of file `{path}` contains duplicate column name \
+                                     `{name}`"
                                 ),
                                 context.call_site,
                             ));
@@ -121,8 +135,7 @@ fn read_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
                             "read_objects",
                             format!(
                                 "line {i} of file `{path}` does not contain the expected number \
-                                 of columns",
-                                path = path.display()
+                                 of columns"
                             ),
                             context.call_site,
                         ));
@@ -186,53 +199,47 @@ mod test {
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_objects('too-many-columns.tsv')")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("call to function `read_objects` failed: line 2 of file")
-        );
-        assert!(
-            diagnostic
-                .message()
-                .contains("does not contain the expected number of columns")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_objects` failed: line 2 of file `too-many-columns.tsv` does \
+             not contain the expected number of columns"
         );
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_objects('too-few-columns.tsv')")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("call to function `read_objects` failed: line 2 of file")
-        );
-        assert!(
-            diagnostic
-                .message()
-                .contains("does not contain the expected number of columns")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_objects` failed: line 2 of file `too-few-columns.tsv` does \
+             not contain the expected number of columns"
         );
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_objects('duplicate.tsv')")
             .await
             .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .starts_with("call to function `read_objects` failed: duplicate column name `foo`")
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_objects` failed: line 1 of file `duplicate.tsv` contains \
+             duplicate column name `foo`"
         );
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_objects('invalid-name.tsv')")
             .await
             .unwrap_err();
-        assert!(diagnostic.message().starts_with(
-            "call to function `read_objects` failed: invalid column name `bar-wrong`"
-        ));
-
-        let value = eval_v1_expr(&env, V1::Two, "read_objects('objects.tsv')")
-            .await
-            .unwrap();
         assert_eq!(
-            value.unwrap_array().to_string(),
-            r#"[object {k0: "a0", k1: "a1", k2: "a2"}, object {k0: "b0", k1: "b1", k2: "b2"}, object {k0: "c0", k1: "c1", k2: "c2"}]"#
+            diagnostic.message(),
+            "call to function `read_objects` failed: line 1 of file `invalid-name.tsv` contains \
+             invalid column name `bar-wrong`: column name must be a valid WDL identifier"
         );
+
+        for file in ["objects.tsv", "https://example.com/objects.tsv"] {
+            let value = eval_v1_expr(&env, V1::Two, &format!("read_objects('{file}')"))
+                .await
+                .unwrap();
+            assert_eq!(
+                value.unwrap_array().to_string(),
+                r#"[object {k0: "a0", k1: "a1", k2: "a2"}, object {k0: "b0", k1: "b1", k2: "b2"}, object {k0: "c0", k1: "c1", k2: "c2"}]"#
+            );
+        }
     }
 }

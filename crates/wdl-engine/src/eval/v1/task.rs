@@ -80,6 +80,8 @@ use crate::diagnostics::output_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::eval::EvaluatedTask;
 use crate::eval::Mounts;
+use crate::http::Downloader;
+use crate::http::HttpDownloader;
 use crate::tree::SyntaxNode;
 use crate::v1::ExprEvaluator;
 
@@ -215,6 +217,8 @@ pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> 
 struct TaskEvaluationContext<'a, 'b> {
     /// The associated evaluation state.
     state: &'a State<'b>,
+    /// The downloader to use for expression evaluation.
+    downloader: &'a HttpDownloader,
     /// The current evaluation scope.
     scope: ScopeIndex,
     /// The working directory to use for evaluation.
@@ -235,9 +239,15 @@ struct TaskEvaluationContext<'a, 'b> {
 
 impl<'a, 'b> TaskEvaluationContext<'a, 'b> {
     /// Constructs a new expression evaluation context.
-    pub fn new(state: &'a State<'b>, temp_dir: &'a Path, scope: ScopeIndex) -> Self {
+    pub fn new(
+        state: &'a State<'b>,
+        downloader: &'a HttpDownloader,
+        temp_dir: &'a Path,
+        scope: ScopeIndex,
+    ) -> Self {
         Self {
             state,
+            downloader,
             scope,
             work_dir: state.root.work_dir(),
             stdout: None,
@@ -321,6 +331,10 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     fn translate_path(&self, path: &Path) -> Option<Cow<'_, Path>> {
         self.mounts.and_then(|m| m.guest(path))
     }
+
+    fn downloader(&self) -> &dyn Downloader {
+        self.downloader
+    }
 }
 
 /// Represents task evaluation state.
@@ -396,6 +410,8 @@ pub struct TaskEvaluator {
     backend: Arc<dyn TaskExecutionBackend>,
     /// The cancellation token for cancelling task evaluation.
     token: CancellationToken,
+    /// The downloader to use for expression evaluation.
+    downloader: HttpDownloader,
 }
 
 impl TaskEvaluator {
@@ -421,26 +437,34 @@ impl TaskEvaluator {
     ) -> Result<Self> {
         config.validate()?;
 
+        let downloader = match &config.http.cache {
+            Some(cache) => HttpDownloader::new_with_cache(cache),
+            None => HttpDownloader::new()?,
+        };
+
         Ok(Self {
             config: Arc::new(config),
             backend,
             token,
+            downloader,
         })
     }
 
-    /// Creates a new task evaluator with the given configuration, backend, and
-    /// cancellation token.
+    /// Creates a new task evaluator with the given configuration, backend,
+    /// cancellation token, and downloader.
     ///
     /// This method does not validate the configuration.
     pub(crate) fn new_unchecked(
         config: Arc<Config>,
         backend: Arc<dyn TaskExecutionBackend>,
         token: CancellationToken,
+        downloader: HttpDownloader,
     ) -> Self {
         Self {
             config,
             backend,
             token,
+            downloader,
         }
     }
 
@@ -448,7 +472,7 @@ impl TaskEvaluator {
     ///
     /// Upon success, returns the evaluated task.
     pub async fn evaluate<P, R>(
-        &mut self,
+        &self,
         document: &Document,
         task: &Task,
         inputs: &TaskInputs,
@@ -472,7 +496,7 @@ impl TaskEvaluator {
 
     /// Evaluates the given task with the given shared progress callback.
     pub(crate) async fn evaluate_with_progress<P, R>(
-        &mut self,
+        &self,
         document: &Document,
         task: &Task,
         inputs: &TaskInputs,
@@ -501,7 +525,7 @@ impl TaskEvaluator {
 
     /// Performs the actual evaluation of the task.
     async fn perform_evaluation<P, R>(
-        &mut self,
+        &self,
         document: &Document,
         task: &Task,
         inputs: &TaskInputs,
@@ -768,6 +792,7 @@ impl TaskEvaluator {
 
                     let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                         state,
+                        &self.downloader,
                         state.root.temp_dir(),
                         ROOT_SCOPE_INDEX,
                     ));
@@ -822,6 +847,7 @@ impl TaskEvaluator {
 
         let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
             state,
+            &self.downloader,
             state.root.temp_dir(),
             ROOT_SCOPE_INDEX,
         ));
@@ -889,6 +915,7 @@ impl TaskEvaluator {
 
             let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                 state,
+                &self.downloader,
                 state.root.temp_dir(),
                 ROOT_SCOPE_INDEX,
             ));
@@ -953,6 +980,7 @@ impl TaskEvaluator {
 
             let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                 state,
+                &self.downloader,
                 state.root.temp_dir(),
                 ROOT_SCOPE_INDEX,
             ));
@@ -1001,8 +1029,13 @@ impl TaskEvaluator {
             }
 
             let mut evaluator = ExprEvaluator::new(
-                TaskEvaluationContext::new(state, state.root.temp_dir(), ROOT_SCOPE_INDEX)
-                    .with_task(),
+                TaskEvaluationContext::new(
+                    state,
+                    &self.downloader,
+                    state.root.temp_dir(),
+                    ROOT_SCOPE_INDEX,
+                )
+                .with_task(),
             );
 
             let value = evaluator.evaluate_hints_item(&name, &item.expr()).await?;
@@ -1080,6 +1113,7 @@ impl TaskEvaluator {
                 let mut evaluator = ExprEvaluator::new(
                     TaskEvaluationContext::new(
                         state,
+                        &self.downloader,
                         state.root.attempt_temp_dir(),
                         TASK_SCOPE_INDEX,
                     )
@@ -1110,6 +1144,7 @@ impl TaskEvaluator {
                 let mut evaluator = ExprEvaluator::new(
                     TaskEvaluationContext::new(
                         state,
+                        &self.downloader,
                         state.root.attempt_temp_dir(),
                         TASK_SCOPE_INDEX,
                     )
@@ -1228,7 +1263,7 @@ impl TaskEvaluator {
 
     /// Evaluates a task output.
     async fn evaluate_output(
-        &mut self,
+        &self,
         id: &str,
         state: &mut State<'_>,
         decl: &Decl<SyntaxNode>,
@@ -1247,9 +1282,14 @@ impl TaskEvaluator {
         let decl_ty = decl.ty();
         let ty = crate::convert_ast_type_v1(state.document, &decl_ty)?;
         let mut evaluator = ExprEvaluator::new(
-            TaskEvaluationContext::new(state, state.root.temp_dir(), TASK_SCOPE_INDEX)
-                .with_stdout(&evaluated.stdout)
-                .with_stderr(&evaluated.stderr),
+            TaskEvaluationContext::new(
+                state,
+                &self.downloader,
+                state.root.temp_dir(),
+                TASK_SCOPE_INDEX,
+            )
+            .with_stdout(&evaluated.stdout)
+            .with_stderr(&evaluated.stderr),
         );
 
         let expr = decl.expr().expect("outputs should have expressions");

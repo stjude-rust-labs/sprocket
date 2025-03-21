@@ -226,8 +226,7 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
     inputs.join_paths(task, &test_dir)?;
 
     for config in configs() {
-        let mut evaluator = TaskEvaluator::new(config, CancellationToken::new()).await?;
-
+        let evaluator = TaskEvaluator::new(config, CancellationToken::new()).await?;
         let dir = TempDir::new().context("failed to create temporary directory")?;
         match evaluator
             .evaluate(result.document(), task, &inputs, dir.path(), |_| async {})

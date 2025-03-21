@@ -1,5 +1,6 @@
 //! Implementation of engine configuration.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -28,6 +29,9 @@ pub const DEFAULT_TASK_SHELL: &str = "bash";
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Config {
+    /// HTTP configuration.
+    #[serde(default)]
+    pub http: HttpConfig,
     /// Workflow evaluation configuration.
     #[serde(default)]
     pub workflow: WorkflowConfig,
@@ -42,6 +46,7 @@ pub struct Config {
 impl Config {
     /// Validates the evaluation configuration.
     pub fn validate(&self) -> Result<()> {
+        self.http.validate()?;
         self.workflow.validate()?;
         self.task.validate()?;
         self.backend.validate()?;
@@ -66,6 +71,24 @@ impl Config {
                 CrankshaftBackend::new(&self.task, &self.backend.crankshaft).await?,
             )),
         }
+    }
+}
+
+/// Represents HTTP configuration.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct HttpConfig {
+    /// The HTTP download cache location.
+    ///
+    /// Defaults to using the system cache directory.
+    #[serde(default)]
+    pub cache: Option<PathBuf>,
+}
+
+impl HttpConfig {
+    /// Validates the HTTP configuration.
+    pub fn validate(&self) -> Result<()> {
+        Ok(())
     }
 }
 

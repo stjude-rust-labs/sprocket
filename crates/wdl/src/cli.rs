@@ -286,7 +286,7 @@ async fn evaluate(
                 inputs.join_paths(task, path)?;
             }
 
-            let mut evaluator = TaskEvaluator::new(config, token).await?;
+            let evaluator = TaskEvaluator::new(config, token).await?;
             evaluator
                 .evaluate(document, task, &inputs, output_dir, |_| async {})
                 .await
@@ -320,7 +320,7 @@ async fn evaluate(
             }
 
             let state = Mutex::<State>::default();
-            let mut evaluator = WorkflowEvaluator::new(config, token).await?;
+            let evaluator = WorkflowEvaluator::new(config, token).await?;
 
             evaluator
                 .evaluate(document, inputs, output_dir, move |kind| {
