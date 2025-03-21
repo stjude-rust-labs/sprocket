@@ -15,11 +15,6 @@ use wdl::analysis::types::Type;
 use wdl::ast::AstToken;
 use wdl::ast::Diagnostic;
 use wdl::ast::Document as AstDocument;
-use wdl::ast::SupportedVersion;
-use wdl::ast::VisitReason;
-use wdl::ast::Visitor;
-use wdl::ast::v1::Expr::Literal;
-use wdl::ast::v1::InputSection;
 use wdl::cli::analyze;
 
 /// Command-line arguments for generating input JSON from a WDL document
@@ -57,57 +52,6 @@ pub struct InputsArgs {
     pub hide_expressions: bool,
 }
 
-/// Type alias for mapping input names to whether they have default values
-type InputDefaultMap = IndexMap<String, bool>; // input_name -> has_default
-
-/// Visitor for AST traversal to extract input information
-struct InputVisitor {
-    /// Maps input names to whether they have any default values
-    inputs: InputDefaultMap,
-    /// Maps input names to whether they have literal default values
-    literal_defaults: IndexMap<String, bool>,
-}
-
-impl Visitor for InputVisitor {
-    type State = ();
-
-    fn document(
-        &mut self,
-        _state: &mut Self::State,
-        reason: VisitReason,
-        _doc: &AstDocument,
-        _version: SupportedVersion,
-    ) {
-        if reason == VisitReason::Enter {
-            self.inputs.clear();
-            self.literal_defaults.clear();
-        }
-    }
-
-    fn input_section(
-        &mut self,
-        _state: &mut Self::State,
-        reason: VisitReason,
-        section: &InputSection,
-    ) {
-        if reason == VisitReason::Enter {
-            for decl in section.declarations() {
-                let name = decl.name().as_str().to_string();
-                let has_default = decl.expr().is_some();
-                self.inputs.insert(name.clone(), has_default);
-
-                // Check if the default is a literal
-                let has_literal_default = if let Some(expr) = decl.expr() {
-                    matches!(expr, Literal(_))
-                } else {
-                    false
-                };
-                self.literal_defaults.insert(name, has_literal_default);
-            }
-        }
-    }
-}
-
 /// Generate input JSON from a WDL document
 pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     let results: Vec<wdl::analysis::AnalysisResult> =
@@ -132,9 +76,8 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         anyhow::bail!("Failed to parse WDL document: {:?}", diagnostics);
     }
 
-    // Collect all input information in a single visit of the AST
     let (input_defaults, literal_defaults) = collect_all_input_info(document);
-
+    // Collect all input information in a single visit of the AST
     let mut template = serde_json::Map::new();
 
     // Collect inputs and their parent information
@@ -172,17 +115,68 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
 fn collect_all_input_info(document: &Document) -> (IndexMap<String, bool>, IndexMap<String, bool>) {
     let ast_doc: AstDocument = document.node();
 
-    let input_defaults = IndexMap::new();
-    let literal_defaults = IndexMap::new();
+    let mut input_defaults: IndexMap<String, bool> = IndexMap::new();
+    let mut literal_defaults: IndexMap<String, bool> = IndexMap::new();
 
-    let mut visitor = InputVisitor {
-        inputs: input_defaults,
-        literal_defaults,
-    };
+    // Process workflows
+    for workflow in ast_doc.ast().unwrap_v1().workflows() {
+        if let Some(input) = workflow.input() {
+            let workflow_literal_defaults: IndexMap<String, bool> = input
+                .declarations()
+                .map(|decl| {
+                    let name = decl.name().as_str().to_string();
+                    let default = decl.expr().is_some();
+                    (name, default)
+                })
+                .collect();
 
-    ast_doc.visit(&mut (), &mut visitor);
+            // Copy values to the function-level maps
+            literal_defaults.extend(workflow_literal_defaults);
 
-    (visitor.inputs, visitor.literal_defaults)
+            let workflow_input_defaults: IndexMap<String, bool> = input
+                .declarations()
+                .map(|decl| {
+                    let name = decl.name().as_str().to_string();
+                    // ? should we check if the default is a literal here too?
+                    let default = decl.ty().is_optional();
+                    (name, default)
+                })
+                .collect();
+
+            input_defaults.extend(workflow_input_defaults);
+        }
+    }
+
+    // Process tasks
+    for task in ast_doc.ast().unwrap_v1().tasks() {
+        if let Some(input) = task.input() {
+            let task_literal_defaults: IndexMap<String, bool> = input
+                .declarations()
+                .map(|decl| {
+                    let name = decl.name().as_str().to_string();
+                    let default = decl.expr().is_some();
+                    (name, default)
+                })
+                .collect();
+
+            literal_defaults.extend(task_literal_defaults);
+
+            let task_input_defaults: IndexMap<String, bool> = input
+                .declarations()
+                .map(|decl| {
+                    let name = decl.name().as_str().to_string();
+                    let default = decl.ty().is_optional();
+                    (name, default)
+                })
+                .collect();
+
+            input_defaults.extend(task_input_defaults);
+        }
+    }
+
+    println!("input_defaults: {:?}", input_defaults);
+    println!("literal_defaults: {:?}", literal_defaults);
+    (input_defaults, literal_defaults)
 }
 
 /// Converts a WDL type to its JSON representation
