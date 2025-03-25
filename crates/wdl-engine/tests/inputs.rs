@@ -6,8 +6,16 @@
 //!
 //! * `source.wdl` - the test input source to analyze; the file is expected to
 //!   contain no error diagnostics.
-//! * `inputs.json` - the inputs to the workflow or task.
+//! * Both of:
+//!   * `inputs.json` - The JSON format inputs to the workflow or task.
+//!   * `inputs.yaml` - The YAML format inputs to the workflow or task.
 //! * `error.txt` - the expected error message (if there is one).
+//!
+//! Requiring both JSON and YAML variants ensures complete test coverage and
+//! consistent behavior across different input formats.
+//!
+//! An exception is made for the "missing-file" test which intentionally tests
+//! the error case of a missing input file.
 //!
 //! The `error.txt` file may be automatically generated or updated by setting
 //! the `BLESS` environment variable when running this test.
@@ -75,13 +83,18 @@ fn find_tests() -> Vec<PathBuf> {
 /// Normalizes a result.
 fn normalize(s: &str) -> String {
     // Normalize paths in any error messages
-    let s = s.replace('\\', "/").replace("\r\n", "\n");
+    let mut s = s.replace('\\', "/").replace("\r\n", "\n");
 
     // Handle any OS specific errors messages
-    s.replace(
+    s = s.replace(
         "The system cannot find the file specified. (os error 2)",
         "No such file or directory (os error 2)",
-    )
+    );
+
+    // Normalize references to YAML files to match JSON baselines
+    s = s.replace("inputs.yaml", "inputs.json");
+
+    s
 }
 
 /// Compares a single result.
@@ -139,42 +152,73 @@ fn run_test(test: &Path, result: AnalysisResult, ntests: &AtomicUsize) -> Result
     }
 
     let document = result.document();
-    let result = match Inputs::parse(document, test.join("inputs.json")) {
-        Ok(Some((name, inputs))) => match inputs {
-            Inputs::Task(inputs) => {
-                match inputs
-                    .validate(
-                        document,
-                        document
-                            .task_by_name(&name)
-                            .expect("task should be present"),
-                        None,
-                    )
-                    .with_context(|| format!("failed to validate the inputs to task `{name}`"))
-                {
-                    Ok(()) => String::new(),
-                    Err(e) => format!("{e:?}"),
-                }
-            }
-            Inputs::Workflow(inputs) => {
-                let workflow = document.workflow().expect("workflow should be present");
-                match inputs.validate(document, workflow, None).with_context(|| {
-                    format!(
-                        "failed to validate the inputs to workflow `{workflow}`",
-                        workflow = workflow.name()
-                    )
-                }) {
-                    Ok(()) => String::new(),
-                    Err(e) => format!("{e:?}"),
-                }
-            }
-        },
-        Ok(None) => String::new(),
-        Err(e) => format!("{e:?}"),
-    };
 
-    let output = test.join("error.txt");
-    compare_result(&output, &result)?;
+    let json_path = test.join("inputs.json");
+    let yaml_path = test.join("inputs.yaml");
+
+    // Special case for the "missing-file" test which intentionally tests missing
+    // input files
+    if test.file_name().unwrap().to_string_lossy() == "missing-file" {
+        // Always use the JSON path for consistency across platforms and pass as &Path
+        let result = match Inputs::parse(document, &json_path) {
+            Ok(_) => String::new(),
+            Err(e) => format!("{e:?}"),
+        };
+
+        let output = test.join("error.txt");
+        compare_result(&output, &result)?;
+        ntests.fetch_add(1, Ordering::SeqCst);
+        return Ok(());
+    }
+
+    // For all other tests, require both JSON and YAML files to ensure complete
+    // coverage
+    if !json_path.exists() {
+        bail!("inputs.json doesn't exist for test, both JSON and YAML formats are required");
+    }
+    if !yaml_path.exists() {
+        bail!("inputs.yaml doesn't exist for test, both JSON and YAML formats are required");
+    }
+
+    // Test for each input file format
+    for input_path in [&json_path, &yaml_path] {
+        let result = match Inputs::parse(document, input_path) {
+            Ok(Some((name, inputs))) => match inputs {
+                Inputs::Task(inputs) => {
+                    match inputs
+                        .validate(
+                            document,
+                            document
+                                .task_by_name(&name)
+                                .expect("task should be present"),
+                            None,
+                        )
+                        .with_context(|| format!("failed to validate the inputs to task `{name}`"))
+                    {
+                        Ok(()) => String::new(),
+                        Err(e) => format!("{e:?}"),
+                    }
+                }
+                Inputs::Workflow(inputs) => {
+                    let workflow = document.workflow().expect("workflow should be present");
+                    match inputs.validate(document, workflow, None).with_context(|| {
+                        format!(
+                            "failed to validate the inputs to workflow `{workflow}`",
+                            workflow = workflow.name()
+                        )
+                    }) {
+                        Ok(()) => String::new(),
+                        Err(e) => format!("{e:?}"),
+                    }
+                }
+            },
+            Ok(None) => String::new(),
+            Err(e) => format!("{e:?}"),
+        };
+
+        let output = test.join("error.txt");
+        compare_result(&output, &result)?;
+    }
 
     ntests.fetch_add(1, Ordering::SeqCst);
     Ok(())
