@@ -1,6 +1,8 @@
 //! Implementation of remote file downloads over HTTP.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
@@ -30,10 +32,15 @@ use tracing::debug;
 use tracing::info;
 use url::Url;
 
+use crate::config::Config;
+
+mod azure;
+mod google;
+mod s3;
+
 /// The default cache subdirectory that is appended to the system cache
 /// directory.
 const DEFAULT_CACHE_SUBDIR: &str = "wdl";
-
 /// A trait implemented by types responsible for downloading remote files over
 /// HTTP for evaluation.
 pub trait Downloader {
@@ -92,6 +99,8 @@ pub enum Status {
 /// The downloader can be cheaply cloned.
 #[derive(Clone)]
 pub struct HttpDownloader {
+    /// The engine evaluation configuration.
+    config: Arc<Config>,
     /// The underlying HTTP client.
     client: ClientWithMiddleware,
     /// The HTTP cache shared with the client.
@@ -101,18 +110,15 @@ pub struct HttpDownloader {
 }
 
 impl HttpDownloader {
-    /// Constructs a new HTTP downloader using the system cache directory.
-    pub fn new() -> Result<Self> {
-        Ok(Self::new_with_cache(
-            dirs::cache_dir()
+    /// Constructs a new HTTP downloader with the given configuration.
+    pub fn new(config: Arc<Config>) -> Result<Self> {
+        let cache_dir: Cow<'_, Path> = match &config.http.cache {
+            Some(dir) => dir.into(),
+            None => dirs::cache_dir()
                 .context("failed to determine system cache directory")?
-                .join(DEFAULT_CACHE_SUBDIR),
-        ))
-    }
-
-    /// Constructs a new downloader with the given cache directory.
-    pub fn new_with_cache(cache_dir: impl Into<PathBuf>) -> Self {
-        let cache_dir = cache_dir.into();
+                .join(DEFAULT_CACHE_SUBDIR)
+                .into(),
+        };
 
         info!(
             "using HTTP download cache directory `{dir}`",
@@ -121,36 +127,52 @@ impl HttpDownloader {
 
         let cache = Arc::new(Cache::new(DefaultCacheStorage::new(cache_dir)));
 
-        Self {
+        Ok(Self {
+            config,
             client: ClientBuilder::new(Client::new())
                 .with_arc(cache.clone())
                 .build(),
             cache,
             downloads: Default::default(),
-        }
+        })
     }
 
     /// Gets the file at the given URL.
     ///
     /// Returns the file's local location upon success.
     async fn get(&self, url: &Url) -> Result<Location> {
-        // TODO: add auth tokens for s3/az/gs requests
+        struct DisplayUrl<'a>(&'a Url);
+
+        impl fmt::Display for DisplayUrl<'_> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                // Only write the scheme, host, and path so that potential authentication
+                // information doesn't end up in the log
+                write!(
+                    f,
+                    "{scheme}://{host}{path}",
+                    scheme = self.0.scheme(),
+                    host = self.0.host_str().unwrap_or(""),
+                    path = self.0.path()
+                )
+            }
+        }
+
+        // TODO: progress indicator?
+        info!("downloading `{url}`", url = DisplayUrl(url));
 
         // Perform the download
-        let response = self
-            .client
-            .get(url.as_str())
-            .send()
-            .await
-            .with_context(|| format!("failed to download `{url}`"))?;
+        let response = self.client.get(url.as_str()).send().await?;
 
         let status = response.status();
         if !status.is_success() {
             if let Ok(text) = response.text().await {
-                debug!("response from get of `{url}` was `{text}`");
+                debug!(
+                    "response from get of `{url}` was `{text}`",
+                    url = DisplayUrl(url)
+                );
             }
 
-            bail!("failed to download `{url}`: server responded with status {status}");
+            bail!("server responded with status {status}");
         }
 
         if let Some(digest) = response
@@ -164,6 +186,7 @@ impl HttpDownloader {
 
             debug!(
                 "`{url}` was previously downloaded to `{path}`",
+                url = DisplayUrl(url),
                 path = path.display()
             );
 
@@ -179,6 +202,7 @@ impl HttpDownloader {
         debug!(
             "response body for `{url}` was not present in cache: downloading to temporary file \
              `{path}`",
+            url = DisplayUrl(url),
             path = path.display()
         );
 
@@ -186,8 +210,12 @@ impl HttpDownloader {
         let mut writer = BufWriter::new(fs::File::from(file));
 
         while let Some(bytes) = stream.next().await {
-            let bytes =
-                bytes.with_context(|| format!("failed to read response body from `{url}`"))?;
+            let bytes = bytes.with_context(|| {
+                format!(
+                    "failed to read response body from `{url}`",
+                    url = DisplayUrl(url)
+                )
+            })?;
             writer.write_all(&bytes).await.with_context(|| {
                 format!(
                     "failed to write to temporary file `{path}`",
@@ -197,6 +225,22 @@ impl HttpDownloader {
         }
 
         Ok(Location::Temp(path.into()))
+    }
+
+    /// Applies authentication to the given URL.
+    fn apply_auth(&self, url: &mut Url) {
+        // Attempt to apply auth for Azure storage
+        if azure::apply_auth(&self.config.storage.azure, url) {
+            return;
+        }
+
+        // Attempt to apply auth for S3 storage
+        if s3::apply_auth(&self.config.storage.s3, url) {
+            return;
+        }
+
+        // Finally, attempt to apply auth for Google Cloud Storage
+        google::apply_auth(&self.config.storage.google, url);
     }
 }
 
@@ -217,7 +261,7 @@ impl Downloader for HttpDownloader {
                 Err(_) => return Ok(None),
             };
 
-            match url.scheme() {
+            let mut url = match url.scheme() {
                 "file" => {
                     // If it can be converted to a path, return the path; otherwise `None`
                     return Ok(match url.to_file_path() {
@@ -225,11 +269,17 @@ impl Downloader for HttpDownloader {
                         Err(_) => None,
                     });
                 }
-                "http" | "https" => {}
-                // TODO: support s3/az/gs URI here, including downloading of blobs under a shared
-                // prefix
+                "http" | "https" => url,
+                "az" => azure::rewrite_url(&url)?,
+                "s3" => s3::rewrite_url(&self.config.storage.s3, &url)?,
+                "gs" => google::rewrite_url(&url)?,
                 _ => return Ok(None),
-            }
+            };
+
+            // TODO: support downloading "directories" for cloud storage URLs
+
+            // Apply any authentication to the URL based on configuration
+            self.apply_auth(&mut url);
 
             // This loop exists so that all requests to download the same URL will block
             // waiting for a notification that the download has completed.
@@ -268,9 +318,6 @@ impl Downloader for HttpDownloader {
                 retried = true;
                 continue;
             }
-
-            // TODO: progress indicator?
-            info!("downloading `{url}` to the cache");
 
             // Perform the download
             let res = self.get(&url).await.map_err(Arc::from);

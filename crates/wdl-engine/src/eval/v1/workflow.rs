@@ -627,13 +627,11 @@ impl WorkflowEvaluator {
     ) -> Result<Self> {
         config.validate()?;
 
-        let downloader = match &config.http.cache {
-            Some(cache) => HttpDownloader::new_with_cache(cache),
-            None => HttpDownloader::new()?,
-        };
+        let config = Arc::new(config);
+        let downloader = HttpDownloader::new(config.clone())?;
 
         Ok(Self {
-            config: Arc::new(config),
+            config,
             backend,
             token,
             downloader,

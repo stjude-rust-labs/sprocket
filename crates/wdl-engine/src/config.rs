@@ -1,5 +1,6 @@
 //! Implementation of engine configuration.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -41,6 +42,9 @@ pub struct Config {
     /// Task execution backend configuration.
     #[serde(default)]
     pub backend: BackendConfig,
+    /// Storage configuration.
+    #[serde(default)]
+    pub storage: StorageConfig,
 }
 
 impl Config {
@@ -50,6 +54,7 @@ impl Config {
         self.workflow.validate()?;
         self.task.validate()?;
         self.backend.validate()?;
+        self.storage.validate()?;
         Ok(())
     }
 
@@ -87,6 +92,101 @@ pub struct HttpConfig {
 
 impl HttpConfig {
     /// Validates the HTTP configuration.
+    pub fn validate(&self) -> Result<()> {
+        Ok(())
+    }
+}
+
+/// Represents storage configuration.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct StorageConfig {
+    /// Azure Blob Storage configuration.
+    #[serde(default)]
+    pub azure: AzureStorageConfig,
+    /// AWS S3 configuration.
+    #[serde(default)]
+    pub s3: S3StorageConfig,
+    /// Google Cloud Storage configuration.
+    #[serde(default)]
+    pub google: GoogleStorageConfig,
+}
+
+impl StorageConfig {
+    /// Validates the HTTP configuration.
+    pub fn validate(&self) -> Result<()> {
+        self.azure.validate()?;
+        self.s3.validate()?;
+        self.google.validate()?;
+        Ok(())
+    }
+}
+
+/// Represents configuration for Azure Blob Storage.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct AzureStorageConfig {
+    /// The Azure Blob Storage authentication configuration.
+    ///
+    /// The key for the outer map is the storage account name.
+    ///
+    /// The key for the inner map is the container name.
+    ///
+    /// The value for the inner map is the SAS token query string to apply to
+    /// matching Azure Blob Storage URLs.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub auth: HashMap<String, HashMap<String, String>>,
+}
+
+impl AzureStorageConfig {
+    /// Validates the Azure Blob Storage configuration.
+    pub fn validate(&self) -> Result<()> {
+        Ok(())
+    }
+}
+
+/// Represents configuration for AWS S3 storage.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct S3StorageConfig {
+    /// The default region to use for S3-schemed URLs (e.g.
+    /// `s3://<bucket>/<blob>`).
+    ///
+    /// Defaults to `us-east-1`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
+
+    /// The AWS S3 storage authentication configuration.
+    ///
+    /// The key for the map is the bucket name.
+    ///
+    /// The value for the map is the presigned query string.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub auth: HashMap<String, String>,
+}
+
+impl S3StorageConfig {
+    /// Validates the AWS S3 storage configuration.
+    pub fn validate(&self) -> Result<()> {
+        Ok(())
+    }
+}
+
+/// Represents configuration for Google Cloud Storage.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct GoogleStorageConfig {
+    /// The Google Cloud Storage authentication configuration.
+    ///
+    /// The key for the map is the bucket name.
+    ///
+    /// The value for the map is the presigned query string.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub auth: HashMap<String, String>,
+}
+
+impl GoogleStorageConfig {
+    /// Validates the Google Cloud Storage configuration.
     pub fn validate(&self) -> Result<()> {
         Ok(())
     }
