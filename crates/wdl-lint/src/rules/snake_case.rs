@@ -140,6 +140,8 @@ impl Rule for SnakeCaseRule {
             SyntaxKind::StructDefinitionNode,
             SyntaxKind::TaskDefinitionNode,
             SyntaxKind::WorkflowDefinitionNode,
+            SyntaxKind::InputSectionNode,
+            SyntaxKind::OutputSectionNode,
             SyntaxKind::BoundDeclNode,
             SyntaxKind::UnboundDeclNode,
         ])

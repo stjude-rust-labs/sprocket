@@ -118,6 +118,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<rules::ExpressionSpacingRule>::default(),
         Box::<rules::DisallowedInputNameRule>::default(),
         Box::<rules::DisallowedOutputNameRule>::default(),
+        Box::<rules::DisallowedDeclarationNameRule>::default(),
         Box::<rules::ContainerValue>::default(),
         Box::<rules::MissingRequirementsRule>::default(),
         Box::<rules::UnknownRule>::default(),
@@ -134,7 +135,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         use convert_case::Case;
         use convert_case::Casing;
         let mut set = std::collections::HashSet::new();
-        for r in rules.iter() {
+        for r in &rules {
             if r.id().to_case(Case::Pascal) != r.id() {
                 panic!("lint rule id `{id}` is not pascal case", id = r.id());
             }

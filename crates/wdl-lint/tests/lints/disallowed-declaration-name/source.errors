@@ -1,0 +1,88 @@
+note[DisallowedDeclarationName]: declaration identifier 'arrayData' contains type name 'Array'
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:13:20
+   │
+13 │         Array[Int] arrayData
+   │                    ^^^^^^^^^
+   │
+   = fix: rename the identifier to not include the type name
+
+note[DisallowedDeclarationName]: declaration identifier 'bool_flag' contains type name 'Bool'
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:14:17
+   │
+14 │         Boolean bool_flag
+   │                 ^^^^^^^^^
+   │
+   = fix: rename the identifier to not include the type name
+
+note[DisallowedDeclarationName]: declaration identifier 'floatNumber' contains type name 'Float'
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:15:15
+   │
+15 │         Float floatNumber
+   │               ^^^^^^^^^^^
+   │
+   = fix: rename the identifier to not include the type name
+
+note[DisallowedDeclarationName]: declaration identifier 'my_int' contains type name 'Int'
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:16:13
+   │
+16 │         Int my_int
+   │             ^^^^^^
+   │
+   = fix: rename the identifier to not include the type name
+
+note[DisallowedDeclarationName]: declaration identifier 'dir' contains type name 'Dir'
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:17:19
+   │
+17 │         Directory dir
+   │                   ^^^
+   │
+   = fix: rename the identifier to not include the type name
+
+note[DisallowedDeclarationName]: declaration identifier 'reference_directory' contains type name 'Directory'
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:18:19
+   │
+18 │         Directory reference_directory
+   │                   ^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: rename the identifier to not include the type name
+
+note[DisallowedDeclarationName]: declaration identifier 'count_int' contains type name 'Int'
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:30:9
+   │
+30 │     Int count_int = 42
+   │         ^^^^^^^^^
+   │
+   = fix: rename the identifier to not include the type name
+
+note[DisallowedDeclarationName]: declaration identifier 'result_integer' contains type name 'Integer'
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:31:9
+   │
+31 │     Int result_integer = 42
+   │         ^^^^^^^^^^^^^^
+   │
+   = fix: rename the identifier to not include the type name
+
+warning[SnakeCase]: private declaration name `foo_bar_InT` is not snake_case
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:35:9
+   │
+35 │     Int foo_bar_InT = 42  # Split by convert-case to [foo, bar, In, T]
+   │         ^^^^^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `foo_bar_InT` with `foo_bar_in_t`
+
+warning[SnakeCase]: private declaration name `foo_bar_INT` is not snake_case
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:38:9
+   │
+38 │     Int foo_bar_INT = 42
+   │         ^^^^^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `foo_bar_INT` with `foo_bar_int`
+
+note[DisallowedDeclarationName]: declaration identifier 'result_int' contains type name 'Int'
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:45:13
+   │
+45 │         Int result_int = 42
+   │             ^^^^^^^^^^
+   │
+   = fix: rename the identifier to not include the type name
+

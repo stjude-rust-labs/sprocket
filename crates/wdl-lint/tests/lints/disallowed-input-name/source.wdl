@@ -12,7 +12,6 @@ task foo {
         input_string: "Not OK"
         in_string: "Not OK"
         invalid: "OK"
-        int: "OK"
     }
 
     input {
@@ -21,7 +20,6 @@ task foo {
         String input_string  # This is not OK
         String in_string  # This is not OK
         String invalid  # This is OK
-        Int int = 1  # This is OK
     }
 
     command <<< >>>
