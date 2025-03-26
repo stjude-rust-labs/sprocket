@@ -7,6 +7,8 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::sync::LazyLock;
+
 use clap::ValueEnum;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::Config;
@@ -18,6 +20,18 @@ use wdl::ast::Diagnostic;
 
 pub mod commands;
 pub mod input;
+
+/// Configuration for full display style.
+static FULL_CONFIG: LazyLock<Config> = LazyLock::new(|| Config {
+    display_style: DisplayStyle::Rich,
+    ..Default::default()
+});
+
+/// Configuration for one-line display style.
+static ONE_LINE_CONFIG: LazyLock<Config> = LazyLock::new(|| Config {
+    display_style: DisplayStyle::Short,
+    ..Default::default()
+});
 
 /// The diagnostic mode to use for reporting diagnostics.
 #[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
@@ -40,15 +54,10 @@ impl std::fmt::Display for Mode {
 }
 
 /// Gets the display config to use for reporting diagnostics.
-fn get_display_config(report_mode: Mode, no_color: bool) -> (Config, StandardStream) {
-    let display_style = match report_mode {
-        Mode::Full => DisplayStyle::Rich,
-        Mode::OneLine => DisplayStyle::Short,
-    };
-
-    let config = Config {
-        display_style,
-        ..Default::default()
+fn get_display_config(report_mode: Mode, no_color: bool) -> (&'static Config, StandardStream) {
+    let config = match report_mode {
+        Mode::Full => &FULL_CONFIG,
+        Mode::OneLine => &ONE_LINE_CONFIG,
     };
 
     let color_choice = if no_color {
@@ -75,6 +84,6 @@ fn emit_diagnostics<'a>(
     let (config, writer) = get_display_config(report_mode, no_color);
     let mut writer = writer.lock();
     for diagnostic in diagnostics {
-        emit(&mut writer, &config, &file, &diagnostic.to_codespan()).unwrap();
+        emit(&mut writer, config, &file, &diagnostic.to_codespan()).unwrap();
     }
 }
