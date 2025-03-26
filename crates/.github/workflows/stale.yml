@@ -1,0 +1,36 @@
+name: Close stale issues
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  check_stale_issues:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Close PRs
+        run: |
+          awaiting_labels=$(gh label list --json name --jq '.[] | select(.name | test("^S-awaiting")) | .name')
+          date=$(date --date='10 days ago' --utc +%Y-%m-%dT%H:%M:%SZ)
+          prs=""
+
+          for label in $awaiting_labels; do
+            pr_numbers=$(
+              gh pr list --label "$label" --json "number,updatedAt" --jq '.[] | select(.updatedAt < "$date") | .number')
+            prs="$prs $pr_numbers"
+          done
+
+          for number in $prs; do
+            gh issue comment $number --body "This PR has been awaiting action for \
+            more than 10 days with no response. Because of this inactivity, the PR \
+            is being closed. If you continue working on the PR, please comment here \
+            when it is ready for re-review."
+            gh issue close $number
+          done
