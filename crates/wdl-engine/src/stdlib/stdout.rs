@@ -10,6 +10,9 @@ use super::Signature;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "stdout";
+
 /// Returns the value of the executed command's standard output (stdout) as a
 /// File.
 ///
@@ -27,7 +30,7 @@ fn stdout(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             Ok(stdout.clone())
         }
         None => Err(function_call_failed(
-            "stdout",
+            FUNCTION_NAME,
             "function may only be called in a task output section",
             context.call_site,
         )),

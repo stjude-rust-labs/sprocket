@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use url::Url;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
@@ -21,6 +22,20 @@ use crate::Value;
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#basename
 fn basename(context: CallContext<'_>) -> Result<Value, Diagnostic> {
+    fn remove_suffix<'a>(context: CallContext<'_>, base: &'a str) -> &'a str {
+        if context.arguments.len() == 2 {
+            base.strip_suffix(
+                context
+                    .coerce_argument(1, PrimitiveType::String)
+                    .unwrap_string()
+                    .as_str(),
+            )
+            .unwrap_or(base)
+        } else {
+            base
+        }
+    }
+
     debug_assert!(!context.arguments.is_empty() && context.arguments.len() < 3);
     debug_assert!(context.return_type_eq(PrimitiveType::String));
 
@@ -28,25 +43,24 @@ fn basename(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
 
-    match Path::new(path.as_str()).file_name() {
-        Some(base) => {
-            let base = base.to_str().expect("should be UTF-8");
-            let base = if context.arguments.len() == 2 {
-                base.strip_suffix(
-                    context
-                        .coerce_argument(1, PrimitiveType::String)
-                        .unwrap_string()
-                        .as_str(),
-                )
-                .unwrap_or(base)
-            } else {
-                base
-            };
+    // Do not attempt to parse absolute Windows paths (and by extension, we do not
+    // support single-character schemed URLs)
+    if path.get(1..2) != Some(":") {
+        if let Ok(url) = path.parse::<Url>() {
+            let base = url
+                .path_segments()
+                .and_then(|mut segments| segments.next_back())
+                .unwrap_or("");
 
-            Ok(PrimitiveValue::new_string(base).into())
+            return Ok(PrimitiveValue::new_string(remove_suffix(context, base)).into());
         }
-        None => Ok(PrimitiveValue::String(path).into()),
     }
+
+    let base = Path::new(path.as_str())
+        .file_name()
+        .map(|f| f.to_str().expect("should be UTF-8"))
+        .unwrap_or("");
+    Ok(PrimitiveValue::new_string(remove_suffix(context, base)).into())
 }
 
 /// Gets the function describing `basename`.
@@ -97,5 +111,47 @@ mod test {
             .await
             .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "file");
+
+        let value = eval_v1_expr(&env, V1::Two, "basename('file.txt', '.jpg')")
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "file.txt");
+
+        let value = eval_v1_expr(&env, V1::Two, "basename('https://example.com')")
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "");
+
+        let value = eval_v1_expr(&env, V1::Two, "basename('https://example.com/foo')")
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "foo");
+
+        let value = eval_v1_expr(
+            &env,
+            V1::Two,
+            "basename('https://example.com/foo/bar/baz.txt')",
+        )
+        .await
+        .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "baz.txt");
+
+        let value = eval_v1_expr(
+            &env,
+            V1::Two,
+            "basename('https://example.com/foo/bar/baz.txt?foo=baz', '.txt')",
+        )
+        .await
+        .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "baz");
+
+        let value = eval_v1_expr(
+            &env,
+            V1::Two,
+            "basename('https://example.com/foo/bar/baz.txt#hmm', '.jpg')",
+        )
+        .await
+        .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "baz.txt");
     }
 }

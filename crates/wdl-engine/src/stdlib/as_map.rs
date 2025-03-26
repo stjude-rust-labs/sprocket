@@ -14,6 +14,9 @@ use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "as_map";
+
 /// Used for displaying duplicate key errors.
 struct DuplicateKeyError(Option<PrimitiveValue>);
 
@@ -62,7 +65,7 @@ fn as_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
         if elements.insert(key.clone(), pair.right().clone()).is_some() {
             return Err(function_call_failed(
-                "as_map",
+                FUNCTION_NAME,
                 DuplicateKeyError(key),
                 context.arguments[0].span,
             ));

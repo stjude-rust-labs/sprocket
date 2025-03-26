@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed support for URLs in file stdlib functions (#[369](https://github.com/stjude-rust-labs/wdl/pull/369)).
 * Fixed panic when an input path in a complex type did not exist (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Fixed path translation in nested placeholder evaluation (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Fixed path translation to mount inputs individually (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).

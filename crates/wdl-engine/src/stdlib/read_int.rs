@@ -18,6 +18,9 @@ use super::Signature;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "read_int";
+
 /// Reads a file that contains a single line containing only an integer and
 /// (optional) whitespace.
 ///
@@ -41,7 +44,7 @@ fn read_int(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
             .await
             .map_err(|e| {
                 function_call_failed(
-                    "read_int",
+                    FUNCTION_NAME,
                     format!("failed to download file `{path}`: {e:?}"),
                     context.call_site,
                 )
@@ -54,7 +57,7 @@ fn read_int(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
 
         let read_error = |e: std::io::Error| {
             function_call_failed(
-                "read_int",
+                FUNCTION_NAME,
                 format!(
                     "failed to read file `{path}`: {e}",
                     path = cache_path.display()
@@ -65,7 +68,7 @@ fn read_int(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
 
         let invalid_contents = || {
             function_call_failed(
-                "read_int",
+                FUNCTION_NAME,
                 format!("file `{path}` does not contain an integer value on a single line"),
                 context.call_site,
             )

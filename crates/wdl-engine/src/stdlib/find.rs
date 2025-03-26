@@ -12,7 +12,10 @@ use super::Function;
 use super::Signature;
 use crate::PrimitiveValue;
 use crate::Value;
-use crate::diagnostics::invalid_regex;
+use crate::diagnostics::function_call_failed;
+
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "find";
 
 /// Given two String parameters `input` and `pattern`, searches for the
 /// occurrence of `pattern` within `input` and returns the first match or `None`
@@ -30,8 +33,8 @@ fn find(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(1, PrimitiveType::String)
         .unwrap_string();
 
-    let regex =
-        Regex::new(pattern.as_str()).map_err(|e| invalid_regex(&e, context.arguments[1].span))?;
+    let regex = Regex::new(pattern.as_str())
+        .map_err(|e| function_call_failed(FUNCTION_NAME, &e, context.arguments[1].span))?;
 
     match regex.find(input.as_str()) {
         Some(m) => Ok(PrimitiveValue::new_string(m.as_str()).into()),
@@ -67,7 +70,8 @@ mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "regex parse error:\n    ?\n    ^\nerror: repetition operator missing expression"
+            "call to function `find` failed: regex parse error:\n    ?\n    ^\nerror: repetition \
+             operator missing expression"
         );
 
         let value = eval_v1_expr(&env, V1::Two, "find('hello world', 'e..o')")

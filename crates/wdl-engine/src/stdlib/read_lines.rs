@@ -21,6 +21,9 @@ use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "read_lines";
+
 /// Reads each line of a file as a String, and returns all lines in the file as
 /// an Array[String].
 ///
@@ -48,7 +51,7 @@ fn read_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnosti
             .await
             .map_err(|e| {
                 function_call_failed(
-                    "read_lines",
+                    FUNCTION_NAME,
                     format!("failed to download file `{path}`: {e:?}"),
                     context.call_site,
                 )
@@ -61,7 +64,7 @@ fn read_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnosti
 
         let read_error = |e: std::io::Error| {
             function_call_failed(
-                "read_lines",
+                FUNCTION_NAME,
                 format!(
                     "failed to read file `{path}`: {e}",
                     path = cache_path.display()

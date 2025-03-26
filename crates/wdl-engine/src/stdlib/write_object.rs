@@ -21,6 +21,9 @@ use crate::Value;
 use crate::diagnostics::function_call_failed;
 use crate::stdlib::write_tsv::write_tsv_value;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "write_object";
+
 /// Writes a tab-separated value (TSV) file with the contents of a Object or
 /// Struct.
 ///
@@ -41,7 +44,7 @@ fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
         // Helper for handling errors while writing to the file.
         let write_error = |e: std::io::Error| {
             function_call_failed(
-                "write_object",
+                FUNCTION_NAME,
                 format!("failed to write to temporary file: {e}"),
                 context.call_site,
             )
@@ -53,7 +56,7 @@ fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
         let (file, path) = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
             .map_err(|e| {
                 function_call_failed(
-                    "write_object",
+                    FUNCTION_NAME,
                     format!("failed to create temporary file: {e}"),
                     context.call_site,
                 )
@@ -86,7 +89,7 @@ fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
                     Value::Primitive(v) => {
                         if !write_tsv_value(&mut writer, v).await.map_err(write_error)? {
                             return Err(function_call_failed(
-                                "write_object",
+                                FUNCTION_NAME,
                                 format!("member `{key}` contains a tab character"),
                                 context.call_site,
                             ));
@@ -94,7 +97,7 @@ fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
                     }
                     _ => {
                         return Err(function_call_failed(
-                            "write_object",
+                            FUNCTION_NAME,
                             format!("member `{key}` is not a primitive value"),
                             context.call_site,
                         ));
@@ -111,7 +114,7 @@ fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
 
         let path = path.keep().map_err(|e| {
             function_call_failed(
-                "write_object",
+                FUNCTION_NAME,
                 format!("failed to keep temporary file: {e}"),
                 context.call_site,
             )
@@ -120,7 +123,7 @@ fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
         Ok(
             PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
                 function_call_failed(
-                    "write_object",
+                    FUNCTION_NAME,
                     format!(
                         "path `{path}` cannot be represented as UTF-8",
                         path = Path::new(&path).display()

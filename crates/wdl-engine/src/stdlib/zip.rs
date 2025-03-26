@@ -11,6 +11,9 @@ use crate::Pair;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "zip";
+
 /// Creates an array of Pairs containing the dot product of two input arrays,
 /// i.e., the elements at the same indices in each array X[i] and Y[i] are
 /// combined together into (X[i], Y[i]) for each i in range(length(X)).
@@ -35,7 +38,7 @@ fn zip(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     if left.len() != right.len() {
         return Err(function_call_failed(
-            "zip",
+            FUNCTION_NAME,
             format!(
                 "expected an array of length {left}, but this is an array of length {right}",
                 left = left.len(),

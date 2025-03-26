@@ -11,6 +11,9 @@ use crate::Array;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "transpose";
+
 /// Transposes a two-dimensional array according to the standard matrix
 /// transposition rules, i.e. each row of the input array becomes a column of
 /// the output array.
@@ -57,7 +60,7 @@ fn transpose(context: CallContext<'_>) -> Result<Value, Diagnostic> {
                 .expect("element should be an array");
             if inner.len() != columns {
                 return Err(function_call_failed(
-                    "transpose",
+                    FUNCTION_NAME,
                     format!("expected array at index {j} to have a length of {columns}"),
                     context.call_site,
                 ));

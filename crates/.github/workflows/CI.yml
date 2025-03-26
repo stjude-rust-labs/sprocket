@@ -54,6 +54,8 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - run: docker pull ubuntu:latest
+        if: runner.os == 'Linux'
       - run: cargo test --all --all-features
       - run: cargo test --all-features --examples
 

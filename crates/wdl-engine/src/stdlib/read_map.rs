@@ -22,6 +22,9 @@ use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "read_map";
+
 /// Reads a tab-separated value (TSV) file representing a set of pairs.
 ///
 /// Each row must have exactly two columns, e.g., col1\tcol2.
@@ -52,7 +55,7 @@ fn read_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
             .await
             .map_err(|e| {
                 function_call_failed(
-                    "read_map",
+                    FUNCTION_NAME,
                     format!("failed to download file `{path}`: {e:?}"),
                     context.call_site,
                 )
@@ -65,7 +68,7 @@ fn read_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
 
         let read_error = |e: std::io::Error| {
             function_call_failed(
-                "read_map",
+                FUNCTION_NAME,
                 format!(
                     "failed to read file `{path}`: {e}",
                     path = cache_path.display()
@@ -84,7 +87,7 @@ fn read_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
                 Some((key, value)) if !value.contains('\t') => (key, value),
                 _ => {
                     return Err(function_call_failed(
-                        "read_map",
+                        FUNCTION_NAME,
                         format!("line {i} in file `{path}` does not contain exactly two columns",),
                         context.call_site,
                     ));
@@ -99,7 +102,7 @@ fn read_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
                 .is_some()
             {
                 return Err(function_call_failed(
-                    "read_map",
+                    FUNCTION_NAME,
                     format!("line {i} in file `{path}` contains duplicate key name `{key}`",),
                     context.call_site,
                 ));

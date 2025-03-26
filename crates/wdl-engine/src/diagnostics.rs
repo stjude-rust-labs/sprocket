@@ -161,44 +161,6 @@ pub fn multiline_string_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("use of multi-line strings requires WDL version 1.2").with_highlight(span)
 }
 
-/// Creates an "invalid regular expression" diagnostic.
-pub fn invalid_regex(error: &regex::Error, span: Span) -> Diagnostic {
-    Diagnostic::error(error.to_string()).with_highlight(span)
-}
-
-/// Creates a "path not relative" diagnostic.
-pub fn path_not_relative(span: Span) -> Diagnostic {
-    Diagnostic::error("path is required to be a relative path, but an absolute path was provided")
-        .with_highlight(span)
-}
-
-/// Creates an "array path not relative" diagnostic.
-pub fn array_path_not_relative(index: usize, span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "index {index} of the array is required to be a relative path, but an absolute path was \
-         provided"
-    ))
-    .with_highlight(span)
-}
-
-/// Creates an "invalid glob pattern" diagnostic.
-pub fn invalid_glob_pattern(error: &glob::PatternError, span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "invalid glob pattern specified: {error}",
-        error = error.msg
-    ))
-    .with_highlight(span)
-}
-
-/// Creates an "invalid storage unit" diagnostic.
-pub fn invalid_storage_unit(unit: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "invalid storage unit `{unit}`; supported units are `B`, `KB`, `K`, `MB`, `M`, `GB`, `G`, \
-         `TB`, `T`, `KiB`, `Ki`, `MiB`, `Mi`, `GiB`, `Gi`, `TiB`, and `Ti`",
-    ))
-    .with_highlight(span)
-}
-
 /// Creates a "function call failed" diagnostic.
 pub fn function_call_failed(name: &str, error: impl fmt::Display, span: Span) -> Diagnostic {
     Diagnostic::error(format!("call to function `{name}` failed: {error}")).with_highlight(span)

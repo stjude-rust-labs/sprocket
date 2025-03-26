@@ -20,6 +20,9 @@ use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "write_lines";
+
 /// Writes a file with one line for each element in a Array[String].
 ///
 /// All lines are terminated by the newline (\n) character (following the POSIX
@@ -36,7 +39,7 @@ fn write_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
         // Helper for handling errors while writing to the file.
         let write_error = |e: std::io::Error| {
             function_call_failed(
-                "write_lines",
+                FUNCTION_NAME,
                 format!("failed to write to temporary file: {e}"),
                 context.call_site,
             )
@@ -50,7 +53,7 @@ fn write_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
         let (file, path) = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
             .map_err(|e| {
                 function_call_failed(
-                    "write_lines",
+                    FUNCTION_NAME,
                     format!("failed to create temporary file: {e}"),
                     context.call_site,
                 )
@@ -73,7 +76,7 @@ fn write_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
 
         let path = path.keep().map_err(|e| {
             function_call_failed(
-                "write_lines",
+                FUNCTION_NAME,
                 format!("failed to keep temporary file: {e}"),
                 context.call_site,
             )
@@ -82,7 +85,7 @@ fn write_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
         Ok(
             PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
                 function_call_failed(
-                    "write_lines",
+                    FUNCTION_NAME,
                     format!(
                         "path `{path}` cannot be represented as UTF-8",
                         path = Path::new(&path).display()

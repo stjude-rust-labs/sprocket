@@ -20,6 +20,9 @@ use super::Signature;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "read_json";
+
 /// Reads a JSON file into a WDL value whose type depends on the file's
 /// contents.
 ///
@@ -40,7 +43,7 @@ fn read_json(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
             .await
             .map_err(|e| {
                 function_call_failed(
-                    "read_json",
+                    FUNCTION_NAME,
                     format!("failed to download file `{path}`: {e:?}"),
                     context.call_site,
                 )
@@ -55,12 +58,14 @@ fn read_json(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
         // performing a synchronous read here
         let file = fs::File::open(&cache_path)
             .with_context(|| format!("failed to open file `{path}`", path = cache_path.display()))
-            .map_err(|e| function_call_failed("read_json", format!("{e:?}"), context.call_site))?;
+            .map_err(|e| {
+                function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
+            })?;
 
         let mut deserializer = serde_json::Deserializer::from_reader(BufReader::new(file));
         Value::deserialize(&mut deserializer).map_err(|e| {
             function_call_failed(
-                "read_json",
+                FUNCTION_NAME,
                 format!("failed to deserialize JSON file `{path}`: {e}"),
                 context.call_site,
             )

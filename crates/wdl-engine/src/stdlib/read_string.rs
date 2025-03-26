@@ -17,6 +17,9 @@ use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "read_string";
+
 /// Reads an entire file as a String, with any trailing end-of-line characters
 /// (\r and \n) stripped off.
 ///
@@ -39,7 +42,7 @@ fn read_string(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
             .await
             .map_err(|e| {
                 function_call_failed(
-                    "read_string",
+                    FUNCTION_NAME,
                     format!("failed to download file `{path}`: {e:?}"),
                     context.call_site,
                 )
@@ -52,7 +55,7 @@ fn read_string(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
 
         let read_error = |e: std::io::Error| {
             function_call_failed(
-                "read_string",
+                FUNCTION_NAME,
                 format!(
                     "failed to read file `{path}`: {e}",
                     path = cache_path.display()

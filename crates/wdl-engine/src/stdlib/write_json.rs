@@ -16,6 +16,9 @@ use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "write_json";
+
 /// Writes a JSON file with the serialized form of a WDL value.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_json
@@ -26,7 +29,7 @@ fn write_json(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     // Helper for handling errors while writing to the file.
     let write_error = |e: std::io::Error| {
         function_call_failed(
-            "write_json",
+            FUNCTION_NAME,
             format!("failed to write to temporary file: {e}"),
             context.call_site,
         )
@@ -35,7 +38,7 @@ fn write_json(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     // Create a temporary file that will be persisted after writing the lines
     let mut file = NamedTempFile::with_prefix_in("tmp", context.temp_dir()).map_err(|e| {
         function_call_failed(
-            "write_json",
+            FUNCTION_NAME,
             format!("failed to create temporary file: {e}"),
             context.call_site,
         )
@@ -49,7 +52,7 @@ fn write_json(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .serialize(&mut serializer)
         .map_err(|e| {
             function_call_failed(
-                "write_json",
+                FUNCTION_NAME,
                 format!("failed to serialize value: {e}"),
                 context.call_site,
             )
@@ -62,7 +65,7 @@ fn write_json(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     let (_, path) = file.keep().map_err(|e| {
         function_call_failed(
-            "write_json",
+            FUNCTION_NAME,
             format!("failed to keep temporary file: {e}"),
             context.call_site,
         )
@@ -71,7 +74,7 @@ fn write_json(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     Ok(
         PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
             function_call_failed(
-                "write_json",
+                FUNCTION_NAME,
                 format!(
                     "path `{path}` cannot be represented as UTF-8",
                     path = Path::new(&path).display()

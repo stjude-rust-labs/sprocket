@@ -10,6 +10,9 @@ use crate::Array;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "chunk";
+
 /// Given an array and a length `n`, splits the array into consecutive,
 /// non-overlapping arrays of n elements.
 ///
@@ -32,7 +35,7 @@ fn chunk(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     if size < 0 {
         return Err(function_call_failed(
-            "chunk",
+            FUNCTION_NAME,
             "chunk size cannot be negative",
             context.arguments[1].span,
         ));

@@ -11,6 +11,9 @@ use super::Signature;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "length";
+
 /// Returns the length of the input argument as an Int:
 ///
 /// For an `Array[X]` argument: the number of elements in the array.
@@ -28,7 +31,7 @@ fn array_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     )
     .map_err(|_| {
         function_call_failed(
-            "length",
+            FUNCTION_NAME,
             "array length exceeds a signed 64-bit integer",
             context.call_site,
         )
@@ -53,7 +56,7 @@ fn map_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     )
     .map_err(|_| {
         function_call_failed(
-            "length",
+            FUNCTION_NAME,
             "map length exceeds a signed 64-bit integer",
             context.call_site,
         )
@@ -74,7 +77,7 @@ fn object_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     Ok(i64::try_from(object.len())
         .map_err(|_| {
             function_call_failed(
-                "length",
+                FUNCTION_NAME,
                 "object members length exceeds a signed 64-bit integer",
                 context.call_site,
             )
@@ -99,7 +102,7 @@ fn string_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     Ok(i64::try_from(s.chars().count())
         .map_err(|_| {
             function_call_failed(
-                "length",
+                FUNCTION_NAME,
                 "string character length exceeds a signed 64-bit integer",
                 context.call_site,
             )

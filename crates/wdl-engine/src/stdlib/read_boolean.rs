@@ -18,6 +18,9 @@ use super::Signature;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "read_boolean";
+
 /// Reads a file that contains a single line containing only a boolean value and
 /// (optional) whitespace.
 ///
@@ -42,7 +45,7 @@ fn read_boolean(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
             .await
             .map_err(|e| {
                 function_call_failed(
-                    "read_boolean",
+                    FUNCTION_NAME,
                     format!("failed to download file `{path}`: {e:?}"),
                     context.call_site,
                 )
@@ -55,7 +58,7 @@ fn read_boolean(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
 
         let read_error = |e: std::io::Error| {
             function_call_failed(
-                "read_boolean",
+                FUNCTION_NAME,
                 format!(
                     "failed to read file `{path}`: {e}",
                     path = cache_path.display()
@@ -66,7 +69,7 @@ fn read_boolean(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
 
         let invalid_contents = || {
             function_call_failed(
-                "read_boolean",
+                FUNCTION_NAME,
                 format!("file `{path}` does not contain a boolean value on a single line"),
                 context.call_site,
             )

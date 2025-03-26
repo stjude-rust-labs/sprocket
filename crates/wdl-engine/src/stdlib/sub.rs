@@ -12,7 +12,10 @@ use super::Function;
 use super::Signature;
 use crate::PrimitiveValue;
 use crate::Value;
-use crate::diagnostics::invalid_regex;
+use crate::diagnostics::function_call_failed;
+
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "sub";
 
 /// Given three String parameters `input`, `pattern`, and `replace`, this
 /// function replaces all non-overlapping occurrences of `pattern` in `input`
@@ -33,8 +36,8 @@ fn sub(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(2, PrimitiveType::String)
         .unwrap_string();
 
-    let regex =
-        Regex::new(pattern.as_str()).map_err(|e| invalid_regex(&e, context.arguments[1].span))?;
+    let regex = Regex::new(pattern.as_str())
+        .map_err(|e| function_call_failed(FUNCTION_NAME, &e, context.arguments[1].span))?;
     match regex.replace(input.as_str(), replacement.as_str()) {
         Cow::Borrowed(_) => {
             // No replacements, just return the input
@@ -75,7 +78,8 @@ mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "regex parse error:\n    ?\n    ^\nerror: repetition operator missing expression"
+            "call to function `sub` failed: regex parse error:\n    ?\n    ^\nerror: repetition \
+             operator missing expression"
         );
 
         let value = eval_v1_expr(&env, V1::Two, "sub('hello world', 'e..o', 'ey there')")

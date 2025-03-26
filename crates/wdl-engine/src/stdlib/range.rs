@@ -12,6 +12,9 @@ use crate::Array;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "range";
+
 /// Creates an array of the given length containing sequential integers starting
 /// from 0.
 ///
@@ -28,7 +31,7 @@ fn range(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     if n < 0 {
         return Err(function_call_failed(
-            "range",
+            FUNCTION_NAME,
             "array length cannot be negative",
             context.arguments[0].span,
         ));

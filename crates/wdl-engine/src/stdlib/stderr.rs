@@ -10,6 +10,9 @@ use super::Signature;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "stderr";
+
 /// Returns the value of the executed command's standard error (stderr) as a
 /// File
 ///
@@ -27,7 +30,7 @@ fn stderr(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             Ok(stderr.clone())
         }
         None => Err(function_call_failed(
-            "stderr",
+            FUNCTION_NAME,
             "function may only be called in a task output section",
             context.call_site,
         )),

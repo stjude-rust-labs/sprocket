@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::path::Path;
+use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -9,6 +10,7 @@ use anyhow::bail;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tokio::fs;
+use url::Url;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
@@ -21,7 +23,35 @@ use crate::PrimitiveValue;
 use crate::StorageUnit;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
-use crate::diagnostics::invalid_storage_unit;
+
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "size";
+
+/// Converts a string to a file path.
+///
+/// This conversion supports `file://` schemed URLs.
+fn to_file_path(cwd: &Path, path: &str) -> Result<PathBuf> {
+    // Do not attempt to parse absolute Windows paths (and by extension, we do not
+    // support single-character schemed URLs)
+    if path.get(1..2) != Some(":") {
+        if let Ok(url) = path.parse::<Url>() {
+            if url.scheme() != "file" {
+                bail!("path `{path}` cannot be sized: only `file` scheme URLs are supported");
+            }
+
+            match url.to_file_path() {
+                Ok(path) => Ok(path),
+                Err(_) => {
+                    bail!("path `{path}` cannot be represented as a local file path");
+                }
+            }
+        } else {
+            Ok(cwd.join(path))
+        }
+    } else {
+        Ok(cwd.join(path))
+    }
+}
 
 /// Determines the size of a file, directory, or the sum total sizes of the
 /// files/directories contained within a compound value. The files may be
@@ -40,8 +70,17 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
                 .coerce_argument(1, PrimitiveType::String)
                 .unwrap_string();
 
-            unit.parse()
-                .map_err(|_| invalid_storage_unit(&unit, context.arguments[1].span))?
+            unit.parse().map_err(|_| {
+                function_call_failed(
+                    FUNCTION_NAME,
+                    format!(
+                        "invalid storage unit `{unit}`: supported units are `B`, `KB`, `K`, `MB`, \
+                         `M`, `GB`, `G`, `TB`, `T`, `KiB`, `Ki`, `MiB`, `Mi`, `GiB`, `Gi`, `TiB`, \
+                         and `Ti`",
+                    ),
+                    context.arguments[1].span,
+                )
+            })?
         } else {
             StorageUnit::default()
         };
@@ -50,7 +89,9 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
         // directory and treat it as such.
         let value = match context.arguments[0].value.as_string() {
             Some(s) => {
-                let path = context.work_dir().join(s.as_str());
+                let path = to_file_path(context.work_dir(), s).map_err(|e| {
+                    function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
+                })?;
                 let metadata = fs::metadata(&path)
                     .await
                     .with_context(|| {
@@ -60,7 +101,7 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
                         )
                     })
                     .map_err(|e| {
-                        function_call_failed("size", format!("{e:?}"), context.call_site)
+                        function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
                     })?;
                 if metadata.is_dir() {
                     PrimitiveValue::Directory(s.clone()).into()
@@ -73,7 +114,7 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
 
         calculate_disk_size(&value, unit, context.work_dir())
             .await
-            .map_err(|e| function_call_failed("size", format!("{e:?}"), context.call_site))
+            .map_err(|e| function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site))
             .map(Into::into)
     }
     .boxed()
@@ -110,7 +151,7 @@ fn calculate_disk_size<'a>(
 async fn primitive_disk_size(value: &PrimitiveValue, unit: StorageUnit, cwd: &Path) -> Result<f64> {
     match value {
         PrimitiveValue::File(path) => {
-            let path = cwd.join(path.as_str());
+            let path = to_file_path(cwd, path)?;
             let metadata = fs::metadata(&path).await.with_context(|| {
                 format!(
                     "failed to read metadata for file `{path}`",
@@ -125,7 +166,8 @@ async fn primitive_disk_size(value: &PrimitiveValue, unit: StorageUnit, cwd: &Pa
             Ok(unit.units(metadata.len()))
         }
         PrimitiveValue::Directory(path) => {
-            calculate_directory_size(&cwd.join(path.as_str()), unit).await
+            let path = to_file_path(cwd, path)?;
+            calculate_directory_size(&path, unit).await
         }
         _ => Ok(0.0),
     }
@@ -248,6 +290,7 @@ pub const fn descriptor() -> Function {
 #[cfg(test)]
 mod test {
     use pretty_assertions::assert_eq;
+    use url::Url;
     use wdl_ast::version::V1;
 
     use crate::PrimitiveValue;
@@ -257,6 +300,13 @@ mod test {
     #[tokio::test]
     async fn size() {
         let mut env = TestEnv::default();
+
+        // Create a URL for the working directory and force it to end with `/`
+        let mut work_dir_url = Url::from_file_path(env.work_dir()).expect("should convert");
+        if let Ok(mut segments) = work_dir_url.path_segments_mut() {
+            segments.pop_if_empty();
+            segments.push("");
+        }
 
         // 10 byte file
         env.write_file("foo", "0123456789");
@@ -284,8 +334,18 @@ mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "invalid storage unit `invalid`; supported units are `B`, `KB`, `K`, `MB`, `M`, `GB`, \
-             `G`, `TB`, `T`, `KiB`, `Ki`, `MiB`, `Mi`, `GiB`, `Gi`, `TiB`, and `Ti`"
+            "call to function `size` failed: invalid storage unit `invalid`: supported units are \
+             `B`, `KB`, `K`, `MB`, `M`, `GB`, `G`, `TB`, `T`, `KiB`, `Ki`, `MiB`, `Mi`, `GiB`, \
+             `Gi`, `TiB`, and `Ti`"
+        );
+
+        let diagnostic = eval_v1_expr(&env, V1::Two, "size('https://example.com/foo')")
+            .await
+            .unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `size` failed: path `https://example.com/foo` cannot be sized: only \
+             `file` scheme URLs are supported"
         );
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "size('does-not-exist', 'B')")
@@ -323,6 +383,18 @@ mod test {
             let value = eval_v1_expr(&env, V1::Two, &format!("size('foo', '{unit}')"))
                 .await
                 .unwrap();
+            approx::assert_relative_eq!(value.unwrap_float(), expected);
+
+            let value = eval_v1_expr(
+                &env,
+                V1::Two,
+                &format!(
+                    "size('{url}', '{unit}')",
+                    url = work_dir_url.join("foo").unwrap().as_str()
+                ),
+            )
+            .await
+            .unwrap();
             approx::assert_relative_eq!(value.unwrap_float(), expected);
         }
 

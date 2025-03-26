@@ -20,6 +20,9 @@ use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "write_map";
+
 /// Writes a tab-separated value (TSV) file with one line for each element in a
 /// Map[String, String].
 ///
@@ -39,7 +42,7 @@ fn write_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
         // Helper for handling errors while writing to the file.
         let write_error = |e: std::io::Error| {
             function_call_failed(
-                "write_map",
+                FUNCTION_NAME,
                 format!("failed to write to temporary file: {e}"),
                 context.call_site,
             )
@@ -53,7 +56,7 @@ fn write_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
         let (file, path) = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
             .map_err(|e| {
                 function_call_failed(
-                    "write_map",
+                    FUNCTION_NAME,
                     format!("failed to create temporary file: {e}"),
                     context.call_site,
                 )
@@ -87,7 +90,7 @@ fn write_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
 
         let path = path.keep().map_err(|e| {
             function_call_failed(
-                "write_map",
+                FUNCTION_NAME,
                 format!("failed to keep temporary file: {e}"),
                 context.call_site,
             )
@@ -96,7 +99,7 @@ fn write_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
         Ok(
             PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
                 function_call_failed(
-                    "write_map",
+                    FUNCTION_NAME,
                     format!(
                         "path `{path}` cannot be represented as UTF-8",
                         path = Path::new(&path).display()

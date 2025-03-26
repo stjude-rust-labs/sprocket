@@ -25,6 +25,9 @@ use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "read_object";
+
 /// Reads a tab-separated value (TSV) file representing the names and values of
 /// the members of an Object.
 ///
@@ -56,7 +59,7 @@ fn read_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
             .await
             .map_err(|e| {
                 function_call_failed(
-                    "read_object",
+                    FUNCTION_NAME,
                     format!("failed to download file `{path}`: {e:?}"),
                     context.call_site,
                 )
@@ -69,7 +72,7 @@ fn read_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
 
         let read_error = |e: std::io::Error| {
             function_call_failed(
-                "read_object",
+                FUNCTION_NAME,
                 format!(
                     "failed to read file `{path}`: {e}",
                     path = cache_path.display()
@@ -80,7 +83,7 @@ fn read_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
 
         let expected_two_lines = || {
             function_call_failed(
-                "read_object",
+                FUNCTION_NAME,
                 format!("expected exactly two lines in file `{path}`"),
                 context.call_site,
             )
@@ -111,7 +114,7 @@ fn read_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
                 EitherOrBoth::Both(name, value) => {
                     if !is_ident(name) {
                         return Err(function_call_failed(
-                            "read_object",
+                            FUNCTION_NAME,
                             format!(
                                 "line 1 of file `{path}` contains invalid column name `{name}`: \
                                  column name must be a valid WDL identifier"
@@ -125,7 +128,7 @@ fn read_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
                         .is_some()
                     {
                         return Err(function_call_failed(
-                            "read_object",
+                            FUNCTION_NAME,
                             format!(
                                 "line 1 of file `{path}` contains duplicate column name `{name}`"
                             ),
@@ -135,7 +138,7 @@ fn read_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
                 }
                 EitherOrBoth::Left(_) | EitherOrBoth::Right(_) => {
                     return Err(function_call_failed(
-                        "read_object",
+                        FUNCTION_NAME,
                         format!(
                             "line 2 of file `{path}` does not contain the expected number of \
                              columns"

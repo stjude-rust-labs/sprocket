@@ -9,6 +9,9 @@ use super::Signature;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "select_first";
+
 /// Selects the first - i.e., left-most - non-None value from an Array of
 /// optional values.
 ///
@@ -29,7 +32,7 @@ fn select_first(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     if array.is_empty() {
         return Err(function_call_failed(
-            "select_first",
+            FUNCTION_NAME,
             "array is empty",
             context.arguments[0].span,
         ));
@@ -40,7 +43,7 @@ fn select_first(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         None => {
             if context.arguments.len() < 2 {
                 return Err(function_call_failed(
-                    "select_first",
+                    FUNCTION_NAME,
                     "array contains only `None` values",
                     context.arguments[0].span,
                 ));

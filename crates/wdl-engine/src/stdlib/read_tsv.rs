@@ -27,6 +27,9 @@ use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
+/// The name of the function defined in this file for use in diagnostics.
+const FUNCTION_NAME: &str = "read_tsv";
+
 /// Represents a header in a TSV (tab-separated value) file.
 enum TsvHeader {
     /// The header was explicitly specified as an `Array[String]`.
@@ -79,7 +82,7 @@ fn read_tsv_simple(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diag
             .await
             .map_err(|e| {
                 function_call_failed(
-                    "read_tsv",
+                    FUNCTION_NAME,
                     format!("failed to download file `{path}`: {e:?}"),
                     context.call_site,
                 )
@@ -92,7 +95,7 @@ fn read_tsv_simple(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diag
 
         let read_error = |e: std::io::Error| {
             function_call_failed(
-                "read_tsv",
+                FUNCTION_NAME,
                 format!(
                     "failed to read file `{path}`: {e}",
                     path = cache_path.display()
@@ -155,7 +158,7 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
             .await
             .map_err(|e| {
                 function_call_failed(
-                    "read_tsv",
+                    FUNCTION_NAME,
                     format!("failed to download file `{path}`: {e:?}"),
                     context.call_site,
                 )
@@ -168,7 +171,7 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
 
         let read_error = |e: std::io::Error| {
             function_call_failed(
-                "read_tsv",
+                FUNCTION_NAME,
                 format!(
                     "failed to read file `{path}`: {e}",
                     path = cache_path.display()
@@ -199,7 +202,7 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
             )
         } else if !file_has_header {
             return Err(function_call_failed(
-                "read_tsv",
+                FUNCTION_NAME,
                 "argument specifying presence of a file header must be `true`",
                 context.arguments[1].span,
             ));
@@ -219,7 +222,7 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
             !is_ident(c)
         }) {
             return Err(function_call_failed(
-                "read_tsv",
+                FUNCTION_NAME,
                 if context.arguments.len() == 2 {
                     format!(
                         "column name `{invalid}` in file `{path}` is not a valid WDL object field \
@@ -245,7 +248,7 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
                             .is_some()
                         {
                             return Err(function_call_failed(
-                                "read_tsv",
+                                FUNCTION_NAME,
                                 if context.arguments.len() == 2 {
                                     format!("duplicate column name `{c}` found in file `{path}`")
                                 } else {
@@ -257,7 +260,7 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
                     }
                     _ => {
                         return Err(function_call_failed(
-                            "read_tsv",
+                            FUNCTION_NAME,
                             format!(
                                 "line {i} in file `{path}` does not have the expected number of \
                                  columns"
