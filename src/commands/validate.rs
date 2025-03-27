@@ -19,7 +19,7 @@ pub struct ValidateInputsArgs {
     pub document: String,
 
     /// The path to the input JSON or YAML file.
-    #[arg(short, long, value_name = "JSON or YAML")]
+    #[arg(short, long, value_name = "INPUTS"]
     pub inputs: PathBuf,
 
     /// Disables color output.
