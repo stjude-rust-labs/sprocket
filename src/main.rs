@@ -43,6 +43,9 @@ enum Commands {
     /// It will not catch potential runtime errors that
     /// may occur when running the task or workflow.
     ValidateInputs(commands::validate::ValidateInputsArgs),
+
+    /// Generates an input JSON file from a WDL document.
+    Inputs(commands::inputs::InputsArgs),
 }
 
 #[derive(Parser)]
@@ -74,6 +77,7 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
         Commands::Format(args) => commands::format::format(args),
         Commands::ValidateInputs(args) => commands::validate::validate_inputs(args).await,
+        Commands::Inputs(args) => commands::inputs::generate_inputs(args).await,
     }
 }
 
