@@ -5,10 +5,10 @@ use std::path::PathBuf;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
-use wdl::cli::validate_inputs as wdl_validate_inputs;
-use tempfile::NamedTempFile;
-use std::io::Write;
 use serde_json::json;
+use std::io::Write;
+use tempfile::NamedTempFile;
+use wdl::cli::validate_inputs as wdl_validate_inputs;
 
 use crate::Mode;
 use crate::emit_diagnostics;
@@ -54,7 +54,7 @@ pub struct ValidateInputsArgs {
 /// This command supports both JSON and YAML input files.
 pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
     use crate::input;
-    
+
     // Start with empty JSON if no input file
     let mut json_value = if let Some(input_file) = args.input_file {
         let (_, json) = input::parse_input_file(&input_file)?;
@@ -65,14 +65,15 @@ pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
 
     // Parse and apply command line inputs
     if !args.inputs.is_empty() {
-        let inputs: Vec<CommandLineInput> = args.inputs
+        let inputs: Vec<CommandLineInput> = args
+            .inputs
             .iter()
             .map(|s| CommandLineInput::parse(s))
             .map(|r| r.map_err(anyhow::Error::from))
             .collect::<Result<_>>()?;
 
         json_value = input::command_line::apply_inputs(json_value, &inputs)?;
-        
+
         if args.verbose {
             println!("Final input JSON:");
             println!("{}", serde_json::to_string_pretty(&json_value)?);
