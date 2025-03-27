@@ -6,6 +6,7 @@ use anyhow::Context;
 use anyhow::bail;
 use clap::Parser;
 use url::Url;
+use wdl::ast::AstNode;
 use wdl::ast::Diagnostic;
 use wdl::ast::Severity;
 use wdl::cli::analyze;
@@ -176,7 +177,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                     }
                 }),
                 &uri,
-                &result.document().node().syntax().text().to_string(),
+                &result.document().root().inner().text().to_string(),
                 args.common.report_mode,
                 args.common.no_color,
             );
