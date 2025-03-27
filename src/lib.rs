@@ -19,6 +19,7 @@ use codespan_reporting::term::termcolor::StandardStream;
 use wdl::ast::Diagnostic;
 
 pub mod commands;
+pub mod input;
 
 /// Configuration for full display style.
 static FULL_CONFIG: LazyLock<Config> = LazyLock::new(|| Config {
