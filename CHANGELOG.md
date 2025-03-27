@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* YAML support for `validate-inputs` command ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)).
+
 ### Changed
 
+* Updated WDL crates to latest ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)).
 * By deafult, when checking a local file, suppress diagnostics from remote files. Added a `--show-remote-diagnostics`
   flag to recreate the older behavior ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).
 * Always emit any diagnostics with a `Severity::Error` regardless of other CL options that might suppress the diagnostic

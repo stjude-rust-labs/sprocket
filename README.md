@@ -36,7 +36,7 @@
 - **`sprocket format`** Formats WDL documents.
 - **`sprocket lint`** Performs static analysis on WDL documents with additional
   linting rules enabled.
-- **`sprocket validate-inputs`** Validates an input JSON against a task or workflow input schema.
+- **`sprocket validate-inputs`** Validates an input JSON or YAML against a task or workflow input schema.
 
 ## Guiding Principles
 
