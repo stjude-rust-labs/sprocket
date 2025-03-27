@@ -11,6 +11,7 @@ use url::Url;
 use wdl::analysis::document::Document;
 use wdl::analysis::document::Input;
 use wdl::analysis::path_to_uri;
+use wdl::analysis::types::Optional;
 use wdl::analysis::types::Type;
 use wdl::ast::AstToken;
 use wdl::ast::Diagnostic;
@@ -50,6 +51,11 @@ pub struct InputsArgs {
     #[clap(value_name = "hide expressions", short = 'E')]
     /// Hide inputs with non-literal default values
     pub hide_expressions: bool,
+
+    #[arg(short, long)]
+    #[clap(value_name = "only required", short = 'R')]
+    /// Only include required inputs
+    pub only_required: bool,
 }
 
 /// Generate input JSON from a WDL document
@@ -76,28 +82,56 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         anyhow::bail!("Failed to parse WDL document: {:?}", diagnostics);
     }
 
-    let (input_defaults, literal_defaults) = collect_all_input_info(document);
-    // Collect all input information in a single visit of the AST
+    let (input_defaults, literal_defaults, default_expressions) = collect_all_input_info(document);
     let mut template = serde_json::Map::new();
 
     // Collect inputs and their parent information
     let inputs_with_parents = collect_inputs_with_parents(&args, document)?;
 
     for (parent_name, name, input) in inputs_with_parents {
-        // Skip if hide_defaults is true and input has any default
-        if args.hide_defaults && input_defaults.get(name).copied().unwrap_or(false) {
-            continue;
-        }
-
-        // Skip if hide_expressions is true and input has non-literal default
-        if args.hide_expressions && !literal_defaults.get(name).copied().unwrap_or(false) {
-            continue;
-        }
-
         let v: &wdl::analysis::types::Type = input.ty();
         let key = format!("{}.{}", parent_name, name);
-        let value = type_to_json(v);
-        template.insert(key, value);
+        
+        let is_required = !input.ty().is_optional();
+        let has_default = input_defaults.get(name).copied().unwrap_or(false);
+        let is_literal_default = literal_defaults.get(name).copied().unwrap_or(false);
+        
+        // Required inputs are always rendered
+        if is_required {
+            let type_str = type_to_string(v);
+            template.insert(key, Value::String(type_str));
+            continue;
+        }
+        
+        // Optional inputs behavior
+        if args.only_required {
+            // Skip optional inputs if only-required is set
+            continue;
+        }
+        
+        if has_default {
+            if is_literal_default {
+                // For literal defaults, parse and use the actual value
+                // Skip if --only-required is provided (already checked above)
+                if let Some(expr_str) = default_expressions.get(name) {
+                    let literal_value = parse_literal_expression(expr_str);
+                    template.insert(key, literal_value);
+                }
+            } else {
+                // For complex expressions
+                if !args.hide_expressions {
+                    // Format as "<WDL type> default: <parsed expression>"
+                    if let Some(expr_str) = default_expressions.get(name) {
+                        let type_str = type_to_string(v);
+                        let value_str = format!("{} default: {}", type_str, expr_str);
+                        template.insert(key, Value::String(value_str));
+                    }
+                }
+            }
+        } else {
+            // Optional inputs with no default expression get null
+            template.insert(key, Value::Null);
+        }
     }
 
     let json_output = serde_json::to_string_pretty(&template)?;
@@ -112,71 +146,62 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
 }
 
 /// Collects all input information in a single pass through the AST
-fn collect_all_input_info(document: &Document) -> (IndexMap<String, bool>, IndexMap<String, bool>) {
+fn collect_all_input_info(document: &Document) -> (IndexMap<String, bool>, IndexMap<String, bool>, IndexMap<String, String>) {
     let ast_doc: AstDocument = document.node();
 
     let mut input_defaults: IndexMap<String, bool> = IndexMap::new();
     let mut literal_defaults: IndexMap<String, bool> = IndexMap::new();
+    let mut default_values: IndexMap<String, String> = IndexMap::new();
 
     // Process workflows
     for workflow in ast_doc.ast().unwrap_v1().workflows() {
         if let Some(input) = workflow.input() {
-            let workflow_literal_defaults: IndexMap<String, bool> = input
-                .declarations()
-                .map(|decl| {
-                    let name = decl.name().as_str().to_string();
-                    let default = decl.expr().is_some();
-                    (name, default)
-                })
-                .collect();
-
-            // Copy values to the function-level maps
-            literal_defaults.extend(workflow_literal_defaults);
-
-            let workflow_input_defaults: IndexMap<String, bool> = input
-                .declarations()
-                .map(|decl| {
-                    let name = decl.name().as_str().to_string();
-                    // ? should we check if the default is a literal here too?
-                    let default = decl.ty().is_optional();
-                    (name, default)
-                })
-                .collect();
-
-            input_defaults.extend(workflow_input_defaults);
+            for decl in input.declarations() {
+                let name = decl.name().as_str().to_string();
+                
+                // Track if it has a default
+                let has_default = decl.expr().is_some();
+                input_defaults.insert(name.clone(), has_default);
+                
+                // Check if the default is a literal and store the expression
+                if let Some(expr) = decl.expr() {
+                    let is_literal = matches!(expr, wdl::ast::v1::Expr::Literal(_));
+                    literal_defaults.insert(name.clone(), is_literal);
+                    
+                    // Store the default expression as a string
+                    default_values.insert(name, expr.syntax().to_string());
+                } else {
+                    literal_defaults.insert(name, false);
+                }
+            }
         }
     }
 
     // Process tasks
     for task in ast_doc.ast().unwrap_v1().tasks() {
         if let Some(input) = task.input() {
-            let task_literal_defaults: IndexMap<String, bool> = input
-                .declarations()
-                .map(|decl| {
-                    let name = decl.name().as_str().to_string();
-                    let default = decl.expr().is_some();
-                    (name, default)
-                })
-                .collect();
-
-            literal_defaults.extend(task_literal_defaults);
-
-            let task_input_defaults: IndexMap<String, bool> = input
-                .declarations()
-                .map(|decl| {
-                    let name = decl.name().as_str().to_string();
-                    let default = decl.ty().is_optional();
-                    (name, default)
-                })
-                .collect();
-
-            input_defaults.extend(task_input_defaults);
+            for decl in input.declarations() {
+                let name = decl.name().as_str().to_string();
+                
+                // Track if it has a default
+                let has_default = decl.expr().is_some();
+                input_defaults.insert(name.clone(), has_default);
+                
+                // Check if the default is a literal and store the expression
+                if let Some(expr) = decl.expr() {
+                    let is_literal = matches!(expr, wdl::ast::v1::Expr::Literal(_));
+                    literal_defaults.insert(name.clone(), is_literal);
+                    
+                    // Store the default expression as a string
+                    default_values.insert(name, expr.syntax().to_string());
+                } else {
+                    literal_defaults.insert(name, false);
+                }
+            }
         }
     }
 
-    println!("input_defaults: {:?}", input_defaults);
-    println!("literal_defaults: {:?}", literal_defaults);
-    (input_defaults, literal_defaults)
+    (input_defaults, literal_defaults, default_values)
 }
 
 /// Converts a WDL type to its JSON representation
@@ -207,6 +232,11 @@ fn collect_inputs_with_parents<'a>(
     if let Some(name) = &args.name {
         // Specific task or workflow requested
         if let Some(task) = document.task_by_name(name) {
+            // Error if nested-inputs is used with a task
+            if args.nested_inputs {
+                anyhow::bail!("--nested-inputs is only valid for workflows, not tasks");
+            }
+            
             for (input_name, input) in task.inputs() {
                 result.push((task.name(), input_name, input));
             }
@@ -254,6 +284,11 @@ fn collect_inputs_with_parents<'a>(
                 0 => anyhow::bail!("No workflow or tasks found in document"),
                 1 => {
                     let task = &tasks[0];
+                    // Error if nested-inputs is used with a task
+                    if args.nested_inputs {
+                        anyhow::bail!("--nested-inputs is only valid for workflows, not tasks");
+                    }
+                    
                     for (input_name, input) in task.inputs() {
                         result.push((task.name(), input_name.as_str(), input));
                     }
@@ -267,4 +302,48 @@ fn collect_inputs_with_parents<'a>(
     }
 
     Ok(result)
+}
+
+/// Convert a WDL type to a string representation
+fn type_to_string(ty: &Type) -> String {
+    match ty {
+        Type::Primitive(ty, is_optional) => {
+            let type_str = match ty {
+                wdl::analysis::types::PrimitiveType::Boolean => "Boolean",
+                wdl::analysis::types::PrimitiveType::Integer => "Integer",
+                wdl::analysis::types::PrimitiveType::Float => "Float",
+                wdl::analysis::types::PrimitiveType::String => "String",
+                wdl::analysis::types::PrimitiveType::File => "File",
+                wdl::analysis::types::PrimitiveType::Directory => "Directory",
+            };
+            type_str.to_string()
+        },
+        _ => "Unknown".to_string(),
+    }
+}
+
+/// Parse a literal expression string into a JSON value
+fn parse_literal_expression(expr_str: &str) -> Value {
+    // Basic parsing for common literal types
+    if expr_str == "true" {
+        Value::Bool(true)
+    } else if expr_str == "false" {
+        Value::Bool(false)
+    } else if let Ok(num) = expr_str.parse::<i64>() {
+        Value::Number(num.into())
+    } else if let Ok(num) = expr_str.parse::<f64>() {
+        // This is approximate since serde_json::Number doesn't have a simple from_f64
+        if let Some(num_value) = serde_json::Number::from_f64(num) {
+            Value::Number(num_value)
+        } else {
+            Value::String(expr_str.to_string())
+        }
+    } else {
+        // Handle string literals by removing quotes
+        if expr_str.starts_with('"') && expr_str.ends_with('"') && expr_str.len() >= 2 {
+            Value::String(expr_str[1..expr_str.len()-1].to_string())
+        } else {
+            Value::String(expr_str.to_string())
+        }
+    }
 }
