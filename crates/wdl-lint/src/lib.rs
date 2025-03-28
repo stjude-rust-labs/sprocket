@@ -1,5 +1,7 @@
 //! Lint rules for Workflow Description Language (WDL) documents.
 #![doc = include_str!("../RULES.md")]
+//! # Definitions
+#![doc = include_str!("../DEFINITIONS.md")]
 //! # Examples
 //!
 //! An example of parsing a WDL document and linting it:
@@ -42,6 +44,9 @@ mod visitor;
 pub use tags::*;
 pub use visitor::*;
 pub use wdl_ast as ast;
+
+/// The definitions of WDL concepts and terminology used in the linting rules.
+pub const DEFINITIONS_TEXT: &str = include_str!("../DEFINITIONS.md");
 
 /// The reserved rule identifiers that are used by analysis.
 pub const RESERVED_RULE_IDS: &[&str] = &[

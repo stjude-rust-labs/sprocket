@@ -120,32 +120,29 @@ impl Rule for PreambleFormattingRule {
          the version declaration statement itself. Only comments and whitespace are permitted \
          before the version declaration.
 
-         All comments in the preamble should conform to one of two special formats:
+         All comments in the preamble should conform to one of two special formats: lint \
+         directives or preamble comments.
 
-            1. \"lint directives\" are special comments that begin with `#@ except:` followed by a \
-         comma-delimited list of rule IDs. These comments are used to disable specific lint rules \
-         for a specific section of the document. When a lint directive is encountered in the \
-         preamble, it will disable the specified rules for the entire document.
-            2. double-pound-sign comments (beginning with `##`) are special comments that are used \
-         for documentation that doesn't fit within any of the WDL-defined documentation elements \
-         (i.e. `meta` and `parameter_meta` sections). These comments may provide context for a \
-         collection of tasks or structs, or they may provide a high-level overview of the \
-         workflow. We refer to these special double-pound-sign comments as \"preamble comments\". \
-         Lint directives are not considered preamble comments.
+         This rule enforces the following formatting requirements:
 
-         Both of these comments are expected to be full line comments (i.e. they should not have \
-         any whitespace before the comment).  If lint directives are present, they should be the \
-         absolute beginning of the document. Multiple lint directives are permitted, but they \
-         should not be interleaved with preamble comments or blank lines.
-
-         A space should follow the double-pound-sign if there is any text within the preamble \
-         comment. \"Empty\" preamble comments are permitted and should not have any whitespace \
-         following the `##`. Comments beginning with 3 or more pound signs before the version \
-         declaration are not permitted. All preamble comments should be in a single block without \
-         blank lines. Following this block, there should always be a blank line before the version \
-         statement.
-
-         Both lint directives and preamble comments are optional, and if they are not present, \
+         1. Comments in the preamble should be full line comments (no whitespace before the \
+         comment).
+         2. If lint directives are present, they should be at the absolute beginning of the \
+         document.
+         3. Multiple lint directives are permitted, but they should not be interleaved with \
+         preamble comments or blank lines.
+         4. A space should follow the double-pound-sign (`##`) if there is any text within the \
+         preamble comment.
+         5. \"Empty\" preamble comments (`##`) are permitted and should not have any whitespace \
+         following the `##`.
+         6. Comments beginning with 3 or more pound signs before the version declaration are not \
+         permitted.
+         7. All preamble comments should be in a single block without blank lines.
+         8. Following the preamble comment block, there should always be a blank line before the \
+         version statement.
+         9. When transitioning from lint directives to preamble comments, there should be exactly \
+         one blank line.
+         10. Both lint directives and preamble comments are optional, and if they are not present, \
          there should be no comments or whitespace before the version declaration."
     }
 

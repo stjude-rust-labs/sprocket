@@ -85,10 +85,10 @@ impl Rule for MalformedLintDirectiveRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Comments which begin with `#@` must only contain valid lint directives. Lint directives \
-         must be on their own line, only preceded by whitespace. Lint directives should follow the \
-         pattern `#@ <directive>: <value>` _exactly_. Currently the only accepted lint directive \
-         is `except`. For example, `#@ except: MalformedLintDirective`."
+        "This rule checks that lint directives are properly formatted.\nLint directives must be on \
+         their own line, only preceded by whitespace. They should follow the pattern `#@ \
+         <directive>: <value>` _exactly_. Currently the only accepted lint directive is `except`. \
+         For example, `#@ except: MalformedLintDirective`."
     }
 
     fn tags(&self) -> TagSet {
