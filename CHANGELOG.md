@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * YAML support for `validate-inputs` command ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)).
+* Added `--tag [TAG]` flag to `explain` command to list all the rules with that `TAG` ([#80](https://github.com/stjude-rust-labs/sprocket/pull/80)).
+* Show related rules in the `explain` command ([#80](https://github.com/stjude-rust-labs/sprocket/pull/80)).
 
 ### Changed
 
