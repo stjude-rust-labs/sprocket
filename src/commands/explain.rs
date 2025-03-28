@@ -32,7 +32,7 @@ fn generate_after_help() -> String {
     format!("{}\n\n{}", list_all_rules(), list_all_tags())
 }
 
-/// Lists all rules as a string for displaying after CLI help.
+/// Lists all rules as a string for displaying.
 pub fn list_all_rules() -> String {
     let mut result = "Available rules:".to_owned();
     let analysis_rules = analysis::rules();
@@ -171,6 +171,6 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
 
         Ok(())
     } else {
-        bail!("Invalid arguments: either a rule_name or a tag must be provided");
+        bail!("Invalid arguments: either a rule_name, a --tag, or --definitions must be provided");
     }
 }
