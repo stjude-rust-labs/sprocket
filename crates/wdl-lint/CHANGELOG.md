@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added `DisallowedDeclarationName` rule ([#343](https://github.com/stjude-rust-labs/wdl/pull/343)).
 * Added `DEFINITIONS.md` file with centralized documentation for WDL concepts ([#195](https://github.com/stjude-rust-labs/wdl/pull/195)).
 * Added `Rule::related_rules()` for linking related lint rules ([#371](https://github.com/stjude-rust-labs/wdl/pull/371)).
+* Added `TryFrom` for Tags to convert strings to Tag enums ([#374](https://github.com/stjude-rust-labs/wdl/pull/374)).
 
 ### Changed
 
