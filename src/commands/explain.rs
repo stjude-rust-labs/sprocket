@@ -119,7 +119,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
     };
 
     if let Some(tag) = args.tag {
-        let target: Tag = tag.as_str().try_into().map_err(|_| {
+        let target = tag.parse::<Tag>().map_err(|_| {
             println!("{}\n", list_all_tags());
             anyhow!("Invalid tag '{}'", tag)
         })?;
