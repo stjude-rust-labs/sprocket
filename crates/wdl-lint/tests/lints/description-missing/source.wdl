@@ -25,12 +25,12 @@ workflow bar {
 }
 
 struct Baz {
-    String x
-
     meta {
     }
 
     parameter_meta {
         x: "foo"
     }
+
+    String x
 }

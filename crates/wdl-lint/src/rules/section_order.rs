@@ -11,6 +11,8 @@ use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::v1::StructDefinition;
+use wdl_ast::v1::StructItem;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskItem;
 use wdl_ast::v1::WorkflowDefinition;
@@ -50,6 +52,15 @@ fn task_section_order(span: Span, name: &str, problem_span: Span) -> Diagnostic 
         )
 }
 
+/// Create a struct section order diagnostic.
+fn struct_section_order(span: Span, name: &str, problem_span: Span) -> Diagnostic {
+    Diagnostic::note(format!("sections are not in order for struct `{name}`"))
+        .with_rule(ID)
+        .with_label("this struct contains sections that are out of order", span)
+        .with_label("this section is out of order", problem_span)
+        .with_fix("order as `meta`, `parameter_meta`, members")
+}
+
 /// Detects section ordering issues.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct SectionOrderingRule;
@@ -68,7 +79,10 @@ impl Rule for SectionOrderingRule {
          parameter_meta, input, (body), output. \"(body)\" represents all calls and declarations.
 
         For tasks, if present, the following sections must be in this order: meta, parameter_meta, \
-         input, (private declarations), command, output, runtime, requirements, hints."
+         input, (private declarations), command, output, runtime, requirements, hints.
+
+        For structs, if present, the following sections must be in this order: meta, \
+         parameter_meta, members."
     }
 
     fn tags(&self) -> TagSet {
@@ -80,6 +94,7 @@ impl Rule for SectionOrderingRule {
             SyntaxKind::VersionStatementNode,
             SyntaxKind::TaskDefinitionNode,
             SyntaxKind::WorkflowDefinitionNode,
+            SyntaxKind::StructDefinitionNode,
         ])
     }
 }
@@ -236,6 +251,48 @@ impl Visitor for SectionOrderingRule {
                                 .into(),
                         ),
                         SyntaxElement::from(workflow.inner().clone()),
+                        &self.exceptable_nodes(),
+                    );
+                    break;
+                }
+            }
+        }
+    }
+
+    fn struct_definition(
+        &mut self,
+        state: &mut Self::State,
+        reason: VisitReason,
+        struct_def: &StructDefinition,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let mut encountered = State::Start;
+        for item in struct_def.items() {
+            match item {
+                StructItem::Metadata(_) if encountered <= State::Meta => {
+                    encountered = State::Meta;
+                }
+                StructItem::ParameterMetadata(_) if encountered <= State::ParameterMeta => {
+                    encountered = State::ParameterMeta;
+                }
+                StructItem::Member(_) if encountered <= State::Decl => {
+                    encountered = State::Decl;
+                }
+                _ => {
+                    state.exceptable_add(
+                        struct_section_order(
+                            struct_def.name().span(),
+                            struct_def.name().text(),
+                            item.inner()
+                                .first_token()
+                                .expect("struct item should have tokens")
+                                .text_range()
+                                .into(),
+                        ),
+                        SyntaxElement::from(struct_def.inner().clone()),
                         &self.exceptable_nodes(),
                     );
                     break;

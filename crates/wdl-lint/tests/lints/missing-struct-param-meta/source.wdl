@@ -3,9 +3,9 @@
 version 1.2
 
 struct Test {
-    String x
-
     meta {
         description: "foo"
     }
+
+    String x
 }

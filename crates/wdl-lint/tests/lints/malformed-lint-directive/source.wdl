@@ -31,14 +31,14 @@ workflow bar {
 }
 
 struct Baz {  #@ except: this should be flagged for being inlined
-    String x
-
     meta {
     }
 
     parameter_meta {
         x: "foo"
     }
+
+    String x
 }
 
 workflow bar2 {

@@ -33,3 +33,29 @@ task qux {
     command <<<>>>
     output {}
 }
+
+struct Quux {
+    meta {}
+    parameter_meta {
+        x: "an integer"
+    }
+    Int x
+}
+
+struct Corge {
+    parameter_meta {
+        x: "an integer"
+    }
+    meta {}
+    Int x
+}
+
+struct Grault {
+    Int x
+    meta {}
+    parameter_meta {
+        x: "an integer"
+        y: "an integer"
+    }
+    Int y
+}
