@@ -11,6 +11,7 @@ use wdl::analysis;
 use wdl::lint;
 use wdl::lint::Tag;
 
+/// Usage string for the `explain` subcommand.
 const USAGE: &str = "sprocket explain [RULE_NAME]
     sprocket explain --tag <TAG>
     sprocket explain --definitions";
@@ -74,7 +75,7 @@ pub fn list_all_tags() -> String {
     }
 
     let mut tags: Vec<Tag> = tags.into_iter().collect();
-    tags.sort_unstable_by(|a, b| a.to_string().cmp(&b.to_string()));
+    tags.sort_by_key(|tag| tag.to_string());
 
     for tag in tags {
         result.push_str(&format!("\n  - {}", tag));
@@ -101,7 +102,7 @@ pub fn pretty_print_lint_rule(rule: &dyn lint::Rule) {
     if !related.is_empty() {
         println!("\n{}", "Related Rules:".bold());
         let mut sorted_related = related.iter().collect::<Vec<_>>();
-        sorted_related.sort_unstable_by(|a, b| a.cmp(b));
+        sorted_related.sort();
         sorted_related.iter().for_each(|rule| {
             println!("  - {}", rule.cyan());
         });
@@ -139,7 +140,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
         } else {
             println!("Rules with the tag `{}`:", tag);
             let mut rule_ids = rules.iter().map(|rule| rule.id()).collect::<Vec<_>>();
-            rule_ids.sort_unstable_by(|a, b| a.cmp(b));
+            rule_ids.sort();
             for id in rule_ids {
                 println!("  - {}", id);
             }
