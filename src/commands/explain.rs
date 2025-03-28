@@ -16,12 +16,16 @@ use wdl::lint::Tag;
 #[command(author, version, about, after_help = generate_after_help())]
 pub struct Args {
     /// The name of the rule to explain.
-    #[arg(required_unless_present = "tag", value_name = "RULE_NAME")]
+    #[arg(required_unless_present_any = ["tag", "definitions"], value_name = "RULE_NAME")]
     pub rule_name: Option<String>,
 
     /// List all rules with the given tag.
-    #[arg(short, long, value_name = "TAG", conflicts_with = "rule_name")]
+    #[arg(short, long, value_name = "TAG", conflicts_with_all = ["rule_name", "definitions"])]
     pub tag: Option<String>,
+
+    /// Display general WDL definitions.
+    #[arg(long, conflicts_with_all = ["rule_name", "tag"])]
+    pub definitions: bool,
 }
 
 fn generate_after_help() -> String {
@@ -109,6 +113,11 @@ pub fn pretty_print_analysis_rule(rule: &dyn analysis::Rule) {
 
 /// Explains a lint rule.
 pub fn explain(args: Args) -> anyhow::Result<()> {
+    if args.definitions {
+        println!("{}", lint::DEFINITIONS_TEXT);
+        return Ok(());
+    };
+
     if let Some(tag) = args.tag {
         let target: Tag = tag.as_str().try_into().map_err(|_| {
             println!("{}\n", list_all_tags());
