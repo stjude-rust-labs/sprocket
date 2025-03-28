@@ -44,11 +44,11 @@ impl std::fmt::Display for UnknownTagError {
 
 impl std::error::Error for UnknownTagError {}
 
-impl std::convert::TryFrom<&str> for Tag {
-    type Error = UnknownTagError;
+impl std::str::FromStr for Tag {
+    type Err = UnknownTagError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
             s if s.eq_ignore_ascii_case("completeness") => Ok(Self::Completeness),
             s if s.eq_ignore_ascii_case("naming") => Ok(Self::Naming),
             s if s.eq_ignore_ascii_case("spacing") => Ok(Self::Spacing),
@@ -58,7 +58,7 @@ impl std::convert::TryFrom<&str> for Tag {
             s if s.eq_ignore_ascii_case("correctness") => Ok(Self::Correctness),
             s if s.eq_ignore_ascii_case("sorting") => Ok(Self::Sorting),
             s if s.eq_ignore_ascii_case("deprecated") => Ok(Self::Deprecated),
-            _ => Err(UnknownTagError(value.to_string())),
+            _ => Err(UnknownTagError(s.to_string())),
         }
     }
 }

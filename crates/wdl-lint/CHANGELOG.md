@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Relaxed `CommentWhitespace` rule so that it doesn't fire when a comment has extra spaces before it ([#314](https://github.com/stjude-rust-labs/wdl/pull/314)).
 * `fix` messages suggest the correct order of imports to the user in `ImportSort` rule ([#332](https://github.com/stjude-rust-labs/wdl/pull/332)).
 * Updated `SectionOrdering` to support ordering of `struct` definitions ([#367](https://github.com/stjude-rust-labs/wdl/pull/367)
+* Replaced `TryFrom` with `FromStr` for Tags ([#376](https://github.com/stjude-rust-labs/wdl/pull/376)).
 
 ### Fixed
 
