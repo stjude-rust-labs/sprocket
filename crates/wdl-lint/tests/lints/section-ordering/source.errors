@@ -40,7 +40,7 @@ note[SectionOrdering]: sections are not in order for struct `Corge`
 49 │     meta {}
    │     ---- this section is out of order
    │
-   = fix: order as `meta`, `parameter_meta`, `members`
+   = fix: order as `meta`, `parameter_meta`, members
 
 note[SectionOrdering]: sections are not in order for struct `Grault`
    ┌─ tests/lints/section-ordering/source.wdl:53:8
@@ -51,5 +51,5 @@ note[SectionOrdering]: sections are not in order for struct `Grault`
 55 │     meta {}
    │     ---- this section is out of order
    │
-   = fix: order as `meta`, `parameter_meta`, `members`
+   = fix: order as `meta`, `parameter_meta`, members
 

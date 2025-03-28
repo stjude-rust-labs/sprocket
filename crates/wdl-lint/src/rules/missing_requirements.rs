@@ -69,6 +69,17 @@ impl Rule for MissingRequirementsRule {
             SyntaxKind::TaskDefinitionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[
+            "RuntimeSectionKeys",
+            "DescriptionMissing",
+            "MatchingParameterMeta",
+            "MissingMetas",
+            "MissingOutput",
+            "NonmatchingOutput",
+        ]
+    }
 }
 
 impl Visitor for MissingRequirementsRule {

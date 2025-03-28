@@ -56,6 +56,16 @@ impl Rule for MissingRuntimeRule {
             SyntaxKind::TaskDefinitionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[
+            "DescriptionMissing",
+            "MatchingParameterMeta",
+            "MissingMetas",
+            "MissingOutput",
+            "NonmatchingOutput",
+        ]
+    }
 }
 
 impl Visitor for MissingRuntimeRule {

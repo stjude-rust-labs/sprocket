@@ -76,6 +76,10 @@ impl Rule for WhitespaceRule {
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
         None
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for WhitespaceRule {

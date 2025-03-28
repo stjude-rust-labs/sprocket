@@ -157,29 +157,29 @@ impl Rule for ExpressionSpacingRule {
     fn explanation(&self) -> &'static str {
         "Proper spacing is important for readability and consistency. This rule ensures that \
          expressions are spaced properly.
-         
+
          The following tokens should be surrounded by whitespace when used as an infix: `=`, `==`, \
          `!=`, `&&`, `||`, `<`, `<=`, `>`, `>=`, `+`, `-`, `*`, `/`, and `%`.
-         
+
          The following tokens should not be followed by whitespace when used as a prefix: `-`, and \
          `!`.
-         
+
          Opening brackets (`(`, `[`, and `{`) should not be followed by a space, but may be \
          followed by a newline. Closing brackets (`)`, `]`, and `}`) should not be preceded by a \
          space, but may be preceded by a newline.
-         
+
          Sometimes a long expression will exceed the maximum line width. In these cases, one or \
          more linebreaks must be introduced. Line continuations should be indented one more level \
          than the beginning of the expression. There should never be more than one level of \
          indentation change per-line.
-         
+
          If bracketed content (things between `()`, `[]`, or `{}`) must be split onto multiple \
          lines, a newline should follow the opening bracket, the contents should be indented an \
          additional level, then the closing bracket should be de-indented to match the indentation \
          of the opening bracket. If you are line splitting an expression on an infix operator, the \
          operator and at least the beginning of the RHS operand should be on the continued line. \
          (i.e. an operator should not be on a line by itself.)
-         
+
          If you are using the `if...then...else...` construct as part of your expression and it \
          needs to be line split, the entire construct should be wrapped in parentheses (`()`). The \
          opening parenthesis should be immediately followed by a newline. `if`, `then`, and `else` \
@@ -188,7 +188,7 @@ impl Rule for ExpressionSpacingRule {
          parenthesis. If you are using the `if...then...else...` construct on one line, it does \
          not need to be wrapped in parentheses. However, if any of the 3 clauses are more complex \
          than a single identifier, they should be wrapped in parentheses.
-         
+
          Sometimes a developer will choose to line split an expression despite it being able to \
          all fit on one line that is <=90 characters wide. That is perfectly acceptable. There is \
          'wiggle' room allowed by the above rules. This is intentional, and allows developers to \
@@ -201,6 +201,10 @@ impl Rule for ExpressionSpacingRule {
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
         None
+    }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &["LineWidth"]
     }
 }
 

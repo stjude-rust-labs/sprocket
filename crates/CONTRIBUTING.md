@@ -79,7 +79,9 @@ There are a handful of reasons the CI may have turned red. Try the following fix
     - while reviewing, ask yourself if the printed diagnostics are clear and informative
 5. consider which nodes should be "exceptable" for this rule
     - See "[How should I decide which nodes to add to `exceptable_nodes()`?](#how-should-i-decide-which-nodes-to-add-to-exceptable_nodes)" for more information on this process
-5. repeat
+6. consider if your new rule relates to existing ones and implement the `related_rules()` method accordingly.
+    - See "[How should i decide which rules to link using related_rules()?](#how-should-i-decide-which-rules-to-link-using-related_rules)" for detailed guidance.
+7. repeat
 
 ### Can you explain how rules use `exceptable_nodes()` and `exceptable_add()`?
 
@@ -99,11 +101,21 @@ Minimal: We want to have as few exceptable nodes as possible for each rule, whil
 
 Comprehensive: Try to cover as many _unique_ sets of potential diagnostics as possible with the nodes returned by `exceptable_nodes()`. An individual diagnostic should be able to targeted by a lint directive, and so should any unique group of diagnostics.
 
+### How should I decide which rules to link using `related_rules()`?
+
+When deciding which rules should link to which other rules, please consider these criteria:
+
+- If diagnostic `X` is likely to co-occur with diagnostic `Y` within the same lint pass (addressing them often happens together):
+    - rule `X` should implement `related_rules` to include `Y`'s ID, and rule `Y` should implement it to include `X`'s ID.
+- If correcting diagnostic `X` naively (without considering other rules) is likely to result in diagnostic `Y` being emitted in a subsequent lint pass:
+    - rule `X` should implement `related_rules` to include `Y`'s ID, but rule `Y` should _not_ link back to rule `X` in this case, as the user fixing `Y` isn't necessarily led back to the context of `X`.
+
 ## Further reading
 
 * `exceptable_add()` defined [here](https://github.com/stjude-rust-labs/wdl/blob/wdl-v0.8.0/wdl-ast/src/validation.rs#L50).
 * See [here](https://docs.rs/wdl/latest/wdl/grammar/type.SyntaxNode.html) for the `SyntaxNode` docs.
 * The PR which introduced `exceptable_nodes()` and `exceptable_add()` is [#162](https://github.com/stjude-rust-labs/wdl/pull/162).
 * That PR fixed issue [#135](https://github.com/stjude-rust-labs/wdl/issues/135)
+* The PR which introduced `related_rules()` is [#371](https://github.com/stjude-rust-labs/wdl/pull/371)
 
 [issues]: https://github.com/stjude-rust-labs/wdl/issues

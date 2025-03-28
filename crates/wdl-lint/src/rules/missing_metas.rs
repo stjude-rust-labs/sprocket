@@ -123,6 +123,17 @@ impl Rule for MissingMetasRule {
             SyntaxKind::StructDefinitionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[
+            "DescriptionMissing",
+            "MatchingParameterMeta",
+            "MissingOutput",
+            "MissingRequirements",
+            "MissingRuntime",
+            "NonmatchingOutput",
+        ]
+    }
 }
 
 impl Visitor for MissingMetasRule {

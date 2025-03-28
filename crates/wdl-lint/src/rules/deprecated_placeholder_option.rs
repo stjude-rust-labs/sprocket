@@ -99,6 +99,10 @@ impl Rule for DeprecatedPlaceholderOptionRule {
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Deprecated])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &["DeprecatedObject", "RuntimeSectionKeys"]
+    }
 }
 
 impl Visitor for DeprecatedPlaceholderOptionRule {

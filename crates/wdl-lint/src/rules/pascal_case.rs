@@ -59,6 +59,10 @@ impl Rule for PascalCaseRule {
             SyntaxKind::StructDefinitionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &["SnakeCase"]
+    }
 }
 
 /// Checks if the given name is pascal case, and if not adds a warning to the

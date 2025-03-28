@@ -65,6 +65,10 @@ impl Rule for DisallowedDeclarationNameRule {
             SyntaxKind::WorkflowDefinitionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &["DisallowedInputName", "DisallowedOutputName"]
+    }
 }
 
 impl Visitor for DisallowedDeclarationNameRule {

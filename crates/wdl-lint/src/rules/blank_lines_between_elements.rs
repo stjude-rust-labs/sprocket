@@ -121,6 +121,10 @@ impl Rule for BlankLinesBetweenElementsRule {
             SyntaxKind::CommandSectionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for BlankLinesBetweenElementsRule {

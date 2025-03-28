@@ -64,6 +64,10 @@ impl Rule for ImportSortRule {
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
         Some(&[SyntaxKind::VersionStatementNode])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for ImportSortRule {

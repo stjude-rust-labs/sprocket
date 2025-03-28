@@ -98,6 +98,10 @@ impl Rule for MalformedLintDirectiveRule {
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
         None
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for MalformedLintDirectiveRule {

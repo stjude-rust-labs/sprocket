@@ -81,6 +81,16 @@ impl Rule for MissingOutputRule {
             SyntaxKind::WorkflowDefinitionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[
+            "DescriptionMissing",
+            "MatchingParameterMeta",
+            "MissingRequirements",
+            "MissingRuntime",
+            "NonmatchingOutput",
+        ]
+    }
 }
 
 impl Visitor for MissingOutputRule {

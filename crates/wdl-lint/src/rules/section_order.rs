@@ -97,6 +97,10 @@ impl Rule for SectionOrderingRule {
             SyntaxKind::StructDefinitionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 /// Track the encountered sections.

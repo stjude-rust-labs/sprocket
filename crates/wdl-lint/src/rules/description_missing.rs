@@ -74,6 +74,16 @@ impl Rule for DescriptionMissingRule {
             SyntaxKind::MetadataSectionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[
+            "MatchingParameterMeta",
+            "MissingOutput",
+            "MissingRequirements",
+            "MissingRuntime",
+            "NonmatchingOutput",
+        ]
+    }
 }
 
 impl Visitor for DescriptionMissingRule {

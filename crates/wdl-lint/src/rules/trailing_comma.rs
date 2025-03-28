@@ -79,6 +79,10 @@ impl Rule for TrailingCommaRule {
             SyntaxKind::LiteralObjectNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for TrailingCommaRule {

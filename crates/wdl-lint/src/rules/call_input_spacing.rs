@@ -85,6 +85,10 @@ impl Rule for CallInputSpacingRule {
             SyntaxKind::WorkflowDefinitionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for CallInputSpacingRule {

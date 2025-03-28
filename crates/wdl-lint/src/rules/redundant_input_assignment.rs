@@ -59,6 +59,10 @@ impl Rule for RedundantInputAssignment {
             wdl_ast::SyntaxKind::CallInputItemNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for RedundantInputAssignment {

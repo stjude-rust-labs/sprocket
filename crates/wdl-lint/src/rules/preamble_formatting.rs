@@ -119,7 +119,7 @@ impl Rule for PreambleFormattingRule {
         "The document preamble is defined as anything before the version declaration statement and \
          the version declaration statement itself. Only comments and whitespace are permitted \
          before the version declaration.
-         
+
          All comments in the preamble should conform to one of two special formats:
 
             1. \"lint directives\" are special comments that begin with `#@ except:` followed by a \
@@ -137,14 +137,14 @@ impl Rule for PreambleFormattingRule {
          any whitespace before the comment).  If lint directives are present, they should be the \
          absolute beginning of the document. Multiple lint directives are permitted, but they \
          should not be interleaved with preamble comments or blank lines.
-         
+
          A space should follow the double-pound-sign if there is any text within the preamble \
          comment. \"Empty\" preamble comments are permitted and should not have any whitespace \
          following the `##`. Comments beginning with 3 or more pound signs before the version \
          declaration are not permitted. All preamble comments should be in a single block without \
          blank lines. Following this block, there should always be a blank line before the version \
          statement.
-         
+
          Both lint directives and preamble comments are optional, and if they are not present, \
          there should be no comments or whitespace before the version declaration."
     }
@@ -155,6 +155,10 @@ impl Rule for PreambleFormattingRule {
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
         Some(&[SyntaxKind::VersionStatementNode])
+    }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
     }
 }
 

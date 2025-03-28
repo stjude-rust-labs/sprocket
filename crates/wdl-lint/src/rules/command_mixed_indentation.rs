@@ -104,6 +104,10 @@ impl Rule for CommandSectionMixedIndentationRule {
             SyntaxKind::CommandSectionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for CommandSectionMixedIndentationRule {

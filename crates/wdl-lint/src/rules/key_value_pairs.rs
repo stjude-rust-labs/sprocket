@@ -100,6 +100,10 @@ impl Rule for KeyValuePairsRule {
             SyntaxKind::ParameterMetadataSectionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for KeyValuePairsRule {

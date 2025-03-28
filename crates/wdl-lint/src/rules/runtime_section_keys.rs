@@ -314,12 +314,12 @@ impl Rule for RuntimeSectionKeysRule {
 
     fn explanation(&self) -> &'static str {
         "The behavior of this rule is different depending on the WDL version:
-        
+
         For WDL v1.0 documents, the `docker` and `memory` keys are recommended, but the inclusion \
          of any number of other keys is permitted.
-        
-        For WDL v1.1 documents, 
-        
+
+        For WDL v1.1 documents,
+
         - A list of mandatory, reserved keywords will be recommended for inclusion if they are not \
          present. Here, 'mandatory' refers to the requirement that all execution engines support \
          this key—not that the key must be present in the `runtime` section.
@@ -327,7 +327,7 @@ impl Rule for RuntimeSectionKeysRule {
          missing (as their support in execution engines is not guaranteed).
         - The WDL v1.1 specification deprecates the inclusion of non-reserved keys in a  `runtime` \
          section. As such, any non-reserved keys will be flagged for removal.
-         
+
          For WDL v1.2 documents and later, this rule does not evaluate because `runtime` sections \
          were deprecated in this version."
     }
@@ -341,6 +341,10 @@ impl Rule for RuntimeSectionKeysRule {
             SyntaxKind::VersionStatementNode,
             SyntaxKind::RuntimeSectionNode,
         ])
+    }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &["DeprecatedObject", "DeprecatedPlaceholderOption"]
     }
 }
 

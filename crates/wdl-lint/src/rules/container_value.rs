@@ -139,6 +139,10 @@ impl Rule for ContainerValue {
             SyntaxKind::RequirementsSectionNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for ContainerValue {

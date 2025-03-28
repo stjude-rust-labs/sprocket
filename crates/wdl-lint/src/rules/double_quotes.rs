@@ -64,6 +64,10 @@ impl Rule for DoubleQuotesRule {
             SyntaxKind::LiteralStringNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for DoubleQuotesRule {

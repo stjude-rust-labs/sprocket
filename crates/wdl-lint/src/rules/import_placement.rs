@@ -64,6 +64,10 @@ impl Rule for ImportPlacementRule {
             SyntaxKind::ImportStatementNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &[]
+    }
 }
 
 impl Visitor for ImportPlacementRule {

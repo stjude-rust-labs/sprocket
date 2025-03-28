@@ -64,6 +64,10 @@ impl Rule for DeprecatedObjectRule {
             SyntaxKind::UnboundDeclNode,
         ])
     }
+
+    fn related_rules(&self) -> &[&'static str] {
+        &["DeprecatedPlaceholderOption", "RuntimeSectionKeys"]
+    }
 }
 
 impl Visitor for DeprecatedObjectRule {
