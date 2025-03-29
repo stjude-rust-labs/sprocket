@@ -33,6 +33,7 @@ pub struct Args {
     pub definitions: bool,
 }
 
+/// Display all rules and tags.
 fn generate_after_help() -> String {
     format!("{}\n\n{}", list_all_rules(), list_all_tags())
 }
@@ -62,7 +63,7 @@ pub fn list_all_rules() -> String {
     result
 }
 
-/// Lists all tags as a string for displaying after CLI help.
+/// Lists all tags as a string for displaying.
 pub fn list_all_tags() -> String {
     let mut result = "Available tags:".to_owned();
     let lint_rules = lint::rules();
