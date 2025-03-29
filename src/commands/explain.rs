@@ -12,7 +12,7 @@ use wdl::lint;
 use wdl::lint::Tag;
 
 /// Usage string for the `explain` subcommand.
-const USAGE: &str = "sprocket explain [RULE_NAME]
+const USAGE: &str = "sprocket explain [RULE]
     sprocket explain --tag <TAG>
     sprocket explain --definitions";
 
@@ -21,7 +21,7 @@ const USAGE: &str = "sprocket explain [RULE_NAME]
 #[command(author, version, about, after_help = generate_after_help(), override_usage = USAGE)]
 pub struct Args {
     /// The name of the rule to explain.
-    #[arg(required_unless_present_any = ["tag", "definitions"], value_name = "RULE_NAME")]
+    #[arg(required_unless_present_any = ["tag", "definitions"], value_name = "RULE")]
     pub rule_name: Option<String>,
 
     /// List all rules with the given tag.
