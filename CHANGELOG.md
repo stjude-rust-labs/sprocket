@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added `--hide_notes` to `check` to filter out note diagnostics from reporting ([#84](https://github.com/stjude-rust-labs/sprocket/pull/84))
 * YAML support for `validate-inputs` command ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)).
+* Extend `explain` to display related rules, list tags using `--t`, show WDL definitions using `--definitions` ([#80](https://github.com/stjude-rust-labs/sprocket/pull/80)).
 
 ### Changed
 
