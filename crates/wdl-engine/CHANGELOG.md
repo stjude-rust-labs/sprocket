@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   evaluation concurrently ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 * Improved evaluation reporting to include how many tasks are ready for
   execution ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+* Updates the `crankshaft` and `http-cache-stream-reqwest` dependencies to official, upstreamed crates ([#383](https://github.com/stjude-rust-labs/wdl/pull/383)).
 
 ## 0.1.0 - 01-17-2025
 
