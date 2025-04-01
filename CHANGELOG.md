@@ -17,7 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Updated WDL crates to latest ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)).
+* Updated WDL crates to latest ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)). This added many features and fixes. Some highlights:
+    * Fixed certain misplaced highlights from the `ShellCheck` lint.
+    * Relaxed the `CommentWhitespace` lint rule so it doesn't trigger for as many comments.
+    * The `ImportSort` lint rule now supplies the correct order of imports in the `fix` message.
 * By deafult, when checking a local file, suppress diagnostics from remote files. Added a `--show-remote-diagnostics`
   flag to recreate the older behavior ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).
 * Always emit any diagnostics with a `Severity::Error` regardless of other CL options that might suppress the diagnostic
