@@ -61,7 +61,7 @@ pub struct Common {
 
     /// Hide diagnostics with 'note' severity.
     #[arg(long)]
-    pub hide_note: bool,
+    pub hide_notes: bool,
 
     /// Disables color output.
     #[arg(long)]
@@ -170,7 +170,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                     let severity = d.severity();
                     match severity {
                         Severity::Error => true,
-                        Severity::Note if args.common.hide_note => false,
+                        Severity::Note if args.common.hide_notes => false,
                         _ if suppress => false,
                         _ => true,
                     }
