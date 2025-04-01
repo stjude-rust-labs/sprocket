@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added `hide_note` to `check` to filter out note diagnostics from reporting ([#84](https://github.com/stjude-rust-labs/sprocket/pull/84))
+
 ### Changed
 
 * By deafult, when checking a local file, suppress diagnostics from remote files. Added a `--show-remote-diagnostics`
