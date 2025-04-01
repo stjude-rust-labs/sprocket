@@ -59,7 +59,7 @@ pub struct Common {
     #[arg(long)]
     pub shellcheck: bool,
 
-    /// Hide diagnostics with 'note' severity.
+    /// Hide diagnostics with `note` severity.
     #[arg(long)]
     pub hide_notes: bool,
 
