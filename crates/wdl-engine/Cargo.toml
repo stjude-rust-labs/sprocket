@@ -1,6 +1,6 @@
 [package]
 name = "wdl-engine"
-version = "0.1.0"
+version = "0.2.0"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -11,9 +11,9 @@ description = "Execution engine for Workflow Description Language (WDL) document
 documentation = "https://docs.rs/wdl-engine"
 
 [dependencies]
-wdl-grammar = { version = "0.11.0", path = "../wdl-grammar" }
-wdl-ast = { version = "0.10.0", path = "../wdl-ast" }
-wdl-analysis = { version = "0.6.0", path = "../wdl-analysis" }
+wdl-grammar = { version = "0.12.0", path = "../wdl-grammar" }
+wdl-ast = { version = "0.11.0", path = "../wdl-ast" }
+wdl-analysis = { version = "0.7.0", path = "../wdl-analysis" }
 anyhow = { workspace = true }
 ordered-float = { workspace = true }
 indexmap = { workspace = true }

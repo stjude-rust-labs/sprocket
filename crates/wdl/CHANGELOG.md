@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.12.0 - 04-01-2025
+
 ### Added
 
 * Added ability to compile and watch a CSS style directory for `wdl doc` (#[262](https://github.com/stjude-rust-labs/wdl/pull/262)).

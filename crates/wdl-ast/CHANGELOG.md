@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.11.0 - 04-01-2025
+
 ### Changed
 
 * Refactored AST API to support different syntax tree element representations ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).

@@ -1,6 +1,6 @@
 [package]
 name = "wdl-doc"
-version = "0.1.0"
+version = "0.2.0"
 description = "Documentation generator for Workflow Description Language (WDL) documents."
 license.workspace = true
 edition.workspace = true
@@ -17,8 +17,8 @@ maud.workspace = true
 pulldown-cmark.workspace = true
 pathdiff.workspace = true
 tokio.workspace = true
-wdl-analysis = { path = "../wdl-analysis", version = "0.6.0" }
-wdl-ast = { path = "../wdl-ast", version = "0.10.0" }
+wdl-analysis = { path = "../wdl-analysis", version = "0.7.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.11.0" }
 
 [lints]
 workspace = true

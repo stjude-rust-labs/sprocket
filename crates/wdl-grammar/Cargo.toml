@@ -1,6 +1,6 @@
 [package]
 name = "wdl-grammar"
-version = "0.11.0"
+version = "0.12.0"
 authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
 rust-version.workspace = true
 edition.workspace = true

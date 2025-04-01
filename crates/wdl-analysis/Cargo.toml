@@ -1,6 +1,6 @@
 [package]
 name = "wdl-analysis"
-version = "0.6.0"
+version = "0.7.0"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -11,8 +11,8 @@ description = "Analysis of Workflow Description Language (WDL) documents."
 documentation = "https://docs.rs/wdl-analysis"
 
 [dependencies]
-wdl-ast = { path = "../wdl-ast", version = "0.10.0" }
-wdl-format = { path = "../wdl-format", version = "0.4.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.11.0" }
+wdl-format = { path = "../wdl-format", version = "0.5.0" }
 
 anyhow = { workspace = true }
 rowan = { workspace = true }
