@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `wdl` run now prefers running the workflow in a document containing a single
   workflow and a single task ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
 * Changed the default log level of the `wdl` binary from `error` to `warn` ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
+* Updates the `crankshaft` and `http-cache-stream-reqwest` dependencies to official, upstreamed crates ([#383](https://github.com/stjude-rust-labs/wdl/pull/383)).
 
 ### Fixed
 
