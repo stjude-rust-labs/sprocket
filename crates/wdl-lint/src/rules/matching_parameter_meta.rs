@@ -7,13 +7,13 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Diagnostics;
 use wdl_ast::Document;
-use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::VisitReason;
 use wdl_ast::Visitor;
+use wdl_ast::v1::Decl;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::SectionParent;
 use wdl_ast::v1::TaskDefinition;
@@ -70,6 +70,29 @@ fn extra_param_meta(parent: &SectionParent, extra: &str, span: Span) -> Diagnost
     .with_fix("remove the extraneous key from the `parameter_meta` section")
 }
 
+/// Creates a "mismatched order" diagnostic.
+fn mismatched_param_order(parent: &SectionParent, span: Span, expected_order: &str) -> Diagnostic {
+    let (context, parent) = match parent {
+        SectionParent::Task(t) => ("task", t.name()),
+        SectionParent::Workflow(w) => ("workflow", w.name()),
+        SectionParent::Struct(s) => ("struct", s.name()),
+    };
+
+    Diagnostic::note(format!(
+        "parameter metadata in {context} `{parent}` is out of order",
+        parent = parent.text(),
+    ))
+    .with_rule(ID)
+    .with_label(
+        "parameter metadata must be in the same order as inputs",
+        span,
+    )
+    .with_fix(format!(
+        "based on the current `input` order, order the parameter metadata as:\n{}",
+        expected_order
+    ))
+}
+
 /// Detects missing or extraneous entries in a `parameter_meta` section.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct MatchingParameterMetaRule {
@@ -93,7 +116,7 @@ impl Rule for MatchingParameterMetaRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Completeness])
+        TagSet::new(&[Tag::Completeness, Tag::Sorting])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
@@ -106,6 +129,7 @@ impl Rule for MatchingParameterMetaRule {
     fn related_rules(&self) -> &[&'static str] {
         &[
             "DescriptionMissing",
+            "InputSorting",
             "MissingOutput",
             "MissingRequirements",
             "MissingRuntime",
@@ -114,17 +138,20 @@ impl Rule for MatchingParameterMetaRule {
     }
 }
 
-/// Checks for both missing and extra items in a `parameter_meta` section.
+/// Checks for both missing and extra items in a `parameter_meta` section
+/// along with the order of the items.
 fn check_parameter_meta(
     parent: &SectionParent,
-    expected: impl Iterator<Item = (Ident, Span)>,
+    expected: Vec<Decl>,
     param_meta: ParameterMetadataSection,
     diagnostics: &mut Diagnostics,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
-    let expected: HashMap<_, _> = expected.map(|(i, s)| (i.text().to_string(), s)).collect();
-
-    let actual: HashMap<_, _> = param_meta
+    let expected_map: HashMap<_, _> = expected
+        .iter()
+        .map(|decl| (decl.name().text().to_string(), decl.name().span()))
+        .collect();
+    let actual_map: HashMap<_, _> = param_meta
         .items()
         .map(|m| {
             let name = m.name();
@@ -132,8 +159,22 @@ fn check_parameter_meta(
         })
         .collect();
 
-    for (name, span) in &expected {
-        if !actual.contains_key(name) {
+    // We determine the intersection of expected and actual parameter names.
+    // Using these we next check for missing and extraneous parameters separately.
+    let expected_order: Vec<_> = expected
+        .iter()
+        .map(|decl| decl.name().text().to_string())
+        .filter(|name| actual_map.contains_key(name))
+        .collect();
+
+    let actual_order: Vec<_> = param_meta
+        .items()
+        .map(|m| m.name().text().to_string())
+        .filter(|name| expected_map.contains_key(name))
+        .collect();
+
+    for (name, span) in &expected_map {
+        if !actual_map.contains_key(name) {
             diagnostics.exceptable_add(
                 missing_param_meta(parent, name, *span),
                 SyntaxElement::from(param_meta.inner().clone()),
@@ -142,14 +183,28 @@ fn check_parameter_meta(
         }
     }
 
-    for (name, span) in &actual {
-        if !expected.contains_key(name) {
+    for (name, span) in &actual_map {
+        if !expected_map.contains_key(name) {
             diagnostics.exceptable_add(
                 extra_param_meta(parent, name, *span),
                 SyntaxElement::from(param_meta.inner().clone()),
                 exceptable_nodes,
             );
         }
+    }
+
+    if expected_order != actual_order {
+        let span = param_meta
+            .inner()
+            .first_token()
+            .expect("must have parameter meta token")
+            .text_range()
+            .into();
+        diagnostics.exceptable_add(
+            mismatched_param_order(parent, span, &expected_order.join("\n")),
+            SyntaxElement::from(param_meta.inner().clone()),
+            exceptable_nodes,
+        );
     }
 }
 
@@ -188,13 +243,7 @@ impl Visitor for MatchingParameterMetaRule {
             Some(param_meta) => {
                 check_parameter_meta(
                     &SectionParent::Task(task.clone()),
-                    task.input().iter().flat_map(|i| {
-                        i.declarations().map(|d| {
-                            let name = d.name();
-                            let span = name.span();
-                            (name, span)
-                        })
-                    }),
+                    task.input().iter().flat_map(|i| i.declarations()).collect(),
                     param_meta,
                     state,
                     &self.exceptable_nodes(),
@@ -223,13 +272,11 @@ impl Visitor for MatchingParameterMetaRule {
             Some(param_meta) => {
                 check_parameter_meta(
                     &SectionParent::Workflow(workflow.clone()),
-                    workflow.input().iter().flat_map(|i| {
-                        i.declarations().map(|d| {
-                            let name = d.name();
-                            let span = name.span();
-                            (name, span)
-                        })
-                    }),
+                    workflow
+                        .input()
+                        .iter()
+                        .flat_map(|i| i.declarations())
+                        .collect(),
                     param_meta,
                     state,
                     &self.exceptable_nodes(),
@@ -263,11 +310,7 @@ impl Visitor for MatchingParameterMetaRule {
             Some(param_meta) => {
                 check_parameter_meta(
                     &SectionParent::Struct(def.clone()),
-                    def.members().map(|d| {
-                        let name = d.name();
-                        let span = name.span();
-                        (name, span)
-                    }),
+                    def.members().map(Decl::Unbound).collect(),
                     param_meta,
                     state,
                     &self.exceptable_nodes(),

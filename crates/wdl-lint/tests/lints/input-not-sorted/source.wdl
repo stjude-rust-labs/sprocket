@@ -1,5 +1,5 @@
 #@ except: DescriptionMissing, DisallowedInputName, MissingRequirements
-#@ except: RuntimeSectionKeys
+#@ except: MatchingParameterMeta
 
 version 1.2
 

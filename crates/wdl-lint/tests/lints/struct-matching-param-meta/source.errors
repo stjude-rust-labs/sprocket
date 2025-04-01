@@ -1,16 +1,26 @@
 note[MatchingParameterMeta]: struct `Text` has an extraneous parameter metadata key named `extra`
-   ┌─ tests/lints/struct-matching-param-meta/source.wdl:20:9
+   ┌─ tests/lints/struct-matching-param-meta/source.wdl:23:9
    │
-20 │         extra: "this should not be here"
+23 │         extra: "this should not be here"
    │         ^^^^^ this key does not correspond to any input declaration
    │
    = fix: remove the extraneous key from the `parameter_meta` section
 
 warning[MatchingParameterMeta]: struct `Text` is missing a parameter metadata key for input `does_not_exist`
-   ┌─ tests/lints/struct-matching-param-meta/source.wdl:24:12
+   ┌─ tests/lints/struct-matching-param-meta/source.wdl:27:12
    │
-24 │     String does_not_exist
+27 │     String does_not_exist
    │            ^^^^^^^^^^^^^^ this input does not have an entry in the parameter metadata section
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
+
+note[MatchingParameterMeta]: parameter metadata in struct `Bar` is out of order
+   ┌─ tests/lints/struct-matching-param-meta/source.wdl:33:5
+   │
+33 │     parameter_meta {
+   │     ^^^^^^^^^^^^^^ parameter metadata must be in the same order as inputs
+   │
+   = fix: based on the current `input` order, order the parameter metadata as:
+     param_a
+     param_b
 
