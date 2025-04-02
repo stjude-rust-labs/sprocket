@@ -64,7 +64,7 @@ use wdl_engine::v1::TaskEvaluator;
 
 /// Regex used to remove both host and guest path prefixes.
 static PATH_PREFIX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(attempts[\/\\]\d+[\/\\]|\/mnt\/task\/inputs\/\d+\/)"#).expect("invalid regex")
+    Regex::new(r#"(attempts[\/\\]\d+[\/\\]|\/mnt\/inputs\/\d+\/)"#).expect("invalid regex")
 });
 
 /// Regex used to replace temporary file names in task command files with
@@ -149,7 +149,12 @@ fn compare_result(path: &Path, result: &str) -> Result<()> {
     }
 
     let expected = fs::read_to_string(path)
-        .with_context(|| format!("failed to read result file `{path}`", path = path.display()))?
+        .with_context(|| {
+            format!(
+                "failed to read result file `{path}`: expected contents to be `{result}`",
+                path = path.display()
+            )
+        })?
         .replace("\r\n", "\n");
 
     if expected != result {
@@ -277,26 +282,24 @@ fn compare_evaluation_results(
     temp_dir: &Path,
     evaluated: &EvaluatedTask,
 ) -> Result<()> {
-    let command = fs::read_to_string(evaluated.command()).with_context(|| {
+    let command = fs::read_to_string(evaluated.root().command()).with_context(|| {
         format!(
             "failed to read task command file `{path}`",
-            path = evaluated.command().display()
+            path = evaluated.root().command().display()
         )
     })?;
-    let stdout =
-        fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str()).with_context(|| {
-            format!(
-                "failed to read task stdout file `{path}`",
-                path = evaluated.stdout().as_file().unwrap()
-            )
-        })?;
-    let stderr =
-        fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).with_context(|| {
-            format!(
-                "failed to read task stderr file `{path}`",
-                path = evaluated.stderr().as_file().unwrap()
-            )
-        })?;
+    let stdout = fs::read_to_string(evaluated.root().stdout()).with_context(|| {
+        format!(
+            "failed to read task stdout file `{path}`",
+            path = evaluated.root().stdout().display()
+        )
+    })?;
+    let stderr = fs::read_to_string(evaluated.root().stderr()).with_context(|| {
+        format!(
+            "failed to read task stderr file `{path}`",
+            path = evaluated.root().stderr().display()
+        )
+    })?;
 
     // Strip both temp paths and test dir (input file) paths from the outputs
     let command = strip_paths(temp_dir, &command);
@@ -324,7 +327,12 @@ fn compare_evaluation_results(
     // Compare expected output files
     let mut had_files = false;
     let files_dir = test_dir.join("files");
-    for entry in WalkDir::new(evaluated.work_dir()) {
+    for entry in WalkDir::new(
+        evaluated
+            .work_dir()
+            .as_local()
+            .expect("work dir should be local"),
+    ) {
         let entry = entry.with_context(|| {
             format!(
                 "failed to read directory `{path}`",
@@ -352,7 +360,12 @@ fn compare_evaluation_results(
         let expected_path = files_dir.join(
             entry
                 .path()
-                .strip_prefix(evaluated.work_dir())
+                .strip_prefix(
+                    evaluated
+                        .work_dir()
+                        .as_local()
+                        .expect("should be local path"),
+                )
                 .unwrap_or(entry.path()),
         );
         fs::create_dir_all(
@@ -387,7 +400,10 @@ fn compare_evaluation_results(
                 .path()
                 .strip_prefix(&files_dir)
                 .unwrap_or(entry.path());
-            let expected_path = evaluated.work_dir().join(relative_path);
+            let expected_path = evaluated
+                .work_dir()
+                .join(relative_path.to_str().unwrap())?
+                .unwrap_local();
             if !expected_path.is_file() {
                 bail!(
                     "task did not produce expected output file `{path}`",

@@ -20,6 +20,8 @@ use crankshaft::engine::task::Input;
 use crankshaft::engine::task::Resources;
 use crankshaft::engine::task::input::Contents;
 use crankshaft::engine::task::input::Type;
+use futures::FutureExt;
+use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
@@ -27,15 +29,22 @@ use tracing::info;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
+use super::TaskExecutionEvents;
+use super::TaskExecutionResult;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
+use crate::InputTrie;
 use crate::ONE_GIBIBYTE;
 use crate::Value;
+use crate::WORK_DIR_NAME;
 use crate::config::CrankshaftBackendConfig;
 use crate::config::CrankshaftBackendKind;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TaskConfig;
+use crate::http::Downloader;
+use crate::http::Location;
+use crate::path::EvaluationPath;
 use crate::v1::container;
 use crate::v1::cpu;
 use crate::v1::max_cpu;
@@ -47,6 +56,15 @@ use crate::v1::memory;
 /// This controls the initial size of the bloom filter and how many names are
 /// prepopulated into the name generator.
 const INITIAL_EXPECTED_NAMES: usize = 1000;
+
+/// The root guest path for inputs.
+const GUEST_INPUTS_DIR: &str = "/mnt/inputs";
+
+/// The guest working directory.
+const GUEST_WORK_DIR: &str = "/mnt/work";
+
+/// The guest path for the command file.
+const GUEST_COMMAND_PATH: &str = "/mnt/command";
 
 /// Represents a crankshaft task request.
 ///
@@ -85,10 +103,11 @@ impl TaskManagerRequest for CrankshaftTaskRequest {
         self.memory
     }
 
-    async fn run(self, spawned: oneshot::Sender<()>) -> Result<i32> {
+    async fn run(self, spawned: oneshot::Sender<()>) -> Result<TaskExecutionResult> {
         // Create the working directory
-        let work_dir = self.inner.root.work_dir();
-        fs::create_dir_all(work_dir).with_context(|| {
+        // TODO: this should only be done for local task execution
+        let work_dir = self.inner.root.attempt_dir().join(WORK_DIR_NAME);
+        fs::create_dir_all(&work_dir).with_context(|| {
             format!(
                 "failed to create directory `{path}`",
                 path = work_dir.display()
@@ -96,39 +115,78 @@ impl TaskManagerRequest for CrankshaftTaskRequest {
         })?;
 
         // Write the evaluated command to disk
+        // This is done even for remote execution so that a copy exists locally
         let command_path = self.inner.root.command();
-        fs::write(command_path, &self.inner.command).with_context(|| {
+        fs::write(command_path, self.inner.command()).with_context(|| {
             format!(
                 "failed to write command contents to `{path}`",
                 path = command_path.display()
             )
         })?;
 
-        let inputs = self
-            .inner
-            .mounts
-            .iter()
-            .filter(|m| m.host.exists())
-            .map(|m| {
-                Ok(Arc::new(
-                    Input::builder()
-                        .path(
-                            m.guest
-                                .as_os_str()
-                                .to_str()
-                                .context("task input path is not UTF-8")?,
-                        )
-                        .contents(Contents::Path(m.host.clone()))
-                        .ty(if m.host.is_dir() {
-                            Type::Directory
-                        } else {
-                            Type::File
-                        })
-                        .read_only(m.read_only)
-                        .build(),
-                ))
-            })
-            .collect::<Result<Vec<_>>>()?;
+        // Allocate the inputs, which will always be, at most, the number of inputs plus
+        // the working directory and command
+        let mut inputs = Vec::with_capacity(self.inner.inputs().len() + 2);
+        for input in self.inner.inputs().iter() {
+            if let Some(guest_path) = input.guest_path() {
+                let (exists, is_dir) = input
+                    .location()
+                    .map(|p| {
+                        p.metadata()
+                            .map(|m| (true, m.is_dir()))
+                            .unwrap_or((false, false))
+                    })
+                    .unwrap_or_else(|| match input.path() {
+                        EvaluationPath::Local(p) => p
+                            .metadata()
+                            .map(|m| (true, m.is_dir()))
+                            .unwrap_or((false, false)),
+                        EvaluationPath::Remote(url) => (true, url.as_str().ends_with('/')),
+                    });
+
+                if exists {
+                    inputs.push(Arc::new(
+                        Input::builder()
+                            .path(guest_path)
+                            .contents(
+                                input
+                                    .location()
+                                    .map(|l| Contents::Path(l.to_path_buf()))
+                                    .unwrap_or_else(|| match input.path() {
+                                        EvaluationPath::Local(path) => Contents::Path(path.clone()),
+                                        EvaluationPath::Remote(url) => Contents::Url(url.clone()),
+                                    }),
+                            )
+                            .ty(if is_dir { Type::Directory } else { Type::File })
+                            .read_only(true)
+                            .build(),
+                    ));
+                }
+            }
+        }
+
+        // Add an input for the work directory
+        // TODO: we should not do this for remote backends
+        inputs.push(Arc::new(
+            Input::builder()
+                .path(GUEST_WORK_DIR)
+                .contents(Contents::Path(work_dir.to_path_buf()))
+                .ty(Type::Directory)
+                .read_only(false)
+                .build(),
+        ));
+
+        // Add an input for the command
+        inputs.push(Arc::new(
+            Input::builder()
+                .path(GUEST_COMMAND_PATH)
+                .contents(Contents::Path(command_path.to_path_buf()))
+                .ty(Type::File)
+                .read_only(true)
+                .build(),
+        ));
+
+        // TODO: for remote backends, add an output for the working directory
 
         let task = Task::builder()
             .name(self.name)
@@ -141,27 +199,9 @@ impl TaskManagerRequest for CrankshaftTaskRequest {
                             .map(|s| s.as_str())
                             .unwrap_or(DEFAULT_TASK_SHELL),
                     )
-                    .args([
-                        "-C".to_string(),
-                        self.inner
-                            .mounts
-                            .guest(command_path)
-                            .expect("should have guest path")
-                            .as_os_str()
-                            .to_str()
-                            .context("command path is not UTF-8")?
-                            .to_string(),
-                    ])
-                    .work_dir(
-                        self.inner
-                            .mounts
-                            .guest(work_dir)
-                            .expect("should have guest path")
-                            .as_os_str()
-                            .to_str()
-                            .context("working directory path is not UTF-8")?,
-                    )
-                    .env(self.inner.env.as_ref().clone())
+                    .args(["-C".to_string(), GUEST_COMMAND_PATH.to_string()])
+                    .work_dir(GUEST_WORK_DIR)
+                    .env(self.inner.env().clone())
                     .build(),
             ))
             .inputs(inputs)
@@ -199,7 +239,12 @@ impl TaskManagerRequest for CrankshaftTaskRequest {
                 path = self.inner.root.stderr().display()
             )
         })?;
-        Ok(output.status.code().expect("should have exit code"))
+
+        Ok(TaskExecutionResult {
+            exit_code: output.status.code().expect("should have exit code"),
+            // TODO: fix this for remote execution
+            work_dir: EvaluationPath::Local(work_dir),
+        })
     }
 }
 
@@ -318,23 +363,68 @@ impl TaskExecutionBackend for CrankshaftBackend {
         })
     }
 
-    fn container_root_dir(&self) -> Option<&Path> {
-        Some(Path::new("/mnt/task"))
+    fn guest_work_dir(&self) -> Option<&Path> {
+        Some(Path::new(GUEST_WORK_DIR))
+    }
+
+    fn localize_inputs<'a, 'b, 'c, 'd>(
+        &'a self,
+        downloader: &'b dyn Downloader,
+        inputs: &'c mut [crate::eval::Input],
+    ) -> BoxFuture<'d, Result<()>>
+    where
+        'a: 'd,
+        'b: 'd,
+        'c: 'd,
+        Self: 'd,
+    {
+        async {
+            // Construct a trie for mapping input guest paths
+            let mut trie = InputTrie::default();
+            for input in inputs.iter() {
+                trie.insert(input)?;
+            }
+
+            for (index, guest_path) in trie.calculate_guest_paths(GUEST_INPUTS_DIR)? {
+                inputs[index].set_guest_path(guest_path);
+            }
+
+            // Localize all inputs
+            // TODO: only do this for local task execution
+            for input in inputs {
+                // TODO: parallelize the downloads
+                let location = match input.path() {
+                    EvaluationPath::Local(path) => Location::Path(path.into()),
+                    EvaluationPath::Remote(url) => downloader
+                        .download(url)
+                        .await
+                        .map_err(|e| anyhow!("failed to localize `{url}`: {e:?}"))?,
+                };
+
+                input.set_location(location.into_owned());
+            }
+
+            Ok(())
+        }
+        .boxed()
     }
 
     fn spawn(
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<(oneshot::Receiver<()>, oneshot::Receiver<Result<i32>>)> {
+    ) -> Result<TaskExecutionEvents> {
         let (spawned_tx, spawned_rx) = oneshot::channel();
         let (completed_tx, completed_rx) = oneshot::channel();
 
-        let container = container(&request.requirements, self.container.as_deref()).into_owned();
-        let cpu = cpu(&request.requirements);
-        let memory = memory(&request.requirements)? as u64;
-        let max_cpu = max_cpu(&request.hints);
-        let max_memory = max_memory(&request.hints)?.map(|i| i as u64);
+        let requirements = request.requirements();
+        let hints = request.hints();
+
+        let container = container(requirements, self.container.as_deref()).into_owned();
+        let cpu = cpu(requirements);
+        let memory = memory(requirements)? as u64;
+        let max_cpu = max_cpu(hints);
+        let max_memory = max_memory(hints)?.map(|i| i as u64);
 
         let name = format!(
             "{id}-{generated}",
@@ -363,6 +453,9 @@ impl TaskExecutionBackend for CrankshaftBackend {
             completed_tx,
         );
 
-        Ok((spawned_rx, completed_rx))
+        Ok(TaskExecutionEvents {
+            spawned: spawned_rx,
+            completed: completed_rx,
+        })
     }
 }

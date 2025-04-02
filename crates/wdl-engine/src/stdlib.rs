@@ -1,9 +1,14 @@
 //! Module for the WDL standard library implementation.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
 
+use anyhow::Context;
+use anyhow::Result;
+use anyhow::anyhow;
+use anyhow::bail;
 use futures::future::BoxFuture;
 use wdl_analysis::stdlib::Binding;
 use wdl_analysis::types::Type;
@@ -13,6 +18,10 @@ use wdl_ast::Span;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::Value;
+use crate::http::Downloader;
+use crate::http::Location;
+use crate::path;
+use crate::path::EvaluationPath;
 
 mod as_map;
 mod as_pairs;
@@ -68,6 +77,65 @@ mod write_objects;
 mod write_tsv;
 mod zip;
 
+/// Ensures that the given path is a local path.
+fn ensure_local_path<'a>(
+    work_dir: Option<&EvaluationPath>,
+    path: &'a str,
+) -> Result<Cow<'a, Path>> {
+    // If the path is a URL that isn't `file` schemed, bail out
+    if !path::is_file_url(path) && path::is_url(path) {
+        bail!("operation not supported for URL `{path}`");
+    }
+
+    // If the path is absolute, return it
+    if Path::new(path).is_absolute() {
+        return Ok(Path::new(path).into());
+    }
+
+    // If the provided path is relative, we must have a working directory to join
+    // with
+    let work_dir = work_dir.with_context(|| {
+        format!("relative path `{path}` can only be used in a task output section")
+    })?;
+    match work_dir.join(path)? {
+        EvaluationPath::Local(path) => Ok(path.into()),
+        EvaluationPath::Remote(url) => {
+            bail!("operation not supported for URL `{url}`")
+        }
+    }
+}
+
+/// Helper for downloading files in stdlib functions.
+async fn download_file<'a>(
+    downloader: &dyn Downloader,
+    work_dir: Option<&EvaluationPath>,
+    path: &'a str,
+) -> Result<Location<'a>> {
+    // If the path is a URL, download it
+    if let Some(url) = path::parse_url(path) {
+        return downloader
+            .download(&url)
+            .await
+            .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}"));
+    }
+
+    if Path::new(path).is_absolute() {
+        return Ok(Location::Path(Path::new(path).into()));
+    }
+
+    // If the provided path is relative, we must have a working directory to join to
+    let work_dir = work_dir.with_context(|| {
+        format!("relative path `{path}` can only be used in a task output section")
+    })?;
+    match work_dir.join(path)? {
+        EvaluationPath::Local(path) => Ok(Location::Path(path.into())),
+        EvaluationPath::Remote(url) => downloader
+            .download(&url)
+            .await
+            .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}")),
+    }
+}
+
 /// Represents a function call argument.
 pub struct CallArgument {
     /// The value of the argument.
@@ -120,7 +188,7 @@ impl<'a> CallContext<'a> {
     }
 
     /// Gets the working directory for the call.
-    pub fn work_dir(&self) -> &Path {
+    pub fn work_dir(&self) -> Option<&EvaluationPath> {
         self.context.work_dir()
     }
 

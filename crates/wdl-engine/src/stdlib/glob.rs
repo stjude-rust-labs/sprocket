@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use url::Url;
+use anyhow::Result;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
@@ -15,6 +15,7 @@ use crate::Array;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
+use crate::stdlib::ensure_local_path;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "glob";
@@ -31,37 +32,8 @@ fn glob(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
 
-    // Do not attempt to parse absolute Windows paths (and by extension, we do not
-    // support single-character schemed URLs)
-    let path = if path.get(1..2) != Some(":") {
-        // Prevent glob of non-file URLs
-        if let Ok(url) = path.parse::<Url>() {
-            if url.scheme() != "file" {
-                return Err(function_call_failed(
-                    FUNCTION_NAME,
-                    format!(
-                        "path `{path}` cannot be globbed: only `file` scheme URLs are supported"
-                    ),
-                    context.call_site,
-                ));
-            }
-
-            match url.to_file_path() {
-                Ok(path) => path,
-                Err(_) => {
-                    return Err(function_call_failed(
-                        FUNCTION_NAME,
-                        format!("path `{path}` cannot be represented as a local file path"),
-                        context.call_site,
-                    ));
-                }
-            }
-        } else {
-            context.work_dir().join(path.as_str())
-        }
-    } else {
-        context.work_dir().join(path.as_str())
-    };
+    let path = ensure_local_path(context.work_dir(), &path)
+        .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.call_site))?;
 
     let path = path.to_str().ok_or_else(|| {
         function_call_failed(
@@ -91,36 +63,37 @@ fn glob(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         }
 
         // Strip the CWD prefix if there is one
-        let path = match path.strip_prefix(context.work_dir()) {
-            Ok(path) => {
-                // Create a string from the stripped path
-                path.to_str()
-                    .ok_or_else(|| {
+        let path =
+            match path.strip_prefix(context.work_dir().and_then(|p| p.to_str()).unwrap_or("")) {
+                Ok(path) => {
+                    // Create a string from the stripped path
+                    path.to_str()
+                        .ok_or_else(|| {
+                            function_call_failed(
+                                FUNCTION_NAME,
+                                format!(
+                                    "path `{path}` cannot be represented as UTF-8",
+                                    path = path.display()
+                                ),
+                                context.call_site,
+                            )
+                        })?
+                        .to_string()
+                }
+                Err(_) => {
+                    // Convert the path directly to a string
+                    path.into_os_string().into_string().map_err(|path| {
                         function_call_failed(
                             FUNCTION_NAME,
                             format!(
                                 "path `{path}` cannot be represented as UTF-8",
-                                path = path.display()
+                                path = Path::new(&path).display()
                             ),
                             context.call_site,
                         )
                     })?
-                    .to_string()
-            }
-            Err(_) => {
-                // Convert the path directly to a string
-                path.into_os_string().into_string().map_err(|path| {
-                    function_call_failed(
-                        FUNCTION_NAME,
-                        format!(
-                            "path `{path}` cannot be represented as UTF-8",
-                            path = Path::new(&path).display()
-                        ),
-                        context.call_site,
-                    )
-                })?
-            }
-        };
+                }
+            };
 
         elements.push(PrimitiveValue::new_file(path).into());
     }
@@ -145,7 +118,6 @@ mod test {
     use std::fs;
 
     use pretty_assertions::assert_eq;
-    use url::Url;
     use wdl_ast::version::V1;
 
     use crate::v1::test::TestEnv;
@@ -154,13 +126,6 @@ mod test {
     #[tokio::test]
     async fn glob() {
         let env = TestEnv::default();
-
-        // Create a URL for the working directory and force it to end with `/`
-        let mut work_dir_url = Url::from_file_path(env.work_dir()).expect("should convert");
-        if let Ok(mut segments) = work_dir_url.path_segments_mut() {
-            segments.pop_if_empty();
-            segments.push("");
-        }
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "glob('invalid***')")
             .await
@@ -176,15 +141,21 @@ mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `glob` failed: path `https://example.com/**` cannot be globbed: \
-             only `file` scheme URLs are supported"
+            "call to function `glob` failed: operation not supported for URL `https://example.com/**`"
         );
 
         env.write_file("qux", "qux");
         env.write_file("baz", "baz");
         env.write_file("foo", "foo");
         env.write_file("bar", "bar");
-        fs::create_dir_all(env.work_dir().join("nested")).expect("failed to create directory");
+        fs::create_dir_all(
+            env.work_dir()
+                .unwrap()
+                .join("nested")
+                .unwrap()
+                .unwrap_local(),
+        )
+        .expect("failed to create directory");
         env.write_file("nested/bar", "bar");
         env.write_file("nested/baz", "baz");
 
@@ -213,7 +184,13 @@ mod test {
             V1::Two,
             &format!(
                 "glob('{url}')",
-                url = work_dir_url.join("*").unwrap().as_str()
+                url = env
+                    .work_dir()
+                    .unwrap()
+                    .join("*")
+                    .unwrap()
+                    .unwrap_local()
+                    .display()
             ),
         )
         .await

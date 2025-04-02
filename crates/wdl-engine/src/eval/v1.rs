@@ -12,6 +12,7 @@ pub use workflow::*;
 use super::EvaluatedTask;
 use super::EvaluationResult;
 use crate::Outputs;
+use crate::TaskExecutionResult;
 
 /// Represents the kind of progress made during evaluation.
 #[derive(Debug, Clone, Copy)]
@@ -38,10 +39,10 @@ pub enum ProgressKind<'a> {
     TaskExecutionCompleted {
         /// The identifier of the task.
         id: &'a str,
-        /// The status code from the task's execution.
+        /// The result from the task's execution.
         ///
-        /// This may be `Err` if the task failed to spawn.
-        status_code: &'a Result<i32>,
+        /// This may be `Err` if the task failed to complete.
+        result: &'a Result<TaskExecutionResult>,
     },
     /// A task with the given id has completed evaluation.
     TaskCompleted {

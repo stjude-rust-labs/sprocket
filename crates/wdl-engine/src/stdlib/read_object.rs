@@ -1,8 +1,5 @@
 //! Implements the `read_object` function from the WDL standard library.
 
-use std::borrow::Cow;
-use std::path::Path;
-
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
@@ -24,6 +21,7 @@ use crate::Object;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
+use crate::stdlib::download_file;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "read_object";
@@ -52,30 +50,20 @@ fn read_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
             .coerce_argument(0, PrimitiveType::File)
             .unwrap_file();
 
-        let location = context
-            .context
-            .downloader()
-            .download(&path)
-            .await
-            .map_err(|e| {
-                function_call_failed(
-                    FUNCTION_NAME,
-                    format!("failed to download file `{path}`: {e:?}"),
-                    context.call_site,
-                )
-            })?;
-
-        let cache_path: Cow<'_, Path> = location
-            .as_deref()
-            .map(Into::into)
-            .unwrap_or_else(|| context.work_dir().join(path.as_str()).into());
+        let file_path = download_file(
+            context.context.downloader(),
+            context.work_dir(),
+            path.as_str(),
+        )
+        .await
+        .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
 
         let read_error = |e: std::io::Error| {
             function_call_failed(
                 FUNCTION_NAME,
                 format!(
                     "failed to read file `{path}`: {e}",
-                    path = cache_path.display()
+                    path = file_path.display()
                 ),
                 context.call_site,
             )
@@ -89,7 +77,7 @@ fn read_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
             )
         };
 
-        let file = fs::File::open(&cache_path).await.map_err(read_error)?;
+        let file = fs::File::open(&file_path).await.map_err(read_error)?;
 
         let mut lines = BufReader::new(file).lines();
         let names = lines

@@ -1,9 +1,7 @@
 //! Implements the `read_json` function from the WDL standard library.
 
-use std::borrow::Cow;
 use std::fs;
 use std::io::BufReader;
-use std::path::Path;
 
 use anyhow::Context;
 use futures::FutureExt;
@@ -19,6 +17,7 @@ use super::Function;
 use super::Signature;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
+use crate::stdlib::download_file;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "read_json";
@@ -36,28 +35,18 @@ fn read_json(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
             .coerce_argument(0, PrimitiveType::File)
             .unwrap_file();
 
-        let location = context
-            .context
-            .downloader()
-            .download(&path)
-            .await
-            .map_err(|e| {
-                function_call_failed(
-                    FUNCTION_NAME,
-                    format!("failed to download file `{path}`: {e:?}"),
-                    context.call_site,
-                )
-            })?;
-
-        let cache_path: Cow<'_, Path> = location
-            .as_deref()
-            .map(Into::into)
-            .unwrap_or_else(|| context.work_dir().join(path.as_str()).into());
+        let file_path = download_file(
+            context.context.downloader(),
+            context.work_dir(),
+            path.as_str(),
+        )
+        .await
+        .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
 
         // Note: `serde-json` does not support asynchronous readers, so we are
         // performing a synchronous read here
-        let file = fs::File::open(&cache_path)
-            .with_context(|| format!("failed to open file `{path}`", path = cache_path.display()))
+        let file = fs::File::open(&file_path)
+            .with_context(|| format!("failed to open file `{path}`", path = file_path.display()))
             .map_err(|e| {
                 function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
             })?;

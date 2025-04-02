@@ -1,5 +1,7 @@
 //! Implementation of support for Azure Blob Storage URLs.
 
+use std::borrow::Cow;
+
 use anyhow::Context;
 use anyhow::Result;
 use tracing::warn;
@@ -49,46 +51,61 @@ pub(crate) fn rewrite_url(url: &Url) -> Result<Url> {
 
 /// Applies Azure SAS token authentication to the given URL.
 ///
-/// Returns `true` if the URL was for Azure or `false` if it was not.
-pub(crate) fn apply_auth(config: &AzureStorageConfig, url: &mut Url) -> bool {
-    if let Some(url::Host::Domain(domain)) = url.host() {
-        if let Some(account) = domain.strip_suffix(AZURE_STORAGE_DOMAIN_SUFFIX) {
-            // If the URL already has a query string, don't modify it
-            if url.query().is_some() {
-                return true;
-            }
+/// Returns `(false, _)` if the URL is not for Azure Blob Storage; the returned
+/// URL is unmodified.
+///
+/// Returns `(true, _)` if the URL is for Azure Blob Storage. If auth was
+/// applied, the returned URL is modified to include it; otherwise the original
+/// URL is returned unmodified.
+pub(crate) fn apply_auth<'a>(
+    config: &AzureStorageConfig,
+    url: Cow<'a, Url>,
+) -> (bool, Cow<'a, Url>) {
+    // Attempt to extract the account from the domain
+    let account = match url.host().and_then(|host| match host {
+        url::Host::Domain(domain) => domain.strip_suffix(AZURE_STORAGE_DOMAIN_SUFFIX),
+        _ => None,
+    }) {
+        Some(account) => account,
+        None => return (false, url),
+    };
 
-            if let Some(mut segments) = url.path_segments() {
-                // Determine the container name; if there's only one path segment, then use the
-                // root container name
-                let container = match (segments.next(), segments.next()) {
-                    (Some(_), None) => ROOT_CONTAINER_NAME,
-                    (Some(container), Some(_)) => container,
-                    _ => return true,
-                };
-
-                if let Some(containers) = config.auth.get(account) {
-                    if let Some(token) = containers.get(container) {
-                        // Warn if the scheme isn't https, as we won't be applying the auth.
-                        if url.scheme() != "https" {
-                            warn!(
-                                "Azure Blob Storage URL `{url}` is not using HTTPS: \
-                                 authentication will not be used"
-                            );
-                            return true;
-                        }
-
-                        let token = token.strip_prefix('?').unwrap_or(token);
-                        url.set_query(Some(token));
-                    }
-                }
-            }
-
-            return true;
-        }
+    // If the URL already has a query string, don't modify it
+    if url.query().is_some() {
+        return (true, url);
     }
 
-    false
+    // Determine the container name; if there's only one path segment, then use the
+    // root container name
+    let container = match url.path_segments().and_then(|mut segments| {
+        match (segments.next(), segments.next()) {
+            (Some(_), None) => Some(ROOT_CONTAINER_NAME),
+            (Some(container), Some(_)) => Some(container),
+            _ => None,
+        }
+    }) {
+        Some(container) => container,
+        None => return (true, url),
+    };
+
+    // Apply the auth token if there is one
+    if let Some(token) = config
+        .auth
+        .get(account)
+        .and_then(|containers| containers.get(container))
+    {
+        if url.scheme() == "https" {
+            let token = token.strip_prefix('?').unwrap_or(token);
+            let mut url = url.into_owned();
+            url.set_query(Some(token));
+            return (true, Cow::Owned(url));
+        }
+
+        // Warn if the scheme isn't https, as we won't be applying the auth.
+        warn!("Azure Blob Storage URL `{url}` is not using HTTPS: authentication will not be used");
+    }
+
+    (true, url)
 }
 
 #[cfg(test)]
@@ -126,6 +143,17 @@ mod test {
 
     #[test]
     fn it_applies_auth() {
+        fn assert_auth(
+            config: &AzureStorageConfig,
+            url: &str,
+            expected_match: bool,
+            expected: &str,
+        ) {
+            let (matches, url) = apply_auth(config, Cow::Owned(url.parse().unwrap()));
+            assert_eq!(matches, expected_match);
+            assert_eq!(url.as_str(), expected);
+        }
+
         let mut config = AzureStorageConfig::default();
         config.auth.insert(
             "account".to_string(),
@@ -137,71 +165,67 @@ mod test {
         );
 
         // Not an Azure URL
-        let mut url = "https://example.com/bar/baz".parse().unwrap();
-        assert!(!apply_auth(&config, &mut url));
-        assert_eq!(url.as_str(), "https://example.com/bar/baz");
+        assert_auth(
+            &config,
+            "https://example.com/bar/baz",
+            false,
+            "https://example.com/bar/baz",
+        );
 
         // Not using HTTPS
-        let mut url = "http://account.blob.core.windows.net/container1/foo"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "http://account.blob.core.windows.net/container1/foo"
+        assert_auth(
+            &config,
+            "http://account.blob.core.windows.net/container1/foo",
+            true,
+            "http://account.blob.core.windows.net/container1/foo",
         );
 
         // Azure URL but unknown account
-        let mut url = "https://foo.blob.core.windows.net/bar/baz".parse().unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(url.as_str(), "https://foo.blob.core.windows.net/bar/baz");
+        assert_auth(
+            &config,
+            "https://foo.blob.core.windows.net/bar/baz",
+            true,
+            "https://foo.blob.core.windows.net/bar/baz",
+        );
 
         // Azure URL but unknown container
-        let mut url = "https://account.blob.core.windows.net/bar/baz"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "https://account.blob.core.windows.net/bar/baz"
+        assert_auth(
+            &config,
+            "https://account.blob.core.windows.net/bar/baz",
+            true,
+            "https://account.blob.core.windows.net/bar/baz",
         );
 
         // Matching with first auth token
-        let mut url = "https://account.blob.core.windows.net/container1/foo"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "https://account.blob.core.windows.net/container1/foo?token1=foo"
+        assert_auth(
+            &config,
+            "https://account.blob.core.windows.net/container1/foo",
+            true,
+            "https://account.blob.core.windows.net/container1/foo?token1=foo",
         );
 
         // Matching with second auth token
-        let mut url = "https://account.blob.core.windows.net/container2/foo"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "https://account.blob.core.windows.net/container2/foo?token2=bar"
+        assert_auth(
+            &config,
+            "https://account.blob.core.windows.net/container2/foo",
+            true,
+            "https://account.blob.core.windows.net/container2/foo?token2=bar",
         );
 
         // Matching with third auth token
-        let mut url = "https://account.blob.core.windows.net/foo".parse().unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "https://account.blob.core.windows.net/foo?token3=qux"
+        assert_auth(
+            &config,
+            "https://account.blob.core.windows.net/foo",
+            true,
+            "https://account.blob.core.windows.net/foo?token3=qux",
         );
 
         // Matching with query params already present
-        let mut url = "https://account.blob.core.windows.net/container1/foo?a=b"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "https://account.blob.core.windows.net/container1/foo?a=b"
+        assert_auth(
+            &config,
+            "https://account.blob.core.windows.net/container1/foo?a=b",
+            true,
+            "https://account.blob.core.windows.net/container1/foo?a=b",
         );
     }
 }

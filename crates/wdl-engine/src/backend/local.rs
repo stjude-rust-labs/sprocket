@@ -10,7 +10,10 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
+use futures::FutureExt;
+use futures::future::BoxFuture;
 use tokio::process::Command;
 use tokio::select;
 use tokio::sync::oneshot;
@@ -19,16 +22,23 @@ use tracing::info;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
+use super::TaskExecutionEvents;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
+use crate::Input;
 use crate::ONE_GIBIBYTE;
 use crate::SYSTEM;
+use crate::TaskExecutionResult;
 use crate::Value;
+use crate::WORK_DIR_NAME;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::LocalBackendConfig;
 use crate::config::TaskConfig;
 use crate::convert_unit_string;
+use crate::http::Downloader;
+use crate::http::Location;
+use crate::path::EvaluationPath;
 use crate::v1::cpu;
 use crate::v1::memory;
 
@@ -63,10 +73,10 @@ impl TaskManagerRequest for LocalTaskRequest {
         self.memory
     }
 
-    async fn run(self, spawned: oneshot::Sender<()>) -> Result<i32> {
+    async fn run(self, spawned: oneshot::Sender<()>) -> Result<TaskExecutionResult> {
         // Create the working directory
-        let work_dir = self.inner.root.work_dir();
-        fs::create_dir_all(work_dir).with_context(|| {
+        let work_dir = self.inner.root.attempt_dir().join(WORK_DIR_NAME);
+        fs::create_dir_all(&work_dir).with_context(|| {
             format!(
                 "failed to create directory `{path}`",
                 path = work_dir.display()
@@ -75,7 +85,7 @@ impl TaskManagerRequest for LocalTaskRequest {
 
         // Write the evaluated command to disk
         let command_path = self.inner.root.command();
-        fs::write(command_path, &self.inner.command).with_context(|| {
+        fs::write(command_path, self.inner.command()).with_context(|| {
             format!(
                 "failed to write command contents to `{path}`",
                 path = command_path.display()
@@ -107,7 +117,7 @@ impl TaskManagerRequest for LocalTaskRequest {
                 .unwrap_or(DEFAULT_TASK_SHELL),
         );
         command
-            .current_dir(work_dir)
+            .current_dir(&work_dir)
             .arg("-C")
             .arg(command_path)
             .stdin(Stdio::null())
@@ -115,7 +125,7 @@ impl TaskManagerRequest for LocalTaskRequest {
             .stderr(stderr)
             .envs(
                 self.inner
-                    .env
+                    .env()
                     .iter()
                     .map(|(k, v)| (OsStr::new(k), OsStr::new(v))),
             )
@@ -160,9 +170,12 @@ impl TaskManagerRequest for LocalTaskRequest {
                     }
                 }
 
-                let status_code = status.code().expect("process should have exited");
-                info!("task process {id} has terminated with status code {status_code}");
-                Ok(status_code)
+                let exit_code = status.code().expect("process should have exited");
+                info!("task process {id} has terminated with status code {exit_code}");
+                Ok(TaskExecutionResult {
+                    exit_code,
+                    work_dir: EvaluationPath::Local(work_dir),
+                })
             }
         }
     }
@@ -250,25 +263,62 @@ impl TaskExecutionBackend for LocalTaskExecutionBackend {
         })
     }
 
-    fn container_root_dir(&self) -> Option<&Path> {
+    fn guest_work_dir(&self) -> Option<&Path> {
         // Local execution does not use a container
         None
+    }
+
+    fn localize_inputs<'a, 'b, 'c, 'd>(
+        &'a self,
+        downloader: &'b dyn Downloader,
+        inputs: &'c mut [Input],
+    ) -> BoxFuture<'d, Result<()>>
+    where
+        'a: 'd,
+        'b: 'd,
+        'c: 'd,
+        Self: 'd,
+    {
+        async {
+            for input in inputs {
+                // TODO: parallelize the downloads
+                let location = match input.path() {
+                    EvaluationPath::Local(path) => Location::Path(path.into()),
+                    EvaluationPath::Remote(url) => downloader
+                        .download(url)
+                        .await
+                        .map_err(|e| anyhow!("failed to localize `{url}`: {e:?}"))?,
+                };
+
+                let guest_path = location
+                    .to_str()
+                    .with_context(|| {
+                        format!("path `{path}` is not UTF-8", path = location.display())
+                    })?
+                    .to_string();
+
+                // Set the guest path to the download location for path translation
+                let location = location.into_owned();
+                input.set_guest_path(guest_path);
+                input.set_location(location);
+            }
+
+            Ok(())
+        }
+        .boxed()
     }
 
     fn spawn(
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<(oneshot::Receiver<()>, oneshot::Receiver<Result<i32>>)> {
-        if !request.mounts.is_empty() {
-            bail!("cannot spawn a local task with mount points");
-        }
-
+    ) -> Result<TaskExecutionEvents> {
         let (spawned_tx, spawned_rx) = oneshot::channel();
         let (completed_tx, completed_rx) = oneshot::channel();
 
-        let cpu = cpu(&request.requirements);
-        let memory = memory(&request.requirements)? as u64;
+        let requirements = request.requirements();
+        let cpu = cpu(requirements);
+        let memory = memory(requirements)? as u64;
 
         self.manager.send(
             LocalTaskRequest {
@@ -282,6 +332,9 @@ impl TaskExecutionBackend for LocalTaskExecutionBackend {
             completed_tx,
         );
 
-        Ok((spawned_rx, completed_rx))
+        Ok(TaskExecutionEvents {
+            spawned: spawned_rx,
+            completed: completed_rx,
+        })
     }
 }

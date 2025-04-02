@@ -1,5 +1,7 @@
 //! Implementation of support for Google Cloud Storage URLs.
 
+use std::borrow::Cow;
+
 use anyhow::Context;
 use anyhow::Result;
 use tracing::warn;
@@ -46,66 +48,63 @@ pub(crate) fn rewrite_url(url: &Url) -> Result<Url> {
 
 /// Applies Google Cloud Storage presigned signatures to the given URL.
 ///
-/// Returns `true` if the URL was for Google Cloud Storage or `false` if it was
-/// not.
-pub(crate) fn apply_auth(config: &GoogleStorageConfig, url: &mut Url) -> bool {
-    if let Some(url::Host::Domain(domain)) = url.host() {
-        if let Some(domain) = domain.strip_suffix(GOOGLE_STORAGE_DOMAIN) {
-            // If the URL already has a query string, don't modify it
-            if url.query().is_some() {
-                return true;
-            }
+/// Returns `(false, _)` if the URL is not for Google Cloud Storage; the
+/// returned URL is unmodified.
+///
+/// Returns `(true, _)` if the URL is for Google Cloud Storage. If auth was
+/// applied, the returned URL is modified to include it; otherwise the original
+/// URL is returned unmodified.
+pub(crate) fn apply_auth<'a>(
+    config: &GoogleStorageConfig,
+    url: Cow<'a, Url>,
+) -> (bool, Cow<'a, Url>) {
+    // Find the prefix of the domain; if empty, it indicates a path style URL
+    let prefix = match url.host().and_then(|host| match host {
+        url::Host::Domain(domain) => domain.strip_suffix(GOOGLE_STORAGE_DOMAIN),
+        _ => None,
+    }) {
+        Some(prefix) => prefix,
+        None => return (false, url),
+    };
 
-            // There are two supported URL formats:
-            // 1) Path style e.g. `https://storage.googleapis.com/<bucket>/<object>`
-            // 2) Virtual-host style, e.g. `https://<bucket>.storage.googleapis.com/<object>`.
-            let bucket = if domain.is_empty() {
-                // This is a path style URL; bucket is first path segment
-                let mut segments = match url.path_segments() {
-                    Some(segments) => segments,
-                    None => return true,
-                };
-
-                match segments.next() {
-                    Some(bucket) => bucket,
-                    None => return true,
-                }
-            } else {
-                // This is a virtual-host style URL; bucket is first subdomain
-                let mut subdomains = domain.split('.');
-                let bucket = match subdomains.next() {
-                    Some(bucket) => bucket,
-                    None => return true,
-                };
-
-                // Ensure there is nothing between the subdomain and the GCS domain
-                match subdomains.next() {
-                    Some("") => {}
-                    _ => return true,
-                }
-
-                bucket
-            };
-
-            if let Some(sig) = config.auth.get(bucket) {
-                // Warn if the scheme isn't https, as we won't be applying the auth.
-                if url.scheme() != "https" {
-                    warn!(
-                        "Google Cloud Storage URL `{url}` is not using HTTPS: authentication will \
-                         not be used"
-                    );
-                    return true;
-                }
-
-                let sig = sig.strip_prefix('?').unwrap_or(sig);
-                url.set_query(Some(sig));
-            }
-
-            return true;
-        }
+    // If the URL already has a query string, don't modify it
+    if url.query().is_some() {
+        return (true, url);
     }
 
-    false
+    // There are two supported URL formats:
+    // 1) Path style e.g. `https://storage.googleapis.com/<bucket>/<object>`
+    // 2) Virtual-host style, e.g. `https://<bucket>.storage.googleapis.com/<object>`.
+    let bucket = if prefix.is_empty() {
+        // This is a path style URL; bucket is first path segment
+        match url.path_segments().and_then(|mut segments| segments.next()) {
+            Some(bucket) => bucket,
+            None => return (true, url),
+        }
+    } else {
+        // This is a virtual-host style URL; bucket should be followed with a single dot
+        let mut iter = prefix.split('.');
+        match (iter.next(), iter.next(), iter.next()) {
+            (Some(bucket), Some(""), None) => bucket,
+            _ => return (true, url),
+        }
+    };
+
+    if let Some(sig) = config.auth.get(bucket) {
+        if url.scheme() == "https" {
+            let sig = sig.strip_prefix('?').unwrap_or(sig);
+            let mut url = url.into_owned();
+            url.set_query(Some(sig));
+            return (true, Cow::Owned(url));
+        }
+
+        // Warn if the scheme isn't https, as we won't be applying the auth.
+        warn!(
+            "Google Cloud Storage URL `{url}` is not using HTTPS: authentication will not be used"
+        );
+    }
+
+    (true, url)
 }
 
 #[cfg(test)]
@@ -141,6 +140,17 @@ mod test {
 
     #[test]
     fn it_applies_auth() {
+        fn assert_auth(
+            config: &GoogleStorageConfig,
+            url: &str,
+            expected_match: bool,
+            expected: &str,
+        ) {
+            let (matches, url) = apply_auth(config, Cow::Owned(url.parse().unwrap()));
+            assert_eq!(matches, expected_match);
+            assert_eq!(url.as_str(), expected);
+        }
+
         let mut config = GoogleStorageConfig::default();
         config
             .auth
@@ -151,82 +161,75 @@ mod test {
             .insert("bucket2".to_string(), "?token2=bar".to_string());
 
         // Not an GS URL
-        let mut url = "https://example.com/bar/baz".parse().unwrap();
-        assert!(!apply_auth(&config, &mut url));
-        assert_eq!(url.as_str(), "https://example.com/bar/baz");
+        assert_auth(
+            &config,
+            "https://example.com/bar/baz",
+            false,
+            "https://example.com/bar/baz",
+        );
 
         // Not using HTTPS
-        let mut url = "http://storage.googleapis.com/bucket1/foo/bar"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "http://storage.googleapis.com/bucket1/foo/bar"
+        assert_auth(
+            &config,
+            "http://storage.googleapis.com/bucket1/foo/bar",
+            true,
+            "http://storage.googleapis.com/bucket1/foo/bar",
         );
 
         // Unknown bucket (path)
-        let mut url = "https://storage.googleapis.com/foo/bar/baz"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(url.as_str(), "https://storage.googleapis.com/foo/bar/baz");
+        assert_auth(
+            &config,
+            "https://storage.googleapis.com/foo/bar/baz",
+            true,
+            "https://storage.googleapis.com/foo/bar/baz",
+        );
 
         // Unknown bucket (vhost)
-        let mut url = "https://foo.storage.googleapis.com/bar/baz"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(url.as_str(), "https://foo.storage.googleapis.com/bar/baz");
+        assert_auth(
+            &config,
+            "https://foo.storage.googleapis.com/bar/baz",
+            true,
+            "https://foo.storage.googleapis.com/bar/baz",
+        );
 
         // Matching with first auth token (path)
-        let mut url = "https://storage.googleapis.com/bucket1/foo/bar"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "https://storage.googleapis.com/bucket1/foo/bar?token1=foo"
+        assert_auth(
+            &config,
+            "https://storage.googleapis.com/bucket1/foo/bar",
+            true,
+            "https://storage.googleapis.com/bucket1/foo/bar?token1=foo",
         );
 
         // Matching with first auth token (vhost)
-        let mut url = "https://bucket1.storage.googleapis.com/foo/bar"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "https://bucket1.storage.googleapis.com/foo/bar?token1=foo"
+        assert_auth(
+            &config,
+            "https://bucket1.storage.googleapis.com/foo/bar",
+            true,
+            "https://bucket1.storage.googleapis.com/foo/bar?token1=foo",
         );
 
         // Matching with second auth token (path)
-        let mut url = "https://storage.googleapis.com/bucket2/foo/bar"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "https://storage.googleapis.com/bucket2/foo/bar?token2=bar"
+        assert_auth(
+            &config,
+            "https://storage.googleapis.com/bucket2/foo/bar",
+            true,
+            "https://storage.googleapis.com/bucket2/foo/bar?token2=bar",
         );
 
         // Matching with second auth token (vhost)
-        let mut url = "https://bucket2.storage.googleapis.com/foo/bar"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "https://bucket2.storage.googleapis.com/foo/bar?token2=bar"
+        assert_auth(
+            &config,
+            "https://bucket2.storage.googleapis.com/foo/bar",
+            true,
+            "https://bucket2.storage.googleapis.com/foo/bar?token2=bar",
         );
 
         // Matching with query params already present
-        let mut url = "https://storage.googleapis.com/bucket2/foo/bar?a=b"
-            .parse()
-            .unwrap();
-        assert!(apply_auth(&config, &mut url));
-        assert_eq!(
-            url.as_str(),
-            "https://storage.googleapis.com/bucket2/foo/bar?a=b"
+        assert_auth(
+            &config,
+            "https://storage.googleapis.com/bucket2/foo/bar?a=b",
+            true,
+            "https://storage.googleapis.com/bucket2/foo/bar?a=b",
         );
     }
 }

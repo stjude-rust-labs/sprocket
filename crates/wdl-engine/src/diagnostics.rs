@@ -181,3 +181,10 @@ pub fn output_evaluation_failed(
 
     Diagnostic::error(format!("{e:#}")).with_highlight(span)
 }
+
+/// Creates a "task localization failed" diagnostic.
+pub fn task_localization_failed(e: anyhow::Error, name: &str, span: Span) -> Diagnostic {
+    let e = e.context(format!("failed to localize inputs for task `{name}`"));
+
+    Diagnostic::error(format!("{e:#}")).with_highlight(span)
+}

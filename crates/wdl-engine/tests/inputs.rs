@@ -111,7 +111,12 @@ fn compare_result(path: &Path, result: &str) -> Result<()> {
     }
 
     let expected = fs::read_to_string(path)
-        .with_context(|| format!("failed to read result file `{path}`", path = path.display()))?
+        .with_context(|| {
+            format!(
+                "failed to read result file `{path}`: expected contents to be `{result}`",
+                path = path.display()
+            )
+        })?
         .replace("\r\n", "\n");
 
     if expected != result {

@@ -2,7 +2,6 @@
 
 use std::path::Path;
 
-use url::Url;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
@@ -12,6 +11,7 @@ use super::Function;
 use super::Signature;
 use crate::PrimitiveValue;
 use crate::Value;
+use crate::path;
 
 /// Returns the "basename" of a file or directory - the name after the last
 /// directory separator in the path.
@@ -43,17 +43,13 @@ fn basename(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
 
-    // Do not attempt to parse absolute Windows paths (and by extension, we do not
-    // support single-character schemed URLs)
-    if path.get(1..2) != Some(":") {
-        if let Ok(url) = path.parse::<Url>() {
-            let base = url
-                .path_segments()
-                .and_then(|mut segments| segments.next_back())
-                .unwrap_or("");
+    if let Some(url) = path::parse_url(&path) {
+        let base = url
+            .path_segments()
+            .and_then(|mut segments| segments.next_back())
+            .unwrap_or("");
 
-            return Ok(PrimitiveValue::new_string(remove_suffix(context, base)).into());
-        }
+        return Ok(PrimitiveValue::new_string(remove_suffix(context, base)).into());
     }
 
     let base = Path::new(path.as_str())

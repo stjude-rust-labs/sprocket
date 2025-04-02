@@ -341,6 +341,11 @@ impl Task {
         &self.name
     }
 
+    /// Gets the span of the name.
+    pub fn name_span(&self) -> Span {
+        self.name_span
+    }
+
     /// Gets the scope of the task.
     pub fn scope(&self) -> ScopeRef<'_> {
         ScopeRef::new(&self.scopes, ScopeIndex(0))
@@ -384,6 +389,11 @@ impl Workflow {
     /// Gets the name of the workflow.
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// Gets the span of the name.
+    pub fn name_span(&self) -> Span {
+        self.name_span
     }
 
     /// Gets the scope of the workflow.

@@ -17,7 +17,6 @@ use futures::FutureExt;
 use indexmap::IndexSet;
 use indicatif::ProgressStyle;
 use serde_json::to_string_pretty;
-use tokio::fs;
 use tokio::select;
 use tokio::signal;
 use tokio_util::sync::CancellationToken;
@@ -114,9 +113,13 @@ pub async fn analyze(
 
     if let Ok(url) = Url::parse(file) {
         analyzer.add_document(url).await?;
-    } else if fs::metadata(&file).await?.is_dir() {
+    } else if Path::new(file).is_dir() {
         analyzer.add_directory(file.into()).await?;
     } else if let Some(url) = path_to_uri(file) {
+        if !Path::new(file).is_file() {
+            bail!("source file `{file}` does not exist");
+        }
+
         analyzer.add_document(url).await?;
     } else {
         bail!("failed to convert `{file}` to a URI", file = file)

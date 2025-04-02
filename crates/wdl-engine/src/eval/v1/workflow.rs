@@ -14,6 +14,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
+use anyhow::bail;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
@@ -67,6 +68,7 @@ use crate::EvaluationError;
 use crate::EvaluationResult;
 use crate::Inputs;
 use crate::Outputs;
+use crate::PrimitiveValue;
 use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
@@ -80,6 +82,8 @@ use crate::diagnostics::output_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::http::Downloader;
 use crate::http::HttpDownloader;
+use crate::path;
+use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::v1::ExprEvaluator;
 use crate::v1::TaskEvaluator;
@@ -133,8 +137,6 @@ struct WorkflowEvaluationContext<'a, 'b> {
     document: &'a Document,
     /// The scope being evaluated.
     scope: ScopeRef<'b>,
-    /// The workflow's work directory.
-    work_dir: &'a Path,
     /// The workflow's temporary directory.
     temp_dir: &'a Path,
     /// The downloader for expression evaluation.
@@ -146,14 +148,12 @@ impl<'a, 'b> WorkflowEvaluationContext<'a, 'b> {
     pub fn new(
         document: &'a Document,
         scope: ScopeRef<'b>,
-        work_dir: &'a Path,
         temp_dir: &'a Path,
         downloader: &'a HttpDownloader,
     ) -> Self {
         Self {
             document,
             scope,
-            work_dir,
             temp_dir,
             downloader,
         }
@@ -178,8 +178,8 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         crate::resolve_type_name(self.document, name, span)
     }
 
-    fn work_dir(&self) -> &Path {
-        self.work_dir
+    fn work_dir(&self) -> Option<&EvaluationPath> {
+        None
     }
 
     fn temp_dir(&self) -> &Path {
@@ -198,7 +198,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         None
     }
 
-    fn translate_path(&self, _path: &Path) -> Option<Cow<'_, Path>> {
+    fn translate_path(&self, _path: &str) -> Option<Cow<'_, Path>> {
         None
     }
 
@@ -579,8 +579,6 @@ struct State {
     graph: DiGraph<WorkflowGraphNode<SyntaxNode>, ()>,
     /// The map from graph node index to subgraph.
     subgraphs: HashMap<NodeIndex, Subgraph>,
-    /// The workflow evaluation working directory path.
-    work_dir: PathBuf,
     /// The workflow evaluation temp directory path.
     temp_dir: PathBuf,
     /// The calls directory path.
@@ -774,8 +772,6 @@ impl WorkflowEvaluator {
             .concurrency
             .unwrap_or_else(|| self.backend.max_concurrency());
 
-        let work_dir = root_dir.join("work");
-
         // Create the temp directory now as it may be needed for workflow evaluation
         let temp_dir = root_dir.join("tmp");
         fs::create_dir_all(&temp_dir).with_context(|| {
@@ -802,7 +798,6 @@ impl WorkflowEvaluator {
             scopes: Default::default(),
             graph,
             subgraphs,
-            work_dir,
             temp_dir,
             calls_dir,
             downloader: self.downloader.clone(),
@@ -1184,10 +1179,20 @@ impl WorkflowEvaluator {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
 
-        // Finally, join any paths with the working directory, checking for existence
+        // Finally ensure output files exist
         value
-            .join_paths(&state.work_dir, true, expected_ty.is_optional(), &|_| {
-                Ok(None)
+            .visit_paths_mut(expected_ty.is_optional(), &mut |optional, value| {
+                let path = match value {
+                    PrimitiveValue::File(path) => path,
+                    PrimitiveValue::Directory(path) => path,
+                    _ => unreachable!("only file and directory values should be visited"),
+                };
+
+                if !path::is_url(path) && Path::new(path.as_str()).is_relative() {
+                    bail!("relative path `{path}` cannot be a workflow output");
+                }
+
+                value.ensure_path_exists(optional)
             })
             .map_err(|e| {
                 output_evaluation_failed(
@@ -1678,7 +1683,6 @@ impl WorkflowEvaluator {
         let mut evaluator = ExprEvaluator::new(WorkflowEvaluationContext::new(
             &state.document,
             scopes.reference(scope),
-            &state.work_dir,
             &state.temp_dir,
             &state.downloader,
         ));
@@ -1704,7 +1708,6 @@ impl WorkflowEvaluator {
                     let mut evaluator = ExprEvaluator::new(WorkflowEvaluationContext::new(
                         &state.document,
                         scopes.reference(scope),
-                        &state.work_dir,
                         &state.temp_dir,
                         &state.downloader,
                     ));

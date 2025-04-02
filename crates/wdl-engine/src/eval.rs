@@ -3,11 +3,11 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::ffi::OsStr;
+use std::fs;
 use std::path::Component;
 use std::path::MAIN_SEPARATOR;
 use std::path::Path;
-use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -24,9 +24,12 @@ use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use crate::CompoundValue;
 use crate::Outputs;
 use crate::PrimitiveValue;
+use crate::TaskExecutionResult;
 use crate::TaskExecutionRoot;
 use crate::Value;
 use crate::http::Downloader;
+use crate::http::Location;
+use crate::path::EvaluationPath;
 
 pub mod v1;
 
@@ -66,7 +69,9 @@ pub trait EvaluationContext: Send + Sync {
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 
     /// Gets the working directory for the evaluation.
-    fn work_dir(&self) -> &Path;
+    ///
+    /// Returns `None` if the task execution hasn't occurred yet.
+    fn work_dir(&self) -> Option<&EvaluationPath>;
 
     /// Gets the temp directory for the evaluation.
     fn temp_dir(&self) -> &Path;
@@ -89,7 +94,7 @@ pub trait EvaluationContext: Send + Sync {
     /// Translates a host path to a guest path.
     ///
     /// Returns `None` if no translation is available.
-    fn translate_path(&self, path: &Path) -> Option<Cow<'_, Path>>;
+    fn translate_path(&self, path: &str) -> Option<Cow<'_, Path>>;
 
     /// Gets the downloader to use for evaluating expressions.
     fn downloader(&self) -> &dyn Downloader;
@@ -210,16 +215,20 @@ impl<'a> ScopeRef<'a> {
 
     /// Iterates over each name and value visible to the scope and calls the
     /// provided callback.
-    pub fn for_each(&self, mut cb: impl FnMut(&str, &Value)) {
+    ///
+    /// Stops iterating and returns an error if the callback returns an error.
+    pub fn for_each(&self, mut cb: impl FnMut(&str, &Value) -> Result<()>) -> Result<()> {
         let mut current = Some(self.index);
 
         while let Some(index) = current {
             for (n, v) in self.scopes[index.0].local() {
-                cb(n, v);
+                cb(n, v)?;
             }
 
             current = self.scopes[index.0].parent;
         }
+
+        Ok(())
     }
 
     /// Gets the value of a name local to this scope.
@@ -250,12 +259,12 @@ impl<'a> ScopeRef<'a> {
 /// Represents an evaluated task.
 #[derive(Debug)]
 pub struct EvaluatedTask {
-    /// The evaluated task's status code.
-    status_code: i32,
+    /// The evaluated task's exit code.
+    exit_code: i32,
+    /// The task execution root.
+    root: Arc<TaskExecutionRoot>,
     /// The working directory of the executed task.
-    work_dir: PathBuf,
-    /// The command file of the executed task.
-    command: PathBuf,
+    work_dir: EvaluationPath,
     /// The value to return from the `stdout` function.
     stdout: Value,
     /// The value to return from the `stderr` function.
@@ -274,7 +283,7 @@ impl EvaluatedTask {
     /// Constructs a new evaluated task.
     ///
     /// Returns an error if the stdout or stderr paths are not UTF-8.
-    fn new(root: &TaskExecutionRoot, status_code: i32) -> anyhow::Result<Self> {
+    fn new(root: Arc<TaskExecutionRoot>, result: TaskExecutionResult) -> anyhow::Result<Self> {
         let stdout = PrimitiveValue::new_file(root.stdout().to_str().with_context(|| {
             format!(
                 "path to stdout file `{path}` is not UTF-8",
@@ -291,28 +300,28 @@ impl EvaluatedTask {
         .into();
 
         Ok(Self {
-            status_code,
-            work_dir: root.work_dir().into(),
-            command: root.command().into(),
+            exit_code: result.exit_code,
+            root,
+            work_dir: result.work_dir,
             stdout,
             stderr,
             outputs: Ok(Default::default()),
         })
     }
 
-    /// Gets the status code of the evaluated task.
-    pub fn status_code(&self) -> i32 {
-        self.status_code
+    /// Gets the exit code of the evaluated task.
+    pub fn exit_code(&self) -> i32 {
+        self.exit_code
+    }
+
+    /// Gets the task execution root for the evaluated task.
+    pub fn root(&self) -> &TaskExecutionRoot {
+        &self.root
     }
 
     /// Gets the working directory of the evaluated task.
-    pub fn work_dir(&self) -> &Path {
+    pub fn work_dir(&self) -> &EvaluationPath {
         &self.work_dir
-    }
-
-    /// Gets the command file of the evaluated task.
-    pub fn command(&self) -> &Path {
-        &self.command
     }
 
     /// Gets the stdout value of the evaluated task.
@@ -365,33 +374,37 @@ impl EvaluatedTask {
                     );
                 }
                 Value::Primitive(PrimitiveValue::Integer(ok)) => {
-                    if self.status_code == i32::try_from(*ok).unwrap_or_default() {
+                    if self.exit_code == i32::try_from(*ok).unwrap_or_default() {
                         error = false;
                     }
                 }
                 Value::Compound(CompoundValue::Array(codes)) => {
                     error = !codes.as_slice().iter().any(|v| {
                         v.as_integer()
-                            .map(|i| i32::try_from(i).unwrap_or_default() == self.status_code)
+                            .map(|i| i32::try_from(i).unwrap_or_default() == self.exit_code)
                             .unwrap_or(false)
                     });
                 }
                 _ => unreachable!("unexpected return codes value"),
             }
         } else {
-            error = self.status_code != 0;
+            error = self.exit_code != 0;
         }
 
         if error {
+            let stderr = fs::read_to_string(self.root.stderr()).unwrap_or_default();
+
             bail!(
-                "task process has terminated with status code {code}; see the `stdout` and \
-                 `stderr` files in execution directory `{dir}{MAIN_SEPARATOR}` for task command \
-                 output",
-                code = self.status_code,
-                dir = Path::new(self.stderr.as_file().unwrap().as_str())
-                    .parent()
-                    .expect("parent should exist")
-                    .display(),
+                "task process has terminated with exit code {code}: see the `stdout` and `stderr` \
+                 files in execution directory `{dir}{MAIN_SEPARATOR}` for task command \
+                 output{sep}{stderr}",
+                code = self.exit_code,
+                dir = self.root().attempt_dir().display(),
+                sep = if stderr.is_empty() {
+                    ""
+                } else {
+                    "\n\ntask stderr output:\n"
+                }
             );
         }
 
@@ -399,279 +412,269 @@ impl EvaluatedTask {
     }
 }
 
-/// Represents a mount of a file or directory for backends that use containers.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Mount {
-    /// The host path for the mount.
-    pub host: PathBuf,
-    /// The guest path for the mount.
-    pub guest: PathBuf,
-    /// Whether or not the mount should be read-only.
-    pub read_only: bool,
+/// Represents a `File` or `Directory` input to a task.
+#[derive(Debug, Clone)]
+pub struct Input {
+    /// The path for the input.
+    path: EvaluationPath,
+    /// The download location for the input.
+    ///
+    /// This is `Some` if the input has been downloaded to a known location.
+    location: Option<Location<'static>>,
+    /// The guest path for the input.
+    guest_path: Option<String>,
 }
 
-impl Mount {
-    /// Creates a new mount with the given host and guest paths.
-    pub fn new(host: impl Into<PathBuf>, guest: impl Into<PathBuf>, read_only: bool) -> Self {
+impl Input {
+    /// Creates a new input with the given path and access.
+    pub fn new(path: EvaluationPath) -> Self {
         Self {
-            host: host.into(),
-            guest: guest.into(),
-            read_only,
+            path,
+            location: None,
+            guest_path: None,
         }
+    }
+
+    /// Gets the path to the input.
+    pub fn path(&self) -> &EvaluationPath {
+        &self.path
+    }
+
+    /// Gets the location of the input if it has been downloaded.
+    pub fn location(&self) -> Option<&Path> {
+        self.location.as_deref()
+    }
+
+    /// Sets the location of the input.
+    pub fn set_location(&mut self, location: Location<'static>) {
+        self.location = Some(location);
+    }
+
+    /// Gets the guest path for the input.
+    pub fn guest_path(&self) -> Option<&str> {
+        self.guest_path.as_deref()
+    }
+
+    /// Sets the guest path for the input.
+    pub fn set_guest_path(&mut self, path: impl Into<String>) {
+        self.guest_path = Some(path.into());
     }
 }
 
-/// Represents a collection of mounts for mapping host and guest paths for task
-/// execution backends that use containers.
-#[derive(Debug, Default)]
-pub struct Mounts(Vec<Mount>);
-
-impl Mounts {
-    /// Gets the guest path for the given host path.
-    ///
-    /// Returns `None` if there is no guest path mapped for the given path.
-    pub fn guest(&self, host: impl AsRef<Path>) -> Option<Cow<'_, Path>> {
-        let host = host.as_ref();
-
-        for mp in &self.0 {
-            if let Ok(stripped) = host.strip_prefix(&mp.host) {
-                if stripped.as_os_str().is_empty() {
-                    return Some(mp.guest.as_path().into());
-                }
-
-                return Some(Path::new(&mp.guest).join(stripped).into());
-            }
-        }
-
-        None
-    }
-
-    /// Gets the host path for the given guest path.
-    ///
-    /// Returns `None` if there is no host path mapped for the given path.
-    pub fn host(&self, guest: impl AsRef<Path>) -> Option<Cow<'_, Path>> {
-        let guest = guest.as_ref();
-
-        for mp in &self.0 {
-            if let Ok(stripped) = guest.strip_prefix(&mp.guest) {
-                if stripped.as_os_str().is_empty() {
-                    return Some(mp.host.as_path().into());
-                }
-
-                return Some(Path::new(&mp.host).join(stripped).into());
-            }
-        }
-
-        None
-    }
-
-    /// Returns an iterator of mounts within the collection.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = &Mount> {
-        self.0.iter()
-    }
-
-    /// Returns the number of mounts in the collection.
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Returns `true` if the collection is empty.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Inserts a mount into the collection.
-    pub fn insert(&mut self, mp: impl Into<Mount>) {
-        self.0.push(mp.into());
-    }
-}
-
-/// Represents a node in a path trie.
+/// Represents a node in an input trie.
 #[derive(Debug)]
-struct PathTrieNode<'a> {
-    /// The path component represented by this node.
-    component: Component<'a>,
+struct InputTrieNode<'a> {
     /// The children of this node.
     ///
     /// A `BTreeMap` is used here to get a consistent walk of the tree.
-    children: BTreeMap<&'a OsStr, Self>,
+    children: BTreeMap<&'a str, Self>,
     /// The identifier of the node in the trie.
     ///
     /// A node's identifier is used when formatting guest paths of children.
     id: usize,
-    /// Whether or not the node is terminal.
+    /// The input represented by this node.
     ///
-    /// A value of `true` indicates that the path was explicitly inserted into
-    /// the trie.
-    terminal: bool,
-    /// Whether or not a mount at a terminal path is considered read-only.
-    read_only: bool,
+    /// This is `Some` only for terminal nodes in the trie.
+    ///
+    /// The first element in the tuple is the index of the input.
+    input: Option<(usize, &'a Input)>,
 }
 
-impl<'a> PathTrieNode<'a> {
-    /// Constructs a new path trie node with the given normal path component.
-    fn new(component: Component<'a>, id: usize) -> Self {
+impl InputTrieNode<'_> {
+    /// Constructs a new input trie node with the given component.
+    fn new(id: usize) -> Self {
         Self {
-            component,
             children: Default::default(),
             id,
-            terminal: false,
-            read_only: false,
+            input: None,
         }
     }
 
-    /// Inserts any mounts for the node.
-    fn insert_mounts(
+    /// Calculates the guest path for all terminal nodes in the trie.
+    fn calculate_guest_paths(
         &self,
-        root: &'a Path,
-        host: &mut PathBuf,
-        mounts: &mut Mounts,
+        root: &str,
         parent_id: usize,
-    ) {
-        // Push the component onto the host path and pop it after any traversals
-        host.push(self.component);
+        paths: &mut Vec<(usize, String)>,
+    ) -> Result<()> {
+        // Invoke the callback for any terminal node in the trie
+        if let Some((index, input)) = self.input {
+            let file_name = input.path.file_name()?.unwrap_or("");
 
-        if let Component::Prefix(_) = self.component {
-            // Because we store the root and prefix in reverse order in the trie, push a
-            // root following a prefix
-            host.push(Component::RootDir);
-        }
-
-        // For terminal nodes, we add a mount and stop recursing
-        // Any terminal nodes that are descendant from this node will be treated as
-        // relative to this node in any mappings
-        if self.terminal {
-            let filename = host.file_name().and_then(|n| n.to_str()).unwrap_or("");
-
-            // Use format! for the path so that it always appears unix-style
-            // The parent id is used so that children of the same parent share the same
-            // parent directory
-            mounts.0.push(Mount {
-                host: host.clone(),
-                guest: format!(
-                    "{root}{sep}{parent_id}{sep2}{filename}",
-                    root = root.display(),
-                    sep = if root.as_os_str().as_encoded_bytes().last() == Some(&b'/') {
+            // If the file name is empty, it means this is a root URL
+            let guest_path = if file_name.is_empty() {
+                format!(
+                    "{root}{sep}{parent_id}/.root",
+                    root = root,
+                    sep = if root.as_bytes().last() == Some(&b'/') {
+                        ""
+                    } else {
+                        "/"
+                    }
+                )
+            } else {
+                format!(
+                    "{root}{sep}{parent_id}/{file_name}",
+                    root = root,
+                    sep = if root.as_bytes().last() == Some(&b'/') {
                         ""
                     } else {
                         "/"
                     },
-                    sep2 = if filename.is_empty() { "" } else { "/" },
                 )
-                .into(),
-                read_only: self.read_only,
-            });
-        } else {
-            // Otherwise, traverse into the children
-            for child in self.children.values() {
-                child.insert_mounts(root, host, mounts, self.id);
-            }
+            };
+
+            paths.push((index, guest_path));
         }
 
-        if let Component::Prefix(_) = self.component {
-            host.pop();
+        // Traverse into the children
+        for child in self.children.values() {
+            child.calculate_guest_paths(root, self.id, paths)?;
         }
 
-        host.pop();
+        Ok(())
     }
 }
 
-impl Default for PathTrieNode<'_> {
-    fn default() -> Self {
-        Self {
-            component: Component::RootDir,
-            children: Default::default(),
-            id: 0,
-            terminal: false,
-            read_only: false,
-        }
-    }
-}
-
-/// Represents a prefix trie based on file system paths.
+/// Represents a prefix trie based on input paths.
 ///
-/// This is used to determine container mounts.
+/// This is used to determine guest paths for inputs.
 ///
-/// From the root to a terminal node represents a host path.
-///
-/// If a terminal path has descendants that are also terminal, only the ancestor
-/// nearest the root will be added as a mount; its descendants will be mapped as
-/// relative paths.
-///
-/// Host and guest paths are mapped according to the mounts.
+/// From the root to a terminal node represents a unique input.
 #[derive(Debug)]
-pub struct PathTrie<'a> {
-    /// The root node of the trie.
+pub struct InputTrie<'a> {
+    /// The URL path children of the tree.
     ///
-    /// `None` indicates an empty trie.
-    root: PathTrieNode<'a>,
-    /// The number of nodes in the trie.
+    /// The key in the map is the scheme of each URL.
     ///
-    /// Used to provide an identifier to each node.
+    /// A `BTreeMap` is used here to get a consistent walk of the tree.
+    urls: BTreeMap<&'a str, InputTrieNode<'a>>,
+    /// The local path children of the tree.
     ///
-    /// The trie always has at least one node (the root).
+    /// The key in the map is the first component of each path.
+    ///
+    /// A `BTreeMap` is used here to get a consistent walk of the tree.
+    paths: BTreeMap<&'a str, InputTrieNode<'a>>,
+    /// The next node identifier.
+    next_id: usize,
+    /// The number of inputs in the trie.
     count: usize,
 }
 
-impl<'a> PathTrie<'a> {
-    /// Inserts a new path into the trie.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the provided path is not absolute or if it contains `.` or
-    /// `..` components.
-    pub fn insert(&mut self, path: &'a Path, read_only: bool) {
-        assert!(
-            path.is_absolute(),
-            "a path must be absolute to add to the trie"
-        );
-
-        let mut node = &mut self.root;
-
-        for component in path.components() {
-            match component {
-                Component::RootDir => {
-                    // Skip the root directory as we already have it in the trie
-                    continue;
-                }
-                Component::Prefix(_) | Component::Normal(_) => {
-                    // Accept the component
-                }
-                Component::CurDir | Component::ParentDir => {
-                    panic!("path may not contain `.` or `..`");
-                }
-            }
-
-            node = node
-                .children
-                .entry(component.as_os_str())
-                .or_insert_with(|| {
-                    let node = PathTrieNode::new(component, self.count);
+impl<'a> InputTrie<'a> {
+    /// Inserts a new input into the trie.
+    pub fn insert(&mut self, input: &'a Input) -> Result<()> {
+        let node = match &input.path {
+            EvaluationPath::Local(path) => {
+                // Don't both inserting anything into the trie for relative paths
+                // We still consider the input part of the trie, but it will never have a guest
+                // path
+                if path.is_relative() {
                     self.count += 1;
+                    return Ok(());
+                }
+
+                let mut components = path.components();
+
+                let component = components
+                    .next()
+                    .context("input path cannot be empty")?
+                    .as_os_str()
+                    .to_str()
+                    .with_context(|| {
+                        format!("input path `{path}` is not UTF-8", path = path.display())
+                    })?;
+                let mut node = self.paths.entry(component).or_insert_with(|| {
+                    let node = InputTrieNode::new(self.next_id);
+                    self.next_id += 1;
                     node
                 });
-        }
 
-        node.terminal = true;
-        node.read_only = read_only;
+                for component in components {
+                    match component {
+                        Component::CurDir | Component::ParentDir => {
+                            bail!(
+                                "input path `{path}` may not contain `.` or `..`",
+                                path = path.display()
+                            );
+                        }
+                        _ => {}
+                    }
+
+                    let component = component.as_os_str().to_str().with_context(|| {
+                        format!("input path `{path}` is not UTF-8", path = path.display())
+                    })?;
+                    node = node.children.entry(component).or_insert_with(|| {
+                        let node = InputTrieNode::new(self.next_id);
+                        self.next_id += 1;
+                        node
+                    });
+                }
+
+                node
+            }
+            EvaluationPath::Remote(url) => {
+                // Insert for scheme
+                let mut node = self.urls.entry(url.scheme()).or_insert_with(|| {
+                    let node = InputTrieNode::new(self.next_id);
+                    self.next_id += 1;
+                    node
+                });
+
+                // Insert the authority
+                node = node.children.entry(url.authority()).or_insert_with(|| {
+                    let node = InputTrieNode::new(self.next_id);
+                    self.next_id += 1;
+                    node
+                });
+
+                // Insert the path segments
+                if let Some(segments) = url.path_segments() {
+                    for segment in segments {
+                        node = node.children.entry(segment).or_insert_with(|| {
+                            let node = InputTrieNode::new(self.next_id);
+                            self.next_id += 1;
+                            node
+                        });
+                    }
+                }
+
+                // Ignore query parameters and fragments
+                node
+            }
+        };
+
+        node.input = Some((self.count, input));
+        self.count += 1;
+        Ok(())
     }
 
-    /// Converts the path trie into mounts based on the provided guest root
-    /// directory.
-    pub fn into_mounts(self, guest_root: impl AsRef<Path>) -> Mounts {
-        let mut mounts = Mounts::default();
-        let mut host = PathBuf::new();
-        self.root
-            .insert_mounts(guest_root.as_ref(), &mut host, &mut mounts, 0);
-        mounts
+    /// Calculates guest paths for the inputs in the trie.
+    ///
+    /// Returns a collection of input insertion index paired with the calculated
+    /// guest path.
+    pub fn calculate_guest_paths(&self, root: &str) -> Result<Vec<(usize, String)>> {
+        let mut paths = Vec::with_capacity(self.count);
+        for child in self.urls.values() {
+            child.calculate_guest_paths(root, 0, &mut paths)?;
+        }
+
+        for child in self.paths.values() {
+            child.calculate_guest_paths(root, 0, &mut paths)?;
+        }
+
+        Ok(paths)
     }
 }
 
-impl Default for PathTrie<'_> {
+impl Default for InputTrie<'_> {
     fn default() -> Self {
         Self {
-            root: Default::default(),
-            count: 1,
+            urls: Default::default(),
+            paths: Default::default(),
+            // The first id starts at 1 as 0 is considered the "virtual root" of the trie
+            next_id: 1,
+            count: 0,
         }
     }
 }
@@ -684,190 +687,128 @@ mod test {
 
     #[test]
     fn empty_trie() {
-        let empty = PathTrie::default();
-        let mounts = empty.into_mounts("/mnt/");
-        assert_eq!(mounts.iter().count(), 0);
-        assert_eq!(mounts.len(), 0);
-        assert!(mounts.is_empty());
+        let empty = InputTrie::default();
+        let paths = empty.calculate_guest_paths("/mnt/").unwrap();
+        assert!(paths.is_empty());
     }
 
     #[cfg(unix)]
     #[test]
-    fn trie_with_terminal_root_unix() {
-        let mut trie = PathTrie::default();
-        trie.insert(Path::new("/"), true);
-        trie.insert(Path::new("/relative/from/root"), true);
-        let mounts = trie.into_mounts("/mnt/");
-        assert_eq!(mounts.iter().count(), 1);
-        assert_eq!(mounts.len(), 1);
-        assert!(!mounts.is_empty());
+    fn non_empty_trie_unix() {
+        let mut trie = InputTrie::default();
+        let inputs = [
+            Input::new("/".parse().unwrap()),
+            Input::new("/foo/bar/foo.txt".parse().unwrap()),
+            Input::new("/foo/bar/bar.txt".parse().unwrap()),
+            Input::new("/foo/baz/foo.txt".parse().unwrap()),
+            Input::new("/foo/baz/bar.txt".parse().unwrap()),
+            Input::new("/bar/foo/foo.txt".parse().unwrap()),
+            Input::new("/bar/foo/bar.txt".parse().unwrap()),
+            Input::new("/baz".parse().unwrap()),
+            Input::new("https://example.com/".parse().unwrap()),
+            Input::new("https://example.com/foo/bar/foo.txt".parse().unwrap()),
+            Input::new("https://example.com/foo/bar/bar.txt".parse().unwrap()),
+            Input::new("https://example.com/foo/baz/foo.txt".parse().unwrap()),
+            Input::new("https://example.com/foo/baz/bar.txt".parse().unwrap()),
+            Input::new("https://example.com/bar/foo/foo.txt".parse().unwrap()),
+            Input::new("https://example.com/bar/foo/bar.txt".parse().unwrap()),
+            Input::new("https://foo.com/bar".parse().unwrap()),
+        ];
 
-        // Note: the mounts are always in lexical order
-        let collected: Vec<_> = mounts.iter().collect();
-        assert_eq!(collected, [&Mount::new("/", "/mnt/0", true)]);
-
-        for (host, guest) in [
-            ("/", "/mnt/0"),
-            ("/foo/bar/foo.txt", "/mnt/0/foo/bar/foo.txt"),
-            ("/bar/foo/foo.txt", "/mnt/0/bar/foo/foo.txt"),
-            ("/any/other/path", "/mnt/0/any/other/path"),
-        ] {
-            assert_eq!(
-                mounts.guest(host).as_deref(),
-                Some(Path::new(guest)),
-                "unexpected guest path for host path `{host}`"
-            );
-            assert_eq!(
-                mounts.host(guest).as_deref(),
-                Some(Path::new(host)),
-                "unexpected host path for guest path `{guest}`"
-            );
+        for input in &inputs {
+            trie.insert(input).unwrap();
         }
+
+        // The important part of the guest paths are:
+        // 1) The guest file name should be the same (or `.root` if the path is
+        //    considered to be root)
+        // 2) Paths with the same parent should have the same guest parent
+        let paths = trie.calculate_guest_paths("/mnt/").unwrap();
+        let paths: Vec<_> = paths
+            .iter()
+            .map(|(index, guest)| (inputs[*index].path().to_str().unwrap(), guest.as_str()))
+            .collect();
+
+        assert_eq!(
+            paths,
+            [
+                ("https://example.com/", "/mnt/15/.root"),
+                ("https://example.com/bar/foo/bar.txt", "/mnt/25/bar.txt"),
+                ("https://example.com/bar/foo/foo.txt", "/mnt/25/foo.txt"),
+                ("https://example.com/foo/bar/bar.txt", "/mnt/18/bar.txt"),
+                ("https://example.com/foo/bar/foo.txt", "/mnt/18/foo.txt"),
+                ("https://example.com/foo/baz/bar.txt", "/mnt/21/bar.txt"),
+                ("https://example.com/foo/baz/foo.txt", "/mnt/21/foo.txt"),
+                ("https://foo.com/bar", "/mnt/28/bar"),
+                ("/", "/mnt/0/.root"),
+                ("/bar/foo/bar.txt", "/mnt/10/bar.txt"),
+                ("/bar/foo/foo.txt", "/mnt/10/foo.txt"),
+                ("/baz", "/mnt/1/baz"),
+                ("/foo/bar/bar.txt", "/mnt/3/bar.txt"),
+                ("/foo/bar/foo.txt", "/mnt/3/foo.txt"),
+                ("/foo/baz/bar.txt", "/mnt/6/bar.txt"),
+                ("/foo/baz/foo.txt", "/mnt/6/foo.txt"),
+            ]
+        );
     }
 
     #[cfg(windows)]
     #[test]
-    fn root_with_terminal_root_windows() {
-        let mut trie = PathTrie::default();
-        trie.insert(Path::new("C:\\"), true);
-        trie.insert(Path::new("C:\\relative\\from\\root"), true);
-        let mounts = trie.into_mounts("/mnt/");
-        assert_eq!(mounts.iter().count(), 1);
-        assert_eq!(mounts.len(), 1);
-        assert!(!mounts.is_empty());
+    fn non_empty_trie_windows() {
+        let mut trie = InputTrie::default();
+        let inputs = [
+            Input::new("C:\\".parse().unwrap()),
+            Input::new("C:\\foo\\bar\\foo.txt".parse().unwrap()),
+            Input::new("C:\\foo\\bar\\bar.txt".parse().unwrap()),
+            Input::new("C:\\foo\\baz\\foo.txt".parse().unwrap()),
+            Input::new("C:\\foo\\baz\\bar.txt".parse().unwrap()),
+            Input::new("C:\\bar\\foo\\foo.txt".parse().unwrap()),
+            Input::new("C:\\bar\\foo\\bar.txt".parse().unwrap()),
+            Input::new("C:\\baz".parse().unwrap()),
+            Input::new("https://example.com/".parse().unwrap()),
+            Input::new("https://example.com/foo/bar/foo.txt".parse().unwrap()),
+            Input::new("https://example.com/foo/bar/bar.txt".parse().unwrap()),
+            Input::new("https://example.com/foo/baz/foo.txt".parse().unwrap()),
+            Input::new("https://example.com/foo/baz/bar.txt".parse().unwrap()),
+            Input::new("https://example.com/bar/foo/foo.txt".parse().unwrap()),
+            Input::new("https://example.com/bar/foo/bar.txt".parse().unwrap()),
+            Input::new("https://foo.com/bar".parse().unwrap()),
+        ];
 
-        // Note: the mounts are always in lexical order
-        let collected: Vec<_> = mounts.iter().collect();
-        assert_eq!(collected, [&Mount::new("C:\\", "/mnt/0", true)]);
-
-        for (host, guest) in [
-            ("C:\\", "/mnt/0"),
-            ("C:\\foo\\bar\\foo.txt", "/mnt/0/foo/bar/foo.txt"),
-            ("C:\\bar\\foo\\foo.txt", "/mnt/0/bar/foo/foo.txt"),
-            ("C:\\any\\other\\path", "/mnt/0/any/other/path"),
-        ] {
-            assert_eq!(
-                mounts.guest(host).as_deref(),
-                Some(Path::new(guest)),
-                "unexpected guest path for host path `{host}`"
-            );
-            assert_eq!(
-                mounts.host(guest).as_deref(),
-                Some(Path::new(host)),
-                "unexpected host path for guest path `{guest}`"
-            );
+        for input in &inputs {
+            trie.insert(input).unwrap();
         }
-    }
 
-    #[cfg(unix)]
-    #[test]
-    fn trie_with_common_paths_unix() {
-        let mut trie = PathTrie::default();
-        trie.insert(Path::new("/foo/bar/foo.txt"), true);
-        trie.insert(Path::new("/foo/bar/bar.txt"), true);
-        trie.insert(Path::new("/foo/baz/foo.txt"), true);
-        trie.insert(Path::new("/foo/baz/bar.txt"), true);
-        trie.insert(Path::new("/bar/foo/foo.txt"), true);
-        trie.insert(Path::new("/bar/foo/bar.txt"), true);
-        trie.insert(Path::new("/baz"), true);
+        // The important part of the guest paths are:
+        // 1) The guest file name should be the same (or `.root` if the path is
+        //    considered to be root)
+        // 2) Paths with the same parent should have the same guest parent
+        let paths = trie.calculate_guest_paths("/mnt/").unwrap();
+        let paths: Vec<_> = paths
+            .iter()
+            .map(|(index, guest)| (inputs[*index].path().to_str().unwrap(), guest.as_str()))
+            .collect();
 
-        let mounts = trie.into_mounts("/mnt");
-
-        // Note: the mounts are always in lexical order
-        let collected: Vec<_> = mounts.iter().collect();
         assert_eq!(
-            collected,
+            paths,
             [
-                &Mount::new("/bar/foo/bar.txt", "/mnt/9/bar.txt", true),
-                &Mount::new("/bar/foo/foo.txt", "/mnt/9/foo.txt", true),
-                &Mount::new("/baz", "/mnt/0/baz", true),
-                &Mount::new("/foo/bar/bar.txt", "/mnt/2/bar.txt", true),
-                &Mount::new("/foo/bar/foo.txt", "/mnt/2/foo.txt", true),
-                &Mount::new("/foo/baz/bar.txt", "/mnt/5/bar.txt", true),
-                &Mount::new("/foo/baz/foo.txt", "/mnt/5/foo.txt", true),
+                ("https://example.com/", "/mnt/16/.root"),
+                ("https://example.com/bar/foo/bar.txt", "/mnt/26/bar.txt"),
+                ("https://example.com/bar/foo/foo.txt", "/mnt/26/foo.txt"),
+                ("https://example.com/foo/bar/bar.txt", "/mnt/19/bar.txt"),
+                ("https://example.com/foo/bar/foo.txt", "/mnt/19/foo.txt"),
+                ("https://example.com/foo/baz/bar.txt", "/mnt/22/bar.txt"),
+                ("https://example.com/foo/baz/foo.txt", "/mnt/22/foo.txt"),
+                ("https://foo.com/bar", "/mnt/29/bar"),
+                ("C:\\", "/mnt/1/.root"),
+                ("C:\\bar\\foo\\bar.txt", "/mnt/11/bar.txt"),
+                ("C:\\bar\\foo\\foo.txt", "/mnt/11/foo.txt"),
+                ("C:\\baz", "/mnt/2/baz"),
+                ("C:\\foo\\bar\\bar.txt", "/mnt/4/bar.txt"),
+                ("C:\\foo\\bar\\foo.txt", "/mnt/4/foo.txt"),
+                ("C:\\foo\\baz\\bar.txt", "/mnt/7/bar.txt"),
+                ("C:\\foo\\baz\\foo.txt", "/mnt/7/foo.txt"),
             ]
         );
-
-        for (host, guest) in [
-            ("/foo/bar/foo.txt", "/mnt/2/foo.txt"),
-            ("/foo/bar/bar.txt", "/mnt/2/bar.txt"),
-            ("/foo/baz/foo.txt", "/mnt/5/foo.txt"),
-            ("/foo/baz/bar.txt", "/mnt/5/bar.txt"),
-            ("/bar/foo/foo.txt", "/mnt/9/foo.txt"),
-            ("/bar/foo/bar.txt", "/mnt/9/bar.txt"),
-            ("/baz", "/mnt/0/baz"),
-            ("/baz/any/other/path", "/mnt/0/baz/any/other/path"),
-        ] {
-            assert_eq!(
-                mounts.guest(host).as_deref(),
-                Some(Path::new(guest)),
-                "unexpected guest path for host path `{host}`"
-            );
-            assert_eq!(
-                mounts.host(guest).as_deref(),
-                Some(Path::new(host)),
-                "unexpected host path for guest path `{guest}`"
-            );
-        }
-
-        // Check for paths not in the host or guest mapping
-        assert!(mounts.guest("/tmp/foo.txt").is_none());
-        assert!(mounts.host("/tmp/bar.txt").is_none());
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn trie_with_common_paths_windows() {
-        let mut trie = PathTrie::default();
-        trie.insert(Path::new("C:\\foo\\bar\\foo.txt"), true);
-        trie.insert(Path::new("C:\\foo\\bar\\bar.txt"), true);
-        trie.insert(Path::new("C:\\foo\\baz\\foo.txt"), true);
-        trie.insert(Path::new("C:\\foo\\baz\\bar.txt"), true);
-        trie.insert(Path::new("C:\\bar\\foo\\foo.txt"), true);
-        trie.insert(Path::new("C:\\bar\\foo\\bar.txt"), true);
-        trie.insert(Path::new("C:\\baz"), true);
-
-        let mounts = trie.into_mounts("/mnt");
-
-        // Note: the mounts are always in lexical order
-        let collected: Vec<_> = mounts.iter().collect();
-        assert_eq!(
-            collected,
-            [
-                &Mount::new("C:\\bar\\foo\\bar.txt", "/mnt/10/bar.txt", true),
-                &Mount::new("C:\\bar\\foo\\foo.txt", "/mnt/10/foo.txt", true),
-                &Mount::new("C:\\baz", "/mnt/1/baz", true),
-                &Mount::new("C:\\foo\\bar\\bar.txt", "/mnt/3/bar.txt", true),
-                &Mount::new("C:\\foo\\bar\\foo.txt", "/mnt/3/foo.txt", true),
-                &Mount::new("C:\\foo\\baz\\bar.txt", "/mnt/6/bar.txt", true),
-                &Mount::new("C:\\foo\\baz\\foo.txt", "/mnt/6/foo.txt", true),
-            ]
-        );
-
-        for (host, guest) in [
-            ("C:\\foo\\bar\\foo.txt", "/mnt/3/foo.txt"),
-            ("C:\\foo\\bar\\bar.txt", "/mnt/3/bar.txt"),
-            ("C:\\foo\\baz\\foo.txt", "/mnt/6/foo.txt"),
-            ("C:\\foo\\baz\\bar.txt", "/mnt/6/bar.txt"),
-            ("C:\\bar\\foo\\foo.txt", "/mnt/10/foo.txt"),
-            ("C:\\bar\\foo\\bar.txt", "/mnt/10/bar.txt"),
-            ("C:\\baz", "/mnt/1/baz"),
-            ("C:\\baz\\any\\other\\path", "/mnt/1/baz/any/other/path"),
-        ] {
-            assert_eq!(
-                mounts.guest(host).as_deref(),
-                Some(Path::new(guest)),
-                "unexpected guest path for host path `{host}`"
-            );
-            assert_eq!(
-                mounts.host(guest).as_deref(),
-                Some(Path::new(host)),
-                "unexpected host path for guest path `{guest}`"
-            );
-        }
-
-        // Check for paths not in the host or guest mapping
-        assert!(mounts.guest("/tmp/foo.txt").is_none());
-        assert!(mounts.host("/tmp/bar.txt").is_none());
     }
 }

@@ -5,13 +5,13 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use futures::FutureExt;
 use futures::StreamExt;
@@ -43,16 +43,14 @@ mod s3;
 const DEFAULT_CACHE_SUBDIR: &str = "wdl";
 /// A trait implemented by types responsible for downloading remote files over
 /// HTTP for evaluation.
-pub trait Downloader {
+pub trait Downloader: Send + Sync {
     /// Downloads a file from a given URL.
     ///
-    /// Returns `Ok(None)` if the provided string is not a valid URL.
-    ///
-    /// Returns `Ok(Some)` if the file was downloaded successfully.
+    /// Returns the location of the downloaded file.
     fn download<'a, 'b, 'c>(
         &'a self,
-        url: &'b str,
-    ) -> BoxFuture<'c, Result<Option<Location>, Arc<Error>>>
+        url: &'b Url,
+    ) -> BoxFuture<'c, Result<Location<'static>, Arc<Error>>>
     where
         'a: 'c,
         'b: 'c,
@@ -61,25 +59,41 @@ pub trait Downloader {
 
 /// Represents a location of a downloaded file.
 #[derive(Debug, Clone)]
-pub enum Location {
+pub enum Location<'a> {
     /// The file exists as a temporary file.
     ///
     /// This is used whenever a response body cannot be cached.
     Temp(Arc<TempPath>),
     /// The location is a path to a non-temporary file.
-    Path(PathBuf),
-    /// The location is a shared path to a non-temporary file.
-    SharedPath(Arc<PathBuf>),
+    Path(Cow<'a, Path>),
 }
 
-impl Deref for Location {
+impl Location<'_> {
+    /// Converts the location into an owned representation.
+    pub fn into_owned(self) -> Location<'static> {
+        match self {
+            Self::Temp(path) => Location::Temp(path),
+            Self::Path(path) => Location::Path(Cow::Owned(path.into_owned())),
+        }
+    }
+}
+
+impl Deref for Location<'_> {
     type Target = Path;
 
     fn deref(&self) -> &Self::Target {
         match self {
             Self::Temp(p) => p,
             Self::Path(p) => p,
-            Self::SharedPath(p) => p,
+        }
+    }
+}
+
+impl AsRef<Path> for Location<'_> {
+    fn as_ref(&self) -> &Path {
+        match self {
+            Self::Temp(path) => path.as_ref(),
+            Self::Path(cow) => cow.as_ref(),
         }
     }
 }
@@ -91,7 +105,7 @@ pub enum Status {
     /// The specified `Notify` will be notified when the download completes.
     Downloading(Arc<Notify>),
     /// The requested resource has already been downloaded.
-    Downloaded(Result<Location, Arc<anyhow::Error>>),
+    Downloaded(Result<Location<'static>, Arc<anyhow::Error>>),
 }
 
 /// Responsible for downloading and caching remote files using HTTP.
@@ -140,7 +154,7 @@ impl HttpDownloader {
     /// Gets the file at the given URL.
     ///
     /// Returns the file's local location upon success.
-    async fn get(&self, url: &Url) -> Result<Location> {
+    async fn get(&self, url: &Url) -> Result<Location<'static>> {
         struct DisplayUrl<'a>(&'a Url);
 
         impl fmt::Display for DisplayUrl<'_> {
@@ -191,7 +205,7 @@ impl HttpDownloader {
             );
 
             // The file is in the cache
-            return Ok(Location::SharedPath(path.into()));
+            return Ok(Location::Path(path.into()));
         }
 
         // The file is not in the cache, we need to download it to a temporary path
@@ -228,58 +242,60 @@ impl HttpDownloader {
     }
 
     /// Applies authentication to the given URL.
-    fn apply_auth(&self, url: &mut Url) {
+    ///
+    /// Returns the provided URL unchanged if there was no auth to apply.
+    fn apply_auth<'a>(&self, url: Cow<'a, Url>) -> Cow<'a, Url> {
         // Attempt to apply auth for Azure storage
-        if azure::apply_auth(&self.config.storage.azure, url) {
-            return;
+        let (matched, url) = azure::apply_auth(&self.config.storage.azure, url);
+        if matched {
+            return url;
         }
 
         // Attempt to apply auth for S3 storage
-        if s3::apply_auth(&self.config.storage.s3, url) {
-            return;
+        let (matched, url) = s3::apply_auth(&self.config.storage.s3, url);
+        if matched {
+            return url;
         }
 
         // Finally, attempt to apply auth for Google Cloud Storage
-        google::apply_auth(&self.config.storage.google, url);
+        let (matched, url) = google::apply_auth(&self.config.storage.google, url);
+        if matched {
+            return url;
+        }
+
+        url
     }
 }
 
 impl Downloader for HttpDownloader {
     fn download<'a, 'b, 'c>(
         &'a self,
-        url: &'b str,
-    ) -> BoxFuture<'c, Result<Option<Location>, Arc<Error>>>
+        url: &'b Url,
+    ) -> BoxFuture<'c, Result<Location<'static>, Arc<Error>>>
     where
         'a: 'c,
         'b: 'c,
         Self: 'c,
     {
         async move {
-            // If the given string is not a URL, return `None`
-            let url: Url = match url.parse() {
-                Ok(url) => url,
-                Err(_) => return Ok(None),
-            };
-
-            let mut url = match url.scheme() {
+            let url: Cow<'_, Url> = match url.scheme() {
                 "file" => {
-                    // If it can be converted to a path, return the path; otherwise `None`
-                    return Ok(match url.to_file_path() {
-                        Ok(p) => Some(Location::Path(p)),
-                        Err(_) => None,
-                    });
+                    return Ok(Location::Path(Cow::Owned(
+                        url.to_file_path()
+                            .map_err(|_| anyhow!("invalid file URL `{url}`"))?,
+                    )));
                 }
-                "http" | "https" => url,
-                "az" => azure::rewrite_url(&url)?,
-                "s3" => s3::rewrite_url(&self.config.storage.s3, &url)?,
-                "gs" => google::rewrite_url(&url)?,
-                _ => return Ok(None),
+                "http" | "https" => Cow::Borrowed(url),
+                "az" => Cow::Owned(azure::rewrite_url(url)?),
+                "s3" => Cow::Owned(s3::rewrite_url(&self.config.storage.s3, url)?),
+                "gs" => Cow::Owned(google::rewrite_url(url)?),
+                _ => return Err(anyhow!("cannot download unsupported URL `{url}`").into()),
             };
 
             // TODO: support downloading "directories" for cloud storage URLs
 
             // Apply any authentication to the URL based on configuration
-            self.apply_auth(&mut url);
+            let url = self.apply_auth(url);
 
             // This loop exists so that all requests to download the same URL will block
             // waiting for a notification that the download has completed.
@@ -299,7 +315,7 @@ impl Downloader for HttpDownloader {
                             notify.clone()
                         }
                         Some(Status::Downloaded(r)) => {
-                            return r.clone().map(Into::into);
+                            return r.clone();
                         }
                         None => {
                             assert!(
@@ -308,7 +324,10 @@ impl Downloader for HttpDownloader {
                             );
 
                             // Insert an entry and break out of the loop to download
-                            downloads.insert(url.clone(), Status::Downloading(Arc::default()));
+                            downloads.insert(
+                                url.clone().into_owned(),
+                                Status::Downloading(Arc::default()),
+                            );
                             break;
                         }
                     }
@@ -333,7 +352,7 @@ impl Downloader for HttpDownloader {
             };
 
             notify.notify_waiters();
-            res.map(Some)
+            res
         }
         .boxed()
     }

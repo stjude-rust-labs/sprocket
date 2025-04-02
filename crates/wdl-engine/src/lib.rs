@@ -23,6 +23,7 @@ use sysinfo::MemoryRefreshKind;
 use sysinfo::System;
 pub use units::*;
 pub use value::*;
+mod path;
 use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::document::Document;
 use wdl_analysis::types::Type;

@@ -43,17 +43,20 @@ fn join_paths(
             }
         };
 
-        // Replace the value with `None` temporarily
+        // Replace the value with `None` temporarily as we need to coerce the value
         // This is useful when this value is the only reference to shared data as this
         // would prevent internal cloning
-        let mut replacement = std::mem::replace(value, Value::None);
-        if let Ok(mut v) = replacement.coerce(&ty) {
-            drop(replacement);
-            v.join_paths(path, true, false, &|_| Ok(None))?;
-            replacement = v;
+        let mut current = std::mem::replace(value, Value::None);
+        if let Ok(mut v) = current.coerce(&ty) {
+            drop(current);
+            v.visit_paths_mut(false, &mut |_, v| {
+                v.join_path_to(path);
+                v.ensure_path_exists(false)
+            })?;
+            current = v;
         }
 
-        *value = replacement;
+        *value = current;
     }
 
     Ok(())

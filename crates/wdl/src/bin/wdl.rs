@@ -149,10 +149,12 @@ impl CheckCommand {
             if let Some(e) = result.error() {
                 bail!(e.to_owned());
             }
-            document.diagnostics().iter().for_each(|d| {
+
+            let diagnostics = document.diagnostics();
+            if !diagnostics.is_empty() {
                 let source = document.root().text().to_string();
-                emit_diagnostics(&document.uri().to_string(), &source, &[d.clone()]).unwrap();
-            });
+                emit_diagnostics(&document.path(), &source, diagnostics)?;
+            }
         }
 
         Ok(())
@@ -350,8 +352,7 @@ impl ValidateCommand {
         }
 
         println!("inputs are valid");
-
-        anyhow::Ok(())
+        Ok(())
     }
 }
 
@@ -393,6 +394,26 @@ impl RunCommand {
         }
 
         let results = analyze(&self.file, vec![], false, false).await?;
+        let mut errors = 0;
+        for result in results.iter() {
+            let document = result.document();
+            if let Some(e) = result.error() {
+                bail!(e.to_owned());
+            }
+
+            let diagnostics = document.diagnostics();
+            if !diagnostics.is_empty() {
+                let source = document.root().text().to_string();
+                errors += emit_diagnostics(&document.path(), &source, diagnostics)?;
+            }
+        }
+
+        if errors > 0 {
+            bail!(
+                "aborting due to previous {errors} diagnostic{s}",
+                s = if errors == 1 { "" } else { "s" }
+            );
+        }
 
         let uri = Url::parse(&self.file)
             .unwrap_or_else(|_| path_to_uri(&self.file).expect("file should be a local path"));
