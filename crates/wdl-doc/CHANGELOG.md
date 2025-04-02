@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.2.0 - 04-01-2025
 
-### Added
+#### Added
 
 * Basic CSS styling using TailwindCSS ([#262](https://github.com/stjude-rust-labs/wdl/pull/262)).
 
-### Changed
+#### Changed
 
 * Updated to use new `wdl-ast` API ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
@@ -22,6 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.1.0 - 01-17-2025
 
-### Added
+#### Added
 
 * `wdl-doc` crate for documenting WDL codebases ([#258](https://github.com/stjude-rust-labs/wdl/pull/248)).

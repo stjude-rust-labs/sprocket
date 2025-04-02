@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.2.0 - 04-01-2025
 
-### Added
+#### Added
 
 * Added support for cloud storage URIs (#[367](https://github.com/stjude-rust-labs/wdl/pull/367)).
 * Added support reading of remote files from the stdlib file functions (#[364](https://github.com/stjude-rust-labs/wdl/pull/364))
@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added a `Config` type for specifying evaluation configuration ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 * Added progress callback to `WorkflowEvaluator` ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
 
-### Fixed
+#### Fixed
 
 * Fixed support for URLs in file stdlib functions (#[369](https://github.com/stjude-rust-labs/wdl/pull/369)).
 * Fixed panic when an input path in a complex type did not exist (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed an incorrect type being used for scatter statement outputs ([#316](https://github.com/stjude-rust-labs/wdl/pull/316)).
 * Fixed handling of input dependencies in workflow graph evaluation ([#360](https://github.com/stjude-rust-labs/wdl/pull/360)).
 
-### Changed
+#### Changed
 
 * Make stdlib file functions asynchronous ([#359](https://github.com/stjude-rust-labs/wdl/pull/359)).
 * Refactored expression evaluation to make it async ([#357](https://github.com/stjude-rust-labs/wdl/pull/357)).
@@ -51,13 +51,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.1.0 - 01-17-2025
 
-### Fixed
+#### Fixed
 
 * Limited the local task executor to a maximum level of concurrency ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
 * Fixed regression in workflow input validation when an input is missing ([#286](https://github.com/stjude-rust-labs/wdl/pull/286)).
 * Fixed input validation to not treat directly specified call inputs as missing ([#282](https://github.com/stjude-rust-labs/wdl/pull/282)).
 
-### Added
+#### Added
 
 * Added evaluation support for the WDL 1.2 `env` declaration modifier ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
 * Implemented workflow evaluation ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
@@ -83,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added the `wdl-engine` crate that will eventually implement a WDL execution
   engine (#[225](https://github.com/stjude-rust-labs/wdl/pull/225)).
 
-### Changed
+#### Changed
 
 * Removed the `Engine` type in favor of direct use of a `WorkflowEvaluator` or
   `TaskEvaluator` ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))

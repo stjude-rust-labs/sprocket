@@ -9,19 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.5.0 - 04-01-2025
 
-### Changed
+#### Changed
 
 * Updated to use new `wdl-ast` API ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
 
 ## 0.4.0 - 01-17-2025
 
-### Added
+#### Added
 
 * Leading whitespace in command text is now normalized ([#240](https://github.com/stjude-rust-labs/wdl/pull/240)).
 * Line breaks are now added in order to keep lines under the max line width (default 90 characters) ([#242](https://github.com/stjude-rust-labs/wdl/pull/242)).
 
-### Fixed
+#### Fixed
 
 * Multi-line placeholders in command blocks are now indented appropriately ([#240](https://github.com/stjude-rust-labs/wdl/pull/240)).
 * Issue [#289](https://github.com/stjude-rust-labs/wdl/issues/289) (extraneous end line in literal structs)
@@ -29,18 +29,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.3.0 - 10-22-2024
 
-### Fixed
+#### Fixed
 
 * Fix panic on multiline strings in WDL 1.2 ([#227](https://github.com/stjude-rust-labs/wdl/pull/227)).
 
 ## 0.2.1 - 10-16-2024
 
-### Fixed
+#### Fixed
 
 * Don't panic on certain optional types ([#224](https://github.com/stjude-rust-labs/wdl/pull/224))
 
 ## 0.2.0 - 10-16-2024
 
-### Added
+#### Added
 
 * Adds the initial version of the crate.

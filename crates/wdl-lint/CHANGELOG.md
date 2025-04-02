@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.10.0 - 04-01-2025
 
-### Added
+#### Added
 
 * Added suggestion for similar rule names when encountering unknown lint rules ([#334](https://github.com/stjude-rust-labs/wdl/pull/334)).
 * Added `DisallowedDeclarationName` rule ([#343](https://github.com/stjude-rust-labs/wdl/pull/343)).
@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added `Rule::related_rules()` for linking related lint rules ([#371](https://github.com/stjude-rust-labs/wdl/pull/371)).
 * Added `TryFrom` for Tags to convert strings to Tag enums ([#374](https://github.com/stjude-rust-labs/wdl/pull/374)).
 
-### Changed
+#### Changed
 
 * Added `InputSectionNode` and `OutputSectionNode` to `SnakeCase` `exceptable_nodes()` ([#343](https://github.com/stjude-rust-labs/wdl/pull/343)).
 * Updated to use new `wdl-ast` API ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
@@ -27,37 +27,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Updated `SectionOrdering` to support ordering of `struct` definitions ([#367](https://github.com/stjude-rust-labs/wdl/pull/367)
 * Replaced `TryFrom` with `FromStr` for Tags ([#376](https://github.com/stjude-rust-labs/wdl/pull/376)).
 
-### Fixed
+#### Fixed
 
 * Fixed the `MatchingParameterMeta` rule to also check if the order of inputs matches parameter metadata ([#354](https://github.com/stjude-rust-labs/wdl/pull/354))
 * Fixed misplacement of highlighted spans for some ShellCheck lints ([#317](https://github.com/stjude-rust-labs/wdl/pull/317)).
 
 ## 0.9.0 - 01-17-2025
 
-### Added
+#### Added
 
 * Improved `ShellCheck` rule fix messages and implemented the `fix` module ([#284](https://github.com/stjude-rust-labs/wdl/pull/284))
 * Added a `ShellCheck` rule ([#264](https://github.com/stjude-rust-labs/wdl/pull/264)).
 * Added a `RedundantInputAssignment` rule ([#244](https://github.com/stjude-rust-labs/wdl/pull/244)).
 
-### Changed
+#### Changed
 
 * Upgraded some `note` diagnostics to `warning` in `ContainerValue` rule  ([#244](https://github.com/stjude-rust-labs/wdl/pull/244)).
 
-### Fixed
+#### Fixed
 
 * Shortened many reported spans and ensured all lint diagnostics use a `fix` message ([#260](https://github.com/stjude-rust-labs/wdl/pull/260)).
 * `BlankLinesBetweenElements` logic was tweaked to prevent firing a redundant message with `VersionFormatting` rule ([#260](https://github.com/stjude-rust-labs/wdl/pull/260)).
 
 ## 0.8.0 - 10-22-2024
 
-### Fixed
+#### Fixed
 
 * Fixed tests to run on Windows ([#231](https://github.com/stjude-rust-labs/wdl/pull/231)).
 
 ## 0.7.0 - 10-16-2024
 
-### Changed
+#### Changed
 
 * Change how some rules report whitespace spans ([#206](https://github.com/stjude-rust-labs/wdl/pull/206)).
 * Cover a missing case in `BlankLinesBetweenElements` ([#206](https://github.com/stjude-rust-labs/wdl/pull/206)).
@@ -66,25 +66,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * test files have been cleaned up ([#187](https://github.com/stjude-rust-labs/wdl/pull/187)).
 * Some `warning` diagnostics are now `note` diagnostics ([#187](https://github.com/stjude-rust-labs/wdl/pull/187)).
 
-### Added
+#### Added
 
 * Added comments to the trailing whitespace check of the `Whitespace` rule ([#177](https://github.com/stjude-rust-labs/wdl/pull/177)).
 * Added a `MalformedLintDirective` rule ([#194](https://github.com/stjude-rust-labs/wdl/pull/194)).
 
-### Fixed
+#### Fixed
 
 * Fixed inline comment detection edge case ([#219](https://github.com/stjude-rust-labs/wdl/pull/219)).
 
 ## 0.6.0 - 09-16-2024
 
-### Fixed
+#### Fixed
 
 * Lint directives finally work :tada: ([#162](https://github.com/stjude-rust-labs/wdl/pull/162)).
 * Updated iter method in lines_with_offset util function to apply new clippy lint ([#172](https://github.com/stjude-rust-labs/wdl/pull/172)).
 
 ## 0.5.0 - 08-22-2024
 
-### Added
+#### Added
 
 * Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 * Added the `CommentWhitespace` lint rule ([#136](https://github.com/stjude-rust-labs/wdl/pull/136)).
@@ -95,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added the `ContainerValue` lint rule ([#142](https://github.com/stjude-rust-labs/wdl/pull/142)).
 * Added the `MissingRequirements` lint rule ([#142](https://github.com/stjude-rust-labs/wdl/pull/142)).
 
-### Fixed
+#### Fixed
 
 * Fixed `LintVisitor` to support reuse ([#147](https://github.com/stjude-rust-labs/wdl/pull/147)).
 * Fixed a bug in `MissingRuntime` that caused false positives to fire for WDL v1.2 and
@@ -103,7 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.4.0 - 07-17-2024
 
-### Added
+#### Added
 
 * Added the `SectionOrdering` lint rule ([#109](https://github.com/stjude-rust-labs/wdl/pull/109)).
 * Added the `DeprecatedObject` lint rule ([#112](https://github.com/stjude-rust-labs/wdl/pull/112)).
@@ -114,7 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added the `Todo` lint rule ([#120](https://github.com/stjude-rust-labs/wdl/pull/126)).
 * Added the `BlankLinesBetweenElements` lint rule ([#131](https://github.com/stjude-rust-labs/wdl/pull/131)).
 
-### Fixed
+#### Fixed
 
 * Fixed a bug in `SectionOrder` that caused false positives to fire
   ([#129](https://github.com/stjude-rust-labs/wdl/pull/129))
@@ -122,7 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   there is only a single blank line after the version statement remaining in
   the document ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
 
-### Changed
+#### Changed
 
 * All lint rule visitations now reset their states upon document entry,
   allowing a validator to be reused between documents ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
@@ -130,7 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.3.0 - 06-28-2024
 
-### Added
+#### Added
 
 * Added the `InconsistentNewlines` lint rule ([#104](https://github.com/stjude-rust-labs/wdl/pull/104)).
 * Add support for `#@ except` comments to disable lint rules ([#101](https://github.com/stjude-rust-labs/wdl/pull/101)).
@@ -142,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added the `InputNotSorted` lint rule ([#100](https://github.com/stjude-rust-labs/wdl/pull/100)).
 * Added the `InputSpacing` lint rule ([#102](https://github.com/stjude-rust-labs/wdl/pull/102)).
 
-### Fixed
+#### Fixed
 
 * Fixed the preamble whitespace rule to check for a blank line following the
   version statement ([#89](https://github.com/stjude-rust-labs/wdl/pull/89)).
@@ -150,7 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   version statement trivia based on it now being children of the version
   statement ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).
 
-### Changed
+#### Changed
 
 * Refactored the lint rules so that they directly implement `Visitor`; renamed
   `ExceptVisitor` to `LintVisitor` ([#103](https://github.com/stjude-rust-labs/wdl/pull/103)).
@@ -159,7 +159,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.1.0 - 06-13-2024
 
-### Added
+#### Added
 
 * Ported the `CommandSectionMixedIndentation` rule to `wdl-lint` ([#75](https://github.com/stjude-rust-labs/wdl/pull/75))
 * Ported the `Whitespace` rule to `wdl-lint` ([#74](https://github.com/stjude-rust-labs/wdl/pull/74))

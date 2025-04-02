@@ -9,46 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.12.0 - 04-01-2025
 
-### Changed
+#### Changed
 
 * Renamed `NameRefNode` to `NameRefExprNode` ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
 
 ## 0.11.0 - 01-17-2025
 
-### Added
+#### Added
 
 * Added parsing support for the WDL 1.2 `env` declaration modifier ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
 
-### Changed
+#### Changed
 
 * Made construction of a CST from a list of parser events public via the
 `construct_tree` function ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
 
 ## 0.10.0 - 10-22-2024
 
-### Changed
+#### Changed
 
 * Added a `contains` method to `Span` ([#232](https://github.com/stjude-rust-labs/wdl/pull/232)).
 
 ## 0.9.0 - 10-16-2024
 
-### Added
+#### Added
 
 * `SyntaxExt` (for better handling of siblings) and `SyntaxTokenExt` (for handling of associated trivia) traits ([#133](https://github.com/stjude-rust-labs/wdl/pull/133))
 * `is_trivia()` and `is_symbolic()` methods for `SyntaxKind` ([#133](https://github.com/stjude-rust-labs/wdl/pull/133))
 
-### Fixed
+#### Fixed
 
 * Fixed parsing of workflow `hints` section to no longer accept expressions ([#176](https://github.com/stjude-rust-labs/wdl/pull/176))
 
 ## 0.8.0 - 09-16-2024
 
-### Added
+#### Added
 
 * `describe()` method to `SyntaxKind` ([#162](https://github.com/stjude-rust-labs/wdl/pull/162))
 
-### Fixed
+#### Fixed
 
 * Fixed requiring comma delimiter for `input`, `object` and `hints` literal
   items in WDL 1.2 ([#165](https://github.com/stjude-rust-labs/wdl/pull/165)).
@@ -59,19 +59,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.7.0 - 08-22-2024
 
-### Added
+#### Added
 
 * Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 * Add facilities for diving on `SyntaxNode`s ([#138](https://github.com/stjude-rust-labs/wdl/pull/138)).
 
-### Fixed
+#### Fixed
 
 * Improved recovery around missing closing braces/brackets/parens ([#161](https://github.com/stjude-rust-labs/wdl/pull/161)).
 * Fixed the display of the `in` keyword in the CST ([#143](https://github.com/stjude-rust-labs/wdl/pull/143)).
 
 ## 0.6.0 - 07-17-2024
 
-### Added
+#### Added
 
 * Add support for `meta` and `parameter_meta` sections in struct definitions in
   WDL 1.2 ([#127](https://github.com/stjude-rust-labs/wdl/pull/127)).
@@ -83,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add support for `requirements` sections in WDL 1.2 ([#117](https://github.com/stjude-rust-labs/wdl/pull/117)).
 * Add support for the exponentiation operator in WDL 1.2 ([#111](https://github.com/stjude-rust-labs/wdl/pull/111)).
 
-### Fixed
+#### Fixed
 
 * Made the call target grammar rule more permissible in accepting more than two
   identifiers; this will still be treated as an error when resolving call
@@ -94,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.5.0 - 06-28-2024
 
-### Fixed
+#### Fixed
 
 * Fixed parsing of workflow conditional statements to require parenthesis
   surrounding the expression ([#94](https://github.com/stjude-rust-labs/wdl/pull/94)).
@@ -116,7 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.4.0 - 6-13-2024
 
-### Changed
+#### Changed
 
 * Removed the old parser implementation in favor of the new parser
   implementation; this also removes the `experimental` feature from the crate ([#79](https://github.com/stjude-rust-labs/wdl/pull/79)).
@@ -126,7 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.3.0 - 5-31-2024
 
-### Fixed
+#### Fixed
 
 * Fixed the experimental parser to correctly lookahead to disambiguate struct
   literals ([#63](https://github.com/stjude-rust-labs/wdl/pull/63)).
@@ -148,7 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that it can disambiguate between the `sep` option and a `sep` function
   call ([#44](https://github.com/stjude-rust-labs/wdl/pull/44)).
 
-### Added
+#### Added
 
 * Adds support for workflow statements in the experimental parser
   ([#49](https://github.com/stjude-rust-labs/wdl/pull/49)).
@@ -182,7 +182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Adds the `double_quotes` rule for quote styling in string declarations
   (contributed by @simojoe).
 
-### Changed
+#### Changed
 
 * Conform to definition of body as outlined in #12 (#62, contributed by @a-frantz)
 * Changes the `preamble_comment` rule so that continuous blocks of comments are reported.
@@ -194,7 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.2.0 - 12-17-2023
 
-### Added
+#### Added
 
 * Adds lint to suggest replacing curly command blocks (4ee030f).
 * Adds the `Pedantic` lint group (bc17014).
@@ -218,7 +218,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.1.0 — 11-22-2023
 
-### Added
+#### Added
 
 * Adds initial version of parsing WDL 1.x grammar.
 * Adds `wdl-grammar` tool, a tool that is useful in creating and exhausitvely

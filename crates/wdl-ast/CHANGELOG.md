@@ -9,19 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.11.0 - 04-01-2025
 
-### Changed
+#### Changed
 
 * Refactored AST API to support different syntax tree element representations ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
 * Refactored whitespace counting out of `strip_whitespace` into `count_whitespace` method ([#317](https://github.com/stjude-rust-labs/wdl/pull/317)).
 
-### Fixed
+#### Fixed
 
 * AST validation now checks for duplicate `hints` sections in 1.2 documents ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 
 ## 0.10.0 - 01-17-2025
 
-### Added
+#### Added
 
 * Added AST support for the WDL 1.2 `env` declaration modifier ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
 * Added `braced_scope_span` and `heredoc_scope_span` methods to `AstNodeExt` ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
@@ -30,12 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added `allows_nested_inputs` function to `Workflow` (#[241](https://github.com/stjude-rust-labs/wdl/pull/241)).
 * `strip_whitespace()` method to `LiteralString` and `CommandSection` AST nodes ([#238](https://github.com/stjude-rust-labs/wdl/pull/238)).
 
-### Changed
+#### Changed
 
 * Reduced allocations in stripping whitespace from commands and multiline
   strings and provided unescaping of escape sequences ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
 
-### Fixed
+#### Fixed
 
 * Fixed a bug in `strip_whitespace` that left a trailing carriage return at the
   end of commands and multiline strings when using Windows line endings ([#291](https://github.com/stjude-rust-labs/wdl/pull/291)).
@@ -45,17 +45,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.9.0 - 10-22-2024
 
-### Changed
+#### Changed
 
 * Refactored the AST token struct definitions to use macros ([#233](https://github.com/stjude-rust-labs/wdl/pull/233)).
 
 ## 0.8.0 - 10-16-2024
 
-### Changed
+#### Changed
 
 * Introduce a guarantee that each CST element (node or token) has one and only one analogous AST element ([#133](https://github.com/stjude-rust-labs/wdl/pull/133))
 
-### Fixed
+#### Fixed
 
 * Detect duplicate call inputs ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
 * Split hint section representation into `TaskHintsSection` and
@@ -64,30 +64,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.7.1 - 09-16-2024
 
-### Fixed
+#### Fixed
 
 * updated to latest wdl-grammar (v0.8.0)
 
 ## 0.7.0 - 09-16-2024
 
-### Added
+#### Added
 
 * moved "except comment" logic from `wdl-lint` into `wdl-ast`.
   This is for future support of disabling certain diagnostics such as "unused import" and the like.
   ([#162](https://github.com/stjude-rust-labs/wdl/pull/162))
 
-### Changed
+#### Changed
 
 * Removed `span_of` function in favor of `AstNode` extension trait ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 
-### Fixed
+#### Fixed
 
 * Fixed detection of duplicate aliased keys in a task `hints` section ([#170](https://github.com/stjude-rust-labs/wdl/pull/170)).
 * Fixed ignoring duplicate task definitions for the "counts" validation ([#170](https://github.com/stjude-rust-labs/wdl/pull/170)).
 
 ## 0.6.0 - 08-22-2024
 
-### Added
+#### Added
 
 * Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 * Add `as_*()` and `into_*()` methods for each enum item in `Expr` and `LiteralExpr`
@@ -97,20 +97,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   specification](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#container)
   ([#142](https://github.com/stjude-rust-labs/wdl/pull/142)).
 
-### Fixed
+#### Fixed
 
 * Added validation to ensure there is at most one placeholder option on a
   placeholder ([#159](https://github.com/stjude-rust-labs/wdl/pull/159)).
 * Moved validation of import statements to `wdl-ast` ([#158](https://github.com/stjude-rust-labs/wdl/pull/158)).
 
-### Changed
+#### Changed
 
 * Section methods on `TaskDefinition` and `WorkflowDefinition` now return
   `Option` instead of iterator. ([#157](https://github.com/stjude-rust-labs/wdl/pull/157)).
 
 ## 0.5.0 - 07-17-2024
 
-### Added
+#### Added
 
 * Add support for `meta` and `parameter_meta` sections in struct definitions in
   WDL 1.2 ([#127](https://github.com/stjude-rust-labs/wdl/pull/127)).
@@ -122,7 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add support for `requirements` sections in WDL 1.2 ([#117](https://github.com/stjude-rust-labs/wdl/pull/117)).
 * Add support for the exponentiation operator in WDL 1.2 ([#111](https://github.com/stjude-rust-labs/wdl/pull/111)).
 
-### Changed
+#### Changed
 
 * Removed `Send` and `Sync` constraints from the `Visitor` trait
   ([#128](https://github.com/stjude-rust-labs/wdl/pull/128)).
@@ -137,31 +137,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.4.0 - 06-28-2024
 
-### Added
+#### Added
 
 * Added a method to `ImportStatement` for deriving the namespace from the
   import URI ([#91](https://github.com/stjude-rust-labs/wdl/pull/91)).
 * Added validation of unique names, such as task, struct, and declarations
   ([#91](https://github.com/stjude-rust-labs/wdl/pull/91)).
 
-### Fixed
+#### Fixed
 
 * Fixed the validation diagnostics to be ordered by the start of the primary
   label ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).
 
-### Changed
+#### Changed
 
 * Refactored the `Visitor` trait and validation visitors so that they are not
   in a `v1` module ([#95](https://github.com/stjude-rust-labs/wdl/pull/95)).
 
 ## 0.3.0 - 06-13-2024
 
-### Fixed
+#### Fixed
 
 * Fixed the experimental parser validation to check negative numbers in
   metadata sections ([#66](https://github.com/stjude-rust-labs/wdl/pull/66)).
 
-### Added
+#### Added
 
 * Added `parent` method to section representations in the experimental AST
   ([#70](https://github.com/stjude-rust-labs/wdl/pull/70)).
@@ -169,7 +169,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added a new experimental AST for the experimental parser; this implementation
   is currently feature-gated behind the `experimental` feature ([#64](https://github.com/stjude-rust-labs/wdl/pull/64)).
 
-### Changed
+#### Changed
 
 * Removed the old AST implementation in favor of new new parser; this also
   removes the `experimental` feature from the crate ([#79](https://github.com/stjude-rust-labs/wdl/pull/79)).
@@ -181,13 +181,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fix ignoring comments in expressions ([#23](https://github.com/stjude-rust-labs/wdl/pull/23)).
 
-### Changed
+#### Changed
 
 * Conform to definition of body as outlined in #12 (#62, contributed by @a-frantz)
 * Changes the singular `Group` feature of lint warnings to one or more `Tags` (#37, contributed by @a-frantz)
 
 ## 0.1.0 — 12-17-2023
 
-### Added
+#### Added
 
 * Adds the initial version of the crate.

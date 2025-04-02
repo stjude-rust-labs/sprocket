@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.7.0 - 04-01-2025
 
-### Added
+#### Added
 
 * `missing_call_input` now generates a warning for missing inputs when nested inputs are allowed, without changing the existing error behavior ([#344]https://github.com/stjude-rust-labs/wdl/pull/344).
 * Added `path` method to `Document` ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 
-### Changed
+#### Changed
 
 * Refactored analysis API to support different syntax tree element
   representations ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
@@ -25,14 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the input is not transitively referenced by the command. This does not impact
   the diagnostic relating to unused inputs ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 
-### Fixed
+#### Fixed
 
 * Fixed type of `task.container` to be `String?` ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Fixed a missing version 1.2 constraint on the `String` overload of `basename` ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 
 ## 0.6.0 - 01-17-2025
 
-### Added
+#### Added
 
 * Added analysis support for the WDL 1.2 `env` declaration modifier ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
 * Fixed missing diagnostic for unknown local name when using the abbreviated
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Exposed information about workflow calls from an analyzed document ([#239](https://github.com/stjude-rust-labs/wdl/pull/239)).
 * Added formatting to the analyzer ([#247](https://github.com/stjude-rust-labs/wdl/pull/247)).
 
-### Changed
+#### Changed
 
 * Entry nodes in a workflow evaluation graph now contain information about the
   corresponding exit node. ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
@@ -69,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Refactored expression type evaluator to provide context via a trait ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
 * Removed `PartialEq`, `Eq`, and `Hash` from WDL-type-related types ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
 
-### Fixed
+#### Fixed
 
 * Fixed an issue where imported structs weren't always checked correctly for
   type equivalence with local structs ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
@@ -85,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.5.0 - 10-22-2024
 
-### Changed
+#### Changed
 
 * Refactored the `DocumentScope` API to simply `Document` and exposed more
   information about tasks and workflows such as their inputs and outputs ([#232](https://github.com/stjude-rust-labs/wdl/pull/232)).
@@ -94,13 +94,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.4.0 - 10-16-2024
 
-### Added
+#### Added
 
 * Implemented `UnusedImport`, `UnusedInput`, `UnusedDeclaration`, and
   `UnusedCall` analysis warnings ([#211](https://github.com/stjude-rust-labs/wdl/pull/211))
 * Implemented static analysis for workflows ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
 
-### Fixed
+#### Fixed
 
 * Allow coercion of `Array[T]` to `Array[T]+` unless from an empty array
   literal ([#213](https://github.com/stjude-rust-labs/wdl/pull/213)).
@@ -123,38 +123,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.3.0 - 09-16-2024
 
-### Added
+#### Added
 
 * Implemented type checking in task runtime, requirements, and hints sections
   ([#170](https://github.com/stjude-rust-labs/wdl/pull/170)).
 * Add support for the `task` variable in WDL 1.2 ([#168](https://github.com/stjude-rust-labs/wdl/pull/168)).
 * Full type checking support in task definitions ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 
-### Changed
+#### Changed
 
 * Use `tracing` events instead of the `log` crate ([#172](https://github.com/stjude-rust-labs/wdl/pull/172))
 * Refactored crate layout ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 
-### Fixed
+#### Fixed
 
 * Fixed definition of `basename` and `size` functions to accept `String` ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 
 ## 0.2.0 - 08-22-2024
 
-### Added
+#### Added
 
 * Implemented type checking of struct definitions ([#160](https://github.com/stjude-rust-labs/wdl/pull/160)).
 * Implemented a type system and representation of the WDL standard library for
   future type checking support ([#156](https://github.com/stjude-rust-labs/wdl/pull/156)).
 * Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 
-### Changed
+#### Changed
 
 * Refactored `Analyzer` API to support change notifications ([#146](https://github.com/stjude-rust-labs/wdl/pull/146)).
 * Replaced `AnalysisEngine` with `Analyzer` ([#143](https://github.com/stjude-rust-labs/wdl/pull/143)).
 
 ## 0.1.0 - 07-17-2024
 
-### Added
+#### Added
 
 * Added the `wdl-analysis` crate for analyzing WDL documents ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
