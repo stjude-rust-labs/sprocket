@@ -59,6 +59,10 @@ pub struct Common {
     #[arg(long)]
     pub shellcheck: bool,
 
+    /// Hide diagnostics with `note` severity.
+    #[arg(long)]
+    pub hide_notes: bool,
+
     /// Disables color output.
     #[arg(long)]
     pub no_color: bool,
@@ -162,9 +166,15 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
 
         if !diagnostics.is_empty() {
             emit_diagnostics(
-                diagnostics
-                    .iter()
-                    .filter(|d| !suppress || d.severity() == Severity::Error),
+                diagnostics.iter().filter(|d| {
+                    let severity = d.severity();
+                    match severity {
+                        Severity::Error => true,
+                        Severity::Note if args.common.hide_notes => false,
+                        _ if suppress => false,
+                        _ => true,
+                    }
+                }),
                 &uri,
                 &result.document().node().syntax().text().to_string(),
                 args.common.report_mode,
