@@ -34,7 +34,8 @@ enum Commands {
     #[clap(alias = "fmt")]
     Format(commands::format::FormatArgs),
 
-    /// Validates an input JSON file against a task or workflow input schema.
+    /// Validates an input JSON or YAML file against a task or workflow input
+    /// schema.
     ///
     /// This ensures that every required input is supplied, every supplied input
     /// is correctly typed, that no extraneous inputs are provided, and that any
