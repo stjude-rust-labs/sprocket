@@ -1,0 +1,63 @@
+name: Adds labels
+
+on:
+  pull_request:
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PR_NUMBER: ${{ github.event.number }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Add labels
+        run: |
+          # Give some breathing room at the start.
+          sleep 30
+
+          echo "Waiting for CI pipelines to start"
+          result=""
+
+          # Wait for more than one pipeline to spawn.
+          until [[ $result -gt 1 ]]; do
+            result=$(
+              gh pr checks $PR_NUMBER \
+                --json "bucket" \
+                --jq "[.[] | select(.bucket == \"pending\")] | length"
+              )
+            
+            sleep 15
+          done
+
+          # Wait for only the add labels pipeline to be remaining.
+          echo "Waiting while CI pipelines complete"
+          until [[ $result -eq 1 ]]; do
+            result=$(
+              gh pr checks $PR_NUMBER \
+                --json "bucket" \
+                --jq "[.[] | select(.bucket == \"pending\")] | length"
+              )
+            
+            sleep 15
+          done
+
+          echo "Evaluating whether there were any CI failures"
+
+          result=$(
+            gh pr checks $PR_NUMBER \
+              --json "bucket" \
+              --jq "isempty(.[] | select(.bucket == \"fail\"))"
+          )
+
+          if [[ $result == "true" ]]; then
+            gh pr edit $PR_NUMBER --remove-label "S-awaiting-CI"
+          else
+            gh pr edit $PR_NUMBER --add-label "S-awaiting-CI"
+          fi
+
+          echo "Finished!"
