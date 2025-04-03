@@ -260,6 +260,66 @@ async fn evaluate(
         }
     }
 
+    /// Represents state for reporting progress
+    #[derive(Default)]
+    struct State {
+        /// The set of currently executing task identifiers
+        ids: IndexSet<String>,
+        /// The number of completed tasks
+        completed: usize,
+        /// The number of tasks awaiting execution.
+        ready: usize,
+        /// The number of currently executing tasks
+        executing: usize,
+    }
+
+    fn progress(kind: ProgressKind<'_>, pb: &tracing::Span, state: &Mutex<State>) {
+        pb.pb_start();
+
+        let message = {
+            let mut state = state.lock().expect("failed to lock progress mutex");
+            match kind {
+                ProgressKind::TaskStarted { .. } => {
+                    state.ready += 1;
+                }
+                ProgressKind::TaskExecutionStarted { id, attempt } => {
+                    // If this is the first attempt, remove it from the ready set
+                    if attempt == 0 {
+                        state.ready -= 1;
+                    }
+
+                    state.executing += 1;
+                    state.ids.insert(id.to_string());
+                }
+                ProgressKind::TaskExecutionCompleted { id, .. } => {
+                    state.executing -= 1;
+                    state.ids.swap_remove(id);
+                }
+                ProgressKind::TaskCompleted { .. } => {
+                    state.completed += 1;
+                }
+                _ => {}
+            }
+
+            format!(
+                " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e} {executing} task{s3}: \
+                 {ids}",
+                c = state.completed,
+                completed = "completed".cyan(),
+                s1 = if state.completed == 1 { "" } else { "s" },
+                r = state.ready,
+                ready = "ready".cyan(),
+                s2 = if state.ready == 1 { "" } else { "s" },
+                e = state.executing,
+                executing = "executing".cyan(),
+                s3 = if state.executing == 1 { "" } else { "s" },
+                ids = Ids(&state.ids)
+            )
+        };
+
+        pb.pb_set_message(&message);
+    }
+
     let run_kind = match &inputs {
         Inputs::Task(_) => "task",
         Inputs::Workflow(_) => "workflow",
@@ -276,6 +336,7 @@ async fn evaluate(
         .unwrap(),
     );
 
+    let state = Mutex::<State>::default();
     let result = match inputs {
         Inputs::Task(mut inputs) => {
             // Make any paths specified in the inputs absolute
@@ -291,7 +352,10 @@ async fn evaluate(
 
             let evaluator = TaskEvaluator::new(config, token).await?;
             evaluator
-                .evaluate(document, task, &inputs, output_dir, |_| async {})
+                .evaluate(document, task, &inputs, output_dir, move |kind| {
+                    progress(kind, &pb, &state);
+                    async {}
+                })
                 .await
                 .and_then(EvaluatedTask::into_result)
         }
@@ -309,69 +373,10 @@ async fn evaluate(
                 inputs.join_paths(workflow, path)?;
             }
 
-            /// Represents state for reporting progress
-            #[derive(Default)]
-            struct State {
-                /// The set of currently executing task identifiers
-                ids: IndexSet<String>,
-                /// The number of completed tasks
-                completed: usize,
-                /// The number of tasks awaiting execution.
-                ready: usize,
-                /// The number of currently executing tasks
-                executing: usize,
-            }
-
-            let state = Mutex::<State>::default();
             let evaluator = WorkflowEvaluator::new(config, token).await?;
-
             evaluator
                 .evaluate(document, inputs, output_dir, move |kind| {
-                    pb.pb_start();
-
-                    let message = {
-                        let mut state = state.lock().expect("failed to lock progress mutex");
-                        match kind {
-                            ProgressKind::TaskStarted { .. } => {
-                                state.ready += 1;
-                            }
-                            ProgressKind::TaskExecutionStarted { id, attempt } => {
-                                // If this is the first attempt, remove it from the ready set
-                                if attempt == 0 {
-                                    state.ready -= 1;
-                                }
-
-                                state.executing += 1;
-                                state.ids.insert(id.to_string());
-                            }
-                            ProgressKind::TaskExecutionCompleted { id, .. } => {
-                                state.executing -= 1;
-                                state.ids.swap_remove(id);
-                            }
-                            ProgressKind::TaskCompleted { .. } => {
-                                state.completed += 1;
-                            }
-                            _ => {}
-                        }
-
-                        format!(
-                            " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e} {executing} \
-                             task{s3}: {ids}",
-                            c = state.completed,
-                            completed = "completed".cyan(),
-                            s1 = if state.completed == 1 { "" } else { "s" },
-                            r = state.ready,
-                            ready = "ready".cyan(),
-                            s2 = if state.ready == 1 { "" } else { "s" },
-                            e = state.executing,
-                            executing = "executing".cyan(),
-                            s3 = if state.executing == 1 { "" } else { "s" },
-                            ids = Ids(&state.ids)
-                        )
-                    };
-
-                    pb.pb_set_message(&message);
-
+                    progress(kind, &pb, &state);
                     async {}
                 })
                 .await
