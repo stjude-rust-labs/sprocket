@@ -7,8 +7,10 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::TreeNode;
 use wdl_ast::TreeToken;
 use wdl_ast::Version;
+use wdl_ast::v1::PlaceholderOption;
 
 use crate::UNNECESSARY_FUNCTION_CALL;
 use crate::UNUSED_CALL_RULE_ID;
@@ -764,4 +766,29 @@ pub fn unnecessary_function_call(
         .with_rule(UNNECESSARY_FUNCTION_CALL)
         .with_highlight(span)
         .with_label(label.to_string(), label_span)
+}
+
+/// Generates a diagnostic error message when a placeholder option has a type
+/// mismatch.
+pub fn invalid_placeholder_option<N: TreeNode>(
+    ty: &Type,
+    span: Span,
+    option: &PlaceholderOption<N>,
+) -> Diagnostic {
+    let message = match option {
+        PlaceholderOption::Sep(_) => format!(
+            "type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any \
+             primitive type, but found `{ty}`"
+        ),
+        PlaceholderOption::Default(_) => format!(
+            "type mismatch for placeholder option `default`: expected any primitive type, but \
+             found `{ty}`"
+        ),
+        PlaceholderOption::TrueFalse(_) => format!(
+            "type mismatch for placeholder option `true/false`: expected type `Boolean`, but \
+             found `{ty}`"
+        ),
+    };
+
+    Diagnostic::error(message).with_label(format!("this is type `{ty}`"), span)
 }

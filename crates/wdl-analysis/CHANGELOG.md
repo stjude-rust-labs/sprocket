@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Placeholder options are now statically type checked ([#345](https://github.com/stjude-rust-labs/wdl/pull/345)).
+
 ## 0.7.0 - 04-01-2025
 
 #### Added

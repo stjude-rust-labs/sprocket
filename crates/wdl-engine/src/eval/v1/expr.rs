@@ -19,6 +19,7 @@ use wdl_analysis::diagnostics::cannot_index;
 use wdl_analysis::diagnostics::comparison_mismatch;
 use wdl_analysis::diagnostics::if_conditional_mismatch;
 use wdl_analysis::diagnostics::index_type_mismatch;
+use wdl_analysis::diagnostics::invalid_placeholder_option;
 use wdl_analysis::diagnostics::logical_and_mismatch;
 use wdl_analysis::diagnostics::logical_not_mismatch;
 use wdl_analysis::diagnostics::logical_or_mismatch;
@@ -315,6 +316,31 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             buffer: &mut String,
         ) -> Result<(), Diagnostic> {
             let expr = placeholder.expr();
+            let value = evaluator.evaluate_expr(&expr).await?;
+
+            // Validate the placeholder option
+            if let Some(option) = placeholder.option() {
+                let ty = value.ty();
+                let valid = match option {
+                    PlaceholderOption::Sep(_) => {
+                        ty == Type::None
+                            || matches!(&ty,
+                        Type::Compound(CompoundType::Array(array_ty), _)
+                        if matches!(array_ty.element_type(), Type::Primitive(_, false)))
+                    }
+                    PlaceholderOption::Default(_) => {
+                        matches!(ty, Type::Primitive(..) | Type::None)
+                    }
+                    PlaceholderOption::TrueFalse(_) => {
+                        matches!(ty, Type::Primitive(PrimitiveType::Boolean, _) | Type::None)
+                    }
+                };
+
+                if !valid {
+                    return Err(invalid_placeholder_option(&ty, expr.span(), &option));
+                }
+            }
+
             match evaluator.evaluate_expr(&expr).await? {
                 Value::None => {
                     if let Some(o) = placeholder.option().as_ref().and_then(|o| o.as_default()) {

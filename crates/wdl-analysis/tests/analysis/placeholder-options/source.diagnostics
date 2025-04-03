@@ -1,0 +1,30 @@
+error: type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any primitive type, but found `Boolean`
+   ┌─ tests/analysis/placeholder-options/source.wdl:14:28
+   │
+14 │     command <<< ~{sep=", " true} >>> # NOT OK: sep expects an array, but got Boolean
+   │                            ^^^^ this is type `Boolean`
+
+error: type mismatch for placeholder option `true/false`: expected type `Boolean`, but found `Int`
+   ┌─ tests/analysis/placeholder-options/source.wdl:27:42
+   │
+27 │     String s3 = "~{true="yes" false="no" 1}"
+   │                                          ^ this is type `Int`
+
+error: type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any primitive type, but found `Int`
+   ┌─ tests/analysis/placeholder-options/source.wdl:33:28
+   │
+33 │     String s5 = "~{sep=',' 123}"
+   │                            ^^^ this is type `Int`
+
+error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]+`
+   ┌─ tests/analysis/placeholder-options/source.wdl:39:39
+   │
+39 │     String s7 = "~{default="fallback" [123]}"
+   │                                       ^^^^^ this is type `Array[Int]+`
+
+error: cannot coerce type `Array[Int]+` to `String`
+   ┌─ tests/analysis/placeholder-options/source.wdl:42:20
+   │
+42 │     String s8 = "~{[1, 2, 3]}"
+   │                    ^^^^^^^^^ this is type `Array[Int]+`
+

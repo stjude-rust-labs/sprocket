@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Implemented remote file localization for task execution (#[386](https://github.com/stjude-rust-labs/wdl/pull/386)).
 
+#### Fixed
+
+* Placeholder options are now type checked at runtime ([#345](https://github.com/stjude-rust-labs/wdl/pull/345)).
+
 ## 0.2.0 - 04-01-2025
 
 #### Added

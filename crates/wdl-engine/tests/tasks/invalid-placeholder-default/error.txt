@@ -1,0 +1,6 @@
+error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]`
+   ┌─ tests/tasks/invalid-placeholder-default/source.wdl:11:40
+   │
+11 │         String out = "~{default='nope' read_json("array.json")}"
+   │                                        ^^^^^^^^^^^^^^^^^^^^^^^ this is type `Array[Int]`
+

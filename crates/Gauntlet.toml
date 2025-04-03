@@ -1308,7 +1308,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
-message = "BenchmarkSVs.wdl:513:52: error: cannot coerce type `Array[Int]` to `String`"
+message = "BenchmarkSVs.wdl:513:52: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/BenchmarkSVs/BenchmarkSVs.wdl/#L513"
 
 [[diagnostics]]
@@ -1323,7 +1323,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
-message = "BenchmarkSVs.wdl:545:49: error: cannot coerce type `Array[String]` to `String`"
+message = "BenchmarkSVs.wdl:545:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/BenchmarkSVs/BenchmarkSVs.wdl/#L545"
 
 [[diagnostics]]
@@ -1333,7 +1333,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
-message = "BenchmarkSVs.wdl:546:51: error: cannot coerce type `Array[Int]` to `String`"
+message = "BenchmarkSVs.wdl:546:51: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/BenchmarkSVs/BenchmarkSVs.wdl/#L546"
 
 [[diagnostics]]
@@ -1378,7 +1378,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/QcSVs.wdl"
-message = "QcSVs.wdl:129:49: error: cannot coerce type `Array[Int]` to `String`"
+message = "QcSVs.wdl:129:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/BenchmarkSVs/QcSVs.wdl/#L129"
 
 [[diagnostics]]
@@ -1388,7 +1388,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/QcSVs.wdl"
-message = "QcSVs.wdl:157:52: error: cannot coerce type `Array[Int]` to `String`"
+message = "QcSVs.wdl:157:52: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/BenchmarkSVs/QcSVs.wdl/#L157"
 
 [[diagnostics]]
@@ -1458,7 +1458,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
-message = "BenchmarkVCFs.wdl:613:49: error: cannot coerce type `Array[File]` to `String`"
+message = "BenchmarkVCFs.wdl:613:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/BenchmarkVCFs/BenchmarkVCFs.wdl/#L613"
 
 [[diagnostics]]
@@ -1468,7 +1468,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
-message = "BenchmarkVCFs.wdl:621:49: error: cannot coerce type `Array[File]` to `String`"
+message = "BenchmarkVCFs.wdl:621:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/BenchmarkVCFs/BenchmarkVCFs.wdl/#L621"
 
 [[diagnostics]]
@@ -1478,7 +1478,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
-message = "BenchmarkVCFs.wdl:626:49: error: cannot coerce type `Array[File]` to `String`"
+message = "BenchmarkVCFs.wdl:626:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/BenchmarkVCFs/BenchmarkVCFs.wdl/#L626"
 
 [[diagnostics]]
@@ -1488,7 +1488,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
-message = "BenchmarkVCFs.wdl:631:49: error: cannot coerce type `Array[File]` to `String`"
+message = "BenchmarkVCFs.wdl:631:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/BenchmarkVCFs/BenchmarkVCFs.wdl/#L631"
 
 [[diagnostics]]
@@ -1928,7 +1928,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl"
-message = "ComputeIntervalBamStats.wdl:223:50: error: cannot coerce type `Array[File]` to `String`"
+message = "ComputeIntervalBamStats.wdl:223:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl/#L223"
 
 [[diagnostics]]
@@ -1938,7 +1938,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl"
-message = "ComputeIntervalBamStats.wdl:270:50: error: cannot coerce type `Array[File]` to `String`"
+message = "ComputeIntervalBamStats.wdl:270:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl/#L270"
 
 [[diagnostics]]
@@ -1953,7 +1953,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/CreateIGVSession.wdl"
-message = "CreateIGVSession.wdl:51:50: error: cannot coerce type `Array[String]?` to `String`"
+message = "CreateIGVSession.wdl:51:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/Utilities/WDLs/CreateIGVSession.wdl/#L51"
 
 [[diagnostics]]
@@ -1963,7 +1963,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/CreateIGVSession.wdl"
-message = "CreateIGVSession.wdl:52:50: error: cannot coerce type `Array[String]?` to `String`"
+message = "CreateIGVSession.wdl:52:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/Utilities/WDLs/CreateIGVSession.wdl/#L52"
 
 [[diagnostics]]
@@ -1973,7 +1973,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/CreateIGVSession.wdl"
-message = "CreateIGVSession.wdl:53:60: error: cannot coerce type `Array[String]?` to `String`"
+message = "CreateIGVSession.wdl:53:60: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/b450ca0b7d9a35945618235de4a2a64f34de880d/Utilities/WDLs/CreateIGVSession.wdl/#L53"
 
 [[diagnostics]]
@@ -2678,7 +2678,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/Funcotator.wdl"
-message = "Funcotator.wdl:163:118: error: cannot coerce type `Array[String]?` to `String`"
+message = "Funcotator.wdl:163:118: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tasks/broad/Funcotator.wdl/#L163"
 
 [[diagnostics]]
@@ -2688,7 +2688,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/Funcotator.wdl"
-message = "Funcotator.wdl:164:118: error: cannot coerce type `Array[String]?` to `String`"
+message = "Funcotator.wdl:164:118: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tasks/broad/Funcotator.wdl/#L164"
 
 [[diagnostics]]
@@ -2698,7 +2698,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/Funcotator.wdl"
-message = "Funcotator.wdl:165:121: error: cannot coerce type `Array[String]?` to `String`"
+message = "Funcotator.wdl:165:121: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tasks/broad/Funcotator.wdl/#L165"
 
 [[diagnostics]]
@@ -2898,7 +2898,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/broad/Qc.wdl"
-message = "Qc.wdl:434:46: error: cannot coerce type `Array[String]?` to `String`"
+message = "Qc.wdl:434:46: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tasks/broad/Qc.wdl/#L434"
 
 [[diagnostics]]
@@ -3060,6 +3060,16 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 document = "broadinstitute/warp:/tasks/skylab/accessory_workflows/build_bwa_reference/bwa-mk-index.wdl"
 message = "bwa-mk-index.wdl:48:8: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tasks/skylab/accessory_workflows/build_bwa_reference/bwa-mk-index.wdl/#L48"
+
+[[diagnostics]]
+document = "broadinstitute/warp:/tasks/skylab/sample_fastq.14.wdl"
+message = "sample_fastq.14.wdl:88:19: error: type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any primitive type, but found `File`"
+permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tasks/skylab/sample_fastq.14.wdl/#L88"
+
+[[diagnostics]]
+document = "broadinstitute/warp:/tasks/skylab/sample_fastq.14.wdl"
+message = "sample_fastq.14.wdl:89:19: error: type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any primitive type, but found `File`"
+permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tasks/skylab/sample_fastq.14.wdl/#L89"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tests/broad/scala_test/src/main/resources/dummy/dummyWorkflow.wdl"
@@ -3268,7 +3278,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyMetrics.wdl"
-message = "VerifyMetrics.wdl:87:117: error: cannot coerce type `Array[String]` to `String`"
+message = "VerifyMetrics.wdl:87:117: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMetrics.wdl/#L87"
 
 [[diagnostics]]
@@ -3553,7 +3563,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeCramOnly.wdl:102:115: error: cannot coerce type `Array[String]` to `String`"
+message = "VerifyUltimaGenomicsWholeGenomeCramOnly.wdl:102:115: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl/#L102"
 
 [[diagnostics]]
@@ -3608,7 +3618,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:187:115: error: cannot coerce type `Array[String]` to `String`"
+message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:187:115: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl/#L187"
 
 [[diagnostics]]

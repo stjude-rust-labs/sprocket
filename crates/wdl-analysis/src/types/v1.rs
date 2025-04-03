@@ -97,6 +97,7 @@ use crate::diagnostics::cannot_index;
 use crate::diagnostics::comparison_mismatch;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::index_type_mismatch;
+use crate::diagnostics::invalid_placeholder_option;
 use crate::diagnostics::logical_and_mismatch;
 use crate::diagnostics::logical_not_mismatch;
 use crate::diagnostics::logical_or_mismatch;
@@ -124,7 +125,6 @@ use crate::stdlib::FunctionBindError;
 use crate::stdlib::MAX_PARAMETERS;
 use crate::stdlib::STDLIB;
 use crate::types::Coercible;
-
 /// Gets the type of a `task` variable member type.
 ///
 /// `task` variables are supported in command and output sections in WDL 1.2.
@@ -662,26 +662,37 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         // coercible to string for interpolation
         let expr = placeholder.expr();
         if let Some(ty) = self.evaluate_expr(&expr) {
-            match ty {
-                Type::Primitive(..) | Type::Union | Type::None => {
-                    // OK
-                }
-                ty => {
-                    // Check for a sep option is specified; if so, accept `Array[P]` where `P` is
-                    // primitive.
-                    let mut coercible = false;
-                    if let Some(PlaceholderOption::Sep(_)) = placeholder.option() {
-                        if let Type::Compound(CompoundType::Array(ty), _) = &ty {
-                            if !ty.element_type().is_optional()
-                                && ty.element_type().as_primitive().is_some()
-                            {
-                                // OK
-                                coercible = true;
-                            }
-                        }
+            if let Some(option) = placeholder.option() {
+                let valid = match option {
+                    PlaceholderOption::Sep(_) => {
+                        ty == Type::Union
+                            || ty == Type::None
+                            || matches!(&ty,
+                        Type::Compound(CompoundType::Array(array_ty), _)
+                        if matches!(array_ty.element_type(), Type::Primitive(_, false) | Type::Union))
                     }
+                    PlaceholderOption::Default(_) => {
+                        matches!(ty, Type::Primitive(..) | Type::Union | Type::None)
+                    }
+                    PlaceholderOption::TrueFalse(_) => {
+                        matches!(
+                            ty,
+                            Type::Primitive(PrimitiveType::Boolean, _) | Type::Union | Type::None
+                        )
+                    }
+                };
 
-                    if !coercible {
+                if !valid {
+                    self.context.add_diagnostic(invalid_placeholder_option(
+                        &ty,
+                        expr.span(),
+                        &option,
+                    ));
+                }
+            } else {
+                match ty {
+                    Type::Primitive(..) | Type::Union | Type::None => {}
+                    _ => {
                         self.context
                             .add_diagnostic(cannot_coerce_to_string(&ty, expr.span()));
                     }
