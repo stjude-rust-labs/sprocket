@@ -169,7 +169,7 @@ impl Visitor for CommentWhitespaceRule {
                     let this_whitespace = leading_whitespace.text();
                     let this_indentation = this_whitespace
                         .split('\n')
-                        .last()
+                        .next_back()
                         .expect("should have prior whitespace");
                     if this_indentation != expected_indentation {
                         // Report a diagnostic if the comment is not indented properly

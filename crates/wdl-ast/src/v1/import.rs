@@ -67,7 +67,7 @@ impl<N: TreeNode> ImportStatement<N> {
         let text = uri.text()?;
         let stem = match Url::parse(text.text()) {
             Ok(url) => Path::new(
-                urlencoding::decode(url.path_segments()?.last()?)
+                urlencoding::decode(url.path_segments()?.next_back()?)
                     .ok()?
                     .as_ref(),
             )
