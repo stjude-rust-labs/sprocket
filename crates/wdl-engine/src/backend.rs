@@ -377,7 +377,7 @@ impl<Req> TaskManagerState<Req> {
 
     /// Determines if the resources are unlimited.
     fn unlimited(&self) -> bool {
-        self.cpu == f64::MAX && self.memory == u64::MAX
+        self.cpu == u64::MAX as f64 && self.memory == u64::MAX
     }
 }
 
@@ -834,5 +834,11 @@ mod test {
         assert!(s[r.end..].contains(&8));
         assert!(s[r.end..].contains(&4));
         assert!(s[r.end..].contains(&3));
+    }
+
+    #[test]
+    fn unlimited_state() {
+        let manager_state = TaskManagerState::<()>::new(u64::MAX, u64::MAX);
+        assert!(manager_state.unlimited());
     }
 }
