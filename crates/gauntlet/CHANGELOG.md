@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Set `publish = false` in `Cargo.toml`
 * Break `refresh` option into `bless` and `update` flags ([#261](https://github.com/stjude-rust-labs/wdl/pull/261))
 
+#### Fixed
+
+* Added diagnostic message normalization to ensure consistent behavior across platforms ([#385](https://github.com/stjude-rust-labs/wdl/issues/385))
+
 ## 0.5.0 - 08-22-2024
 
 #### Changed
@@ -30,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-* Upgradted `wdl` crate dependencies
+* Upgraded `wdl` crate dependencies
 
 #### Added
 

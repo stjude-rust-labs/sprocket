@@ -10,6 +10,7 @@ use serde::Serialize;
 use serde_with::serde_as;
 
 use crate::document;
+use crate::normalize_diagnostic;
 use crate::repository;
 use crate::repository::RawHash;
 
@@ -45,7 +46,7 @@ impl Diagnostic {
         };
         Self {
             document,
-            message,
+            message: normalize_diagnostic(&message),
             permalink: url,
         }
     }
