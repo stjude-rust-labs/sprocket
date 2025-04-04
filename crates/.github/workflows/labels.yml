@@ -9,6 +9,8 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     timeout-minutes: 60
     env:
       PR_NUMBER: ${{ github.event.number }}
