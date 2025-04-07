@@ -23,7 +23,7 @@ jobs:
 
           for label in $awaiting_labels; do
             pr_numbers=$(
-              gh pr list --label "$label" --json "number,updatedAt" --jq '.[] | select(.updatedAt < "$date") | .number')
+              gh api /repos/${{ github.repository }}/pulls --jq '.[] | select ((.labels | any(.name == "$label")) and .head.repo.pushed_at < "$date") | .number')
             prs="$prs $pr_numbers"
           done
 
