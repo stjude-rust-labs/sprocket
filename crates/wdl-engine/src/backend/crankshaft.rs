@@ -201,7 +201,20 @@ impl TaskManagerRequest for CrankshaftTaskRequest {
                     )
                     .args(["-C".to_string(), GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
-                    .env(self.inner.env().clone())
+                    .env({
+                        let mut final_env = indexmap::IndexMap::new();
+                        for (k, v) in self.inner.env() {
+                            let guest_path = self
+                                .inner
+                                .inputs()
+                                .iter()
+                                .find(|input| input.path().to_str() == Some(v))
+                                .and_then(|input| input.guest_path());
+
+                            final_env.insert(k.clone(), guest_path.unwrap_or(v).to_string());
+                        }
+                        final_env
+                    })
                     .build(),
             ))
             .inputs(inputs)
