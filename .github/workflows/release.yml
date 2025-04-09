@@ -10,27 +10,21 @@ env:
 
 jobs:
   release:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - name: Update Rust
       run: rustup update stable && rustup default stable
-    - name: Update lock file
-      run: cargo update
     - name: Check if already published
       id: check_published
       run: |
         NEWEST_VERSION=$(curl -s https://crates.io/api/v1/crates/sprocket | jq -r '.crate.newest_version')
         if [[ "${{ github.ref_name }}" == "v${NEWEST_VERSION}" ]]; then
-          echo "Already published"
-          echo "published=true" >> $GITHUB_ENV
+          echo "A crates.io release for ${{ github.ref_name }} has already been published."
         else
-          echo "Not published"
-          echo "published=false" >> $GITHUB_ENV
+          echo "Publishing crates.io release for ${{ github.ref_name }}."
+          cargo publish
         fi
-    - name: Publish to crates.io
-      if: env.published == 'false'
-      run: cargo publish
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
     - name: Create a GH release
@@ -38,22 +32,89 @@ jobs:
       with:
         generate_release_notes: true
         make_latest: true
+  docker-x86:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update Rust
+      run: rustup update stable && rustup default stable
     - name: Log in to the Container registry
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    - uses: docker/setup-qemu-action@v3
     - uses: docker/setup-buildx-action@v3
-      with:
-        platforms: linux/amd64,linux/arm64
     - uses: docker/build-push-action@v6
       with:
         push: true
         tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket:${{ github.ref_name }}
-        platforms: linux/amd64,linux/arm64
-  build_artifacts:
+        platforms: linux/amd64
+  docker-arm:
+    runs-on: ubuntu-24.04-arm
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update Rust
+      run: rustup update stable && rustup default stable
+    - name: Log in to the Container registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - uses: docker/setup-buildx-action@v3
+    - uses: docker/build-push-action@v6
+      with:
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket:${{ github.ref_name }}
+        platforms: linux/arm64
+  build_artifacts_win:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust-target: x86_64-pc-windows-msvc
+            os: windows-latest
+            extension: zip
+          - rust-target: aarch64-pc-windows-msvc
+            extension: zip
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update Rust
+      run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
+    - run: cargo build --release --target ${{ matrix.rust-target }}
+    - run: 7z a sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.zip sprocket.exe
+      working-directory: ./target/${{ matrix.rust-target }}/release
+    - name: Update the GH release with the new artifact
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.${{ matrix.extension }}
+  build_artifacts_mac:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust-target: x86_64-apple-darwin
+            os: macos-latest
+            extension: tar.gz
+          - rust-target: aarch64-apple-darwin
+            os: macos-latest
+            extension: tar.gz
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update Rust
+      run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
+    - run: brew install openssl pkg-config
+    - run: PKG_CONFIG_SYSROOT_DIR=/ cargo build --release --target ${{ matrix.rust-target }}
+    - run: tar -czvf sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.tar.gz sprocket
+      working-directory: ./target/${{ matrix.rust-target }}/release
+    - name: Update the GH release with the new artifact
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.${{ matrix.extension }}
+  build_artifacts_linux:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -63,37 +124,16 @@ jobs:
             os: ubuntu-latest
             extension: tar.gz
           - rust-target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            cross: true
+            os: ubuntu-24.04-arm
             extension: tar.gz
-          - rust-target: x86_64-apple-darwin
-            os: macos-latest
-            extension: tar.gz
-          - rust-target: aarch64-apple-darwin
-            os: macos-latest
-            extension: tar.gz
-          - rust-target: x86_64-pc-windows-msvc
-            os: windows-latest
-            extension: zip
-          - rust-target: aarch64-pc-windows-msvc
-            os: windows-latest
-            extension: zip
     steps:
     - uses: actions/checkout@v4
     - name: Update Rust
       run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
-    - run: cargo build --release --target ${{ matrix.rust-target }}
-      if: ${{ ! matrix.cross }}
-    - run: cargo install cross
-      if: ${{ matrix.cross }}
-    - run: cross build --release --target ${{ matrix.rust-target }}
-      if: ${{ matrix.cross }}
+    - run: sudo apt-get install pkg-config libssl-dev
+    - run: PKG_CONFIG_SYSROOT_DIR=/ cargo build --release --target ${{ matrix.rust-target }}
     - run: tar -czvf sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.tar.gz sprocket
       working-directory: ./target/${{ matrix.rust-target }}/release
-      if: matrix.os != 'windows-latest'
-    - run: 7z a sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.zip sprocket.exe
-      working-directory: ./target/${{ matrix.rust-target }}/release
-      if: matrix.os == 'windows-latest'
     - name: Update the GH release with the new artifact
       uses: softprops/action-gh-release@v2
       with:
