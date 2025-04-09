@@ -9,7 +9,7 @@ RUN cargo build --release
 
 FROM debian:bookworm-slim
 
-RUN apt update && apt install openssl -y && rm -rf /var/lib/apt/lists/*
+RUN apt update && apt install openssl ca-certificates -y && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /tmp/sprocket/target/release/sprocket /opt/sprocket/bin/sprocket
 
 ENV PATH=/opt/sprocket/bin:$PATH
