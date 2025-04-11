@@ -1,18 +1,24 @@
 //! Implementation of the check and lint commands.
 
+use std::collections::HashSet;
 use std::fs;
 
 use anyhow::Context;
 use anyhow::bail;
 use clap::Parser;
+use codespan_reporting::files::SimpleFiles;
+use codespan_reporting::term;
 use url::Url;
+use wdl::analysis;
 use wdl::ast::AstNode;
 use wdl::ast::Diagnostic;
 use wdl::ast::Severity;
 use wdl::cli::analyze;
+use wdl::lint;
 
 use crate::Mode;
 use crate::emit_diagnostics;
+use crate::get_display_config;
 
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
@@ -97,18 +103,17 @@ pub struct LintArgs {
 
 /// Checks WDL source files for diagnostics.
 pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
-    if args.common.shellcheck && !args.lint {
-        bail!("`--shellcheck` requires `--lint` to be enabled");
-    }
-
+    let file = &args.common.file;
     let exceptions = args.common.except;
     let lint = args.lint;
     let shellcheck = args.common.shellcheck;
 
-    let file = args.common.file;
+    if shellcheck && !lint {
+        bail!("`--shellcheck` requires `--lint` to be enabled");
+    }
 
     if args.common.single_document
-        && fs::metadata(&file)
+        && fs::metadata(file)
             .with_context(|| format!("failed to read metadata for file `{file}`"))
             .map(|m| m.is_dir())
             .unwrap_or_else(|_| false)
@@ -119,9 +124,61 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         );
     }
 
-    let remote_file = Url::parse(&file).is_ok();
+    let remote_file = Url::parse(file).is_ok();
 
-    let results = analyze(&file, exceptions, lint, shellcheck).await?;
+    if !exceptions.is_empty() {
+        let analysis_rules: HashSet<String> = analysis::rules()
+            .iter()
+            .map(|r| r.id().to_lowercase())
+            .collect();
+        let lint_rules: HashSet<String> = lint::rules()
+            .iter()
+            .map(|r| r.id().to_lowercase())
+            .collect();
+        let all_rules: HashSet<_> = analysis_rules.union(&lint_rules).collect();
+
+        let unknown_exceptions: Vec<&str> = exceptions
+            .iter()
+            .filter(|rule| !all_rules.contains(&rule.to_lowercase()))
+            .map(|rule| rule.as_str())
+            .collect();
+
+        if !unknown_exceptions.is_empty() {
+            let (config, writer) =
+                get_display_config(args.common.report_mode, args.common.no_color);
+            let mut w_lock = writer.lock();
+            let files: SimpleFiles<String, String> = SimpleFiles::new();
+
+            let message = if unknown_exceptions.len() == 1 {
+                format!(
+                    "ignoring unknown rule provided via --except: '{}'",
+                    unknown_exceptions[0]
+                )
+            } else {
+                format!(
+                    "ignoring unknown rules provided via --except: '{}'",
+                    unknown_exceptions
+                        .iter()
+                        .map(|r| format!("`{r}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            };
+
+            let warning = codespan_reporting::diagnostic::Diagnostic::warning()
+                .with_message(message)
+                .with_code("UnknownExceptionRule")
+                .with_notes(vec![
+                    "Rule names are case-insensitive".to_string(),
+                    "Run `sprocket explain --help` to see available rules".to_string(),
+                ]);
+
+            term::emit(&mut w_lock, config, &files, &warning)
+                .expect("failed to emit unknown rule warning");
+        }
+    }
+
+    let results = analyze(file, exceptions, lint, shellcheck).await?;
 
     let cwd = std::env::current_dir().ok();
     let mut error_count = 0;
@@ -132,7 +189,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
 
         // Attempt to strip the CWD from the result path
         let uri = result.document().uri();
-        if args.common.single_document && !uri.as_str().contains(&file) {
+        if args.common.single_document && !uri.as_str().contains(file) {
             continue;
         }
         let scheme = uri.scheme();
@@ -166,8 +223,9 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         };
 
         if !diagnostics.is_empty() {
-            emit_diagnostics(
-                diagnostics.iter().filter(|d| {
+            let filtered_diagnostics: Vec<&Diagnostic> = diagnostics
+                .iter()
+                .filter(|d| {
                     let severity = d.severity();
                     match severity {
                         Severity::Error => true,
@@ -175,19 +233,25 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                         _ if suppress => false,
                         _ => true,
                     }
-                }),
-                &uri,
-                &result.document().root().inner().text().to_string(),
-                args.common.report_mode,
-                args.common.no_color,
-            );
+                })
+                .collect();
 
-            for diagnostic in diagnostics.iter() {
-                match diagnostic.severity() {
-                    Severity::Error => error_count += 1,
-                    Severity::Warning if !suppress => warning_count += 1,
-                    Severity::Note if !suppress => note_count += 1,
-                    _ => {}
+            if !filtered_diagnostics.is_empty() {
+                emit_diagnostics(
+                    filtered_diagnostics.iter().copied(),
+                    &uri,
+                    &result.document().root().inner().text().to_string(),
+                    args.common.report_mode,
+                    args.common.no_color,
+                );
+
+                for diagnostic in diagnostics.iter() {
+                    match diagnostic.severity() {
+                        Severity::Error => error_count += 1,
+                        Severity::Warning if !suppress => warning_count += 1,
+                        Severity::Note if !suppress => note_count += 1,
+                        _ => {}
+                    }
                 }
             }
         }
