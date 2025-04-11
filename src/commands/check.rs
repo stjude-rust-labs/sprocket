@@ -167,7 +167,6 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
 
             let warning = codespan_reporting::diagnostic::Diagnostic::warning()
                 .with_message(message)
-                .with_code("UnknownExceptionRule")
                 .with_notes(vec![
                     "Rule names are case-insensitive".to_string(),
                     "Run `sprocket explain --help` to see available rules".to_string(),
@@ -246,6 +245,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                 );
 
                 for diagnostic in diagnostics.iter() {
+                    // we are not counting unknown exceptions
                     match diagnostic.severity() {
                         Severity::Error => error_count += 1,
                         Severity::Warning if !suppress => warning_count += 1,

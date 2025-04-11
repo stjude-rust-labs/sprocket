@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Added
+### Changed
 
 * Unknown `--except` rules will be shown at the top of the list ([#94](https://github.com/stjude-rust-labs/sprocket/pull/94))
 
