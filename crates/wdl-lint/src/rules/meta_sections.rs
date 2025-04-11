@@ -59,7 +59,7 @@ impl fmt::Display for Context {
 }
 
 /// The identifier for the missing meta sections rule.
-const ID: &str = "MissingMetas";
+const ID: &str = "MetaSections";
 
 /// Creates a "missing section" diagnostic.
 fn missing_section(name: Ident, section: Section, context: Context) -> Diagnostic {
@@ -91,18 +91,18 @@ fn missing_sections(name: Ident, context: Context) -> Diagnostic {
 
 /// A lint rule for missing meta and parameter_meta sections.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct MissingMetasRule {
+pub struct MetaSectionsRule {
     /// The version of the WDL document being linted.
     version: Option<SupportedVersion>,
 }
 
-impl Rule for MissingMetasRule {
+impl Rule for MetaSectionsRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that tasks have both a meta and a parameter_meta section."
+        "Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections."
     }
 
     fn explanation(&self) -> &'static str {
@@ -126,17 +126,17 @@ impl Rule for MissingMetasRule {
 
     fn related_rules(&self) -> &[&'static str] {
         &[
-            "DescriptionMissing",
-            "MatchingParameterMeta",
-            "MissingOutput",
-            "MissingRequirements",
-            "MissingRuntime",
-            "NonmatchingOutput",
+            "MetaDescription",
+            "ParameterMetaMatched",
+            "OutputSection",
+            "RequirementsSection",
+            "RuntimeSection",
+            "MatchingOutputMeta",
         ]
     }
 }
 
-impl Visitor for MissingMetasRule {
+impl Visitor for MetaSectionsRule {
     type State = Diagnostics;
 
     fn document(

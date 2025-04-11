@@ -1,4 +1,4 @@
-warning[NoCurlyCommands]: task `bad` uses curly braces in command section
+warning[HereDocCommands]: task `bad` uses curly braces in command section
    ┌─ tests/lints/curly-command/source.wdl:12:5
    │
 12 │     command {

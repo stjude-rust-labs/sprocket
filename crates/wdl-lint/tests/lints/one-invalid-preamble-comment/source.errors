@@ -1,4 +1,4 @@
-note[PreambleFormatting]: preamble comments must start with `##` and have at least one space between the `##` and the comment text
+note[PreambleFormatted]: preamble comments must start with `##` and have at least one space between the `##` and the comment text
    ┌─ tests/lints/one-invalid-preamble-comment/source.wdl:1:1
    │  
  1 │ ╭ # This is a test of having one big invalid preamble comment.

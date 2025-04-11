@@ -19,9 +19,12 @@ use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 
+/// The identifier for the declaration name rule.
+const ID: &str = "DeclarationName";
+
 /// A rule that identifies declaration names that include their type names.
 #[derive(Debug, Default)]
-pub struct DisallowedDeclarationNameRule;
+pub struct DeclarationNameRule;
 
 /// Create a diagnostic for a declaration identifier that contains its type
 /// name.
@@ -29,18 +32,18 @@ fn decl_identifier_with_type(span: Span, decl_name: &str, type_name: &str) -> Di
     Diagnostic::note(format!(
         "declaration identifier '{decl_name}' contains type name '{type_name}'",
     ))
-    .with_rule("DisallowedDeclarationName")
+    .with_rule(ID)
     .with_highlight(span)
     .with_fix("rename the identifier to not include the type name")
 }
 
-impl Rule for DisallowedDeclarationNameRule {
+impl Rule for DeclarationNameRule {
     fn id(&self) -> &'static str {
-        "DisallowedDeclarationName"
+        ID
     }
 
     fn description(&self) -> &'static str {
-        "Disallows declaration names that include their type name."
+        "Ensures declaration names do not redundantly include their type name."
     }
 
     fn explanation(&self) -> &'static str {
@@ -67,11 +70,11 @@ impl Rule for DisallowedDeclarationNameRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &["DisallowedInputName", "DisallowedOutputName"]
+        &["InputName", "OutputName"]
     }
 }
 
-impl Visitor for DisallowedDeclarationNameRule {
+impl Visitor for DeclarationNameRule {
     type State = Diagnostics;
 
     fn document(

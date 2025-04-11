@@ -1,12 +1,11 @@
-note[VersionFormatting]: expected exactly one blank line between the last comment and the version statement
-  ┌─ tests/lints/ws-before-version/source.wdl:1:57
+note[VersionStatementFormatted]: expected exactly one blank line between the last comment and the version statement
+  ┌─ tests/lints/ws-before-version/source.wdl:1:43
   │  
-1 │   #@ except: BlankLinesBetweenElements, DescriptionMissing
-  │ ╭────────────────────────────────────────────────────────^
-2 │ │     
-3 │ │ 
-4 │ │   
-5 │ │     version 1.1
+1 │   #@ except: ElementSpacing, MetaDescription
+  │ ╭──────────────────────────────────────────^
+2 │ │ 
+3 │ │   
+4 │ │     version 1.1
   │ ╰────^
   │  
   = fix: ensure there is exactly one blank line between the last comment and the version statement

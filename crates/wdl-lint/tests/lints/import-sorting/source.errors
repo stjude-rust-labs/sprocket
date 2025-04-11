@@ -1,4 +1,4 @@
-note[ImportSort]: imports are not sorted lexicographically
+note[ImportSorted]: imports are not sorted lexicographically
   ┌─ tests/lints/import-sorting/source.wdl:7:1
   │
 7 │ import "A"

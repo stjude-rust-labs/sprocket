@@ -1,4 +1,4 @@
-#@ except: MissingRequirements, InputSorting, NonmatchingOutput, MissingMetas
+#@ except: RequirementsSection, InputSorted, MatchingOutputMeta, MetaSections
 
 version 1.2
 

@@ -20,7 +20,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the disallowed output name rule.
-const ID: &str = "DisallowedOutputName";
+const ID: &str = "OutputName";
 
 /// Declaration identifier too short
 fn decl_identifier_too_short(span: Span) -> Diagnostic {
@@ -48,18 +48,18 @@ fn decl_identifier_starts_with_output(span: Span) -> Diagnostic {
 
 /// A lint rule for disallowed output names.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct DisallowedOutputNameRule {
+pub struct OutputNameRule {
     /// Track if we're in the output section.
     output_section: bool,
 }
 
-impl Rule for DisallowedOutputNameRule {
+impl Rule for OutputNameRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Ensures output names are meaningful."
+        "Ensures output names are meaningful (e.g. not generic like 'output', 'out', or too short)."
     }
 
     fn explanation(&self) -> &'static str {
@@ -84,11 +84,11 @@ impl Rule for DisallowedOutputNameRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &["DisallowedInputName", "DisallowedDeclarationName"]
+        &["InputName", "DeclarationName"]
     }
 }
 
-impl Visitor for DisallowedOutputNameRule {
+impl Visitor for OutputNameRule {
     type State = Diagnostics;
 
     fn document(

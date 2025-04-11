@@ -7,7 +7,7 @@ import "baz.wdl"  # OK
 import "foo.wdl"  # OK
 
 workflow test {
-    #@ except: DescriptionMissing
+    #@ except: MetaDescription
     meta {}
 
     output {}

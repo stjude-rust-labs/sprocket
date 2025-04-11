@@ -23,7 +23,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the non-matching output rule.
-const ID: &str = "NonmatchingOutput";
+const ID: &str = "MatchingOutputMeta";
 
 /// Creates a "non-matching output" diagnostic.
 fn nonmatching_output(span: Span, name: &str, item_name: &str, ty: &str) -> Diagnostic {
@@ -86,7 +86,7 @@ fn non_object_meta_outputs(span: Span, item_name: &str, ty: &str) -> Diagnostic 
 
 /// Detects non-matching outputs.
 #[derive(Default, Debug, Clone)]
-pub struct NonmatchingOutputRule<'a> {
+pub struct MatchingOutputMetaRule<'a> {
     /// The span of the `meta` section.
     current_meta_span: Option<Span>,
     /// Are we currently within a `meta` section?
@@ -109,7 +109,7 @@ pub struct NonmatchingOutputRule<'a> {
     prior_objects: Vec<String>,
 }
 
-impl Rule for NonmatchingOutputRule<'_> {
+impl Rule for MatchingOutputMetaRule<'_> {
     fn id(&self) -> &'static str {
         ID
     }
@@ -140,11 +140,11 @@ impl Rule for NonmatchingOutputRule<'_> {
 
     fn related_rules(&self) -> &[&'static str] {
         &[
-            "DescriptionMissing",
-            "MatchingParameterMeta",
-            "MissingOutput",
-            "MissingRequirements",
-            "MissingRuntime",
+            "MetaDescription",
+            "ParameterMetaMatched",
+            "OutputSection",
+            "RequirementsSection",
+            "RuntimeSection",
         ]
     }
 }
@@ -152,7 +152,7 @@ impl Rule for NonmatchingOutputRule<'_> {
 /// Check each output key exists in the `outputs` key within the `meta` section.
 fn check_matching(
     state: &mut Diagnostics,
-    rule: &mut NonmatchingOutputRule<'_>,
+    rule: &mut MatchingOutputMetaRule<'_>,
     element: SyntaxElement,
 ) {
     let mut exact_match = true;
@@ -214,7 +214,7 @@ fn check_matching(
 /// Handle missing `meta.outputs` and reset the visitor.
 fn handle_meta_outputs_and_reset(
     state: &mut Diagnostics,
-    rule: &mut NonmatchingOutputRule<'_>,
+    rule: &mut MatchingOutputMetaRule<'_>,
     element: SyntaxElement,
 ) {
     if rule.current_meta_span.is_some()
@@ -242,7 +242,7 @@ fn handle_meta_outputs_and_reset(
     rule.meta_outputs_keys.clear();
 }
 
-impl Visitor for NonmatchingOutputRule<'_> {
+impl Visitor for MatchingOutputMetaRule<'_> {
     type State = Diagnostics;
 
     fn document(

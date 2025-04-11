@@ -3,7 +3,7 @@
 version 1.0
 
 workflow test {
-    #@ except: DisallowedInputName
+    #@ except: InputName
     input {
         File input_file
     }
@@ -12,7 +12,7 @@ workflow test {
         input_file = input_file
     }
 
-    #@ except: DisallowedOutputName
+    #@ except: OutputName
     output {
         File output_file = test_task.output_file
     }

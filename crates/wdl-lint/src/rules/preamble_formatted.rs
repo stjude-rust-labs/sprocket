@@ -20,7 +20,7 @@ use crate::TagSet;
 use crate::util::lines_with_offset;
 
 /// The identifier for the preamble formatting rule.
-const ID: &str = "PreambleFormatting";
+const ID: &str = "PreambleFormatted";
 
 /// Creates an "invalid preamble comment" diagnostic.
 fn invalid_preamble_comment(span: Span) -> Diagnostic {
@@ -96,7 +96,7 @@ enum ExtendDiagnostic {
 
 /// Detects incorrect comments in a document preamble.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct PreambleFormattingRule {
+pub struct PreambleFormattedRule {
     /// The current state of preamble processing.
     state: PreambleState,
     /// The number of comment tokens to skip.
@@ -106,7 +106,7 @@ pub struct PreambleFormattingRule {
     skip_count: usize,
 }
 
-impl Rule for PreambleFormattingRule {
+impl Rule for PreambleFormattedRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -159,7 +159,7 @@ impl Rule for PreambleFormattingRule {
     }
 }
 
-impl Visitor for PreambleFormattingRule {
+impl Visitor for PreambleFormattedRule {
     type State = Diagnostics;
 
     fn document(
@@ -186,8 +186,8 @@ impl Visitor for PreambleFormattingRule {
             return;
         }
 
-        // If the next sibling is the version statement, let the VersionFormatting rule
-        // handle this particular whitespace
+        // If the next sibling is the version statement, let the
+        // VersionStatementFormatted rule handle this particular whitespace
         if whitespace
             .inner()
             .next_sibling_or_token()

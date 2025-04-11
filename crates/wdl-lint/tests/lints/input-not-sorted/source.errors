@@ -1,4 +1,4 @@
-note[InputSorting]: input not sorted
+note[InputSorted]: input not sorted
    ┌─ tests/lints/input-not-sorted/source.wdl:42:5
    │
 42 │     input {
@@ -30,7 +30,7 @@ note[InputSorting]: input not sorted
      Int? f = 2
      String g = "hello"
 
-note[InputSorting]: input not sorted
+note[InputSorted]: input not sorted
     ┌─ tests/lints/input-not-sorted/source.wdl:102:5
     │
 102 │     input {

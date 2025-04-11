@@ -1,4 +1,4 @@
-    #@ except: DescriptionMissing
+    #@ except: MetaDescription
 ## This is a test of both missing and extraneous preamble whitespace.
         version 1.1
 

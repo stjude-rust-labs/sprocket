@@ -23,7 +23,7 @@ use crate::optional_rules;
 use crate::rules;
 
 /// The identifier for the unknown rule rule.
-const ID: &str = "MisplacedLintDirective";
+const ID: &str = "LintDirectiveValid";
 
 /// Creates an "unknown rule" diagnostic.
 fn misplaced_lint_directive(
@@ -69,15 +69,15 @@ pub static RULE_MAP: LazyLock<HashMap<&'static str, Option<&'static [SyntaxKind]
 
 /// Detects unknown rules within lint directives.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct MisplacedLintDirectiveRule;
+pub struct LintDirectiveValidRule;
 
-impl Rule for MisplacedLintDirectiveRule {
+impl Rule for LintDirectiveValidRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Flags misplaced lint directives which will have no effect."
+        "Ensures lint directives are placed correctly to have the intended effect."
     }
 
     fn explanation(&self) -> &'static str {
@@ -99,7 +99,7 @@ impl Rule for MisplacedLintDirectiveRule {
     }
 }
 
-impl Visitor for MisplacedLintDirectiveRule {
+impl Visitor for LintDirectiveValidRule {
     type State = Diagnostics;
 
     fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document, _: SupportedVersion) {

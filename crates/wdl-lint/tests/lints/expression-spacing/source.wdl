@@ -1,15 +1,15 @@
-#@ except: InputSorting, MatchingParameterMeta, NonmatchingOutput, RuntimeSectionKeys
+#@ except: InputSorted, ParameterMetaMatched, MatchingOutputMeta, ExpectedRuntimeKeys
 #@ except: Whitespace
 
 version 1.1
 
 task foo {
-    #@ except: DescriptionMissing
+    #@ except: MetaDescription
     meta {}
 
     parameter_meta{}
 
-    #@ except: DisallowedInputName
+    #@ except: InputName
     input {
         Int a=- 1
         Int w = 1
@@ -152,7 +152,7 @@ task foo {
 
     command <<< >>>
 
-    #@ except: DisallowedOutputName
+    #@ except: OutputName
     output {
         Boolean b = ! a
     }

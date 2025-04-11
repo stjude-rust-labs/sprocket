@@ -14,7 +14,7 @@
 version 1.1
 
 workflow test {
-    #@ except: DescriptionMissing
+    #@ except: MetaDescription
     meta {}
 
     parameter_meta {}

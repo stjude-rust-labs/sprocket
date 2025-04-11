@@ -16,7 +16,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the rule.
-const ID: &str = "PreambleCommentAfterVersion";
+const ID: &str = "PreambleCommentPlacement";
 
 /// Creates a diagnostic for a comment outside the preamble.
 fn preamble_comment_outside_preamble(span: Span) -> Diagnostic {
@@ -28,7 +28,7 @@ fn preamble_comment_outside_preamble(span: Span) -> Diagnostic {
 
 /// A lint rule for flagging preamble comments which are outside the preamble.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct PreambleCommentAfterVersionRule {
+pub struct PreambleCommentPlacementRule {
     /// Exited the preamble.
     exited_preamble: bool,
     /// The number of comment tokens to skip.
@@ -38,7 +38,7 @@ pub struct PreambleCommentAfterVersionRule {
     skip_count: usize,
 }
 
-impl Rule for PreambleCommentAfterVersionRule {
+impl Rule for PreambleCommentPlacementRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -61,11 +61,11 @@ impl Rule for PreambleCommentAfterVersionRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &["PreambleFormatting"]
+        &["PreambleFormatted"]
     }
 }
 
-impl Visitor for PreambleCommentAfterVersionRule {
+impl Visitor for PreambleCommentPlacementRule {
     type State = Diagnostics;
 
     fn document(

@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, NonmatchingOutput, RuntimeSectionKeys
+#@ except: MetaDescription, MatchingOutputMeta, ExpectedRuntimeKeys
 
 version 1.0
 

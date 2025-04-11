@@ -23,7 +23,7 @@ use crate::TagSet;
 use crate::util::lines_with_offset;
 
 /// The identifier for the command section mixed indentation rule.
-const ID: &str = "CommandSectionMixedIndentation";
+const ID: &str = "CommandSectionIndentation";
 
 /// Represents the indentation kind.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -76,15 +76,15 @@ fn mixed_indentation(command: Span, span: Span, kind: IndentationKind) -> Diagno
 
 /// Detects mixed indentation in a command section.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct CommandSectionMixedIndentationRule;
+pub struct CommandSectionIndentationRule;
 
-impl Rule for CommandSectionMixedIndentationRule {
+impl Rule for CommandSectionIndentationRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that lines within a command do not mix spaces and tabs."
+        "Ensures consistent indentation (no mixed spaces/tabs) within command sections."
     }
 
     fn explanation(&self) -> &'static str {
@@ -110,7 +110,7 @@ impl Rule for CommandSectionMixedIndentationRule {
     }
 }
 
-impl Visitor for CommandSectionMixedIndentationRule {
+impl Visitor for CommandSectionIndentationRule {
     type State = Diagnostics;
 
     fn document(

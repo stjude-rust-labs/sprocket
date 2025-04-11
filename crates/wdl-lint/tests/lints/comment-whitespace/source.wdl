@@ -1,4 +1,4 @@
-#@ except: ExpressionSpacing, BlankLinesBetweenElements
+#@ except: ExpressionSpacing, ElementSpacing
 
 version 1.2
 
@@ -8,9 +8,9 @@ version 1.2
 # a good comment
 # a comment with trailing whitespace          
 
-#@ except: MissingMetas, NonmatchingOutput
+#@ except: MetaSections, MatchingOutputMeta
 workflow foo {# test in-line comment without preceding whitespace
-    #@ except: DescriptionMissing
+    #@ except: MetaDescription
     meta {# this is a problematic comment
     }
 
@@ -21,7 +21,7 @@ workflow foo {# test in-line comment without preceding whitespace
         String foo = "bar"       # too much space for an inline comment
     }
 
-    #@ except: DisallowedOutputName
+    #@ except: OutputName
     output {  # a fine comment
               # what about this one?
 

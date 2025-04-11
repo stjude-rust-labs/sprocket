@@ -25,12 +25,12 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the container value rule.
-const ID: &str = "ContainerValue";
+const ID: &str = "ContainerUri";
 
 /// Ensures that values for `container` keys within `runtime`/`requirements`
 /// sections are well-formed.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct ContainerValue;
+pub struct ContainerUri;
 
 /// Creates a missing tag diagnostic.
 fn missing_tag(span: Span) -> Diagnostic {
@@ -93,7 +93,7 @@ fn array_containing_anys(spans: impl Iterator<Item = Span>) -> Diagnostic {
     diagnostic
 }
 
-impl Rule for ContainerValue {
+impl Rule for ContainerUri {
     fn id(&self) -> &'static str {
         ID
     }
@@ -145,7 +145,7 @@ impl Rule for ContainerValue {
     }
 }
 
-impl Visitor for ContainerValue {
+impl Visitor for ContainerUri {
     type State = Diagnostics;
 
     fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document, _: SupportedVersion) {

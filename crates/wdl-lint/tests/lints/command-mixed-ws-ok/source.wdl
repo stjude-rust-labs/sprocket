@@ -1,7 +1,7 @@
-#@ except: DescriptionMissing, RuntimeSectionKeys
+#@ except: MetaDescription, ExpectedRuntimeKeys
 
 ## This is a test of having mixed indentation inside of a placeholder.
-## This should not cause a warning for the `CommandSectionMixedIndentation` rule.
+## This should not cause a warning for the `CommandSectionIndentation` rule.
 
 version 1.1
 
@@ -28,7 +28,7 @@ task test2 {
 
     parameter_meta {}
 
-    #@ except: NoCurlyCommands
+    #@ except: HereDocCommands
     command {
         this line is ${(
 		    if true

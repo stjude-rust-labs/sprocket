@@ -20,7 +20,7 @@ use crate::rules::RULE_MAP;
 use crate::util::find_nearest_rule;
 
 /// The identifier for the unknown rule rule.
-const ID: &str = "UnknownRule";
+const ID: &str = "KnownRules";
 
 /// Creates an "unknown rule" diagnostic.
 fn unknown_rule(id: &str, span: Span) -> Diagnostic {
@@ -40,15 +40,15 @@ fn unknown_rule(id: &str, span: Span) -> Diagnostic {
 
 /// Detects unknown rules within lint directives.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct UnknownRule;
+pub struct KnownRules;
 
-impl Rule for UnknownRule {
+impl Rule for KnownRules {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Flags unknown rules in lint directives."
+        "Ensures only known rules are used in lint directives."
     }
 
     fn explanation(&self) -> &'static str {
@@ -71,7 +71,7 @@ impl Rule for UnknownRule {
     }
 }
 
-impl Visitor for UnknownRule {
+impl Visitor for KnownRules {
     type State = Diagnostics;
 
     fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document, _: SupportedVersion) {

@@ -1,4 +1,4 @@
-#@ except: SnackCase, ThisIsNotARealRule, MissingMetas
+#@ except: SnackCase, ThisIsNotARealRule, MetaSections
 
 version 1.1
 

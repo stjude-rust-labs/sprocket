@@ -1,4 +1,4 @@
-note[MatchingParameterMeta]: workflow `w` has an extraneous parameter metadata key named `extra`
+note[ParameterMetaMatched]: workflow `w` has an extraneous parameter metadata key named `extra`
    ┌─ tests/lints/matching-param-meta/source.wdl:23:9
    │
 23 │         extra: "this should not be here"
@@ -6,7 +6,7 @@ note[MatchingParameterMeta]: workflow `w` has an extraneous parameter metadata k
    │
    = fix: remove the extraneous key from the `parameter_meta` section
 
-warning[MatchingParameterMeta]: workflow `w` is missing a parameter metadata key for input `does_not_exist`
+warning[ParameterMetaMatched]: workflow `w` is missing a parameter metadata key for input `does_not_exist`
    ┌─ tests/lints/matching-param-meta/source.wdl:28:16
    │
 28 │         String does_not_exist
@@ -14,7 +14,7 @@ warning[MatchingParameterMeta]: workflow `w` is missing a parameter metadata key
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
 
-warning[MatchingParameterMeta]: task `foo` is missing a parameter metadata key for input `does_not_exist`
+warning[ParameterMetaMatched]: task `foo` is missing a parameter metadata key for input `does_not_exist`
    ┌─ tests/lints/matching-param-meta/source.wdl:51:16
    │
 51 │         String does_not_exist
@@ -22,7 +22,7 @@ warning[MatchingParameterMeta]: task `foo` is missing a parameter metadata key f
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
 
-note[MatchingParameterMeta]: task `bar` has an extraneous parameter metadata key named `does_not_exist`
+note[ParameterMetaMatched]: task `bar` has an extraneous parameter metadata key named `does_not_exist`
    ┌─ tests/lints/matching-param-meta/source.wdl:72:9
    │
 72 │         does_not_exist: "this should not be here"
@@ -30,7 +30,7 @@ note[MatchingParameterMeta]: task `bar` has an extraneous parameter metadata key
    │
    = fix: remove the extraneous key from the `parameter_meta` section
 
-note[MatchingParameterMeta]: parameter metadata in task `baz` is out of order
+note[ParameterMetaMatched]: parameter metadata in task `baz` is out of order
    ┌─ tests/lints/matching-param-meta/source.wdl:88:5
    │
 88 │     parameter_meta {

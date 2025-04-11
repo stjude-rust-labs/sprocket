@@ -19,7 +19,7 @@ import "wah.wdl"  # BAD
 import "zam.wdl"  # 2 blanks will be caught be a _different_ check
 
 workflow test {
-    #@ except: DescriptionMissing
+    #@ except: MetaDescription
     meta {}
 
     output {}

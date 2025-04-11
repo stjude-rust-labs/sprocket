@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing
+#@ except: MetaDescription
 
 ## This is a test of the `missing_runtime_block` lint
 

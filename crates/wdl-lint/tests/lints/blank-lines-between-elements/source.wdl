@@ -1,4 +1,4 @@
-#@ except: InputSorting, DisallowedInputName, DisallowedOutputName
+#@ except: InputSorted, InputName, OutputName
 
 version 1.1
 
@@ -11,7 +11,7 @@ import "qux"  # following whitespace duplication is caught be Whitespace rule
 workflow foo {
 
     # This is OK (but the prior line is not).
-    #@ except: DescriptionMissing
+    #@ except: MetaDescription
     meta {
     }
     # above is ok but the next won't be
@@ -56,7 +56,7 @@ workflow foo {
 
     }
 }
-#@ except: MissingMetas, MissingRuntime
+#@ except: MetaSections, RuntimeSection
 task bar {
 
     meta {
@@ -85,7 +85,7 @@ task bar {
 }
 
 task bax {
-    #@ except: DescriptionMissing
+    #@ except: MetaDescription
     meta {}
 
     parameter_meta {}
@@ -97,7 +97,7 @@ task bax {
 
     output {}
 
-    #@ except: ContainerValue
+    #@ except: ContainerUri
     runtime {
 
         disks: "50 GB"

@@ -6,7 +6,7 @@
 version 1.1
 
 # This applies only to the struct and everything in it
-#@ except: PascalCase,SnakeCase
+#@ except: PascalCase, SnakeCase
 struct OK {         # OK
     Int AlsoOk      # OK
     Int OKTOO       # OK
@@ -24,7 +24,7 @@ struct Ok {         # OK
     Int NotOk       # NOT OK
 }
 
-#@ except: MissingMetas,MissingOutput,Whitespace
+#@ except: MetaSections, OutputSection, Whitespace
 workflow test {
     String bad = 'bad string'   # NOT OK
     String good =

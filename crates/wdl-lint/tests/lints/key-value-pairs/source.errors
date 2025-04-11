@@ -1,4 +1,4 @@
-note[KeyValuePairs]: item should be followed by a newline
+note[MetaKeyValueFormatting]: item should be followed by a newline
   ┌─ tests/lints/key-value-pairs/source.wdl:8:22
   │
 8 │         another_key: ["value1",
@@ -6,7 +6,7 @@ note[KeyValuePairs]: item should be followed by a newline
   │
   = fix: add a newline after this item
 
-note[KeyValuePairs]: incorrect indentation
+note[MetaKeyValueFormatting]: incorrect indentation
   ┌─ tests/lints/key-value-pairs/source.wdl:8:32
   │  
 8 │           another_key: ["value1",
@@ -16,7 +16,7 @@ note[KeyValuePairs]: incorrect indentation
   │  
   = fix: add 4 spaces to indentation
 
-note[KeyValuePairs]: item should be followed by a newline
+note[MetaKeyValueFormatting]: item should be followed by a newline
   ┌─ tests/lints/key-value-pairs/source.wdl:9:9
   │
 9 │         "value2", "value3",]
@@ -24,7 +24,7 @@ note[KeyValuePairs]: item should be followed by a newline
   │
   = fix: add a newline after this item
 
-note[KeyValuePairs]: item should be followed by a newline
+note[MetaKeyValueFormatting]: item should be followed by a newline
   ┌─ tests/lints/key-value-pairs/source.wdl:9:19
   │
 9 │         "value2", "value3",]
@@ -32,7 +32,7 @@ note[KeyValuePairs]: item should be followed by a newline
   │
   = fix: add a newline after this item
 
-note[KeyValuePairs]: item should be followed by a newline
+note[MetaKeyValueFormatting]: item should be followed by a newline
    ┌─ tests/lints/key-value-pairs/source.wdl:10:19
    │
 10 │         more_key: {d: "a",
@@ -40,7 +40,7 @@ note[KeyValuePairs]: item should be followed by a newline
    │
    = fix: add a newline after this item
 
-note[KeyValuePairs]: item should be followed by a newline
+note[MetaKeyValueFormatting]: item should be followed by a newline
    ┌─ tests/lints/key-value-pairs/source.wdl:11:13
    │
 11 │             e: "b",}
@@ -48,7 +48,7 @@ note[KeyValuePairs]: item should be followed by a newline
    │
    = fix: add a newline after this item
 
-note[KeyValuePairs]: item should be followed by a newline
+note[MetaKeyValueFormatting]: item should be followed by a newline
    ┌─ tests/lints/key-value-pairs/source.wdl:13:16
    │
 13 │             a: {b: "c",
@@ -56,7 +56,7 @@ note[KeyValuePairs]: item should be followed by a newline
    │
    = fix: add a newline after this item
 
-note[KeyValuePairs]: item should be followed by a newline
+note[MetaKeyValueFormatting]: item should be followed by a newline
    ┌─ tests/lints/key-value-pairs/source.wdl:14:17
    │
 14 │                 d: "e",},
@@ -64,7 +64,7 @@ note[KeyValuePairs]: item should be followed by a newline
    │
    = fix: add a newline after this item
 
-note[KeyValuePairs]: incorrect indentation
+note[MetaKeyValueFormatting]: incorrect indentation
    ┌─ tests/lints/key-value-pairs/source.wdl:18:1
    │
 18 │                 },
@@ -72,7 +72,7 @@ note[KeyValuePairs]: incorrect indentation
    │
    = fix: remove 4 spaces of indentation
 
-note[KeyValuePairs]: item should be followed by a newline
+note[MetaKeyValueFormatting]: item should be followed by a newline
    ┌─ tests/lints/key-value-pairs/source.wdl:19:16
    │
 19 │             k: ["l",
@@ -80,7 +80,7 @@ note[KeyValuePairs]: item should be followed by a newline
    │
    = fix: add a newline after this item
 
-note[KeyValuePairs]: item should be followed by a newline
+note[MetaKeyValueFormatting]: item should be followed by a newline
    ┌─ tests/lints/key-value-pairs/source.wdl:20:17
    │
 20 │                 "m", "n",],
@@ -88,7 +88,7 @@ note[KeyValuePairs]: item should be followed by a newline
    │
    = fix: add a newline after this item
 
-note[KeyValuePairs]: item should be followed by a newline
+note[MetaKeyValueFormatting]: item should be followed by a newline
    ┌─ tests/lints/key-value-pairs/source.wdl:20:22
    │
 20 │                 "m", "n",],
@@ -96,7 +96,7 @@ note[KeyValuePairs]: item should be followed by a newline
    │
    = fix: add a newline after this item
 
-note[KeyValuePairs]: item should be followed by a newline
+note[MetaKeyValueFormatting]: item should be followed by a newline
    ┌─ tests/lints/key-value-pairs/source.wdl:21:16
    │
 21 │             o: ["p",
@@ -104,7 +104,7 @@ note[KeyValuePairs]: item should be followed by a newline
    │
    = fix: add a newline after this item
 
-note[KeyValuePairs]: incorrect indentation
+note[MetaKeyValueFormatting]: incorrect indentation
    ┌─ tests/lints/key-value-pairs/source.wdl:24:1
    │
 24 │         ],
@@ -112,7 +112,7 @@ note[KeyValuePairs]: incorrect indentation
    │
    = fix: add 4 spaces to indentation
 
-note[KeyValuePairs]: all items in an array or object should be on separate lines
+note[MetaKeyValueFormatting]: all items in an array or object should be on separate lines
    ┌─ tests/lints/key-value-pairs/source.wdl:34:22
    │
 34 │             choices: ["yes", "reverse", "no",]
@@ -128,7 +128,7 @@ note[TrailingComma]: item missing trailing comma
    │
    = fix: add a trailing comma
 
-note[KeyValuePairs]: all items in an array or object should be on separate lines
+note[MetaKeyValueFormatting]: all items in an array or object should be on separate lines
    ┌─ tests/lints/key-value-pairs/source.wdl:36:19
    │
 36 │         minaqual: {description: "Skip all reads with alignment quality lower than the given minimum value", common: true,}

@@ -9,7 +9,7 @@ task test {
 
     output {}
 
-    #@ except: RuntimeSectionKeys
+    #@ except: ExpectedRuntimeKeys
     runtime {}
 }
 

@@ -19,7 +19,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the missing requirements rule.
-const ID: &str = "MissingRequirements";
+const ID: &str = "RequirementsSection";
 
 /// Creates a "deprecated runtime section" diagnostic.
 fn deprecated_runtime_section(task: &str, span: Span) -> Diagnostic {
@@ -41,9 +41,9 @@ fn missing_requirements_section(task: &str, span: Span) -> Diagnostic {
 
 /// Detects missing `requirements` section for tasks.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct MissingRequirementsRule(Option<SupportedVersion>);
+pub struct RequirementsSectionRule(Option<SupportedVersion>);
 
-impl Rule for MissingRequirementsRule {
+impl Rule for RequirementsSectionRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -72,17 +72,17 @@ impl Rule for MissingRequirementsRule {
 
     fn related_rules(&self) -> &[&'static str] {
         &[
-            "RuntimeSectionKeys",
-            "DescriptionMissing",
-            "MatchingParameterMeta",
-            "MissingMetas",
-            "MissingOutput",
-            "NonmatchingOutput",
+            "ExpectedRuntimeKeys",
+            "MetaDescription",
+            "ParameterMetaMatched",
+            "MetaSections",
+            "OutputSection",
+            "MatchingOutputMeta",
         ]
     }
 }
 
-impl Visitor for MissingRequirementsRule {
+impl Visitor for RequirementsSectionRule {
     type State = Diagnostics;
 
     fn document(

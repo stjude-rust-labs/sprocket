@@ -17,7 +17,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the import sort rule.
-const ID: &str = "ImportSort";
+const ID: &str = "ImportSorted";
 
 /// Creates an import not sorted diagnostic.
 fn import_not_sorted(span: Span, sorted_imports: String) -> Diagnostic {
@@ -39,9 +39,9 @@ fn improper_comment(span: Span) -> Diagnostic {
 
 /// Detects imports that are not sorted lexicographically.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct ImportSortRule;
+pub struct ImportSortedRule;
 
-impl Rule for ImportSortRule {
+impl Rule for ImportSortedRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -70,7 +70,7 @@ impl Rule for ImportSortRule {
     }
 }
 
-impl Visitor for ImportSortRule {
+impl Visitor for ImportSortedRule {
     type State = Diagnostics;
 
     fn document(

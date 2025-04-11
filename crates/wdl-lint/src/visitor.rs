@@ -389,7 +389,7 @@ mod test {
 
     #[test]
     fn it_supports_reuse() {
-        let source = r#"#@ except: MissingMetas, MissingOutput
+        let source = r#"#@ except: MetaSections, OutputSection
 
 ## Test source
 

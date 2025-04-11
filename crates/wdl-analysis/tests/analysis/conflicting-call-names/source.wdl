@@ -1,4 +1,4 @@
-#@ except: UnusedDeclaration,UnusedCall,UnusedInput
+#@ except: UnusedDeclaration, UnusedCall, UnusedInput
 ## This is a test of conflicting call names.
 
 version 1.1

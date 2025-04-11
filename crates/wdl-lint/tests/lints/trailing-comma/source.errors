@@ -91,7 +91,7 @@ note[TrailingComma]: item missing trailing comma
     │
     = fix: add a trailing comma
 
-note[BlankLinesBetweenElements]: extra blank line(s) found
+note[ElementSpacing]: extra blank line(s) found
     ┌─ tests/lints/trailing-comma/source.wdl:107:14
     │  
 107 │      runtime {}

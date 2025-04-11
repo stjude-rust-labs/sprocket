@@ -1,11 +1,11 @@
-## This is a test of the `DeprecatedPlaceholderOption` lint.
+## This is a test of the `DeprecatedPlaceholder` lint.
 
 version 1.0
 
 # None of these lints should trigger as the version is WDL v1.0 (prior to
 # placeholder options being deprecated).
 task a_task {
-    #@ except: DescriptionMissing
+    #@ except: MetaDescription
     meta {}
 
     String bad_sep_option = "~{sep="," numbers}"
@@ -20,6 +20,6 @@ task a_task {
 
     output {}
 
-    #@ except: RuntimeSectionKeys
+    #@ except: ExpectedRuntimeKeys
     runtime {}
 }

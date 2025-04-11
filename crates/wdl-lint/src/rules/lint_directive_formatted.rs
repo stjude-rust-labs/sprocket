@@ -15,7 +15,7 @@ use crate::TagSet;
 use crate::util::is_inline_comment;
 
 /// The identifier for the Malformed Lint Directive rule.
-const ID: &str = "MalformedLintDirective";
+const ID: &str = "LintDirectiveFormatted";
 /// The accepted lint directives.
 const ACCEPTED_LINT_DIRECTIVES: [&str; 1] = ["except"];
 
@@ -73,22 +73,22 @@ fn no_colon_detected(span: Span) -> Diagnostic {
 
 /// Detects a malformed lint directive.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct MalformedLintDirectiveRule;
+pub struct LintDirectiveFormattedRule;
 
-impl Rule for MalformedLintDirectiveRule {
+impl Rule for LintDirectiveFormattedRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Flags malformed lint directives."
+        "Ensures lint directives are correctly formatted."
     }
 
     fn explanation(&self) -> &'static str {
         "This rule checks that lint directives are properly formatted.\nLint directives must be on \
          their own line, only preceded by whitespace. They should follow the pattern `#@ \
          <directive>: <value>` _exactly_. Currently the only accepted lint directive is `except`. \
-         For example, `#@ except: MalformedLintDirective`."
+         For example, `#@ except: LintDirectiveFormatted`."
     }
 
     fn tags(&self) -> TagSet {
@@ -104,7 +104,7 @@ impl Rule for MalformedLintDirectiveRule {
     }
 }
 
-impl Visitor for MalformedLintDirectiveRule {
+impl Visitor for LintDirectiveFormattedRule {
     type State = Diagnostics;
 
     fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document, _: SupportedVersion) {

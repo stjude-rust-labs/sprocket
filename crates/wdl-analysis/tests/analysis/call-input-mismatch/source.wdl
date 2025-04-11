@@ -1,4 +1,4 @@
-#@ except: UnusedInput,UnusedDeclaration,UnusedCall
+#@ except: UnusedInput, UnusedDeclaration, UnusedCall
 # This is a test of passing an incorrect type to a call input.
 
 version 1.2

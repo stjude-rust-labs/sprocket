@@ -16,14 +16,14 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the todos rule.
-const ID: &str = "Todo";
+const ID: &str = "TodoComment";
 
 /// The `TODO` token.
 const TODO: &str = "TODO";
 
 /// Detects remaining TODOs within comments.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct TodoRule;
+pub struct TodoCommentRule;
 
 /// Creates a "todo comment" diagnostic.
 fn todo_comment(comment: &str, comment_span: Span, offset: usize) -> Diagnostic {
@@ -35,7 +35,7 @@ fn todo_comment(comment: &str, comment_span: Span, offset: usize) -> Diagnostic 
         .with_fix("remove the `TODO` item once it has been implemented")
 }
 
-impl Rule for TodoRule {
+impl Rule for TodoCommentRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -46,7 +46,7 @@ impl Rule for TodoRule {
 
     fn explanation(&self) -> &'static str {
         "When writing WDL, future tasks are often marked as `TODO`. This indicates that the \
-         implementor intended to go back to the code and handle the todo item. Todo items should \
+         implementor intended to go back to the code and handle the todo item. TODO items should \
          not be long-term fixtures within code and, as such, they are flagged to ensure none are \
          forgotten."
     }
@@ -64,7 +64,7 @@ impl Rule for TodoRule {
     }
 }
 
-impl Visitor for TodoRule {
+impl Visitor for TodoCommentRule {
     type State = Diagnostics;
 
     fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document, _: SupportedVersion) {

@@ -1,12 +1,12 @@
-#@ except: CommentWhitespace, DescriptionMissing, MissingRuntime, UnknownRule, LineWidth, PreambleCommentAfterVersion
+#@ except: CommentWhitespace, MetaDescription, RuntimeSection, KnownRules, LineWidth, PreambleCommentPlacement
 
-## This is a test of the `MalformedLintDirective` rule
+## This is a test of the `LintDirectiveFormatted` rule
 
 version 1.2
 
 #@ stop: This should be flagged for using 'stop' instead of 'except'
 
-#@ except: MissingRequirements
+#@ except: RequirementsSection
 task foo {
     #@except: this should be flagged for missing a space
     meta {

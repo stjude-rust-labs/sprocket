@@ -1,4 +1,4 @@
-warning[CommandSectionMixedIndentation]: mixed indentation within a command
+warning[CommandSectionIndentation]: mixed indentation within a command
    ┌─ tests/lints/command-mixed-spaces-first/source.wdl:14:1
    │
 12 │     command <<<
@@ -9,7 +9,7 @@ warning[CommandSectionMixedIndentation]: mixed indentation within a command
    │
    = fix: use either tabs or spaces exclusively for indentation
 
-warning[CommandSectionMixedIndentation]: mixed indentation within a command
+warning[CommandSectionIndentation]: mixed indentation within a command
    ┌─ tests/lints/command-mixed-spaces-first/source.wdl:30:1
    │
 28 │     command {

@@ -1,5 +1,5 @@
-#@ except: DescriptionMissing, MissingRequirements
-#@ except: RuntimeSectionKeys, MissingMetas, MissingOutput
+#@ except: MetaDescription, RequirementsSection
+#@ except: ExpectedRuntimeKeys, MetaSections, OutputSection
 
 version 1.2
 
@@ -26,7 +26,7 @@ workflow test2 {
         Int bam
     }
 
-    #@ except: RedundantInputAssignment
+    #@ except: ConciseInput
     call bar {
          arm,  # should not flag
          bam = bam + 3,  # should not flag
@@ -41,7 +41,7 @@ workflow test3 {
     }
 
     call foo {
-        #@ except: RedundantInputAssignment
+        #@ except: ConciseInput
         arm = arm,  # should not flag a note due to the except statement
         bam = bam,  # should flag a note
    }

@@ -1,4 +1,4 @@
-note[MissingMetas]: workflow `test` is missing a `parameter_meta` section
+note[MetaSections]: workflow `test` is missing a `parameter_meta` section
   ┌─ tests/lints/missing-parameter_meta/source.wdl:3:10
   │
 3 │ workflow test {

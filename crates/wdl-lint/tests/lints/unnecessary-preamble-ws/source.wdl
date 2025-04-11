@@ -1,4 +1,4 @@
-#@ except: BlankLinesBetweenElements, DescriptionMissing
+#@ except: ElementSpacing, MetaDescription
 
            
 

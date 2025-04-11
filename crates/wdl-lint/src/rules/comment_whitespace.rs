@@ -132,7 +132,7 @@ impl Visitor for CommentWhitespaceRule {
 
     fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
         if !self.exited_preamble {
-            // Handled by `PreambleFormatting` rule
+            // Handled by `PreambleFormatted` rule
             return;
         }
 

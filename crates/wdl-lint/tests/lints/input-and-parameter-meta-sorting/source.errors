@@ -1,4 +1,4 @@
-note[InputSorting]: input not sorted
+note[InputSorted]: input not sorted
    ┌─ tests/lints/input-and-parameter-meta-sorting/source.wdl:21:5
    │
 21 │     input {
@@ -11,7 +11,7 @@ note[InputSorting]: input not sorted
      Array[String]+ p
      Array[String]+ q
 
-note[MatchingParameterMeta]: parameter metadata in task `input_sorting_test_2` is out of order
+note[ParameterMetaMatched]: parameter metadata in task `input_sorting_test_2` is out of order
    ┌─ tests/lints/input-and-parameter-meta-sorting/source.wdl:39:5
    │
 39 │     parameter_meta {
@@ -24,7 +24,7 @@ note[MatchingParameterMeta]: parameter metadata in task `input_sorting_test_2` i
      q
      b
 
-note[InputSorting]: input not sorted
+note[InputSorted]: input not sorted
    ┌─ tests/lints/input-and-parameter-meta-sorting/source.wdl:47:5
    │
 47 │     input {

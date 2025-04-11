@@ -19,7 +19,7 @@ use crate::TagSet;
 use crate::util::lines_with_offset;
 
 /// The ID of the rule.
-const ID: &str = "VersionFormatting";
+const ID: &str = "VersionStatementFormatted";
 
 /// Creates a diagnostic for an expected blank line before the version
 /// statement.
@@ -68,15 +68,15 @@ fn unexpected_whitespace_inside_version(span: Span) -> Diagnostic {
 
 /// Detects incorrect formatting of the version statement.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct VersionFormattingRule;
+pub struct VersionStatementFormattedRule;
 
-impl Rule for VersionFormattingRule {
+impl Rule for VersionStatementFormattedRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Checks the formatting of the version statement."
+        "Ensures the `version` statement is correctly formatted."
     }
 
     fn explanation(&self) -> &'static str {
@@ -100,7 +100,7 @@ impl Rule for VersionFormattingRule {
     }
 }
 
-impl Visitor for VersionFormattingRule {
+impl Visitor for VersionStatementFormattedRule {
     type State = Diagnostics;
 
     fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document, _: SupportedVersion) {

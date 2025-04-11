@@ -1,4 +1,4 @@
-note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL 1.1 specification: `container`
+note[ExpectedRuntimeKeys]: the following runtime key is recommended by the WDL 1.1 specification: `container`
    ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:12:5
    │
 12 │     runtime {}  # Missing `container` key
@@ -6,7 +6,7 @@ note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL 1.
    │
    = fix: include an entry for the `container` key in the `runtime` section
 
-warning[RuntimeSectionKeys]: the following runtime key is not reserved in the WDL 1.1 specification: `foo`; therefore, its inclusion in the `runtime` section is deprecated
+warning[ExpectedRuntimeKeys]: the following runtime key is not reserved in the WDL 1.1 specification: `foo`; therefore, its inclusion in the `runtime` section is deprecated
    ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:51:5
    │
 51 │     runtime {
@@ -17,7 +17,7 @@ warning[RuntimeSectionKeys]: the following runtime key is not reserved in the WD
    │
    = fix: if a reserved key name was intended, correct the spelling; otherwise, remove the `foo` key
 
-warning[RuntimeSectionKeys]: the following runtime keys are not reserved in the WDL 1.1 specification: `baz` and `foo`; therefore, their inclusion in the `runtime` section is deprecated
+warning[ExpectedRuntimeKeys]: the following runtime keys are not reserved in the WDL 1.1 specification: `baz` and `foo`; therefore, their inclusion in the `runtime` section is deprecated
    ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:70:5
    │
 70 │     runtime {

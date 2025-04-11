@@ -1,4 +1,4 @@
-note[RuntimeSectionKeys]: the following runtime keys are recommended by the WDL 1.0 specification: `docker` and `memory`
+note[ExpectedRuntimeKeys]: the following runtime keys are recommended by the WDL 1.0 specification: `docker` and `memory`
    ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:12:5
    │
 12 │     runtime {}  # Two missing keys: "docker" and "memory"
@@ -6,7 +6,7 @@ note[RuntimeSectionKeys]: the following runtime keys are recommended by the WDL 
    │
    = fix: include entries for the `docker` and `memory` keys in the `runtime` section
 
-note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL 1.0 specification: `memory`
+note[ExpectedRuntimeKeys]: the following runtime key is recommended by the WDL 1.0 specification: `memory`
    ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:33:5
    │
 33 │     runtime {
@@ -14,7 +14,7 @@ note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL 1.
    │
    = fix: include an entry for the `memory` key in the `runtime` section
 
-warning[ContainerValue]: container URI is missing a tag
+warning[ContainerUri]: container URI is missing a tag
    ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:34:17
    │
 34 │         docker: "foo"
@@ -22,7 +22,7 @@ warning[ContainerValue]: container URI is missing a tag
    │
    = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
 
-note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL 1.0 specification: `docker`
+note[ExpectedRuntimeKeys]: the following runtime key is recommended by the WDL 1.0 specification: `docker`
    ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:45:5
    │
 45 │     runtime {
@@ -30,7 +30,7 @@ note[RuntimeSectionKeys]: the following runtime key is recommended by the WDL 1.
    │
    = fix: include an entry for the `docker` key in the `runtime` section
 
-warning[ContainerValue]: container URI is missing a tag
+warning[ContainerUri]: container URI is missing a tag
    ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:58:17
    │
 58 │         docker: "foo"
@@ -38,7 +38,7 @@ warning[ContainerValue]: container URI is missing a tag
    │
    = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
 
-warning[ContainerValue]: container URI is missing a tag
+warning[ContainerUri]: container URI is missing a tag
    ┌─ tests/lints/runtime-keys-wdl-1.0/source.wdl:71:17
    │
 71 │         docker: "foo"

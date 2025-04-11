@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, ContainerValue
+#@ except: MetaDescription, ContainerUri
 
 version 1.1
 
@@ -19,7 +19,7 @@ task a_task_with_no_keys_but_they_are_excepted {
 
     output {}
 
-    #@ except: RuntimeSectionKeys
+    #@ except: ExpectedRuntimeKeys
     runtime {}  # No errors should show.
 }
 

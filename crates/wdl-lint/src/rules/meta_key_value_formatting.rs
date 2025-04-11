@@ -22,7 +22,7 @@ use crate::rules::trailing_comma::find_next_comma;
 const INDENT: &str = "    ";
 
 /// The identifier for the missing meta sections rule.
-const ID: &str = "KeyValuePairs";
+const ID: &str = "MetaKeyValueFormatting";
 
 /// Diagnostic message for missing trailing newline.
 fn missing_trailing_newline(span: Span) -> Diagnostic {
@@ -63,12 +63,12 @@ fn incorrect_indentation(span: Span, expected: &str, actual: &str) -> Diagnostic
 
 /// A lint rule for missing meta and parameter_meta sections.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct KeyValuePairsRule {
+pub struct MetaKeyValueFormattingRule {
     /// The version of the WDL document being linted.
     version: Option<SupportedVersion>,
 }
 
-impl Rule for KeyValuePairsRule {
+impl Rule for MetaKeyValueFormattingRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -106,7 +106,7 @@ impl Rule for KeyValuePairsRule {
     }
 }
 
-impl Visitor for KeyValuePairsRule {
+impl Visitor for MetaKeyValueFormattingRule {
     type State = Diagnostics;
 
     fn document(

@@ -36,7 +36,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the blanks between elements rule.
-const ID: &str = "BlankLinesBetweenElements";
+const ID: &str = "ElementSpacing";
 
 /// Creates an excessive blank line diagnostic.
 fn excess_blank_line(span: Span) -> Diagnostic {
@@ -74,12 +74,12 @@ enum State {
 
 /// Detects unsorted input declarations.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct BlankLinesBetweenElementsRule {
+pub struct ElementSpacingRule {
     /// Store whether we are in certain blocks
     state: State,
 }
 
-impl Rule for BlankLinesBetweenElementsRule {
+impl Rule for ElementSpacingRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -127,7 +127,7 @@ impl Rule for BlankLinesBetweenElementsRule {
     }
 }
 
-impl Visitor for BlankLinesBetweenElementsRule {
+impl Visitor for ElementSpacingRule {
     type State = Diagnostics;
 
     fn document(
@@ -587,7 +587,7 @@ fn check_prior_spacing(
                 if first || !element_spacing_required {
                     // first element cannot have a blank line before it.
                     // Whitespace following the version statement is handled by the
-                    // `VersionFormatting` rule.
+                    // `VersionStatementFormatted` rule.
                     if count > 1
                         && prior
                             .prev_sibling_or_token()

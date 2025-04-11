@@ -19,7 +19,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the Redundant Input Assignment rule.
-const ID: &str = "RedundantInputAssignment";
+const ID: &str = "ConciseInput";
 
 /// Create a "Redundant Input Assignment" diagnostic.
 fn redundant_input_assignment(span: Span, name: &str) -> Diagnostic {
@@ -31,15 +31,15 @@ fn redundant_input_assignment(span: Span, name: &str) -> Diagnostic {
 
 /// Detects a redundant input assignment.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct RedundantInputAssignment(Option<SupportedVersion>);
+pub struct ConciseInput(Option<SupportedVersion>);
 
-impl Rule for RedundantInputAssignment {
+impl Rule for ConciseInput {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Flags redundant input assignments."
+        "Ensures concise input assignments are used (implicit binding when available)."
     }
 
     fn explanation(&self) -> &'static str {
@@ -65,7 +65,7 @@ impl Rule for RedundantInputAssignment {
     }
 }
 
-impl Visitor for RedundantInputAssignment {
+impl Visitor for ConciseInput {
     type State = Diagnostics;
 
     fn document(

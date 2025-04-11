@@ -1,6 +1,6 @@
 ## Start with a preamble comment
 ## Let's make that two preamble comments
-#@ except: UnknownRule
+#@ except: KnownRules
 #@ except: Foo
 
 ## Back to preamble comment

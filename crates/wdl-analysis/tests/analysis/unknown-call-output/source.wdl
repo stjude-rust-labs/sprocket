@@ -1,4 +1,4 @@
-#@ except: UnusedDeclaration,UnusedCall
+#@ except: UnusedDeclaration, UnusedCall
 ## This is a test of accessing an unknown call output.
 
 version 1.1

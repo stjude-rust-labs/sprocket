@@ -1,4 +1,4 @@
-note[Todo]: remaining `TODO` item found
+note[TodoComment]: remaining `TODO` item found
   ┌─ tests/lints/todo/source.wdl:7:3
   │
 7 │ # TODO: this should be flagged
@@ -6,7 +6,7 @@ note[Todo]: remaining `TODO` item found
   │
   = fix: remove the `TODO` item once it has been implemented
 
-note[Todo]: remaining `TODO` item found
+note[TodoComment]: remaining `TODO` item found
   ┌─ tests/lints/todo/source.wdl:8:4
   │
 8 │ # [TODO] this should be flagged
@@ -14,7 +14,7 @@ note[Todo]: remaining `TODO` item found
   │
   = fix: remove the `TODO` item once it has been implemented
 
-note[Todo]: remaining `TODO` item found
+note[TodoComment]: remaining `TODO` item found
    ┌─ tests/lints/todo/source.wdl:11:31
    │
 11 │     # This should be flagged (TODO).

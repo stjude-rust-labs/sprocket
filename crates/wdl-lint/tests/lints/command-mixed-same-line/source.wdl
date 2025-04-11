@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, RuntimeSectionKeys
+#@ except: MetaDescription, ExpectedRuntimeKeys
 
 ## This is a test of having mixed indentation on the same line in command sections.
 
@@ -23,7 +23,7 @@ task test2 {
 
     parameter_meta {}
 
-    #@ except: NoCurlyCommands
+    #@ except: HereDocCommands
     command {
     		this line starts with spaces and ends with tabs
     }

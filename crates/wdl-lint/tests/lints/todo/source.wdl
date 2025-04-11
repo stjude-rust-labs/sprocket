@@ -1,6 +1,6 @@
-#@ except: DescriptionMissing
+#@ except: MetaDescription
 
-## This is a test of the Todo rule.
+## This is a test of the TodoComment rule.
 
 version 1.1
 
@@ -9,7 +9,7 @@ version 1.1
 
 workflow test {
     # This should be flagged (TODO).
-    #@ except: Todo
+    #@ except: TodoComment
     meta {
         # TODO: this should NOT be flagged
     }
@@ -17,7 +17,7 @@ workflow test {
     output {}
 }
 
-#@ except: Todo
+#@ except: TodoComment
 workflow test {
     # TODO: This should NOT be flagged as well.
     meta {}

@@ -44,7 +44,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the runtime section rule.
-const ID: &str = "RuntimeSectionKeys";
+const ID: &str = "ExpectedRuntimeKeys";
 
 /// A kind of runtime key.
 ///
@@ -288,7 +288,7 @@ fn report_missing_recommended_keys(
 
 /// Detects the use of deprecated, unknown, or missing runtime keys.
 #[derive(Debug, Default, Clone)]
-pub struct RuntimeSectionKeysRule {
+pub struct ExpectedRuntimeKeysRule {
     /// The detected version of the current document.
     version: Option<SupportedVersion>,
     /// The span of the first `runtime` section encountered within the current
@@ -303,7 +303,7 @@ pub struct RuntimeSectionKeysRule {
     non_reserved_keys: HashSet<TokenText>,
 }
 
-impl Rule for RuntimeSectionKeysRule {
+impl Rule for ExpectedRuntimeKeysRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -344,7 +344,7 @@ impl Rule for RuntimeSectionKeysRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &["DeprecatedObject", "DeprecatedPlaceholderOption"]
+        &["DeprecatedObject", "DeprecatedPlaceholder"]
     }
 }
 
@@ -358,7 +358,7 @@ fn recommended_keys<'a, 'k>(
         .map(|(key, kind)| (*key, kind))
 }
 
-impl Visitor for RuntimeSectionKeysRule {
+impl Visitor for ExpectedRuntimeKeysRule {
     type State = Diagnostics;
 
     fn document(
@@ -539,7 +539,7 @@ impl Visitor for RuntimeSectionKeysRule {
 
 #[cfg(test)]
 mod tests {
-    use crate::rules::runtime_section_keys::serialize_oxford_comma;
+    use crate::rules::expected_runtime_keys::serialize_oxford_comma;
 
     #[test]
     fn test_itemize_oxford_comma() {

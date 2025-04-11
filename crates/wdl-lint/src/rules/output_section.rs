@@ -38,7 +38,7 @@ impl fmt::Display for Context {
 }
 
 /// The identifier for the missing output rule.
-const ID: &str = "MissingOutput";
+const ID: &str = "OutputSection";
 
 /// Creates a "missing output section" diagnostic.
 fn missing_output_section(name: &str, context: Context, span: Span) -> Diagnostic {
@@ -53,15 +53,15 @@ fn missing_output_section(name: &str, context: Context, span: Span) -> Diagnosti
 
 /// Detects missing `output` section for tasks and workflows.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct MissingOutputRule;
+pub struct OutputSectionRule;
 
-impl Rule for MissingOutputRule {
+impl Rule for OutputSectionRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that tasks and workflows have an output section."
+        "Ensures that tasks and workflows have an `output` section."
     }
 
     fn explanation(&self) -> &'static str {
@@ -84,16 +84,16 @@ impl Rule for MissingOutputRule {
 
     fn related_rules(&self) -> &[&'static str] {
         &[
-            "DescriptionMissing",
-            "MatchingParameterMeta",
-            "MissingRequirements",
-            "MissingRuntime",
-            "NonmatchingOutput",
+            "MetaDescription",
+            "ParameterMetaMatched",
+            "RequirementsSection",
+            "RuntimeSection",
+            "MatchingOutputMeta",
         ]
     }
 }
 
-impl Visitor for MissingOutputRule {
+impl Visitor for OutputSectionRule {
     type State = Diagnostics;
 
     fn document(

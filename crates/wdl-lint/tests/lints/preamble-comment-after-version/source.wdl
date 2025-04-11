@@ -17,7 +17,7 @@ version 1.1
 
 workflow test {
     ## This one is bad!
-    #@ except: DescriptionMissing
+    #@ except: MetaDescription
     meta {}
 
     output {}

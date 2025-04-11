@@ -1,4 +1,4 @@
-note[PreambleFormatting]: unnecessary whitespace in document preamble
+note[PreambleFormatted]: unnecessary whitespace in document preamble
   ┌─ tests/lints/ws-preamble-comments/source.wdl:4:1
   │  
 4 │ ╭ 
@@ -8,7 +8,7 @@ note[PreambleFormatting]: unnecessary whitespace in document preamble
   │  
   = fix: remove the leading whitespace
 
-note[PreambleFormatting]: unnecessary whitespace in document preamble
+note[PreambleFormatted]: unnecessary whitespace in document preamble
   ┌─ tests/lints/ws-preamble-comments/source.wdl:7:1
   │  
 7 │ ╭ 

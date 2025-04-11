@@ -1,4 +1,4 @@
-note[DisallowedOutputName]: declaration identifier must be at least 3 characters
+note[OutputName]: declaration identifier must be at least 3 characters
    ┌─ tests/lints/disallowed-output-name/source.wdl:26:14
    │
 26 │         File f = "test.wdl"  # This is not OK
@@ -6,7 +6,7 @@ note[DisallowedOutputName]: declaration identifier must be at least 3 characters
    │
    = fix: rename the identifier to be at least 3 characters long
 
-note[DisallowedOutputName]: declaration identifier starts with 'out'
+note[OutputName]: declaration identifier starts with 'out'
    ┌─ tests/lints/disallowed-output-name/source.wdl:27:16
    │
 27 │         String outString = "string"  # This is not OK
@@ -14,7 +14,7 @@ note[DisallowedOutputName]: declaration identifier starts with 'out'
    │
    = fix: rename the identifier to not start with 'out'
 
-note[DisallowedOutputName]: declaration identifier starts with 'output'
+note[OutputName]: declaration identifier starts with 'output'
    ┌─ tests/lints/disallowed-output-name/source.wdl:28:16
    │
 28 │         String output_string = "string"  # This is not OK
@@ -22,7 +22,7 @@ note[DisallowedOutputName]: declaration identifier starts with 'output'
    │
    = fix: rename the identifier to not start with 'output'
 
-note[DisallowedOutputName]: declaration identifier starts with 'out'
+note[OutputName]: declaration identifier starts with 'out'
    ┌─ tests/lints/disallowed-output-name/source.wdl:29:16
    │
 29 │         String out_string = "string"  # This is not OK

@@ -1,4 +1,4 @@
-note[ImportSort]: imports are not sorted lexicographically
+note[ImportSorted]: imports are not sorted lexicographically
   ┌─ tests/lints/within-import-whitespace/source.wdl:8:1
   │
 8 │ import "foo" as foo  # OK
@@ -70,7 +70,7 @@ note[ImportWhitespace]: improper whitespace in import statement
    │
    = fix: replace the extraneous whitespace with a single space
 
-note[ImportSort]: comments are not allowed within an import statement
+note[ImportSorted]: comments are not allowed within an import statement
    ┌─ tests/lints/within-import-whitespace/source.wdl:14:9
    │
 14 │ import  # BAD (comment within statement)

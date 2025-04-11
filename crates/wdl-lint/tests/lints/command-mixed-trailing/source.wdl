@@ -1,7 +1,7 @@
-#@ except: DescriptionMissing, RuntimeSectionKeys
+#@ except: MetaDescription, ExpectedRuntimeKeys
 
 ## This is a test of having mixed _trailing_ indentation in command sections.
-## There should be no warnings from the `CommandSectionMixedIndentation` rule.
+## There should be no warnings from the `CommandSectionIndentation` rule.
 
 version 1.1
 
@@ -24,7 +24,7 @@ task test2 {
 
     parameter_meta {}
 
-    #@ except: NoCurlyCommands
+    #@ except: HereDocCommands
     command {
         this line is prefixed with ${"spaces and has tailing mixed indentation"}  		
     }

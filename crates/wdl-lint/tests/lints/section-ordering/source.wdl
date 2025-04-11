@@ -1,5 +1,5 @@
-#@ except: MissingRequirements, DescriptionMissing, MissingRuntime, MissingOutput
-#@ except: BlankLinesBetweenElements
+#@ except: RequirementsSection, MetaDescription, RuntimeSection, OutputSection
+#@ except: ElementSpacing
 
 version 1.2
 

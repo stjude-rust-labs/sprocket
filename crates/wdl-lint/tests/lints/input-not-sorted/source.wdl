@@ -1,9 +1,9 @@
-#@ except: DescriptionMissing, DisallowedInputName, MissingRequirements
-#@ except: MatchingParameterMeta
+#@ except: MetaDescription, InputName, RequirementsSection
+#@ except: ParameterMetaMatched
 
 version 1.2
 
-#@ except: MissingMetas
+#@ except: MetaSections
 struct Mystruct {
     String a
     Int b

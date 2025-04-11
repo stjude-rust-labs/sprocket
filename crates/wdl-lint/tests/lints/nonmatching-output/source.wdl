@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing, DisallowedOutputName, MissingRuntime
+#@ except: MetaDescription, OutputName, RuntimeSection
 
 version 1.1
 
@@ -110,7 +110,7 @@ task garply {
             s: "s",
             t: "t",
             # The next lint directive will _not_ work.
-            #@ except: NonmatchingOutput
+            #@ except: MatchingOutputMeta
             v: "v",
         }
     }
@@ -124,7 +124,7 @@ task garply {
 }
 
 # This task should not trigger a warning due to `#@ except`.
-#@ except: NonmatchingOutput
+#@ except: MatchingOutputMeta
 task garply2 {
     meta {
         outputs: {
@@ -142,7 +142,7 @@ task garply2 {
     }
 }
 
-#@ except: NonmatchingOutput
+#@ except: MatchingOutputMeta
 # This task should not trigger a warning due to `#@ except`.
 task waldo {
     meta {
@@ -162,7 +162,7 @@ task waldo {
 }
 
 # This should not trigger any warnings.
-#@ except: NonmatchingOutput
+#@ except: MatchingOutputMeta
 task waldo2 {
     meta {
         outputs: {

@@ -1,4 +1,4 @@
-note[VersionFormatting]: expected exactly one blank line after the version statement
+note[VersionStatementFormatted]: expected exactly one blank line after the version statement
   ┌─ tests/lints/missing-blank-line-after-version/source.wdl:5:12
   │  
 5 │   version 1.1

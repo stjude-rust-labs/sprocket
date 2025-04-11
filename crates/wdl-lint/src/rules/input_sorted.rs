@@ -21,7 +21,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the input not sorted rule.
-const ID: &str = "InputSorting";
+const ID: &str = "InputSorted";
 
 /// Creates a "input not sorted" diagnostic.
 fn input_not_sorted(span: Span, sorted_inputs: String) -> Diagnostic {
@@ -187,9 +187,9 @@ fn compare_decl(a: &v1::Decl, b: &v1::Decl) -> Ordering {
 
 /// Detects unsorted input declarations.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct InputNotSortedRule;
+pub struct InputSortedRule;
 
-impl Rule for InputNotSortedRule {
+impl Rule for InputSortedRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -222,11 +222,11 @@ impl Rule for InputNotSortedRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &["MatchingParameterMeta"]
+        &["ParameterMetaMatched"]
     }
 }
 
-impl Visitor for InputNotSortedRule {
+impl Visitor for InputSortedRule {
     type State = Diagnostics;
 
     fn document(

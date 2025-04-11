@@ -1,4 +1,4 @@
-warning[MissingOutput]: workflow `test` is missing an output section
+warning[OutputSection]: workflow `test` is missing an output section
   ┌─ tests/lints/missing-output/source.wdl:3:10
   │
 3 │ workflow test {

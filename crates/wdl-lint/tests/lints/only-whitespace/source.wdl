@@ -1,4 +1,4 @@
-#@ except: Foo, UnknownRule
+#@ except: Foo, KnownRules
      
 ## The above line has extra whitespace
 ## This is a test of lines that only contain whitespace
@@ -15,7 +15,7 @@ version 1.1
 
 workflow test {    
     # lines above and below have trailing whitespace
-    #@ except: DescriptionMissing        
+    #@ except: MetaDescription        
     meta {}
     
     parameter_meta {}

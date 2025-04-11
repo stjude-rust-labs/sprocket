@@ -1,8 +1,8 @@
-note[PreambleFormatting]: expected exactly one blank line between lint directives and preamble comments
-  ┌─ tests/lints/only-whitespace/source.wdl:1:28
+note[PreambleFormatted]: expected exactly one blank line between lint directives and preamble comments
+  ┌─ tests/lints/only-whitespace/source.wdl:1:27
   │  
-1 │   #@ except: Foo, UnknownRule
-  │ ╭───────────────────────────^
+1 │   #@ except: Foo, KnownRules
+  │ ╭──────────────────────────^
 2 │ │      
   │ │ -----
 3 │ │ ## The above line has extra whitespace
@@ -10,7 +10,7 @@ note[PreambleFormatting]: expected exactly one blank line between lint directive
   │  
   = fix: add a blank line between any lint directives and preamble comments
 
-note[VersionFormatting]: expected exactly one blank line between the last comment and the version statement
+note[VersionStatementFormatted]: expected exactly one blank line between the last comment and the version statement
   ┌─ tests/lints/only-whitespace/source.wdl:5:28
   │  
 5 │   ## The next line has spaces
@@ -61,10 +61,10 @@ note[Whitespace]: line contains trailing whitespace
    = fix: remove the trailing whitespace
 
 note[Whitespace]: line contains trailing whitespace
-   ┌─ tests/lints/only-whitespace/source.wdl:18:34
+   ┌─ tests/lints/only-whitespace/source.wdl:18:31
    │
-18 │     #@ except: DescriptionMissing        
-   │                                  ^^^^^^^^
+18 │     #@ except: MetaDescription        
+   │                               ^^^^^^^^
    │
    = fix: remove the trailing whitespace
 

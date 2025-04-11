@@ -1,4 +1,4 @@
-note[PreambleFormatting]: unnecessary whitespace in document preamble
+note[PreambleFormatted]: unnecessary whitespace in document preamble
   ┌─ tests/lints/preamble-comment-after-version/source.wdl:2:1
   │
 2 │        ## Bad leading whitespace!
@@ -6,7 +6,7 @@ note[PreambleFormatting]: unnecessary whitespace in document preamble
   │
   = fix: remove the leading whitespace
 
-error[PreambleCommentAfterVersion]: preamble comment after the version statement
+error[PreambleCommentPlacement]: preamble comment after the version statement
    ┌─ tests/lints/preamble-comment-after-version/source.wdl:6:1
    │  
  6 │ ╭ ## This is a preamble comment after the version
@@ -18,7 +18,7 @@ error[PreambleCommentAfterVersion]: preamble comment after the version statement
    │  
    = fix: do not use `##` comments outside the preamble
 
-error[PreambleCommentAfterVersion]: preamble comment after the version statement
+error[PreambleCommentPlacement]: preamble comment after the version statement
    ┌─ tests/lints/preamble-comment-after-version/source.wdl:19:5
    │
 19 │     ## This one is bad!

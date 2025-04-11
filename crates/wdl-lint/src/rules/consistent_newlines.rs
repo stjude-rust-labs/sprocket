@@ -15,7 +15,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the inconsistent newlines rule.
-const ID: &str = "InconsistentNewlines";
+const ID: &str = "ConsistentNewlines";
 
 /// Creates an inconsistent newlines diagnostic.
 fn inconsistent_newlines(span: Span) -> Diagnostic {
@@ -33,7 +33,7 @@ fn inconsistent_newlines(span: Span) -> Diagnostic {
 
 /// Detects imports that are not sorted lexicographically.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct InconsistentNewlinesRule {
+pub struct ConsistentNewlinesRule {
     /// The number of carriage returns in the file.
     carriage_return: u32,
     /// The number of newlines in the file.
@@ -42,7 +42,7 @@ pub struct InconsistentNewlinesRule {
     first_inconsistent: Option<Span>,
 }
 
-impl Rule for InconsistentNewlinesRule {
+impl Rule for ConsistentNewlinesRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -69,7 +69,7 @@ impl Rule for InconsistentNewlinesRule {
     }
 }
 
-impl Visitor for InconsistentNewlinesRule {
+impl Visitor for ConsistentNewlinesRule {
     type State = Diagnostics;
 
     fn document(

@@ -20,7 +20,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the disallowed input name rule.
-const ID: &str = "DisallowedInputName";
+const ID: &str = "InputName";
 
 /// Declaration identifier too short
 fn decl_identifier_too_short(span: Span) -> Diagnostic {
@@ -48,18 +48,18 @@ fn decl_identifier_starts_with_input(span: Span) -> Diagnostic {
 
 /// A lint rule for disallowed input names.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct DisallowedInputNameRule {
+pub struct InputNameRule {
     /// Track if we're in the input section.
     input_section: bool,
 }
 
-impl Rule for DisallowedInputNameRule {
+impl Rule for InputNameRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Ensures input names are meaningful."
+        "Ensures input names are meaningful (e.g. not generic like 'input', 'in', or too short)."
     }
 
     fn explanation(&self) -> &'static str {
@@ -85,11 +85,11 @@ impl Rule for DisallowedInputNameRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &["DisallowedOutputName", "DisallowedDeclarationName"]
+        &["OutputName", "DeclarationName"]
     }
 }
 
-impl Visitor for DisallowedInputNameRule {
+impl Visitor for InputNameRule {
     type State = Diagnostics;
 
     fn document(

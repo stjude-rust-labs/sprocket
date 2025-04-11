@@ -1,4 +1,4 @@
-warning[NonmatchingOutput]: `outputs` key missing in `meta` section for the task `bar`
+warning[MatchingOutputMeta]: `outputs` key missing in `meta` section for the task `bar`
    ┌─ tests/lints/nonmatching-output/source.wdl:22:5
    │
 22 │     meta {}
@@ -6,7 +6,7 @@ warning[NonmatchingOutput]: `outputs` key missing in `meta` section for the task
    │
    = fix: add an `outputs` key to `meta` section describing the outputs
 
-warning[NonmatchingOutput]: output `t` is missing from `meta.outputs` section in task `baz`
+warning[MatchingOutputMeta]: output `t` is missing from `meta.outputs` section in task `baz`
    ┌─ tests/lints/nonmatching-output/source.wdl:43:16
    │
 43 │         String t = "world"
@@ -14,7 +14,7 @@ warning[NonmatchingOutput]: output `t` is missing from `meta.outputs` section in
    │
    = fix: add a description of output `t` to documentation in `meta.outputs`
 
-note[NonmatchingOutput]: `outputs` section of `meta` for the task `qux` is out of order
+note[MatchingOutputMeta]: `outputs` section of `meta` for the task `qux` is out of order
    ┌─ tests/lints/nonmatching-output/source.wdl:50:9
    │  
 50 │ ╭         outputs: {
@@ -28,7 +28,7 @@ note[NonmatchingOutput]: `outputs` section of `meta` for the task `qux` is out o
    │  
    = fix: ensure the keys within `meta.outputs` have the same order as they appear in `output`
 
-warning[NonmatchingOutput]: `v` appears in `outputs` section of the task `quux` but is not a declared `output`
+warning[MatchingOutputMeta]: `v` appears in `outputs` section of the task `quux` but is not a declared `output`
    ┌─ tests/lints/nonmatching-output/source.wdl:70:13
    │
 70 │             v: "v",
@@ -36,7 +36,7 @@ warning[NonmatchingOutput]: `v` appears in `outputs` section of the task `quux` 
    │
    = fix: ensure the output exists or remove the `v` key from `meta.outputs`
 
-warning[NonmatchingOutput]: task `corge` has a `meta.outputs` key that is not an object containing output descriptions
+warning[MatchingOutputMeta]: task `corge` has a `meta.outputs` key that is not an object containing output descriptions
    ┌─ tests/lints/nonmatching-output/source.wdl:86:9
    │
 86 │         outputs: "string"
@@ -44,7 +44,7 @@ warning[NonmatchingOutput]: task `corge` has a `meta.outputs` key that is not an
    │
    = fix: ensure `meta.outputs` is an object containing descriptions for each output
 
-warning[NonmatchingOutput]: output `s` is missing from `meta.outputs` section in task `corge`
+warning[MatchingOutputMeta]: output `s` is missing from `meta.outputs` section in task `corge`
    ┌─ tests/lints/nonmatching-output/source.wdl:92:16
    │
 92 │         String s = "hello"
@@ -52,7 +52,7 @@ warning[NonmatchingOutput]: output `s` is missing from `meta.outputs` section in
    │
    = fix: add a description of output `s` to documentation in `meta.outputs`
 
-warning[NonmatchingOutput]: output `t` is missing from `meta.outputs` section in task `corge`
+warning[MatchingOutputMeta]: output `t` is missing from `meta.outputs` section in task `corge`
    ┌─ tests/lints/nonmatching-output/source.wdl:93:16
    │
 93 │         String t = "world"
@@ -60,7 +60,7 @@ warning[NonmatchingOutput]: output `t` is missing from `meta.outputs` section in
    │
    = fix: add a description of output `t` to documentation in `meta.outputs`
 
-warning[NonmatchingOutput]: output `v` is missing from `meta.outputs` section in task `corge`
+warning[MatchingOutputMeta]: output `v` is missing from `meta.outputs` section in task `corge`
    ┌─ tests/lints/nonmatching-output/source.wdl:94:16
    │
 94 │         String v = "!"
@@ -68,17 +68,17 @@ warning[NonmatchingOutput]: output `v` is missing from `meta.outputs` section in
    │
    = fix: add a description of output `v` to documentation in `meta.outputs`
 
-note[MisplacedLintDirective]: lint directive `NonmatchingOutput` has no effect above metadata object item
+note[LintDirectiveValid]: lint directive `MatchingOutputMeta` has no effect above metadata object item
     ┌─ tests/lints/nonmatching-output/source.wdl:113:24
     │
-113 │             #@ except: NonmatchingOutput
-    │                        ^^^^^^^^^^^^^^^^^ cannot make an exception for this rule
+113 │             #@ except: MatchingOutputMeta
+    │                        ^^^^^^^^^^^^^^^^^^ cannot make an exception for this rule
 114 │             v: "v",
     │             ------ invalid element for this lint directive
     │
     = fix: valid locations for this directive are above: version statement, task definition, workflow definition
 
-warning[NonmatchingOutput]: `v` appears in `outputs` section of the task `garply` but is not a declared `output`
+warning[MatchingOutputMeta]: `v` appears in `outputs` section of the task `garply` but is not a declared `output`
     ┌─ tests/lints/nonmatching-output/source.wdl:114:13
     │
 114 │             v: "v",
@@ -86,7 +86,7 @@ warning[NonmatchingOutput]: `v` appears in `outputs` section of the task `garply
     │
     = fix: ensure the output exists or remove the `v` key from `meta.outputs`
 
-warning[NonmatchingOutput]: `s` appears in `outputs` section of the task `quuux` but is not a declared `output`
+warning[MatchingOutputMeta]: `s` appears in `outputs` section of the task `quuux` but is not a declared `output`
     ┌─ tests/lints/nonmatching-output/source.wdl:187:13
     │
 187 │             s: "s",
@@ -94,7 +94,7 @@ warning[NonmatchingOutput]: `s` appears in `outputs` section of the task `quuux`
     │
     = fix: ensure the output exists or remove the `s` key from `meta.outputs`
 
-warning[NonmatchingOutput]: `t` appears in `outputs` section of the task `quuux` but is not a declared `output`
+warning[MatchingOutputMeta]: `t` appears in `outputs` section of the task `quuux` but is not a declared `output`
     ┌─ tests/lints/nonmatching-output/source.wdl:188:13
     │
 188 │             t: "t",
@@ -102,7 +102,7 @@ warning[NonmatchingOutput]: `t` appears in `outputs` section of the task `quuux`
     │
     = fix: ensure the output exists or remove the `t` key from `meta.outputs`
 
-warning[NonmatchingOutput]: `v` appears in `outputs` section of the task `quuux` but is not a declared `output`
+warning[MatchingOutputMeta]: `v` appears in `outputs` section of the task `quuux` but is not a declared `output`
     ┌─ tests/lints/nonmatching-output/source.wdl:189:13
     │
 189 │             v: "v",

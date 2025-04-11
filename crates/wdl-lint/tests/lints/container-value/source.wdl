@@ -1,6 +1,6 @@
-#@ except: DescriptionMissing, Todo, MissingRequirements
+#@ except: MetaDescription, TodoComment, RequirementsSection
 
-## This is a test of the `ContainerValue` lint.
+## This is a test of the `ContainerUri` lint.
 
 version 1.2
 

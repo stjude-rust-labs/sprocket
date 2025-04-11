@@ -2,7 +2,7 @@
 
 version 1.2
 
-#@ except: MissingRequirements
+#@ except: RequirementsSection
 task foo {
     meta {
     }

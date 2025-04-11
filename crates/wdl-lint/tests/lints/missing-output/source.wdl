@@ -1,6 +1,6 @@
 version 1.0
 
 workflow test {
-    #@ except: DescriptionMissing
+    #@ except: MetaDescription
     meta {}
 }

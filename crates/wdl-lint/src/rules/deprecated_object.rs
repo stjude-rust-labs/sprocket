@@ -66,7 +66,7 @@ impl Rule for DeprecatedObjectRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &["DeprecatedPlaceholderOption", "RuntimeSectionKeys"]
+        &["DeprecatedPlaceholder", "ExpectedRuntimeKeys"]
     }
 }
 

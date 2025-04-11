@@ -25,7 +25,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the matching parameter meta rule.
-const ID: &str = "MatchingParameterMeta";
+const ID: &str = "ParameterMetaMatched";
 
 /// Creates a "missing param meta" diagnostic.
 fn missing_param_meta(parent: &SectionParent, missing: &str, span: Span) -> Diagnostic {
@@ -95,12 +95,12 @@ fn mismatched_param_order(parent: &SectionParent, span: Span, expected_order: &s
 
 /// Detects missing or extraneous entries in a `parameter_meta` section.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct MatchingParameterMetaRule {
+pub struct ParameterMetaMatchedRule {
     /// The version of the WDL document being linted.
     version: Option<SupportedVersion>,
 }
 
-impl Rule for MatchingParameterMetaRule {
+impl Rule for ParameterMetaMatchedRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -128,12 +128,12 @@ impl Rule for MatchingParameterMetaRule {
 
     fn related_rules(&self) -> &[&'static str] {
         &[
-            "DescriptionMissing",
-            "InputSorting",
-            "MissingOutput",
-            "MissingRequirements",
-            "MissingRuntime",
-            "NonmatchingOutput",
+            "MetaDescription",
+            "InputSorted",
+            "OutputSection",
+            "RequirementsSection",
+            "RuntimeSection",
+            "MatchingOutputMeta",
         ]
     }
 }
@@ -208,7 +208,7 @@ fn check_parameter_meta(
     }
 }
 
-impl Visitor for MatchingParameterMetaRule {
+impl Visitor for ParameterMetaMatchedRule {
     type State = Diagnostics;
 
     fn document(
@@ -251,7 +251,7 @@ impl Visitor for MatchingParameterMetaRule {
             }
             None => {
                 // If there is no parameter_meta section, then let the
-                // MissingMetas rule handle it
+                // MetaSections rule handle it
             }
         }
     }
@@ -284,7 +284,7 @@ impl Visitor for MatchingParameterMetaRule {
             }
             None => {
                 // If there is no parameter_meta section, then let the
-                // MissingMetas rule handle it
+                // MetaSections rule handle it
             }
         }
     }
@@ -318,7 +318,7 @@ impl Visitor for MatchingParameterMetaRule {
             }
             None => {
                 // If there is no parameter_meta section, then let the
-                // MissingMetas rule handle it
+                // MetaSections rule handle it
             }
         }
     }

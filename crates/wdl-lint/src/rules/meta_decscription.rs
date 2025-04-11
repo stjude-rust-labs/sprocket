@@ -20,7 +20,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the description missing rule.
-const ID: &str = "DescriptionMissing";
+const ID: &str = "MetaDescription";
 
 /// Creates a description missing diagnostic.
 fn description_missing(span: Span, parent: SectionParent) -> Diagnostic {
@@ -41,20 +41,20 @@ fn description_missing(span: Span, parent: SectionParent) -> Diagnostic {
 
 /// Detects unsorted input declarations.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct DescriptionMissingRule {
+pub struct MetaDescriptionRule {
     /// The version of the WDL document being linted.
     version: Option<SupportedVersion>,
     /// Whether or not we're currently in a struct definition.
     in_struct: bool,
 }
 
-impl Rule for DescriptionMissingRule {
+impl Rule for MetaDescriptionRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that a description is present for each meta section."
+        "Ensures the `meta` section contains a `description` key."
     }
 
     fn explanation(&self) -> &'static str {
@@ -77,16 +77,16 @@ impl Rule for DescriptionMissingRule {
 
     fn related_rules(&self) -> &[&'static str] {
         &[
-            "MatchingParameterMeta",
-            "MissingOutput",
-            "MissingRequirements",
-            "MissingRuntime",
-            "NonmatchingOutput",
+            "ParameterMetaMatched",
+            "OutputSection",
+            "RequirementsSection",
+            "RuntimeSection",
+            "MatchingOutputMeta",
         ]
     }
 }
 
-impl Visitor for DescriptionMissingRule {
+impl Visitor for MetaDescriptionRule {
     type State = Diagnostics;
 
     fn document(

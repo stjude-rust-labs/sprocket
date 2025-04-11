@@ -19,7 +19,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the missing runtime rule.
-const ID: &str = "MissingRuntime";
+const ID: &str = "RuntimeSection";
 
 /// Creates a "missing runtime section" diagnostic.
 fn missing_runtime_section(task: &str, span: Span) -> Diagnostic {
@@ -31,9 +31,9 @@ fn missing_runtime_section(task: &str, span: Span) -> Diagnostic {
 
 /// Detects missing `runtime` section for tasks.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct MissingRuntimeRule(Option<SupportedVersion>);
+pub struct RuntimeSectionRule(Option<SupportedVersion>);
 
-impl Rule for MissingRuntimeRule {
+impl Rule for RuntimeSectionRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -59,16 +59,16 @@ impl Rule for MissingRuntimeRule {
 
     fn related_rules(&self) -> &[&'static str] {
         &[
-            "DescriptionMissing",
-            "MatchingParameterMeta",
-            "MissingMetas",
-            "MissingOutput",
-            "NonmatchingOutput",
+            "MetaDescription",
+            "ParameterMetaMatched",
+            "MetaSections",
+            "OutputSection",
+            "MatchingOutputMeta",
         ]
     }
 }
 
-impl Visitor for MissingRuntimeRule {
+impl Visitor for RuntimeSectionRule {
     type State = Diagnostics;
 
     fn document(

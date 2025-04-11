@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing
+#@ except: MetaDescription
 
 version 1.2
 

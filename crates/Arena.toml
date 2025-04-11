@@ -22,12 +22,12 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:127:60: note[BlankLinesBetweenElements]: extra blank line(s) found"
+message = "ww-fastq-to-cram.wdl:127:60: note[ElementSpacing]: extra blank line(s) found"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L127"
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:129:5: note[MatchingParameterMeta]: task `FastqToUnmappedBam` has an extraneous parameter metadata key named `unmapped_bam`"
+message = "ww-fastq-to-cram.wdl:129:5: note[ParameterMetaMatched]: task `FastqToUnmappedBam` has an extraneous parameter metadata key named `unmapped_bam`"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L129"
 
 [[diagnostics]]
@@ -37,7 +37,7 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:134:6: note[MissingMetas]: task `ValidateCram` is missing a `meta` section"
+message = "ww-fastq-to-cram.wdl:134:6: note[MetaSections]: task `ValidateCram` is missing a `meta` section"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L134"
 
 [[diagnostics]]
@@ -67,12 +67,12 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:163:60: note[BlankLinesBetweenElements]: extra blank line(s) found"
+message = "ww-fastq-to-cram.wdl:163:60: note[ElementSpacing]: extra blank line(s) found"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L163"
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:165:5: note[MatchingParameterMeta]: task `ValidateCram` has an extraneous parameter metadata key named `validation`"
+message = "ww-fastq-to-cram.wdl:165:5: note[ParameterMetaMatched]: task `ValidateCram` has an extraneous parameter metadata key named `validation`"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L165"
 
 [[diagnostics]]
@@ -87,7 +87,7 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:170:6: note[MissingMetas]: task `MergeBamsToCram` is missing a `meta` section"
+message = "ww-fastq-to-cram.wdl:170:6: note[MetaSections]: task `MergeBamsToCram` is missing a `meta` section"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L170"
 
 [[diagnostics]]
@@ -117,22 +117,22 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:1:12: note[VersionFormatting]: expected exactly one blank line after the version statement"
+message = "ww-fastq-to-cram.wdl:1:12: note[VersionStatementFormatted]: expected exactly one blank line after the version statement"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L1"
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:200:67: note[BlankLinesBetweenElements]: extra blank line(s) found"
+message = "ww-fastq-to-cram.wdl:200:67: note[ElementSpacing]: extra blank line(s) found"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L200"
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:202:5: note[MatchingParameterMeta]: task `MergeBamsToCram` has an extraneous parameter metadata key named `cram`"
+message = "ww-fastq-to-cram.wdl:202:5: note[ParameterMetaMatched]: task `MergeBamsToCram` has an extraneous parameter metadata key named `cram`"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L202"
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:203:5: note[MatchingParameterMeta]: task `MergeBamsToCram` has an extraneous parameter metadata key named `crai`"
+message = "ww-fastq-to-cram.wdl:203:5: note[ParameterMetaMatched]: task `MergeBamsToCram` has an extraneous parameter metadata key named `crai`"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L203"
 
 [[diagnostics]]
@@ -142,7 +142,7 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:23:10: note[MissingMetas]: workflow `PairedFastqsToUnmappedCram` is missing a `meta` section"
+message = "ww-fastq-to-cram.wdl:23:10: note[MetaSections]: workflow `PairedFastqsToUnmappedCram` is missing a `meta` section"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L23"
 
 [[diagnostics]]
@@ -257,22 +257,22 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:72:94: note[BlankLinesBetweenElements]: extra blank line(s) found"
+message = "ww-fastq-to-cram.wdl:72:94: note[ElementSpacing]: extra blank line(s) found"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L72"
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:74:5: note[MatchingParameterMeta]: workflow `PairedFastqsToUnmappedCram` has an extraneous parameter metadata key named `unmapped_crams`"
+message = "ww-fastq-to-cram.wdl:74:5: note[ParameterMetaMatched]: workflow `PairedFastqsToUnmappedCram` has an extraneous parameter metadata key named `unmapped_crams`"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L74"
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:75:5: note[MatchingParameterMeta]: workflow `PairedFastqsToUnmappedCram` has an extraneous parameter metadata key named `unmapped_cram_indexes`"
+message = "ww-fastq-to-cram.wdl:75:5: note[ParameterMetaMatched]: workflow `PairedFastqsToUnmappedCram` has an extraneous parameter metadata key named `unmapped_cram_indexes`"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L75"
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:76:5: note[MatchingParameterMeta]: workflow `PairedFastqsToUnmappedCram` has an extraneous parameter metadata key named `validation`"
+message = "ww-fastq-to-cram.wdl:76:5: note[ParameterMetaMatched]: workflow `PairedFastqsToUnmappedCram` has an extraneous parameter metadata key named `validation`"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L76"
 
 [[diagnostics]]
@@ -282,7 +282,7 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:83:6: note[MissingMetas]: task `FastqToUnmappedBam` is missing a `meta` section"
+message = "ww-fastq-to-cram.wdl:83:6: note[MetaSections]: task `FastqToUnmappedBam` is missing a `meta` section"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L83"
 
 [[diagnostics]]
@@ -312,12 +312,12 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:127:13: note[ContainerValue]: container URI uses a mutable tag"
+message = "ww-star-deseq2.wdl:127:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L127"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:133:6: note[MissingMetas]: task `CollapseGTF` is missing both `meta` and `parameter_meta` sections"
+message = "ww-star-deseq2.wdl:133:6: note[MetaSections]: task `CollapseGTF` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L133"
 
 [[diagnostics]]
@@ -327,12 +327,12 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:152:13: note[ContainerValue]: container URI uses a mutable tag"
+message = "ww-star-deseq2.wdl:152:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L152"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:158:6: note[MissingMetas]: task `STARalignTwoPass` is missing both `meta` and `parameter_meta` sections"
+message = "ww-star-deseq2.wdl:158:6: note[MetaSections]: task `STARalignTwoPass` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L158"
 
 [[diagnostics]]
@@ -342,7 +342,7 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:15:10: note[MissingMetas]: workflow `STAR2Pass` is missing both `meta` and `parameter_meta` sections"
+message = "ww-star-deseq2.wdl:15:10: note[MetaSections]: workflow `STAR2Pass` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L15"
 
 [[diagnostics]]
@@ -367,12 +367,12 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:213:13: note[ContainerValue]: container URI uses a mutable tag"
+message = "ww-star-deseq2.wdl:213:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L213"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:219:6: note[MissingMetas]: task `RNASeQC` is missing both `meta` and `parameter_meta` sections"
+message = "ww-star-deseq2.wdl:219:6: note[MetaSections]: task `RNASeQC` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L219"
 
 [[diagnostics]]
@@ -382,7 +382,7 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:243:13: note[ContainerValue]: container URI uses a mutable tag"
+message = "ww-star-deseq2.wdl:243:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L243"
 
 [[diagnostics]]
@@ -422,12 +422,12 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:58:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-star-deseq2.wdl:58:17: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L58"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:59:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-star-deseq2.wdl:59:17: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L59"
 
 [[diagnostics]]
@@ -437,7 +437,7 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:60:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-star-deseq2.wdl:60:17: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L60"
 
 [[diagnostics]]
@@ -447,22 +447,22 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:61:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-star-deseq2.wdl:61:17: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L61"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:62:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-star-deseq2.wdl:62:17: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L62"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:63:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-star-deseq2.wdl:63:17: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L63"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:64:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-star-deseq2.wdl:64:17: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L64"
 
 [[diagnostics]]
@@ -472,12 +472,12 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:65:17: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-star-deseq2.wdl:65:17: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L65"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:69:6: note[MissingMetas]: task `DownloadReference` is missing both `meta` and `parameter_meta` sections"
+message = "ww-star-deseq2.wdl:69:6: note[MetaSections]: task `DownloadReference` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L69"
 
 [[diagnostics]]
@@ -507,12 +507,12 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:88:13: note[ContainerValue]: container URI uses a mutable tag"
+message = "ww-star-deseq2.wdl:88:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L88"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:94:6: note[MissingMetas]: task `BuildSTARIndex` is missing both `meta` and `parameter_meta` sections"
+message = "ww-star-deseq2.wdl:94:6: note[MetaSections]: task `BuildSTARIndex` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L94"
 
 [[diagnostics]]
@@ -627,7 +627,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:17:10: note[MissingMetas]: workflow `ww_vc_trio` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:17:10: note[MetaSections]: workflow `ww_vc_trio` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L17"
 
 [[diagnostics]]
@@ -647,7 +647,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:18:3: note[InputSorting]: input not sorted"
+message = "ww-vc-trio.wdl:18:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L18"
 
 [[diagnostics]]
@@ -672,12 +672,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:1:12: note[BlankLinesBetweenElements]: missing blank line"
+message = "ww-vc-trio.wdl:1:12: note[ElementSpacing]: missing blank line"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L1"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:1:12: note[VersionFormatting]: expected exactly one blank line after the version statement"
+message = "ww-vc-trio.wdl:1:12: note[VersionStatementFormatted]: expected exactly one blank line after the version statement"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L1"
 
 [[diagnostics]]
@@ -837,12 +837,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:262:6: note[MissingMetas]: task `annovar` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:262:6: note[MetaSections]: task `annovar` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L262"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:264:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:264:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L264"
 
 [[diagnostics]]
@@ -862,17 +862,17 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:286:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:286:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L286"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:287:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:287:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L287"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:298:6: note[MissingMetas]: task `ApplyBaseRecalibrator` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:298:6: note[MetaSections]: task `ApplyBaseRecalibrator` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L298"
 
 [[diagnostics]]
@@ -882,12 +882,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:299:3: note[InputSorting]: input not sorted"
+message = "ww-vc-trio.wdl:299:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L299"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:300:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:300:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L300"
 
 [[diagnostics]]
@@ -897,7 +897,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:302:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:302:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L302"
 
 [[diagnostics]]
@@ -932,7 +932,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:353:6: note[MissingMetas]: task `bcftoolsMpileup` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:353:6: note[MetaSections]: task `bcftoolsMpileup` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L353"
 
 [[diagnostics]]
@@ -942,17 +942,17 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:354:3: note[InputSorting]: input not sorted"
+message = "ww-vc-trio.wdl:354:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L354"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:355:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:355:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L355"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:356:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:356:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L356"
 
 [[diagnostics]]
@@ -972,12 +972,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:381:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:381:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L381"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:392:6: note[MissingMetas]: task `bedToolsQC` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:392:6: note[MetaSections]: task `bedToolsQC` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L392"
 
 [[diagnostics]]
@@ -987,7 +987,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:394:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:394:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L394"
 
 [[diagnostics]]
@@ -1007,7 +1007,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:420:6: note[MissingMetas]: task `BwaMem` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:420:6: note[MetaSections]: task `BwaMem` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L420"
 
 [[diagnostics]]
@@ -1017,12 +1017,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:421:3: note[InputSorting]: input not sorted"
+message = "ww-vc-trio.wdl:421:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L421"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:422:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:422:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L422"
 
 [[diagnostics]]
@@ -1032,12 +1032,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:445:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:445:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L445"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:456:6: note[MissingMetas]: task `CollectHsMetrics` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:456:6: note[MetaSections]: task `CollectHsMetrics` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L456"
 
 [[diagnostics]]
@@ -1047,12 +1047,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:457:3: note[InputSorting]: input not sorted"
+message = "ww-vc-trio.wdl:457:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L457"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:458:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:458:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L458"
 
 [[diagnostics]]
@@ -1087,7 +1087,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:492:6: note[MissingMetas]: task `consensusProcessingR` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:492:6: note[MetaSections]: task `consensusProcessingR` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L492"
 
 [[diagnostics]]
@@ -1142,7 +1142,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:518:6: note[MissingMetas]: task `HaplotypeCaller` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:518:6: note[MetaSections]: task `HaplotypeCaller` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L518"
 
 [[diagnostics]]
@@ -1152,7 +1152,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:519:3: note[InputSorting]: input not sorted"
+message = "ww-vc-trio.wdl:519:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L519"
 
 [[diagnostics]]
@@ -1162,12 +1162,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:520:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:520:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L520"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:521:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:521:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L521"
 
 [[diagnostics]]
@@ -1187,12 +1187,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:546:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:546:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L546"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:547:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:547:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L547"
 
 [[diagnostics]]
@@ -1202,7 +1202,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:558:6: note[MissingMetas]: task `MergeBamAlignment` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:558:6: note[MetaSections]: task `MergeBamAlignment` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L558"
 
 [[diagnostics]]
@@ -1212,7 +1212,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:559:3: note[InputSorting]: input not sorted"
+message = "ww-vc-trio.wdl:559:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L559"
 
 [[diagnostics]]
@@ -1232,12 +1232,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:585:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:585:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L585"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:596:6: note[MissingMetas]: task `Mutect2TumorOnly` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:596:6: note[MetaSections]: task `Mutect2TumorOnly` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L596"
 
 [[diagnostics]]
@@ -1247,17 +1247,17 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:597:3: note[InputSorting]: input not sorted"
+message = "ww-vc-trio.wdl:597:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L597"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:598:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:598:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L598"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:599:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:599:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L599"
 
 [[diagnostics]]
@@ -1277,17 +1277,17 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:631:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:631:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L631"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:632:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:632:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L632"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:643:6: note[MissingMetas]: task `SamToFastq` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:643:6: note[MetaSections]: task `SamToFastq` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L643"
 
 [[diagnostics]]
@@ -1297,7 +1297,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:645:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:645:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L645"
 
 [[diagnostics]]
@@ -1322,7 +1322,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:669:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:669:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L669"
 
 [[diagnostics]]
@@ -1332,7 +1332,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:680:6: note[MissingMetas]: task `SortBed` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:680:6: note[MetaSections]: task `SortBed` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L680"
 
 [[diagnostics]]
@@ -1342,7 +1342,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:709:6: note[MissingMetas]: task `MarkDuplicates` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:709:6: note[MetaSections]: task `MarkDuplicates` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L709"
 
 [[diagnostics]]
@@ -1352,7 +1352,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:711:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:711:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L711"
 
 [[diagnostics]]
@@ -1397,12 +1397,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:732:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:732:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L732"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:733:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:733:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L733"
 
 [[diagnostics]]
@@ -1412,7 +1412,7 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:745:6: note[MissingMetas]: task `SortSam` is missing both `meta` and `parameter_meta` sections"
+message = "ww-vc-trio.wdl:745:6: note[MetaSections]: task `SortSam` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L745"
 
 [[diagnostics]]
@@ -1422,12 +1422,12 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:747:10: note[DisallowedInputName]: declaration identifier starts with 'input'"
+message = "ww-vc-trio.wdl:747:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L747"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:763:10: note[DisallowedOutputName]: declaration identifier starts with 'output'"
+message = "ww-vc-trio.wdl:763:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L763"
 
 [[diagnostics]]
@@ -1477,42 +1477,42 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
-message = "flag_filter.wdl:121:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "flag_filter.wdl:121:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/flag_filter.wdl/#L121"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:107:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "read_group.wdl:107:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L107"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:159:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "read_group.wdl:159:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L159"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:444:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "read_group.wdl:444:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L444"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:245:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "arriba.wdl:245:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L245"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:298:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "arriba.wdl:298:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L298"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:347:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "arriba.wdl:347:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L347"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:397:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "arriba.wdl:397:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L397"
 
 [[diagnostics]]
@@ -1527,42 +1527,42 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:190:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "bwa.wdl:190:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L190"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:286:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "bwa.wdl:286:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L286"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:337:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "bwa.wdl:337:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L337"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:89:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "bwa.wdl:89:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L89"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/deeptools.wdl"
-message = "deeptools.wdl:70:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "deeptools.wdl:70:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/deeptools.wdl/#L70"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/estimate.wdl"
-message = "estimate.wdl:54:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "estimate.wdl:54:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/estimate.wdl/#L54"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fastqc.wdl"
-message = "fastqc.wdl:67:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "fastqc.wdl:67:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fastqc.wdl/#L67"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
-message = "fq.wdl:175:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "fq.wdl:175:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L175"
 
 [[diagnostics]]
@@ -1577,42 +1577,42 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
-message = "fq.wdl:96:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "fq.wdl:96:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L96"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:150:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "gatk4.wdl:150:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L150"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:165:5: note[MatchingParameterMeta]: parameter metadata in task `apply_bqsr` is out of order"
+message = "gatk4.wdl:165:5: note[ParameterMetaMatched]: parameter metadata in task `apply_bqsr` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L165"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:213:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "gatk4.wdl:213:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L213"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:228:5: note[MatchingParameterMeta]: parameter metadata in task `haplotype_caller` is out of order"
+message = "gatk4.wdl:228:5: note[ParameterMetaMatched]: parameter metadata in task `haplotype_caller` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L228"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:299:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "gatk4.wdl:299:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L299"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:314:5: note[MatchingParameterMeta]: parameter metadata in task `variant_filtration` is out of order"
+message = "gatk4.wdl:314:5: note[ParameterMetaMatched]: parameter metadata in task `variant_filtration` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L314"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:372:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "gatk4.wdl:372:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L372"
 
 [[diagnostics]]
@@ -1632,27 +1632,27 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:485:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "gatk4.wdl:485:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L485"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:69:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "gatk4.wdl:69:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L69"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:83:5: note[MatchingParameterMeta]: parameter metadata in task `base_recalibrator` is out of order"
+message = "gatk4.wdl:83:5: note[ParameterMetaMatched]: parameter metadata in task `base_recalibrator` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L83"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:137:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "htseq.wdl:137:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L137"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:212:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "htseq.wdl:212:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L212"
 
 [[diagnostics]]
@@ -1667,27 +1667,37 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:120:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "kraken2.wdl:120:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L120"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:177:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "kraken2.wdl:177:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L177"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:287:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "kraken2.wdl:287:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L287"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:404:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "kraken2.wdl:333:20: note[KnownRules]: unknown lint rule `DisallowedInputName`"
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L333"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:334:14: note[InputName]: declaration identifier must be at least 3 characters"
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L334"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:404:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L404"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:44:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "kraken2.wdl:44:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L44"
 
 [[diagnostics]]
@@ -1697,62 +1707,62 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/librarian.wdl"
-message = "librarian.wdl:53:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "librarian.wdl:53:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/librarian.wdl/#L53"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/md5sum.wdl"
-message = "md5sum.wdl:39:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "md5sum.wdl:39:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/md5sum.wdl/#L39"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/mosdepth.wdl"
-message = "mosdepth.wdl:69:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "mosdepth.wdl:69:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L69"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/multiqc.wdl"
-message = "multiqc.wdl:68:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "multiqc.wdl:68:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/multiqc.wdl/#L68"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:140:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "ngsderive.wdl:140:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L140"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:204:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "ngsderive.wdl:204:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L204"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:281:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "ngsderive.wdl:281:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L281"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:369:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "ngsderive.wdl:369:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L369"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:455:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "ngsderive.wdl:455:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L455"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:87:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "ngsderive.wdl:87:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L87"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:1044:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:1044:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L1044"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:125:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:125:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L125"
 
 [[diagnostics]]
@@ -1762,7 +1772,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:250:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:250:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L250"
 
 [[diagnostics]]
@@ -1782,7 +1792,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:333:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:333:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L333"
 
 [[diagnostics]]
@@ -1802,7 +1812,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:420:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:420:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L420"
 
 [[diagnostics]]
@@ -1817,7 +1827,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:488:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:488:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L488"
 
 [[diagnostics]]
@@ -1827,7 +1837,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:551:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:551:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L551"
 
 [[diagnostics]]
@@ -1837,7 +1847,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:613:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:613:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L613"
 
 [[diagnostics]]
@@ -1847,7 +1857,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:684:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:684:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L684"
 
 [[diagnostics]]
@@ -1857,7 +1867,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:746:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:746:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L746"
 
 [[diagnostics]]
@@ -1867,22 +1877,32 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:805:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:805:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L805"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:865:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:810:12: note[KnownRules]: unknown lint rule `NonmatchingOutput`"
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L810"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:812:5: warning[MatchingOutputMeta]: `outputs` key missing in `meta` section for the task `bam_to_fastq`"
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L812"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:865:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L865"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:911:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:911:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L911"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:926:5: note[MatchingParameterMeta]: parameter metadata in task `scatter_interval_list` is out of order"
+message = "picard.wdl:926:5: note[ParameterMetaMatched]: parameter metadata in task `scatter_interval_list` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L926"
 
 [[diagnostics]]
@@ -1892,63 +1912,83 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:983:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "picard.wdl:983:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L983"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:997:5: note[MatchingParameterMeta]: parameter metadata in task `create_sequence_dictionary` is out of order"
+message = "picard.wdl:997:5: note[ParameterMetaMatched]: parameter metadata in task `create_sequence_dictionary` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L997"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:157:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "qualimap.wdl:157:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L157"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:15:5: note[MatchingParameterMeta]: parameter metadata in task `rnaseq` is out of order"
+message = "qualimap.wdl:15:5: note[ParameterMetaMatched]: parameter metadata in task `rnaseq` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L15"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:89:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "qualimap.wdl:89:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L89"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:94:12: note[KnownRules]: unknown lint rule `NonmatchingOutput`"
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L94"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:96:5: warning[MatchingOutputMeta]: `outputs` key missing in `meta` section for the task `bamqc`"
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L96"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:117:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "sambamba.wdl:117:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L117"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:172:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "sambamba.wdl:172:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L172"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:228:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "sambamba.wdl:228:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L228"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:285:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "sambamba.wdl:285:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L285"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:57:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "sambamba.wdl:57:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L57"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1060:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:1060:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1060"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1164:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:1164:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1164"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1169:12: note[KnownRules]: unknown lint rule `NonmatchingOutput`"
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1169"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1171:5: warning[MatchingOutputMeta]: `outputs` key missing in `meta` section for the task `markdup`"
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1171"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -1957,62 +1997,62 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1284:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:1284:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1284"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1330:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:1330:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1330"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:153:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:153:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L153"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:211:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:211:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L211"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:270:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:270:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L270"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:39:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:39:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L39"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:416:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:416:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L416"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:503:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:503:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L503"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:605:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:605:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L605"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:690:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:690:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L690"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:763:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:763:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L763"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:962:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "samtools.wdl:962:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L962"
 
 [[diagnostics]]
@@ -2022,47 +2062,47 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:130:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "star.wdl:130:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L130"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:147:5: note[MatchingParameterMeta]: parameter metadata in task `alignment` is out of order"
+message = "star.wdl:147:5: note[ParameterMetaMatched]: parameter metadata in task `alignment` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L147"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:816:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "star.wdl:816:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L816"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:101:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "util.wdl:101:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L101"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:142:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "util.wdl:142:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L142"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:242:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "util.wdl:242:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L242"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:279:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "util.wdl:279:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L279"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:324:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "util.wdl:324:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L324"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:366:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "util.wdl:366:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L366"
 
 [[diagnostics]]
@@ -2072,37 +2112,37 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:425:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "util.wdl:425:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L425"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:45:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "util.wdl:45:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L45"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:686:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "util.wdl:686:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L686"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:764:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "util.wdl:764:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L764"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:777:5: note[MatchingParameterMeta]: parameter metadata in task `split_fastq` is out of order"
+message = "util.wdl:777:5: note[ParameterMetaMatched]: parameter metadata in task `split_fastq` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L777"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:825:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "util.wdl:825:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L825"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
-message = "dnaseq-core.wdl:23:5: note[MatchingParameterMeta]: parameter metadata in workflow `dnaseq_core_experimental` is out of order"
+message = "dnaseq-core.wdl:23:5: note[ParameterMetaMatched]: parameter metadata in workflow `dnaseq_core_experimental` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-core.wdl/#L23"
 
 [[diagnostics]]
@@ -2112,7 +2152,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:121:5: note[MatchingParameterMeta]: parameter metadata in task `parse_input` is out of order"
+message = "dnaseq-standard-fastq.wdl:121:5: note[ParameterMetaMatched]: parameter metadata in task `parse_input` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L121"
 
 [[diagnostics]]
@@ -2122,17 +2162,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:133:20: note[DisallowedDeclarationName]: declaration identifier 'array_lengths' contains type name 'Array'"
+message = "dnaseq-standard-fastq.wdl:133:20: note[DeclarationName]: declaration identifier 'array_lengths' contains type name 'Array'"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L133"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:162:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "dnaseq-standard-fastq.wdl:162:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L162"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:21:5: note[MatchingParameterMeta]: parameter metadata in workflow `dnaseq_standard_fastq_experimental` is out of order"
+message = "dnaseq-standard-fastq.wdl:21:5: note[ParameterMetaMatched]: parameter metadata in workflow `dnaseq_standard_fastq_experimental` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L21"
 
 [[diagnostics]]
@@ -2147,7 +2187,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
-message = "dnaseq-standard.wdl:139:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "dnaseq-standard.wdl:139:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-standard.wdl/#L139"
 
 [[diagnostics]]
@@ -2162,47 +2202,47 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/general/samtools-merge.wdl"
-message = "samtools-merge.wdl:17:5: note[MatchingParameterMeta]: parameter metadata in workflow `samtools_merge` is out of order"
+message = "samtools-merge.wdl:17:5: note[ParameterMetaMatched]: parameter metadata in workflow `samtools_merge` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/general/samtools-merge.wdl/#L17"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:127:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "methylation-cohort.wdl:127:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L127"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:173:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "methylation-cohort.wdl:173:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L173"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:212:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "methylation-cohort.wdl:212:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L212"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:247:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "methylation-cohort.wdl:247:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L247"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:56:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "methylation-preprocess.wdl:56:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L56"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:560:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "quality-check-standard.wdl:560:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L560"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:80:5: note[MatchingParameterMeta]: parameter metadata in workflow `quality_check_standard` is out of order"
+message = "quality-check-standard.wdl:80:5: note[ParameterMetaMatched]: parameter metadata in workflow `quality_check_standard` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L80"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/qc-reference.wdl"
-message = "qc-reference.wdl:21:5: note[MatchingParameterMeta]: parameter metadata in workflow `qc_reference` is out of order"
+message = "qc-reference.wdl:21:5: note[ParameterMetaMatched]: parameter metadata in workflow `qc_reference` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/reference/qc-reference.wdl/#L21"
 
 [[diagnostics]]
@@ -2217,12 +2257,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:147:25: note[DisallowedDeclarationName]: declaration identifier 'htseq_strandedness_map' contains type name 'Map'"
+message = "rnaseq-core.wdl:147:25: note[DeclarationName]: declaration identifier 'htseq_strandedness_map' contains type name 'Map'"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L147"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:26:5: note[MatchingParameterMeta]: parameter metadata in workflow `rnaseq_core` is out of order"
+message = "rnaseq-core.wdl:26:5: note[ParameterMetaMatched]: parameter metadata in workflow `rnaseq_core` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L26"
 
 [[diagnostics]]
@@ -2252,12 +2292,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:184:20: note[ContainerValue]: container URI uses a mutable tag"
+message = "rnaseq-standard.wdl:184:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-standard.wdl/#L184"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:27:5: note[MatchingParameterMeta]: parameter metadata in workflow `rnaseq_standard` is out of order"
+message = "rnaseq-standard.wdl:27:5: note[ParameterMetaMatched]: parameter metadata in workflow `rnaseq_standard` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-standard.wdl/#L27"
 
 [[diagnostics]]
@@ -2272,5 +2312,5 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "rnaseq-variant-calling.wdl:19:5: note[MatchingParameterMeta]: parameter metadata in workflow `rnaseq_variant_calling` is out of order"
+message = "rnaseq-variant-calling.wdl:19:5: note[ParameterMetaMatched]: parameter metadata in workflow `rnaseq_variant_calling` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-variant-calling.wdl/#L19"

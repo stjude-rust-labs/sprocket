@@ -1,4 +1,4 @@
-#@ except: DescriptionMissing
+#@ except: MetaDescription
 
 version 1.1
 
@@ -29,7 +29,7 @@ task a_task_with_excepted_engine_hints {
 
     output {}
 
-    #@ except: RuntimeSectionKeys, ContainerValue
+    #@ except: ExpectedRuntimeKeys, ContainerUri
     runtime {
         container: "ubuntu"
         cpu: 1

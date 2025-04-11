@@ -19,7 +19,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the no curly commands rule.
-const ID: &str = "NoCurlyCommands";
+const ID: &str = "HereDocCommands";
 
 /// Creates a "curly commands" diagnostic.
 fn curly_commands(task: &str, span: Span) -> Diagnostic {
@@ -33,9 +33,9 @@ fn curly_commands(task: &str, span: Span) -> Diagnostic {
 
 /// Detects curly command section for tasks.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct NoCurlyCommandsRule;
+pub struct HereDocCommandsRule;
 
-impl Rule for NoCurlyCommandsRule {
+impl Rule for HereDocCommandsRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -66,7 +66,7 @@ impl Rule for NoCurlyCommandsRule {
     }
 }
 
-impl Visitor for NoCurlyCommandsRule {
+impl Visitor for HereDocCommandsRule {
     type State = Diagnostics;
 
     fn document(

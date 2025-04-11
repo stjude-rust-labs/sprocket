@@ -1,4 +1,4 @@
-warning[MalformedLintDirective]: lint directive `stop` is not recognized
+warning[LintDirectiveFormatted]: lint directive `stop` is not recognized
   ┌─ tests/lints/malformed-lint-directive/source.wdl:7:4
   │
 7 │ #@ stop: This should be flagged for using 'stop' instead of 'except'
@@ -6,7 +6,7 @@ warning[MalformedLintDirective]: lint directive `stop` is not recognized
   │
   = fix: use any of the recognized lint directives: ["except"]
 
-warning[MalformedLintDirective]: expected exactly one space before lint directive
+warning[LintDirectiveFormatted]: expected exactly one space before lint directive
    ┌─ tests/lints/malformed-lint-directive/source.wdl:11:7
    │
 11 │     #@except: this should be flagged for missing a space
@@ -14,7 +14,7 @@ warning[MalformedLintDirective]: expected exactly one space before lint directiv
    │
    = fix: add a single space
 
-warning[MalformedLintDirective]: expected a colon to follow a lint directive
+warning[LintDirectiveFormatted]: expected a colon to follow a lint directive
    ┌─ tests/lints/malformed-lint-directive/source.wdl:28:14
    │
 28 │     #@ except this should be flagged for missing a colon
@@ -22,7 +22,7 @@ warning[MalformedLintDirective]: expected a colon to follow a lint directive
    │
    = fix: add a colon after the lint directive
 
-warning[MalformedLintDirective]: lint directive must be on its own line
+warning[LintDirectiveFormatted]: lint directive must be on its own line
    ┌─ tests/lints/malformed-lint-directive/source.wdl:33:15
    │
 33 │ struct Baz {  #@ except: this should be flagged for being inlined
@@ -30,7 +30,7 @@ warning[MalformedLintDirective]: lint directive must be on its own line
    │
    = fix: move the lint directive to its own line
 
-warning[MalformedLintDirective]: expected exactly one space before lint directive
+warning[LintDirectiveFormatted]: expected exactly one space before lint directive
    ┌─ tests/lints/malformed-lint-directive/source.wdl:48:7
    │
 48 │     #@     except: this should be flagged for excessive whitespace
@@ -38,7 +38,7 @@ warning[MalformedLintDirective]: expected exactly one space before lint directiv
    │
    = fix: replace this whitespace with a single space
 
-warning[MalformedLintDirective]: lint directive not found
+warning[LintDirectiveFormatted]: lint directive not found
    ┌─ tests/lints/malformed-lint-directive/source.wdl:59:7
    │
 59 │     #@

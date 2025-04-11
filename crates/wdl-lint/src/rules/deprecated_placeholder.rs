@@ -19,7 +19,7 @@ use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the deprecated placeholder option rule.
-const ID: &str = "DeprecatedPlaceholderOption";
+const ID: &str = "DeprecatedPlaceholder";
 
 /// Creates a diagnostic for the use of the deprecated `default` placeholder
 /// option.
@@ -60,12 +60,12 @@ fn deprecated_true_false_placeholder_option(span: Span) -> Diagnostic {
 
 /// Detects the use of a deprecated placeholder option.
 #[derive(Debug, Default, Clone, Copy)]
-pub struct DeprecatedPlaceholderOptionRule {
+pub struct DeprecatedPlaceholderRule {
     /// Stores the supported version of the WDL document we're visiting.
     version: Option<SupportedVersion>,
 }
 
-impl Rule for DeprecatedPlaceholderOptionRule {
+impl Rule for DeprecatedPlaceholderRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -101,11 +101,11 @@ impl Rule for DeprecatedPlaceholderOptionRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &["DeprecatedObject", "RuntimeSectionKeys"]
+        &["DeprecatedObject", "ExpectedRuntimeKeys"]
     }
 }
 
-impl Visitor for DeprecatedPlaceholderOptionRule {
+impl Visitor for DeprecatedPlaceholderRule {
     type State = Diagnostics;
 
     fn document(
