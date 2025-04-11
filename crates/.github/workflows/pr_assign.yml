@@ -1,0 +1,39 @@
+name: 'Auto Assign'
+on:
+  pull_request_target:
+    types: [opened, ready_for_review]
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  add-assignee-and-reviewer:
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write
+    env:
+      PR_NUMBER: ${{ github.event.number }}
+    steps:
+      - name: Add assignee
+        run: |
+          # Get the PR author
+          # Skip if the author is a bot
+          author=$(gh pr view $PR_NUMBER --json author --jq 'select(.author.is_bot == false) | .author.login')
+          # Check if the author is not empty
+          if [ -n "$author" ]; then
+            # Add the author as an assignee
+            gh pr edit $PR_NUMBER --add-assignee "$author"
+          else
+            echo "No valid author found."
+          fi
+      - name: Add reviewers
+        if: "${{ github.event.pull_request.draft == 'false' }}"
+        run: |
+          # The gh cli silently drops a reviewer if they are the author.
+          # So no need to clean the list here.
+          reviewers=$(yq -o csv ".reviewers" .github/reviewers.yml)
+          gh pr edit $PR_NUMBER --add-reviewer "$reviewers"
