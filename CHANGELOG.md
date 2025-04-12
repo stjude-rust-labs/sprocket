@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Unknown `--except` rules will be shown at the top of the list ([#94](https://github.com/stjude-rust-labs/sprocket/pull/94))
+* Unknown `--except` rules will now emit a warning instead of being silently ignored ([#94](https://github.com/stjude-rust-labs/sprocket/pull/94))
 
 ## 0.11.0 - 04-01-2025
 
