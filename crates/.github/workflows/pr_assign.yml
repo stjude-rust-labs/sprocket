@@ -18,6 +18,7 @@ jobs:
     env:
       PR_NUMBER: ${{ github.event.number }}
     steps:
+      - uses: actions/checkout@v4
       - name: Add assignee
         run: |
           # Get the PR author
@@ -31,7 +32,7 @@ jobs:
             echo "No valid author found."
           fi
       - name: Add reviewers
-        if: "${{ github.event.pull_request.draft == 'false' }}"
+        if: github.event.pull_request.draft == false
         run: |
           # The gh cli silently drops a reviewer if they are the author.
           # So no need to clean the list here.
