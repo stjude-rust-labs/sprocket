@@ -38,36 +38,113 @@ jobs:
     - uses: actions/checkout@v4
     - name: Update Rust
       run: rustup update stable && rustup default stable
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
     - name: Log in to the Container registry
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    - uses: docker/setup-buildx-action@v3
-    - uses: docker/build-push-action@v6
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Build and push by digest
+      id: build
+      uses: docker/build-push-action@v6
       with:
-        push: true
-        tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket:${{ github.ref_name }}
         platforms: linux/amd64
+        labels: ${{ steps.meta.outputs.labels }}
+        tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
+        outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+    - name: Export digest
+      run: |
+        mkdir -p ${{ runner.temp }}/digests
+        digest="${{ steps.build.outputs.digest }}"
+        touch "${{ runner.temp }}/digests/${digest#sha256:}"
+    - name: Upload digest
+      uses: actions/upload-artifact@v4
+      with:
+        name: digests-x86
+        path: ${{ runner.temp }}/digests/*
+        if-no-files-found: error
+        retention-days: 1
   docker-arm:
     runs-on: ubuntu-24.04-arm
     steps:
     - uses: actions/checkout@v4
     - name: Update Rust
       run: rustup update stable && rustup default stable
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
     - name: Log in to the Container registry
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    - uses: docker/setup-buildx-action@v3
-    - uses: docker/build-push-action@v6
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Build and push by digest
+      id: build
+      uses: docker/build-push-action@v6
       with:
-        push: true
-        tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket:${{ github.ref_name }}
         platforms: linux/arm64
+        labels: ${{ steps.meta.outputs.labels }}
+        tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
+        outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+    - name: Export digest
+      run: |
+        mkdir -p ${{ runner.temp }}/digests
+        digest="${{ steps.build.outputs.digest }}"
+        touch "${{ runner.temp }}/digests/${digest#sha256:}"
+    - name: Upload digest
+      uses: actions/upload-artifact@v4
+      with:
+        name: digests-arm
+        path: ${{ runner.temp }}/digests/*
+        if-no-files-found: error
+        retention-days: 1
+  docker-merge-manifests:
+    runs-on: ubuntu-latest
+    needs: [docker-x86, docker-arm]
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
+          tags: type=semver,pattern=v{{version}}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=v{{version}}
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket@sha256:%s ' *)
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket:${{ steps.meta.outputs.version }}
   build_artifacts_win:
     runs-on: windows-latest
     strategy:
