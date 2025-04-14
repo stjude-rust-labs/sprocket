@@ -149,21 +149,19 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             let mut w_lock = writer.lock();
             let files: SimpleFiles<String, String> = SimpleFiles::new();
 
-            let message = if unknown_exceptions.len() == 1 {
-                format!(
-                    "ignoring unknown rule provided via --except: '{}'",
-                    unknown_exceptions[0]
-                )
-            } else {
-                format!(
-                    "ignoring unknown rules provided via --except: '{}'",
-                    unknown_exceptions
-                        .iter()
-                        .map(|r| format!("`{r}`"))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )
-            };
+            let message = format!(
+                "ignoring unknown rule{s} provided via --except: '{rules}'",
+                s = if unknown_exceptions.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                rules = unknown_exceptions
+                    .iter()
+                    .map(|r| format!("`{r}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
 
             let warning = codespan_reporting::diagnostic::Diagnostic::warning()
                 .with_message(message)
