@@ -42,6 +42,7 @@ pub(crate) mod util;
 mod visitor;
 
 pub use tags::*;
+pub use util::find_nearest_rule;
 pub use visitor::*;
 pub use wdl_ast as ast;
 
