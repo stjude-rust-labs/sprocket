@@ -52,6 +52,9 @@ pub use wdl_analysis as analysis;
 #[cfg(feature = "ast")]
 #[doc(inline)]
 pub use wdl_ast as ast;
+#[cfg(feature = "cli")]
+#[doc(inline)]
+pub use wdl_cli as cli;
 #[cfg(feature = "doc")]
 #[doc(inline)]
 pub use wdl_doc as doc;
@@ -70,6 +73,3 @@ pub use wdl_lint as lint;
 #[cfg(feature = "lsp")]
 #[doc(inline)]
 pub use wdl_lsp as lsp;
-
-#[cfg(feature = "cli")]
-pub mod cli;

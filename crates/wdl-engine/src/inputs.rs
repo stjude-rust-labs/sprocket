@@ -4,12 +4,12 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
-use std::mem;
 use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use indexmap::IndexMap;
 use serde_json::Value as JsonValue;
 use serde_yaml_ng::Value as YamlValue;
 use wdl_analysis::document::Document;
@@ -23,16 +23,14 @@ use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
 
 use crate::Coercible;
+use crate::Object;
 use crate::Value;
-
-/// A type alias to a JSON map (object).
-type JsonMap = serde_json::Map<String, JsonValue>;
 
 /// Helper for replacing input paths with a path derived from joining the
 /// specified path with the input path.
-fn join_paths(
+fn join_paths<'a>(
     inputs: &mut HashMap<String, Value>,
-    path: &Path,
+    path: impl Fn(&str) -> Result<&'a Path>,
     ty: impl Fn(&str) -> Option<Type>,
 ) -> Result<()> {
     for (name, value) in inputs.iter_mut() {
@@ -43,6 +41,8 @@ fn join_paths(
             }
         };
 
+        let path = path(name)?;
+
         // Replace the value with `None` temporarily as we need to coerce the value
         // This is useful when this value is the only reference to shared data as this
         // would prevent internal cloning
@@ -50,6 +50,7 @@ fn join_paths(
         if let Ok(mut v) = current.coerce(&ty) {
             drop(current);
             v.visit_paths_mut(false, &mut |_, v| {
+                v.expand_path()?;
                 v.join_path_to(path);
                 v.ensure_path_exists(false)
             })?;
@@ -116,7 +117,11 @@ impl TaskInputs {
     ///
     /// This method will attempt to coerce matching input values to their
     /// expected types.
-    pub fn join_paths(&mut self, task: &Task, path: &Path) -> Result<()> {
+    pub fn join_paths<'a>(
+        &mut self,
+        task: &Task,
+        path: impl Fn(&str) -> Result<&'a Path>,
+    ) -> Result<()> {
         join_paths(&mut self.inputs, path, |name| {
             task.inputs().get(name).map(|input| input.ty().clone())
         })
@@ -346,7 +351,11 @@ impl WorkflowInputs {
     ///
     /// This method will attempt to coerce matching input values to their
     /// expected types.
-    pub fn join_paths(&mut self, workflow: &Workflow, path: &Path) -> Result<()> {
+    pub fn join_paths<'a>(
+        &mut self,
+        workflow: &Workflow,
+        path: impl Fn(&str) -> Result<&'a Path>,
+    ) -> Result<()> {
         join_paths(&mut self.inputs, path, |name| {
             workflow.inputs().get(name).map(|input| input.ty().clone())
         })
@@ -614,26 +623,29 @@ impl Inputs {
     /// Parses an inputs file from the given file path.
     ///
     /// The format (JSON or YAML) is determined by the file extension:
+    ///
     /// - `.json` for JSON format
     /// - `.yml` or `.yaml` for YAML format
     ///
     /// The parse uses the provided document to validate the input keys within
     /// the file.
     ///
-    /// Returns `Ok(Some(_))` if the file is a non-empty inputs.
+    /// Returns `Ok(Some(_))` if the inputs are not empty.
     ///
-    /// Returns `Ok(None)` if the file contains an empty input.
+    /// Returns `Ok(None)` if the inputs are empty.
     pub fn parse(document: &Document, path: impl AsRef<Path>) -> Result<Option<(String, Self)>> {
         let path = path.as_ref();
 
         match path.extension().and_then(|ext| ext.to_str()) {
             Some("json") => Self::parse_json(document, path),
             Some("yml") | Some("yaml") => Self::parse_yaml(document, path),
-            _ => bail!(
-                "unsupported input file format: supported formats are JSON (extension `.json`) \
-                 and YAML (extensions `.yaml` and `.yml`)"
+            ext => bail!(
+                "unsupported file extension: `{ext}`; the supported formats are JSON (`.json`) \
+                 and YAML (`.yaml` and `.yml`)",
+                ext = ext.unwrap_or("")
             ),
         }
+        .with_context(|| format!("failed to parse input file `{path}`", path = path.display()))
     }
 
     /// Parses a JSON inputs file from the given file path.
@@ -641,9 +653,9 @@ impl Inputs {
     /// The parse uses the provided document to validate the input keys within
     /// the file.
     ///
-    /// Returns `Ok(Some(_))` if the file is a non-empty inputs.
+    /// Returns `Ok(Some(_))` if the inputs are not empty.
     ///
-    /// Returns `Ok(None)` if the file contains an empty input.
+    /// Returns `Ok(None)` if the inputs are empty.
     pub fn parse_json(
         document: &Document,
         path: impl AsRef<Path>,
@@ -656,11 +668,9 @@ impl Inputs {
 
         // Parse the JSON (should be an object)
         let reader = BufReader::new(file);
-        let object = mem::take(
-            serde_json::from_reader::<_, JsonValue>(reader)
-                .with_context(|| {
-                    format!("failed to parse input file `{path}`", path = path.display())
-                })?
+
+        let object = std::mem::take(
+            serde_json::from_reader::<_, JsonValue>(reader)?
                 .as_object_mut()
                 .with_context(|| {
                     format!(
@@ -668,10 +678,17 @@ impl Inputs {
                         path = path.display()
                     )
                 })?,
-        );
+        )
+        .into_iter()
+        .map(|(key, value)| {
+            let value: Value = serde_json::from_value(value)
+                .with_context(|| format!("invalid input key `{key}`"))?;
+            Ok((key, value))
+        })
+        .collect::<Result<IndexMap<_, _>>>()
+        .map(Object::from)?;
 
         Self::parse_object(document, object)
-            .with_context(|| format!("failed to parse input file `{path}`", path = path.display()))
     }
 
     /// Parses a YAML inputs file from the given file path.
@@ -679,9 +696,9 @@ impl Inputs {
     /// The parse uses the provided document to validate the input keys within
     /// the file.
     ///
-    /// Returns `Ok(Some(_))` if the file is a non-empty inputs.
+    /// Returns `Ok(Some(_))` if the inputs are not empty.
     ///
-    /// Returns `Ok(None)` if the file contains an empty input.
+    /// Returns `Ok(None)` if the inputs are empty.
     pub fn parse_yaml(
         document: &Document,
         path: impl AsRef<Path>,
@@ -694,28 +711,32 @@ impl Inputs {
 
         // Parse the YAML
         let reader = BufReader::new(file);
-        let yaml: YamlValue = serde_yaml_ng::from_reader(reader).with_context(|| {
-            format!("failed to parse input file `{path}`", path = path.display())
-        })?;
-
-        // Convert YAML to JSON format
-        let mut json = serde_json::to_value(yaml).with_context(|| {
-            format!(
-                "failed to convert YAML to JSON for processing `{path}`",
-                path = path.display()
-            )
-        })?;
-
-        // Extract as object
-        let object = mem::take(json.as_object_mut().with_context(|| {
+        let mut yaml = serde_yaml_ng::from_reader::<_, YamlValue>(reader)?;
+        let object = std::mem::take(yaml.as_mapping_mut().with_context(|| {
             format!(
                 "expected input file `{path}` to contain a YAML mapping",
                 path = path.display()
             )
-        })?);
+        })?)
+        .into_iter()
+        .map(|(key, value)| {
+            let key = key
+                .as_str()
+                .with_context(|| {
+                    format!(
+                        "input file `{path}` contains non-string keys in mapping",
+                        path = path.display()
+                    )
+                })?
+                .to_owned();
+            let value: Value = serde_yaml_ng::from_value(value)
+                .with_context(|| format!("invalid input key `{key}`"))?;
+            Ok((key, value))
+        })
+        .collect::<Result<IndexMap<_, _>>>()
+        .map(Object::from)?;
 
         Self::parse_object(document, object)
-            .with_context(|| format!("failed to parse input file `{path}`", path = path.display()))
     }
 
     /// Gets an input value.
@@ -801,7 +822,11 @@ impl Inputs {
     }
 
     /// Parses the root object in an input file.
-    fn parse_object(document: &Document, object: JsonMap) -> Result<Option<(String, Self)>> {
+    ///
+    /// Returns `Ok(Some(_))` if the inputs are not empty.
+    ///
+    /// Returns `Ok(None)` if the inputs are empty.
+    pub fn parse_object(document: &Document, object: Object) -> Result<Option<(String, Self)>> {
         // Determine the root workflow or task name
         let (key, name) = match object.iter().next() {
             Some((key, _)) => match key.split_once('.') {
@@ -835,16 +860,14 @@ impl Inputs {
     fn parse_task_inputs(
         document: &Document,
         task: &Task,
-        object: JsonMap,
+        object: Object,
     ) -> Result<(String, Self)> {
         let mut inputs = TaskInputs::default();
-        for (key, value) in object {
-            let value = serde_json::from_value(value)
-                .with_context(|| format!("invalid input key `{key}`"))?;
+        for (key, value) in object.iter() {
             match key.split_once(".") {
                 Some((prefix, remainder)) if prefix == task.name() => {
                     inputs
-                        .set_path_value(document, task, remainder, value)
+                        .set_path_value(document, task, remainder, value.clone())
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {
@@ -863,16 +886,14 @@ impl Inputs {
     fn parse_workflow_inputs(
         document: &Document,
         workflow: &Workflow,
-        object: JsonMap,
+        object: Object,
     ) -> Result<(String, Self)> {
         let mut inputs = WorkflowInputs::default();
-        for (key, value) in object {
-            let value = serde_json::from_value(value)
-                .with_context(|| format!("invalid input key `{key}`"))?;
+        for (key, value) in object.iter() {
             match key.split_once(".") {
                 Some((prefix, remainder)) if prefix == workflow.name() => {
                     inputs
-                        .set_path_value(document, workflow, remainder, value)
+                        .set_path_value(document, workflow, remainder, value.clone())
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {

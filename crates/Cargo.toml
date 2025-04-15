@@ -5,6 +5,7 @@ members = [
     "wdl",
     "wdl-analysis",
     "wdl-ast",
+    "wdl-cli",
     "wdl-doc",
     "wdl-engine",
     "wdl-format",
@@ -28,11 +29,11 @@ anyhow = "1.0.98"
 approx = "0.5.1"
 chrono = "0.4.40"
 clap = { version = "4.5.37", features = ["derive"] }
-clap-verbosity-flag = "3.0.2"
+clap-verbosity-flag = { version = "3.0.2", features = ["tracing"] }
 codespan-reporting = "0.12.0"
 colored = "3.0.0"
 convert_case = "0.8.0"
-crankshaft = "0.1.0"
+crankshaft = { git = "https://github.com/stjude-rust-labs/crankshaft", rev = "4975725f4" }
 dirs = "6.0.0"
 faster-hex = "0.10.0"
 ftree = "1.2.0"
@@ -65,9 +66,12 @@ rowan = "0.16.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.140"
 serde_with = "3.12.0"
+serde_yaml_ng = "0.10"
+shellexpand = "3.1.1"
 strsim = "0.11.1"
 sysinfo = "0.34.2"
 tempfile = "3.19.1"
+thiserror = "2.0.12"
 tokio = { version = "1.44.2", features = ["full"] }
 tokio-util = "0.7.14"
 toml = "0.8.20"

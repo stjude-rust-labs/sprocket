@@ -232,7 +232,7 @@ async fn run_test(test: &Path, result: &AnalysisResult) -> Result<()> {
         .document()
         .task_by_name(&name)
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
-    inputs.join_paths(task, &test_dir)?;
+    inputs.join_paths(task, |_| Ok(&test_dir))?;
 
     for config in configs() {
         let evaluator = TaskEvaluator::new(config, CancellationToken::new()).await?;

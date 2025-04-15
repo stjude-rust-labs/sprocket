@@ -626,8 +626,23 @@ impl From<i64> for Value {
     }
 }
 
+impl TryFrom<u64> for Value {
+    type Error = std::num::TryFromIntError;
+
+    fn try_from(value: u64) -> std::result::Result<Self, Self::Error> {
+        let value: i64 = value.try_into()?;
+        Ok(value.into())
+    }
+}
+
 impl From<f64> for Value {
     fn from(value: f64) -> Self {
+        Self::Primitive(value.into())
+    }
+}
+
+impl From<String> for Value {
+    fn from(value: String) -> Self {
         Self::Primitive(value.into())
     }
 }
@@ -1155,6 +1170,21 @@ impl PrimitiveValue {
         }
     }
 
+    /// Performs expansions for file and directory paths.
+    pub(crate) fn expand_path(&mut self) -> Result<()> {
+        let path = match self {
+            PrimitiveValue::File(path) => path,
+            PrimitiveValue::Directory(path) => path,
+            _ => unreachable!("only file and directory values can be expanded"),
+        };
+
+        let result = shellexpand::full(path.as_str())
+            .context("expanding file/directory path using shell rules")?;
+        *Arc::make_mut(path) = result.to_string();
+
+        Ok(())
+    }
+
     /// Joins this path to the given path.
     ///
     /// # Panics
@@ -1164,7 +1194,7 @@ impl PrimitiveValue {
         let path = match self {
             PrimitiveValue::File(path) => path,
             PrimitiveValue::Directory(path) => path,
-            _ => unreachable!("only file and directory values should be passed to the callback"),
+            _ => unreachable!("only file and directory values can be joined to a path"),
         };
 
         // Don't join URLs
@@ -1301,6 +1331,12 @@ impl From<i64> for PrimitiveValue {
 impl From<f64> for PrimitiveValue {
     fn from(value: f64) -> Self {
         Self::Float(value.into())
+    }
+}
+
+impl From<String> for PrimitiveValue {
+    fn from(value: String) -> Self {
+        Self::String(value.into())
     }
 }
 

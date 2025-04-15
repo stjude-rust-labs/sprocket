@@ -69,7 +69,7 @@ impl fmt::Display for ProgressKind {
     }
 }
 
-/// Converts a local path to a file schemed URI.
+/// Converts a local file path to a file schemed URI.
 pub fn path_to_uri(path: impl AsRef<Path>) -> Option<Url> {
     Url::from_file_path(clean(absolute(path).ok()?)).ok()
 }
