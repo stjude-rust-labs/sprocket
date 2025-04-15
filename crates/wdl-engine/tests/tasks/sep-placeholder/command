@@ -1,0 +1,5 @@
+set -euo pipefail
+echo 'ok!'
+cat 'a.txt'
+cat 'b.txt'
+cat 'c.txt'

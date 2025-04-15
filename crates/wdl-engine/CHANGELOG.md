@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* The `sep` placeholder option was not performing guest path translation (#[417](https://github.com/stjude-rust-labs/wdl/pull/417)).
 * Placeholder options are now type checked at runtime ([#345](https://github.com/stjude-rust-labs/wdl/pull/345)).
 * Whether or not a task manager state represents unlimited resources is now correctly calculated ([#397](https://github.com/stjude-rust-labs/wdl/pull/397)).
 * Fixed environment variable values are not using guest paths for Docker backend ([#398](https://github.com/stjude-rust-labs/wdl/pull/398)).
