@@ -20,7 +20,7 @@ const ID: &str = "PreambleCommentPlacement";
 
 /// Creates a diagnostic for a comment outside the preamble.
 fn preamble_comment_outside_preamble(span: Span) -> Diagnostic {
-    Diagnostic::error("preamble comment after the version statement")
+    Diagnostic::note("preamble comment after the version statement")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("do not use `##` comments outside the preamble")
