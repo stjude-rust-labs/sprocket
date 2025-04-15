@@ -115,6 +115,9 @@ cargo doc
 Contributions, issues and feature requests are welcome! Feel free to check
 [issues page](https://github.com/stjude-rust-labs/sprocket/issues).
 
+Most of the work for this binary happens over at [the `wdl` family of crates' repository](https://github.com/stjude-rust-labs/wdl).
+For more information about our contributor policies, please read the `wdl` [CONTRIBUTING guide](https://github.com/stjude-rust-labs/wdl/blob/main/CONTRIBUTING.md).
+
 ## 📝 License and Legal
 
 This project is licensed as either [Apache 2.0][license-apache] or
