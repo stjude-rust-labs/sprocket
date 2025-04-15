@@ -30,6 +30,7 @@ uuid = { workspace = true, features = ["v4"] }
 walkdir = { workspace = true }
 tracing = { workspace = true }
 convert_case = { workspace = true }
+regex = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

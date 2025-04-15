@@ -98,6 +98,7 @@ use crate::diagnostics::comparison_mismatch;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::index_type_mismatch;
 use crate::diagnostics::invalid_placeholder_option;
+use crate::diagnostics::invalid_regex_pattern;
 use crate::diagnostics::logical_and_mismatch;
 use crate::diagnostics::logical_not_mismatch;
 use crate::diagnostics::logical_or_mismatch;
@@ -1432,12 +1433,35 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 // Evaluate the argument expressions
                 let mut count = 0;
                 let mut arguments = [const { Type::Union }; MAX_PARAMETERS];
+
                 for arg in expr.arguments() {
                     if count < MAX_PARAMETERS {
-                        arguments[count] = self.evaluate_expr(&arg)?;
+                        arguments[count] = self.evaluate_expr(&arg).unwrap_or(Type::Union);
                     }
 
                     count += 1;
+                }
+
+                match target.text() {
+                    "find" | "matches" | "sub" => {
+                        // above function expect the pattern as 2nd argument
+                        if let Some(Expr::Literal(LiteralExpr::String(pattern_literal))) =
+                            expr.arguments().nth(1)
+                        {
+                            if let Some(value) = pattern_literal.text() {
+                                let pattern = value.text().to_string();
+                                if let Err(e) = regex::Regex::new(&pattern) {
+                                    self.context.add_diagnostic(invalid_regex_pattern(
+                                        target.text(),
+                                        value.text(),
+                                        &e,
+                                        pattern_literal.span(),
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
                 }
 
                 let arguments = &arguments[..count.min(MAX_PARAMETERS)];
@@ -1478,7 +1502,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                                 target.text(),
                                 target.span(),
                                 maximum,
-                                arguments.len(),
+                                count,
                                 expr.arguments().skip(maximum).map(|e| e.span()),
                             ));
                         }
@@ -1644,37 +1668,35 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     ) {
         let (label, span, fix) = match target.text() {
             "select_first" => {
-                let ty = &arguments[0]
-                    .as_array()
-                    .expect("type should be an array")
-                    .element_type;
-                if ty.is_optional() {
+                if let Some(ty) = arguments[0].as_array().map(|a| a.element_type()) {
+                    if ty.is_optional() || ty.is_union() {
+                        return;
+                    }
+                    (
+                        format!("array element type `{ty}` is not optional"),
+                        spans.next().expect("should have span"),
+                        "replace the function call with the array's first element",
+                    )
+                } else {
                     return;
                 }
-
-                (
-                    format!("array element type `{ty}` is not optional"),
-                    spans.next().expect("should have span"),
-                    "replace the function call with the array's first element",
-                )
             }
             "select_all" => {
-                let ty = &arguments[0]
-                    .as_array()
-                    .expect("type should be an array")
-                    .element_type;
-                if ty.is_optional() {
+                if let Some(ty) = arguments[0].as_array().map(|a| a.element_type()) {
+                    if ty.is_optional() || ty.is_union() {
+                        return;
+                    }
+                    (
+                        format!("array element type `{ty}` is not optional"),
+                        spans.next().expect("should have span"),
+                        "replace the function call with the array itself",
+                    )
+                } else {
                     return;
                 }
-
-                (
-                    format!("array element type `{ty}` is not optional"),
-                    spans.next().expect("should have span"),
-                    "replace the function call with the array itself",
-                )
             }
             "defined" => {
-                if arguments[0].is_optional() {
+                if arguments[0].is_optional() || arguments[0].is_union() {
                     return;
                 }
 

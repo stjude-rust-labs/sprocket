@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added static validation of regex expression in a string literal ([#404](https://github.com/stjude-rust-labs/wdl/pull/404)).
+
 #### Fixed
 
 * Placeholder options are now statically type checked ([#345](https://github.com/stjude-rust-labs/wdl/pull/345)).
