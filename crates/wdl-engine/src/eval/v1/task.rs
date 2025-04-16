@@ -864,7 +864,7 @@ impl TaskEvaluator {
                 value
                     .as_primitive()
                     .expect("value should be primitive")
-                    .raw()
+                    .raw(None)
                     .to_string(),
             );
         }
@@ -911,7 +911,7 @@ impl TaskEvaluator {
                 value
                     .as_primitive()
                     .expect("value should be primitive")
-                    .raw()
+                    .raw(None)
                     .to_string(),
             );
         }

@@ -43,6 +43,7 @@ use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_grammar::lexer::v1::is_ident;
 
+use crate::EvaluationContext;
 use crate::Outputs;
 use crate::TaskExecutionConstraints;
 use crate::path;
@@ -1083,26 +1084,44 @@ impl PrimitiveValue {
     ///
     /// This differs from the [Display][fmt::Display] implementation in that
     /// strings, files, and directories are not quoted and not escaped.
-    pub fn raw(&self) -> impl fmt::Display + use<'_> {
+    ///
+    /// If an evaluation context is provided, path translation is attempted.
+    pub fn raw<'a>(
+        &'a self,
+        context: Option<&'a dyn EvaluationContext>,
+    ) -> impl fmt::Display + use<'a> {
         /// Helper for displaying a raw value.
-        struct Display<'a>(&'a PrimitiveValue);
+        struct Display<'a> {
+            /// The associated evaluation context.
+            context: Option<&'a dyn EvaluationContext>,
+            /// The value to display.
+            value: &'a PrimitiveValue,
+        }
 
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                match self.0 {
+                match self.value {
                     PrimitiveValue::Boolean(v) => write!(f, "{v}"),
                     PrimitiveValue::Integer(v) => write!(f, "{v}"),
                     PrimitiveValue::Float(v) => write!(f, "{v:.6?}"),
                     PrimitiveValue::String(v)
                     | PrimitiveValue::File(v)
                     | PrimitiveValue::Directory(v) => {
-                        write!(f, "{v}")
+                        match self.context.and_then(|c| c.translate_path(v)) {
+                            Some(path) => write!(f, "{path}", path = path.display()),
+                            None => {
+                                write!(f, "{v}")
+                            }
+                        }
                     }
                 }
             }
         }
 
-        Display(self)
+        Display {
+            context,
+            value: self,
+        }
     }
 
     /// Visits each `File` or `Directory` value contained in this value.

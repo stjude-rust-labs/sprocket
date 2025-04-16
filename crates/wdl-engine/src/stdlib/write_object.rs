@@ -87,7 +87,10 @@ fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
                 match value {
                     Value::None => {}
                     Value::Primitive(v) => {
-                        if !write_tsv_value(&mut writer, v).await.map_err(write_error)? {
+                        if !write_tsv_value(context.context, &mut writer, v)
+                            .await
+                            .map_err(write_error)?
+                        {
                             return Err(function_call_failed(
                                 FUNCTION_NAME,
                                 format!("member `{key}` contains a tab character"),

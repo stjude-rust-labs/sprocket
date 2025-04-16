@@ -37,7 +37,8 @@ fn prefix(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .map(|v| match v {
             Value::None => PrimitiveValue::String(prefix.clone()).into(),
             Value::Primitive(v) => {
-                PrimitiveValue::new_string(format!("{prefix}{v}", v = v.raw())).into()
+                PrimitiveValue::new_string(format!("{prefix}{v}", v = v.raw(Some(context.context))))
+                    .into()
             }
             _ => panic!("expected an array of primitive values"),
         })

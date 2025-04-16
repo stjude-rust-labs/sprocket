@@ -31,7 +31,10 @@ fn squote(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .iter()
         .map(|v| match v {
             Value::None => PrimitiveValue::new_string("''").into(),
-            Value::Primitive(v) => PrimitiveValue::new_string(format!("'{v}'", v = v.raw())).into(),
+            Value::Primitive(v) => {
+                PrimitiveValue::new_string(format!("'{v}'", v = v.raw(Some(context.context))))
+                    .into()
+            }
             _ => panic!("expected an array of primitive values"),
         })
         .collect();

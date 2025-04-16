@@ -19,6 +19,7 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
+use crate::EvaluationContext;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
@@ -34,6 +35,7 @@ const FUNCTION_NAME: &str = "write_tsv";
 ///
 /// Returns `Err(_)` if there was an I/O error.
 pub(crate) async fn write_tsv_value<W: AsyncWrite + Unpin>(
+    context: &dyn EvaluationContext,
     writer: &mut W,
     value: &PrimitiveValue,
 ) -> Result<bool, std::io::Error> {
@@ -44,7 +46,9 @@ pub(crate) async fn write_tsv_value<W: AsyncWrite + Unpin>(
             Ok(false)
         }
         v => {
-            writer.write_all(v.raw().to_string().as_bytes()).await?;
+            writer
+                .write_all(v.raw(Some(context)).to_string().as_bytes())
+                .await?;
             Ok(true)
         }
     }
@@ -373,7 +377,10 @@ fn write_tsv_struct(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Dia
                 match column {
                     Value::None => {}
                     Value::Primitive(v) => {
-                        if !write_tsv_value(&mut writer, v).await.map_err(write_error)? {
+                        if !write_tsv_value(context.context, &mut writer, v)
+                            .await
+                            .map_err(write_error)?
+                        {
                             return Err(function_call_failed(
                                 FUNCTION_NAME,
                                 format!("member `{name}` contains a tab character"),

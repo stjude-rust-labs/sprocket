@@ -37,7 +37,8 @@ fn suffix(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .map(|v| match v {
             Value::None => PrimitiveValue::String(suffix.clone()).into(),
             Value::Primitive(v) => {
-                PrimitiveValue::new_string(format!("{v}{suffix}", v = v.raw())).into()
+                PrimitiveValue::new_string(format!("{v}{suffix}", v = v.raw(Some(context.context))))
+                    .into()
             }
             _ => panic!("expected an array of primitive values"),
         })

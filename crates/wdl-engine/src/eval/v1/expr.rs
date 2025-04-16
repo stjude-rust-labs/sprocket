@@ -143,6 +143,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         }
     }
 
+    /// Gets the context associated with the evaluator.
+    pub fn context(&self) -> &C {
+        &self.context
+    }
+
     /// Evaluates the given expression.
     pub fn evaluate_expr<'a>(
         &'a mut self,
@@ -309,28 +314,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         placeholder: &'a Placeholder<SyntaxNode>,
         buffer: &'a mut String,
     ) -> BoxFuture<'a, Result<(), Diagnostic>> {
-        /// Helper for writing primitive values to the buffer.
-        ///
-        /// This function accounts for path translation for `File` and
-        /// `Directory` values.
-        fn write_primitive<C: EvaluationContext>(
-            context: &C,
-            value: &PrimitiveValue,
-            buffer: &mut String,
-        ) {
-            match value {
-                PrimitiveValue::File(path) | PrimitiveValue::Directory(path) => {
-                    match context.translate_path(path) {
-                        Some(path) => write!(buffer, "{path}", path = path.display()).unwrap(),
-                        None => {
-                            write!(buffer, "{path}").unwrap();
-                        }
-                    }
-                }
-                _ => write!(buffer, "{v}", v = value.raw()).unwrap(),
-            }
-        }
-
         /// The actual implementation for evaluating placeholders
         async fn imp<C: EvaluationContext>(
             evaluator: &mut ExprEvaluator<C>,
@@ -395,7 +378,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         None => write!(buffer, "{v}").unwrap(),
                     }
                 }
-                Value::Primitive(v) => write_primitive(&evaluator.context, &v, buffer),
+                Value::Primitive(v) => {
+                    write!(buffer, "{v}", v = v.raw(Some(&evaluator.context))).unwrap()
+                }
                 Value::Compound(CompoundValue::Array(v))
                     if matches!(placeholder.option(), Some(PlaceholderOption::Sep(_)))
                         && v.as_slice()
@@ -416,7 +401,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                         match e {
                             Value::None => {}
-                            Value::Primitive(v) => write_primitive(&evaluator.context, v, buffer),
+                            Value::Primitive(v) => {
+                                write!(buffer, "{v}", v = v.raw(Some(&evaluator.context))).unwrap()
+                            }
                             _ => {
                                 return Err(cannot_coerce_to_string(&v.ty(), expr.span()));
                             }
@@ -1236,15 +1223,24 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     && !matches!(right, PrimitiveValue::Boolean(_)) =>
             {
                 Some(
-                    PrimitiveValue::new_string(format!("{left}{right}", right = right.raw()))
-                        .into(),
+                    PrimitiveValue::new_string(format!(
+                        "{left}{right}",
+                        right = right.raw(Some(&self.context))
+                    ))
+                    .into(),
                 )
             }
             (Value::Primitive(left), Value::Primitive(PrimitiveValue::String(right)))
                 if op == NumericOperator::Addition
                     && !matches!(left, PrimitiveValue::Boolean(_)) =>
             {
-                Some(PrimitiveValue::new_string(format!("{left}{right}", left = left.raw())).into())
+                Some(
+                    PrimitiveValue::new_string(format!(
+                        "{left}{right}",
+                        left = left.raw(Some(&self.context))
+                    ))
+                    .into(),
+                )
             }
             (Value::Primitive(PrimitiveValue::String(_)), Value::None)
             | (Value::None, Value::Primitive(PrimitiveValue::String(_)))
