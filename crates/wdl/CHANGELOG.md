@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Changed the behaviour of `cli` to accept case insensitive `--except` args ([#423](https://github.com/stjude-rust-labs/wdl/pull/423)).
+
 ## 0.12.0 - 04-01-2025
 
 #### Added

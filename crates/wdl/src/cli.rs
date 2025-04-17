@@ -55,7 +55,7 @@ pub async fn analyze(
     let rules = analysis_rules();
     let rules = rules
         .iter()
-        .filter(|rule| !exceptions.iter().any(|e| e == rule.id()));
+        .filter(|rule| !exceptions.iter().any(|e| e.eq_ignore_ascii_case(rule.id())));
     let rules_config = DiagnosticsConfig::new(rules);
 
     let pb = tracing::warn_span!("progress");
@@ -91,7 +91,7 @@ pub async fn analyze(
             if lint {
                 let visitor =
                     wdl_lint::LintVisitor::new(lint_rules().into_iter().filter_map(|rule| {
-                        if exceptions.iter().any(|e| e == rule.id()) {
+                        if exceptions.iter().any(|e| e.eq_ignore_ascii_case(rule.id())) {
                             None
                         } else {
                             Some(rule)
