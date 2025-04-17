@@ -166,7 +166,6 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             let warning = codespan_reporting::diagnostic::Diagnostic::warning()
                 .with_message(message)
                 .with_notes(vec![
-                    // "rule names are case-insensitive".to_string(),
                     "run `sprocket explain --help` to see available rules".to_string(),
                 ]);
 
