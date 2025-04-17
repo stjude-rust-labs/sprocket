@@ -127,19 +127,18 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let remote_file = Url::parse(file).is_ok();
 
     if !exceptions.is_empty() {
+        // TODO: switch to case-insensitive rule handling when wdl crates are updated
         let analysis_rules: HashSet<String> = analysis::rules()
             .iter()
-            .map(|r| r.id().to_lowercase())
+            .map(|r| r.id().to_string())
             .collect();
-        let lint_rules: HashSet<String> = lint::rules()
-            .iter()
-            .map(|r| r.id().to_lowercase())
-            .collect();
+        let lint_rules: HashSet<String> =
+            lint::rules().iter().map(|r| r.id().to_string()).collect();
         let all_rules: HashSet<_> = analysis_rules.union(&lint_rules).collect();
 
         let unknown_exceptions: Vec<&str> = exceptions
             .iter()
-            .filter(|rule| !all_rules.contains(&rule.to_lowercase()))
+            .filter(|rule| !all_rules.contains(rule))
             .map(|rule| rule.as_str())
             .collect();
 
@@ -163,11 +162,12 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                     .join(", ")
             );
 
+            // TODO: revisit case-insensitive rule handling when wdl crates are updated
             let warning = codespan_reporting::diagnostic::Diagnostic::warning()
                 .with_message(message)
                 .with_notes(vec![
-                    "Rule names are case-insensitive".to_string(),
-                    "Run `sprocket explain --help` to see available rules".to_string(),
+                    // "rule names are case-insensitive".to_string(),
+                    "run `sprocket explain --help` to see available rules".to_string(),
                 ]);
 
             term::emit(&mut w_lock, config, &files, &warning)
