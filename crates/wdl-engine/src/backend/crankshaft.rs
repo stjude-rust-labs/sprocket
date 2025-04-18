@@ -66,6 +66,18 @@ const GUEST_WORK_DIR: &str = "/mnt/work";
 /// The guest path for the command file.
 const GUEST_COMMAND_PATH: &str = "/mnt/command";
 
+/// The guest path for the output directory.
+#[cfg(unix)]
+const GUEST_OUT_DIR: &str = "/workflow_output";
+
+/// Amount of CPU to reserve for the cleanup task.
+#[cfg(unix)]
+const CLEANUP_CPU: f64 = 0.1;
+
+/// Amount of memory to reserve for the cleanup task.
+#[cfg(unix)]
+const CLEANUP_MEMORY: f64 = 0.05;
+
 /// Represents a crankshaft task request.
 ///
 /// This request contains the requested cpu and memory reservations for the task
@@ -265,6 +277,8 @@ impl TaskManagerRequest for CrankshaftTaskRequest {
 pub struct CrankshaftBackend {
     /// The underlying Crankshaft backend.
     inner: Arc<dyn Backend>,
+    /// The kind of backend to use.
+    kind: CrankshaftBackendKind,
     /// The default container to use for tasks.
     container: Option<String>,
     /// The default shell to use for tasks.
@@ -288,7 +302,9 @@ impl CrankshaftBackend {
         task.validate()?;
         config.validate()?;
 
-        let (inner, max_concurrency, manager, max_cpu, max_memory) = match config.default {
+        let kind = config.default.clone();
+
+        let (inner, max_concurrency, manager, max_cpu, max_memory) = match &kind {
             CrankshaftBackendKind::Docker => {
                 info!("initializing Docker backend");
 
@@ -318,6 +334,7 @@ impl CrankshaftBackend {
 
         Ok(Self {
             inner,
+            kind,
             container: task.container.clone(),
             shell: task.shell.clone().map(Into::into),
             max_concurrency,
@@ -470,5 +487,161 @@ impl TaskExecutionBackend for CrankshaftBackend {
             spawned: spawned_rx,
             completed: completed_rx,
         })
+    }
+
+    fn cleanup<'a, 'b, 'c>(
+        &'a self,
+        output_dir: &'b Path,
+        token: CancellationToken,
+    ) -> Option<BoxFuture<'c, ()>>
+    where
+        'a: 'c,
+        'b: 'c,
+        Self: 'c,
+    {
+        if self.kind != CrankshaftBackendKind::Docker {
+            return None;
+        }
+
+        #[cfg(unix)]
+        {
+            let inner_backend = self.inner.clone();
+            let generator = self.generator.clone();
+            let output_path = output_dir.to_path_buf();
+            Some(
+                async move {
+                    let result = async {
+                        let (uid, gid) = unsafe { (libc::getuid(), libc::getgid()) };
+                        let ownership = format!("{uid}:{gid}");
+                        info!(
+                            "cleanup target: '{}', attempting to set ownership to: {}",
+                            output_path.display(),
+                            ownership
+                        );
+
+                        if !output_path.exists() {
+                            info!("output directory does not exist, skipping cleanup");
+                            return Ok(());
+                        }
+                        if !output_path.is_dir() {
+                            bail!(
+                                "output directory `{path}` is not a directory",
+                                path = output_path.display()
+                            );
+                        }
+
+                        let output_mount = Input::builder()
+                            .path(GUEST_OUT_DIR)
+                            .contents(Contents::Path(output_path.clone()))
+                            .ty(Type::Directory)
+                            // need write access
+                            .read_only(false)
+                            .build();
+
+                        let cleanup_task_name = format!(
+                            "wdl-engine-chown-cleanup-{}",
+                            generator
+                                .lock()
+                                .expect("generator should always acquire")
+                                .next()
+                                .expect("generator should never be exhausted")
+                        );
+
+                        let cleanup_resources = Resources::builder()
+                            .cpu(CLEANUP_CPU)
+                            .ram(CLEANUP_MEMORY)
+                            .build();
+
+                        let cleanup_task = Task::builder()
+                            .name(&cleanup_task_name)
+                            .executions(NonEmpty::new(
+                                Execution::builder()
+                                    .image("alpine:latest")
+                                    .program("chown")
+                                    .args([
+                                        "-R".to_string(),
+                                        ownership.clone(),
+                                        GUEST_OUT_DIR.to_string(),
+                                    ])
+                                    .work_dir("/")
+                                    .build(),
+                            ))
+                            .inputs([Arc::new(output_mount)])
+                            .resources(cleanup_resources)
+                            .build();
+
+                        info!(
+                            "running cleanup task '{}' to chown '{}' to '{}'",
+                            cleanup_task_name,
+                            output_path.display(),
+                            ownership
+                        );
+
+                        let (spawned_tx, _) = oneshot::channel();
+
+                        let output_rx = inner_backend
+                            .run(cleanup_task, Some(spawned_tx), token)
+                            .map_err(|e| anyhow!("failed to submit cleanup task: {e}"))?;
+
+                        match output_rx.await {
+                            Ok(outputs) => {
+                                if outputs.is_empty() {
+                                    bail!(
+                                        "cleanup task '{}' did not produce any outputs",
+                                        cleanup_task_name
+                                    );
+                                }
+                                let output = outputs.first();
+                                if output.status.success() {
+                                    info!(
+                                        "cleanup task '{}' completed successfully",
+                                        cleanup_task_name
+                                    );
+                                    Ok(())
+                                } else {
+                                    let stderr = String::from_utf8_lossy(&output.stderr);
+                                    tracing::error!(
+                                        "failed to chown output directory: '{}'. Exit status: \
+                                         '{}'. Stderr: '{}'",
+                                        output_path.display(),
+                                        output.status,
+                                        stderr
+                                    );
+                                    bail!(
+                                        "failed to chown output directory: '{}'",
+                                        output_path.display()
+                                    );
+                                }
+                            }
+                            Err(e) => {
+                                tracing::error!(
+                                    "receiving result for cleanup task '{}' failed: {e}",
+                                    cleanup_task_name
+                                );
+                                bail!(
+                                    "receiving result for cleanup task '{}' failed: {e}",
+                                    cleanup_task_name
+                                );
+                            }
+                        }
+                    }
+                    .await;
+
+                    if let Err(e) = result {
+                        tracing::error!("cleanup task failed: {e:#}");
+                    }
+                }
+                .boxed(),
+            )
+        }
+
+        #[cfg(not(unix))]
+        {
+            let _ = token;
+            let _ = output_dir;
+            info!("cleanup task is not supported on this platform");
+
+            None
+        }
     }
 }

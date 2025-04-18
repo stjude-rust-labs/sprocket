@@ -40,6 +40,7 @@ http-cache-stream-reqwest = { workspace = true }
 reqwest = { workspace = true }
 reqwest-middleware = { workspace = true }
 dirs = { workspace =  true }
+libc = { version = "0.2" }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

@@ -789,6 +789,8 @@ impl WorkflowEvaluator {
             )
         })?;
 
+        let effective_output_dir = root_dir.to_path_buf();
+
         let state = Arc::new(State {
             config: self.config.clone(),
             backend: self.backend.clone(),
@@ -814,7 +816,13 @@ impl WorkflowEvaluator {
         )
         .await?;
 
-        // Take the output scope and return it
+        if let Some(cleanup_fut) = self
+            .backend
+            .cleanup(&effective_output_dir, state.token.clone())
+        {
+            cleanup_fut.await;
+        }
+
         let mut outputs: Outputs = state.scopes.write().await.take(Scopes::OUTPUT_INDEX).into();
         if let Some(section) = definition.output() {
             let indexes: HashMap<_, _> = section
@@ -824,7 +832,6 @@ impl WorkflowEvaluator {
                 .collect();
             outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
         }
-
         Ok(outputs)
     }
 
