@@ -42,7 +42,7 @@ jobs:
           # The gh cli silently drops a reviewer if they are the author.
           # So no need to clean the list here.
           reviewers=$(yq -o tsv ".reviewers" .github/reviewers.yml)
-          for reviewer in "$reviewers"
+          for reviewer in $reviewers
           do
             # gh pr edit $PR_NUMBER --add-reviewer $reviewers
             # Adding a duplicate reviewer returns an error hence "|| true"

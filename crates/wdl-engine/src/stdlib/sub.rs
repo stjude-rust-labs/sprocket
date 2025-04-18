@@ -38,7 +38,7 @@ fn sub(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     let regex = Regex::new(pattern.as_str())
         .map_err(|e| function_call_failed(FUNCTION_NAME, &e, context.arguments[1].span))?;
-    match regex.replace(input.as_str(), replacement.as_str()) {
+    match regex.replace_all(input.as_str(), replacement.as_str()) {
         Cow::Borrowed(_) => {
             // No replacements, just return the input
             Ok(PrimitiveValue::String(input).into())
@@ -96,5 +96,10 @@ mod test {
             .await
             .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hello Bob");
+
+        let value = eval_v1_expr(&env, V1::Two, "sub('hello there world', ' ', '_')")
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "hello_there_world");
     }
 }
