@@ -507,7 +507,7 @@ impl TaskExecutionBackend for CrankshaftBackend {
         {
             let inner_backend = self.inner.clone();
             let generator = self.generator.clone();
-            let output_path = output_dir.to_path_buf();
+            let output_path = std::path::absolute(output_dir).expect("failed to get absolute path");
             Some(
                 async move {
                     let result = async {
