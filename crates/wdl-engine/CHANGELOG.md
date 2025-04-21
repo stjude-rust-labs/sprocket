@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Whether or not a task manager state represents unlimited resources is now correctly calculated ([#397](https://github.com/stjude-rust-labs/wdl/pull/397)).
 * Fixed environment variable values are not using guest paths for Docker backend ([#398](https://github.com/stjude-rust-labs/wdl/pull/398)).
 * Ensure output files created by Docker tasks running as root have correct host user permissions ([#379](https://github.com/stjude-rust-labs/wdl/pull/379)).
+* Fixes `chown` functionlity by making the path absolute ([#428](https://github.com/stjude-rust-labs/wdl/pull/379)).
 
 ## 0.2.0 - 04-01-2025
 
