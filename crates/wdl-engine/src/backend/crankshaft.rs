@@ -24,6 +24,7 @@ use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tokio::sync::oneshot;
+use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 
@@ -43,6 +44,7 @@ use crate::config::CrankshaftBackendKind;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TaskConfig;
 use crate::http::Downloader;
+use crate::http::HttpDownloader;
 use crate::http::Location;
 use crate::path::EvaluationPath;
 use crate::v1::container;
@@ -399,7 +401,7 @@ impl TaskExecutionBackend for CrankshaftBackend {
 
     fn localize_inputs<'a, 'b, 'c, 'd>(
         &'a self,
-        downloader: &'b dyn Downloader,
+        downloader: &'b HttpDownloader,
         inputs: &'c mut [crate::eval::Input],
     ) -> BoxFuture<'d, Result<()>>
     where
@@ -408,7 +410,7 @@ impl TaskExecutionBackend for CrankshaftBackend {
         'c: 'd,
         Self: 'd,
     {
-        async {
+        async move {
             // Construct a trie for mapping input guest paths
             let mut trie = InputTrie::default();
             for input in inputs.iter() {
@@ -416,22 +418,54 @@ impl TaskExecutionBackend for CrankshaftBackend {
             }
 
             for (index, guest_path) in trie.calculate_guest_paths(GUEST_INPUTS_DIR)? {
-                inputs[index].set_guest_path(guest_path);
+                if let Some(input) = inputs.get_mut(index) {
+                    input.set_guest_path(guest_path);
+                } else {
+                    bail!("invalid index {} returned from trie", index);
+                }
             }
 
             // Localize all inputs
             // TODO: only do this for local task execution
-            for input in inputs {
-                // TODO: parallelize the downloads
-                let location = match input.path() {
-                    EvaluationPath::Local(path) => Location::Path(path.into()),
-                    EvaluationPath::Remote(url) => downloader
-                        .download(url)
-                        .await
-                        .map_err(|e| anyhow!("failed to localize `{url}`: {e:?}"))?,
-                };
+            let mut download_futs = JoinSet::new();
 
-                input.set_location(location.into_owned());
+            for (idx, input) in inputs.iter_mut().enumerate() {
+                match input.path() {
+                    EvaluationPath::Local(path) => {
+                        input.set_location(Location::Path(path.clone().into()));
+                    }
+                    EvaluationPath::Remote(url) => {
+                        let downloader = downloader.clone();
+                        let url = url.clone();
+                        download_futs.spawn(async move {
+                            let location_result = downloader.download(&url).await;
+
+                            match location_result {
+                                Ok(location) => Ok((idx, location.into_owned())),
+                                Err(e) => bail!("failed to localize `{url}`: {e:?}"),
+                            }
+                        });
+                    }
+                }
+            }
+
+            while let Some(result) = download_futs.join_next().await {
+                match result {
+                    Ok(Ok((idx, location))) => {
+                        inputs
+                            .get_mut(idx)
+                            .expect("index from should be valid")
+                            .set_location(location);
+                    }
+                    Ok(Err(e)) => {
+                        // Futures are aborted when the `JoinSet` is dropped.
+                        bail!(e)
+                    }
+                    Err(e) => {
+                        // Futures are aborted when the `JoinSet` is dropped.
+                        bail!("download task failed: {e:?}")
+                    }
+                }
             }
 
             Ok(())

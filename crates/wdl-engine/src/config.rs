@@ -26,6 +26,9 @@ pub const CRANKSHAFT_DOCKER_BACKEND_NAME: &str = "docker";
 /// The default task shell.
 pub const DEFAULT_TASK_SHELL: &str = "bash";
 
+/// The default maximum number of concurrent HTTP downloads.
+pub const DEFAULT_MAX_CONCURRENT_DOWNLOADS: u64 = 10;
+
 /// Represents WDL evaluation configuration.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
@@ -88,11 +91,21 @@ pub struct HttpConfig {
     /// Defaults to using the system cache directory.
     #[serde(default)]
     pub cache: Option<PathBuf>,
+    /// The maximum number of concurrent downloads allowed.
+    ///
+    /// Defaults to 10.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_concurrent_downloads: Option<u64>,
 }
 
 impl HttpConfig {
     /// Validates the HTTP configuration.
     pub fn validate(&self) -> Result<()> {
+        if let Some(limit) = self.max_concurrent_downloads {
+            if limit == 0 {
+                bail!("configuration value `http.max_concurrent_downloads` cannot be zero");
+            }
+        }
         Ok(())
     }
 }
@@ -524,5 +537,26 @@ mod test {
         assert!(config.validate().unwrap_err().to_string().starts_with(
             "configuration value `backend.local.memory` cannot exceed the total memory of the host"
         ));
+
+        let mut config = Config::default();
+        config.http.max_concurrent_downloads = Some(0);
+        assert_eq!(
+            config.validate().unwrap_err().to_string(),
+            "configuration value `http.max_concurrent_downloads` cannot be zero"
+        );
+
+        let mut config = Config::default();
+        config.http.max_concurrent_downloads = Some(5);
+        assert!(
+            config.validate().is_ok(),
+            "should pass for valid configuration"
+        );
+
+        let mut config_default = Config::default();
+        config_default.http.max_concurrent_downloads = None;
+        assert!(
+            config_default.validate().is_ok(),
+            "should pass for default (None)"
+        );
     }
 }

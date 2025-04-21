@@ -6,18 +6,18 @@ use std::fs;
 use std::fs::File;
 use std::path::Path;
 use std::process::Stdio;
+use std::result::Result::Ok;
 use std::sync::Arc;
 
 use anyhow::Context;
-use anyhow::Ok;
 use anyhow::Result;
-use anyhow::anyhow;
 use anyhow::bail;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tokio::process::Command;
 use tokio::select;
 use tokio::sync::oneshot;
+use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 
@@ -38,6 +38,7 @@ use crate::config::LocalBackendConfig;
 use crate::config::TaskConfig;
 use crate::convert_unit_string;
 use crate::http::Downloader;
+use crate::http::HttpDownloader;
 use crate::http::Location;
 use crate::path::EvaluationPath;
 use crate::v1::cpu;
@@ -271,7 +272,7 @@ impl TaskExecutionBackend for LocalTaskExecutionBackend {
 
     fn localize_inputs<'a, 'b, 'c, 'd>(
         &'a self,
-        downloader: &'b dyn Downloader,
+        downloader: &'b HttpDownloader,
         inputs: &'c mut [Input],
     ) -> BoxFuture<'d, Result<()>>
     where
@@ -280,28 +281,63 @@ impl TaskExecutionBackend for LocalTaskExecutionBackend {
         'c: 'd,
         Self: 'd,
     {
-        async {
-            for input in inputs {
-                // TODO: parallelize the downloads
-                let location = match input.path() {
-                    EvaluationPath::Local(path) => Location::Path(path.into()),
-                    EvaluationPath::Remote(url) => downloader
-                        .download(url)
-                        .await
-                        .map_err(|e| anyhow!("failed to localize `{url}`: {e:?}"))?,
-                };
+        async move {
+            let mut download_futs = JoinSet::new();
 
-                let guest_path = location
-                    .to_str()
-                    .with_context(|| {
-                        format!("path `{path}` is not UTF-8", path = location.display())
-                    })?
-                    .to_string();
+            for (idx, input) in inputs.iter_mut().enumerate() {
+                match input.path() {
+                    EvaluationPath::Local(path) => {
+                        let location = Location::Path(path.clone().into());
+                        let guest_path = location
+                            .to_str()
+                            .with_context(|| {
+                                format!("path `{path}` is not UTF-8", path = path.display())
+                            })?
+                            .to_string();
+                        input.set_location(location.into_owned());
+                        input.set_guest_path(guest_path);
+                    }
+                    EvaluationPath::Remote(url) => {
+                        let downloader = downloader.clone();
+                        let url = url.clone();
+                        download_futs.spawn(async move {
+                            let location_result = downloader.download(&url).await;
 
-                // Set the guest path to the download location for path translation
-                let location = location.into_owned();
-                input.set_guest_path(guest_path);
-                input.set_location(location);
+                            match location_result {
+                                Ok(location) => Ok((idx, location.into_owned())),
+                                Err(e) => bail!("failed to localize `{url}`: {e:?}"),
+                            }
+                        });
+                    }
+                }
+            }
+
+            while let Some(result) = download_futs.join_next().await {
+                match result {
+                    Ok(Ok((idx, location))) => {
+                        let guest_path = location
+                            .to_str()
+                            .with_context(|| {
+                                format!(
+                                    "downloaded path `{path}` is not UTF-8",
+                                    path = location.display()
+                                )
+                            })?
+                            .to_string();
+
+                        let input = inputs.get_mut(idx).expect("index should be valid");
+                        input.set_location(location);
+                        input.set_guest_path(guest_path);
+                    }
+                    Ok(Err(e)) => {
+                        // Futures are aborted when the `JoinSet` is dropped.
+                        bail!(e);
+                    }
+                    Err(e) => {
+                        // Futures are aborted when the `JoinSet` is dropped.
+                        bail!("download task failed: {e}");
+                    }
+                }
             }
 
             Ok(())

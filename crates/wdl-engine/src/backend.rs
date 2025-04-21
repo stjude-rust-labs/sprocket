@@ -27,7 +27,7 @@ use tracing::debug;
 
 use crate::Input;
 use crate::Value;
-use crate::http::Downloader;
+use crate::http::HttpDownloader;
 use crate::path::EvaluationPath;
 
 pub mod crankshaft;
@@ -302,7 +302,7 @@ pub trait TaskExecutionBackend: Send + Sync {
     /// input's guest paths.
     fn localize_inputs<'a, 'b, 'c, 'd>(
         &'a self,
-        downloader: &'b dyn Downloader,
+        downloader: &'b HttpDownloader,
         inputs: &'c mut [Input],
     ) -> BoxFuture<'d, Result<()>>
     where
@@ -310,7 +310,6 @@ pub trait TaskExecutionBackend: Send + Sync {
         'b: 'd,
         'c: 'd,
         Self: 'd;
-
     /// Spawns a task with the execution backend.
     ///
     /// Returns the task execution event receives upon success.

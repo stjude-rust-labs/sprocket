@@ -28,11 +28,16 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::io::BufWriter;
 use tokio::sync::Notify;
+use tokio::sync::Semaphore;
+use tokio::time::Duration;
+use tokio::time::sleep;
 use tracing::debug;
+use tracing::error;
 use tracing::info;
 use url::Url;
 
 use crate::config::Config;
+use crate::config::DEFAULT_MAX_CONCURRENT_DOWNLOADS;
 
 mod azure;
 mod google;
@@ -41,6 +46,12 @@ mod s3;
 /// The default cache subdirectory that is appended to the system cache
 /// directory.
 const DEFAULT_CACHE_SUBDIR: &str = "wdl";
+
+/// Maximum number of download attempts.
+const MAX_DOWNLOAD_ATTEMPTS: u32 = 3;
+/// Initial delay before the first retry.
+const INITIAL_RETRY_DELAY: Duration = Duration::from_secs(1);
+
 /// A trait implemented by types responsible for downloading remote files over
 /// HTTP for evaluation.
 pub trait Downloader: Send + Sync {
@@ -121,6 +132,8 @@ pub struct HttpDownloader {
     cache: Arc<Cache<DefaultCacheStorage>>,
     /// Stores the status of downloads by URL.
     downloads: Arc<Mutex<HashMap<Url, Status>>>,
+    /// Limits the number of concurrent downloads.
+    semaphore: Arc<Semaphore>,
 }
 
 impl HttpDownloader {
@@ -141,6 +154,13 @@ impl HttpDownloader {
 
         let cache = Arc::new(Cache::new(DefaultCacheStorage::new(cache_dir)));
 
+        let max_downloads = config
+            .http
+            .max_concurrent_downloads
+            .unwrap_or(DEFAULT_MAX_CONCURRENT_DOWNLOADS) as usize;
+
+        debug!("maximum concurrent downloads set to {max_downloads}");
+
         Ok(Self {
             config,
             client: ClientBuilder::new(Client::new())
@@ -148,6 +168,7 @@ impl HttpDownloader {
                 .build(),
             cache,
             downloads: Default::default(),
+            semaphore: Arc::new(Semaphore::new(max_downloads)),
         })
     }
 
@@ -300,59 +321,107 @@ impl Downloader for HttpDownloader {
             // This loop exists so that all requests to download the same URL will block
             // waiting for a notification that the download has completed.
             // When the notification is received, the lookup into the downloads is retried
-            let mut retried = false;
+            let mut waited = false;
             loop {
-                // Scope to ensure the mutex guard is not visible to the await point
-                let notify = {
+                let status_check_result = {
                     let mut downloads = self.downloads.lock().expect("failed to lock downloads");
                     match downloads.get(&url) {
                         Some(Status::Downloading(notify)) => {
                             assert!(
-                                !retried,
+                                !waited,
                                 "file should not be downloading again after a notification"
                             );
-
-                            notify.clone()
+                            Some(notify.clone())
                         }
                         Some(Status::Downloaded(r)) => {
                             return r.clone();
                         }
                         None => {
-                            assert!(
-                                !retried,
-                                "file should not be downloaded again after a notification"
-                            );
-
-                            // Insert an entry and break out of the loop to download
+                            // not downloading, not downloaded. mark for retry/download
                             downloads.insert(
                                 url.clone().into_owned(),
-                                Status::Downloading(Arc::default()),
+                                Status::Downloading(Arc::new(Notify::new())),
                             );
-                            break;
+                            None
                         }
                     }
                 };
 
-                notify.notified().await;
-                retried = true;
-                continue;
+                if let Some(notify) = status_check_result {
+                    notify.notified().await;
+                    waited = true;
+                    continue;
+                } else {
+                    break;
+                }
             }
 
-            // Perform the download
-            let res = self.get(&url).await.map_err(Arc::from);
+            let mut attempt_counter = 0;
+            let result = 'retry_loop: loop {
+                let attempt = attempt_counter;
+
+                let permit = self
+                    .semaphore
+                    .acquire()
+                    .await
+                    .expect("semaphore should not be closed");
+
+                match self.get(&url).await {
+                    Ok(location) => {
+                        break 'retry_loop Ok(location);
+                    }
+                    Err(e) => {
+                        let current_error = Arc::new(e.context(format!(
+                            "download attempt {} failed for `{url}`",
+                            attempt + 1
+                        )));
+
+                        // if it was the last attempt, return the error
+                        if attempt == MAX_DOWNLOAD_ATTEMPTS - 1 {
+                            error!(
+                                "download failed after {} attempts for `{url}`: {}",
+                                MAX_DOWNLOAD_ATTEMPTS, current_error
+                            );
+                            break 'retry_loop Err(current_error);
+                        }
+
+                        // backoff and retry
+                        let delay_secs =
+                            INITIAL_RETRY_DELAY.as_secs_f64() * 2.0f64.powi(attempt as i32);
+                        let delay = Duration::from_secs_f64(delay_secs);
+                        info!(
+                            "backing off for {:.2}s before retry attempt {}/{} for `{url}`",
+                            delay_secs,
+                            attempt + 1,
+                            MAX_DOWNLOAD_ATTEMPTS,
+                            url = url
+                        );
+
+                        drop(permit);
+                        sleep(delay).await;
+
+                        attempt_counter += 1;
+                        // permit will be re-acquired at the start of the next
+                        // iteration
+                    }
+                }
+                // permit is implicitly dropped here
+            };
+
             let notify = {
                 let mut downloads = self.downloads.lock().expect("failed to lock downloads");
-                match std::mem::replace(
-                    downloads.get_mut(&url).expect("should have status"),
-                    Status::Downloaded(res.clone()),
-                ) {
-                    Status::Downloading(notify) => notify,
-                    _ => panic!("file should be downloading"),
+                match downloads.insert(url.clone().into_owned(), Status::Downloaded(result.clone()))
+                {
+                    Some(Status::Downloading(notify)) => notify,
+                    _ => panic!(
+                        "expected to find a downloading status for `{url}`",
+                        url = url
+                    ),
                 }
             };
 
             notify.notify_waiters();
-            res
+            result
         }
         .boxed()
     }
