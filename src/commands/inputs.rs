@@ -1,9 +1,11 @@
 //! Implementation of the inputs command.
 
 use std::path::PathBuf;
+use std::result;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use clap::Parser;
 use indexmap::IndexMap;
 use serde_json::Value;
@@ -67,7 +69,20 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
     // Analyze the document - the analyze function should handle both local and
     // remote files
     let results: Vec<wdl::analysis::AnalysisResult> =
-        analyze(args.document.as_str(), vec![], false, false).await?;
+        match analyze(args.document.as_str(), vec![], false, false).await {
+            Ok(results) => results,
+            Err(e) => {
+                if is_remote {
+                    anyhow::bail!(
+                        "Failed to fetch or analyze remote wdl file: {}, Please check that the \
+                         URL is correct",
+                        e
+                    );
+                } else {
+                    anyhow::bail!("Failed to analyze WDL file: {}", e);
+                }
+            }
+        };
 
     // Parse the document path into a URI that can be used to find the document in
     // analysis results
@@ -79,13 +94,22 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         path_to_uri(args.document.as_str()).context("Failed to convert local path to URI")?
     };
 
-    let result = results
-        .iter()
-        .find(|r| **r.document().uri() == uri)
-        .context(
-            "Failed to find document in analysis results. If using a remote file, ensure it's \
-             accessible and valid WDL.",
-        )?;
+    let result = match results.iter().find(|r| **r.document().uri() == uri) {
+        Some(result) => result,
+        None => {
+            if is_remote {
+                anyhow::bail!(
+                    "Failed to process remote WDL file. The URL may be correct but the file \
+                     format or content is invalid."
+                );
+            } else {
+                anyhow::bail!(
+                    "Failed to find document in analysis results. Please ensure the file exists \
+                     and contains valid WDL."
+                );
+            }
+        }
+    };
 
     let document: &std::sync::Arc<Document> = result.document();
 
@@ -101,7 +125,25 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         );
     }
 
-    let (input_defaults, literal_defaults, default_expressions) = collect_all_input_info(document);
+    // safely acess the AST document and handle potential panics
+    let ast_doc: AstDocument = match std::panic::catch_unwind(|| document.node()) {
+        Ok(ast) => ast,
+        Err(_) => {
+            if is_remote {
+                anyhow::bail!(
+                    "Failed to process the remote WDL document structure. The file may be \
+                     incomplete or corrupted."
+                );
+            } else {
+                anyhow::bail!(
+                    "Failed to process the WDL document structure. The file may be incomplete or \
+                     corrupted."
+                );
+            }
+        }
+    };
+
+    let (input_defaults, literal_defaults, default_expressions) = collect_all_input_info(&ast_doc);
     let mut template = serde_json::Map::new();
 
     // Collect inputs and their parent information
@@ -166,14 +208,12 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
 
 /// Collects all input information in a single pass through the AST
 fn collect_all_input_info(
-    document: &Document,
+    ast_doc: &AstDocument,
 ) -> (
     IndexMap<String, bool>,
     IndexMap<String, bool>,
     IndexMap<String, String>,
 ) {
-    let ast_doc: AstDocument = document.node();
-
     let mut input_defaults: IndexMap<String, bool> = IndexMap::new();
     let mut literal_defaults: IndexMap<String, bool> = IndexMap::new();
     let mut default_values: IndexMap<String, String> = IndexMap::new();
