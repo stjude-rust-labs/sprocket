@@ -79,7 +79,7 @@ fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> 
             &mut buffer,
             &Config::default(),
             &file,
-            &diagnostic.to_codespan(),
+            &diagnostic.to_codespan(()),
         )
         .expect("should emit");
     }

@@ -1,6 +1,7 @@
 //! Conversion of a V1 AST to an analyzed document.
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::hash::RandomState;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
@@ -1436,7 +1437,7 @@ fn set_struct_types(document: &mut DocumentData) {
 
     // Populate a type dependency graph; any edges that would form cycles are turned
     // into diagnostics.
-    let mut graph = DiGraphMap::new();
+    let mut graph: DiGraphMap<_, _, RandomState> = DiGraphMap::new();
     let mut space = Default::default();
     for (from, s) in document.structs.values().enumerate() {
         // Only look at locally defined structs

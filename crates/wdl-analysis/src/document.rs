@@ -16,6 +16,7 @@ use wdl_ast::Ast;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
@@ -723,5 +724,33 @@ impl Document {
         }
 
         None
+    }
+
+    /// Determines if the document, or any documents transitively imported by
+    /// this document, has errors.
+    ///
+    /// Returns `true` if the document, or one of its transitive imports, has at
+    /// least one error diagnostic.
+    ///
+    /// Returns `false` if the document, and all of its transitive imports, have
+    /// no error diagnostics.
+    pub fn has_errors(&self) -> bool {
+        // Check this document for errors
+        if self
+            .diagnostics()
+            .iter()
+            .any(|d| d.severity() == Severity::Error)
+        {
+            return true;
+        }
+
+        // Check every imported document for errors
+        for (_, ns) in self.namespaces() {
+            if ns.document.has_errors() {
+                return true;
+            }
+        }
+
+        false
     }
 }

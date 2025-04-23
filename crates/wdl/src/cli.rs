@@ -1,6 +1,10 @@
 //! Entry point functions for the command-line interface.
 
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt;
+use std::io::IsTerminal;
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
@@ -12,6 +16,12 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use codespan_reporting::diagnostic::Label;
+use codespan_reporting::diagnostic::LabelStyle;
+use codespan_reporting::files::SimpleFiles;
+use codespan_reporting::term::emit;
+use codespan_reporting::term::termcolor::ColorChoice;
+use codespan_reporting::term::termcolor::StandardStream;
 use colored::Colorize;
 use futures::FutureExt;
 use indexmap::IndexSet;
@@ -29,14 +39,19 @@ use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::document::Document;
 use wdl_analysis::path_to_uri;
 use wdl_analysis::rules as analysis_rules;
+use wdl_ast::AstNode;
+use wdl_engine::CallLocation;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
+use wdl_engine::EvaluationResult;
 use wdl_engine::Inputs;
+use wdl_engine::Outputs;
 use wdl_engine::config::Config;
 use wdl_engine::v1::ProgressKind;
 use wdl_engine::v1::TaskEvaluator;
 use wdl_engine::v1::WorkflowEvaluator;
 use wdl_grammar::Diagnostic;
+use wdl_grammar::Severity;
 use wdl_lint::rules as lint_rules;
 
 /// The delay in showing the progress bar.
@@ -44,6 +59,75 @@ use wdl_lint::rules as lint_rules;
 /// This is to prevent the progress bar from flashing on the screen for
 /// very short analyses.
 const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
+
+/// The maximum number of call locations to print for evaluation errors.
+const MAX_CALL_LOCATIONS: usize = 10;
+
+/// Emits the given diagnostics to the output stream.
+///
+/// The use of color is determined by the presence of a terminal.
+///
+/// In the future, we might want the color choice to be a CLI argument.
+pub fn emit_diagnostics(
+    path: &str,
+    source: String,
+    diagnostics: &[Diagnostic],
+    backtrace: &[CallLocation],
+) -> Result<usize> {
+    use codespan_reporting::term::Config;
+
+    let mut map = HashMap::new();
+    let mut files = SimpleFiles::new();
+
+    let mut stream = StandardStream::stdout(if std::io::stdout().is_terminal() {
+        ColorChoice::Auto
+    } else {
+        ColorChoice::Never
+    });
+
+    let file_id = files.add(Cow::Borrowed(path), source);
+    let mut errors = 0;
+    for diagnostic in diagnostics {
+        if diagnostic.severity() == Severity::Error {
+            errors += 1;
+        }
+
+        let diagnostic = diagnostic.to_codespan(file_id).with_labels_iter(
+            backtrace.iter().take(MAX_CALL_LOCATIONS).map(|l| {
+                let id = l.document.id();
+                let file_id = *map.entry(id).or_insert_with(|| {
+                    files.add(l.document.path(), l.document.root().text().to_string())
+                });
+
+                Label {
+                    style: LabelStyle::Secondary,
+                    file_id,
+                    range: l.span.start()..l.span.end(),
+                    message: "called from this location".into(),
+                }
+            }),
+        );
+
+        emit(&mut stream, &Config::default(), &files, &diagnostic)
+            .context("failed to emit diagnostic")?;
+
+        if backtrace.len() > MAX_CALL_LOCATIONS {
+            writeln!(
+                &mut stream,
+                "  and {count} more call{s}...",
+                count = backtrace.len() - MAX_CALL_LOCATIONS,
+                s = if backtrace.len() - MAX_CALL_LOCATIONS == 1 {
+                    ""
+                } else {
+                    "s"
+                }
+            )
+            .unwrap();
+        }
+    }
+
+    Ok(errors)
+}
 
 /// Analyze the document or directory, returning [`AnalysisResult`]s.
 pub async fn analyze(
@@ -231,7 +315,7 @@ async fn evaluate(
     inputs: Inputs,
     output_dir: &Path,
     token: CancellationToken,
-) -> Result<Option<Diagnostic>> {
+) -> EvaluationResult<Outputs> {
     /// Helper for displaying task ids
     struct Ids<'a>(&'a IndexSet<String>);
 
@@ -337,7 +421,7 @@ async fn evaluate(
     );
 
     let state = Mutex::<State>::default();
-    let result = match inputs {
+    match inputs {
         Inputs::Task(mut inputs) => {
             // Make any paths specified in the inputs absolute
             let task = document
@@ -364,7 +448,7 @@ async fn evaluate(
                 .workflow()
                 .ok_or_else(|| anyhow!("document does not contain a workflow"))?;
             if workflow.name() != name {
-                bail!("document does not contain a workflow named `{name}`");
+                return Err(anyhow!("document does not contain a workflow named `{name}`").into());
             }
 
             // Ensure all the paths specified in the inputs file are relative to the file's
@@ -381,18 +465,6 @@ async fn evaluate(
                 })
                 .await
         }
-    };
-
-    match result {
-        Ok(outputs) => {
-            let s = to_string_pretty(&outputs)?;
-            println!("{s}");
-            Ok(None)
-        }
-        Err(e) => match e {
-            EvaluationError::Source(diagnostic) => Ok(Some(diagnostic)),
-            EvaluationError::Other(e) => Err(e),
-        },
     }
 }
 
@@ -404,7 +476,7 @@ pub async fn run(
     config: Config,
     inputs: Inputs,
     output_dir: &Path,
-) -> Result<Option<Diagnostic>> {
+) -> Result<()> {
     let token = CancellationToken::new();
     let mut evaluate = evaluate(
         document,
@@ -424,6 +496,16 @@ pub async fn run(
             evaluate.await.ok();
             bail!("execution was aborted");
         },
-        res = &mut evaluate => res,
+        res = &mut evaluate => match res {
+            Ok(outputs) => {
+                println!("{outputs}", outputs = to_string_pretty(&outputs)?);
+                Ok(())
+            }
+            Err(EvaluationError::Source(e)) => {
+                emit_diagnostics(&e.document.path(), e.document.root().text().to_string(), &[e.diagnostic], &e.backtrace)?;
+                bail!("aborting due to evaluation error");
+            }
+            Err(EvaluationError::Other(e)) => Err(e)
+        },
     }
 }

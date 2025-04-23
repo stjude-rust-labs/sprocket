@@ -268,7 +268,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                         continue;
                     }
                     let mut buffer = Buffer::no_color();
-                    term::emit(&mut buffer, &config, &file, &diagnostic.to_codespan())
+                    term::emit(&mut buffer, &config, &file, &diagnostic.to_codespan(()))
                         .context("failed to write diagnostic")?;
 
                     let byte_start = diagnostic

@@ -38,7 +38,7 @@ fn emit_diagnostics(path: &Path, source: &str, diagnostics: &[Diagnostic]) -> Re
             &mut stream,
             &Config::default(),
             &file,
-            &diagnostic.to_codespan(),
+            &diagnostic.to_codespan(()),
         )
         .context("failed to emit diagnostic")?;
     }

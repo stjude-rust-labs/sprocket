@@ -34,7 +34,6 @@ use wdl_ast::Ast;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::CommandPart;
@@ -60,6 +59,7 @@ use wdl_ast::version::V1;
 use super::ProgressKind;
 use crate::Coercible;
 use crate::EvaluationContext;
+use crate::EvaluationError;
 use crate::EvaluationResult;
 use crate::Input;
 use crate::Outputs;
@@ -78,6 +78,7 @@ use crate::config::MAX_RETRIES;
 use crate::convert_unit_string;
 use crate::diagnostics::output_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
+use crate::diagnostics::task_execution_failed;
 use crate::diagnostics::task_localization_failed;
 use crate::eval::EvaluatedTask;
 use crate::http::Downloader;
@@ -553,6 +554,11 @@ impl TaskEvaluator {
         P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
         R: Future<Output = ()> + Send,
     {
+        // We cannot evaluate a document with errors
+        if document.has_errors() {
+            return Err(anyhow!("cannot evaluate a document with errors").into());
+        }
+
         progress(ProgressKind::TaskStarted { id }).await;
 
         let result = self
@@ -582,16 +588,6 @@ impl TaskEvaluator {
         P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
         R: Future<Output = ()> + Send,
     {
-        // Return the first error analysis diagnostic if there was one
-        // With this check, we can assume certain correctness properties of the document
-        if let Some(diagnostic) = document
-            .diagnostics()
-            .iter()
-            .find(|d| d.severity() == Severity::Error)
-        {
-            return Err(diagnostic.clone().into());
-        }
-
         inputs.validate(document, task, None).with_context(|| {
             format!(
                 "failed to validate the inputs to task `{task}`",
@@ -619,9 +615,10 @@ impl TaskEvaluator {
         // Build an evaluation graph for the task
         let mut diagnostics = Vec::new();
         let graph = TaskGraphBuilder::default().build(version, &definition, &mut diagnostics);
-        if let Some(diagnostic) = diagnostics.pop() {
-            return Err(diagnostic.into());
-        }
+        assert!(
+            diagnostics.is_empty(),
+            "task evaluation graph should have no diagnostics"
+        );
 
         info!(
             task_id = id,
@@ -636,10 +633,14 @@ impl TaskEvaluator {
         while current < nodes.len() {
             match &graph[nodes[current]] {
                 TaskGraphNode::Input(decl) => {
-                    self.evaluate_input(id, &mut state, decl, inputs).await?;
+                    self.evaluate_input(id, &mut state, decl, inputs)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                 }
                 TaskGraphNode::Decl(decl) => {
-                    self.evaluate_decl(id, &mut state, decl).await?;
+                    self.evaluate_decl(id, &mut state, decl)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                 }
                 TaskGraphNode::Output(_) => {
                     // Stop at the first output
@@ -727,11 +728,10 @@ impl TaskEvaluator {
                 result: &result,
             });
 
-            let result = result.with_context(|| {
-                format!(
-                    "task execution failed for task `{name}` in `{path}` (task id `{id}`)",
-                    name = task.name(),
-                    path = document.path(),
+            let result = result.map_err(|e| {
+                EvaluationError::new(
+                    state.document.clone(),
+                    task_execution_failed(e, task.name(), id, task.name_span()),
                 )
             })?;
 
@@ -755,13 +755,10 @@ impl TaskEvaluator {
 
             if let Err(e) = evaluated.handle_exit(&requirements) {
                 if attempt >= max_retries {
-                    return Err(e
-                        .context(format!(
-                            "task execution failed for task `{name}` in `{path}` (task id `{id}`)",
-                            name = task.name(),
-                            path = document.path(),
-                        ))
-                        .into());
+                    return Err(EvaluationError::new(
+                        state.document.clone(),
+                        task_execution_failed(e, task.name(), id, task.name_span()),
+                    ));
                 }
 
                 attempt += 1;
@@ -783,11 +780,14 @@ impl TaskEvaluator {
         for index in &nodes[current..] {
             match &graph[*index] {
                 TaskGraphNode::Decl(decl) => {
-                    self.evaluate_decl(id, &mut state, decl).await?;
+                    self.evaluate_decl(id, &mut state, decl)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                 }
                 TaskGraphNode::Output(decl) => {
                     self.evaluate_output(id, &mut state, decl, &evaluated, &mounts)
-                        .await?;
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                 }
                 _ => {
                     unreachable!(
@@ -820,7 +820,7 @@ impl TaskEvaluator {
         state: &mut State<'_>,
         decl: &Decl<SyntaxNode>,
         inputs: &TaskInputs,
-    ) -> EvaluationResult<()> {
+    ) -> Result<(), Diagnostic> {
         let name = decl.name();
         let decl_ty = decl.ty();
         let ty = crate::convert_ast_type_v1(state.document, &decl_ty)?;
@@ -878,7 +878,7 @@ impl TaskEvaluator {
         id: &str,
         state: &mut State<'_>,
         decl: &Decl<SyntaxNode>,
-    ) -> EvaluationResult<()> {
+    ) -> Result<(), Diagnostic> {
         let name = decl.name();
         debug!(
             task_id = id,
@@ -928,7 +928,7 @@ impl TaskEvaluator {
         state: &State<'_>,
         section: &RuntimeSection<SyntaxNode>,
         inputs: &TaskInputs,
-    ) -> EvaluationResult<(HashMap<String, Value>, HashMap<String, Value>)> {
+    ) -> Result<(HashMap<String, Value>, HashMap<String, Value>), Diagnostic> {
         debug!(
             task_id = id,
             task_name = state.task.name(),
@@ -1001,7 +1001,7 @@ impl TaskEvaluator {
         state: &State<'_>,
         section: &RequirementsSection<SyntaxNode>,
         inputs: &TaskInputs,
-    ) -> EvaluationResult<HashMap<String, Value>> {
+    ) -> Result<HashMap<String, Value>, Diagnostic> {
         debug!(
             task_id = id,
             task_name = state.task.name(),
@@ -1054,7 +1054,7 @@ impl TaskEvaluator {
         state: &State<'_>,
         section: &TaskHintsSection<SyntaxNode>,
         inputs: &TaskInputs,
-    ) -> EvaluationResult<HashMap<String, Value>> {
+    ) -> Result<HashMap<String, Value>, Diagnostic> {
         debug!(
             task_id = id,
             task_name = state.task.name(),
@@ -1119,7 +1119,12 @@ impl TaskEvaluator {
         self.backend
             .localize_inputs(&self.downloader, &mut inputs)
             .await
-            .map_err(|e| task_localization_failed(e, state.task.name(), state.task.name_span()))?;
+            .map_err(|e| {
+                EvaluationError::new(
+                    state.document.clone(),
+                    task_localization_failed(e, state.task.name(), state.task.name_span()),
+                )
+            })?;
 
         if enabled!(Level::DEBUG) {
             for input in inputs.iter() {
@@ -1162,7 +1167,8 @@ impl TaskEvaluator {
                         StrippedCommandPart::Placeholder(placeholder) => {
                             evaluator
                                 .evaluate_placeholder(&placeholder, &mut command)
-                                .await?;
+                                .await
+                                .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                         }
                     }
                 }
@@ -1189,7 +1195,8 @@ impl TaskEvaluator {
                         CommandPart::Placeholder(placeholder) => {
                             evaluator
                                 .evaluate_placeholder(&placeholder, &mut command)
-                                .await?;
+                                .await
+                                .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                         }
                     }
                 }
@@ -1216,23 +1223,23 @@ impl TaskEvaluator {
     ) -> EvaluationResult<EvaluatedSections> {
         // Start by evaluating requirements and hints
         let (requirements, hints) = match definition.runtime() {
-            Some(section) => {
-                self.evaluate_runtime_section(id, state, &section, inputs)
-                    .await?
-            }
+            Some(section) => self
+                .evaluate_runtime_section(id, state, &section, inputs)
+                .await
+                .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
             _ => (
                 match definition.requirements() {
-                    Some(section) => {
-                        self.evaluate_requirements_section(id, state, &section, inputs)
-                            .await?
-                    }
+                    Some(section) => self
+                        .evaluate_requirements_section(id, state, &section, inputs)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
                     None => Default::default(),
                 },
                 match definition.hints() {
-                    Some(section) => {
-                        self.evaluate_hints_section(id, state, &section, inputs)
-                            .await?
-                    }
+                    Some(section) => self
+                        .evaluate_hints_section(id, state, &section, inputs)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
                     None => Default::default(),
                 },
             ),
@@ -1298,7 +1305,7 @@ impl TaskEvaluator {
         decl: &Decl<SyntaxNode>,
         evaluated: &EvaluatedTask,
         inputs: &[Input],
-    ) -> EvaluationResult<()> {
+    ) -> Result<(), Diagnostic> {
         let name = decl.name();
         debug!(
             task_id = id,

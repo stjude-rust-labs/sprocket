@@ -15,6 +15,7 @@
 //! `BLESS` environment variable when running this test.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::ffi::OsStr;
@@ -28,14 +29,15 @@ use std::thread::available_parallelism;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use codespan_reporting::files::SimpleFile;
+use codespan_reporting::diagnostic::Label;
+use codespan_reporting::diagnostic::LabelStyle;
+use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term;
 use codespan_reporting::term::Config;
 use codespan_reporting::term::termcolor::Buffer;
 use colored::Colorize;
 use futures::StreamExt;
 use futures::stream;
-use path_clean::clean;
 use pretty_assertions::StrComparison;
 use serde_json::to_string_pretty;
 use tempfile::TempDir;
@@ -43,7 +45,6 @@ use tokio_util::sync::CancellationToken;
 use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
 use wdl_analysis::DiagnosticsConfig;
-use wdl_analysis::document::Document;
 use wdl_analysis::rules;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
@@ -65,7 +66,7 @@ fn find_tests() -> Vec<PathBuf> {
     }
 
     let mut tests: Vec<PathBuf> = Vec::new();
-    for entry in Path::new("tests/workflows").read_dir().unwrap() {
+    for entry in Path::new("tests").join("workflows").read_dir().unwrap() {
         let entry = entry.expect("failed to read directory");
         let path = entry.path();
         if !path.is_dir()
@@ -172,7 +173,7 @@ fn configs() -> Vec<config::Config> {
 }
 
 /// Runs the test given the provided analysis result.
-async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
+async fn run_test(test: &Path, result: &AnalysisResult) -> Result<()> {
     let path = result.document().path();
     let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
         Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
@@ -180,7 +181,10 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
     };
 
     if let Some(diagnostic) = diagnostics.iter().find(|d| d.severity() == Severity::Error) {
-        bail!(diagnostic_to_string(result.document(), &path, diagnostic));
+        bail!(eval_error_to_string(&EvaluationError::new(
+            result.document().clone(),
+            diagnostic.clone()
+        )));
     }
 
     let mut inputs = match Inputs::parse(result.document(), test.join("inputs.json"))? {
@@ -214,12 +218,7 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
                 compare_result(&test.join("outputs.json"), &outputs)?;
             }
             Err(e) => {
-                let error = match e {
-                    EvaluationError::Source(diagnostic) => {
-                        diagnostic_to_string(result.document(), &path, &diagnostic)
-                    }
-                    EvaluationError::Other(e) => format!("{e:?}"),
-                };
+                let error = eval_error_to_string(&e);
                 let error = strip_paths(dir.path(), &error);
                 compare_result(&test.join("error.txt"), &error)?;
             }
@@ -229,21 +228,40 @@ async fn run_test(test: &Path, result: AnalysisResult) -> Result<()> {
     Ok(())
 }
 
-/// Creates a string from the given diagnostic.
-fn diagnostic_to_string(document: &Document, path: &str, diagnostic: &Diagnostic) -> String {
-    let source = document.root().text().to_string();
-    let file = SimpleFile::new(path, &source);
+/// Creates a string from the given evaluation error.
+fn eval_error_to_string(e: &EvaluationError) -> String {
+    match e {
+        EvaluationError::Source(e) => {
+            let mut files = SimpleFiles::new();
+            let mut map = HashMap::new();
 
-    let mut buffer = Buffer::no_color();
-    term::emit(
-        &mut buffer,
-        &Config::default(),
-        &file,
-        &diagnostic.to_codespan(),
-    )
-    .expect("should emit");
+            let file_id = files.add(e.document.path(), e.document.root().text().to_string());
 
-    String::from_utf8(buffer.into_inner()).expect("should be UTF-8")
+            let diagnostic =
+                e.diagnostic
+                    .to_codespan(file_id)
+                    .with_labels_iter(e.backtrace.iter().map(|l| {
+                        let id = l.document.id();
+                        let file_id = *map.entry(id).or_insert_with(|| {
+                            files.add(l.document.path(), l.document.root().text().to_string())
+                        });
+
+                        Label {
+                            style: LabelStyle::Secondary,
+                            file_id,
+                            range: l.span.start()..l.span.end(),
+                            message: "called from this location".into(),
+                        }
+                    }));
+
+            let mut buffer = Buffer::no_color();
+            term::emit(&mut buffer, &Config::default(), &files, &diagnostic)
+                .expect("failed to emit diagnostic");
+
+            String::from_utf8(buffer.into_inner()).expect("should be UTF-8")
+        }
+        EvaluationError::Other(e) => format!("{e:?}"),
+    }
 }
 
 #[tokio::main]
@@ -269,26 +287,22 @@ async fn main() {
     for test in &tests {
         let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
 
-        // Discover the results that are relevant only to this test
-        let base = clean(absolute(test).expect("should be made absolute"));
-
-        let mut results = results.iter().filter_map(|r| {
-            if r.document().uri().to_file_path().ok()?.starts_with(&base) {
-                Some(r.clone())
-            } else {
-                None
+        // Find the root source.wdl to evaluate
+        let source_path = test.join("source.wdl");
+        let result = match results
+            .iter()
+            .find(|r| Some(r.document().path().as_ref()) == source_path.to_str())
+        {
+            Some(result) => result,
+            None => {
+                println!("test {test_name} ... {failed}", failed = "failed".red());
+                errors.push((
+                    test_name.to_string(),
+                    "`source.wdl` was not found in the analysis results`".to_string(),
+                ));
+                continue;
             }
-        });
-
-        let result = results.next().expect("should have a result");
-        if results.next().is_some() {
-            println!("test {test_name} ... {failed}", failed = "failed".red());
-            errors.push((
-                test_name.to_string(),
-                "more than one WDL file was in the test directory".to_string(),
-            ));
-            continue;
-        }
+        };
 
         futures.push(async { (test_name.to_string(), run_test(test, result).await) });
     }

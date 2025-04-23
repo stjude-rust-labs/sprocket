@@ -137,7 +137,7 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
                     &mut buffer,
                     &Config::default(),
                     &file,
-                    &diagnostic.to_codespan(),
+                    &diagnostic.to_codespan(()),
                 )
                 .expect("should emit");
             }

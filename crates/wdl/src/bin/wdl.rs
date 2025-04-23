@@ -20,11 +20,6 @@ use clap::Parser;
 use clap::Subcommand;
 use clap_verbosity_flag::Verbosity;
 use clap_verbosity_flag::WarnLevel;
-use codespan_reporting::files::SimpleFile;
-use codespan_reporting::term::Config;
-use codespan_reporting::term::emit;
-use codespan_reporting::term::termcolor::ColorChoice;
-use codespan_reporting::term::termcolor::StandardStream;
 use colored::Colorize;
 use notify::Event;
 use notify::RecursiveMode;
@@ -34,50 +29,18 @@ use notify::recommended_watcher;
 use tracing_log::AsTrace;
 use tracing_subscriber::layer::SubscriberExt;
 use url::Url;
-use wdl::ast::Diagnostic;
 use wdl::ast::Document;
 use wdl::cli::analyze;
+use wdl::cli::emit_diagnostics;
 use wdl::cli::parse_inputs;
 use wdl::cli::run;
 use wdl::cli::validate_inputs;
 use wdl_analysis::path_to_uri;
 use wdl_ast::AstNode;
 use wdl_ast::Node;
-use wdl_ast::Severity;
 use wdl_doc::document_workspace;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
-
-/// Emits the given diagnostics to the output stream.
-///
-/// The use of color is determined by the presence of a terminal.
-///
-/// In the future, we might want the color choice to be a CLI argument.
-fn emit_diagnostics(path: &str, source: &str, diagnostics: &[Diagnostic]) -> Result<usize> {
-    let file = SimpleFile::new(path, source);
-    let mut stream = StandardStream::stdout(if std::io::stdout().is_terminal() {
-        ColorChoice::Auto
-    } else {
-        ColorChoice::Never
-    });
-
-    let mut errors = 0;
-    for diagnostic in diagnostics.iter() {
-        if diagnostic.severity() == Severity::Error {
-            errors += 1;
-        }
-
-        emit(
-            &mut stream,
-            &Config::default(),
-            &file,
-            &diagnostic.to_codespan(),
-        )
-        .context("failed to emit diagnostic")?;
-    }
-
-    Ok(errors)
-}
 
 /// Reads source from the given path.
 ///
@@ -111,7 +74,7 @@ impl ParseCommand {
         let source = read_source(&self.path)?;
         let (document, diagnostics) = Document::parse(&source);
         if !diagnostics.is_empty() {
-            emit_diagnostics(&self.path.to_string_lossy(), &source, &diagnostics)?;
+            emit_diagnostics(&self.path.to_string_lossy(), source, &diagnostics, &[])?;
         }
 
         println!("{document:#?}");
@@ -152,8 +115,12 @@ impl CheckCommand {
 
             let diagnostics = document.diagnostics();
             if !diagnostics.is_empty() {
-                let source = document.root().text().to_string();
-                emit_diagnostics(&document.path(), &source, diagnostics)?;
+                emit_diagnostics(
+                    &document.path(),
+                    document.root().text().to_string(),
+                    diagnostics,
+                    &[],
+                )?;
             }
         }
 
@@ -204,11 +171,9 @@ impl FormatCommand {
     /// Executes the `format` subcommand.
     async fn exec(self) -> Result<()> {
         let source = read_source(&self.path)?;
-
         let (document, diagnostics) = Document::parse(&source);
-
         if !diagnostics.is_empty() {
-            emit_diagnostics(&self.path.to_string_lossy(), &source, &diagnostics)?;
+            emit_diagnostics(&self.path.to_string_lossy(), source, &diagnostics, &[])?;
 
             bail!(
                 "aborting due to previous {count} diagnostic{s}",
@@ -347,7 +312,7 @@ impl ValidateCommand {
     async fn exec(self) -> Result<()> {
         if let Some(diagnostic) = validate_inputs(&self.document, &self.inputs).await? {
             let source = read_source(Path::new(&self.document))?;
-            emit_diagnostics(&self.document, &source, &[diagnostic])?;
+            emit_diagnostics(&self.document, source, &[diagnostic], &[])?;
             bail!("aborting due to previous diagnostic");
         }
 
@@ -403,8 +368,12 @@ impl RunCommand {
 
             let diagnostics = document.diagnostics();
             if !diagnostics.is_empty() {
-                let source = document.root().text().to_string();
-                errors += emit_diagnostics(&document.path(), &source, diagnostics)?;
+                errors += emit_diagnostics(
+                    &document.path(),
+                    document.root().text().to_string(),
+                    diagnostics,
+                    &[],
+                )?;
             }
         }
 
@@ -473,7 +442,7 @@ impl RunCommand {
 
         let (path, name, inputs) =
             parse_inputs(document, self.name.as_deref(), self.inputs.as_deref())?;
-        if let Some(diagnostic) = run(
+        run(
             document,
             path.as_deref(),
             &name,
@@ -481,14 +450,7 @@ impl RunCommand {
             inputs,
             &output_dir,
         )
-        .await?
-        {
-            let source = read_source(Path::new(&self.file))?;
-            emit_diagnostics(&self.file, &source, &[diagnostic])?;
-            bail!("aborting due to previous diagnostic");
-        }
-
-        Ok(())
+        .await
     }
 }
 

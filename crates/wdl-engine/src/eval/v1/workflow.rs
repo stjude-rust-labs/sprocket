@@ -40,7 +40,6 @@ use wdl_analysis::document::Task;
 use wdl_analysis::eval::v1::WorkflowGraphBuilder;
 use wdl_analysis::eval::v1::WorkflowGraphNode;
 use wdl_analysis::types::ArrayType;
-use wdl_analysis::types::CallKind;
 use wdl_analysis::types::CallType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
@@ -50,7 +49,6 @@ use wdl_ast::Ast;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::CallStatement;
@@ -61,6 +59,7 @@ use wdl_ast::v1::ScatterStatement;
 
 use super::ProgressKind;
 use crate::Array;
+use crate::CallLocation;
 use crate::CallValue;
 use crate::Coercible;
 use crate::EvaluationContext;
@@ -76,7 +75,6 @@ use crate::TaskExecutionBackend;
 use crate::Value;
 use crate::WorkflowInputs;
 use crate::config::Config;
-use crate::diagnostics::call_failed;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::output_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
@@ -678,6 +676,11 @@ impl WorkflowEvaluator {
         P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
         R: Future<Output = ()> + Send,
     {
+        // We cannot evaluate a document with errors
+        if document.has_errors() {
+            return Err(anyhow!("cannot evaluate a document with errors").into());
+        }
+
         progress(ProgressKind::WorkflowStarted { id }).await;
 
         let result = self
@@ -707,16 +710,6 @@ impl WorkflowEvaluator {
         P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
         R: Future<Output = ()> + Send,
     {
-        // Return the first error analysis diagnostic if there was one
-        // With this check, we can assume certain correctness properties of the document
-        if let Some(diagnostic) = document
-            .diagnostics()
-            .iter()
-            .find(|d| d.severity() == Severity::Error)
-        {
-            return Err(diagnostic.clone().into());
-        }
-
         // Validate the inputs for the workflow
         let workflow = document
             .workflow()
@@ -757,9 +750,10 @@ impl WorkflowEvaluator {
         // dependency edges from the default expressions if a value was provided
         let graph = WorkflowGraphBuilder::default()
             .build(&definition, &mut diagnostics, |name| inputs.contains(name));
-        if let Some(diagnostic) = diagnostics.pop() {
-            return Err(diagnostic.into());
-        }
+        assert!(
+            diagnostics.is_empty(),
+            "workflow evaluation graph should have no diagnostics"
+        );
 
         // Split the root subgraph for every conditional and scatter statement
         let mut subgraph = Subgraph::new(&graph);
@@ -980,15 +974,15 @@ impl WorkflowEvaluator {
                     n = state.graph[node]
                 );
                 match &state.graph[node] {
-                    WorkflowGraphNode::Input(decl) => {
-                        Self::evaluate_input(&id, &state, decl).await?
-                    }
-                    WorkflowGraphNode::Decl(decl) => {
-                        Self::evaluate_decl(&id, &state, scope, decl).await?
-                    }
-                    WorkflowGraphNode::Output(decl) => {
-                        Self::evaluate_output(&id, &state, decl).await?
-                    }
+                    WorkflowGraphNode::Input(decl) => Self::evaluate_input(&id, &state, decl)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
+                    WorkflowGraphNode::Decl(decl) => Self::evaluate_decl(&id, &state, scope, decl)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
+                    WorkflowGraphNode::Output(decl) => Self::evaluate_output(&id, &state, decl)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
                     WorkflowGraphNode::Conditional(stmt, _) => {
                         let id = id.clone();
                         let state = state.clone();
@@ -1080,7 +1074,7 @@ impl WorkflowEvaluator {
         id: &str,
         state: &State,
         decl: &Decl<SyntaxNode>,
-    ) -> EvaluationResult<()> {
+    ) -> Result<(), Diagnostic> {
         let name = decl.name();
         let expected_ty = crate::convert_ast_type_v1(&state.document, &decl.ty())?;
         let expr = decl.expr();
@@ -1130,7 +1124,7 @@ impl WorkflowEvaluator {
         state: &State,
         scope: ScopeIndex,
         decl: &Decl<SyntaxNode>,
-    ) -> EvaluationResult<()> {
+    ) -> Result<(), Diagnostic> {
         let name = decl.name();
         let expected_ty = crate::convert_ast_type_v1(&state.document, &decl.ty())?;
         let expr = decl.expr().expect("declaration should have expression");
@@ -1165,7 +1159,7 @@ impl WorkflowEvaluator {
         id: &str,
         state: &State,
         decl: &Decl<SyntaxNode>,
-    ) -> EvaluationResult<()> {
+    ) -> Result<(), Diagnostic> {
         let name = decl.name();
         let expected_ty = crate::convert_ast_type_v1(&state.document, &decl.ty())?;
         let expr = decl.expr().expect("declaration should have expression");
@@ -1250,11 +1244,18 @@ impl WorkflowEvaluator {
         );
 
         // Evaluate the conditional expression
-        let value = Self::evaluate_expr(&state, parent, &expr).await?;
+        let value = Self::evaluate_expr(&state, parent, &expr)
+            .await
+            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
 
         if value
             .coerce(&PrimitiveType::Boolean.into())
-            .map_err(|e| if_conditional_mismatch(e, &value.ty(), expr.span()))?
+            .map_err(|e| {
+                EvaluationError::new(
+                    state.document.clone(),
+                    if_conditional_mismatch(e, &value.ty(), expr.span()),
+                )
+            })?
             .unwrap_boolean()
         {
             debug!(
@@ -1389,11 +1390,18 @@ impl WorkflowEvaluator {
         );
 
         // Evaluate the scatter array expression
-        let value = Self::evaluate_expr(&state, parent, &expr).await?;
+        let value = Self::evaluate_expr(&state, parent, &expr)
+            .await
+            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
 
         let array = value
             .as_array()
-            .ok_or_else(|| type_is_not_array(&value.ty(), expr.span()))?
+            .ok_or_else(|| {
+                EvaluationError::new(
+                    state.document.clone(),
+                    type_is_not_array(&value.ty(), expr.span()),
+                )
+            })?
             .as_slice();
 
         let mut gathers: HashMap<_, Gather> = HashMap::new();
@@ -1538,13 +1546,15 @@ impl WorkflowEvaluator {
             }
 
             if namespace.is_some() {
-                return Err(only_one_namespace(name.span()).into());
+                return Err(EvaluationError::new(
+                    state.document.clone(),
+                    only_one_namespace(name.span()),
+                ));
             }
 
-            let ns = state
-                .document
-                .namespace(name.text())
-                .ok_or_else(|| unknown_namespace(&name))?;
+            let ns = state.document.namespace(name.text()).ok_or_else(|| {
+                EvaluationError::new(state.document.clone(), unknown_namespace(&name))
+            })?;
 
             namespace = Some((name, ns));
         }
@@ -1573,7 +1583,10 @@ impl WorkflowEvaluator {
                     .expect("should have workflow")
                     .name()
         {
-            return Err(recursive_workflow_call(target.text(), target.span()).into());
+            return Err(EvaluationError::new(
+                state.document.clone(),
+                recursive_workflow_call(target.text(), target.span()),
+            ));
         }
 
         // Determine the inputs and evaluator to use for the task or workflow call
@@ -1582,7 +1595,7 @@ impl WorkflowEvaluator {
             .as_ref()
             .map(|(_, ns)| ns.document())
             .unwrap_or(&state.document);
-        let (mut inputs, evaluator, kind) = match document.task_by_name(target.text()) {
+        let (mut inputs, evaluator) = match document.task_by_name(target.text()) {
             Some(task) => (
                 inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
                 Evaluator::Task(
@@ -1594,7 +1607,6 @@ impl WorkflowEvaluator {
                         state.downloader.clone(),
                     ),
                 ),
-                CallKind::Task,
             ),
             _ => match document.workflow() {
                 Some(workflow) if workflow.name() == target.text() => (
@@ -1605,21 +1617,24 @@ impl WorkflowEvaluator {
                         token: state.token.clone(),
                         downloader: state.downloader.clone(),
                     }),
-                    CallKind::Workflow,
                 ),
                 _ => {
-                    return Err(unknown_task_or_workflow(
-                        namespace.as_ref().map(|(_, ns)| ns.span()),
-                        target.text(),
-                        target.span(),
-                    )
-                    .into());
+                    return Err(EvaluationError::new(
+                        state.document.clone(),
+                        unknown_task_or_workflow(
+                            namespace.as_ref().map(|(_, ns)| ns.span()),
+                            target.text(),
+                            target.span(),
+                        ),
+                    ));
                 }
             },
         };
 
         // Evaluate the inputs
-        let scatter_index = Self::evaluate_call_inputs(&state, stmt, scope, &mut inputs).await?;
+        let scatter_index = Self::evaluate_call_inputs(&state, stmt, scope, &mut inputs)
+            .await
+            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
 
         let dir = format!(
             "{alias}{sep}{scatter_index}",
@@ -1645,21 +1660,15 @@ impl WorkflowEvaluator {
                 &progress,
             )
             .await
-            .map_err(|e| {
-                let e = match e {
-                    EvaluationError::Source(diagnostic) => {
-                        anyhow!(diagnostic.message().to_string())
-                    }
-                    EvaluationError::Other(e) => e,
-                };
+            .map_err(|mut e| {
+                if let EvaluationError::Source(e) = &mut e {
+                    e.backtrace.push(CallLocation {
+                        document: state.document.clone(),
+                        span: stmt.span(),
+                    });
+                }
 
-                EvaluationError::Source(call_failed(
-                    kind,
-                    target.text(),
-                    &document.path(),
-                    target.span(),
-                    e,
-                ))
+                e
             })?
             .with_name(alias.text());
 
@@ -1685,15 +1694,16 @@ impl WorkflowEvaluator {
         state: &State,
         scope: ScopeIndex,
         expr: &Expr<SyntaxNode>,
-    ) -> EvaluationResult<Value> {
+    ) -> Result<Value, Diagnostic> {
         let scopes = state.scopes.read().await;
-        let mut evaluator = ExprEvaluator::new(WorkflowEvaluationContext::new(
+        ExprEvaluator::new(WorkflowEvaluationContext::new(
             &state.document,
             scopes.reference(scope),
             &state.temp_dir,
             &state.downloader,
-        ));
-        Ok(evaluator.evaluate_expr(expr).await?)
+        ))
+        .evaluate_expr(expr)
+        .await
     }
 
     /// Evaluates the call inputs of a call statement.
@@ -1706,7 +1716,7 @@ impl WorkflowEvaluator {
         stmt: &CallStatement<SyntaxNode>,
         scope: ScopeIndex,
         inputs: &mut Inputs,
-    ) -> EvaluationResult<String> {
+    ) -> Result<String, Diagnostic> {
         let scopes = state.scopes.read().await;
         for input in stmt.inputs() {
             let name = input.name();

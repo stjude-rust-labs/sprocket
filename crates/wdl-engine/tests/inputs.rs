@@ -148,7 +148,7 @@ fn run_test(test: &Path, result: AnalysisResult, ntests: &AtomicUsize) -> Result
             &mut buffer,
             &Config::default(),
             &file,
-            &diagnostic.to_codespan(),
+            &diagnostic.to_codespan(()),
         )
         .expect("should emit");
 

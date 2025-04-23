@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
+use std::io::BufRead;
 use std::path::Component;
 use std::path::MAIN_SEPARATOR;
 use std::path::Path;
@@ -13,6 +14,9 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use indexmap::IndexMap;
+use itertools::Itertools;
+use rev_buf_reader::RevBufReader;
+use wdl_analysis::document::Document;
 use wdl_analysis::document::Task;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
@@ -33,18 +37,51 @@ use crate::path::EvaluationPath;
 
 pub mod v1;
 
+/// The maximum number of stderr lines to display in error messages.
+const MAX_STDERR_LINES: usize = 10;
+
+/// Represents the location of a call in an evaluation error.
+#[derive(Debug, Clone)]
+pub struct CallLocation {
+    /// The document containing the call statement.
+    pub document: Document,
+    /// The span of the call statement.
+    pub span: Span,
+}
+
+/// Represents an error that originates from WDL source.
+#[derive(Debug)]
+pub struct SourceError {
+    /// The document originating the diagnostic.
+    pub document: Document,
+    /// The evaluation diagnostic.
+    pub diagnostic: Diagnostic,
+    /// The call backtrace for the error.
+    ///
+    /// An empty backtrace denotes that the error was encountered outside of
+    /// a call.
+    ///
+    /// The call locations are stored as most recent to least recent.
+    pub backtrace: Vec<CallLocation>,
+}
+
 /// Represents an error that may occur when evaluating a workflow or task.
 #[derive(Debug)]
 pub enum EvaluationError {
     /// The error came from WDL source evaluation.
-    Source(Diagnostic),
+    Source(Box<SourceError>),
     /// The error came from another source.
     Other(anyhow::Error),
 }
 
-impl From<Diagnostic> for EvaluationError {
-    fn from(diagnostic: Diagnostic) -> Self {
-        Self::Source(diagnostic)
+impl EvaluationError {
+    /// Creates a new evaluation error from the given document and diagnostic.
+    pub fn new(document: Document, diagnostic: Diagnostic) -> Self {
+        Self::Source(Box::new(SourceError {
+            document,
+            diagnostic,
+            backtrace: Default::default(),
+        }))
     }
 }
 
@@ -392,19 +429,40 @@ impl EvaluatedTask {
         }
 
         if error {
-            let stderr = fs::read_to_string(self.root.stderr()).unwrap_or_default();
+            // Read the last `MAX_STDERR_LINES` number of lines from stderr
+            // If there's a problem reading stderr, don't output it
+            let stderr = fs::File::open(self.root.stderr())
+                .ok()
+                .map(|f| {
+                    // Buffer the last N number of lines
+                    let reader = RevBufReader::new(f);
+                    let lines: Vec<_> = reader
+                        .lines()
+                        .take(MAX_STDERR_LINES)
+                        .map_while(|l| l.ok())
+                        .collect();
+
+                    // Iterate the lines in reverse order as we read them in reverse
+                    lines
+                        .iter()
+                        .rev()
+                        .format_with("\n", |l, f| f(&format_args!("  {l}")))
+                        .to_string()
+                })
+                .unwrap_or_default();
 
             bail!(
-                "task process has terminated with exit code {code}: see the `stdout` and `stderr` \
+                "task process terminated with exit code {code}: see the `stdout` and `stderr` \
                  files in execution directory `{dir}{MAIN_SEPARATOR}` for task command \
-                 output{sep}{stderr}",
+                 output{header}{stderr}{trailer}",
                 code = self.exit_code,
                 dir = self.root().attempt_dir().display(),
-                sep = if stderr.is_empty() {
-                    ""
+                header = if stderr.is_empty() {
+                    Cow::Borrowed("")
                 } else {
-                    "\n\ntask stderr output:\n"
-                }
+                    format!("\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n").into()
+                },
+                trailer = if stderr.is_empty() { "" } else { "\n" }
             );
         }
 

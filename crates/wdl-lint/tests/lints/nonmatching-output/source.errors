@@ -22,7 +22,7 @@ note[MatchingOutputMeta]: `outputs` section of `meta` for the task `qux` is out 
 52 │ │             s: "s",
 53 │ │         }
    │ ╰─────────^
-   · │
+   ·  
 58 │       output {
    │       ------
    │  

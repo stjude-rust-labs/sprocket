@@ -2,7 +2,6 @@
 
 use std::fmt;
 
-use wdl_analysis::types::CallKind;
 use wdl_analysis::types::Type;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -71,19 +70,6 @@ pub fn cannot_call<T: TreeToken>(target: &Ident<T>) -> Diagnostic {
         target = target.text()
     ))
     .with_highlight(target.span())
-}
-
-/// Creates a "call failed" diagnostic.
-pub fn call_failed(
-    kind: CallKind,
-    target: &str,
-    document: &str,
-    span: Span,
-    e: anyhow::Error,
-) -> Diagnostic {
-    let e = e.context(format!("call to {kind} `{target}` in `{document}` failed"));
-
-    Diagnostic::error(format!("{e:#}")).with_highlight(span)
 }
 
 /// Creates a "runtime type mismatch" diagnostic.
@@ -184,7 +170,19 @@ pub fn output_evaluation_failed(
 
 /// Creates a "task localization failed" diagnostic.
 pub fn task_localization_failed(e: anyhow::Error, name: &str, span: Span) -> Diagnostic {
-    let e = e.context(format!("failed to localize inputs for task `{name}`"));
+    Diagnostic::error(format!(
+        "{e:#}",
+        e = e.context(format!("failed to localize inputs for task `{name}`"))
+    ))
+    .with_highlight(span)
+}
 
-    Diagnostic::error(format!("{e:#}")).with_highlight(span)
+/// Creates a "task execution failed" diagnostic.
+pub fn task_execution_failed(e: anyhow::Error, name: &str, id: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(if name != id {
+        format!("task execution failed for task `{name}` (id `{id}`): {e:#}")
+    } else {
+        format!("task execution failed for task `{name}`: {e:#}")
+    })
+    .with_label("this task failed to execute", span)
 }

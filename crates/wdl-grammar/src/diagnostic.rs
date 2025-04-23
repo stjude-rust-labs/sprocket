@@ -203,6 +203,9 @@ impl Diagnostic {
     /// Adds a highlight to the diagnostic.
     ///
     /// This is equivalent to adding a label with an empty message.
+    ///
+    /// The span for the highlight is expected to be for the same file as the
+    /// diagnostic.
     pub fn with_highlight(mut self, span: impl Into<Span>) -> Self {
         self.labels.push(Label::new(String::new(), span.into()));
         self
@@ -211,6 +214,9 @@ impl Diagnostic {
     /// Adds a label to the diagnostic.
     ///
     /// The first label added is considered the primary label.
+    ///
+    /// The span for the label is expected to be for the same file as the
+    /// diagnostic.
     pub fn with_label(mut self, message: impl Into<String>, span: impl Into<Span>) -> Self {
         self.labels.push(Label::new(message, span.into()));
         self
@@ -256,12 +262,17 @@ impl Diagnostic {
 
     /// Converts this diagnostic to a `codespan` [Diagnostic].
     ///
+    /// The provided file identifier is used for the diagnostic.
+    ///
     /// [Diagnostic]: codespan_reporting::diagnostic::Diagnostic
     #[cfg(feature = "codespan")]
-    pub fn to_codespan(&self) -> codespan_reporting::diagnostic::Diagnostic<()> {
+    pub fn to_codespan<FileId: Copy>(
+        &self,
+        file_id: FileId,
+    ) -> codespan_reporting::diagnostic::Diagnostic<FileId> {
         use codespan_reporting::diagnostic as codespan;
 
-        let mut diagnostic = match self.severity {
+        let mut diagnostic: codespan::Diagnostic<FileId> = match self.severity {
             Severity::Error => codespan::Diagnostic::error(),
             Severity::Warning => codespan::Diagnostic::warning(),
             Severity::Note => codespan::Diagnostic::note(),
@@ -283,7 +294,7 @@ impl Diagnostic {
             // printed.
             diagnostic.labels.push(codespan::Label::new(
                 codespan::LabelStyle::Primary,
-                (),
+                file_id,
                 usize::MAX - 1..usize::MAX,
             ))
         } else {
@@ -295,7 +306,7 @@ impl Diagnostic {
                         } else {
                             codespan::LabelStyle::Secondary
                         },
-                        (),
+                        file_id,
                         label.span.start..label.span.end,
                     )
                     .with_message(&label.message),
