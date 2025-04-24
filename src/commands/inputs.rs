@@ -1,11 +1,9 @@
 //! Implementation of the inputs command.
 
 use std::path::PathBuf;
-use std::result;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::bail;
 use clap::Parser;
 use indexmap::IndexMap;
 use serde_json::Value;
@@ -390,7 +388,10 @@ fn collect_nested_inputs<'a>(
 
         // Create a set of input names that were explicitly provided in the call
         let mut provided_inputs = std::collections::HashSet::new();
-        if let inputs = call_type.inputs() {
+
+        // Get inputs provided in the call
+        let inputs: &IndexMap<String, Input> = call_type.inputs();
+        if !inputs.is_empty() {
             for (name, _input) in inputs.iter() {
                 provided_inputs.insert(name.as_str());
             }
@@ -419,30 +420,6 @@ fn collect_nested_inputs<'a>(
     }
 
     Ok(())
-}
-
-/// Helper function to check if a task input has a default value
-fn task_input_has_default(ast_doc: &AstDocument, task_name: &str, input_name: &str) -> bool {
-    // Find the task with the given name
-    if let Some(task) = ast_doc
-        .ast()
-        .unwrap_v1()
-        .tasks()
-        .find(|t| t.name().as_str() == task_name)
-    {
-        // Check if the task has an input section
-        if let Some(input_section) = task.input() {
-            // Find the declaration with the given name
-            if let Some(decl) = input_section
-                .declarations()
-                .find(|d| d.name().as_str() == input_name)
-            {
-                // Check if the declaration has an expression (default value)
-                return decl.expr().is_some();
-            }
-        }
-    }
-    false
 }
 
 /// Convert a WDL type to a string representation
