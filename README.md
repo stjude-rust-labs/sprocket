@@ -36,7 +36,7 @@
 - **`sprocket format`** Formats WDL documents.
 - **`sprocket lint`** Performs static analysis on WDL documents with additional
   linting rules enabled.
-- **`sprocket validate-inputs`** Validates an input JSON against a task or workflow input schema.
+- **`sprocket validate-inputs`** Validates an input JSON or YAML against a task or workflow input schema.
 
 ## Guiding Principles
 
@@ -114,6 +114,9 @@ cargo doc
 
 Contributions, issues and feature requests are welcome! Feel free to check
 [issues page](https://github.com/stjude-rust-labs/sprocket/issues).
+
+Most of the work for this binary happens over at [the `wdl` family of crates' repository](https://github.com/stjude-rust-labs/wdl).
+For more information about our contributor policies, please read the `wdl` [CONTRIBUTING guide](https://github.com/stjude-rust-labs/wdl/blob/main/CONTRIBUTING.md).
 
 ## 📝 License and Legal
 

@@ -1,4 +1,4 @@
-FROM rust:1.82 AS builder
+FROM rust:1.85 AS builder
 
 WORKDIR /tmp/sprocket
 
@@ -7,8 +7,9 @@ COPY src/ src/
 
 RUN cargo build --release
 
-FROM debian:bookworm
+FROM debian:bookworm-slim
 
+RUN apt update && apt install openssl ca-certificates -y && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /tmp/sprocket/target/release/sprocket /opt/sprocket/bin/sprocket
 
 ENV PATH=/opt/sprocket/bin:$PATH

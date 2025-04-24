@@ -9,7 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* By deafult, when checking a local file, suppress diagnostics from remote files. Added a `--show-remote-diagnostics`
+* Unknown `--except` rules will now emit a warning instead of being silently ignored ([#94](https://github.com/stjude-rust-labs/sprocket/pull/94))
+
+## 0.11.0 - 04-01-2025
+
+### Added
+
+* Added `--hide_notes` to `check` to filter out note diagnostics from reporting ([#84](https://github.com/stjude-rust-labs/sprocket/pull/84))
+* YAML support for `validate-inputs` command ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)).
+* Extend `explain` to display related rules, list tags using `--t`, show WDL definitions using `--definitions` ([#80](https://github.com/stjude-rust-labs/sprocket/pull/80)).
+
+### Changed
+
+* Updated WDL crates to latest ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)). This added many features and fixes. Some highlights:
+    * Fixed certain misplaced highlights from the `ShellCheck` lint.
+    * Relaxed the `CommentWhitespace` lint rule so it doesn't trigger for as many comments.
+    * The `ImportSort` lint rule now supplies the correct order of imports in the `fix` message.
+* By default, when checking a local file, suppress diagnostics from remote files. Added a `--show-remote-diagnostics`
   flag to recreate the older behavior ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).
 * Always emit any diagnostics with a `Severity::Error` regardless of other CL options that might suppress the diagnostic
   ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).
