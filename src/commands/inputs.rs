@@ -154,8 +154,24 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
         let key = format!("{}.{}", parent_name, name);
 
         let is_required = !input.ty().is_optional();
-        let has_default = input_defaults.get(name).copied().unwrap_or(false);
-        let is_literal_default = literal_defaults.get(name).copied().unwrap_or(false);
+
+        // For nested inputs (contains a dot), we don't have easy access to defaults
+        // info
+        let is_nested = parent_name.contains('.');
+
+        // For non-nested inputs, use our precomputed maps
+        let has_default = if !is_nested {
+            input_defaults.get(name).copied().unwrap_or(false)
+        } else {
+            // For nested inputs, assume all non-required inputs have defaults
+            !is_required
+        };
+
+        let is_literal_default = if !is_nested {
+            literal_defaults.get(name).copied().unwrap_or(false)
+        } else {
+            false // For nested inputs, assume defaults are non-literal to be safe
+        };
 
         // Required inputs are always rendered
         if is_required {
@@ -170,13 +186,19 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
             continue;
         }
 
+        if has_default && args.hide_defaults {
+            // Skip if hide-defaults is set
+            continue;
+        }
+
         if has_default {
             if is_literal_default {
                 // For literal defaults, parse and use the actual value
-                // Skip if --only-required is provided (already checked above)
-                if let Some(expr_str) = default_expressions.get(name) {
-                    let literal_value = parse_literal_expression(expr_str);
-                    template.insert(key, literal_value);
+                if !args.hide_defaults && !args.only_required {
+                    if let Some(expr_str) = default_expressions.get(name) {
+                        let literal_value = parse_literal_expression(expr_str);
+                        template.insert(key, literal_value);
+                    }
                 }
             } else {
                 // For complex expressions
@@ -186,6 +208,10 @@ pub async fn generate_inputs(args: InputsArgs) -> Result<()> {
                         let type_str = type_to_string(v);
                         let value_str = format!("{} default: {}", type_str, expr_str);
                         template.insert(key, Value::String(value_str));
+                    } else if is_nested {
+                        // For nested inputs with no known expression, just use the type
+                        let type_str = type_to_string(v);
+                        template.insert(key, Value::String(type_str));
                     }
                 }
             }
@@ -349,52 +375,46 @@ fn collect_nested_inputs<'a>(
     document: &'a Document,
     result: &mut Vec<(String, &'a str, &'a Input)>,
 ) -> Result<()> {
-    // Analyze AST to access declarations
-    let ast_doc: AstDocument = document.node();
-
     // Process each call in the workflow
     for call in workflow.calls() {
-        let name_called: &String = call.0;
-        let type_called: &wdl::analysis::types::CallType = call.1;
+        let call_alias: &String = call.0; // The call name or alias in the workflow
+        let call_type: &wdl::analysis::types::CallType = call.1;
 
-        // Find the called task
+        // Get the task name from the call type
+        let task_name = call_type.name();
+
+        // Find the called task using the task name
         let called_task = document
-            .task_by_name(name_called)
-            .ok_or(anyhow::anyhow!("Called task not found: {}", name_called))?;
+            .task_by_name(task_name)
+            .ok_or_else(|| anyhow::anyhow!("Called task not found: {}", task_name))?;
 
-        let provided_inputs: std::collections::HashSet<&str> = type_called
-            .inputs()
-            .iter()
-            .map(|(name, _input)| name.as_str())
-            .collect();
+        // Create a set of input names that were explicitly provided in the call
+        let mut provided_inputs = std::collections::HashSet::new();
+        if let inputs = call_type.inputs() {
+            for (name, _input) in inputs.iter() {
+                provided_inputs.insert(name.as_str());
+            }
+        }
 
-        // Debug what inputs are specified in the call
         println!(
-            "Call to {}: Provided inputs: {:?}",
-            name_called, provided_inputs
+            "Call '{}' to task '{}' - explicitly provided inputs: {:?}",
+            call_alias, task_name, provided_inputs
         );
 
+        // The qualified name for this task call instance
+        let call_instance_name = format!("{}.{}", workflow.name(), call_alias);
+
+        // Process all inputs from the called task
         for (input_name, input) in called_task.inputs() {
-            if !provided_inputs.contains(input_name.as_str()) {
-                // Check if optional (either by type or default)
-                let is_optional_type = input.ty().is_optional();
-                let has_default = task_input_has_default(&ast_doc, called_task.name(), input_name);
-                let is_not_required = is_optional_type || has_default;
-
-                println!(
-                    "  Input {}: optional={}, has_default={}, will_include={}",
-                    input_name, is_optional_type, has_default, is_not_required
-                );
-
-                if is_not_required {
-                    // Use String::from or to_string() to convert workflow name to String first
-                    let workflow_name = workflow.name().to_string();
-                    // Store format string results directly in the result vector as owned Strings
-                    let call_instance_name = format!("{}.{}", workflow_name, name_called);
-                    // Change the function signature to accept owned Strings rather than &'a str
-                    result.push((call_instance_name, input_name, input));
-                }
+            // Skip inputs that are explicitly provided in the call
+            if provided_inputs.contains(input_name.as_str()) {
+                println!("  Skipping input '{}' - specified in call", input_name);
+                continue;
             }
+
+            println!("  Including input '{}' - not specified in call", input_name);
+            // Include any input that's not explicitly provided in the call
+            result.push((call_instance_name.clone(), input_name, input));
         }
     }
 
