@@ -10,14 +10,15 @@ repository.workspace = true
 
 [dependencies]
 wdl-ast = { path = "../wdl-ast", version = "0.11.0", features = ["codespan"] }
+
 nonempty.workspace = true
 
 [dev-dependencies]
-pretty_assertions.workspace = true
 approx = { workspace = true }
-rayon = { workspace = true }
-colored = { workspace = true }
 codespan-reporting = { workspace = true }
+colored = { workspace = true }
+pretty_assertions.workspace = true
+rayon = { workspace = true }
 
 [lints]
 workspace = true

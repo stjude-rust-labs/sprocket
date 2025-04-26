@@ -1,48 +1,49 @@
 [package]
 name = "wdl"
 version = "0.12.0"
-authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
+authors.workspace = true
+description = "Lexing, parsing, validation, linting, documentation, analysis, and execution for Workflow Description Language (WDL) documents"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
-description = "Lexing, parsing, validation, and linting for Workflow Description Language (WDL) documents"
 homepage = "https://github.com/stjude-rust-labs/wdl"
 repository = "https://github.com/stjude-rust-labs/wdl"
 documentation = "https://docs.rs/wdl"
 readme = "../README.md"
 
 [dependencies]
-wdl-grammar = { path = "../wdl-grammar", version = "0.12.0", optional = true }
-wdl-ast = { path = "../wdl-ast", version = "0.11.0", optional = true }
-wdl-lint = { path = "../wdl-lint", version = "0.10.0", optional = true }
 wdl-analysis = { path = "../wdl-analysis", version = "0.7.0", optional = true }
-wdl-lsp = { path = "../wdl-lsp", version = "0.7.0", optional = true }
-wdl-format = { path = "../wdl-format", version = "0.5.0", optional = true }
+wdl-ast = { path = "../wdl-ast", version = "0.11.0", optional = true }
 wdl-doc = { path = "../wdl-doc", version = "0.2.0", optional = true }
 wdl-engine = { path = "../wdl-engine", version = "0.2.0", optional = true }
-tracing-subscriber = { workspace = true, optional = true }
-clap = { workspace = true, optional = true }
+wdl-format = { path = "../wdl-format", version = "0.5.0", optional = true }
+wdl-grammar = { path = "../wdl-grammar", version = "0.12.0", optional = true }
+wdl-lint = { path = "../wdl-lint", version = "0.10.0", optional = true }
+wdl-lsp = { path = "../wdl-lsp", version = "0.7.0", optional = true }
+
 anyhow = { workspace = true, optional = true }
-colored = { workspace = true, optional = true }
-codespan-reporting = { workspace = true, optional = true }
-serde_json = { workspace = true, optional = true }
-indicatif = { workspace = true, optional = true }
-tracing-indicatif = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
-tokio-util = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
 clap-verbosity-flag =  { workspace = true, optional = true }
-tracing-log = { workspace = true, optional = true }
-tracing = { workspace = true, optional = true }
-url = { workspace = true, optional = true }
+codespan-reporting = { workspace = true, optional = true }
+colored = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
 indexmap = { workspace = true, optional = true }
+indicatif = { workspace = true, optional = true }
 notify = { workspace = true, optional = true }
 opener = { workspace = true, optional = true }
-futures = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+tokio-util = { workspace = true, optional = true }
 toml = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+tracing-indicatif = { workspace = true, optional = true }
+tracing-log = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
 
 [dev-dependencies]
-clap = { workspace = true }
 anyhow = { workspace = true }
+clap = { workspace = true }
 codespan-reporting = { workspace = true }
 
 [features]

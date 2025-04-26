@@ -13,6 +13,7 @@ readme = "../README.md"
 
 [dependencies]
 wdl-ast = { path = "../wdl-ast", version = "0.11.0" }
+
 anyhow = { workspace = true }
 convert_case = { workspace = true }
 ftree = { workspace = true }
@@ -21,14 +22,14 @@ rand = { workspace = true }
 rowan = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tracing = { workspace = true }
 strsim = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 codespan-reporting = { workspace = true }
+colored = { workspace = true }
 pretty_assertions = { workspace = true }
 rayon = { workspace = true }
-colored = { workspace = true }
 
 [features]
 codespan = ["wdl-ast/codespan"]

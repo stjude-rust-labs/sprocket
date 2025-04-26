@@ -1,7 +1,7 @@
 [package]
 name = "wdl-grammar"
 version = "0.12.0"
-authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
+authors.workspace = true
 rust-version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,17 +11,17 @@ repository = "https://github.com/stjude-rust-labs/wdl"
 documentation = "https://docs.rs/wdl-grammar"
 
 [dependencies]
+codespan-reporting = { workspace = true, optional = true }
 itertools = { workspace = true }
 logos = { workspace = true }
 rowan = { workspace = true }
 strum = { version = "0.27", features = ["derive"] }
-codespan-reporting = { workspace = true, optional = true }
 
 [dev-dependencies]
+codespan-reporting = { workspace = true }
+colored = { workspace = true }
 pretty_assertions = { workspace = true }
 rayon = { workspace = true }
-colored = { workspace = true }
-codespan-reporting = { workspace = true }
 
 [features]
 codespan = ["dep:codespan-reporting"]

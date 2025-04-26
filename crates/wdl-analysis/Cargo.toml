@@ -15,27 +15,27 @@ wdl-ast = { path = "../wdl-ast", version = "0.11.0" }
 wdl-format = { path = "../wdl-format", version = "0.5.0" }
 
 anyhow = { workspace = true }
-rowan = { workspace = true }
-url = { workspace = true }
-tokio = { workspace = true }
-parking_lot = { workspace = true }
-rayon = { workspace = true }
-reqwest = { workspace = true }
-petgraph = { workspace = true }
+convert_case = { workspace = true }
 futures = { workspace = true }
-path-clean = { workspace = true }
 indexmap = { workspace = true }
 line-index = { workspace = true }
+parking_lot = { workspace = true }
+path-clean = { workspace = true }
+petgraph = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
+reqwest = { workspace = true }
+rowan = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 walkdir = { workspace = true }
-tracing = { workspace = true }
-convert_case = { workspace = true }
-regex = { workspace = true }
 
 [dev-dependencies]
-pretty_assertions = { workspace = true }
-colored = { workspace = true }
 codespan-reporting = { workspace = true }
+colored = { workspace = true }
+pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
 
 [features]
