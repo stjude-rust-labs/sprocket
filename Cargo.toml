@@ -1,13 +1,13 @@
 [package]
 name = "sprocket"
 version = "0.11.0"
-description = "A command line tool for working with Workflow Description Language (WDL) files"
-authors = ["Clay McLeod <clay.l.mcleod@gmail.com>"]
+description = "A command line tool for working with Workflow Description Language (WDL) documents"
+authors = ["The Sprocket project contributors"]
 license = "MIT OR Apache-2.0"
-edition = "2021"
-homepage = "https://github.com/stjude-rust-labs/sprocket"
+edition = "2024"
+homepage = "https://sprocket.bio"
 repository = "https://github.com/stjude-rust-labs/sprocket"
-documentation = "https://docs.rs/sprocket"
+documentation = "https://sprocket.bio/overview.html"
 readme = "README.md"
 
 [dependencies]
