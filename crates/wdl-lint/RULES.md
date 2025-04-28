@@ -45,7 +45,7 @@ be out of sync with released packages.
 | `RequirementsSection`       | Completeness, Portability     | Ensures that >=v1.2 tasks have a requirements section.                                              |
 | `RuntimeSection`            | Completeness, Portability     | Ensures that <v1.2 tasks have a runtime section.                                                    |
 | `SectionOrdering`           | Sorting, Style                | Ensures that sections within tasks and workflows are sorted.                                        |
-| `ShellCheck`                | Correctness, Portability      | (BETA) Ensures that command sections are free of shellcheck diagnostics.                            |
+| `ShellCheck`                | Correctness, Portability      | Ensures that command sections are free of shellcheck diagnostics.                                   |
 | `SnakeCase`                 | Clarity, Naming, Style        | Ensures that tasks, workflows, and variables are defined with snake_case names.                     |
 | `TodoComment`               | Completeness                  | Ensures that `TODO` statements are flagged for followup.                                            |
 | `TrailingComma`             | Style                         | Ensures that lists and objects in meta have a trailing comma.                                       |

@@ -1,15 +1,15 @@
 //! A lint rule for flagging placeholder options as deprecated.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
+use wdl_analysis::document::Document;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::version::V1;
@@ -106,11 +106,13 @@ impl Rule for DeprecatedPlaceholderRule {
 }
 
 impl Visitor for DeprecatedPlaceholderRule {
-    type State = Diagnostics;
+    fn reset(&mut self) {
+        *self = Default::default();
+    }
 
     fn document(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
         _: &Document,
         version: SupportedVersion,
@@ -119,16 +121,12 @@ impl Visitor for DeprecatedPlaceholderRule {
             return;
         }
 
-        // Reset the visitor upon document entry.
-        *self = Default::default();
-
-        // NOTE: this rule is dependent on the version of the WDL document.
         self.version = Some(version);
     }
 
     fn placeholder(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         placeholder: &Placeholder,
     ) {
@@ -155,7 +153,7 @@ impl Visitor for DeprecatedPlaceholderRule {
                     deprecated_true_false_placeholder_option(option.span())
                 }
             };
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 diagnostic,
                 SyntaxElement::from(placeholder.inner().clone()),
                 &self.exceptable_nodes(),

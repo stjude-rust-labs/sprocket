@@ -1,15 +1,15 @@
 //! A lint rule for ensuring that imports are sorted lexicographically.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
+use wdl_analysis::document::Document;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::ImportStatement;
 
 use crate::Rule;
@@ -71,11 +71,13 @@ impl Rule for ImportSortedRule {
 }
 
 impl Visitor for ImportSortedRule {
-    type State = Diagnostics;
+    fn reset(&mut self) {
+        *self = Self;
+    }
 
     fn document(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         doc: &Document,
         _: SupportedVersion,
@@ -88,6 +90,7 @@ impl Visitor for ImportSortedRule {
 
         // Collect all import statements
         let imports: Vec<_> = doc
+            .root()
             .inner()
             .children_with_tokens()
             .filter(|n| n.kind() == SyntaxKind::ImportStatementNode)
@@ -122,7 +125,7 @@ impl Visitor for ImportSortedRule {
                 .expect("node should have a first token")
                 .text_range()
                 .into();
-            state.add(import_not_sorted(
+            diagnostics.add(import_not_sorted(
                 span,
                 sorted_imports
                     .iter()
@@ -135,7 +138,7 @@ impl Visitor for ImportSortedRule {
 
     fn import_statement(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         stmt: &ImportStatement,
     ) {
@@ -154,7 +157,7 @@ impl Visitor for ImportSortedRule {
             // Since this rule can only be excepted in a document-wide fashion,
             // if the rule is running we can directly add the diagnostic
             // without checking for the exceptable nodes
-            state.add(improper_comment(comment.text_range().into()));
+            diagnostics.add(improper_comment(comment.text_range().into()));
         }
     }
 }

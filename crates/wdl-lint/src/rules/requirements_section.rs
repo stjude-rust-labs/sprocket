@@ -1,16 +1,16 @@
 //! A lint rule for missing `requirements` sections.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
+use wdl_analysis::document::Document;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::version::V1;
 
@@ -83,11 +83,13 @@ impl Rule for RequirementsSectionRule {
 }
 
 impl Visitor for RequirementsSectionRule {
-    type State = Diagnostics;
+    fn reset(&mut self) {
+        *self = Self::default();
+    }
 
     fn document(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
         _: &Document,
         version: SupportedVersion,
@@ -96,13 +98,12 @@ impl Visitor for RequirementsSectionRule {
             return;
         }
 
-        // Reset the visitor upon document entry
-        *self = Self(Some(version));
+        self.0 = Some(version);
     }
 
     fn task_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         task: &TaskDefinition,
     ) {
@@ -117,7 +118,7 @@ impl Visitor for RequirementsSectionRule {
                 match task.runtime() {
                     Some(runtime) => {
                         let name = task.name();
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             deprecated_runtime_section(
                                 name.text(),
                                 runtime
@@ -134,7 +135,7 @@ impl Visitor for RequirementsSectionRule {
                     _ => {
                         if task.requirements().is_none() {
                             let name = task.name();
-                            state.exceptable_add(
+                            diagnostics.exceptable_add(
                                 missing_requirements_section(name.text(), name.span()),
                                 SyntaxElement::from(task.inner().clone()),
                                 &self.exceptable_nodes(),

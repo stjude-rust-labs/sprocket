@@ -16,22 +16,27 @@ use rowan::ast::support;
 use serde::Deserialize;
 use serde_json;
 use tracing::debug;
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
+use wdl_analysis::document::Document as AnalysisDocument;
+use wdl_analysis::document::Document;
+use wdl_analysis::document::ScopeRef;
+use wdl_analysis::types::PrimitiveType;
+use wdl_analysis::types::Type;
+use wdl_analysis::types::v1::EvaluationContext;
+use wdl_analysis::types::v1::ExprTypeEvaluator;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::StrippedCommandPart;
-use wdl_ast::v1::TaskDefinition;
 
 use crate::Rule;
 use crate::Tag;
@@ -39,19 +44,29 @@ use crate::TagSet;
 use crate::fix::Fixer;
 use crate::fix::InsertionPoint;
 use crate::fix::Replacement;
-use crate::util::is_properly_quoted;
+use crate::util::is_quote_balanced;
 use crate::util::lines_with_offset;
 use crate::util::program_exists;
 
 /// The shellcheck executable
 const SHELLCHECK_BIN: &str = "shellcheck";
 
-/// Shellcheck lints that we want to suppresks.
-/// These two lints always co-occur with a more
-/// informative message.
+// TODO 2043, 2050, 2157 should be enabled and only suppressed
+// when it's a placeholder substitution.
+/// Shellcheck lints that we want to suppress.
 const SHELLCHECK_SUPPRESS: &[&str] = &[
     "1009", // the mentioned parser error was in... (unhelpful commentary)
     "1072", // Unexpected eof (unhelpful commentary)
+    "2043", // This loop will only ever run once for a constant value (caused by substitution)
+    "2050", // This expression is constant (caused by substitution)
+    "2157", // Argument to -n is always true due to literal strings (caused by substitution)
+];
+
+/// Shellcheck lints that we want to keep,
+/// but ignore the fix suggestion.
+const SHELLCHECK_IGNORE_FIX: &[&str] = &[
+    "2086", /* Double quote to prevent globbing and word splitting (fix messge includes our
+            * substitution) */
 ];
 
 /// ShellCheck: var is referenced but not assigned.
@@ -197,8 +212,11 @@ fn run_shellcheck(command: &str) -> Result<Vec<ShellCheckDiagnostic>> {
 }
 
 /// Runs ShellCheck on a command section and reports diagnostics.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct ShellCheckRule;
+#[derive(Default, Debug, Clone)]
+pub struct ShellCheckRule {
+    /// The document being linted.
+    document: Option<Document>,
+}
 
 impl Rule for ShellCheckRule {
     fn id(&self) -> &'static str {
@@ -229,37 +247,6 @@ impl Rule for ShellCheckRule {
     fn related_rules(&self) -> &[&'static str] {
         &[]
     }
-}
-
-/// Convert a WDL `Placeholder` to a bash variable declaration.
-///
-/// Returns "WDL" + <placeholder length - 6> random alphnumeric characters.
-/// The returned value is shorter than the placeholder by 3 characters so
-/// that the caller may pad with other characters as necessary
-/// depending on whether or not the variable needs to be treated as a
-/// declaration, expansion, or literal.
-fn to_bash_var(placeholder: &Placeholder) -> String {
-    let placeholder_len: usize = placeholder.inner().text_range().len().into();
-    // don't start variable with numbers
-    let mut bash_var = String::from("WDL");
-    bash_var
-        .push_str(&Alphanumeric.sample_string(&mut rand::rng(), placeholder_len.saturating_sub(6)));
-    bash_var
-}
-
-/// Retrieve all input and private declarations for a task.
-fn gather_task_declarations(task: &TaskDefinition) -> HashSet<String> {
-    let mut decls = HashSet::new();
-    if let Some(input) = task.input() {
-        for decl in input.declarations() {
-            decls.insert(decl.name().text().to_owned());
-        }
-    }
-
-    for decl in task.declarations() {
-        decls.insert(decl.name().text().to_owned());
-    }
-    decls
 }
 
 /// Create an appropriate 'fix' message.
@@ -317,7 +304,11 @@ fn shellcheck_lint(
     // This span is relative to the entire document.
     let span = calculate_span(diagnostic, line_map);
     let fix_msg = match diagnostic.fix {
-        Some(ref fix) => {
+        Some(ref fix)
+            if !SHELLCHECK_IGNORE_FIX
+                .iter()
+                .any(|code| code == &diagnostic.code.to_string()) =>
+        {
             let reps = normalize_replacements(&fix.replacements, shift_tree);
             // This span is relative to the command text.
             let diagnostic_span = {
@@ -328,7 +319,7 @@ fn shellcheck_lint(
             };
             create_fix_message(reps, command_text, diagnostic_span)
         }
-        None => String::from("address the diagnostic as recommended in the message"),
+        Some(_) | None => String::from("address the diagnostic as recommended in the message"),
     };
     Diagnostic::note(&diagnostic.message)
         .with_rule(ID)
@@ -340,47 +331,120 @@ fn shellcheck_lint(
         .with_fix(fix_msg)
 }
 
+/// A context for evaluating expressions in a command section.
+struct CommandContext<'a> {
+    /// The document being linted.
+    document: AnalysisDocument,
+    /// The scope of the command section.
+    scope: ScopeRef<'a>,
+}
+
+impl EvaluationContext for CommandContext<'_> {
+    fn version(&self) -> SupportedVersion {
+        self.document.version().expect("document has a version")
+    }
+
+    fn resolve_name(&self, name: &str, _span: Span) -> Option<wdl_analysis::types::Type> {
+        self.scope.lookup(name).map(|n| n.ty().clone())
+    }
+
+    fn resolve_type_name(
+        &mut self,
+        name: &str,
+        _span: Span,
+    ) -> std::result::Result<wdl_analysis::types::Type, Diagnostic> {
+        Ok(self.scope.lookup(name).map(|n| n.ty().clone()).unwrap())
+    }
+
+    fn task(&self) -> Option<&wdl_analysis::document::Task> {
+        None
+    }
+
+    fn diagnostics_config(&self) -> wdl_analysis::DiagnosticsConfig {
+        wdl_analysis::DiagnosticsConfig::except_all()
+    }
+
+    fn add_diagnostic(&mut self, _diagnostic: Diagnostic) {
+        // do nothing
+    }
+}
+
+impl<'a> CommandContext<'a> {
+    /// Create a new `CommandContext`.
+    fn new(document: AnalysisDocument, scope: ScopeRef<'a>) -> Self {
+        Self { document, scope }
+    }
+}
+
+/// Convert a WDL placeholder to a bash variable or literal.
+///
+/// The boolean returned indicates whether the placeholder was replaced with a
+/// literal (true) or a bash variable (false).
+/// If the placeholder is an integer, float, or boolean,
+/// it is replaced with a literal value.
+/// Otherwise, it is replaced with a bash variable.
+fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
+    let placeholder_len: usize = placeholder.inner().text_range().len().into();
+
+    if let Some(Type::Primitive(pty, _)) = ty {
+        match pty {
+            PrimitiveType::Integer | PrimitiveType::Float => {
+                return ("4".repeat(placeholder_len), true);
+            }
+            PrimitiveType::Boolean => {
+                return (
+                    format!("true{}", " ".repeat(placeholder_len.saturating_sub(4))),
+                    true,
+                );
+            }
+            _ => {}
+        }
+    };
+
+    // don't start variable with numbers
+    let mut bash_var = String::from("WDL");
+    bash_var
+        .push_str(&Alphanumeric.sample_string(&mut rand::rng(), placeholder_len.saturating_sub(3)));
+    (bash_var, false)
+}
+
 /// Sanitize a [CommandSection].
 ///
 /// Removes all trailing whitespace, replaces placeholders
-/// with dummy bash variables or literals, and records declarations.
+/// with dummy bash variables or literals.
 ///
 /// If the section contains mixed indentation, returns None.
-fn sanitize_command(section: &CommandSection) -> Option<(String, HashSet<String>, usize)> {
+fn sanitize_command(
+    section: &CommandSection,
+    context: &mut CommandContext<'_>,
+) -> Option<(String, HashSet<String>, usize)> {
     let amount_stripped = section.count_whitespace()?;
     let mut sanitized_command = String::new();
     let mut decls = HashSet::new();
-    let mut needs_quotes = true;
-    let mut is_literal = false;
+    let mut in_single_quotes = false;
+
+    let mut evaluator = ExprTypeEvaluator::new(context);
 
     match section.strip_whitespace() {
         Some(cmd_parts) => {
             cmd_parts.iter().for_each(|part| match part {
                 StrippedCommandPart::Text(text) => {
                     sanitized_command.push_str(text);
-                    // if this placeholder is in a single-quoted segment
-                    // don't treat as an expansion but rather a literal.
-                    is_literal ^= !is_properly_quoted(text, '\'');
-                    // if this text section is not properly quoted then the
-                    // next placeholder does *not* need double quotes
-                    // because it will end up enclosed.
-                    needs_quotes ^= !is_properly_quoted(text, '"');
+                    in_single_quotes ^= !is_quote_balanced(text, '\'');
                 }
                 StrippedCommandPart::Placeholder(placeholder) => {
-                    let bash_var = to_bash_var(placeholder);
-                    // we need to save the var so we can suppress later
-                    decls.insert(bash_var.clone());
+                    let ty = evaluator.evaluate_expr(&placeholder.expr());
+                    let (substitution, literal_inserted) = to_bash_var(placeholder, ty);
 
-                    if is_literal {
-                        // pad literal with three underscores to account for ~{}
-                        sanitized_command.push_str(&format!("___{bash_var}"));
-                    } else if needs_quotes {
-                        // surround with quotes for proper form
-                        sanitized_command.push_str(&format!("\"${bash_var}\""));
+                    if literal_inserted || in_single_quotes {
+                        sanitized_command.push_str(&substitution);
                     } else {
-                        // surround with curly braces because already
-                        // inside of a quoted segment.
-                        sanitized_command.push_str(&format!("${{{bash_var}}}"));
+                        let substitution = substitution
+                            .chars()
+                            .take(substitution.len().saturating_sub(3))
+                            .collect::<String>();
+                        decls.insert(substitution.clone());
+                        sanitized_command.push_str(&format!("${{{substitution}}}"));
                     }
                 }
             });
@@ -453,26 +517,27 @@ fn calculate_span(diagnostic: &ShellCheckDiagnostic, line_map: &HashMap<usize, S
 }
 
 impl Visitor for ShellCheckRule {
-    type State = Diagnostics;
+    fn reset(&mut self) {
+        *self = Default::default();
+    }
 
     fn document(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
-        _: &Document,
+        document: &Document,
         _: SupportedVersion,
     ) {
         if reason == VisitReason::Exit {
             return;
         }
 
-        // Reset the visitor upon document entry
-        *self = Default::default();
+        self.document = Some(document.clone());
     }
 
     fn command_section(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &CommandSection,
     ) {
@@ -487,7 +552,7 @@ impl Visitor for ShellCheckRule {
                         "should have a
                 command keyword token",
                     );
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     Diagnostic::note("running `shellcheck` on command section")
                         .with_label(
                             "could not find `shellcheck` executable.",
@@ -507,19 +572,23 @@ impl Visitor for ShellCheckRule {
             return;
         }
 
-        // Collect declarations so we can ignore placeholder variables
-        let parent_task = section.parent().into_task().expect("parent is a task");
-        let mut decls = gather_task_declarations(&parent_task);
-
         // Replace all placeholders in the command with dummy bash variables
-        let Some((sanitized_command, cmd_decls, amount_stripped)) = sanitize_command(section)
+        let doc = self.document.clone().expect("should have a document");
+        let Some(scope) = doc.find_scope_by_position(section.inner().text_range().start().into())
+        else {
+            // This is the case where the command section has not been analyzed
+            // e.g. it is in a task that has not been analyzed because it is a duplicate.
+            return;
+        };
+        let mut context = CommandContext::new(doc.clone(), scope);
+        let Some((sanitized_command, cmd_decls, amount_stripped)) =
+            sanitize_command(section, &mut context)
         else {
             // This is the case where the command section contains
             // mixed indentation. We silently return and allow
             // the mixed indentation lint to report this.
             return;
         };
-        decls.extend(cmd_decls);
         let line_map = map_shellcheck_lines(section, amount_stripped);
 
         // create a Fenwick tree where each index is a line number
@@ -530,20 +599,23 @@ impl Visitor for ShellCheckRule {
         let shift_tree = FenwickTree::from_iter(shift_values);
 
         match run_shellcheck(&sanitized_command) {
-            Ok(diagnostics) => {
-                for diagnostic in diagnostics {
+            Ok(sc_diagnostics) => {
+                for sc_diagnostic in sc_diagnostics {
                     // Skip declarations that shellcheck is unaware of.
                     // ShellCheck's message always starts with the variable name
                     // that is unassigned.
-                    let target_variable =
-                        diagnostic.message.split_whitespace().next().unwrap_or("");
-                    if diagnostic.code == SHELLCHECK_REFERENCED_UNASSIGNED
-                        && decls.contains(target_variable)
+                    let target_variable = sc_diagnostic
+                        .message
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or("");
+                    if sc_diagnostic.code == SHELLCHECK_REFERENCED_UNASSIGNED
+                        && cmd_decls.contains(target_variable)
                     {
                         continue;
                     }
-                    state.exceptable_add(
-                        shellcheck_lint(&diagnostic, &sanitized_command, &line_map, &shift_tree),
+                    diagnostics.exceptable_add(
+                        shellcheck_lint(&sc_diagnostic, &sanitized_command, &line_map, &shift_tree),
                         SyntaxElement::from(section.inner().clone()),
                         &self.exceptable_nodes(),
                     )
@@ -552,7 +624,7 @@ impl Visitor for ShellCheckRule {
             Err(e) => {
                 let command_keyword = support::token(section.inner(), SyntaxKind::CommandKeyword)
                     .expect("should have a command keyword token");
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     Diagnostic::error("running `shellcheck` on command section")
                         .with_label(e.to_string(), command_keyword.text_range())
                         .with_rule(ID)

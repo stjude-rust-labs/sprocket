@@ -52,6 +52,7 @@ use wdl_engine::v1::TaskEvaluator;
 use wdl_engine::v1::WorkflowEvaluator;
 use wdl_grammar::Diagnostic;
 use wdl_grammar::Severity;
+use wdl_lint::Linter;
 use wdl_lint::rules as lint_rules;
 
 /// The delay in showing the progress bar.
@@ -134,7 +135,6 @@ pub async fn analyze(
     file: &str,
     exceptions: Vec<String>,
     lint: bool,
-    shellcheck: bool,
 ) -> Result<Vec<AnalysisResult>> {
     let rules = analysis_rules();
     let rules = rules
@@ -151,49 +151,35 @@ pub async fn analyze(
     );
 
     let start = Instant::now();
-    let analyzer = Analyzer::new_with_validator(
-        rules_config,
-        move |_: (), kind, completed, total| {
-            let pb = pb.clone();
-            async move {
-                if start.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
-                    return;
+    let analyzer =
+        Analyzer::new_with_validator(
+            rules_config,
+            move |_: (), kind, completed, total| {
+                let pb = pb.clone();
+                async move {
+                    if start.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
+                        return;
+                    }
+
+                    if completed == 0 {
+                        pb.pb_start();
+                        pb.pb_set_length(total.try_into().unwrap());
+                        pb.pb_set_message(&format!("{kind}"));
+                    }
+
+                    pb.pb_set_position(completed.try_into().unwrap());
                 }
-
-                if completed == 0 {
-                    pb.pb_start();
-                    pb.pb_set_length(total.try_into().unwrap());
-                    pb.pb_set_message(&format!("{kind}"));
+            },
+            move || {
+                let mut validator = wdl_analysis::Validator::default();
+                if lint {
+                    validator.add_visitor(Linter::new(lint_rules().into_iter().filter(|rule| {
+                        !exceptions.iter().any(|e| e.eq_ignore_ascii_case(rule.id()))
+                    })));
                 }
-
-                pb.pb_set_position(completed.try_into().unwrap());
-            }
-        },
-        move || {
-            let mut validator = wdl_ast::Validator::default();
-
-            if lint {
-                let visitor =
-                    wdl_lint::LintVisitor::new(lint_rules().into_iter().filter_map(|rule| {
-                        if exceptions.iter().any(|e| e.eq_ignore_ascii_case(rule.id())) {
-                            None
-                        } else {
-                            Some(rule)
-                        }
-                    }));
-                validator.add_visitor(visitor);
-
-                if shellcheck {
-                    let rule: Vec<Box<dyn wdl_lint::Rule>> =
-                        vec![Box::<wdl_lint::rules::ShellCheckRule>::default()];
-                    let visitor = wdl_lint::LintVisitor::new(rule);
-                    validator.add_visitor(visitor);
-                }
-            }
-
-            validator
-        },
-    );
+                validator
+            },
+        );
 
     if let Ok(url) = Url::parse(file) {
         analyzer.add_document(url).await?;
@@ -281,7 +267,7 @@ pub fn parse_inputs(
 
 /// Validates the inputs for a task or workflow.
 pub async fn validate_inputs(document: &str, inputs: &Path) -> Result<Option<Diagnostic>> {
-    let results = analyze(document, vec![], false, false).await?;
+    let results = analyze(document, vec![], false).await?;
 
     let uri = Url::parse(document)
         .unwrap_or_else(|_| path_to_uri(document).expect("file should be a local path"));

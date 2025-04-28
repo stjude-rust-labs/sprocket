@@ -1,8 +1,0 @@
-error: task `test` contains a duplicate command section
-  ┌─ tests/validation/duplicate-command/source.wdl:7:5
-  │
-6 │     command <<<>>>
-  │     ------- first command section is defined here
-7 │     command <<<>>>
-  │     ^^^^^^^ this command section is a duplicate
-

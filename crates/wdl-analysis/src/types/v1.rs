@@ -87,6 +87,7 @@ use super::StructType;
 use super::Type;
 use super::TypeNameResolver;
 use crate::DiagnosticsConfig;
+use crate::SyntaxNodeExt;
 use crate::UNNECESSARY_FUNCTION_CALL;
 use crate::diagnostics::Io;
 use crate::diagnostics::ambiguous_argument;
@@ -546,7 +547,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     /// Evaluates the type of the given expression in the given scope.
     ///
     /// Returns `None` if the type of the expression is indeterminate.
-    pub fn evaluate_expr<N: TreeNode>(&mut self, expr: &Expr<N>) -> Option<Type> {
+    pub fn evaluate_expr<N: TreeNode + SyntaxNodeExt>(&mut self, expr: &Expr<N>) -> Option<Type> {
         match expr {
             Expr::Literal(expr) => self.evaluate_literal_expr(expr),
             Expr::NameRef(r) => {
@@ -629,7 +630,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal expression.
-    fn evaluate_literal_expr<N: TreeNode>(&mut self, expr: &LiteralExpr<N>) -> Option<Type> {
+    fn evaluate_literal_expr<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &LiteralExpr<N>,
+    ) -> Option<Type> {
         match expr {
             LiteralExpr::Boolean(_) => Some(PrimitiveType::Boolean.into()),
             LiteralExpr::Integer(_) => Some(PrimitiveType::Integer.into()),
@@ -656,7 +660,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Checks a placeholder expression.
-    pub(crate) fn check_placeholder<N: TreeNode>(&mut self, placeholder: &Placeholder<N>) {
+    pub(crate) fn check_placeholder<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        placeholder: &Placeholder<N>,
+    ) {
         self.placeholders += 1;
 
         // Evaluate the placeholder expression and check that the resulting type is
@@ -705,7 +712,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal array expression.
-    fn evaluate_literal_array<N: TreeNode>(&mut self, expr: &LiteralArray<N>) -> Type {
+    fn evaluate_literal_array<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &LiteralArray<N>,
+    ) -> Type {
         // Look at the first array element to determine the element type
         // The remaining elements must have a common type
         let mut elements = expr.elements();
@@ -742,7 +752,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal pair expression.
-    fn evaluate_literal_pair<N: TreeNode>(&mut self, expr: &LiteralPair<N>) -> Type {
+    fn evaluate_literal_pair<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &LiteralPair<N>,
+    ) -> Type {
         let (left, right) = expr.exprs();
         let left = self.evaluate_expr(&left).unwrap_or(Type::Union);
         let right = self.evaluate_expr(&right).unwrap_or(Type::Union);
@@ -750,7 +763,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal map expression.
-    fn evaluate_literal_map<N: TreeNode>(&mut self, expr: &LiteralMap<N>) -> Type {
+    fn evaluate_literal_map<N: TreeNode + SyntaxNodeExt>(&mut self, expr: &LiteralMap<N>) -> Type {
         let map_item_type = |item: LiteralMapItem<N>| {
             let (key, value) = item.key_value();
             let expected_key = self.evaluate_expr(&key)?;
@@ -827,7 +840,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal object expression.
-    fn evaluate_literal_object<N: TreeNode>(&mut self, expr: &LiteralObject<N>) -> Type {
+    fn evaluate_literal_object<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &LiteralObject<N>,
+    ) -> Type {
         // Validate the member expressions
         for item in expr.items() {
             let (_, v) = item.name_value();
@@ -838,7 +854,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal struct expression.
-    fn evaluate_literal_struct<N: TreeNode>(&mut self, expr: &LiteralStruct<N>) -> Option<Type> {
+    fn evaluate_literal_struct<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &LiteralStruct<N>,
+    ) -> Option<Type> {
         let name = expr.name();
         match self.context.resolve_type_name(name.text(), name.span()) {
             Ok(ty) => {
@@ -922,7 +941,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates a `runtime` section item.
-    pub(crate) fn evaluate_runtime_item<N: TreeNode>(
+    pub(crate) fn evaluate_runtime_item<N: TreeNode + SyntaxNodeExt>(
         &mut self,
         name: &Ident<N::Token>,
         expr: &Expr<N>,
@@ -948,7 +967,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates a `requirements` section item.
-    pub(crate) fn evaluate_requirements_item<N: TreeNode>(
+    pub(crate) fn evaluate_requirements_item<N: TreeNode + SyntaxNodeExt>(
         &mut self,
         name: &Ident<N::Token>,
         expr: &Expr<N>,
@@ -988,7 +1007,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal hints expression.
-    fn evaluate_literal_hints<N: TreeNode>(&mut self, expr: &LiteralHints<N>) -> Option<Type> {
+    fn evaluate_literal_hints<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &LiteralHints<N>,
+    ) -> Option<Type> {
         self.context.task()?;
 
         for item in expr.items() {
@@ -1000,7 +1022,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
     /// Evaluates a hints item, whether in task `hints` section or a `hints`
     /// literal expression.
-    pub(crate) fn evaluate_hints_item<N: TreeNode>(
+    pub(crate) fn evaluate_hints_item<N: TreeNode + SyntaxNodeExt>(
         &mut self,
         name: &Ident<N::Token>,
         expr: &Expr<N>,
@@ -1022,7 +1044,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal input expression.
-    fn evaluate_literal_input<N: TreeNode>(&mut self, expr: &LiteralInput<N>) -> Option<Type> {
+    fn evaluate_literal_input<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &LiteralInput<N>,
+    ) -> Option<Type> {
         // Check to see if inputs literals are supported in the evaluation scope
         self.context.task()?;
 
@@ -1035,7 +1060,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal output expression.
-    fn evaluate_literal_output<N: TreeNode>(&mut self, expr: &LiteralOutput<N>) -> Option<Type> {
+    fn evaluate_literal_output<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &LiteralOutput<N>,
+    ) -> Option<Type> {
         // Check to see if output literals are supported in the evaluation scope
         self.context.task()?;
 
@@ -1048,7 +1076,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates a literal input/output item.
-    fn evaluate_literal_io_item<N: TreeNode>(
+    fn evaluate_literal_io_item<N: TreeNode + SyntaxNodeExt>(
         &mut self,
         names: impl Iterator<Item = Ident<N::Token>>,
         expr: Expr<N>,
@@ -1136,7 +1164,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of an `if` expression.
-    fn evaluate_if_expr<N: TreeNode>(&mut self, expr: &IfExpr<N>) -> Option<Type> {
+    fn evaluate_if_expr<N: TreeNode + SyntaxNodeExt>(&mut self, expr: &IfExpr<N>) -> Option<Type> {
         let (cond_expr, true_expr, false_expr) = expr.exprs();
 
         // The conditional should be a boolean
@@ -1171,7 +1199,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a `logical not` expression.
-    fn evaluate_logical_not_expr<N: TreeNode>(&mut self, expr: &LogicalNotExpr<N>) -> Option<Type> {
+    fn evaluate_logical_not_expr<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &LogicalNotExpr<N>,
+    ) -> Option<Type> {
         // The operand should be a boolean
         let operand = expr.operand();
         let ty = self.evaluate_expr(&operand).unwrap_or(Type::Union);
@@ -1184,7 +1215,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a negation expression.
-    fn evaluate_negation_expr<N: TreeNode>(&mut self, expr: &NegationExpr<N>) -> Option<Type> {
+    fn evaluate_negation_expr<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &NegationExpr<N>,
+    ) -> Option<Type> {
         // The operand should be a int or float
         let operand = expr.operand();
         let ty = self.evaluate_expr(&operand)?;
@@ -1206,7 +1240,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a `logical or` expression.
-    fn evaluate_logical_or_expr<N: TreeNode>(&mut self, expr: &LogicalOrExpr<N>) -> Option<Type> {
+    fn evaluate_logical_or_expr<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &LogicalOrExpr<N>,
+    ) -> Option<Type> {
         // Both operands should be booleans
         let (lhs, rhs) = expr.operands();
 
@@ -1226,7 +1263,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a `logical and` expression.
-    fn evaluate_logical_and_expr<N: TreeNode>(&mut self, expr: &LogicalAndExpr<N>) -> Option<Type> {
+    fn evaluate_logical_and_expr<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &LogicalAndExpr<N>,
+    ) -> Option<Type> {
         // Both operands should be booleans
         let (lhs, rhs) = expr.operands();
 
@@ -1246,7 +1286,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a comparison expression.
-    fn evaluate_comparison_expr<N: TreeNode>(
+    fn evaluate_comparison_expr<N: TreeNode + SyntaxNodeExt>(
         &mut self,
         op: ComparisonOperator,
         lhs: &Expr<N>,
@@ -1343,7 +1383,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a numeric expression.
-    fn evaluate_numeric_expr<N: TreeNode>(
+    fn evaluate_numeric_expr<N: TreeNode + SyntaxNodeExt>(
         &mut self,
         op: NumericOperator,
         span: Span,
@@ -1426,7 +1466,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a call expression.
-    fn evaluate_call_expr<N: TreeNode>(&mut self, expr: &CallExpr<N>) -> Option<Type> {
+    fn evaluate_call_expr<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &CallExpr<N>,
+    ) -> Option<Type> {
         let target = expr.target();
         match STDLIB.function(target.text()) {
             Some(f) => {
@@ -1560,7 +1603,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of an index expression.
-    fn evaluate_index_expr<N: TreeNode>(&mut self, expr: &IndexExpr<N>) -> Option<Type> {
+    fn evaluate_index_expr<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &IndexExpr<N>,
+    ) -> Option<Type> {
         let (target, index) = expr.operands();
 
         // Determine the expected index type and result type of the expression
@@ -1599,7 +1645,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of an access expression.
-    fn evaluate_access_expr<N: TreeNode>(&mut self, expr: &AccessExpr<N>) -> Option<Type> {
+    fn evaluate_access_expr<N: TreeNode + SyntaxNodeExt>(
+        &mut self,
+        expr: &AccessExpr<N>,
+    ) -> Option<Type> {
         let (target, name) = expr.operands();
         let ty = self.evaluate_expr(&target)?;
 

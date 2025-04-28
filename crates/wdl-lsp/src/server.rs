@@ -29,10 +29,10 @@ use wdl_analysis::IncrementalChange;
 use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
 use wdl_analysis::SourcePositionEncoding;
+use wdl_analysis::Validator;
 use wdl_analysis::path_to_uri;
 use wdl_analysis::rules;
-use wdl_ast::Validator;
-use wdl_lint::LintVisitor;
+use wdl_lint::Linter;
 
 use crate::proto;
 
@@ -268,9 +268,8 @@ impl Server {
                     move || {
                         let mut validator = Validator::default();
                         if lint {
-                            validator.add_visitor(LintVisitor::default());
+                            validator.add_visitor(Linter::default());
                         }
-
                         validator
                     },
                 ),

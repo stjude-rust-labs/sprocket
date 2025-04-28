@@ -147,7 +147,7 @@ where
     Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
     Context: Send + Clone,
     Return: Future<Output = ()>,
-    Validator: Fn() -> wdl_ast::Validator + Send + Sync + 'static,
+    Validator: Fn() -> crate::Validator + Send + Sync + 'static,
 {
     /// Constructs a new analysis queue.
     pub fn new(
@@ -283,9 +283,10 @@ where
                                         // If there are any diagnostics that are
                                         // errors, we shouldn't attempt to format the
                                         // document.
-                                        if diagnostics.as_ref().iter().any(|diagnostic| {
-                                            diagnostic.severity() == Severity::Error
-                                        }) {
+                                        if diagnostics
+                                            .iter()
+                                            .any(|d| d.severity() == Severity::Error)
+                                        {
                                             return None;
                                         }
 
@@ -453,8 +454,16 @@ where
 
                         let graph = self.graph.clone();
                         let config = self.config;
+                        let validator = self.validator.clone();
                         Some(RayonHandle::spawn(move || {
-                            Self::analyze_node(config, graph, index)
+                            thread_local! {
+                                static VALIDATOR: RefCell<Option<crate::Validator>> = const { RefCell::new(None) };
+                            }
+
+                            VALIDATOR.with_borrow_mut(|v| {
+                                let validator = v.get_or_insert_with(|| validator());
+                                Self::analyze_node(config, graph, index, validator)
+                            })
                         }))
                     })
                     .collect::<FuturesUnordered<_>>()
@@ -571,19 +580,11 @@ where
         let graph = self.graph.clone();
         let tokio = self.tokio.clone();
         let client = self.client.clone();
-        let validator = self.validator.clone();
         RayonHandle::spawn(move || {
-            thread_local! {
-                static VALIDATOR: RefCell<Option<wdl_ast::Validator>> = const { RefCell::new(None) };
-            }
-
-            VALIDATOR.with_borrow_mut(|v| {
-                let validator = v.get_or_insert_with(|| validator());
-                let graph = graph.read();
-                let node = graph.get(index);
-                let state = node.parse(&tokio, &client, validator);
-                (index, state)
-            })
+            let graph = graph.read();
+            let node = graph.get(index);
+            let state = node.parse(&tokio, &client);
+            (index, state)
         })
     }
 
@@ -674,10 +675,21 @@ where
         config: DiagnosticsConfig,
         graph: Arc<RwLock<DocumentGraph>>,
         index: NodeIndex,
+        validator: &mut crate::Validator,
     ) -> (NodeIndex, Document) {
         let start = Instant::now();
         let graph = graph.read();
-        let document = Document::from_graph_node(config, &graph, index);
+        let mut document = Document::from_graph_node(config, &graph, index);
+
+        match &graph.get(index).parse_state() {
+            ParseState::Parsed { diagnostics, .. } if diagnostics.is_empty() => {
+                if let Err(new_diagnostics) = validator.validate(&document) {
+                    document.extend_diagnostics(new_diagnostics);
+                }
+            }
+            _ => {}
+        }
+        document.sort_diagnostics();
 
         info!(
             "analysis of `{uri}` completed in {elapsed:?}",

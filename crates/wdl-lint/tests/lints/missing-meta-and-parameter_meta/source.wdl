@@ -1,9 +1,10 @@
+#@ except: InputName, OutputName, RuntimeSection
+
 ## This is a test of missing both the meta and parameter_meta
 
 version 1.0
 
 workflow test {
-    #@ except: InputName
     input {
         File input_file
     }
@@ -12,7 +13,6 @@ workflow test {
         input_file = input_file
     }
 
-    #@ except: OutputName
     output {
         File output_file = test_task.output_file
     }
@@ -21,4 +21,16 @@ workflow test {
 # This should not have diagnostics for <= 1.2
 struct Test {
     String x
+}
+
+task test_task {
+    input {
+        File input_file
+    }
+
+    command <<<>>>
+
+    output {
+        File output_file = input_file
+    }
 }

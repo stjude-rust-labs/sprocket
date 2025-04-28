@@ -18,10 +18,16 @@ task foo {
         Int z = 4
         Int f = 5
         Int b = 6
+        Boolean c = false
+        Boolean d = true
+        Boolean e = false
+        Boolean foobar = true
+        Boolean gak = true
+        Boolean caz = true
         Int complex_value = w -x +( y* ( z /(f %b) ))
-        Boolean complicated_logic = (
+        String complicated_logic = (
             if !(
-                a && b || c && (!d || !e)
+                a >= b || c && (!d || !e)
                 == (
                     if foobar
                     then gak
@@ -31,12 +37,12 @@ task foo {
             then "wow"
             else "WOWOWOW"
         )
-        Boolean complicated_logic2
+        String complicated_logic2
             = (
                 if
                     !(
                         a
-                        && b
+                        >= b
                         || c
                         && (
                             !d
@@ -106,8 +112,8 @@ task foo {
             2,
             3,
         ]
-        Boolean k = {"a": 1, "b": 2} == {"b": 2, "a": 1}
-        Boolean l = {
+        Boolean k2 = {"a": 1, "b": 2} == {"b": 2, "a": 1}
+        Boolean l2 = {
             # comment
             "a": 1,
             "b": 2,
@@ -116,7 +122,7 @@ task foo {
             "a": 1,
             # comment
         }
-        Boolean m = {
+        Boolean m2 = {
             # comment
             "a": 1,
             "b": 2,
@@ -126,7 +132,7 @@ task foo {
             "a": 1,
             # comment
         }
-        Boolean n = {
+        Boolean n2 = {
             # comment
             "a": 1,
             "b": 2,
@@ -154,7 +160,7 @@ task foo {
 
     #@ except: OutputName
     output {
-        Boolean b = ! a
+        Boolean b_out = ! d
     }
 
     runtime {}

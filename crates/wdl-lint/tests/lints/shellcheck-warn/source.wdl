@@ -14,21 +14,9 @@ task test1 {
     }
 
     command <<<
-      somecommand.py $line17 ~{placeholder}
-      somecommand.py ~{placeholder} $line18
-      somecommand.py ~{placeholder}$line19
-
-
-
-
-
-
-
-
-
-
-      somecommand.py $line30~{placeholder}
-      somecommand.py [ -f $line31 ] ~{placeholder}
+      foo="foo bar baz"
+      somecommand.py "$dynamic_var_name~{placeholder}"
+      somecommand.py [ -f "$foo" ] ~{placeholder}
     >>>
 
     output {}
@@ -46,12 +34,8 @@ task test2 {
     }
 
     command {
-      somecommand.py $line49 ~{placeholder}
-      somecommand.py ~{placeholder} $line50
-      somecommand.py ~{placeholder}$line51
-      somecommand.py $line52~{placeholder}
-      somecommand.py [ -f $bad_test ] ~{placeholder}
-      somecommand.py [ -f $trailing_space ] ~{placeholder}
+      somecommand.py [ -f "$bad_test" ] ~{placeholder}
+      somecommand.py [ -f "$trailing_space" ] ~{placeholder}
     }
 
     output {}
@@ -69,12 +53,8 @@ task test3 {
     }
 
     command <<<           # weird whitespace
-      somecommand.py $line72 ~{placeholder}
-      somecommand.py ~{placeholder} $line73
-      somecommand.py ~{placeholder}$line74
-      somecommand.py $line75~{placeholder}
-      ~{placeholder} $line76_trailing_pholder ~{placeholder}
-      ~{placeholder} somecommand.py $leading_pholder
+      ~{placeholder} "$trailing_pholder" ~{placeholder}
+      ~{placeholder} somecommand.py "$leading_pholder"
     >>>
 
     output {}
@@ -93,12 +73,8 @@ task test4 {
 
     command <<<
             # other weird whitspace
-      somecommand.py $line96 ~{placeholder}
-      somecommand.py ~{placeholder} $line97
-      somecommand.py ~{placeholder}$line98
-      somecommand.py $line99~{placeholder}
-      ~{placeholder} $line100_trailing_pholder ~{placeholder}
-      ~{placeholder} somecommand.py $leading_pholder
+      ~{placeholder} "$trailing_pholder" ~{placeholder}
+      ~{placeholder} somecommand.py "$leading_pholder"
     >>>
 
     output {}
@@ -115,15 +91,15 @@ task test5 {
       Int placeholder
     }
 
-    command <<<      weird stuff $firstlinelint
+    String by = "by"
+    String myself = "myself"
+    Int multiline = 3
+
+    command <<<      weird stuff "$firstlinelint"
             # other weird whitespace
-      somecommand.py $line120 ~{placeholder}
-      somecommand.py ~{placeholder} $line121
-      somecommand.py ~{placeholder}$line122
-      somecommand.py $line123~{placeholder}
-      ~{placeholder} $line124_trailing_pholder ~{placeholder}
+      ~{placeholder} "$trailing_pholder" ~{placeholder}
       ~{by + myself}
-      ~{placeholder} somecommand.py $leading_pholder
+      ~{placeholder} somecommand.py "$leading_pholder"
 
         ~{
           multiline +
@@ -173,7 +149,7 @@ task test6 {
     runtime {}
 }
 
-task test6 {
+task test7 {
     meta {}
 
     parameter_meta {}

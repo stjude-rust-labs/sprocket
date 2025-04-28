@@ -1,16 +1,14 @@
 //! A lint rule that checks the formatting of the version statement.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::VersionStatement;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::Whitespace;
 
 use crate::Rule;
@@ -101,15 +99,13 @@ impl Rule for VersionStatementFormattedRule {
 }
 
 impl Visitor for VersionStatementFormattedRule {
-    type State = Diagnostics;
-
-    fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document, _: SupportedVersion) {
-        // This is intentionally empty, as this rule has no state.
+    fn reset(&mut self) {
+        *self = Self;
     }
 
     fn version_statement(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         stmt: &VersionStatement,
     ) {
@@ -150,11 +146,11 @@ impl Visitor for VersionStatementFormattedRule {
                                 }
                             }
                         }
-                        state.add(diagnostic);
+                        diagnostics.add(diagnostic);
                     }
                 }
                 _ => {
-                    state.add(whitespace_before_version(prev_ws.text_range().into()));
+                    diagnostics.add(whitespace_before_version(prev_ws.text_range().into()));
                 }
             }
         }
@@ -168,13 +164,13 @@ impl Visitor for VersionStatementFormattedRule {
             match child.kind() {
                 SyntaxKind::Whitespace => {
                     if child.as_token().expect("expected a token").text() != " " {
-                        state.add(unexpected_whitespace_inside_version(
+                        diagnostics.add(unexpected_whitespace_inside_version(
                             child.text_range().into(),
                         ));
                     }
                 }
                 SyntaxKind::Comment => {
-                    state.add(comment_inside_version(child.text_range().into()));
+                    diagnostics.add(comment_inside_version(child.text_range().into()));
                 }
                 _ => unreachable!(),
             }
@@ -187,7 +183,7 @@ impl Visitor for VersionStatementFormattedRule {
                 // Don't add diagnostic if there's nothing but whitespace after the version
                 // statement
                 if s != "\n\n" && s != "\r\n\r\n" && next.next_sibling_or_token().is_some() {
-                    state.add(expected_blank_line_after_version(ws.span()));
+                    diagnostics.add(expected_blank_line_after_version(ws.span()));
                 }
             }
         } // else version is the last item in the document

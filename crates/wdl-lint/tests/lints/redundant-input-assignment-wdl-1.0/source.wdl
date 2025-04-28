@@ -1,5 +1,5 @@
-#@ except: MetaDescription, RequirementsSection
-#@ except: ExpectedRuntimeKeys, OutputSection, MetaSections
+#@ except: MetaDescription, RuntimeSection
+#@ except: OutputSection, MetaSections
 
 version 1.0
 
@@ -16,4 +16,14 @@ workflow test {
         bam = bam + 3,
         cam = cam,
    }
+}
+
+task bar {
+    input {
+        String arm
+        String cam
+        Int bam
+    }
+
+    command <<<>>>
 }

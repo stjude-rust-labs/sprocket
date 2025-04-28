@@ -1,19 +1,19 @@
 note[ImportWhitespace]: blank lines are not allowed between imports
-  ┌─ tests/lints/blank-lines-between-elements/source.wdl:5:77
+  ┌─ tests/lints/blank-lines-between-elements/source.wdl:5:81
   │  
-5 │   import "baz"  # following whitespace will be caught by ImportWhitespace rule
-  │ ╭────────────────────────────────────────────────────────────────────────────^
+5 │   import "baz.wdl"  # following whitespace will be caught by ImportWhitespace rule
+  │ ╭────────────────────────────────────────────────────────────────────────────────^
 6 │ │ 
-7 │ │ import "qux"  # following whitespace duplication is caught be Whitespace rule
+7 │ │ import "qux.wdl"  # following whitespace duplication is caught be Whitespace rule
   │ ╰^
   │  
   = fix: remove blank lines between imports
 
 note[Whitespace]: more than one blank line in a row
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:7:78
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:7:82
    │  
- 7 │   import "qux"  # following whitespace duplication is caught be Whitespace rule
-   │ ╭─────────────────────────────────────────────────────────────────────────────^
+ 7 │   import "qux.wdl"  # following whitespace duplication is caught be Whitespace rule
+   │ ╭─────────────────────────────────────────────────────────────────────────────────^
  8 │ │ 
  9 │ │ 
 10 │ │ # test comment
@@ -85,10 +85,10 @@ note[ElementSpacing]: missing blank line
    = fix: add a blank line
 
 note[ElementSpacing]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:26:34
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:26:49
    │  
-26 │           call bar { input: s = i }
-   │ ╭─────────────────────────────────^
+26 │           call bar as bar_scatter { input: s = i }
+   │ ╭────────────────────────────────────────────────^
 27 │ │ 
 28 │ │     }
    │ ╰────^
@@ -96,10 +96,10 @@ note[ElementSpacing]: extra blank line(s) found
    = fix: remove extra blank line(s)
 
 note[ElementSpacing]: extra blank line(s) found
-   ┌─ tests/lints/blank-lines-between-elements/source.wdl:30:40
+   ┌─ tests/lints/blank-lines-between-elements/source.wdl:30:59
    │  
-30 │           call bar { input: s = "world" }
-   │ ╭───────────────────────────────────────^
+30 │           call bar as bar_conditional { input: s = "world" }
+   │ ╭──────────────────────────────────────────────────────────^
 31 │ │ 
 32 │ │     }
    │ ╰────^

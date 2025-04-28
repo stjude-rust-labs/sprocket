@@ -1,17 +1,15 @@
 //! A lint rule to ensure each output is documented in `meta`.
 
 use indexmap::IndexMap;
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::OutputSection;
@@ -151,7 +149,7 @@ impl Rule for MatchingOutputMetaRule<'_> {
 
 /// Check each output key exists in the `outputs` key within the `meta` section.
 fn check_matching(
-    state: &mut Diagnostics,
+    diagnostics: &mut Diagnostics,
     rule: &mut MatchingOutputMetaRule<'_>,
     element: SyntaxElement,
 ) {
@@ -161,7 +159,7 @@ fn check_matching(
         if !rule.meta_outputs_keys.contains_key(name) {
             exact_match = false;
             if rule.current_meta_span.is_some() {
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     nonmatching_output(
                         *span,
                         name,
@@ -180,7 +178,7 @@ fn check_matching(
         if !rule.output_keys.contains_key(name) {
             exact_match = false;
             if rule.current_output_span.is_some() {
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     extra_output_in_meta(
                         *span,
                         name,
@@ -196,7 +194,7 @@ fn check_matching(
 
     // Check for out-of-order entries.
     if exact_match && !rule.meta_outputs_keys.keys().eq(rule.output_keys.keys()) {
-        state.exceptable_add(
+        diagnostics.exceptable_add(
             out_of_order(
                 rule.current_meta_outputs_span
                     .expect("should have a `meta.outputs` span"),
@@ -213,7 +211,7 @@ fn check_matching(
 
 /// Handle missing `meta.outputs` and reset the visitor.
 fn handle_meta_outputs_and_reset(
-    state: &mut Diagnostics,
+    diagnostics: &mut Diagnostics,
     rule: &mut MatchingOutputMetaRule<'_>,
     element: SyntaxElement,
 ) {
@@ -221,7 +219,7 @@ fn handle_meta_outputs_and_reset(
         && rule.current_meta_outputs_span.is_none()
         && !rule.output_keys.is_empty()
     {
-        state.exceptable_add(
+        diagnostics.exceptable_add(
             missing_outputs_in_meta(
                 rule.current_meta_span.expect("should have a `meta` span"),
                 rule.name.as_deref().expect("should have a name"),
@@ -231,7 +229,7 @@ fn handle_meta_outputs_and_reset(
             &rule.exceptable_nodes(),
         );
     } else {
-        check_matching(state, rule, element);
+        check_matching(diagnostics, rule, element);
     }
 
     rule.name = None;
@@ -243,26 +241,22 @@ fn handle_meta_outputs_and_reset(
 }
 
 impl Visitor for MatchingOutputMetaRule<'_> {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Reset the visitor upon document entry
-        *self = Default::default();
+    fn reset(&mut self) {
+        self.current_meta_span = None;
+        self.in_meta = false;
+        self.current_meta_outputs_span = None;
+        self.current_output_span = None;
+        self.in_output = false;
+        self.meta_outputs_keys.clear();
+        self.output_keys.clear();
+        self.name = None;
+        self.ty = None;
+        self.prior_objects.clear();
     }
 
     fn workflow_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         workflow: &WorkflowDefinition,
     ) {
@@ -273,7 +267,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
             }
             VisitReason::Exit => {
                 handle_meta_outputs_and_reset(
-                    state,
+                    diagnostics,
                     self,
                     SyntaxElement::from(workflow.inner().clone()),
                 );
@@ -283,7 +277,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
 
     fn task_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         task: &TaskDefinition,
     ) {
@@ -294,7 +288,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
             }
             VisitReason::Exit => {
                 handle_meta_outputs_and_reset(
-                    state,
+                    diagnostics,
                     self,
                     SyntaxElement::from(task.inner().clone()),
                 );
@@ -304,7 +298,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
 
     fn metadata_section(
         &mut self,
-        _state: &mut Self::State,
+        _diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &MetadataSection,
     ) {
@@ -328,7 +322,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
 
     fn output_section(
         &mut self,
-        _state: &mut Self::State,
+        _diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &OutputSection,
     ) {
@@ -352,7 +346,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
 
     fn bound_decl(
         &mut self,
-        _state: &mut Self::State,
+        _diagnostics: &mut Diagnostics,
         reason: VisitReason,
         decl: &wdl_ast::v1::BoundDecl,
     ) {
@@ -364,7 +358,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
 
     fn metadata_object_item(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         item: &wdl_ast::v1::MetadataObjectItem,
     ) {
@@ -385,7 +379,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
                         match item.value() {
                             MetadataValue::Object(_) => {}
                             _ => {
-                                state.exceptable_add(
+                                diagnostics.exceptable_add(
                                     non_object_meta_outputs(
                                         item.span(),
                                         self.name.as_deref().expect("should have a name"),

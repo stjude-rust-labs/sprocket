@@ -65,7 +65,7 @@ note[CommentWhitespace]: comment has too much indentation
 note[CommentWhitespace]: in-line comments should be preceded by two spaces
    ┌─ tests/lints/comment-whitespace/source.wdl:21:34
    │
-21 │         String foo = "bar"       # too much space for an inline comment
+21 │         String baz = "baz"       # too much space for an inline comment
    │                                  ^
    │
    = fix: add two spaces before the comment delimiter

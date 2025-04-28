@@ -17,22 +17,21 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::exit;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
+use std::path::absolute;
 
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term;
 use codespan_reporting::term::Config;
 use codespan_reporting::term::termcolor::Buffer;
 use colored::Colorize;
+use path_clean::clean;
 use pretty_assertions::StrComparison;
-use rayon::prelude::*;
+use wdl_analysis::Analyzer;
+use wdl_analysis::DiagnosticsConfig;
+use wdl_analysis::Validator;
+use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
-use wdl_ast::Document;
-use wdl_ast::Validator;
-use wdl_lint::LintVisitor;
-use wdl_lint::rules::ShellCheckRule;
+use wdl_lint::Linter;
 
 /// Finds tests for this package.
 fn find_tests() -> Vec<PathBuf> {
@@ -118,98 +117,67 @@ fn compare_result(path: &Path, result: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Runs a test.
-fn run_test(test: &Path, ntests: &AtomicUsize) -> Result<(), String> {
-    let path = test.join("source.wdl");
-    let mut source = std::fs::read_to_string(&path).map_err(|e| {
-        format!(
-            "failed to read source file `{path}`: {e}",
-            path = path.display()
-        )
-    })?;
-
-    if !test.to_string_lossy().contains("inconsistent-newlines") {
-        source = source.replace("\r\n", "\n");
-    }
-
-    let (document, diagnostics) = Document::parse(&source);
-
-    if !diagnostics.is_empty() {
-        compare_result(
-            &path.with_extension("errors"),
-            &format_diagnostics(&diagnostics, &path, &source),
-        )?;
-    } else {
-        let mut validator = Validator::default();
-        validator.add_visitor(LintVisitor::default());
-        validator.add_visitor(ShellCheckRule);
-        let errors = match validator.validate(&document) {
-            Ok(()) => String::new(),
-            Err(diagnostics) => format_diagnostics(&diagnostics, &path, &source),
-        };
-        compare_result(&path.with_extension("errors"), &errors)?;
-    }
-
-    ntests.fetch_add(1, Ordering::SeqCst);
-    Ok(())
-}
-
-fn main() {
+#[tokio::main]
+async fn main() {
     let tests = find_tests();
     println!("\nrunning {} tests\n", tests.len());
 
-    let ntests = AtomicUsize::new(0);
+    let analyzer = Analyzer::new_with_validator(
+        DiagnosticsConfig::except_all(),
+        |_, _, _, _| async {},
+        || {
+            let mut validator = Validator::default();
+            validator.add_visitor(Linter::default());
+            validator
+        },
+    );
+    for test in &tests {
+        analyzer
+            .add_directory(test.to_path_buf())
+            .await
+            .expect("failed to add directory");
+    }
+    let results = analyzer.analyze(()).await.expect("failed to analyze");
 
-    #[allow(clippy::missing_docs_in_private_items)]
-    fn inner<'a>(test: &'a Path, ntests: &AtomicUsize) -> Option<(&'a str, String)> {
+    let mut errors = Vec::new();
+    for test in &tests {
         let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
-        match std::panic::catch_unwind(|| {
-            match run_test(test, ntests)
-                .map_err(|e| format!("failed to run test `{path}`: {e}", path = test.display()))
-                .err()
-            {
-                Some(e) => {
-                    println!("test {test_name} ... {failed}", failed = "failed".red());
-                    Some((test_name, e))
-                }
-                None => {
-                    println!("test {test_name} ... {ok}", ok = "ok".green());
+
+        let base = clean(absolute(test).unwrap());
+        let source_path = base.join("source.wdl");
+        let errors_path = base.join("source.errors");
+
+        let result = results
+            .iter()
+            .find_map(|result| {
+                if result.document().uri().to_file_path().unwrap() == source_path {
+                    Some(result.clone())
+                } else {
                     None
                 }
-            }
-        }) {
-            Ok(result) => result,
-            Err(e) => {
+            })
+            .expect("failed to find test result");
+        match compare_result(
+            &errors_path,
+            &format_diagnostics(
+                result.document().diagnostics(),
+                &test.join("source.wdl"),
+                &result.document().root().text().to_string(),
+            ),
+        ) {
+            Ok(()) => {
                 println!(
-                    "test {test_name} ... {panicked}",
-                    panicked = "panicked".red()
-                );
-                Some((
+                    "{}: {}: {}",
                     test_name,
-                    format!(
-                        "test panicked: {e:?}",
-                        e = e
-                            .downcast_ref::<String>()
-                            .map(|s| s.as_str())
-                            .or_else(|| e.downcast_ref::<&str>().copied())
-                            .unwrap_or("no panic message")
-                    ),
-                ))
+                    "ok".green(),
+                    result.document().uri()
+                );
+            }
+            Err(e) => {
+                errors.push(format!("{}: {}: {}", test_name, "error".red(), e));
             }
         }
     }
-
-    let errors: Vec<(&str, String)> = if std::env::args().any(|arg| arg == "--serial") {
-        tests
-            .iter()
-            .filter_map(|test| inner(test, &ntests))
-            .collect::<Vec<_>>()
-    } else {
-        tests
-            .par_iter()
-            .filter_map(|test| inner(test, &ntests))
-            .collect::<Vec<_>>()
-    };
 
     if !errors.is_empty() {
         eprintln!(
@@ -218,15 +186,12 @@ fn main() {
             failed = "failed".red()
         );
 
-        for (name, msg) in errors.iter() {
-            eprintln!("{name}: {msg}", msg = msg.red());
+        for msg in errors.iter() {
+            eprintln!("{msg}", msg = msg.red());
         }
 
-        exit(1);
+        std::process::exit(1);
     }
 
-    println!(
-        "\ntest result: ok. {} passed\n",
-        ntests.load(Ordering::SeqCst)
-    );
+    println!("\ntest result: ok. {count} passed\n", count = tests.len());
 }

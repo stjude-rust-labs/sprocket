@@ -88,6 +88,7 @@ jobs:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-shellcheck
       - run: git config --global core.autocrlf false
       - name: Update Rust
         run: rustup update stable && rustup default stable

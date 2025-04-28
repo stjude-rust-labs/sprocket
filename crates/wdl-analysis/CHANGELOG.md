@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* AST validation now occurs as part of analysis instead of during parsing ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+
 #### Added
 
+* Added `Visitor` (moved trait definition from `wdl-ast` to `wdl-analysis`) ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+* Added `Validator` (moved struct definition from `wdl-ast` to `wdl-analysis`) ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+* Added `SyntaxNodeExt` (moved trait definition from `wdl-ast` to `wdl-analysis`) ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+* Added `Default` impls to `DiagnosticsConfig` and `Analyzer` ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
 * Added static validation of regex expression in a string literal ([#404](https://github.com/stjude-rust-labs/wdl/pull/404)).
 
 #### Fixed

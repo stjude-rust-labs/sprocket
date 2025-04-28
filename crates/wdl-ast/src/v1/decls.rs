@@ -717,7 +717,7 @@ impl fmt::Display for Type {
 
 /// Represents an unbound declaration.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct UnboundDecl<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct UnboundDecl<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> UnboundDecl<N> {
     /// Gets the `env` token, if present.
@@ -758,7 +758,7 @@ impl<N: TreeNode> AstNode<N> for UnboundDecl<N> {
 
 /// Represents a bound declaration in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BoundDecl<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct BoundDecl<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> BoundDecl<N> {
     /// Gets the `env` token, if present.
@@ -965,9 +965,6 @@ impl<N: TreeNode> Decl<N> {
 mod test {
     use super::*;
     use crate::Document;
-    use crate::SupportedVersion;
-    use crate::VisitReason;
-    use crate::Visitor;
 
     #[test]
     fn decls() {
@@ -1098,42 +1095,5 @@ task test {
                 .text(),
             "foo"
         );
-
-        // Use a visitor to count the number of declarations
-        #[derive(Default)]
-        struct MyVisitor {
-            bound: usize,
-            unbound: usize,
-        }
-
-        impl Visitor for MyVisitor {
-            type State = ();
-
-            fn document(
-                &mut self,
-                _: &mut Self::State,
-                _: VisitReason,
-                _: &Document,
-                _: SupportedVersion,
-            ) {
-            }
-
-            fn bound_decl(&mut self, _: &mut Self::State, reason: VisitReason, _: &BoundDecl) {
-                if reason == VisitReason::Enter {
-                    self.bound += 1;
-                }
-            }
-
-            fn unbound_decl(&mut self, _: &mut Self::State, reason: VisitReason, _: &UnboundDecl) {
-                if reason == VisitReason::Enter {
-                    self.unbound += 1;
-                }
-            }
-        }
-
-        let mut visitor = MyVisitor::default();
-        document.visit(&mut (), &mut visitor);
-        assert_eq!(visitor.bound, 6);
-        assert_eq!(visitor.unbound, 5);
     }
 }

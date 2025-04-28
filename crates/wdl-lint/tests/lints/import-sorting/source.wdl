@@ -4,10 +4,10 @@
 
 version 1.1
 
-import "A"
-import "B"
-import "D"
-import "C"
+import "A.wdl"
+import "B.wdl"
+import "D.wdl"
+import "C.wdl"
 
 workflow test {
     meta {}

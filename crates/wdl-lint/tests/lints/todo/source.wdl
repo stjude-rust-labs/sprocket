@@ -1,6 +1,4 @@
-#@ except: MetaDescription
-
-## This is a test of the TodoComment rule.
+#@ except: MetaDescription, MetaSections, OutputSection, RuntimeSection
 
 version 1.1
 
@@ -18,9 +16,7 @@ workflow test {
 }
 
 #@ except: TodoComment
-workflow test {
+task test2 {
     # TODO: This should NOT be flagged as well.
-    meta {}
-
-    output {}
+    command <<<>>>
 }

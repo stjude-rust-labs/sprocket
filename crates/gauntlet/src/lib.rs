@@ -41,12 +41,11 @@ use report::UnmatchedStatus;
 pub use repository::Repository;
 use wdl::analysis::Analyzer;
 use wdl::analysis::DiagnosticsConfig;
+use wdl::analysis::Validator;
 use wdl::analysis::rules;
 use wdl::ast::AstNode;
 use wdl::ast::Diagnostic;
-use wdl::lint::LintVisitor;
-use wdl::lint::ast::Validator;
-use wdl::lint::rules::ShellCheckRule;
+use wdl::lint::Linter;
 
 use crate::repository::WorkDir;
 
@@ -127,10 +126,6 @@ pub struct Args {
     /// Additional information is logged in the console.
     #[arg(short, long)]
     pub verbose: bool,
-
-    /// Enable shellcheck lints.
-    #[arg(long, action, requires = "arena")]
-    pub shellcheck: bool,
 }
 
 /// Normalizes diagnostic message text to handle platform-specific differences.
@@ -203,16 +198,13 @@ pub async fn gauntlet(args: Args) -> Result<()> {
             DiagnosticsConfig::new(if args.arena { Vec::new() } else { rules() }),
             move |_: (), _, _, _| async move {},
             move || {
-                let mut validator = if !args.arena {
-                    Validator::default()
-                } else {
+                let mut validator = if args.arena {
                     Validator::empty()
+                } else {
+                    Validator::default()
                 };
                 if args.arena {
-                    validator.add_visitor(LintVisitor::default());
-                    if args.shellcheck {
-                        validator.add_visitor(ShellCheckRule);
-                    }
+                    validator.add_visitor(Linter::default());
                 }
 
                 validator

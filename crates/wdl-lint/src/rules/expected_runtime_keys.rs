@@ -8,18 +8,19 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::OnceLock;
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
+use wdl_analysis::document::Document;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
 use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::TokenText;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::RuntimeItem;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::TASK_HINT_INPUTS;
@@ -42,6 +43,7 @@ use wdl_ast::version::V1;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::serialize_oxford_comma;
 
 /// The identifier for the runtime section rule.
 const ID: &str = "ExpectedRuntimeKeys";
@@ -124,45 +126,6 @@ fn keys_v1_1() -> &'static HashMap<&'static str, KeyKind> {
         keys.insert(TASK_HINT_OUTPUTS, KeyKind::ReservedHint);
         keys
     })
-}
-
-/// Serializes a list of items using the Oxford comma.
-fn serialize_oxford_comma<T: std::fmt::Display>(items: &[T]) -> Option<String> {
-    let len = items.len();
-
-    match len {
-        0 => None,
-        // SAFETY: we just checked to ensure that exactly one element exists in
-        // the `items` Vec, so this should always unwrap.
-        1 => Some(items.iter().next().unwrap().to_string()),
-        2 => {
-            let mut items = items.iter();
-
-            Some(format!(
-                "{a} and {b}",
-                // SAFETY: we just checked to ensure that exactly two elements
-                // exist in the `items` Vec, so the first and second elements
-                // will always be present.
-                a = items.next().unwrap(),
-                b = items.next().unwrap()
-            ))
-        }
-        _ => {
-            let mut result = String::new();
-
-            for item in items.iter().take(len - 1) {
-                if !result.is_empty() {
-                    result.push_str(", ")
-                }
-
-                result.push_str(&item.to_string());
-            }
-
-            result.push_str(", and ");
-            result.push_str(&items[len - 1].to_string());
-            Some(result)
-        }
-    }
 }
 
 /// Creates a "deprecated runtime key" diagnostic.
@@ -359,30 +322,31 @@ fn recommended_keys<'a, 'k>(
 }
 
 impl Visitor for ExpectedRuntimeKeysRule {
-    type State = Diagnostics;
+    fn reset(&mut self) {
+        self.version = None;
+        self.runtime_span = None;
+        self.runtime_processed_for_task = false;
+        self.encountered_keys.clear();
+        self.non_reserved_keys.clear();
+    }
 
     fn document(
         &mut self,
-        _: &mut Self::State,
-        reason: wdl_ast::VisitReason,
-        _: &wdl_ast::Document,
+        _: &mut Diagnostics,
+        reason: VisitReason,
+        _: &Document,
         version: SupportedVersion,
     ) {
         if reason == VisitReason::Exit {
             return;
         }
 
-        // Reset the visitor upon document entry.
-        *self = Default::default();
-
-        // NOTE: this rule is dependent on the document specifying a supported
-        // WDL version.
         self.version = Some(version);
     }
 
     fn task_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         def: &TaskDefinition,
     ) {
@@ -412,7 +376,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                     let specification = format!("the WDL {minor_version} specification");
 
                     if !self.non_reserved_keys.is_empty() {
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             report_non_reserved_runtime_keys(
                                 &self.non_reserved_keys,
                                 runtime_span,
@@ -435,7 +399,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                         .collect::<Vec<_>>();
 
                     if !missing_keys.is_empty() {
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             report_missing_recommended_keys(
                                 missing_keys,
                                 runtime_span,
@@ -452,7 +416,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
 
     fn runtime_section(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
         section: &RuntimeSection,
     ) {
@@ -487,7 +451,12 @@ impl Visitor for ExpectedRuntimeKeysRule {
         }
     }
 
-    fn runtime_item(&mut self, state: &mut Self::State, reason: VisitReason, item: &RuntimeItem) {
+    fn runtime_item(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        item: &RuntimeItem,
+    ) {
         // NOTE: if we've already processed a `runtime` section for this task
         // and we hit this again, that means there are multiple `runtime`
         // sections in the task. In that case, validation should report that
@@ -517,7 +486,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                         // problem that can be encountered is if the key is
                         // deprecated.
                         if let KeyKind::Deprecated(replacement) = kind {
-                            state.exceptable_add(
+                            diagnostics.exceptable_add(
                                 deprecated_runtime_key(&key_name, replacement),
                                 SyntaxElement::from(item.inner().clone()),
                                 &self.exceptable_nodes(),
@@ -534,27 +503,5 @@ impl Visitor for ExpectedRuntimeKeysRule {
         }
 
         self.encountered_keys.push(key_name);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::rules::expected_runtime_keys::serialize_oxford_comma;
-
-    #[test]
-    fn test_itemize_oxford_comma() {
-        assert_eq!(serialize_oxford_comma(&Vec::<String>::default()), None);
-        assert_eq!(
-            serialize_oxford_comma(&["hello"]),
-            Some(String::from("hello"))
-        );
-        assert_eq!(
-            serialize_oxford_comma(&["hello", "world"]),
-            Some(String::from("hello and world"))
-        );
-        assert_eq!(
-            serialize_oxford_comma(&["hello", "there", "world"]),
-            Some(String::from("hello, there, and world"))
-        );
     }
 }

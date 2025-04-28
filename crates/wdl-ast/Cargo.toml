@@ -31,8 +31,3 @@ codespan = ["wdl-grammar/codespan"]
 
 [lints]
 workspace = true
-
-[[test]]
-name = "validation"
-required-features = ["codespan"]
-harness = false

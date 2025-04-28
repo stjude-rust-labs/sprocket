@@ -17,6 +17,8 @@ task test1 {
     command <<<
       set -eo pipefail
 
+      placeholder="foo bar baz"
+
       echo "$placeholder"
 
       if [[ "$i_quote_my_shellvars" ]]; then
@@ -40,6 +42,8 @@ task test2 {
 
     command {
       set -eo pipefail
+
+      placeholder="foo bar baz"
 
       echo "$placeholder"
 

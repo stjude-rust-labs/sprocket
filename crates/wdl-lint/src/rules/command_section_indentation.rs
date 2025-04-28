@@ -3,17 +3,15 @@
 use std::fmt;
 
 use rowan::ast::support;
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
 
@@ -111,26 +109,13 @@ impl Rule for CommandSectionIndentationRule {
 }
 
 impl Visitor for CommandSectionIndentationRule {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Reset the visitor upon document entry
-        *self = Default::default();
+    fn reset(&mut self) {
+        *self = Self;
     }
 
     fn command_section(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &CommandSection,
     ) {
@@ -183,7 +168,7 @@ impl Visitor for CommandSectionIndentationRule {
             let command_keyword = support::token(section.inner(), SyntaxKind::CommandKeyword)
                 .expect("should have a command keyword token");
 
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 mixed_indentation(
                     command_keyword.text_range().into(),
                     span,

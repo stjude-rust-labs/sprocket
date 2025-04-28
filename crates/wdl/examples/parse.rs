@@ -1,4 +1,4 @@
-//! Generates a syntax tree, validates it, and then prints the resulting tree.
+//! Generates a syntax tree and then prints the resulting tree.
 
 use std::fs::read_to_string;
 use std::io::IsTerminal;
@@ -15,7 +15,6 @@ use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
 use wdl::ast::Diagnostic;
 use wdl::ast::Document;
-use wdl::ast::Validator;
 
 /// An example for parsing WDL source files.
 #[derive(Parser)]
@@ -62,15 +61,7 @@ pub fn main() -> Result<()> {
         return Ok(());
     }
 
-    let mut validator = Validator::default();
-    match validator.validate(&document) {
-        Err(diagnostics) => {
-            emit_diagnostics(&args.path, &source, &diagnostics)?;
-        }
-        _ => {
-            println!("{document:#?}");
-        }
-    }
+    println!("{document:#?}");
 
     Ok(())
 }

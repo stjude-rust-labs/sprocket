@@ -29,7 +29,6 @@ use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::SyntaxNode;
-use wdl_ast::Validator;
 
 use crate::IncrementalChange;
 use crate::document::Document;
@@ -37,26 +36,6 @@ use crate::document::Document;
 /// Represents space for a DFS search of a document graph.
 pub type DfsSpace =
     petgraph::algo::DfsSpace<NodeIndex, <StableDiGraph<DocumentGraphNode, ()> as Visitable>::Map>;
-
-/// Represents diagnostics for a document node.
-#[derive(Debug, Clone)]
-pub enum Diagnostics {
-    /// The diagnostics are from the parse.
-    Parse(Arc<[Diagnostic]>),
-    /// The diagnostics are from validation.
-    ///
-    /// This implies there were no parse diagnostics.
-    Validation(Arc<[Diagnostic]>),
-}
-
-impl AsRef<Arc<[Diagnostic]>> for Diagnostics {
-    fn as_ref(&self) -> &Arc<[Diagnostic]> {
-        match self {
-            Self::Parse(d) => d,
-            Self::Validation(d) => d,
-        }
-    }
-}
 
 /// Represents the parse state of a document graph node.
 #[derive(Debug, Clone)]
@@ -77,8 +56,8 @@ pub enum ParseState {
         root: GreenNode,
         /// The line index of the document.
         lines: Arc<LineIndex>,
-        /// The diagnostics.
-        diagnostics: Diagnostics,
+        /// The diagnostics from the parse.
+        diagnostics: Vec<Diagnostic>,
     },
 }
 
@@ -223,12 +202,7 @@ impl DocumentGraphNode {
     /// If a parse is not necessary, the current parse state is returned.
     ///
     /// Otherwise, the new parse state is returned.
-    pub fn parse(
-        &self,
-        tokio: &Handle,
-        client: &Client,
-        validator: &mut Validator,
-    ) -> Result<ParseState> {
+    pub fn parse(&self, tokio: &Handle, client: &Client) -> Result<ParseState> {
         if !self.needs_parse() {
             return Ok(self.parse_state.clone());
         }
@@ -239,7 +213,7 @@ impl DocumentGraphNode {
         }
 
         // Otherwise, fall back to a full parse.
-        self.full_parse(tokio, client, validator)
+        self.full_parse(tokio, client)
     }
 
     /// Performs an incremental parse of the document.
@@ -264,12 +238,7 @@ impl DocumentGraphNode {
     }
 
     /// Performs a full parse of the node.
-    fn full_parse(
-        &self,
-        tokio: &Handle,
-        client: &Client,
-        validator: &mut Validator,
-    ) -> Result<ParseState> {
+    fn full_parse(&self, tokio: &Handle, client: &Client) -> Result<ParseState> {
         let (version, source, lines) = match &self.change {
             None => {
                 // Fetch the source
@@ -343,18 +312,6 @@ impl DocumentGraphNode {
             uri = self.uri,
             elapsed = start.elapsed()
         );
-
-        let diagnostics = if diagnostics.is_empty() {
-            Diagnostics::Validation(
-                validator
-                    .validate(&document)
-                    .err()
-                    .unwrap_or_default()
-                    .into(),
-            )
-        } else {
-            Diagnostics::Parse(diagnostics.into())
-        };
 
         Ok(ParseState::Parsed {
             version,

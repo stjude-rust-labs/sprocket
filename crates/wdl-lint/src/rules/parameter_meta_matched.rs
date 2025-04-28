@@ -2,17 +2,17 @@
 
 use std::collections::HashMap;
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
+use wdl_analysis::document::Document;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::SectionParent;
@@ -209,11 +209,13 @@ fn check_parameter_meta(
 }
 
 impl Visitor for ParameterMetaMatchedRule {
-    type State = Diagnostics;
+    fn reset(&mut self) {
+        *self = Default::default();
+    }
 
     fn document(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
         _: &Document,
         version: SupportedVersion,
@@ -222,14 +224,12 @@ impl Visitor for ParameterMetaMatchedRule {
             return;
         }
 
-        // Reset the visitor upon document entry
-        *self = Default::default();
         self.version = Some(version);
     }
 
     fn task_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         task: &TaskDefinition,
     ) {
@@ -245,7 +245,7 @@ impl Visitor for ParameterMetaMatchedRule {
                     &SectionParent::Task(task.clone()),
                     task.input().iter().flat_map(|i| i.declarations()).collect(),
                     param_meta,
-                    state,
+                    diagnostics,
                     &self.exceptable_nodes(),
                 );
             }
@@ -258,7 +258,7 @@ impl Visitor for ParameterMetaMatchedRule {
 
     fn workflow_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         workflow: &WorkflowDefinition,
     ) {
@@ -278,7 +278,7 @@ impl Visitor for ParameterMetaMatchedRule {
                         .flat_map(|i| i.declarations())
                         .collect(),
                     param_meta,
-                    state,
+                    diagnostics,
                     &self.exceptable_nodes(),
                 );
             }
@@ -291,7 +291,7 @@ impl Visitor for ParameterMetaMatchedRule {
 
     fn struct_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         def: &wdl_ast::v1::StructDefinition,
     ) {
@@ -312,7 +312,7 @@ impl Visitor for ParameterMetaMatchedRule {
                     &SectionParent::Struct(def.clone()),
                     def.members().map(Decl::Unbound).collect(),
                     param_meta,
-                    state,
+                    diagnostics,
                     &self.exceptable_nodes(),
                 );
             }

@@ -1,15 +1,13 @@
 //! A lint rule for import placements.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
@@ -71,26 +69,13 @@ impl Rule for ImportPlacementRule {
 }
 
 impl Visitor for ImportPlacementRule {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Reset the visitor upon document entry
-        *self = Default::default();
+    fn reset(&mut self) {
+        *self = Self::default();
     }
 
     fn import_statement(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         stmt: &ImportStatement,
     ) {
@@ -99,7 +84,7 @@ impl Visitor for ImportPlacementRule {
         }
 
         if self.invalid {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 misplaced_import(stmt.span()),
                 SyntaxElement::from(stmt.inner().clone()),
                 &self.exceptable_nodes(),
@@ -109,7 +94,7 @@ impl Visitor for ImportPlacementRule {
 
     fn struct_definition(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
         _: &StructDefinition,
     ) {
@@ -121,7 +106,7 @@ impl Visitor for ImportPlacementRule {
         self.invalid = true;
     }
 
-    fn task_definition(&mut self, _: &mut Self::State, reason: VisitReason, _: &TaskDefinition) {
+    fn task_definition(&mut self, _: &mut Diagnostics, reason: VisitReason, _: &TaskDefinition) {
         if reason == VisitReason::Exit {
             return;
         }
@@ -132,7 +117,7 @@ impl Visitor for ImportPlacementRule {
 
     fn workflow_definition(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
         _: &WorkflowDefinition,
     ) {

@@ -2,9 +2,9 @@
 
 version 1.1
 
-import "baz"  # following whitespace will be caught by ImportWhitespace rule
+import "baz.wdl"  # following whitespace will be caught by ImportWhitespace rule
 
-import "qux"  # following whitespace duplication is caught be Whitespace rule
+import "qux.wdl"  # following whitespace duplication is caught be Whitespace rule
 
 
 # test comment
@@ -23,11 +23,11 @@ workflow foo {
 
     }
     scatter (i in ["hello", "world"]) {
-        call bar { input: s = i }
+        call bar as bar_scatter { input: s = i }
 
     }
     if (true) {
-        call bar { input: s = "world" }
+        call bar as bar_conditional { input: s = "world" }
 
     }
     String p = "pip"

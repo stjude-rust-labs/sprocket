@@ -1,15 +1,13 @@
 //! A lint rule for trailing commas in lists/objects.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
@@ -86,26 +84,13 @@ impl Rule for TrailingCommaRule {
 }
 
 impl Visitor for TrailingCommaRule {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Reset the visitor upon document entry
-        *self = Default::default();
+    fn reset(&mut self) {
+        *self = Self;
     }
 
     fn metadata_object(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         item: &wdl_ast::v1::MetadataObject,
     ) {
@@ -122,7 +107,7 @@ impl Visitor for TrailingCommaRule {
                     Some(comma) => {
                         if !comma_is_next {
                             // Comma found, but not next, extraneous trivia
-                            state.exceptable_add(
+                            diagnostics.exceptable_add(
                                 extraneous_content(Span::new(
                                     last_child.inner().text_range().end().into(),
                                     (comma.text_range().start()
@@ -136,7 +121,7 @@ impl Visitor for TrailingCommaRule {
                     }
                     _ => {
                         // No comma found, report missing
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             missing_trailing_comma(
                                 last_child
                                     .inner()
@@ -156,7 +141,7 @@ impl Visitor for TrailingCommaRule {
 
     fn metadata_array(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         item: &MetadataArray,
     ) {
@@ -173,7 +158,7 @@ impl Visitor for TrailingCommaRule {
                     Some(comma) => {
                         if !comma_is_next {
                             // Comma found, but not next, extraneous trivia
-                            state.exceptable_add(
+                            diagnostics.exceptable_add(
                                 extraneous_content(Span::new(
                                     last_child.inner().text_range().end().into(),
                                     (comma.text_range().start()
@@ -187,7 +172,7 @@ impl Visitor for TrailingCommaRule {
                     }
                     _ => {
                         // No comma found, report missing
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             missing_trailing_comma(
                                 last_child
                                     .inner()
@@ -207,7 +192,7 @@ impl Visitor for TrailingCommaRule {
 
     fn call_statement(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         call: &CallStatement,
     ) {
@@ -227,7 +212,7 @@ impl Visitor for TrailingCommaRule {
             match next_comma {
                 Some(nc) => {
                     if !comma_is_next {
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             extraneous_content(Span::new(
                                 input.inner().text_range().end().into(),
                                 (nc.text_range().start() - input.inner().text_range().end()).into(),
@@ -238,7 +223,7 @@ impl Visitor for TrailingCommaRule {
                     }
                 }
                 _ => {
-                    state.exceptable_add(
+                    diagnostics.exceptable_add(
                         missing_trailing_comma(
                             input
                                 .inner()
@@ -255,7 +240,7 @@ impl Visitor for TrailingCommaRule {
         });
     }
 
-    fn expr(&mut self, state: &mut Self::State, reason: VisitReason, expr: &Expr) {
+    fn expr(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, expr: &Expr) {
         if reason == VisitReason::Exit {
             return;
         }
@@ -276,7 +261,7 @@ impl Visitor for TrailingCommaRule {
                                 Some(comma) => {
                                     if !comma_is_next {
                                         // Comma found, but not next, extraneous trivia
-                                        state.exceptable_add(
+                                        diagnostics.exceptable_add(
                                             extraneous_content(Span::new(
                                                 last_child.text_range().end().into(),
                                                 (comma.text_range().start()
@@ -290,7 +275,7 @@ impl Visitor for TrailingCommaRule {
                                 }
                                 _ => {
                                     // No comma found, report missing
-                                    state.exceptable_add(
+                                    diagnostics.exceptable_add(
                                         missing_trailing_comma(
                                             last_child
                                                 .last_token()

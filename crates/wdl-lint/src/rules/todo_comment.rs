@@ -1,15 +1,12 @@
 //! A lint rule for flagging TODOs.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 
 use crate::Rule;
 use crate::Tag;
@@ -65,15 +62,13 @@ impl Rule for TodoCommentRule {
 }
 
 impl Visitor for TodoCommentRule {
-    type State = Diagnostics;
-
-    fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document, _: SupportedVersion) {
-        // This is intentionally empty, as this rule has no state.
+    fn reset(&mut self) {
+        *self = Self;
     }
 
-    fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
+    fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
         for (offset, pattern) in comment.text().match_indices(TODO) {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 todo_comment(pattern, comment.span(), offset),
                 SyntaxElement::from(comment.inner().clone()),
                 &self.exceptable_nodes(),

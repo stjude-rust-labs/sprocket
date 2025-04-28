@@ -29,10 +29,9 @@ use url::Url;
 use walkdir::WalkDir;
 use wdl_ast::Severity;
 use wdl_ast::SyntaxNode;
-use wdl_ast::SyntaxNodeExt;
-use wdl_ast::Validator;
 
 use crate::Rule;
+use crate::SyntaxNodeExt;
 use crate::UNNECESSARY_FUNCTION_CALL;
 use crate::UNUSED_CALL_RULE_ID;
 use crate::UNUSED_DECL_RULE_ID;
@@ -50,6 +49,7 @@ use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::RemoveRequest;
 use crate::queue::Request;
 use crate::rayon::RayonHandle;
+use crate::rules;
 
 /// Represents the kind of analysis progress being reported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -313,6 +313,38 @@ pub struct DiagnosticsConfig {
     pub unnecessary_function_call: Option<Severity>,
 }
 
+impl Default for DiagnosticsConfig {
+    fn default() -> Self {
+        let mut unused_import = None;
+        let mut unused_input = None;
+        let mut unused_declaration = None;
+        let mut unused_call = None;
+        let mut unnecessary_function_call = None;
+
+        for rule in rules() {
+            let rule = rule.as_ref();
+            match rule.id() {
+                UNUSED_IMPORT_RULE_ID => unused_import = Some(rule.severity()),
+                UNUSED_INPUT_RULE_ID => unused_input = Some(rule.severity()),
+                UNUSED_DECL_RULE_ID => unused_declaration = Some(rule.severity()),
+                UNUSED_CALL_RULE_ID => unused_call = Some(rule.severity()),
+                UNNECESSARY_FUNCTION_CALL => unnecessary_function_call = Some(rule.severity()),
+                _ => {
+                    unreachable!("unknown rule ID: {}", rule.id());
+                }
+            }
+        }
+
+        Self {
+            unused_import,
+            unused_input,
+            unused_declaration,
+            unused_call,
+            unnecessary_function_call,
+        }
+    }
+}
+
 impl DiagnosticsConfig {
     /// Creates a new diagnostics configuration from a rule set.
     pub fn new<T: AsRef<dyn Rule>>(rules: impl IntoIterator<Item = T>) -> Self {
@@ -420,7 +452,7 @@ where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
     {
-        Self::new_with_validator(config, progress, Validator::default)
+        Self::new_with_validator(config, progress, crate::Validator::default)
     }
 
     /// Constructs a new analyzer with the given diagnostics config and
@@ -440,7 +472,7 @@ where
     where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
-        Validator: Fn() -> wdl_ast::Validator + Send + Sync + 'static,
+        Validator: Fn() -> crate::Validator + Send + Sync + 'static,
     {
         let (tx, rx) = mpsc::unbounded_channel();
         let tokio = Handle::current();
@@ -648,7 +680,7 @@ where
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Request::Analyze(AnalyzeRequest {
-                document: None,
+                document: None, // analyze all documents
                 context,
                 completed: tx,
             }))
@@ -676,6 +708,12 @@ where
         rx.await.map_err(|_| {
             anyhow!("failed to send format request to the queue because the channel has closed")
         })
+    }
+}
+
+impl Default for Analyzer<()> {
+    fn default() -> Self {
+        Self::new(DiagnosticsConfig::default(), |_, _, _, _| async {})
     }
 }
 

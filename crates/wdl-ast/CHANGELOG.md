@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* AST validation has been moved from this crate to `wdl-analysis` ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+    * This removed the `validation` and `visitor` modules from this crate.
+
 ## 0.11.0 - 04-01-2025
 
 #### Changed

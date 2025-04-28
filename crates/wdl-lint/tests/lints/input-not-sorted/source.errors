@@ -10,7 +10,7 @@ note[InputSorted]: input not sorted
      Directory w
      Array[String]+ p
      Array[String] q
-     mystruct u
+     MyStruct u
      Object v
      Map[String, File] s
      Pair[File, Int] j

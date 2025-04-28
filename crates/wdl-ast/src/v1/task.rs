@@ -134,7 +134,7 @@ fn unescape_command_text(s: &str, heredoc: bool, buffer: &mut String) {
 
 /// Represents a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TaskDefinition<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct TaskDefinition<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> TaskDefinition<N> {
     /// Gets the name of the task.
@@ -712,7 +712,7 @@ impl<N: TreeNode> SectionParent<N> {
 
 /// Represents an input section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct InputSection<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct InputSection<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> InputSection<N> {
     /// Gets the declarations of the input section.
@@ -746,7 +746,7 @@ impl<N: TreeNode> AstNode<N> for InputSection<N> {
 
 /// Represents an output section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct OutputSection<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct OutputSection<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> OutputSection<N> {
     /// Gets the declarations of the output section.
@@ -791,7 +791,7 @@ pub enum StrippedCommandPart<N: TreeNode = SyntaxNode> {
 
 /// Represents a command section in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CommandSection<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct CommandSection<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> CommandSection<N> {
     /// Gets whether or not the command section is a heredoc command.
@@ -828,12 +828,11 @@ impl<N: TreeNode> CommandSection<N> {
         let mut min_leading_tabs = usize::MAX;
         let mut parsing_leading_whitespace = false; // init to false so that the first line is skipped
 
+        let mut leading_spaces = 0;
+        let mut leading_tabs = 0;
         for part in self.parts() {
             match part {
                 CommandPart::Text(text) => {
-                    let mut leading_spaces = 0;
-                    let mut leading_tabs = 0;
-
                     for c in text.text().chars() {
                         match c {
                             ' ' if parsing_leading_whitespace => {
@@ -869,7 +868,20 @@ impl<N: TreeNode> CommandSection<N> {
                     // The last line is intentionally skipped.
                 }
                 CommandPart::Placeholder(_) => {
-                    parsing_leading_whitespace = false;
+                    if parsing_leading_whitespace {
+                        parsing_leading_whitespace = false;
+                        if leading_spaces == 0 && leading_tabs == 0 {
+                            min_leading_spaces = 0;
+                            min_leading_tabs = 0;
+                            continue;
+                        }
+                        if leading_spaces < min_leading_spaces && leading_spaces > 0 {
+                            min_leading_spaces = leading_spaces;
+                        }
+                        if leading_tabs < min_leading_tabs && leading_tabs > 0 {
+                            min_leading_tabs = leading_tabs;
+                        }
+                    }
                 }
             }
         }
@@ -1022,7 +1034,7 @@ impl<N: TreeNode> AstNode<N> for CommandSection<N> {
 
 /// Represents a textual part of a command.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CommandText<T: TreeToken = SyntaxToken>(pub(crate) T);
+pub struct CommandText<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> CommandText<T> {
     /// Unescapes the command text to the given buffer.
@@ -1099,7 +1111,7 @@ impl<N: TreeNode> CommandPart<N> {
 
 /// Represents a requirements section in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RequirementsSection<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct RequirementsSection<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> RequirementsSection<N> {
     /// Gets the items in the requirements section.
@@ -1180,7 +1192,7 @@ impl<N: TreeNode> AstNode<N> for RequirementsItem<N> {
 
 /// Represents a hints section in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TaskHintsSection<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct TaskHintsSection<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> TaskHintsSection<N> {
     /// Gets the items in the hints section.
@@ -1247,7 +1259,7 @@ impl<N: TreeNode> AstNode<N> for TaskHintsItem<N> {
 
 /// Represents a runtime section in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RuntimeSection<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct RuntimeSection<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> RuntimeSection<N> {
     /// Gets the items in the runtime section.
@@ -1289,7 +1301,7 @@ impl<N: TreeNode> AstNode<N> for RuntimeSection<N> {
 
 /// Represents an item in a runtime section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RuntimeItem<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct RuntimeItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> RuntimeItem<N> {
     /// Gets the name of the runtime item.
@@ -1328,7 +1340,7 @@ impl<N: TreeNode> AstNode<N> for RuntimeItem<N> {
 
 /// Represents a metadata section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MetadataSection<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct MetadataSection<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> MetadataSection<N> {
     /// Gets the items of the metadata section.
@@ -1362,7 +1374,7 @@ impl<N: TreeNode> AstNode<N> for MetadataSection<N> {
 
 /// Represents a metadata object item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MetadataObjectItem<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct MetadataObjectItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> MetadataObjectItem<N> {
     /// Gets the name of the item.
@@ -1561,7 +1573,7 @@ impl<N: TreeNode> AstNode<N> for LiteralNull<N> {
 
 /// Represents a metadata object.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MetadataObject<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct MetadataObject<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> MetadataObject<N> {
     /// Gets the items of the metadata object.
@@ -1589,7 +1601,7 @@ impl<N: TreeNode> AstNode<N> for MetadataObject<N> {
 
 /// Represents a metadata array.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MetadataArray<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct MetadataArray<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> MetadataArray<N> {
     /// Gets the elements of the metadata array.
@@ -1617,7 +1629,7 @@ impl<N: TreeNode> AstNode<N> for MetadataArray<N> {
 
 /// Represents a parameter metadata section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParameterMetadataSection<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct ParameterMetadataSection<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ParameterMetadataSection<N> {
     /// Gets the items of the parameter metadata section.
@@ -1655,10 +1667,6 @@ mod test {
 
     use super::*;
     use crate::Document;
-    use crate::SupportedVersion;
-    use crate::VisitReason;
-    use crate::Visitor;
-    use crate::v1::UnboundDecl;
 
     #[test]
     fn tasks() {
@@ -1857,160 +1865,6 @@ task test {
                 .text(),
             "private"
         );
-
-        // Use a visitor to count the number of task sections
-        #[derive(Default)]
-        struct MyVisitor {
-            tasks: usize,
-            inputs: usize,
-            outputs: usize,
-            commands: usize,
-            requirements: usize,
-            hints: usize,
-            runtimes: usize,
-            metadata: usize,
-            param_metadata: usize,
-            unbound_decls: usize,
-            bound_decls: usize,
-        }
-
-        impl Visitor for MyVisitor {
-            type State = ();
-
-            fn document(
-                &mut self,
-                _: &mut Self::State,
-                _: VisitReason,
-                _: &Document,
-                _: SupportedVersion,
-            ) {
-            }
-
-            fn task_definition(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &TaskDefinition,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.tasks += 1;
-                }
-            }
-
-            fn input_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &InputSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.inputs += 1;
-                }
-            }
-
-            fn output_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &OutputSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.outputs += 1;
-                }
-            }
-
-            fn command_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &CommandSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.commands += 1;
-                }
-            }
-
-            fn requirements_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &RequirementsSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.requirements += 1;
-                }
-            }
-
-            fn task_hints_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &TaskHintsSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.hints += 1;
-                }
-            }
-
-            fn runtime_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &RuntimeSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.runtimes += 1;
-                }
-            }
-
-            fn metadata_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &MetadataSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.metadata += 1;
-                }
-            }
-
-            fn parameter_metadata_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &ParameterMetadataSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.param_metadata += 1;
-                }
-            }
-
-            fn bound_decl(&mut self, _: &mut Self::State, reason: VisitReason, _: &BoundDecl) {
-                if reason == VisitReason::Enter {
-                    self.bound_decls += 1;
-                }
-            }
-
-            fn unbound_decl(&mut self, _: &mut Self::State, reason: VisitReason, _: &UnboundDecl) {
-                if reason == VisitReason::Enter {
-                    self.unbound_decls += 1;
-                }
-            }
-        }
-
-        let mut visitor = MyVisitor::default();
-        document.visit(&mut (), &mut visitor);
-        assert_eq!(visitor.tasks, 1);
-        assert_eq!(visitor.inputs, 1);
-        assert_eq!(visitor.outputs, 1);
-        assert_eq!(visitor.commands, 1);
-        assert_eq!(visitor.requirements, 1);
-        assert_eq!(visitor.hints, 1);
-        assert_eq!(visitor.runtimes, 1);
-        assert_eq!(visitor.metadata, 1);
-        assert_eq!(visitor.param_metadata, 1);
-        assert_eq!(visitor.unbound_decls, 1);
-        assert_eq!(visitor.bound_decls, 2);
     }
 
     #[test]
@@ -2101,6 +1955,79 @@ then name
             _ => panic!("expected text"),
         };
         assert_eq!(text, "!\"");
+    }
+
+    #[test]
+    fn whitespace_stripping_when_interpolation_starts_line() {
+        let (document, diagnostics) = Document::parse(
+            r#"
+version 1.2
+
+task test {
+    input {
+      Int placeholder
+    }
+
+    command <<<
+            # other weird whitspace
+      ~{placeholder} "$trailing_pholder" ~{placeholder}
+      ~{placeholder} somecommand.py "$leading_pholder"
+    >>>
+}
+"#,
+        );
+
+        assert!(diagnostics.is_empty());
+        let ast = document.ast();
+        let ast = ast.as_v1().expect("should be a V1 AST");
+        let tasks: Vec<_> = ast.tasks().collect();
+        assert_eq!(tasks.len(), 1);
+
+        let command = tasks[0].command().expect("should have a command section");
+
+        let stripped = command.strip_whitespace().unwrap();
+        assert_eq!(stripped.len(), 7);
+        let text = match &stripped[0] {
+            StrippedCommandPart::Text(text) => text,
+            _ => panic!("expected text"),
+        };
+        assert_eq!(text, "      # other weird whitspace\n");
+
+        let _placeholder = match &stripped[1] {
+            StrippedCommandPart::Placeholder(p) => p,
+            _ => panic!("expected placeholder"),
+        };
+        // not testing anything with the placeholder, just making sure it's there
+
+        let text = match &stripped[2] {
+            StrippedCommandPart::Text(text) => text,
+            _ => panic!("expected text"),
+        };
+        assert_eq!(text, " \"$trailing_pholder\" ");
+
+        let _placeholder = match &stripped[3] {
+            StrippedCommandPart::Placeholder(p) => p,
+            _ => panic!("expected placeholder"),
+        };
+        // not testing anything with the placeholder, just making sure it's there
+
+        let text = match &stripped[4] {
+            StrippedCommandPart::Text(text) => text,
+            _ => panic!("expected text"),
+        };
+        assert_eq!(text, "\n");
+
+        let _placeholder = match &stripped[5] {
+            StrippedCommandPart::Placeholder(p) => p,
+            _ => panic!("expected placeholder"),
+        };
+        // not testing anything with the placeholder, just making sure it's there
+
+        let text = match &stripped[6] {
+            StrippedCommandPart::Text(text) => text,
+            _ => panic!("expected text"),
+        };
+        assert_eq!(text, " somecommand.py \"$leading_pholder\"");
     }
 
     #[test]

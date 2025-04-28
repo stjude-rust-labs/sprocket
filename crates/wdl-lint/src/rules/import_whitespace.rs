@@ -1,15 +1,13 @@
 //! A lint rule for preventing whitespace between imports.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::ImportStatement;
 
 use crate::Rule;
@@ -88,26 +86,13 @@ impl Rule for ImportWhitespaceRule {
 }
 
 impl Visitor for ImportWhitespaceRule {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Reset the visitor upon document entry
-        *self = Default::default();
+    fn reset(&mut self) {
+        *self = Self;
     }
 
     fn import_statement(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         stmt: &ImportStatement,
     ) {
@@ -124,7 +109,7 @@ impl Visitor for ImportWhitespaceRule {
 
         for token in internal_whitespace {
             if token.text() != " " && token.prev_token().unwrap().kind() != SyntaxKind::Comment {
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     improper_whitespace_within_import(token.text_range().into()),
                     SyntaxElement::from(token),
                     &self.exceptable_nodes(),
@@ -144,7 +129,7 @@ impl Visitor for ImportWhitespaceRule {
                 let span: Span = token.text_range().into();
                 for (text, offset, _) in lines_with_offset(token.text()) {
                     if !text.is_empty() {
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             improper_whitespace_before_import(Span::new(
                                 span.start() + offset,
                                 span.len() - offset,
@@ -187,7 +172,7 @@ impl Visitor for ImportWhitespaceRule {
 
                 if should_warn {
                     let span = token.text_range().into();
-                    state.exceptable_add(
+                    diagnostics.exceptable_add(
                         blank_between_imports(span),
                         SyntaxElement::from(token.clone()),
                         &self.exceptable_nodes(),

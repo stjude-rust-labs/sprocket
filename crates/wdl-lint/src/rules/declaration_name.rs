@@ -1,14 +1,12 @@
 //! A lint rule that disallows declaration names with type information.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::PrimitiveTypeKind;
@@ -22,10 +20,6 @@ use crate::TagSet;
 /// The identifier for the declaration name rule.
 const ID: &str = "DeclarationName";
 
-/// A rule that identifies declaration names that include their type names.
-#[derive(Debug, Default)]
-pub struct DeclarationNameRule;
-
 /// Create a diagnostic for a declaration identifier that contains its type
 /// name.
 fn decl_identifier_with_type(span: Span, decl_name: &str, type_name: &str) -> Diagnostic {
@@ -36,6 +30,10 @@ fn decl_identifier_with_type(span: Span, decl_name: &str, type_name: &str) -> Di
     .with_highlight(span)
     .with_fix("rename the identifier to not include the type name")
 }
+
+/// A rule that identifies declaration names that include their type names.
+#[derive(Debug, Default)]
+pub struct DeclarationNameRule;
 
 impl Rule for DeclarationNameRule {
     fn id(&self) -> &'static str {
@@ -75,30 +73,17 @@ impl Rule for DeclarationNameRule {
 }
 
 impl Visitor for DeclarationNameRule {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Reset the visitor upon document entry
-        *self = Default::default();
+    fn reset(&mut self) {
+        *self = Self;
     }
 
-    fn bound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &BoundDecl) {
+    fn bound_decl(&mut self, state: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
         if reason == VisitReason::Enter {
             check_decl_name(state, &Decl::Bound(decl.clone()), &self.exceptable_nodes());
         }
     }
 
-    fn unbound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &UnboundDecl) {
+    fn unbound_decl(&mut self, state: &mut Diagnostics, reason: VisitReason, decl: &UnboundDecl) {
         if reason == VisitReason::Enter {
             check_decl_name(
                 state,

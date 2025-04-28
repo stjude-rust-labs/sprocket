@@ -15,33 +15,33 @@ warning[SnakeCase]: private declaration name `badPrivateDecl` is not snake_case
   = fix: replace `badPrivateDecl` with `bad_private_decl`
 
 warning[SnakeCase]: task name `BadTask` is not snake_case
-   ┌─ tests/lints/snake-case/source.wdl:15:6
+   ┌─ tests/lints/snake-case/source.wdl:19:6
    │
-15 │ task BadTask {
+19 │ task BadTask {
    │      ^^^^^^^ this name must be snake_case
    │
    = fix: replace `BadTask` with `bad_task`
 
 warning[SnakeCase]: input name `BadInput` is not snake_case
-   ┌─ tests/lints/snake-case/source.wdl:24:16
+   ┌─ tests/lints/snake-case/source.wdl:28:16
    │
-24 │         String BadInput
+28 │         String BadInput
    │                ^^^^^^^^ this name must be snake_case
    │
    = fix: replace `BadInput` with `bad_input`
 
 warning[SnakeCase]: output name `badOut` is not snake_case
-   ┌─ tests/lints/snake-case/source.wdl:33:14
+   ┌─ tests/lints/snake-case/source.wdl:37:14
    │
-33 │         File badOut = "out.txt"
+37 │         File badOut = "out.txt"
    │              ^^^^^^ this name must be snake_case
    │
    = fix: replace `badOut` with `bad_out`
 
 warning[SnakeCase]: struct member name `bAdFiElD` is not snake_case
-   ┌─ tests/lints/snake-case/source.wdl:67:12
+   ┌─ tests/lints/snake-case/source.wdl:71:12
    │
-67 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
+71 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
    │            ^^^^^^^^ this name must be snake_case
    │
    = fix: replace `bAdFiElD` with `b_ad_fi_el_d`

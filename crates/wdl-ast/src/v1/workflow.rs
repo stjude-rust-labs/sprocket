@@ -31,7 +31,7 @@ pub const WORKFLOW_HINT_ALLOW_NESTED_INPUTS_ALIAS: &str = "allowNestedInputs";
 
 /// Represents a workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WorkflowDefinition<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct WorkflowDefinition<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> WorkflowDefinition<N> {
     /// Gets the name of the workflow.
@@ -690,7 +690,7 @@ impl<N: TreeNode> WorkflowStatement<N> {
 
 /// Represents a workflow conditional statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ConditionalStatement<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct ConditionalStatement<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ConditionalStatement<N> {
     /// Gets the expression of the conditional statement
@@ -723,7 +723,7 @@ impl<N: TreeNode> AstNode<N> for ConditionalStatement<N> {
 
 /// Represents a workflow scatter statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ScatterStatement<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct ScatterStatement<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ScatterStatement<N> {
     /// Gets the scatter variable identifier.
@@ -762,7 +762,7 @@ impl<N: TreeNode> AstNode<N> for ScatterStatement<N> {
 
 /// Represents a workflow call statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CallStatement<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct CallStatement<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> CallStatement<N> {
     /// Gets the target of the call.
@@ -933,7 +933,7 @@ impl<N: TreeNode> AstNode<N> for CallInputItem<N> {
 
 /// Represents a hints section in a workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WorkflowHintsSection<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct WorkflowHintsSection<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> WorkflowHintsSection<N> {
     /// Gets the items in the hints section.
@@ -1127,7 +1127,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsItemValue<N> {
 
 /// Represents a workflow hints object.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WorkflowHintsObject<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct WorkflowHintsObject<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> WorkflowHintsObject<N> {
     /// Gets the items of the workflow hints object.
@@ -1155,7 +1155,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsObject<N> {
 
 /// Represents a workflow hints object item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WorkflowHintsObjectItem<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct WorkflowHintsObjectItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> WorkflowHintsObjectItem<N> {
     /// Gets the name of the item.
@@ -1188,7 +1188,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsObjectItem<N> {
 
 /// Represents a workflow hints array.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WorkflowHintsArray<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct WorkflowHintsArray<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> WorkflowHintsArray<N> {
     /// Gets the elements of the workflow hints array.
@@ -1218,10 +1218,6 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsArray<N> {
 mod test {
     use super::*;
     use crate::Document;
-    use crate::SupportedVersion;
-    use crate::VisitReason;
-    use crate::Visitor;
-    use crate::v1::UnboundDecl;
 
     #[test]
     fn workflows() {
@@ -1544,145 +1540,5 @@ workflow test {
                 .text(),
             "private"
         );
-
-        #[derive(Default)]
-        struct MyVisitor {
-            workflows: usize,
-            inputs: usize,
-            outputs: usize,
-            conditionals: usize,
-            scatters: usize,
-            calls: usize,
-            metadata: usize,
-            param_metadata: usize,
-            unbound_decls: usize,
-            bound_decls: usize,
-        }
-
-        impl Visitor for MyVisitor {
-            type State = ();
-
-            fn document(
-                &mut self,
-                _: &mut Self::State,
-                _: VisitReason,
-                _: &Document,
-                _: SupportedVersion,
-            ) {
-            }
-
-            fn workflow_definition(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &WorkflowDefinition,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.workflows += 1;
-                }
-            }
-
-            fn input_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &InputSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.inputs += 1;
-                }
-            }
-
-            fn output_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &OutputSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.outputs += 1;
-                }
-            }
-
-            fn conditional_statement(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &ConditionalStatement,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.conditionals += 1;
-                }
-            }
-
-            fn scatter_statement(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &ScatterStatement,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.scatters += 1;
-                }
-            }
-
-            fn call_statement(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &CallStatement,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.calls += 1;
-                }
-            }
-
-            fn metadata_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &MetadataSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.metadata += 1;
-                }
-            }
-
-            fn parameter_metadata_section(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &ParameterMetadataSection,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.param_metadata += 1;
-                }
-            }
-
-            fn bound_decl(&mut self, _: &mut Self::State, reason: VisitReason, _: &BoundDecl) {
-                if reason == VisitReason::Enter {
-                    self.bound_decls += 1;
-                }
-            }
-
-            fn unbound_decl(&mut self, _: &mut Self::State, reason: VisitReason, _: &UnboundDecl) {
-                if reason == VisitReason::Enter {
-                    self.unbound_decls += 1;
-                }
-            }
-        }
-
-        let mut visitor = MyVisitor::default();
-        document.visit(&mut (), &mut visitor);
-        assert_eq!(visitor.workflows, 1);
-        assert_eq!(visitor.inputs, 1);
-        assert_eq!(visitor.outputs, 1);
-        assert_eq!(visitor.conditionals, 1);
-        assert_eq!(visitor.scatters, 2);
-        assert_eq!(visitor.calls, 3);
-        assert_eq!(visitor.metadata, 1);
-        assert_eq!(visitor.param_metadata, 1);
-        assert_eq!(visitor.unbound_decls, 2);
-        assert_eq!(visitor.bound_decls, 2);
     }
 }

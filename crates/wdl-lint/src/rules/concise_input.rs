@@ -2,16 +2,16 @@
 
 use std::fmt::Debug;
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
+use wdl_analysis::document::Document;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::CallStatement;
 
 use crate::Rule;
@@ -31,9 +31,9 @@ fn redundant_input_assignment(span: Span, name: &str) -> Diagnostic {
 
 /// Detects a redundant input assignment.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct ConciseInput(Option<SupportedVersion>);
+pub struct ConciseInputRule(Option<SupportedVersion>);
 
-impl Rule for ConciseInput {
+impl Rule for ConciseInputRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -65,12 +65,14 @@ impl Rule for ConciseInput {
     }
 }
 
-impl Visitor for ConciseInput {
-    type State = Diagnostics;
+impl Visitor for ConciseInputRule {
+    fn reset(&mut self) {
+        *self = Default::default();
+    }
 
     fn document(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
         _: &Document,
         version: SupportedVersion,
@@ -79,13 +81,12 @@ impl Visitor for ConciseInput {
             return;
         }
 
-        // Reset the visitor upon document entry
-        *self = Self(Some(version));
+        self.0 = Some(version);
     }
 
     fn call_statement(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         stmt: &CallStatement,
     ) {
@@ -101,7 +102,7 @@ impl Visitor for ConciseInput {
                 if let Some(expr) = input.expr() {
                     if let Some(expr_name) = expr.as_name_ref() {
                         if expr_name.name().text() == input.name().text() {
-                            state.exceptable_add(
+                            diagnostics.exceptable_add(
                                 redundant_input_assignment(input.span(), input.name().text()),
                                 SyntaxElement::from(input.inner().clone()),
                                 &self.exceptable_nodes(),

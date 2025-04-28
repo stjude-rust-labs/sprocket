@@ -3,23 +3,19 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::EXCEPT_COMMENT_PREFIX;
+use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
-use wdl_ast::EXCEPT_COMMENT_PREFIX;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::optional_rules;
 use crate::rules;
 
 /// The identifier for the unknown rule rule.
@@ -60,10 +56,6 @@ pub static RULE_MAP: LazyLock<HashMap<&'static str, Option<&'static [SyntaxKind]
         for rule in rules() {
             map.insert(rule.id(), rule.exceptable_nodes());
         }
-        // insert optional rules as well
-        for rule in optional_rules() {
-            map.insert(rule.id(), rule.exceptable_nodes());
-        }
         map
     });
 
@@ -100,13 +92,11 @@ impl Rule for LintDirectiveValidRule {
 }
 
 impl Visitor for LintDirectiveValidRule {
-    type State = Diagnostics;
-
-    fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document, _: SupportedVersion) {
-        // This is intentionally empty, as this rule has no state.
+    fn reset(&mut self) {
+        *self = Self;
     }
 
-    fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
+    fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
         if let Some(ids) = comment.text().strip_prefix(EXCEPT_COMMENT_PREFIX) {
             let start: usize = comment.span().start();
             let mut offset = EXCEPT_COMMENT_PREFIX.len();
@@ -134,7 +124,7 @@ impl Visitor for LintDirectiveValidRule {
                 if let Some(elem) = &excepted_element {
                     if let Some(Some(exceptable_nodes)) = RULE_MAP.get(trimmed) {
                         if !exceptable_nodes.contains(&elem.kind()) {
-                            state.add(misplaced_lint_directive(
+                            diagnostics.add(misplaced_lint_directive(
                                 trimmed,
                                 Span::new(start + offset, trimmed.len()),
                                 elem,

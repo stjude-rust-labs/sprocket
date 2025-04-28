@@ -1,15 +1,13 @@
 //! A lint rule for using double quoted strings.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::LiteralStringKind;
@@ -71,31 +69,18 @@ impl Rule for DoubleQuotesRule {
 }
 
 impl Visitor for DoubleQuotesRule {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Reset the visitor upon document entry
-        *self = Default::default();
+    fn reset(&mut self) {
+        *self = Self;
     }
 
-    fn expr(&mut self, state: &mut Self::State, reason: VisitReason, expr: &Expr) {
+    fn expr(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, expr: &Expr) {
         if reason == VisitReason::Exit {
             return;
         }
 
         if let Expr::Literal(LiteralExpr::String(s)) = expr {
             if s.kind() == LiteralStringKind::SingleQuoted {
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     use_double_quotes(s.span()),
                     SyntaxElement::from(expr.inner().clone()),
                     &self.exceptable_nodes(),

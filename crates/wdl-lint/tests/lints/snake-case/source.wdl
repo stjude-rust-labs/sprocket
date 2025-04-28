@@ -6,8 +6,12 @@ workflow BadWorkflow {
     meta {}
 
     Float badPrivateDecl = 3.14
-    call BadTask
-    call good_task
+    call BadTask { input:
+        BadInput = "something"
+    }
+    call good_task { input:
+        good_input = "something"
+    }
 
     output {}
 }

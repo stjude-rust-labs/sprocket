@@ -17,6 +17,11 @@ filters = ["/template/task-templates.wdl"]
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:100:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L100"
+
+[[diagnostics]]
+document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
 message = "ww-fastq-to-cram.wdl:10:34: note[CommentWhitespace]: in-line comments should be preceded by two spaces"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L10"
 
@@ -109,6 +114,11 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
 message = "ww-fastq-to-cram.wdl:180:32: note[ExpressionSpacing]: operators must be surrounded by whitespace"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L180"
+
+[[diagnostics]]
+document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:182:39: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L182"
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
@@ -307,8 +317,23 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:99:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L99"
+
+[[diagnostics]]
+document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
 message = "ww-fastq-to-cram.wdl:9:34: note[CommentWhitespace]: in-line comments should be preceded by two spaces"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L9"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:114:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L114"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:115:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L115"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
@@ -324,6 +349,11 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:133:6: warning[SnakeCase]: task name `CollapseGTF` is not snake_case"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L133"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:143:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/eb2efc50a94fd9e9579775acbf776d20ea2da0d1/ww-star-deseq2.wdl/#L143"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
@@ -927,6 +957,21 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:322:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L322"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:323:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L323"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:332:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L332"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
 message = "ww-vc-trio.wdl:336:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L336"
 
@@ -1502,8 +1547,163 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:212:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L212"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:238:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L238"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:254:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L254"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:270:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L270"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:286:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L286"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:302:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L302"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:318:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L318"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:334:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L334"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:350:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L350"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:366:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L366"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:382:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L382"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:398:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L398"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:414:14: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L414"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:444:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/data_structures/read_group.wdl/#L444"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:187:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L187"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:188:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L188"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:189:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L189"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:190:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L190"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:191:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L191"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:192:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L192"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:194:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L194"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:195:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L195"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:196:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L196"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:197:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L197"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:198:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L198"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:200:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L200"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:201:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L201"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:206:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L206"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:207:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L207"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:231:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L231"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:232:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L232"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:233:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L233"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -1512,13 +1712,78 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:281:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L281"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:282:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L282"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:285:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L285"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:286:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L286"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:287:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L287"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:298:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L298"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:333:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L333"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:334:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L334"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:335:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L335"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:347:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L347"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:381:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L381"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:381:50: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L381"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:384:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L384"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:385:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L385"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:386:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/arriba.wdl/#L386"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -1537,8 +1802,93 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:161:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L161"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:164:28: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L164"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:167:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L167"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:168:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L168"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:171:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L171"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:173:54: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L173"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:174:54: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L174"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:175:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L175"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:175:44: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L175"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:177:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L177"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:190:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L190"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:257:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L257"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:260:28: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L260"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:263:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L263"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:268:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L268"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:270:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L270"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:271:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L271"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:273:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L273"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
@@ -1547,8 +1897,53 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:322:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L322"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:323:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L323"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:327:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L327"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:337:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L337"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:62:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L62"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:65:28: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L65"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:68:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L68"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:71:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L71"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:74:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L74"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:76:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/bwa.wdl/#L76"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
@@ -1557,8 +1952,28 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/deeptools.wdl"
+message = "deeptools.wdl:50:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/deeptools.wdl/#L50"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/deeptools.wdl"
+message = "deeptools.wdl:51:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/deeptools.wdl/#L51"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/deeptools.wdl"
+message = "deeptools.wdl:55:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/deeptools.wdl/#L55"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/deeptools.wdl"
 message = "deeptools.wdl:70:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/deeptools.wdl/#L70"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/estimate.wdl"
+message = 'estimate.wdl:39:34: note[ShellCheck]: Prefer escape over ending quote to make $ literal. Instead of "It costs $"5, use "It costs /$5".'
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/estimate.wdl/#L39"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/estimate.wdl"
@@ -1567,8 +1982,63 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fastqc.wdl"
+message = "fastqc.wdl:49:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fastqc.wdl/#L49"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fastqc.wdl"
+message = "fastqc.wdl:51:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fastqc.wdl/#L51"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fastqc.wdl"
+message = "fastqc.wdl:53:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fastqc.wdl/#L53"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fastqc.wdl"
+message = "fastqc.wdl:55:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fastqc.wdl/#L55"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fastqc.wdl"
+message = "fastqc.wdl:55:32: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fastqc.wdl/#L55"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fastqc.wdl"
 message = "fastqc.wdl:67:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fastqc.wdl/#L67"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:155:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L155"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:156:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L156"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:157:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L157"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:158:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L158"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:163:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L163"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:164:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L164"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
@@ -1587,8 +2057,73 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:81:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L81"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:82:44: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L82"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:83:44: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L83"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:84:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L84"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:85:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L85"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:86:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L86"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:96:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L96"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:129:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L129"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:130:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L130"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:131:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L131"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:136:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L136"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:137:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L137"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:138:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L138"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:139:33: note[ShellCheck]: Ranges can only match single chars (mentioned due to duplicates)."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L139"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -1602,6 +2137,31 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:197:33: note[ShellCheck]: Ranges can only match single chars (mentioned due to duplicates)."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L197"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:198:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L198"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:199:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L199"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:200:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L200"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:201:31: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L201"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:213:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L213"
 
@@ -1612,6 +2172,36 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:281:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L281"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:282:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L282"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:283:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L283"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:284:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L284"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:285:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L285"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:287:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L287"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:299:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L299"
 
@@ -1619,6 +2209,31 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:314:5: note[ParameterMetaMatched]: parameter metadata in task `variant_filtration` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L314"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:354:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L354"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:355:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L355"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:358:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L358"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:359:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L359"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:360:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L360"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -1642,8 +2257,68 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:461:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L461"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:462:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L462"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:463:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L463"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:465:42: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L465"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:466:42: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L466"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:470:40: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L470"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:472:33: note[ShellCheck]: Ranges can only match single chars (mentioned due to duplicates)."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L472"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:485:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L485"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:51:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L51"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:52:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L52"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:53:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L53"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:56:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L56"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:56:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L56"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -1654,6 +2329,71 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:83:5: note[ParameterMetaMatched]: parameter metadata in task `base_recalibrator` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L83"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:104:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L104"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:106:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L106"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:112:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L112"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:113:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L113"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:115:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L115"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:116:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L116"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:117:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L117"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:118:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L118"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:119:36: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L119"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:120:40: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L120"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:125:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L125"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:126:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L126"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:127:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L127"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
@@ -1677,8 +2417,53 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:102:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L102"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:103:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L103"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:105:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L105"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:108:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L108"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:110:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L110"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:120:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L120"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:158:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L158"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:160:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L160"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:165:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L165"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:167:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L167"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
@@ -1687,8 +2472,63 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:249:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L249"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:251:36: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L251"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:257:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L257"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:261:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L261"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:267:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L267"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:270:57: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L270"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:274:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L274"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:276:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L276"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:27:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L27"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:287:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L287"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:29:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L29"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:32:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L32"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
@@ -1699,6 +2539,46 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:334:14: note[InputName]: declaration identifier must be at least 3 characters"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L334"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:34:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L34"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:375:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L375"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:379:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L379"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:382:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L382"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:384:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L384"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:385:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L385"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:386:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L386"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:389:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L389"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
@@ -1717,8 +2597,43 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/librarian.wdl"
+message = "librarian.wdl:39:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/librarian.wdl/#L39"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/librarian.wdl"
+message = "librarian.wdl:40:41: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/librarian.wdl/#L40"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/librarian.wdl"
+message = "librarian.wdl:40:51: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/librarian.wdl/#L40"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/librarian.wdl"
+message = "librarian.wdl:42:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/librarian.wdl/#L42"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/librarian.wdl"
+message = "librarian.wdl:42:35: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/librarian.wdl/#L42"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/librarian.wdl"
 message = "librarian.wdl:53:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/librarian.wdl/#L53"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/md5sum.wdl"
+message = "md5sum.wdl:29:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/md5sum.wdl/#L29"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/md5sum.wdl"
+message = "md5sum.wdl:29:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/md5sum.wdl/#L29"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/md5sum.wdl"
@@ -1727,8 +2642,53 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/mosdepth.wdl"
+message = "mosdepth.wdl:46:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L46"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/mosdepth.wdl"
+message = "mosdepth.wdl:47:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L47"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/mosdepth.wdl"
+message = "mosdepth.wdl:51:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L51"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/mosdepth.wdl"
+message = "mosdepth.wdl:51:59: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L51"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/mosdepth.wdl"
+message = "mosdepth.wdl:53:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L53"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/mosdepth.wdl"
+message = "mosdepth.wdl:54:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L54"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/mosdepth.wdl"
 message = "mosdepth.wdl:69:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L69"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/multiqc.wdl"
+message = "multiqc.wdl:49:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/multiqc.wdl/#L49"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/multiqc.wdl"
+message = "multiqc.wdl:51:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/multiqc.wdl/#L51"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/multiqc.wdl"
+message = "multiqc.wdl:53:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/multiqc.wdl/#L53"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/multiqc.wdl"
@@ -1737,8 +2697,38 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:126:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L126"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:127:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L127"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:129:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L129"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:140:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L140"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:185:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L185"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:186:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L186"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:192:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L192"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -1747,8 +2737,48 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:244:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L244"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:245:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L245"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:281:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L281"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:340:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L340"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:341:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L341"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:344:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L344"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:349:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L349"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:355:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L355"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:356:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L356"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -1757,8 +2787,68 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:438:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L438"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:439:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L439"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:440:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L440"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:441:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L441"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:444:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L444"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:445:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L445"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:455:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L455"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:58:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L58"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:59:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L59"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:62:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L62"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:66:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L66"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:68:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L68"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:73:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L73"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -1767,8 +2857,33 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:100:42: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L100"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:1033:31: note[ShellCheck]: Couldn't parse this escaped char. Fix to allow more checks."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L1033"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:1044:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L1044"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:104:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L104"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:111:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L111"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:111:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L111"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -1779,6 +2894,51 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:153:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L153"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:210:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L210"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:211:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L211"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:212:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L212"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:213:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L213"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:214:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L214"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:215:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L215"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:217:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L217"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:235:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L235"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:238:41: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L238"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -1802,6 +2962,36 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:310:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L310"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:311:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L311"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:312:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L312"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:315:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L315"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:320:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L320"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:320:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L320"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:333:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L333"
 
@@ -1822,6 +3012,36 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:398:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L398"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:399:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L399"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:401:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L401"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:405:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L405"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:407:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L407"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:407:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L407"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:420:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L420"
 
@@ -1837,6 +3057,31 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:470:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L470"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:473:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L473"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:474:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L474"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:476:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L476"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:476:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L476"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:488:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L488"
 
@@ -1844,6 +3089,26 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:514:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L514"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:537:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L537"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:538:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L538"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:539:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L539"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:540:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L540"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -1857,6 +3122,26 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:599:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L599"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:600:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L600"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:601:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L601"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:602:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L602"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:613:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L613"
 
@@ -1864,6 +3149,36 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:644:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L644"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:667:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L667"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:668:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L668"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:669:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L669"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:670:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L670"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:671:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L671"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:672:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L672"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -1877,6 +3192,26 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:732:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L732"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:733:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L733"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:734:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L734"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:735:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L735"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:746:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L746"
 
@@ -1884,6 +3219,26 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:769:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L769"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:791:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L791"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:792:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L792"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:793:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L793"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:794:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L794"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -1902,8 +3257,43 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:843:56: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L843"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:844:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L844"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:845:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L845"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:853:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L853"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:854:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L854"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:865:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L865"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:899:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L899"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:900:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L900"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -1922,6 +3312,31 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:94:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L94"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:956:32: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L956"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:959:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L959"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:95:28: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L95"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:96:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L96"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:983:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L983"
 
@@ -1929,6 +3344,31 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:997:5: note[ParameterMetaMatched]: parameter metadata in task `create_sequence_dictionary` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L997"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:99:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L99"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:135:29: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L135"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:136:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L136"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:146:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L146"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:146:32: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L146"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
@@ -1939,6 +3379,46 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
 message = "qualimap.wdl:15:5: note[ParameterMetaMatched]: parameter metadata in task `rnaseq` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L15"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:64:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L64"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:64:50: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L64"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:67:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L67"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:70:33: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L70"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:71:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L71"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:72:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L72"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:76:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L76"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:76:32: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L76"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
@@ -1957,8 +3437,33 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:105:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L105"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:106:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L106"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:117:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L117"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:159:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L159"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:160:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L160"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:161:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L161"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
@@ -1967,8 +3472,38 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:212:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L212"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:213:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L213"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:214:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L214"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:215:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L215"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:228:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L228"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:274:49: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L274"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:274:58: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L274"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
@@ -1977,13 +3512,128 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:46:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L46"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:46:53: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L46"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:57:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/sambamba.wdl/#L57"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:102:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L102"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1039:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1039"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1043:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1043"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1044:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1044"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1045:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1045"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1046:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1046"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1047:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1047"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1048:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1048"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1049:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1049"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1049:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1049"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:104:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L104"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1060:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1060"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:110:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L110"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1132:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1132"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1136:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1136"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1139:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1139"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1143:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1143"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1144:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1144"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1145:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1145"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1146:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1146"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1147:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1147"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1152:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1152"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -2002,13 +3652,88 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:118:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L118"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1194:20: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1194"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1254:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1254"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1260:28: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1260"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1261:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1261"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1262:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1262"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1263:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1263"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1264:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1264"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1265:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1265"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1266:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1266"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1267:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1267"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1271:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1271"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1284:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1284"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1316:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1316"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1317:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1317"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1319:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1319"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1319:43: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1319"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -2022,13 +3747,88 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:199:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L199"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:201:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L201"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:201:57: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L201"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:211:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L211"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:257:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L257"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:259:45: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L259"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:259:52: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L259"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:270:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L270"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:29:29: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L29"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:322:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L322"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:333:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L333"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:358:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L358"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:359:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L359"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:369:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L369"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:383:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L383"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:388:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L388"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:393:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L393"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -2042,8 +3842,103 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:465:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L465"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:470:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L470"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:471:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L471"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:472:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L472"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:473:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L473"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:474:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L474"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:475:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L475"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:481:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L481"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:503:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L503"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:574:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L574"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:581:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L581"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:582:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L582"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:587:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L587"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:588:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L588"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:589:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L589"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:590:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L590"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:591:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L591"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:592:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L592"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:593:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L593"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:594:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L594"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -2052,13 +3947,148 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:670:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L670"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:674:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L674"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:675:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L675"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:676:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L676"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:677:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L677"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:678:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L678"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:679:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L679"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:690:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L690"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:746:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L746"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:750:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L750"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:751:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L751"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:752:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L752"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:763:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L763"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:871:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L871"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:876:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L876"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:878:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L878"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:880:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L880"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:881:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L881"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:885:51: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L885"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:890:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L890"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:891:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L891"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:892:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L892"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:893:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L893"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:894:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L894"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:899:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L899"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:908:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L908"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:915:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L915"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:924:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L924"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:934:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L934"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -2069,6 +4099,61 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:986:23: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L986"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:98:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L98"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:100:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L100"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:102:38: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L102"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:105:32: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L105"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:106:34: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L106"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:107:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L107"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:108:40: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L108"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:109:44: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L109"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:110:44: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L110"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:119:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L119"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:119:32: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L119"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
@@ -2082,13 +4167,223 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:637:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L637"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:643:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L643"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:646:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L646"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:661:33: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L661"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:662:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L662"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:664:43: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L664"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:667:38: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L667"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:673:41: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L673"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:679:40: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L679"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:685:43: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L685"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:691:41: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L691"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:697:32: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L697"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:700:32: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L700"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:703:33: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L703"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:706:28: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L706"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:707:40: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L707"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:710:28: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L710"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:711:33: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L711"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:712:31: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L712"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:713:33: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L713"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:714:32: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L714"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:715:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L715"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:716:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L716"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:717:28: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L717"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:718:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L718"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:725:29: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L725"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:726:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L726"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:727:38: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L727"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:728:32: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L728"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:729:29: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L729"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:730:44: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L730"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:731:35: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L731"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:732:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L732"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:733:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L733"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:734:37: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L734"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
 message = "star.wdl:816:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L816"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:92:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L92"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:92:50: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L92"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:95:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L95"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:96:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L96"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:98:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L98"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:101:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L101"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:132:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L132"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:132:9: note[ShellCheck]: See if you can use ${variable//search/replace} instead."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L132"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -2102,13 +4397,58 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:269:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L269"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:279:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L279"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:30:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L30"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:30:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L30"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:312:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L312"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:314:41: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L314"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:314:50: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L314"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:324:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L324"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:33:49: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L33"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:34:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L34"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:354:38: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L354"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -2119,6 +4459,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:392:32: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L392"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:412:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L412"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:415:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L415"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -2137,6 +4487,61 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:719:83: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L719"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:720:94: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L720"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:721:87: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L721"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:722:90: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L722"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:723:82: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L723"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:724:93: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L724"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:725:81: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L725"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:727:83: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L727"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:728:86: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L728"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:730:86: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L730"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:754:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L754"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:764:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L764"
 
@@ -2147,8 +4552,33 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:806:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L806"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:807:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L807"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:807:51: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L807"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:825:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L825"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:83:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L83"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:90:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L90"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
@@ -2217,8 +4647,43 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:117:16: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L117"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:118:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L118"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:119:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L119"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
 message = "methylation-cohort.wdl:127:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L127"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:160:16: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L160"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:161:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L161"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:162:31: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L162"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:164:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L164"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
@@ -2227,13 +4692,68 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:202:16: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L202"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:203:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L203"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:204:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L204"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
 message = "methylation-cohort.wdl:212:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L212"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:239:16: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L239"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:239:45: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L239"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:239:67: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L239"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
 message = "methylation-cohort.wdl:247:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-cohort.wdl/#L247"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
+message = "methylation-preprocess.wdl:35:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L35"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
+message = "methylation-preprocess.wdl:35:29: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L35"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
+message = "methylation-preprocess.wdl:37:17: note[ShellCheck]: Quote this to prevent word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L37"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
+message = "methylation-preprocess.wdl:38:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L38"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
+message = "methylation-preprocess.wdl:39:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L39"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"

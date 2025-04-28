@@ -1,15 +1,15 @@
 //! A lint rule for key-value pairs to ensure each element is on a newline.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
+use wdl_analysis::document::Document;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::MetadataArray;
 use wdl_ast::v1::MetadataObject;
 
@@ -107,11 +107,13 @@ impl Rule for MetaKeyValueFormattingRule {
 }
 
 impl Visitor for MetaKeyValueFormattingRule {
-    type State = Diagnostics;
+    fn reset(&mut self) {
+        *self = Default::default();
+    }
 
     fn document(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
         _: &Document,
         version: SupportedVersion,
@@ -120,14 +122,12 @@ impl Visitor for MetaKeyValueFormattingRule {
             return;
         }
 
-        // Reset the visitor upon document entry
-        *self = Default::default();
         self.version = Some(version);
     }
 
     fn metadata_object(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         item: &MetadataObject,
     ) {
@@ -150,7 +150,7 @@ impl Visitor for MetaKeyValueFormattingRule {
             .expect("should have indentation");
 
         if !item.inner().to_string().contains('\n') {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 all_on_one_line(item.span()),
                 SyntaxElement::from(item.inner().clone()),
                 &self.exceptable_nodes(),
@@ -165,7 +165,7 @@ impl Visitor for MetaKeyValueFormattingRule {
             .expect("should have an opening delimiter");
         if let Some(open_ws) = open_delim.next_sibling_or_token() {
             if open_ws.kind() != SyntaxKind::Whitespace || !open_ws.to_string().contains('\n') {
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     missing_trailing_newline(open_delim.text_range().into()),
                     SyntaxElement::from(item.inner().clone()),
                     &self.exceptable_nodes(),
@@ -187,7 +187,7 @@ impl Visitor for MetaKeyValueFormattingRule {
                     Some(next) => next.text_range().end(),
                     _ => close_delim.text_range().start(),
                 };
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     missing_trailing_newline(Span::new(s.start(), usize::from(end) - s.start())),
                     SyntaxElement::from(child.inner().clone()),
                     &self.exceptable_nodes(),
@@ -207,7 +207,7 @@ impl Visitor for MetaKeyValueFormattingRule {
                     let expected_ws = parent_ws.to_owned() + INDENT;
 
                     if ws != expected_ws {
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             incorrect_indentation(prior_ws.text_range().into(), &expected_ws, ws),
                             SyntaxElement::from(child.inner().clone()),
                             &self.exceptable_nodes(),
@@ -229,7 +229,7 @@ impl Visitor for MetaKeyValueFormattingRule {
                 let expected_ws = parent_ws.to_owned();
 
                 if ws != expected_ws {
-                    state.exceptable_add(
+                    diagnostics.exceptable_add(
                         incorrect_indentation(
                             Span::new(
                                 usize::from(close_delim.text_range().start()) - ws.len(),
@@ -248,7 +248,7 @@ impl Visitor for MetaKeyValueFormattingRule {
 
     fn metadata_array(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         item: &MetadataArray,
     ) {
@@ -272,7 +272,7 @@ impl Visitor for MetaKeyValueFormattingRule {
 
         // If the array is all on one line, report that
         if !item.inner().to_string().contains('\n') {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 all_on_one_line(item.span()),
                 SyntaxElement::from(item.inner().clone()),
                 &self.exceptable_nodes(),
@@ -287,7 +287,7 @@ impl Visitor for MetaKeyValueFormattingRule {
             .expect("should have an opening delimiter");
         if let Some(open_ws) = open_delim.next_sibling_or_token() {
             if open_ws.kind() != SyntaxKind::Whitespace || !open_ws.to_string().contains('\n') {
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     missing_trailing_newline(open_delim.text_range().into()),
                     SyntaxElement::from(item.inner().clone()),
                     &self.exceptable_nodes(),
@@ -309,7 +309,7 @@ impl Visitor for MetaKeyValueFormattingRule {
                     Some(next) => next.text_range().end(),
                     _ => close_delim.text_range().start(),
                 };
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     missing_trailing_newline(Span::new(s.start(), usize::from(end) - s.start())),
                     SyntaxElement::from(child.inner().clone()),
                     &self.exceptable_nodes(),
@@ -329,7 +329,7 @@ impl Visitor for MetaKeyValueFormattingRule {
                     let expected_ws = parent_ws.to_owned() + INDENT;
 
                     if ws != expected_ws {
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             incorrect_indentation(prior_ws.text_range().into(), &expected_ws, ws),
                             SyntaxElement::from(child.inner().clone()),
                             &self.exceptable_nodes(),
@@ -351,7 +351,7 @@ impl Visitor for MetaKeyValueFormattingRule {
                 let expected_ws = parent_ws.to_owned();
 
                 if ws != expected_ws {
-                    state.exceptable_add(
+                    diagnostics.exceptable_add(
                         incorrect_indentation(
                             Span::new(
                                 usize::from(close_delim.text_range().start()) - ws.len(),

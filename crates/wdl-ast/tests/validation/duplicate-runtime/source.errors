@@ -1,9 +1,0 @@
-error: task `t` contains a duplicate runtime section
-   ┌─ tests/validation/duplicate-runtime/source.wdl:10:5
-   │
- 6 │     runtime {
-   │     ------- first runtime section is defined here
-   ·
-10 │     runtime {
-   │     ^^^^^^^ this runtime section is a duplicate
-

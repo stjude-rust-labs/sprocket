@@ -34,7 +34,7 @@ task bar {
     }
 
     input {
-        String a
+        String? a
         String? b
     }
 

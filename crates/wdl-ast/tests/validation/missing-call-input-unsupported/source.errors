@@ -1,8 +1,0 @@
-error: omitting the `input` keyword in a call statement requires WDL version 1.2
-  ┌─ tests/validation/missing-call-input-unsupported/source.wdl:6:16
-  │
-6 │     call foo { foo = bar }
-  │                ^^^^^^^^^ missing an `input` keyword before this input
-  │
-  = fix: add an `input` keyword followed by a colon before any call inputs
-

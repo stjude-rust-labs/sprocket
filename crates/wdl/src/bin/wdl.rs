@@ -97,16 +97,12 @@ pub struct CheckCommand {
     /// Enables the default set of lints (everything but shellcheck).
     #[clap(long)]
     pub lint: bool,
-
-    /// Enable shellcheck lints.
-    #[clap(long)]
-    pub shellcheck: bool,
 }
 
 impl CheckCommand {
     /// Executes the `check` subcommand.
     async fn exec(self) -> Result<()> {
-        let results = analyze(&self.file, self.except, self.lint, self.shellcheck).await?;
+        let results = analyze(&self.file, self.except, self.lint).await?;
         for result in results {
             let document = result.document();
             if let Some(e) = result.error() {
@@ -143,16 +139,12 @@ pub struct AnalyzeCommand {
     /// Enables the default set of lints (everything but shellcheck).
     #[clap(long)]
     pub lint: bool,
-
-    /// Enable shellcheck lints.
-    #[clap(long)]
-    pub shellcheck: bool,
 }
 
 impl AnalyzeCommand {
     /// Executes the `analyze` subcommand.
     async fn exec(self) -> Result<()> {
-        let results = analyze(&self.file, self.except, self.lint, self.shellcheck).await?;
+        let results = analyze(&self.file, self.except, self.lint).await?;
         println!("{:#?}", results);
         Ok(())
     }
@@ -358,7 +350,7 @@ impl RunCommand {
             bail!("expected a WDL document, found a directory");
         }
 
-        let results = analyze(&self.file, vec![], false, false).await?;
+        let results = analyze(&self.file, vec![], false).await?;
         let mut errors = 0;
         for result in results.iter() {
             let document = result.document();

@@ -2,17 +2,15 @@
 
 use std::fmt;
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
 
@@ -94,26 +92,13 @@ impl Rule for OutputSectionRule {
 }
 
 impl Visitor for OutputSectionRule {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Reset the visitor upon document entry
-        *self = Default::default();
+    fn reset(&mut self) {
+        *self = Self;
     }
 
     fn task_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         task: &TaskDefinition,
     ) {
@@ -123,7 +108,7 @@ impl Visitor for OutputSectionRule {
 
         if task.output().is_none() {
             let name = task.name();
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 missing_output_section(name.text(), Context::Task, name.span()),
                 SyntaxElement::from(task.inner().clone()),
                 &self.exceptable_nodes(),
@@ -133,7 +118,7 @@ impl Visitor for OutputSectionRule {
 
     fn workflow_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         workflow: &WorkflowDefinition,
     ) {
@@ -143,7 +128,7 @@ impl Visitor for OutputSectionRule {
 
         if workflow.output().is_none() {
             let name = workflow.name();
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 missing_output_section(name.text(), Context::Workflow, name.span()),
                 SyntaxElement::from(workflow.inner().clone()),
                 &self.exceptable_nodes(),

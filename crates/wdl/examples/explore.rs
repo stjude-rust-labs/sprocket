@@ -24,7 +24,6 @@ use wdl::ast::AstNode;
 use wdl::ast::AstToken;
 use wdl::ast::Diagnostic;
 use wdl::ast::Document;
-use wdl::ast::Validator;
 use wdl::ast::v1::InputSection;
 use wdl::ast::v1::MetadataSection;
 use wdl::ast::v1::OutputSection;
@@ -72,11 +71,6 @@ pub fn main() -> Result<()> {
 
     let (document, diagnostics) = Document::parse(&source);
     if !diagnostics.is_empty() {
-        emit_diagnostics(&args.path, &source, &diagnostics)?;
-    }
-
-    let mut validator = Validator::default();
-    if let Err(diagnostics) = validator.validate(&document) {
         emit_diagnostics(&args.path, &source, &diagnostics)?;
     }
 

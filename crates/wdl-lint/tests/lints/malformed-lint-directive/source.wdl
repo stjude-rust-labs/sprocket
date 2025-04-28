@@ -1,4 +1,5 @@
-#@ except: CommentWhitespace, MetaDescription, RuntimeSection, KnownRules, LineWidth, PreambleCommentPlacement
+#@ except: CommentWhitespace, MetaDescription, RuntimeSection, KnownRules, LineWidth
+#@ except: RequirementsSection, PreambleCommentPlacement
 
 ## This is a test of the `LintDirectiveFormatted` rule
 
@@ -41,18 +42,22 @@ struct Baz {  #@ except: this should be flagged for being inlined
     String x
 }
 
-workflow bar2 {
+task bar2 {
     meta {
     }
+
+    command <<<>>>
 
     #@     except: this should be flagged for excessive whitespace
     output {
     }
 }
 
-workflow bar3 {
+task bar3 {
     meta {
     }
+
+    command <<<>>>
 
     ## The following should be flagged for having a missing directive
 

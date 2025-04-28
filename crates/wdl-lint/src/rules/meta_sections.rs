@@ -2,17 +2,17 @@
 
 use std::fmt;
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
+use wdl_analysis::document::Document;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Ident;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
@@ -137,11 +137,13 @@ impl Rule for MetaSectionsRule {
 }
 
 impl Visitor for MetaSectionsRule {
-    type State = Diagnostics;
+    fn reset(&mut self) {
+        *self = Default::default();
+    }
 
     fn document(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
         _: &Document,
         version: SupportedVersion,
@@ -150,14 +152,12 @@ impl Visitor for MetaSectionsRule {
             return;
         }
 
-        // Reset the visitor upon document entry
-        *self = Default::default();
         self.version = Some(version);
     }
 
     fn task_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         task: &TaskDefinition,
     ) {
@@ -168,19 +168,19 @@ impl Visitor for MetaSectionsRule {
         let inputs_present = task.input().is_some();
 
         if inputs_present && task.metadata().is_none() && task.parameter_metadata().is_none() {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 missing_sections(task.name(), Context::Task),
                 SyntaxElement::from(task.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if task.metadata().is_none() {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 missing_section(task.name(), Section::Meta, Context::Task),
                 SyntaxElement::from(task.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if inputs_present && task.parameter_metadata().is_none() {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 missing_section(task.name(), Section::ParameterMeta, Context::Task),
                 SyntaxElement::from(task.inner().clone()),
                 &self.exceptable_nodes(),
@@ -190,7 +190,7 @@ impl Visitor for MetaSectionsRule {
 
     fn workflow_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         workflow: &WorkflowDefinition,
     ) {
@@ -204,19 +204,19 @@ impl Visitor for MetaSectionsRule {
             && workflow.metadata().is_none()
             && workflow.parameter_metadata().is_none()
         {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 missing_sections(workflow.name(), Context::Workflow),
                 SyntaxElement::from(workflow.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if workflow.metadata().is_none() {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 missing_section(workflow.name(), Section::Meta, Context::Workflow),
                 SyntaxElement::from(workflow.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if inputs_present && workflow.parameter_metadata().is_none() {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 missing_section(workflow.name(), Section::ParameterMeta, Context::Workflow),
                 SyntaxElement::from(workflow.inner().clone()),
                 &self.exceptable_nodes(),
@@ -226,7 +226,7 @@ impl Visitor for MetaSectionsRule {
 
     fn struct_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         def: &wdl_ast::v1::StructDefinition,
     ) {
@@ -240,19 +240,19 @@ impl Visitor for MetaSectionsRule {
         }
 
         if def.metadata().next().is_none() && def.parameter_metadata().next().is_none() {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 missing_sections(def.name(), Context::Struct),
                 SyntaxElement::from(def.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if def.metadata().next().is_none() {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 missing_section(def.name(), Section::Meta, Context::Struct),
                 SyntaxElement::from(def.inner().clone()),
                 &self.exceptable_nodes(),
             );
         } else if def.parameter_metadata().next().is_none() {
-            state.exceptable_add(
+            diagnostics.exceptable_add(
                 missing_section(def.name(), Section::ParameterMeta, Context::Struct),
                 SyntaxElement::from(def.inner().clone()),
                 &self.exceptable_nodes(),

@@ -4,7 +4,7 @@
 version 1.2
 
 #@ except: MetaSections
-struct Mystruct {
+struct MyStruct {
     String a
     Int b
 }
@@ -64,7 +64,7 @@ workflow foo {
         Map[String, File] s
         Pair[String, File] n
         Array[String]+ p
-        mystruct u
+        MyStruct u
     }
 
     output {}

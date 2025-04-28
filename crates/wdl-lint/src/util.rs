@@ -4,11 +4,11 @@ use std::process::Command;
 use std::process::Stdio;
 
 use strsim::levenshtein;
+use wdl_analysis::rules as analysis_rules;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::SyntaxKind;
 
-use crate::RESERVED_RULE_IDS;
 use crate::rules::RULE_MAP;
 
 /// Detect if a comment is in-line or not by looking for `\n` in the prior
@@ -31,9 +31,8 @@ pub fn is_inline_comment(token: &Comment) -> bool {
     false
 }
 
-/// Determines whether or not a string containing embedded quotes is properly
-/// quoted.
-pub fn is_properly_quoted(s: &str, quote_char: char) -> bool {
+/// Determines whether or not a string containing embedded quotes is balanced.
+pub fn is_quote_balanced(s: &str, quote_char: char) -> bool {
     let mut closed = true;
     let mut escaped = false;
     s.chars().for_each(|c| {
@@ -112,7 +111,7 @@ pub fn find_nearest_rule(unknown_rule_id: &str) -> Option<&'static str> {
     RULE_MAP
         .keys()
         .copied()
-        .chain(RESERVED_RULE_IDS.iter().copied())
+        .chain(analysis_rules().iter().map(|rule| rule.id()))
         .map(|rule_id| (rule_id, levenshtein(unknown_rule_id, rule_id)))
         .filter(|(_, distance)| *distance <= threshold)
         .min_by_key(|(_, distance)| *distance)
@@ -128,6 +127,45 @@ fn calculate_threshold(input_len: usize) -> usize {
         return input_len / 3 + 1;
     }
     5
+}
+
+/// Serializes a list of items using the Oxford comma.
+pub fn serialize_oxford_comma<T: std::fmt::Display>(items: &[T]) -> Option<String> {
+    let len = items.len();
+
+    match len {
+        0 => None,
+        // SAFETY: we just checked to ensure that exactly one element exists in
+        // the `items` Vec, so this should always unwrap.
+        1 => Some(items.iter().next().unwrap().to_string()),
+        2 => {
+            let mut items = items.iter();
+
+            Some(format!(
+                "{a} and {b}",
+                // SAFETY: we just checked to ensure that exactly two elements
+                // exist in the `items` Vec, so the first and second elements
+                // will always be present.
+                a = items.next().unwrap(),
+                b = items.next().unwrap()
+            ))
+        }
+        _ => {
+            let mut result = String::new();
+
+            for item in items.iter().take(len - 1) {
+                if !result.is_empty() {
+                    result.push_str(", ")
+                }
+
+                result.push_str(&item.to_string());
+            }
+
+            result.push_str(", and ");
+            result.push_str(&items[len - 1].to_string());
+            Some(result)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -226,19 +264,19 @@ task foo {  # an in-line comment
     #[test]
     fn test_is_properly_quoted() {
         let s = "\"this string is quoted properly.\"";
-        assert!(is_properly_quoted(s, '"'));
+        assert!(is_quote_balanced(s, '"'));
         let s = "\"this string has an escaped \\\" quote.\"";
-        assert!(is_properly_quoted(s, '"'));
+        assert!(is_quote_balanced(s, '"'));
         let s = "\"this string is missing an end quote";
-        assert_eq!(is_properly_quoted(s, '"'), false);
+        assert_eq!(is_quote_balanced(s, '"'), false);
         let s = "this string is missing an open quote\"";
-        assert_eq!(is_properly_quoted(s, '"'), false);
+        assert_eq!(is_quote_balanced(s, '"'), false);
         let s = "\"this string has an irrelevant escape \\ \"";
-        assert!(is_properly_quoted(s, '"'));
+        assert!(is_quote_balanced(s, '"'));
         let s = "'this string has single quotes'";
-        assert!(is_properly_quoted(s, '\''));
+        assert!(is_quote_balanced(s, '\''));
         let s = "this string has unclosed single quotes'";
-        assert_eq!(is_properly_quoted(s, '\''), false);
+        assert_eq!(is_quote_balanced(s, '\''), false);
     }
 
     #[test]
@@ -266,5 +304,22 @@ task foo {  # an in-line comment
         // Test a completely different string
         let nearest = find_nearest_rule("CompletelyDifferentRule");
         assert_eq!(nearest, None);
+    }
+
+    #[test]
+    fn test_itemize_oxford_comma() {
+        assert_eq!(serialize_oxford_comma(&Vec::<String>::default()), None);
+        assert_eq!(
+            serialize_oxford_comma(&["hello"]),
+            Some(String::from("hello"))
+        );
+        assert_eq!(
+            serialize_oxford_comma(&["hello", "world"]),
+            Some(String::from("hello and world"))
+        );
+        assert_eq!(
+            serialize_oxford_comma(&["hello", "there", "world"]),
+            Some(String::from("hello, there, and world"))
+        );
     }
 }

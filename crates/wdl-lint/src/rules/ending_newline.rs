@@ -1,15 +1,14 @@
 //! A lint rule for newlines at the end of the document.
 
-use wdl_ast::Ast;
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
+use wdl_analysis::document::Document;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 
 use crate::Rule;
 use crate::Tag;
@@ -73,29 +72,23 @@ impl Rule for EndingNewlineRule {
 }
 
 impl Visitor for EndingNewlineRule {
-    type State = Diagnostics;
+    fn reset(&mut self) {
+        *self = Self;
+    }
 
     fn document(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         doc: &Document,
         _: SupportedVersion,
     ) {
         if reason == VisitReason::Enter {
-            // We only process on exit so that it's one of the last diagnostics emitted
-            // Reset the visitor upon document entry
-            *self = Default::default();
-            return;
-        }
-
-        // Don't run on a document without a supported version
-        if matches!(doc.ast(), Ast::Unsupported) {
             return;
         }
 
         // Get the last token in the document and see if it's whitespace
-        match doc.inner().last_child_or_token() {
+        match doc.root().inner().last_child_or_token() {
             Some(last) if last.kind() == SyntaxKind::Whitespace => {
                 // It's whitespace, check if it ends with a newline
                 let last = last.into_token().expect("whitespace should be a token");
@@ -115,7 +108,7 @@ impl Visitor for EndingNewlineRule {
                             // Since this rule can only be excepted in a document-wide fashion,
                             // if the rule is running we can directly add the diagnostic
                             // without checking for the exceptable nodes
-                            state.add(multiple_ending_newline(
+                            diagnostics.add(multiple_ending_newline(
                                 Span::new(start + text.len(), len - text.len() - 1),
                                 extra,
                             ));
@@ -124,14 +117,16 @@ impl Visitor for EndingNewlineRule {
                     // Since this rule can only be excepted in a document-wide fashion,
                     // if the rule is running we can directly add the diagnostic
                     // without checking for the exceptable nodes
-                    None => state.add(missing_ending_newline(Span::new(start + (len - 1), 1))),
+                    None => {
+                        diagnostics.add(missing_ending_newline(Span::new(start + (len - 1), 1)))
+                    }
                 }
             }
             Some(last) => {
                 // Since this rule can only be excepted in a document-wide fashion,
                 // if the rule is running we can directly add the diagnostic
                 // without checking for the exceptable nodes
-                state.add(missing_ending_newline(Span::new(
+                diagnostics.add(missing_ending_newline(Span::new(
                     usize::from(last.text_range().end()) - 1,
                     1,
                 )));

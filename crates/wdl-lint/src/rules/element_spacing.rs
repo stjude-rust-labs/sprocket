@@ -1,18 +1,16 @@
 //! A lint rule for blank spacing between elements.
 
 use rowan::NodeOrToken;
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxToken;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::CommandSection;
@@ -128,26 +126,15 @@ impl Rule for ElementSpacingRule {
 }
 
 impl Visitor for ElementSpacingRule {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Enter {
-            // Reset the visitor upon document entry
-            *self = Default::default();
-        }
+    fn reset(&mut self) {
+        *self = Self::default();
     }
 
     // Import spacing is handled by the ImportWhitespace rule
 
     fn task_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         task: &TaskDefinition,
     ) {
@@ -157,13 +144,19 @@ impl Visitor for ElementSpacingRule {
 
         let first = is_first_element(task.inner());
         let actual_start = skip_preceding_comments(task.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(task.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        check_last_token(task.inner(), diagnostics, &self.exceptable_nodes());
     }
 
     fn workflow_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         workflow: &WorkflowDefinition,
     ) {
@@ -173,13 +166,19 @@ impl Visitor for ElementSpacingRule {
 
         let first = is_first_element(workflow.inner());
         let actual_start = skip_preceding_comments(workflow.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(workflow.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        check_last_token(workflow.inner(), diagnostics, &self.exceptable_nodes());
     }
 
     fn metadata_section(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &MetadataSection,
     ) {
@@ -192,14 +191,20 @@ impl Visitor for ElementSpacingRule {
 
         let first = is_first_element(section.inner());
         let actual_start = skip_preceding_comments(section.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        flag_all_blank_lines_within(section.inner(), diagnostics, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
     fn parameter_metadata_section(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &ParameterMetadataSection,
     ) {
@@ -212,14 +217,20 @@ impl Visitor for ElementSpacingRule {
 
         let first = is_first_element(section.inner());
         let actual_start = skip_preceding_comments(section.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        flag_all_blank_lines_within(section.inner(), diagnostics, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
     fn input_section(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &InputSection,
     ) {
@@ -232,13 +243,19 @@ impl Visitor for ElementSpacingRule {
 
         let first = is_first_element(section.inner());
         let actual_start = skip_preceding_comments(section.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(section.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        check_last_token(section.inner(), diagnostics, &self.exceptable_nodes());
     }
 
     fn command_section(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &CommandSection,
     ) {
@@ -248,13 +265,19 @@ impl Visitor for ElementSpacingRule {
 
         let first = is_first_element(section.inner());
         let actual_start = skip_preceding_comments(section.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(section.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        check_last_token(section.inner(), diagnostics, &self.exceptable_nodes());
     }
 
     fn output_section(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &OutputSection,
     ) {
@@ -266,13 +289,19 @@ impl Visitor for ElementSpacingRule {
         }
         let first = is_first_element(section.inner());
         let actual_start = skip_preceding_comments(section.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(section.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        check_last_token(section.inner(), diagnostics, &self.exceptable_nodes());
     }
 
     fn runtime_section(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &RuntimeSection,
     ) {
@@ -285,15 +314,21 @@ impl Visitor for ElementSpacingRule {
 
         let first = is_first_element(section.inner());
         let actual_start = skip_preceding_comments(section.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        flag_all_blank_lines_within(section.inner(), diagnostics, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
     // call statement internal spacing is handled by the CallInputSpacing rule
     fn call_statement(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         stmt: &CallStatement,
     ) {
@@ -308,14 +343,14 @@ impl Visitor for ElementSpacingRule {
         let prev = skip_preceding_comments(stmt.inner());
 
         if first {
-            check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
+            check_prior_spacing(&prev, diagnostics, true, false, &self.exceptable_nodes());
         }
-        check_last_token(stmt.inner(), state, &self.exceptable_nodes());
+        check_last_token(stmt.inner(), diagnostics, &self.exceptable_nodes());
     }
 
     fn scatter_statement(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         stmt: &ScatterStatement,
     ) {
@@ -328,14 +363,14 @@ impl Visitor for ElementSpacingRule {
         let prev = skip_preceding_comments(stmt.inner());
 
         if first {
-            check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
+            check_prior_spacing(&prev, diagnostics, true, false, &self.exceptable_nodes());
         }
-        check_last_token(stmt.inner(), state, &self.exceptable_nodes());
+        check_last_token(stmt.inner(), diagnostics, &self.exceptable_nodes());
     }
 
     fn struct_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         def: &StructDefinition,
     ) {
@@ -345,13 +380,19 @@ impl Visitor for ElementSpacingRule {
 
         let first = is_first_element(def.inner());
         let actual_start = skip_preceding_comments(def.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        check_last_token(def.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        check_last_token(def.inner(), diagnostics, &self.exceptable_nodes());
     }
 
     fn requirements_section(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &RequirementsSection,
     ) {
@@ -361,14 +402,20 @@ impl Visitor for ElementSpacingRule {
 
         let first = is_first_element(section.inner());
         let actual_start = skip_preceding_comments(section.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        flag_all_blank_lines_within(section.inner(), diagnostics, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
     fn task_hints_section(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &TaskHintsSection,
     ) {
@@ -378,14 +425,20 @@ impl Visitor for ElementSpacingRule {
 
         let first = is_first_element(section.inner());
         let actual_start = skip_preceding_comments(section.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        flag_all_blank_lines_within(section.inner(), diagnostics, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
     fn workflow_hints_section(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &WorkflowHintsSection,
     ) {
@@ -395,12 +448,23 @@ impl Visitor for ElementSpacingRule {
 
         let first = is_first_element(section.inner());
         let actual_start = skip_preceding_comments(section.inner());
-        check_prior_spacing(&actual_start, state, true, first, &self.exceptable_nodes());
-        flag_all_blank_lines_within(section.inner(), state, &self.exceptable_nodes());
+        check_prior_spacing(
+            &actual_start,
+            diagnostics,
+            true,
+            first,
+            &self.exceptable_nodes(),
+        );
+        flag_all_blank_lines_within(section.inner(), diagnostics, &self.exceptable_nodes());
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
-    fn unbound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &UnboundDecl) {
+    fn unbound_decl(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        decl: &UnboundDecl,
+    ) {
         if reason == VisitReason::Exit {
             return;
         }
@@ -416,7 +480,7 @@ impl Visitor for ElementSpacingRule {
                 // one `\n` is allowed.
                 if self.state == State::InputSection || self.state == State::OutputSection {
                     if count > 1 {
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             excess_blank_line(p.text_range().into()),
                             SyntaxElement::from(decl.inner().clone()),
                             &self.exceptable_nodes(),
@@ -428,14 +492,20 @@ impl Visitor for ElementSpacingRule {
                     let prev = skip_preceding_comments(decl.inner());
 
                     if first {
-                        check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
+                        check_prior_spacing(
+                            &prev,
+                            diagnostics,
+                            true,
+                            false,
+                            &self.exceptable_nodes(),
+                        );
                     }
                 }
             }
         }
     }
 
-    fn bound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &BoundDecl) {
+    fn bound_decl(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
         if reason == VisitReason::Exit {
             return;
         }
@@ -452,7 +522,7 @@ impl Visitor for ElementSpacingRule {
                 // one `\n` is allowed.
                 if self.state == State::InputSection || self.state == State::OutputSection {
                     if count > 1 {
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             excess_blank_line(p.text_range().into()),
                             SyntaxElement::from(decl.inner().clone()),
                             &self.exceptable_nodes(),
@@ -464,7 +534,13 @@ impl Visitor for ElementSpacingRule {
                     let prev = skip_preceding_comments(decl.inner());
 
                     if first {
-                        check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
+                        check_prior_spacing(
+                            &prev,
+                            diagnostics,
+                            true,
+                            false,
+                            &self.exceptable_nodes(),
+                        );
                     }
                 }
             }
@@ -473,7 +549,7 @@ impl Visitor for ElementSpacingRule {
 
     fn conditional_statement(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         stmt: &ConditionalStatement,
     ) {
@@ -486,9 +562,9 @@ impl Visitor for ElementSpacingRule {
         let prev = skip_preceding_comments(stmt.inner());
 
         if first {
-            check_prior_spacing(&prev, state, true, false, &self.exceptable_nodes());
+            check_prior_spacing(&prev, diagnostics, true, false, &self.exceptable_nodes());
         }
-        check_last_token(stmt.inner(), state, &self.exceptable_nodes());
+        check_last_token(stmt.inner(), diagnostics, &self.exceptable_nodes());
     }
 }
 
@@ -521,7 +597,7 @@ fn is_first_element(syntax: &SyntaxNode) -> bool {
 /// Some sections do not allow blank lines, so detect and flag them.
 fn flag_all_blank_lines_within(
     syntax: &SyntaxNode,
-    state: &mut Diagnostics,
+    diagnostics: &mut Diagnostics,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
     syntax.descendants_with_tokens().for_each(|c| {
@@ -534,7 +610,7 @@ fn flag_all_blank_lines_within(
                 .filter(|c| *c == '\n')
                 .count();
             if count > 1 {
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     excess_blank_line(c.text_range().into()),
                     SyntaxElement::from(syntax.clone()),
                     exceptable_nodes,
@@ -550,7 +626,7 @@ fn flag_all_blank_lines_within(
 /// (`false`).
 fn check_prior_spacing(
     syntax: &NodeOrToken<SyntaxNode, SyntaxToken>,
-    state: &mut Diagnostics,
+    diagnostics: &mut Diagnostics,
     element_spacing_required: bool,
     first: bool,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
@@ -593,14 +669,14 @@ fn check_prior_spacing(
                             .prev_sibling_or_token()
                             .is_some_and(|p| p.kind() != SyntaxKind::VersionStatementNode)
                     {
-                        state.exceptable_add(
+                        diagnostics.exceptable_add(
                             excess_blank_line(prior.text_range().into()),
                             SyntaxElement::from(syntax.clone()),
                             exceptable_nodes,
                         );
                     }
                 } else if count < 2 && element_spacing_required {
-                    state.exceptable_add(
+                    diagnostics.exceptable_add(
                         missing_blank_line(span),
                         SyntaxElement::from(syntax.clone()),
                         exceptable_nodes,
@@ -612,7 +688,7 @@ fn check_prior_spacing(
                 // If we require between element spacing and are not the first element,
                 // we're missing a blank line.
                 if element_spacing_required && !first {
-                    state.exceptable_add(
+                    diagnostics.exceptable_add(
                         missing_blank_line(span),
                         SyntaxElement::from(syntax.clone()),
                         exceptable_nodes,
@@ -626,7 +702,7 @@ fn check_prior_spacing(
 /// Check that the node's last token does not have a blank before it.
 fn check_last_token(
     syntax: &SyntaxNode,
-    state: &mut Diagnostics,
+    diagnostics: &mut Diagnostics,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
     let prev = syntax
@@ -637,7 +713,7 @@ fn check_last_token(
         if prev.kind() == SyntaxKind::Whitespace {
             let count = prev.text().chars().filter(|c| *c == '\n').count();
             if count > 1 {
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     excess_blank_line(prev.text_range().into()),
                     SyntaxElement::from(syntax.clone()),
                     exceptable_nodes,

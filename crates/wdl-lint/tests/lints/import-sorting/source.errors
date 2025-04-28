@@ -1,12 +1,12 @@
 note[ImportSorted]: imports are not sorted lexicographically
   ┌─ tests/lints/import-sorting/source.wdl:7:1
   │
-7 │ import "A"
+7 │ import "A.wdl"
   │ ^^^^^^ imports must be sorted
   │
   = fix: sort the imports lexicographically:
-    import "A"
-    import "B"
-    import "C"
-    import "D"
+    import "A.wdl"
+    import "B.wdl"
+    import "C.wdl"
+    import "D.wdl"
 

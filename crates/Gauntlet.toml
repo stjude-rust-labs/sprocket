@@ -578,7 +578,7 @@ permalink = "https://github.com/aws-samples/amazon-omics-tutorials/blob/c624acf2
 
 [[diagnostics]]
 document = "biowdl/tasks:/bcftools.wdl"
-message = 'bcftools.wdl:114:75: error: unknown escape sequence `\_`'
+message = "bcftools.wdl:114:75: error: unknown escape sequence `/_`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/bcftools.wdl/#L114"
 
 [[diagnostics]]
@@ -588,27 +588,27 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/bedtools.wdl"
-message = 'bedtools.wdl:27:48: error: unknown escape sequence `\.`'
+message = "bedtools.wdl:27:48: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/bedtools.wdl/#L27"
 
 [[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
-message = 'bowtie.wdl:63:32: error: unknown escape sequence `\.`'
+message = "bowtie.wdl:63:32: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/bowtie.wdl/#L63"
 
 [[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
-message = 'bowtie.wdl:63:39: error: unknown escape sequence `\.`'
+message = "bowtie.wdl:63:39: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/bowtie.wdl/#L63"
 
 [[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
-message = 'bowtie.wdl:63:46: error: unknown escape sequence `\.`'
+message = "bowtie.wdl:63:46: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/bowtie.wdl/#L63"
 
 [[diagnostics]]
 document = "biowdl/tasks:/bowtie.wdl"
-message = 'bowtie.wdl:75:48: error: unknown escape sequence `\.`'
+message = "bowtie.wdl:75:48: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/bowtie.wdl/#L75"
 
 [[diagnostics]]
@@ -618,32 +618,32 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = 'centrifuge.wdl:122:57: error: unknown escape sequence `\.`'
+message = "centrifuge.wdl:122:57: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/centrifuge.wdl/#L122"
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = 'centrifuge.wdl:122:64: error: unknown escape sequence `\.`'
+message = "centrifuge.wdl:122:64: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/centrifuge.wdl/#L122"
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = 'centrifuge.wdl:199:57: error: unknown escape sequence `\.`'
+message = "centrifuge.wdl:199:57: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/centrifuge.wdl/#L199"
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = 'centrifuge.wdl:199:64: error: unknown escape sequence `\.`'
+message = "centrifuge.wdl:199:64: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/centrifuge.wdl/#L199"
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = 'centrifuge.wdl:256:57: error: unknown escape sequence `\.`'
+message = "centrifuge.wdl:256:57: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/centrifuge.wdl/#L256"
 
 [[diagnostics]]
 document = "biowdl/tasks:/centrifuge.wdl"
-message = 'centrifuge.wdl:256:64: error: unknown escape sequence `\.`'
+message = "centrifuge.wdl:256:64: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/centrifuge.wdl/#L256"
 
 [[diagnostics]]
@@ -653,7 +653,7 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/common.wdl"
-message = 'common.wdl:275:45: error: unknown escape sequence `\.`'
+message = "common.wdl:275:45: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/common.wdl/#L275"
 
 [[diagnostics]]
@@ -668,27 +668,27 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/fastqc.wdl"
-message = 'fastqc.wdl:59:42: error: unknown escape sequence `\.`'
+message = "fastqc.wdl:59:42: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/fastqc.wdl/#L59"
 
 [[diagnostics]]
 document = "biowdl/tasks:/fastqc.wdl"
-message = 'fastqc.wdl:63:54: error: unknown escape sequence `\.`'
+message = "fastqc.wdl:63:54: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/fastqc.wdl/#L63"
 
 [[diagnostics]]
 document = "biowdl/tasks:/fastqc.wdl"
-message = 'fastqc.wdl:63:58: error: unknown escape sequence `\.`'
+message = "fastqc.wdl:63:58: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/fastqc.wdl/#L63"
 
 [[diagnostics]]
 document = "biowdl/tasks:/gatk.wdl"
-message = 'gatk.wdl:127:57: error: unknown escape sequence `\.`'
+message = "gatk.wdl:127:57: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/gatk.wdl/#L127"
 
 [[diagnostics]]
 document = "biowdl/tasks:/gatk.wdl"
-message = 'gatk.wdl:1603:41: error: unknown escape sequence `\.`'
+message = "gatk.wdl:1603:41: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/gatk.wdl/#L1603"
 
 [[diagnostics]]
@@ -708,12 +708,12 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/hisat2.wdl"
-message = 'hisat2.wdl:60:34: error: unknown escape sequence `\.`'
+message = "hisat2.wdl:60:34: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/hisat2.wdl/#L60"
 
 [[diagnostics]]
 document = "biowdl/tasks:/hisat2.wdl"
-message = 'hisat2.wdl:60:41: error: unknown escape sequence `\.`'
+message = "hisat2.wdl:60:41: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/hisat2.wdl/#L60"
 
 [[diagnostics]]
@@ -763,7 +763,7 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/multiqc.wdl"
-message = 'multiqc.wdl:133:45: error: unknown escape sequence `\.`'
+message = "multiqc.wdl:133:45: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/multiqc.wdl/#L133"
 
 [[diagnostics]]
@@ -778,17 +778,17 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = 'picard.wdl:1021:48: error: unknown escape sequence `\.`'
+message = "picard.wdl:1021:48: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/picard.wdl/#L1021"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = 'picard.wdl:1191:48: error: unknown escape sequence `\.`'
+message = "picard.wdl:1191:48: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/picard.wdl/#L1191"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = 'picard.wdl:643:51: error: unknown escape sequence `\.`'
+message = "picard.wdl:643:51: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/picard.wdl/#L643"
 
 [[diagnostics]]
@@ -798,27 +798,27 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = 'picard.wdl:785:51: error: unknown escape sequence `\.`'
+message = "picard.wdl:785:51: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/picard.wdl/#L785"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = 'picard.wdl:900:46: error: unknown escape sequence `\.`'
+message = "picard.wdl:900:46: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/picard.wdl/#L900"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = 'picard.wdl:901:46: error: unknown escape sequence `\.`'
+message = "picard.wdl:901:46: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/picard.wdl/#L901"
 
 [[diagnostics]]
 document = "biowdl/tasks:/picard.wdl"
-message = 'picard.wdl:902:49: error: unknown escape sequence `\.`'
+message = "picard.wdl:902:49: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/picard.wdl/#L902"
 
 [[diagnostics]]
 document = "biowdl/tasks:/sambamba.wdl"
-message = 'sambamba.wdl:145:49: error: unknown escape sequence `\.`'
+message = "sambamba.wdl:145:49: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/sambamba.wdl/#L145"
 
 [[diagnostics]]
@@ -828,32 +828,32 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/sambamba.wdl"
-message = 'sambamba.wdl:157:60: error: unknown escape sequence `\.`'
+message = "sambamba.wdl:157:60: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/sambamba.wdl/#L157"
 
 [[diagnostics]]
 document = "biowdl/tasks:/sambamba.wdl"
-message = 'sambamba.wdl:91:44: error: unknown escape sequence `\.`'
+message = "sambamba.wdl:91:44: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/sambamba.wdl/#L91"
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = 'samtools.wdl:238:53: error: unknown escape sequence `\.`'
+message = "samtools.wdl:238:53: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/samtools.wdl/#L238"
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = 'samtools.wdl:326:44: error: unknown escape sequence `\.`'
+message = "samtools.wdl:326:44: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/samtools.wdl/#L326"
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = 'samtools.wdl:414:44: error: unknown escape sequence `\.`'
+message = "samtools.wdl:414:44: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/samtools.wdl/#L414"
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = 'samtools.wdl:458:49: error: unknown escape sequence `\.`'
+message = "samtools.wdl:458:49: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/samtools.wdl/#L458"
 
 [[diagnostics]]
@@ -863,7 +863,7 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = 'samtools.wdl:470:60: error: unknown escape sequence `\.`'
+message = "samtools.wdl:470:60: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/samtools.wdl/#L470"
 
 [[diagnostics]]
@@ -873,7 +873,7 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/samtools.wdl"
-message = 'samtools.wdl:80:42: error: unknown escape sequence `\.`'
+message = "samtools.wdl:80:42: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/samtools.wdl/#L80"
 
 [[diagnostics]]
@@ -893,7 +893,7 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/umi-tools.wdl"
-message = 'umi-tools.wdl:95:49: error: unknown escape sequence `\.`'
+message = "umi-tools.wdl:95:49: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/umi-tools.wdl/#L95"
 
 [[diagnostics]]
@@ -903,7 +903,7 @@ permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0
 
 [[diagnostics]]
 document = "biowdl/tasks:/umi.wdl"
-message = 'umi.wdl:39:60: error: unknown escape sequence `\.`'
+message = "umi.wdl:39:60: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/3243a8c3e94fe284e0f5577166c7b0fd38c51f6c/umi.wdl/#L39"
 
 [[diagnostics]]

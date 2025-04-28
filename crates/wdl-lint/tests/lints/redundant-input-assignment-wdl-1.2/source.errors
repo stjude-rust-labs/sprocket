@@ -7,9 +7,9 @@ note[ConciseInput]: redundant input assignment
    = fix: can be shortened to `cam`
 
 note[ConciseInput]: redundant input assignment
-   ┌─ tests/lints/redundant-input-assignment-wdl-1.2/source.wdl:46:9
+   ┌─ tests/lints/redundant-input-assignment-wdl-1.2/source.wdl:29:9
    │
-46 │         bam = bam,  # should flag a note
+29 │         bam = bam,  # should flag a note
    │         ^^^^^^^^^
    │
    = fix: can be shortened to `bam`

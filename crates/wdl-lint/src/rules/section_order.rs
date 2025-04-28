@@ -1,16 +1,14 @@
 //! A lint rule for section ordering.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::StructItem;
 use wdl_ast::v1::TaskDefinition;
@@ -130,26 +128,13 @@ enum State {
 }
 
 impl Visitor for SectionOrderingRule {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Reset the visitor upon document entry
-        *self = Default::default();
+    fn reset(&mut self) {
+        *self = Self;
     }
 
     fn task_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         task: &TaskDefinition,
     ) {
@@ -188,7 +173,7 @@ impl Visitor for SectionOrderingRule {
                     encountered = State::Hints;
                 }
                 _ => {
-                    state.exceptable_add(
+                    diagnostics.exceptable_add(
                         task_section_order(
                             task.name().span(),
                             task.name().text(),
@@ -209,7 +194,7 @@ impl Visitor for SectionOrderingRule {
 
     fn workflow_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         workflow: &WorkflowDefinition,
     ) {
@@ -244,7 +229,7 @@ impl Visitor for SectionOrderingRule {
                     encountered = State::Hints;
                 }
                 _ => {
-                    state.exceptable_add(
+                    diagnostics.exceptable_add(
                         workflow_section_order(
                             workflow.name().span(),
                             workflow.name().text(),
@@ -265,7 +250,7 @@ impl Visitor for SectionOrderingRule {
 
     fn struct_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         struct_def: &StructDefinition,
     ) {
@@ -286,7 +271,7 @@ impl Visitor for SectionOrderingRule {
                     encountered = State::Decl;
                 }
                 _ => {
-                    state.exceptable_add(
+                    diagnostics.exceptable_add(
                         struct_section_order(
                             struct_def.name().span(),
                             struct_def.name().text(),

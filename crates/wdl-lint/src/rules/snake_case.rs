@@ -6,17 +6,15 @@ use std::fmt;
 use convert_case::Boundary;
 use convert_case::Case;
 use convert_case::Converter;
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::OutputSection;
@@ -153,26 +151,13 @@ impl Rule for SnakeCaseRule {
 }
 
 impl Visitor for SnakeCaseRule {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Reset the visitor upon document entry
-        *self = Default::default();
+    fn reset(&mut self) {
+        *self = Self::default();
     }
 
     fn struct_definition(
         &mut self,
-        _state: &mut Self::State,
+        _diagnostics: &mut Diagnostics,
         reason: VisitReason,
         _def: &StructDefinition,
     ) {
@@ -188,7 +173,7 @@ impl Visitor for SnakeCaseRule {
 
     fn input_section(
         &mut self,
-        _state: &mut Self::State,
+        _diagnostics: &mut Diagnostics,
         reason: VisitReason,
         _section: &InputSection,
     ) {
@@ -204,7 +189,7 @@ impl Visitor for SnakeCaseRule {
 
     fn output_section(
         &mut self,
-        _state: &mut Self::State,
+        _diagnostics: &mut Diagnostics,
         reason: VisitReason,
         _section: &OutputSection,
     ) {
@@ -220,7 +205,7 @@ impl Visitor for SnakeCaseRule {
 
     fn task_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         task: &TaskDefinition,
     ) {
@@ -233,7 +218,7 @@ impl Visitor for SnakeCaseRule {
             Context::Task,
             name.text(),
             name.span(),
-            state,
+            diagnostics,
             SyntaxElement::from(task.inner().clone()),
             &self.exceptable_nodes(),
         );
@@ -241,7 +226,7 @@ impl Visitor for SnakeCaseRule {
 
     fn workflow_definition(
         &mut self,
-        state: &mut Self::State,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
         workflow: &WorkflowDefinition,
     ) {
@@ -254,13 +239,13 @@ impl Visitor for SnakeCaseRule {
             Context::Workflow,
             name.text(),
             name.span(),
-            state,
+            diagnostics,
             SyntaxElement::from(workflow.inner().clone()),
             &self.exceptable_nodes(),
         );
     }
 
-    fn bound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &BoundDecl) {
+    fn bound_decl(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
         if reason == VisitReason::Exit {
             return;
         }
@@ -271,13 +256,18 @@ impl Visitor for SnakeCaseRule {
             context,
             name.text(),
             name.span(),
-            state,
+            diagnostics,
             SyntaxElement::from(decl.inner().clone()),
             &self.exceptable_nodes(),
         );
     }
 
-    fn unbound_decl(&mut self, state: &mut Self::State, reason: VisitReason, decl: &UnboundDecl) {
+    fn unbound_decl(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        decl: &UnboundDecl,
+    ) {
         if reason == VisitReason::Exit {
             return;
         }
@@ -288,7 +278,7 @@ impl Visitor for SnakeCaseRule {
             context,
             name.text(),
             name.span(),
-            state,
+            diagnostics,
             SyntaxElement::from(decl.inner().clone()),
             &self.exceptable_nodes(),
         );

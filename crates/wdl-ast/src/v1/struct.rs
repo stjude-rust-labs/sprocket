@@ -12,7 +12,7 @@ use crate::TreeNode;
 
 /// Represents a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StructDefinition<N: TreeNode = SyntaxNode>(pub(crate) N);
+pub struct StructDefinition<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> StructDefinition<N> {
     /// Gets the name of the struct.
@@ -206,10 +206,6 @@ mod test {
 
     use crate::AstToken;
     use crate::Document;
-    use crate::SupportedVersion;
-    use crate::VisitReason;
-    use crate::Visitor;
-    use crate::v1::StructDefinition;
 
     #[test]
     fn struct_definitions() {
@@ -402,36 +398,5 @@ struct ComplexTypes {
         assert_eq!(members[10].name().text(), "k");
         assert_eq!(members[10].ty().to_string(), "Array[Directory]");
         assert!(!members[10].ty().is_optional());
-
-        // Use a visitor to count the number of struct definitions in the tree
-        struct MyVisitor(usize);
-
-        impl Visitor for MyVisitor {
-            type State = ();
-
-            fn document(
-                &mut self,
-                _: &mut Self::State,
-                _: VisitReason,
-                _: &Document,
-                _: SupportedVersion,
-            ) {
-            }
-
-            fn struct_definition(
-                &mut self,
-                _: &mut Self::State,
-                reason: VisitReason,
-                _: &StructDefinition,
-            ) {
-                if reason == VisitReason::Enter {
-                    self.0 += 1;
-                }
-            }
-        }
-
-        let mut visitor = MyVisitor(0);
-        document.visit(&mut (), &mut visitor);
-        assert_eq!(visitor.0, 3);
     }
 }

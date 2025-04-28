@@ -16,33 +16,26 @@ workflow test1 {
          arm,  # should not flag
          bam = bam + 3,  # should not flag
          cam = cam,  # should flag
-   }
-}
-
-workflow test2 {
-    input {
-        String arm
-        String cam
-        Int bam
     }
-
     #@ except: ConciseInput
-    call bar {
+    call bar as bar2 {
          arm,  # should not flag
          bam = bam + 3,  # should not flag
          cam = cam,  # This should not flag a note due to the except statement
-   }
-}
-
-workflow test3 {
-    input {
-        String arm
-        Int bam
     }
-
-    call foo {
+    call bar as bar3 {
         #@ except: ConciseInput
         arm = arm,  # should not flag a note due to the except statement
         bam = bam,  # should flag a note
    }
+}
+
+task bar {
+    input {
+        String arm
+        Int bam
+        String? cam
+    }
+
+    command <<<>>>
 }

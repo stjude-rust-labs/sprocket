@@ -1,14 +1,12 @@
 //! Ensures that lines do not exceed a certain width.
 
+use wdl_analysis::Diagnostics;
+use wdl_analysis::VisitReason;
+use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
 
@@ -50,7 +48,7 @@ impl LineWidthRule {
     /// Detects lines that exceed a certain width.
     fn detect_line_too_long(
         &mut self,
-        state: &mut Diagnostics,
+        diagnostics: &mut Diagnostics,
         text: &str,
         start: usize,
         element: SyntaxElement,
@@ -68,7 +66,7 @@ impl LineWidthRule {
             if !self.ignored_section && length > self.max_width {
                 let span = Span::new(previous_offset, length);
 
-                state.exceptable_add(
+                diagnostics.exceptable_add(
                     line_too_long(span, self.max_width),
                     element.clone(),
                     exceptable_nodes,
@@ -120,29 +118,13 @@ impl Rule for LineWidthRule {
 }
 
 impl Visitor for LineWidthRule {
-    type State = Diagnostics;
-
-    fn document(
-        &mut self,
-        _: &mut Self::State,
-        reason: VisitReason,
-        _: &Document,
-        _: SupportedVersion,
-    ) {
-        if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Reset the visitor upon document entry
-        *self = Self {
-            max_width: self.max_width,
-            ..Default::default()
-        };
+    fn reset(&mut self) {
+        *self = Self::default();
     }
 
-    fn whitespace(&mut self, state: &mut Self::State, whitespace: &Whitespace) {
+    fn whitespace(&mut self, diagnostics: &mut Diagnostics, whitespace: &Whitespace) {
         self.detect_line_too_long(
-            state,
+            diagnostics,
             whitespace.text(),
             whitespace.span().start(),
             whitespace
@@ -153,9 +135,9 @@ impl Visitor for LineWidthRule {
         );
     }
 
-    fn command_text(&mut self, state: &mut Self::State, text: &v1::CommandText) {
+    fn command_text(&mut self, diagnostics: &mut Diagnostics, text: &v1::CommandText) {
         self.detect_line_too_long(
-            state,
+            diagnostics,
             text.text(),
             text.span().start(),
             SyntaxElement::from(text.inner().clone()),
@@ -165,7 +147,7 @@ impl Visitor for LineWidthRule {
 
     fn metadata_section(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
         _: &v1::MetadataSection,
     ) {
@@ -174,7 +156,7 @@ impl Visitor for LineWidthRule {
 
     fn parameter_metadata_section(
         &mut self,
-        _: &mut Self::State,
+        _: &mut Diagnostics,
         reason: VisitReason,
         _: &v1::ParameterMetadataSection,
     ) {

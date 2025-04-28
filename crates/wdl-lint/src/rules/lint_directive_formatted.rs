@@ -1,13 +1,10 @@
 //! A lint rule for flagging malformed lint directives.
+use wdl_analysis::Diagnostics;
+use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
-use wdl_ast::Diagnostics;
-use wdl_ast::Document;
 use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
-use wdl_ast::VisitReason;
-use wdl_ast::Visitor;
 
 use crate::Rule;
 use crate::Tag;
@@ -105,22 +102,20 @@ impl Rule for LintDirectiveFormattedRule {
 }
 
 impl Visitor for LintDirectiveFormattedRule {
-    type State = Diagnostics;
-
-    fn document(&mut self, _: &mut Self::State, _: VisitReason, _: &Document, _: SupportedVersion) {
-        // This is intentionally empty, as this rule has no state.
+    fn reset(&mut self) {
+        *self = Self;
     }
 
-    fn comment(&mut self, state: &mut Self::State, comment: &Comment) {
+    fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
         if let Some(lint_directive) = comment.text().strip_prefix("#@") {
             let base_offset = comment.span().start();
 
             if is_inline_comment(comment) {
-                state.add(inline_lint_directive(comment.span()));
+                diagnostics.add(inline_lint_directive(comment.span()));
             }
 
             if lint_directive.trim().is_empty() {
-                state.add(missing_lint_directive(Span::new(
+                diagnostics.add(missing_lint_directive(Span::new(
                     base_offset + 2,
                     lint_directive.len(),
                 )));
@@ -128,13 +123,13 @@ impl Visitor for LintDirectiveFormattedRule {
             }
 
             if !lint_directive.starts_with(" ") {
-                state.add(missing_whitespace(Span::new(base_offset + 2, 1)));
+                diagnostics.add(missing_whitespace(Span::new(base_offset + 2, 1)));
             }
 
             if lint_directive.starts_with("  ") {
                 let leading_whitespace_len =
                     lint_directive.len() - lint_directive.trim_start().len();
-                state.add(excessive_whitespace(Span::new(
+                diagnostics.add(excessive_whitespace(Span::new(
                     base_offset + 2,
                     leading_whitespace_len,
                 )));
@@ -142,7 +137,7 @@ impl Visitor for LintDirectiveFormattedRule {
 
             if let Some(mut directive) = lint_directive.trim().split(" ").next() {
                 if !directive.ends_with(":") {
-                    state.add(no_colon_detected(Span::new(
+                    diagnostics.add(no_colon_detected(Span::new(
                         base_offset + 3 + directive.chars().count(),
                         1,
                     )));
@@ -151,7 +146,7 @@ impl Visitor for LintDirectiveFormattedRule {
                 }
 
                 if !ACCEPTED_LINT_DIRECTIVES.contains(&directive) {
-                    state.add(invalid_lint_directive(
+                    diagnostics.add(invalid_lint_directive(
                         directive,
                         Span::new(base_offset + 3, directive.chars().count()),
                     ));
