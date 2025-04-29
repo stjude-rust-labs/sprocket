@@ -27,8 +27,8 @@ pub struct ValidateInputsArgs {
     pub no_color: bool,
 
     /// The report mode.
-    #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
-    pub report_mode: Mode,
+    #[arg(short = 'm', long, value_name = "MODE")]
+    pub report_mode: Option<Mode>,
 }
 
 /// Validates the inputs for a task or workflow.
@@ -37,15 +37,26 @@ pub struct ValidateInputsArgs {
 /// * Every supplied input is correctly typed.
 /// * No extraneous inputs are provided.
 /// * Any provided `File` or `Directory` inputs exist.
-pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
+pub async fn validate_inputs(
+    args: ValidateInputsArgs,
+    config: crate::config::ValidateInputs,
+) -> Result<()> {
+    let no_color = args.no_color || config.no_color;
+    let report_mode = match args.report_mode {
+        Some(mode) => mode,
+        None => match config.report_mode {
+            Some(mode) => mode,
+            None => Mode::default(),
+        },
+    };
     if let Some(diagnostic) = wdl_validate_inputs(&args.document, &args.inputs).await? {
         let source = std::fs::read_to_string(&args.document)?;
         emit_diagnostics(
             &[diagnostic],
             &args.document,
             &source,
-            args.report_mode,
-            args.no_color,
+            report_mode,
+            no_color,
         );
         anyhow::bail!("Invalid inputs");
     }

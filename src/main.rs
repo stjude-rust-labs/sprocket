@@ -117,12 +117,14 @@ pub async fn inner() -> anyhow::Result<()> {
     tracing::info!("Effective configuration: {config:?}");
 
     match cli.command {
-        Commands::Check(args) => commands::check::check(args).await,
-        Commands::Lint(args) => commands::check::lint(args).await,
+        Commands::Check(args) => commands::check::check(args, config.check_config).await,
+        Commands::Lint(args) => commands::check::lint(args, config.check_config).await,
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
         Commands::Format(args) => commands::format::format(args, config.format_config),
-        Commands::ValidateInputs(args) => commands::validate::validate_inputs(args).await,
+        Commands::ValidateInputs(args) => {
+            commands::validate::validate_inputs(args, config.validate_config).await
+        }
     }
 }
 

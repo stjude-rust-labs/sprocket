@@ -75,8 +75,8 @@ pub struct Common {
     pub no_color: bool,
 
     /// The report mode.
-    #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
-    pub report_mode: Mode,
+    #[arg(short = 'm', long, value_name = "MODE")]
+    pub report_mode: Option<Mode>,
 }
 
 /// Arguments for the `check` subcommand.
@@ -102,17 +102,31 @@ pub struct LintArgs {
 }
 
 /// Checks WDL source files for diagnostics.
-pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
+pub async fn check(args: CheckArgs, config: crate::config::CheckConfig) -> anyhow::Result<()> {
     let file = &args.common.file;
-    let exceptions = args.common.except;
+    let exceptions: Vec<String> = args
+        .common
+        .except
+        .into_iter()
+        .chain(config.except)
+        .collect();
     let lint = args.lint;
-    let shellcheck = args.common.shellcheck;
+    let shellcheck = args.common.shellcheck || config.shellcheck;
 
     if shellcheck && !lint {
         bail!("`--shellcheck` requires `--lint` to be enabled");
     }
 
-    if args.common.single_document
+    let no_color = args.common.no_color || config.no_color;
+    let report_mode = match args.common.report_mode {
+        Some(mode) => mode,
+        None => match config.report_mode {
+            Some(mode) => mode,
+            None => Mode::default(),
+        },
+    };
+
+    if (args.common.single_document || config.single_document)
         && fs::metadata(file)
             .with_context(|| format!("failed to read metadata for file `{file}`"))
             .map(|m| m.is_dir())
@@ -143,8 +157,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             .collect();
 
         if !unknown_exceptions.is_empty() {
-            let (config, writer) =
-                get_display_config(args.common.report_mode, args.common.no_color);
+            let (config, writer) = get_display_config(report_mode, no_color);
             let mut w_lock = writer.lock();
             let files: SimpleFiles<String, String> = SimpleFiles::new();
 
@@ -185,7 +198,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
 
         // Attempt to strip the CWD from the result path
         let uri = result.document().uri();
-        if args.common.single_document && !uri.as_str().contains(file) {
+        if (args.common.single_document || config.single_document) && !uri.as_str().contains(file) {
             continue;
         }
         let scheme = uri.scheme();
@@ -206,7 +219,9 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                 .to_string_lossy()
                 .to_string(),
             _ => {
-                if !remote_file && !args.common.show_remote_diagnostics {
+                if !remote_file
+                    && !(args.common.show_remote_diagnostics || config.show_remote_diagnostics)
+                {
                     suppress = true;
                 }
                 uri.to_string()
@@ -225,7 +240,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                     let severity = d.severity();
                     match severity {
                         Severity::Error => true,
-                        Severity::Note if args.common.hide_notes => false,
+                        Severity::Note if (args.common.hide_notes || config.hide_notes) => false,
                         _ if suppress => false,
                         _ => true,
                     }
@@ -237,8 +252,8 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                     filtered_diagnostics.iter().copied(),
                     &uri,
                     &result.document().root().inner().text().to_string(),
-                    args.common.report_mode,
-                    args.common.no_color,
+                    report_mode,
+                    no_color,
                 );
 
                 for diagnostic in diagnostics.iter() {
@@ -259,12 +274,12 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             "failing due to {error_count} error{s}",
             s = if error_count == 1 { "" } else { "s" }
         );
-    } else if args.common.deny_warnings && warning_count > 0 {
+    } else if (args.common.deny_warnings || config.deny_warnings) && warning_count > 0 {
         bail!(
             "failing due to {warning_count} warning{s} (`--deny-warnings` was specified)",
             s = if warning_count == 1 { "" } else { "s" }
         );
-    } else if args.common.deny_notes && note_count > 0 {
+    } else if (args.common.deny_notes || config.deny_notes) && note_count > 0 {
         bail!(
             "failing due to {note_count} note{s} (`--deny-notes` was specified)",
             s = if note_count == 1 { "" } else { "s" }
@@ -275,10 +290,13 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
 }
 
 /// Lints WDL source files.
-pub async fn lint(args: LintArgs) -> anyhow::Result<()> {
-    check(CheckArgs {
-        common: args.common,
-        lint: true,
-    })
+pub async fn lint(args: LintArgs, config: crate::config::CheckConfig) -> anyhow::Result<()> {
+    check(
+        CheckArgs {
+            common: args.common,
+            lint: true,
+        },
+        config,
+    )
     .await
 }

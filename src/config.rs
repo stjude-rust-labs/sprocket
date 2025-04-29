@@ -63,7 +63,7 @@ pub struct CheckConfig {
     /// Disables color output.
     pub no_color: bool,
     /// The report mode.
-    pub report_mode: Mode,
+    pub report_mode: Option<Mode>,
 }
 
 /// Represents the configuration for the Sprocket `validate` command.
@@ -73,7 +73,7 @@ pub struct ValidateInputs {
     /// Disables color output.
     pub no_color: bool,
     /// The report mode.
-    pub report_mode: Mode,
+    pub report_mode: Option<Mode>,
 }
 
 impl Config {
