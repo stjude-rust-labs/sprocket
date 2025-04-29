@@ -13,6 +13,8 @@ use anyhow::bail;
 use clap::Parser;
 use colored::Colorize;
 use pretty_assertions::StrComparison;
+use serde::Deserialize;
+use serde::Serialize;
 use walkdir::WalkDir;
 use wdl::ast::Document;
 use wdl::ast::Node;
@@ -48,8 +50,8 @@ pub struct FormatArgs {
     pub no_color: bool,
 
     /// The report mode.
-    #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
-    pub report_mode: Mode,
+    #[arg(short = 'm', long, value_name = "MODE")]
+    pub report_mode: Option<Mode>,
 
     /// Use tabs for indentation (default is spaces).
     #[arg(long)]
@@ -69,7 +71,7 @@ pub struct FormatArgs {
 }
 
 /// Argument group defining the mode of behavior
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Deserialize, Serialize)]
 #[group(required = true, multiple = false)]
 pub struct ModeGroup {
     /// Overwrite the WDL documents with the formatted versions
@@ -172,8 +174,20 @@ fn format_document(
 }
 
 /// Runs the `format` command.
-pub fn format(args: FormatArgs) -> Result<()> {
-    let indent = match Indent::try_new(args.with_tabs, args.indentation_size) {
+pub fn format(args: FormatArgs, config: crate::config::Config) -> Result<()> {
+    let tabs = args.with_tabs || config.format_config.with_tabs;
+    let indentation_size = match tabs {
+        true => None,
+        false => {
+            if let Some(size) = args.indentation_size {
+                Some(size)
+            } else {
+                config.format_config.indentation_size
+            }
+        }
+    };
+
+    let indent = match Indent::try_new(tabs, indentation_size) {
         Ok(indent) => indent,
         Err(e) => bail!("failed to create indentation configuration: {}", e),
     };
@@ -182,8 +196,25 @@ pub fn format(args: FormatArgs) -> Result<()> {
             Ok(max_line_length) => max_line_length,
             Err(e) => bail!("failed to create max line length configuration: {}", e),
         },
-        None => MaxLineLength::default(),
+        None => match config.format_config.max_line_length {
+            Some(length) => MaxLineLength::try_new(length).unwrap(),
+            None => MaxLineLength::default(),
+        },
     };
+
+    let no_color = args.no_color || config.format_config.no_color;
+    let report_mode = match args.report_mode {
+        Some(mode) => mode,
+        None => match config.format_config.report_mode {
+            Some(mode) => mode,
+            None => Mode::default(),
+        },
+    };
+    let mode = ModeGroup {
+        overwrite: args.mode.overwrite || config.format_config.overwrite,
+        check: args.mode.check || config.format_config.check,
+    };
+
     let config = Builder::default()
         .indent(indent)
         .max_line_length(max_line_length)
@@ -203,22 +234,10 @@ pub fn format(args: FormatArgs) -> Result<()> {
                 continue;
             }
 
-            diagnostics += format_document(
-                config,
-                path,
-                args.report_mode,
-                args.no_color,
-                args.mode.check,
-            )?;
+            diagnostics += format_document(config, path, report_mode, no_color, mode.check)?;
         }
     } else {
-        diagnostics += format_document(
-            config,
-            &args.path,
-            args.report_mode,
-            args.no_color,
-            args.mode.check,
-        )?;
+        diagnostics += format_document(config, &args.path, report_mode, no_color, mode.check)?;
     }
 
     if diagnostics > 0 {

@@ -1,15 +1,24 @@
 //! The Sprocket command line tool.
 
+use std::env;
 use std::io::IsTerminal;
 use std::io::stderr;
+use std::path::Path;
 
 use clap::Parser;
 use clap::Subcommand;
 use clap_verbosity_flag::Verbosity;
 use colored::Colorize;
+use dirs::home_dir;
+use figment::Figment;
+use figment::providers::Format;
+use figment::providers::Serialized;
+use figment::providers::Toml;
 use git_testament::git_testament;
 use git_testament::render_testament;
 use sprocket::commands;
+use sprocket::config;
+use sprocket::config::Config;
 use tracing_log::AsTrace;
 
 git_testament!(TESTAMENT);
@@ -54,10 +63,49 @@ struct Cli {
 
     #[command(flatten)]
     verbose: Verbosity,
+
+    /// Path to the configuration file.
+    #[arg(long, short)]
+    config: Option<String>,
 }
 
 pub async fn inner() -> anyhow::Result<()> {
     let cli = Cli::parse();
+
+    // Start a new Figment instance with default values
+    let mut figment =
+        Figment::new().admerge(Serialized::from(config::Config::default(), "default"));
+
+    // If provided, check config file from environment
+    if let Ok(config_file) = env::var("SPROCKET_CONFIG") {
+        figment = figment.admerge(Toml::file(config_file));
+    }
+
+    // Check XDG_CONFIG_HOME for a config file
+    if let Ok(xdg_config_home) = env::var("XDG_CONFIG_HOME") {
+        figment = figment.admerge(Toml::file(
+            Path::new(&xdg_config_home.as_str()).join("sprocket.toml"),
+        ));
+    }
+
+    // Check HOME for a config file
+    figment = figment.admerge(Toml::file(
+        home_dir()
+            .expect("should have HOME directory")
+            .join(".config")
+            .join("sprocket.toml"),
+    ));
+
+    // Check PWD for a config file
+    figment = figment.admerge(Toml::file("sprocket.toml"));
+
+    // If provided, check command line config file
+    if let Some(cli) = cli.config {
+        figment = figment.admerge(Toml::file(cli));
+    }
+
+    // Get the configuration from the Figment
+    let config: Config = figment.extract().expect("Failed to extract config");
 
     tracing_log::LogTracer::init()?;
 
@@ -68,12 +116,15 @@ pub async fn inner() -> anyhow::Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
+    // Write effective configuration to the log
+    tracing::info!("Effective configuration: {config:?}");
+
     match cli.command {
         Commands::Check(args) => commands::check::check(args).await,
         Commands::Lint(args) => commands::check::lint(args).await,
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
-        Commands::Format(args) => commands::format::format(args),
+        Commands::Format(args) => commands::format::format(args, config),
         Commands::ValidateInputs(args) => commands::validate::validate_inputs(args).await,
     }
 }
