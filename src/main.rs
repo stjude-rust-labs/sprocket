@@ -89,12 +89,9 @@ pub async fn inner() -> anyhow::Result<()> {
     }
 
     // Check HOME for a config file
-    figment = figment.admerge(Toml::file(
-        home_dir()
-            .expect("should have HOME directory")
-            .join(".config")
-            .join("sprocket.toml"),
-    ));
+    if let Some(home) = home_dir() {
+        figment = figment.admerge(Toml::file(home.join(".config").join("sprocket.toml")));
+    }
 
     // Check PWD for a config file
     figment = figment.admerge(Toml::file("sprocket.toml"));
