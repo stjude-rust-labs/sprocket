@@ -39,7 +39,7 @@ pub struct ValidateInputsArgs {
 /// * Any provided `File` or `Directory` inputs exist.
 pub async fn validate_inputs(
     args: ValidateInputsArgs,
-    config: crate::config::ValidateInputs,
+    config: crate::config::ValidateInputsConfig,
 ) -> Result<()> {
     let no_color = args.no_color || config.no_color;
     let report_mode = match args.report_mode {

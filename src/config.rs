@@ -19,7 +19,7 @@ pub struct Config {
     pub check_config: CheckConfig,
     /// Configuration for the `validate` command.
     #[serde(rename = "validate")]
-    pub validate_config: ValidateInputs,
+    pub validate_config: ValidateInputsConfig,
 }
 
 /// Represents the configuration for the Sprocket `format` command.
@@ -69,7 +69,7 @@ pub struct CheckConfig {
 /// Represents the configuration for the Sprocket `validate` command.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub struct ValidateInputs {
+pub struct ValidateInputsConfig {
     /// Disables color output.
     pub no_color: bool,
     /// The report mode.

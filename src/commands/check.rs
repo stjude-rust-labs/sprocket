@@ -216,8 +216,9 @@ pub async fn check(args: CheckArgs, config: crate::config::CheckConfig) -> anyho
                 .to_string_lossy()
                 .to_string(),
             _ => {
-                if !remote_file
-                    && !(args.common.show_remote_diagnostics || config.show_remote_diagnostics)
+                if !(remote_file
+                    || args.common.show_remote_diagnostics
+                    || config.show_remote_diagnostics)
                 {
                     suppress = true;
                 }

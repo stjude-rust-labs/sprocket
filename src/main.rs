@@ -93,9 +93,13 @@ pub async fn inner() -> anyhow::Result<()> {
 
     // Check XDG_CONFIG_HOME for a config file
     if let Ok(xdg_config_home) = env::var("XDG_CONFIG_HOME") {
-        tracing::info!("Reading configuration from XDG_CONFIG_HOME: {xdg_config_home:?}/.config/sprocket.toml");
+        tracing::info!(
+            "Reading configuration from XDG_CONFIG_HOME: {xdg_config_home:?}/.config/sprocket.toml"
+        );
         figment = figment.admerge(Toml::file(
-            Path::new(&xdg_config_home.as_str()).join(".config").join("sprocket.toml"),
+            Path::new(&xdg_config_home.as_str())
+                .join(".config")
+                .join("sprocket.toml"),
         ));
     }
 
@@ -121,7 +125,10 @@ pub async fn inner() -> anyhow::Result<()> {
     let config: Config = figment.extract().expect("Failed to extract config");
 
     // Write effective configuration to the log
-    tracing::info!("Effective configuration:\n{}", toml::to_string(&config).unwrap_or_default());
+    tracing::info!(
+        "Effective configuration:\n{}",
+        toml::to_string(&config).unwrap_or_default()
+    );
 
     match cli.command {
         Commands::Check(args) => commands::check::check(args, config.check_config).await,
