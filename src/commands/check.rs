@@ -120,10 +120,7 @@ pub async fn check(args: CheckArgs, config: crate::config::CheckConfig) -> anyho
     let no_color = args.common.no_color || config.no_color;
     let report_mode = match args.common.report_mode {
         Some(mode) => mode,
-        None => match config.report_mode {
-            Some(mode) => mode,
-            None => Mode::default(),
-        },
+        None => config.report_mode.unwrap_or_default(),
     };
 
     if (args.common.single_document || config.single_document)

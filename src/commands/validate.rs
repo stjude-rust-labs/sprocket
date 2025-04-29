@@ -44,10 +44,7 @@ pub async fn validate_inputs(
     let no_color = args.no_color || config.no_color;
     let report_mode = match args.report_mode {
         Some(mode) => mode,
-        None => match config.report_mode {
-            Some(mode) => mode,
-            None => Mode::default(),
-        },
+        None => config.report_mode.unwrap_or_default(),
     };
     if let Some(diagnostic) = wdl_validate_inputs(&args.document, &args.inputs).await? {
         let source = std::fs::read_to_string(&args.document)?;

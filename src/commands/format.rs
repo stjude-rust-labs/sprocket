@@ -205,10 +205,7 @@ pub fn format(args: FormatArgs, config: crate::config::FormatConfig) -> Result<(
     let no_color = args.no_color || config.no_color;
     let report_mode = match args.report_mode {
         Some(mode) => mode,
-        None => match config.report_mode {
-            Some(mode) => mode,
-            None => Mode::default(),
-        },
+        None => config.report_mode.unwrap_or_default(),
     };
     let mode = ModeGroup {
         overwrite: args.mode.overwrite || config.overwrite,
