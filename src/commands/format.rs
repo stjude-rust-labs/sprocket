@@ -174,15 +174,15 @@ fn format_document(
 }
 
 /// Runs the `format` command.
-pub fn format(args: FormatArgs, config: crate::config::Config) -> Result<()> {
-    let tabs = args.with_tabs || config.format_config.with_tabs;
+pub fn format(args: FormatArgs, config: crate::config::FormatConfig) -> Result<()> {
+    let tabs = args.with_tabs || config.with_tabs;
     let indentation_size = match tabs {
         true => None,
         false => {
             if let Some(size) = args.indentation_size {
                 Some(size)
             } else {
-                config.format_config.indentation_size
+                config.indentation_size
             }
         }
     };
@@ -196,23 +196,23 @@ pub fn format(args: FormatArgs, config: crate::config::Config) -> Result<()> {
             Ok(max_line_length) => max_line_length,
             Err(e) => bail!("failed to create max line length configuration: {}", e),
         },
-        None => match config.format_config.max_line_length {
+        None => match config.max_line_length {
             Some(length) => MaxLineLength::try_new(length).unwrap(),
             None => MaxLineLength::default(),
         },
     };
 
-    let no_color = args.no_color || config.format_config.no_color;
+    let no_color = args.no_color || config.no_color;
     let report_mode = match args.report_mode {
         Some(mode) => mode,
-        None => match config.format_config.report_mode {
+        None => match config.report_mode {
             Some(mode) => mode,
             None => Mode::default(),
         },
     };
     let mode = ModeGroup {
-        overwrite: args.mode.overwrite || config.format_config.overwrite,
-        check: args.mode.check || config.format_config.check,
+        overwrite: args.mode.overwrite || config.overwrite,
+        check: args.mode.check || config.check,
     };
 
     let config = Builder::default()

@@ -124,7 +124,7 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Lint(args) => commands::check::lint(args).await,
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
-        Commands::Format(args) => commands::format::format(args, config),
+        Commands::Format(args) => commands::format::format(args, config.format_config),
         Commands::ValidateInputs(args) => commands::validate::validate_inputs(args).await,
     }
 }
