@@ -76,9 +76,6 @@ pub struct ValidateInputs {
     pub report_mode: Mode,
 }
 
-// TODO: read default config locations. e.g. `pwd`/sprocket.toml,
-// $HOME/.config/sprocket.toml
-
 impl Config {
     /// Validate a configuration
     pub fn validate(&self) -> Result<()> {
