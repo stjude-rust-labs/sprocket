@@ -26,13 +26,22 @@ pub struct Config {
 }
 
 /// Represents shared configuration options for Sprocket commands.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CommonConfig {
     /// Display color output.
     pub color: bool,
     /// The report mode.
     pub report_mode: Option<Mode>,
+}
+
+impl Default for CommonConfig {
+    fn default() -> Self {
+        Self {
+            color: true,
+            report_mode: None,
+        }
+    }
 }
 
 /// Represents the configuration for the Sprocket `format` command.
