@@ -104,7 +104,7 @@ pub struct LintArgs {
 /// Checks WDL source files for diagnostics.
 pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let file = &args.common.file;
-    let exceptions: Vec<String> = args.common.except;
+    let exceptions = args.common.except;
     let lint = args.lint;
     let shellcheck = args.common.shellcheck;
 
@@ -112,7 +112,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         bail!("`--shellcheck` requires `--lint` to be enabled");
     }
 
-    if (args.common.single_document)
+    if args.common.single_document
         && fs::metadata(file)
             .with_context(|| format!("failed to read metadata for file `{file}`"))
             .map(|m| m.is_dir())
@@ -187,7 +187,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
 
         // Attempt to strip the CWD from the result path
         let uri = result.document().uri();
-        if (args.common.single_document) && !uri.as_str().contains(file) {
+        if args.common.single_document && !uri.as_str().contains(file) {
             continue;
         }
         let scheme = uri.scheme();
@@ -227,7 +227,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                     let severity = d.severity();
                     match severity {
                         Severity::Error => true,
-                        Severity::Note if (args.common.hide_notes) => false,
+                        Severity::Note if args.common.hide_notes => false,
                         _ if suppress => false,
                         _ => true,
                     }
@@ -261,12 +261,12 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             "failing due to {error_count} error{s}",
             s = if error_count == 1 { "" } else { "s" }
         );
-    } else if (args.common.deny_warnings) && warning_count > 0 {
+    } else if args.common.deny_warnings && warning_count > 0 {
         bail!(
             "failing due to {warning_count} warning{s} (`--deny-warnings` was specified)",
             s = if warning_count == 1 { "" } else { "s" }
         );
-    } else if (args.common.deny_notes) && note_count > 0 {
+    } else if args.common.deny_notes && note_count > 0 {
         bail!(
             "failing due to {note_count} note{s} (`--deny-notes` was specified)",
             s = if note_count == 1 { "" } else { "s" }
