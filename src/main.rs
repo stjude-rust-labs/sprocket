@@ -94,11 +94,10 @@ pub async fn inner() -> anyhow::Result<()> {
     // Check XDG_CONFIG_HOME for a config file
     if let Ok(xdg_config_home) = env::var("XDG_CONFIG_HOME") {
         tracing::info!(
-            "Reading configuration from XDG_CONFIG_HOME: {xdg_config_home:?}/.config/sprocket.toml"
+            "Reading configuration from XDG_CONFIG_HOME: {xdg_config_home:?}/sprocket.toml"
         );
         figment = figment.admerge(Toml::file(
             Path::new(&xdg_config_home.as_str())
-                .join(".config")
                 .join("sprocket.toml"),
         ));
     }
