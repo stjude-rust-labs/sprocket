@@ -85,27 +85,24 @@ pub async fn inner() -> anyhow::Result<()> {
     let mut figment =
         Figment::new().admerge(Serialized::from(config::Config::default(), "default"));
 
-    // If provided, check config file from environment
-    if let Ok(config_file) = env::var("SPROCKET_CONFIG") {
-        tracing::info!("Reading configuration from SPROCKET_CONFIG: {config_file:?}");
-        figment = figment.admerge(Toml::file(config_file));
-    }
-
     // Check XDG_CONFIG_HOME for a config file
+    // If XDG_CONFIG_HOME is not set, check HOME for a config file
     if let Ok(xdg_config_home) = env::var("XDG_CONFIG_HOME") {
         tracing::info!(
             "Reading configuration from XDG_CONFIG_HOME: {xdg_config_home:?}/sprocket.toml"
         );
         figment = figment.admerge(Toml::file(
-            Path::new(&xdg_config_home.as_str())
-                .join("sprocket.toml"),
+            Path::new(&xdg_config_home.as_str()).join("sprocket.toml"),
         ));
-    }
-
-    // Check HOME for a config file
-    if let Some(home) = home_dir() {
+    } else if let Some(home) = home_dir() {
         tracing::info!("Reading configuration from HOME: {home:?}/.config/sprocket.toml");
         figment = figment.admerge(Toml::file(home.join(".config").join("sprocket.toml")));
+    }
+
+    // If provided, check config file from environment
+    if let Ok(config_file) = env::var("SPROCKET_CONFIG") {
+        tracing::info!("Reading configuration from SPROCKET_CONFIG: {config_file:?}");
+        figment = figment.admerge(Toml::file(config_file));
     }
 
     // Check PWD for a config file
