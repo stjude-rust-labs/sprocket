@@ -99,16 +99,16 @@ pub async fn inner() -> anyhow::Result<()> {
         figment = figment.admerge(Toml::file(home.join(".config").join("sprocket.toml")));
     }
 
-    // If provided, check config file from environment
-    if let Ok(config_file) = env::var("SPROCKET_CONFIG") {
-        tracing::info!("Reading configuration from SPROCKET_CONFIG: {config_file:?}");
-        figment = figment.admerge(Toml::file(config_file));
-    }
-
     // Check PWD for a config file
     if Path::exists(Path::new("sprocket.toml")) {
         tracing::info!("Reading configuration from PWD/sprocket.toml");
         figment = figment.admerge(Toml::file("sprocket.toml"));
+    }
+
+    // If provided, check config file from environment
+    if let Ok(config_file) = env::var("SPROCKET_CONFIG") {
+        tracing::info!("Reading configuration from SPROCKET_CONFIG: {config_file:?}");
+        figment = figment.admerge(Toml::file(config_file));
     }
 
     // If provided, check command line config file
