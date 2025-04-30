@@ -1,4 +1,4 @@
-//! Implementation of the format command.
+//! Implementation of the `format` subcommand.
 
 use std::ffi::OsStr;
 use std::fs;
@@ -37,10 +37,10 @@ use crate::emit_diagnostics;
                   to verify that a document or a directory containing WDL documents is already \
                   formatted and print the diff if not."
 )]
-pub struct FormatArgs {
+pub struct Args {
     /// The path to the WDL document or a directory containing WDL documents to
     /// format or check (`-` for STDIN).
-    #[arg(value_name = "PATH")]
+    #[arg(value_name = "PATH or DIR")]
     pub path: PathBuf,
 
     /// Disables color output.
@@ -63,7 +63,7 @@ pub struct FormatArgs {
     #[arg(long, value_name = "LENGTH")]
     pub max_line_length: Option<usize>,
 
-    /// Argument group defining the mode of behavior
+    /// Argument group defining the mode of behavior.
     #[command(flatten)]
     mode: ModeGroup,
 }
@@ -72,11 +72,11 @@ pub struct FormatArgs {
 #[derive(Parser, Debug)]
 #[group(required = true, multiple = false)]
 pub struct ModeGroup {
-    /// Overwrite the WDL documents with the formatted versions
+    /// Overwrite the WDL documents with the formatted versions.
     #[arg(long, conflicts_with = "check")]
     pub overwrite: bool,
 
-    /// Check if files are formatted correctly and print diff if not
+    /// Check if files are formatted correctly and print diff if not.
     #[arg(long)]
     pub check: bool,
 }
@@ -134,12 +134,14 @@ fn format_document(
     let (document, diagnostics) = Document::parse(&source);
     if !diagnostics.is_empty() {
         emit_diagnostics(
+            path.as_os_str().to_str().expect("path is not UTF-8"),
+            source,
             &diagnostics,
-            &path.to_string_lossy(),
-            &source,
+            &[],
             report_mode,
             no_color,
-        );
+        )
+        .context("failed to emit diagnostics")?;
 
         return Ok(diagnostics.len());
     }
@@ -164,7 +166,7 @@ fn format_document(
         return Ok(0);
     }
 
-    // write file because check is not true
+    // Write file because check is not true
     fs::write(path, formatted)
         .with_context(|| format!("failed to write `{path}`", path = path.display()))?;
 
@@ -172,11 +174,12 @@ fn format_document(
 }
 
 /// Runs the `format` command.
-pub fn format(args: FormatArgs) -> Result<()> {
+pub fn format(args: Args) -> Result<()> {
     let indent = match Indent::try_new(args.with_tabs, args.indentation_size) {
         Ok(indent) => indent,
         Err(e) => bail!("failed to create indentation configuration: {}", e),
     };
+
     let max_line_length = match args.max_line_length {
         Some(length) => match MaxLineLength::try_new(length) {
             Ok(max_line_length) => max_line_length,
@@ -184,6 +187,7 @@ pub fn format(args: FormatArgs) -> Result<()> {
         },
         None => MaxLineLength::default(),
     };
+
     let config = Builder::default()
         .indent(indent)
         .max_line_length(max_line_length)

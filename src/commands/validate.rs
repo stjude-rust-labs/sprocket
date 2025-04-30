@@ -1,26 +1,42 @@
-//! Implementation of the `validate-inputs` command.
+//! Implementation of the `validate` subcommand.
 
-use std::path::PathBuf;
-
+use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use clap::Parser;
-use wdl::cli::validate_inputs as wdl_validate_inputs;
+use wdl::cli::Analysis;
+use wdl::cli::Inputs;
+use wdl::cli::analysis::Source;
+use wdl::cli::inputs::OriginPaths;
+use wdl::engine::Inputs as EngineInputs;
 
 use crate::Mode;
-use crate::emit_diagnostics;
 
-/// Arguments for the `validate-inputs` command.
+/// Arguments for the `validate` subcommand.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
-pub struct ValidateInputsArgs {
-    /// The path or URL to the WDL document.
-    #[arg(required = true)]
+pub struct Args {
+    /// The path or URL to a document containing the task or workflow to
+    /// validate inputs against.
     #[clap(value_name = "PATH or URL")]
-    pub document: String,
+    pub source: Source,
 
-    /// The path to the input JSON or YAML file.
-    #[arg(short, long, value_name = "INPUTS")]
-    pub inputs: PathBuf,
+    /// The name of the task or workflow to validate inputs against.
+    ///
+    /// If inputs are provided, this will be attempted to be inferred from the
+    /// prefixed names of the inputs (e.g, `<name>.<input-name>`).
+    ///
+    /// If no inputs are provided and this argument is not provided, it will be
+    /// assumed you're trying to validate the workflow present in the specified
+    /// document.
+    #[clap(short, long, value_name = "NAME")]
+    pub name: Option<String>,
+
+    /// The inputs for the task or workflow.
+    ///
+    /// These inputs can be either paths to files containing inputs or key-value
+    /// pairs passed in on the command line.
+    pub inputs: Vec<String>,
 
     /// Disables color output.
     #[arg(long)]
@@ -31,24 +47,72 @@ pub struct ValidateInputsArgs {
     pub report_mode: Mode,
 }
 
-/// Validates the inputs for a task or workflow.
-///
-/// * Every required input is supplied.
-/// * Every supplied input is correctly typed.
-/// * No extraneous inputs are provided.
-/// * Any provided `File` or `Directory` inputs exist.
-pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
-    if let Some(diagnostic) = wdl_validate_inputs(&args.document, &args.inputs).await? {
-        let source = std::fs::read_to_string(&args.document)?;
-        emit_diagnostics(
-            &[diagnostic],
-            &args.document,
-            &source,
-            args.report_mode,
-            args.no_color,
-        );
-        anyhow::bail!("Invalid inputs");
+/// The main function for the `validate` subcommand.
+pub async fn validate(args: Args) -> Result<()> {
+    let results = match Analysis::default()
+        .add_source(args.source.clone())
+        .run()
+        .await
+    {
+        Ok(results) => results,
+        Err(errors) => {
+            // SAFETY: this is a non-empty, so it must always have a first
+            // element.
+            bail!(errors.into_iter().next().unwrap())
+        }
+    };
+
+    // SAFETY: this must exist, as we added it as the only source to be analyzed
+    // above.
+    let document = results.filter(&[&args.source]).next().unwrap().document();
+
+    let inferred = Inputs::coalesce(args.inputs)?.into_engine_inputs(document)?;
+
+    let (name, inputs, _) = if let Some(inputs) = inferred {
+        inputs
+    } else {
+        let origins =
+            OriginPaths::from(std::env::current_dir().context("failed to get current directory")?);
+
+        if let Some(name) = args.name {
+            match (document.task_by_name(&name), document.workflow()) {
+                (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
+                (None, Some(workflow)) => {
+                    if workflow.name() == name {
+                        (name, EngineInputs::Workflow(Default::default()), origins)
+                    } else {
+                        bail!("no task or workflow with name `{name}` was found")
+                    }
+                }
+                (None, None) => bail!("no task or workflow with name `{name}` was found"),
+            }
+        } else if let Some(workflow) = document.workflow() {
+            (
+                workflow.name().to_owned(),
+                EngineInputs::Workflow(Default::default()),
+                origins,
+            )
+        } else {
+            bail!(
+                "no workflow was found in `{path}`; either specify a document with a workflow or \
+                 use the `-n` option to refer to a specific task or workflow by name",
+                path = args.source
+            )
+        }
+    };
+
+    match inputs {
+        EngineInputs::Task(inputs) => {
+            // SAFETY: we wouldn't have a task inputs if a task didn't exist
+            // that matched the user's criteria.
+            inputs.validate(document, document.task_by_name(&name).unwrap(), None)?
+        }
+        EngineInputs::Workflow(inputs) => {
+            // SAFETY: we wouldn't have a workflow inputs if a workflow didn't
+            // exist that matched the user's criteria.
+            inputs.validate(document, document.workflow().unwrap(), None)?
+        }
     }
-    println!("All inputs are valid");
-    anyhow::Ok(())
+
+    Ok(())
 }

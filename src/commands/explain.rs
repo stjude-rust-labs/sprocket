@@ -1,4 +1,4 @@
-//! Implementation of the explain command.
+//! Implementation of the `explain` subcommand.
 
 use std::collections::HashSet;
 
@@ -21,7 +21,12 @@ const USAGE: &str = "sprocket explain [RULE]
 #[command(author, version, about, after_help = generate_after_help(), override_usage = USAGE)]
 pub struct Args {
     /// The name of the rule to explain.
-    #[arg(required_unless_present_any = ["tag", "definitions"], value_name = "RULE")]
+    #[arg(required_unless_present_any = [
+        "tag",
+        "definitions",
+        "list_all_rules",
+        "list_all_tags"
+    ], value_name = "RULE")]
     pub rule_name: Option<String>,
 
     /// List all rules with the given tag.
@@ -31,6 +36,14 @@ pub struct Args {
     /// Display general WDL definitions.
     #[arg(long, conflicts_with_all = ["rule_name", "tag"])]
     pub definitions: bool,
+
+    /// Lists all rules and exits.
+    #[arg(long, conflicts_with_all = ["list_all_tags"])]
+    pub list_all_rules: bool,
+
+    /// Lists all tags and exits.
+    #[arg(long, conflicts_with_all = ["list_all_rules"])]
+    pub list_all_tags: bool,
 }
 
 /// Display all rules and tags.
@@ -40,7 +53,7 @@ fn generate_after_help() -> String {
 
 /// Lists all rules as a string for displaying.
 pub fn list_all_rules() -> String {
-    let mut result = "Available rules:".to_owned();
+    let mut result = String::from("Available rules:");
     let analysis_rules = analysis::rules();
     let lint_rules = lint::rules();
 
@@ -65,7 +78,7 @@ pub fn list_all_rules() -> String {
 
 /// Lists all tags as a string for displaying.
 pub fn list_all_tags() -> String {
-    let mut result = "Available tags:".to_owned();
+    let mut result = String::from("Available tags:");
     let lint_rules = lint::rules();
 
     let mut tags: HashSet<Tag> = HashSet::new();
@@ -119,6 +132,16 @@ pub fn pretty_print_analysis_rule(rule: &dyn analysis::Rule) {
 
 /// Explains a lint rule.
 pub fn explain(args: Args) -> anyhow::Result<()> {
+    if args.list_all_rules {
+        println!("{}", list_all_rules());
+        return Ok(());
+    }
+
+    if args.list_all_tags {
+        println!("{}", list_all_tags());
+        return Ok(());
+    }
+
     if args.definitions {
         println!("{}", lint::DEFINITIONS_TEXT);
         return Ok(());
@@ -127,7 +150,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
     if let Some(tag) = args.tag {
         let target = tag.parse::<Tag>().map_err(|_| {
             println!("{}\n", list_all_tags());
-            anyhow!("Invalid tag '{}'", tag)
+            anyhow!("invalid tag `{}`", tag)
         })?;
 
         let rules = lint::rules()
@@ -137,7 +160,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
 
         if rules.is_empty() {
             println!("{}\n", list_all_tags());
-            bail!("No rules found with the tag `{}`", tag);
+            bail!("no rules found with the tag `{}`", tag);
         } else {
             println!("Rules with the tag `{}`:", tag);
             let mut rule_ids = rules.iter().map(|rule| rule.id()).collect::<Vec<_>>();
@@ -169,14 +192,14 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
                     }
                     None => {
                         println!("{rules}\n", rules = list_all_rules());
-                        bail!("No rule found with the name `{rule_name}`");
+                        bail!("no rule found with the name `{rule_name}`");
                     }
                 }
             }
         }
 
-        Ok(())
-    } else {
-        bail!("Invalid arguments: either a rule_name, a --tag, or --definitions must be provided");
+        return Ok(());
     }
+
+    unreachable!();
 }
