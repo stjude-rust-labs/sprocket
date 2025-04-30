@@ -53,6 +53,9 @@ enum Commands {
     /// It will not catch potential runtime errors that
     /// may occur when running the task or workflow.
     ValidateInputs(commands::validate::ValidateInputsArgs),
+
+    /// Display the effective configuration.
+    Config(commands::config::ConfigArgs),
 }
 
 #[derive(Parser)]
@@ -134,7 +137,8 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Format(args) => commands::format::format(args, config.format_config),
         Commands::ValidateInputs(args) => {
             commands::validate::validate_inputs(args, config.validate_config).await
-        }
+        },
+        Commands::Config(args) => commands::config::config(args, config),
     }
 }
 
