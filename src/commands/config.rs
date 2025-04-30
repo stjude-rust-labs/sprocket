@@ -8,7 +8,9 @@ pub struct ConfigArgs;
 
 /// Runs the `config` command.
 pub fn config(_args: ConfigArgs, config: crate::config::Config) -> anyhow::Result<()> {
-    println!("Effective configuration:\n{}",
-        toml::to_string(&config).unwrap_or_default());
+    println!(
+        "Effective configuration:\n{}",
+        toml::to_string(&config).unwrap_or_default()
+    );
     Ok(())
 }

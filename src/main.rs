@@ -137,7 +137,7 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Format(args) => commands::format::format(args, config.format_config),
         Commands::ValidateInputs(args) => {
             commands::validate::validate_inputs(args, config.validate_config).await
-        },
+        }
         Commands::Config(args) => commands::config::config(args, config),
     }
 }
