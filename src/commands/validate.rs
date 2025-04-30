@@ -37,23 +37,15 @@ pub struct ValidateInputsArgs {
 /// * Every supplied input is correctly typed.
 /// * No extraneous inputs are provided.
 /// * Any provided `File` or `Directory` inputs exist.
-pub async fn validate_inputs(
-    args: ValidateInputsArgs,
-    config: crate::config::ValidateInputsConfig,
-) -> Result<()> {
-    let no_color = args.no_color || config.no_color;
-    let report_mode = match args.report_mode {
-        Some(mode) => mode,
-        None => config.report_mode.unwrap_or_default(),
-    };
+pub async fn validate_inputs(args: ValidateInputsArgs) -> Result<()> {
     if let Some(diagnostic) = wdl_validate_inputs(&args.document, &args.inputs).await? {
         let source = std::fs::read_to_string(&args.document)?;
         emit_diagnostics(
             &[diagnostic],
             &args.document,
             &source,
-            report_mode,
-            no_color,
+            args.report_mode.unwrap_or_default(),
+            args.no_color,
         );
         anyhow::bail!("Invalid inputs");
     }

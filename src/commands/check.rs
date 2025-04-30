@@ -102,28 +102,17 @@ pub struct LintArgs {
 }
 
 /// Checks WDL source files for diagnostics.
-pub async fn check(args: CheckArgs, config: crate::config::CheckConfig) -> anyhow::Result<()> {
+pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let file = &args.common.file;
-    let exceptions: Vec<String> = args
-        .common
-        .except
-        .into_iter()
-        .chain(config.except)
-        .collect();
+    let exceptions: Vec<String> = args.common.except;
     let lint = args.lint;
-    let shellcheck = args.common.shellcheck || config.shellcheck;
+    let shellcheck = args.common.shellcheck;
 
     if shellcheck && !lint {
         bail!("`--shellcheck` requires `--lint` to be enabled");
     }
 
-    let no_color = args.common.no_color || config.no_color;
-    let report_mode = match args.common.report_mode {
-        Some(mode) => mode,
-        None => config.report_mode.unwrap_or_default(),
-    };
-
-    if (args.common.single_document || config.single_document)
+    if (args.common.single_document)
         && fs::metadata(file)
             .with_context(|| format!("failed to read metadata for file `{file}`"))
             .map(|m| m.is_dir())
@@ -154,7 +143,10 @@ pub async fn check(args: CheckArgs, config: crate::config::CheckConfig) -> anyho
             .collect();
 
         if !unknown_exceptions.is_empty() {
-            let (config, writer) = get_display_config(report_mode, no_color);
+            let (config, writer) = get_display_config(
+                args.common.report_mode.unwrap_or_default(),
+                args.common.no_color,
+            );
             let mut w_lock = writer.lock();
             let files: SimpleFiles<String, String> = SimpleFiles::new();
 
@@ -195,7 +187,7 @@ pub async fn check(args: CheckArgs, config: crate::config::CheckConfig) -> anyho
 
         // Attempt to strip the CWD from the result path
         let uri = result.document().uri();
-        if (args.common.single_document || config.single_document) && !uri.as_str().contains(file) {
+        if (args.common.single_document) && !uri.as_str().contains(file) {
             continue;
         }
         let scheme = uri.scheme();
@@ -216,10 +208,7 @@ pub async fn check(args: CheckArgs, config: crate::config::CheckConfig) -> anyho
                 .to_string_lossy()
                 .to_string(),
             _ => {
-                if !(remote_file
-                    || args.common.show_remote_diagnostics
-                    || config.show_remote_diagnostics)
-                {
+                if !(remote_file || args.common.show_remote_diagnostics) {
                     suppress = true;
                 }
                 uri.to_string()
@@ -238,7 +227,7 @@ pub async fn check(args: CheckArgs, config: crate::config::CheckConfig) -> anyho
                     let severity = d.severity();
                     match severity {
                         Severity::Error => true,
-                        Severity::Note if (args.common.hide_notes || config.hide_notes) => false,
+                        Severity::Note if (args.common.hide_notes) => false,
                         _ if suppress => false,
                         _ => true,
                     }
@@ -250,8 +239,8 @@ pub async fn check(args: CheckArgs, config: crate::config::CheckConfig) -> anyho
                     filtered_diagnostics.iter().copied(),
                     &uri,
                     &result.document().root().inner().text().to_string(),
-                    report_mode,
-                    no_color,
+                    args.common.report_mode.unwrap_or_default(),
+                    args.common.no_color,
                 );
 
                 for diagnostic in diagnostics.iter() {
@@ -272,12 +261,12 @@ pub async fn check(args: CheckArgs, config: crate::config::CheckConfig) -> anyho
             "failing due to {error_count} error{s}",
             s = if error_count == 1 { "" } else { "s" }
         );
-    } else if (args.common.deny_warnings || config.deny_warnings) && warning_count > 0 {
+    } else if (args.common.deny_warnings) && warning_count > 0 {
         bail!(
             "failing due to {warning_count} warning{s} (`--deny-warnings` was specified)",
             s = if warning_count == 1 { "" } else { "s" }
         );
-    } else if (args.common.deny_notes || config.deny_notes) && note_count > 0 {
+    } else if (args.common.deny_notes) && note_count > 0 {
         bail!(
             "failing due to {note_count} note{s} (`--deny-notes` was specified)",
             s = if note_count == 1 { "" } else { "s" }
@@ -288,13 +277,10 @@ pub async fn check(args: CheckArgs, config: crate::config::CheckConfig) -> anyho
 }
 
 /// Lints WDL source files.
-pub async fn lint(args: LintArgs, config: crate::config::CheckConfig) -> anyhow::Result<()> {
-    check(
-        CheckArgs {
-            common: args.common,
-            lint: true,
-        },
-        config,
-    )
+pub async fn lint(args: LintArgs) -> anyhow::Result<()> {
+    check(CheckArgs {
+        common: args.common,
+        lint: true,
+    })
     .await
 }

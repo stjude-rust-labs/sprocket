@@ -6,7 +6,6 @@ use std::io::stderr;
 use std::path::Path;
 
 use clap::Parser;
-use clap::Subcommand;
 use clap_verbosity_flag::Verbosity;
 use colored::Colorize;
 use dirs::home_dir;
@@ -21,44 +20,11 @@ use sprocket::config;
 use sprocket::config::Config;
 use tracing_log::AsTrace;
 
+use crate::commands::Commands;
+
 git_testament!(TESTAMENT);
 
-#[derive(Subcommand)]
-#[allow(clippy::large_enum_variant)]
-enum Commands {
-    /// Checks a WDL document (or a directory containing WDL documents) and
-    /// reports diagnostics.
-    Check(commands::check::CheckArgs),
-
-    /// Lints Workflow Description Language files.
-    Lint(commands::check::LintArgs),
-
-    /// Explains a rule.
-    Explain(commands::explain::Args),
-
-    /// Runs the analyzer LSP server.
-    Analyzer(commands::analyzer::AnalyzerArgs),
-
-    /// Formats a WDL document.
-    #[clap(alias = "fmt")]
-    Format(commands::format::FormatArgs),
-
-    /// Validates an input JSON or YAML file against a task or workflow input
-    /// schema.
-    ///
-    /// This ensures that every required input is supplied, every supplied input
-    /// is correctly typed, that no extraneous inputs are provided, and that any
-    /// provided `File` or `Directory` inputs exist.
-    ///
-    /// It will not catch potential runtime errors that
-    /// may occur when running the task or workflow.
-    ValidateInputs(commands::validate::ValidateInputsArgs),
-
-    /// Display the effective configuration.
-    Config(commands::config::ConfigArgs),
-}
-
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(author, version = render_testament!(TESTAMENT), propagate_version = true, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -73,7 +39,7 @@ struct Cli {
 }
 
 pub async fn inner() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
 
     tracing_log::LogTracer::init()?;
 
@@ -115,7 +81,7 @@ pub async fn inner() -> anyhow::Result<()> {
     }
 
     // If provided, check command line config file
-    if let Some(cli) = cli.config {
+    if let Some(ref cli) = cli.config {
         tracing::info!("Reading configuration from --config: {cli:?}");
         figment = figment.admerge(Toml::file(cli));
     }
@@ -129,15 +95,15 @@ pub async fn inner() -> anyhow::Result<()> {
         toml::to_string(&config).unwrap_or_default()
     );
 
+    cli.command = config.merge_args(cli.command);
+
     match cli.command {
-        Commands::Check(args) => commands::check::check(args, config.check_config).await,
-        Commands::Lint(args) => commands::check::lint(args, config.check_config).await,
+        Commands::Check(args) => commands::check::check(args).await,
+        Commands::Lint(args) => commands::check::lint(args).await,
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
-        Commands::Format(args) => commands::format::format(args, config.format_config),
-        Commands::ValidateInputs(args) => {
-            commands::validate::validate_inputs(args, config.validate_config).await
-        }
+        Commands::Format(args) => commands::format::format(args),
+        Commands::ValidateInputs(args) => commands::validate::validate_inputs(args).await,
         Commands::Config(args) => commands::config::config(args, config),
     }
 }

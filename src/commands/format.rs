@@ -67,7 +67,7 @@ pub struct FormatArgs {
 
     /// Argument group defining the mode of behavior
     #[command(flatten)]
-    mode: ModeGroup,
+    pub mode: ModeGroup,
 }
 
 /// Argument group defining the mode of behavior
@@ -174,20 +174,8 @@ fn format_document(
 }
 
 /// Runs the `format` command.
-pub fn format(args: FormatArgs, config: crate::config::FormatConfig) -> Result<()> {
-    let tabs = args.with_tabs || config.with_tabs;
-    let indentation_size = match tabs {
-        true => None,
-        false => {
-            if let Some(size) = args.indentation_size {
-                Some(size)
-            } else {
-                config.indentation_size
-            }
-        }
-    };
-
-    let indent = match Indent::try_new(tabs, indentation_size) {
+pub fn format(args: FormatArgs) -> Result<()> {
+    let indent = match Indent::try_new(args.with_tabs, args.indentation_size) {
         Ok(indent) => indent,
         Err(e) => bail!("failed to create indentation configuration: {}", e),
     };
@@ -196,20 +184,7 @@ pub fn format(args: FormatArgs, config: crate::config::FormatConfig) -> Result<(
             Ok(max_line_length) => max_line_length,
             Err(e) => bail!("failed to create max line length configuration: {}", e),
         },
-        None => match config.max_line_length {
-            Some(length) => MaxLineLength::try_new(length).unwrap(),
-            None => MaxLineLength::default(),
-        },
-    };
-
-    let no_color = args.no_color || config.no_color;
-    let report_mode = match args.report_mode {
-        Some(mode) => mode,
-        None => config.report_mode.unwrap_or_default(),
-    };
-    let mode = ModeGroup {
-        overwrite: args.mode.overwrite || config.overwrite,
-        check: args.mode.check || config.check,
+        None => MaxLineLength::default(),
     };
 
     let config = Builder::default()
@@ -231,10 +206,22 @@ pub fn format(args: FormatArgs, config: crate::config::FormatConfig) -> Result<(
                 continue;
             }
 
-            diagnostics += format_document(config, path, report_mode, no_color, mode.check)?;
+            diagnostics += format_document(
+                config,
+                path,
+                args.report_mode.unwrap_or_default(),
+                args.no_color,
+                args.mode.check,
+            )?;
         }
     } else {
-        diagnostics += format_document(config, &args.path, report_mode, no_color, mode.check)?;
+        diagnostics += format_document(
+            config,
+            &args.path,
+            args.report_mode.unwrap_or_default(),
+            args.no_color,
+            args.mode.check,
+        )?;
     }
 
     if diagnostics > 0 {
