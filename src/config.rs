@@ -66,10 +66,6 @@ pub struct CheckConfig {
     pub deny_warnings: bool,
     /// Causes the command to fail if any notes are reported.
     pub deny_notes: bool,
-    /// Suppress diagnostics from imported documents.
-    pub single_document: bool,
-    /// Show diagnostics for remote documents.
-    pub show_remote_diagnostics: bool,
     /// Run the `shellcheck` program on command sections.
     pub shellcheck: bool,
     /// Hide diagnostics with `note` severity.
@@ -131,10 +127,8 @@ impl Config {
                     deny_warnings: check_args.common.deny_warnings
                         || self.check_config.deny_warnings,
                     deny_notes: check_args.common.deny_notes || self.check_config.deny_notes,
-                    single_document: check_args.common.single_document
-                        || self.check_config.single_document,
-                    show_remote_diagnostics: check_args.common.show_remote_diagnostics
-                        || self.check_config.show_remote_diagnostics,
+                    single_document: check_args.common.single_document,
+                    show_remote_diagnostics: check_args.common.show_remote_diagnostics,
                     shellcheck: check_args.common.shellcheck || self.check_config.shellcheck,
                     hide_notes: check_args.common.hide_notes || self.check_config.hide_notes,
                     no_color: check_args.common.no_color || !self.common_config.color,
@@ -168,10 +162,8 @@ impl Config {
                     deny_warnings: lint_args.common.deny_warnings
                         || self.check_config.deny_warnings,
                     deny_notes: lint_args.common.deny_notes || self.check_config.deny_notes,
-                    single_document: lint_args.common.single_document
-                        || self.check_config.single_document,
-                    show_remote_diagnostics: lint_args.common.show_remote_diagnostics
-                        || self.check_config.show_remote_diagnostics,
+                    single_document: lint_args.common.single_document,
+                    show_remote_diagnostics: lint_args.common.show_remote_diagnostics,
                     shellcheck: lint_args.common.shellcheck || self.check_config.shellcheck,
                     hide_notes: lint_args.common.hide_notes || self.check_config.hide_notes,
                     no_color: lint_args.common.no_color || !self.common_config.color,
