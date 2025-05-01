@@ -85,7 +85,10 @@ use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::tree::SyntaxToken;
 use crate::v1::ExprEvaluator;
+use crate::v1::INPUTS_FILE;
+use crate::v1::OUTPUTS_FILE;
 use crate::v1::TaskEvaluator;
+use crate::v1::write_json_file;
 
 /// Helper for formatting a workflow or task identifier for a call statement.
 fn format_id(namespace: Option<&str>, target: &str, alias: &str, scatter_index: &str) -> String {
@@ -776,6 +779,9 @@ impl WorkflowEvaluator {
             )
         })?;
 
+        // Write the inputs to the workflow's root directory
+        write_json_file(root_dir.join(INPUTS_FILE), &inputs)?;
+
         let calls_dir = root_dir.join("calls");
         fs::create_dir_all(&calls_dir).with_context(|| {
             format!(
@@ -827,6 +833,9 @@ impl WorkflowEvaluator {
                 .collect();
             outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
         }
+
+        // Write the outputs to the workflow's root directory
+        write_json_file(root_dir.join(OUTPUTS_FILE), &outputs)?;
         Ok(outputs)
     }
 
@@ -1755,15 +1764,159 @@ impl WorkflowEvaluator {
 
 #[cfg(test)]
 mod test {
+    use std::fs::read_to_string;
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;
 
+    use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use wdl_analysis::Analyzer;
     use wdl_analysis::DiagnosticsConfig;
 
     use super::*;
     use crate::config::BackendConfig;
+
+    #[tokio::test]
+    async fn it_writes_input_and_output_files() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.2
+
+task foo {
+    input {
+        String a
+        Int b
+        Array[String] c
+    }
+
+    command <<<>>>
+
+    output {
+        String x = a
+        Int y = b
+        Array[String] z = c
+    }
+}
+
+workflow test {
+    input {
+        String a
+        Int b
+        Array[String] c
+    }
+
+    call foo {
+        a = "foo",
+        b = 10,
+        c = ["foo", "bar", "baz"]
+    }
+
+    call foo as bar {
+        a = "bar",
+        b = 1,
+        c = []
+    }
+
+    output {
+        String x = a
+        Int y = b
+        Array[String] z = c
+    }
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        // Analyze the source file
+        let analyzer = Analyzer::new(DiagnosticsConfig::except_all(), |(), _, _, _| async {});
+        analyzer
+            .add_directory(root_dir.path().to_path_buf())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        assert_eq!(results.len(), 1, "expected only one result");
+
+        let config = Config {
+            backend: BackendConfig::Local(Default::default()),
+            ..Default::default()
+        };
+        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new())
+            .await
+            .unwrap();
+
+        // Evaluate the `test` workflow in `source.wdl` using the default local backend
+        let mut inputs = WorkflowInputs::default();
+        inputs.set("a", "qux".to_string());
+        inputs.set("b", 1234);
+        inputs.set(
+            "c",
+            Array::new(
+                ArrayType::new(PrimitiveType::String),
+                ["jam".to_string(), "cakes".to_string()],
+            )
+            .unwrap(),
+        );
+        let outputs_dir = root_dir.path().join("outputs");
+        let outputs = evaluator
+            .evaluate(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+                |_| async {},
+            )
+            .await
+            .expect("failed to evaluate workflow");
+        assert_eq!(outputs.iter().count(), 3, "expected three outputs");
+
+        // Check the workflow inputs.json
+        assert_eq!(
+            read_to_string(outputs_dir.join("inputs.json"))
+                .expect("failed to read workflow `inputs.json`"),
+            "{\n  \"a\": \"qux\",\n  \"b\": 1234,\n  \"c\": [\n    \"jam\",\n    \"cakes\"\n  ]\n}"
+        );
+
+        // Check the workflow outputs.json
+        assert_eq!(
+            read_to_string(outputs_dir.join("outputs.json"))
+                .expect("failed to read workflow `outputs.json`"),
+            "{\n  \"x\": \"qux\",\n  \"y\": 1234,\n  \"z\": [\n    \"jam\",\n    \"cakes\"\n  ]\n}"
+        );
+
+        // Check the `foo` call inputs.json
+        assert_eq!(
+            read_to_string(outputs_dir.join("calls/foo/inputs.json"))
+                .expect("failed to read foo `inputs.json`"),
+            "{\n  \"a\": \"foo\",\n  \"b\": 10,\n  \"c\": [\n    \"foo\",\n    \"bar\",\n    \
+             \"baz\"\n  ]\n}"
+        );
+
+        // Check the `foo` call outputs.json
+        assert_eq!(
+            read_to_string(outputs_dir.join("calls/foo/outputs.json"))
+                .expect("failed to read foo `outputs.json`"),
+            "{\n  \"x\": \"foo\",\n  \"y\": 10,\n  \"z\": [\n    \"foo\",\n    \"bar\",\n    \
+             \"baz\"\n  ]\n}"
+        );
+
+        // Check the `bar` call inputs.json
+        assert_eq!(
+            read_to_string(outputs_dir.join("calls/bar/inputs.json"))
+                .expect("failed to read bar `inputs.json`"),
+            "{\n  \"a\": \"bar\",\n  \"b\": 1,\n  \"c\": []\n}"
+        );
+
+        // Check the `bar` call outputs.json
+        assert_eq!(
+            read_to_string(outputs_dir.join("calls/bar/outputs.json"))
+                .expect("failed to read bar `outputs.json`"),
+            "{\n  \"x\": \"bar\",\n  \"y\": 1,\n  \"z\": []\n}"
+        );
+    }
 
     #[tokio::test]
     async fn it_reports_progress() {

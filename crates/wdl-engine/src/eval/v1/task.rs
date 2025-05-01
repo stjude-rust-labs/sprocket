@@ -90,6 +90,9 @@ use crate::path;
 use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::v1::ExprEvaluator;
+use crate::v1::INPUTS_FILE;
+use crate::v1::OUTPUTS_FILE;
+use crate::v1::write_json_file;
 
 /// The default container requirement.
 pub const DEFAULT_TASK_REQUIREMENT_CONTAINER: &str = "ubuntu:latest";
@@ -640,6 +643,9 @@ impl TaskEvaluator {
             )
         })?;
 
+        // Write the inputs to the task's root directory
+        write_json_file(root_dir.join(INPUTS_FILE), inputs)?;
+
         let mut state = State::new(&temp_dir, document, task)?;
         let nodes = toposort(&graph, None).expect("graph should be acyclic");
         let mut current = 0;
@@ -832,6 +838,9 @@ impl TaskEvaluator {
                 .collect();
             outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
         }
+
+        // Write the outputs to the task's root directory
+        write_json_file(root_dir.join(OUTPUTS_FILE), &outputs)?;
 
         evaluated.outputs = Ok(outputs);
         Ok(evaluated)

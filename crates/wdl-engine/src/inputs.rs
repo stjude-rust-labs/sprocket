@@ -10,6 +10,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use indexmap::IndexMap;
+use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serde_yaml_ng::Value as YamlValue;
 use wdl_analysis::document::Document;
@@ -29,7 +30,7 @@ use crate::Value;
 /// Helper for replacing input paths with a path derived from joining the
 /// specified path with the input path.
 fn join_paths<'a>(
-    inputs: &mut HashMap<String, Value>,
+    inputs: &mut IndexMap<String, Value>,
     path: impl Fn(&str) -> Result<&'a Path>,
     ty: impl Fn(&str) -> Option<Type>,
 ) -> Result<()> {
@@ -67,7 +68,7 @@ fn join_paths<'a>(
 #[derive(Default, Debug, Clone)]
 pub struct TaskInputs {
     /// The task input values.
-    inputs: HashMap<String, Value>,
+    inputs: IndexMap<String, Value>,
     /// The overridden requirements section values.
     requirements: HashMap<String, Value>,
     /// The overridden hints section values.
@@ -302,11 +303,21 @@ where
     }
 }
 
+impl Serialize for TaskInputs {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // Only serialize the input values
+        self.inputs.serialize(serializer)
+    }
+}
+
 /// Represents inputs to a workflow.
 #[derive(Default, Debug, Clone)]
 pub struct WorkflowInputs {
     /// The workflow input values.
-    inputs: HashMap<String, Value>,
+    inputs: IndexMap<String, Value>,
     /// The nested call inputs.
     calls: HashMap<String, Inputs>,
 }
@@ -607,6 +618,17 @@ where
                 .collect(),
             calls: Default::default(),
         }
+    }
+}
+
+impl Serialize for WorkflowInputs {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // Note: for serializing, only serialize the direct inputs, not the nested
+        // inputs
+        self.inputs.serialize(serializer)
     }
 }
 

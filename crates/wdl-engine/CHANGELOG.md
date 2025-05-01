@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added writing `inputs.json` and `outputs.json` for each task and workflow
+  that was evaluated ([#437](https://github.com/stjude-rust-labs/wdl/pull/437)).
 * Implemented remote file localization for task execution ([#386](https://github.com/stjude-rust-labs/wdl/pull/386)).
 * Implemented concurrent file downloads for localization for task execution ([#424](https://github.com/stjude-rust-labs/wdl/pull/424)).
 
