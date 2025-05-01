@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.11.0 - 05-01-2025
+
 #### Changed
 
 * `util::is_properly_quoted` is now `util::is_quote_balanced` ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).

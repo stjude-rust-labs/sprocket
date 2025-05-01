@@ -1,6 +1,6 @@
 [package]
 name = "wdl-cli"
-version = "0.0.0"
+version = "0.1.0"
 license.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,10 +9,10 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-wdl-analysis = { path = "../wdl-analysis", version = "0.7.0" }
-wdl-ast = { path = "../wdl-ast", version = "0.11.0" }
-wdl-engine = { path = "../wdl-engine", version = "0.2.0" }
-wdl-lint = { path = "../wdl-lint", version = "0.10.0" }
+wdl-analysis = { path = "../wdl-analysis", version = "0.8.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.12.0" }
+wdl-engine = { path = "../wdl-engine", version = "0.3.0" }
+wdl-lint = { path = "../wdl-lint", version = "0.11.0" }
 
 anyhow.workspace = true
 codespan-reporting.workspace = true
