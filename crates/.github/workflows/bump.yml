@@ -16,6 +16,7 @@ on:
           - wdl-doc
           - wdl-engine
           - wdl-lsp
+          - wdl-cli
           - wdl
 
 jobs:

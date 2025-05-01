@@ -59,6 +59,7 @@ const SORTED_CRATES_TO_PUBLISH: &[&str] = &[
     "wdl-doc",
     "wdl-engine",
     "wdl-lsp",
+    "wdl-cli",
     "wdl",
 ];
 
