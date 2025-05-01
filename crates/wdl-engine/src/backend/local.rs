@@ -6,8 +6,6 @@ use std::fs;
 use std::fs::File;
 use std::path::Path;
 use std::process::Stdio;
-use std::result::Result::Ok;
-use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -27,8 +25,12 @@ use super::TaskExecutionEvents;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
+use crate::COMMAND_FILE_NAME;
 use crate::Input;
 use crate::ONE_GIBIBYTE;
+use crate::PrimitiveValue;
+use crate::STDERR_FILE_NAME;
+use crate::STDOUT_FILE_NAME;
 use crate::SYSTEM;
 use crate::TaskExecutionResult;
 use crate::Value;
@@ -60,8 +62,8 @@ struct LocalTaskRequest {
     ///
     /// Note that memory isn't actually reserved for the task process.
     memory: u64,
-    /// The shell to use for spawning the task.
-    shell: Option<Arc<String>>,
+    /// The optional shell to use.
+    shell: Option<String>,
     /// The cancellation token for the request.
     token: CancellationToken,
 }
@@ -77,7 +79,7 @@ impl TaskManagerRequest for LocalTaskRequest {
 
     async fn run(self, spawned: oneshot::Sender<()>) -> Result<TaskExecutionResult> {
         // Create the working directory
-        let work_dir = self.inner.root.attempt_dir().join(WORK_DIR_NAME);
+        let work_dir = self.inner.attempt_dir().join(WORK_DIR_NAME);
         fs::create_dir_all(&work_dir).with_context(|| {
             format!(
                 "failed to create directory `{path}`",
@@ -86,8 +88,8 @@ impl TaskManagerRequest for LocalTaskRequest {
         })?;
 
         // Write the evaluated command to disk
-        let command_path = self.inner.root.command();
-        fs::write(command_path, self.inner.command()).with_context(|| {
+        let command_path = self.inner.attempt_dir().join(COMMAND_FILE_NAME);
+        fs::write(&command_path, self.inner.command()).with_context(|| {
             format!(
                 "failed to write command contents to `{path}`",
                 path = command_path.display()
@@ -95,8 +97,8 @@ impl TaskManagerRequest for LocalTaskRequest {
         })?;
 
         // Create a file for the stdout
-        let stdout_path = self.inner.root.stdout();
-        let stdout = File::create(stdout_path).with_context(|| {
+        let stdout_path = self.inner.attempt_dir().join(STDOUT_FILE_NAME);
+        let stdout = File::create(&stdout_path).with_context(|| {
             format!(
                 "failed to create stdout file `{path}`",
                 path = stdout_path.display()
@@ -104,20 +106,15 @@ impl TaskManagerRequest for LocalTaskRequest {
         })?;
 
         // Create a file for the stderr
-        let stderr_path = self.inner.root.stderr();
-        let stderr = File::create(stderr_path).with_context(|| {
+        let stderr_path = self.inner.attempt_dir().join(STDERR_FILE_NAME);
+        let stderr = File::create(&stderr_path).with_context(|| {
             format!(
                 "failed to create stderr file `{path}`",
                 path = stderr_path.display()
             )
         })?;
 
-        let mut command = Command::new(
-            self.shell
-                .as_ref()
-                .map(|s| s.as_str())
-                .unwrap_or(DEFAULT_TASK_SHELL),
-        );
+        let mut command = Command::new(self.shell.as_deref().unwrap_or(DEFAULT_TASK_SHELL));
         command
             .current_dir(&work_dir)
             .arg("-C")
@@ -175,8 +172,11 @@ impl TaskManagerRequest for LocalTaskRequest {
                 let exit_code = status.code().expect("process should have exited");
                 info!("task process {id} has terminated with status code {exit_code}");
                 Ok(TaskExecutionResult {
+                    inputs: self.inner.info.inputs,
                     exit_code,
                     work_dir: EvaluationPath::Local(work_dir),
+                    stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
+                    stderr: PrimitiveValue::new_file(stderr_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
                 })
             }
         }
@@ -189,18 +189,18 @@ impl TaskManagerRequest for LocalTaskRequest {
 /// Warning: the local task execution backend spawns processes on the host
 /// directly without the use of a container; only use this backend on trusted
 /// WDL. </div>
-pub struct LocalTaskExecutionBackend {
+pub struct LocalBackend {
     /// The total CPU of the host.
     cpu: u64,
     /// The total memory of the host.
     memory: u64,
-    /// The default shell to use for running tasks.
-    shell: Option<Arc<String>>,
+    /// The optional shell to use.
+    shell: Option<String>,
     /// The underlying task manager.
     manager: TaskManager<LocalTaskRequest>,
 }
 
-impl LocalTaskExecutionBackend {
+impl LocalBackend {
     /// Constructs a new local task execution backend with the given
     /// configuration.
     pub fn new(task: &TaskConfig, config: &LocalBackendConfig) -> Result<Self> {
@@ -218,13 +218,13 @@ impl LocalTaskExecutionBackend {
         Ok(Self {
             cpu,
             memory,
-            shell: task.shell.as_ref().map(|s| Arc::new(s.clone())),
+            shell: task.shell.clone(),
             manager,
         })
     }
 }
 
-impl TaskExecutionBackend for LocalTaskExecutionBackend {
+impl TaskExecutionBackend for LocalBackend {
     fn max_concurrency(&self) -> u64 {
         self.cpu
     }

@@ -22,6 +22,16 @@ pub enum ProgressKind<'a> {
         /// The identifier of the task.
         id: &'a str,
     },
+    /// A task has been retried.
+    TaskRetried {
+        /// The identifier of the task.
+        id: &'a str,
+        /// The retry number for the task's execution, starting at 0 to indicate
+        /// first retry.
+        ///
+        /// This value is incremented upon each retry.
+        retry: u64,
+    },
     /// A task with the given id has started execution.
     ///
     /// Note that a task may have multiple executions as a result of retrying
@@ -29,11 +39,6 @@ pub enum ProgressKind<'a> {
     TaskExecutionStarted {
         /// The identifier of the task.
         id: &'a str,
-        /// The attempt number for the task's execution, starting at 0 to
-        /// indicate the first attempt.
-        ///
-        /// This value is incremented upon each retry.
-        attempt: u64,
     },
     /// A task with the given id has completed execution.
     TaskExecutionCompleted {
@@ -70,6 +75,7 @@ impl ProgressKind<'_> {
     pub fn id(&self) -> &str {
         match self {
             Self::TaskStarted { id, .. }
+            | Self::TaskRetried { id, .. }
             | Self::TaskExecutionStarted { id, .. }
             | Self::TaskExecutionCompleted { id, .. }
             | Self::TaskCompleted { id, .. }

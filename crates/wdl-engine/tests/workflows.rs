@@ -52,7 +52,7 @@ use wdl_ast::Severity;
 use wdl_engine::EvaluationError;
 use wdl_engine::Inputs;
 use wdl_engine::config;
-use wdl_engine::config::BackendKind;
+use wdl_engine::config::BackendConfig;
 use wdl_engine::v1::WorkflowEvaluator;
 
 /// Finds tests to run as part of the analysis test suite.
@@ -155,19 +155,20 @@ fn compare_result(path: &Path, result: &str) -> Result<()> {
 fn configs() -> Vec<config::Config> {
     vec![
         {
-            let mut config = config::Config::default();
-            config.backend.default = BackendKind::Local;
-            config
+            config::Config {
+                backend: BackendConfig::Local(Default::default()),
+                ..Default::default()
+            }
         },
         // Currently we limit running the Docker backend to Linux as GitHub does not have Docker
         // installed on macOS hosted runners and the Windows hosted runners are configured to use
         // Windows containers
         #[cfg(target_os = "linux")]
         {
-            let mut config = config::Config::default();
-            config.backend.crankshaft.default = config::CrankshaftBackendKind::Docker;
-            config.backend.default = BackendKind::Crankshaft;
-            config
+            config::Config {
+                backend: BackendConfig::Docker(Default::default()),
+                ..Default::default()
+            }
         },
     ]
 }

@@ -2,9 +2,11 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fs;
 use std::future::Future;
 use std::mem;
 use std::path::Path;
+use std::path::absolute;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -62,14 +64,15 @@ use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationResult;
 use crate::Input;
+use crate::InputKind;
 use crate::Outputs;
 use crate::PrimitiveValue;
 use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
 use crate::TaskExecutionBackend;
-use crate::TaskExecutionRoot;
 use crate::TaskInputs;
+use crate::TaskSpawnInfo;
 use crate::TaskSpawnRequest;
 use crate::TaskValue;
 use crate::Value;
@@ -316,7 +319,7 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn temp_dir(&self) -> &Path {
-        self.state.root.temp_dir()
+        self.state.temp_dir
     }
 
     fn stdout(&self) -> Option<&Value> {
@@ -387,6 +390,8 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
 
 /// Represents task evaluation state.
 struct State<'a> {
+    /// The temp directory.
+    temp_dir: &'a Path,
     /// The document containing the workflow being evaluated.
     document: &'a Document,
     /// The task being evaluated.
@@ -397,8 +402,6 @@ struct State<'a> {
     /// the third is the scope where the "task" variable is visible in 1.2+
     /// evaluations.
     scopes: [Scope; 3],
-    /// The execution root to spawn the task with.
-    root: Arc<TaskExecutionRoot>,
     /// The environment variables of the task.
     ///
     /// Environment variables do not change between retries.
@@ -407,7 +410,7 @@ struct State<'a> {
 
 impl<'a> State<'a> {
     /// Constructs a new task evaluation state.
-    fn new(root: &Path, document: &'a Document, task: &'a Task) -> Result<Self> {
+    fn new(temp_dir: &'a Path, document: &'a Document, task: &'a Task) -> Result<Self> {
         // Tasks have a root scope (index 0), an output scope (index 1), and a `task`
         // variable scope (index 2). The output scope inherits from the root scope and
         // the task scope inherits from the output scope. Inputs and private
@@ -423,18 +426,12 @@ impl<'a> State<'a> {
         ];
 
         Ok(Self {
+            temp_dir,
             document,
             task,
             scopes,
-            root: Arc::new(TaskExecutionRoot::new(root, 0)?),
             env: Default::default(),
         })
-    }
-
-    /// Changes the root for a new attempt.
-    fn set_root(&mut self, root: &Path, attempt: u64) -> Result<()> {
-        self.root = Arc::new(TaskExecutionRoot::new(root, attempt)?);
-        Ok(())
     }
 }
 
@@ -447,7 +444,7 @@ struct EvaluatedSections {
     /// The evaluated hints.
     hints: Arc<HashMap<String, Value>>,
     /// The inputs to the task.
-    inputs: Arc<[Input]>,
+    inputs: Vec<Input>,
 }
 
 /// Represents a WDL V1 task evaluator.
@@ -620,14 +617,30 @@ impl TaskEvaluator {
             "task evaluation graph should have no diagnostics"
         );
 
-        info!(
+        debug!(
             task_id = id,
             task_name = task.name(),
             document = document.uri().as_str(),
             "evaluating task"
         );
 
-        let mut state = State::new(root, document, task)?;
+        let root_dir = absolute(root).with_context(|| {
+            format!(
+                "failed to determine absolute path of `{path}`",
+                path = root.display()
+            )
+        })?;
+
+        // Create the temp directory now as it may be needed for task evaluation
+        let temp_dir = root_dir.join("tmp");
+        fs::create_dir_all(&temp_dir).with_context(|| {
+            format!(
+                "failed to create directory `{path}`",
+                path = temp_dir.display()
+            )
+        })?;
+
+        let mut state = State::new(&temp_dir, document, task)?;
         let nodes = toposort(&graph, None).expect("graph should be acyclic");
         let mut current = 0;
         while current < nodes.len() {
@@ -665,7 +678,7 @@ impl TaskEvaluator {
 
         // Spawn the task in a retry loop
         let mut attempt = 0;
-        let (mut evaluated, mounts) = loop {
+        let mut evaluated = loop {
             let EvaluatedSections {
                 command,
                 requirements,
@@ -692,14 +705,21 @@ impl TaskEvaluator {
                 .into());
             }
 
+            let mut attempt_dir = root_dir.clone();
+            attempt_dir.push("attempts");
+            attempt_dir.push(attempt.to_string());
+
             let request = TaskSpawnRequest::new(
-                state.root.clone(),
                 id.to_string(),
-                command,
-                requirements.clone(),
-                hints.clone(),
-                env.clone(),
-                inputs.clone(),
+                TaskSpawnInfo::new(
+                    command,
+                    inputs,
+                    requirements.clone(),
+                    hints.clone(),
+                    env.clone(),
+                ),
+                attempt,
+                attempt_dir.clone(),
             );
 
             let events = self
@@ -713,10 +733,17 @@ impl TaskEvaluator {
                     )
                 })?;
 
+            if attempt > 0 {
+                progress(ProgressKind::TaskRetried {
+                    id,
+                    retry: attempt - 1,
+                });
+            }
+
             // Await the spawned notification first
             events.spawned.await.ok();
 
-            progress(ProgressKind::TaskExecutionStarted { id, attempt });
+            progress(ProgressKind::TaskExecutionStarted { id });
 
             let result = events
                 .completed
@@ -736,7 +763,7 @@ impl TaskEvaluator {
             })?;
 
             // Update the task variable
-            let evaluated = EvaluatedTask::new(state.root.clone(), result)?;
+            let evaluated = EvaluatedTask::new(attempt_dir, result)?;
             if version >= SupportedVersion::V1(V1::Two) {
                 let task = state.scopes[TASK_SCOPE_INDEX.0]
                     .get_mut(TASK_VAR_NAME)
@@ -750,10 +777,10 @@ impl TaskEvaluator {
                         task = state.task.name()
                     )
                 })?);
-                task.set_return_code(evaluated.exit_code);
+                task.set_return_code(evaluated.result.exit_code);
             }
 
-            if let Err(e) = evaluated.handle_exit(&requirements) {
+            if let Err(e) = evaluated.handle_exit(&requirements, &self.downloader).await {
                 if attempt >= max_retries {
                     return Err(EvaluationError::new(
                         state.document.clone(),
@@ -763,9 +790,6 @@ impl TaskEvaluator {
 
                 attempt += 1;
 
-                // Update the execution root for the next attempt
-                state.set_root(root, attempt)?;
-
                 info!(
                     "retrying execution of task `{name}` (retry {attempt})",
                     name = state.task.name()
@@ -773,7 +797,7 @@ impl TaskEvaluator {
                 continue;
             }
 
-            break (evaluated, inputs);
+            break evaluated;
         };
 
         // Evaluate the remaining inputs (unused), and decls, and outputs
@@ -785,7 +809,7 @@ impl TaskEvaluator {
                         .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                 }
                 TaskGraphNode::Output(decl) => {
-                    self.evaluate_output(id, &mut state, decl, &evaluated, &mounts)
+                    self.evaluate_output(id, &mut state, decl, &evaluated)
                         .await
                         .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                 }
@@ -1105,15 +1129,16 @@ impl TaskEvaluator {
         // Discover every input that's visible to the scope
         ScopeRef::new(&state.scopes, TASK_SCOPE_INDEX.0).for_each(|_, v| {
             v.visit_paths(false, &mut |_, value| {
-                inputs.push(Input::new(EvaluationPath::from_primitive_value(value)?));
+                inputs.push(Input::from_primitive(value)?);
                 Ok(())
             })
         })?;
 
         // The temp directory should always be an input
-        inputs.push(Input::new(EvaluationPath::Local(
-            state.root.temp_dir().to_path_buf(),
-        )));
+        inputs.push(Input::new(
+            InputKind::Directory,
+            EvaluationPath::Local(state.temp_dir.to_path_buf()),
+        ));
 
         // Localize the inputs
         self.backend
@@ -1246,7 +1271,7 @@ impl TaskEvaluator {
         };
 
         // Update or insert the `task` variable in the task scope
-        // TODO: if task variables become visible in `requirements` or `hints`  section,
+        // TODO: if task variables become visible in `requirements` or `hints` section,
         // this needs to be relocated to before we evaluate those sections
         if state.document.version() >= Some(SupportedVersion::V1(V1::Two)) {
             // Get the execution constraints
@@ -1293,7 +1318,7 @@ impl TaskEvaluator {
             command,
             requirements: Arc::new(requirements),
             hints: Arc::new(hints),
-            inputs: inputs.into(),
+            inputs,
         })
     }
 
@@ -1304,7 +1329,6 @@ impl TaskEvaluator {
         state: &mut State<'_>,
         decl: &Decl<SyntaxNode>,
         evaluated: &EvaluatedTask,
-        inputs: &[Input],
     ) -> Result<(), Diagnostic> {
         let name = decl.name();
         debug!(
@@ -1319,9 +1343,9 @@ impl TaskEvaluator {
         let ty = crate::convert_ast_type_v1(state.document, &decl_ty)?;
         let mut evaluator = ExprEvaluator::new(
             TaskEvaluationContext::new(state, &self.downloader, TASK_SCOPE_INDEX)
-                .with_work_dir(&evaluated.work_dir)
-                .with_stdout(&evaluated.stdout)
-                .with_stderr(&evaluated.stderr),
+                .with_work_dir(&evaluated.result.work_dir)
+                .with_stdout(&evaluated.result.stdout)
+                .with_stderr(&evaluated.result.stderr),
         );
 
         let expr = decl.expr().expect("outputs should have expressions");
@@ -1341,8 +1365,11 @@ impl TaskEvaluator {
                     _ => unreachable!("only file and directory values should be visited"),
                 };
 
-                // If the path isn't already within the host root, perform translation
-                if !Path::new(path.as_str()).starts_with(state.root.path()) {
+                // If the path isn't in the temp directory or the attempt directory, perform
+                // translation
+                if !Path::new(path.as_str()).starts_with(state.temp_dir)
+                    && !Path::new(path.as_str()).starts_with(evaluated.attempt_dir())
+                {
                     // It's a file scheme'd URL, treat it as an absolute guest path
                     let guest = if path::is_file_url(path) {
                         path::parse_url(path)
@@ -1361,14 +1388,15 @@ impl TaskEvaluator {
                     // directory
                     let host = if let Ok(stripped) = guest.strip_prefix(guest_work_dir) {
                         Cow::Owned(
-                            evaluated.work_dir.join(
+                            evaluated.result.work_dir.join(
                                 stripped.to_str().with_context(|| {
                                     format!("output path `{path}` is not UTF-8")
                                 })?,
                             )?,
                         )
                     } else {
-                        inputs
+                        evaluated
+                            .inputs()
                             .iter()
                             .filter_map(|i| {
                                 Some((i.path(), guest.strip_prefix(i.guest_path()?).ok()?))
@@ -1396,7 +1424,7 @@ impl TaskEvaluator {
         } else {
             // Backend isn't containerized, just join host paths and check for existence
             value.visit_paths_mut(ty.is_optional(), &mut |optional, value| {
-                if let Some(work_dir) = evaluated.work_dir.as_local() {
+                if let Some(work_dir) = evaluated.result.work_dir.as_local() {
                     value.join_path_to(work_dir);
                 }
 

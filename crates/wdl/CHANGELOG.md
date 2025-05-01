@@ -16,10 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Added ability to compile and watch a CSS style directory for `wdl doc` (#[262](https://github.com/stjude-rust-labs/wdl/pull/262)).
-* Added ability to skip CSS compilation using a precompiled stylesheet for `wdl doc` (#[262](https://github.com/stjude-rust-labs/wdl/pull/262)).
-* Added graceful cancellation on SIGINT (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Added `--config` option to the `run` command (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Added ability to compile and watch a CSS style directory for `wdl doc` ([#262](https://github.com/stjude-rust-labs/wdl/pull/262)).
+* Added ability to skip CSS compilation using a precompiled stylesheet for `wdl doc` ([#262](https://github.com/stjude-rust-labs/wdl/pull/262)).
+* Added graceful cancellation on SIGINT ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Added `--config` option to the `run` command ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Added executing task information to the `wdl run` progress bar ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
 
 #### Fixed

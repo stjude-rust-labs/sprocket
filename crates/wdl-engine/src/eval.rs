@@ -6,9 +6,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::BufRead;
 use std::path::Component;
-use std::path::MAIN_SEPARATOR;
 use std::path::Path;
-use std::sync::Arc;
+use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -29,11 +28,11 @@ use crate::CompoundValue;
 use crate::Outputs;
 use crate::PrimitiveValue;
 use crate::TaskExecutionResult;
-use crate::TaskExecutionRoot;
 use crate::Value;
 use crate::http::Downloader;
 use crate::http::Location;
 use crate::path::EvaluationPath;
+use crate::stdlib::download_file;
 
 pub mod v1;
 
@@ -296,16 +295,10 @@ impl<'a> ScopeRef<'a> {
 /// Represents an evaluated task.
 #[derive(Debug)]
 pub struct EvaluatedTask {
-    /// The evaluated task's exit code.
-    exit_code: i32,
-    /// The task execution root.
-    root: Arc<TaskExecutionRoot>,
-    /// The working directory of the executed task.
-    work_dir: EvaluationPath,
-    /// The value to return from the `stdout` function.
-    stdout: Value,
-    /// The value to return from the `stderr` function.
-    stderr: Value,
+    /// The task attempt directory.
+    attempt_dir: PathBuf,
+    /// The task execution result.
+    result: TaskExecutionResult,
     /// The evaluated outputs of the task.
     ///
     /// This is `Ok` when the task executes successfully and all of the task's
@@ -320,55 +313,42 @@ impl EvaluatedTask {
     /// Constructs a new evaluated task.
     ///
     /// Returns an error if the stdout or stderr paths are not UTF-8.
-    fn new(root: Arc<TaskExecutionRoot>, result: TaskExecutionResult) -> anyhow::Result<Self> {
-        let stdout = PrimitiveValue::new_file(root.stdout().to_str().with_context(|| {
-            format!(
-                "path to stdout file `{path}` is not UTF-8",
-                path = root.stdout().display()
-            )
-        })?)
-        .into();
-        let stderr = PrimitiveValue::new_file(root.stderr().to_str().with_context(|| {
-            format!(
-                "path to stderr file `{path}` is not UTF-8",
-                path = root.stderr().display()
-            )
-        })?)
-        .into();
-
+    fn new(attempt_dir: PathBuf, result: TaskExecutionResult) -> anyhow::Result<Self> {
         Ok(Self {
-            exit_code: result.exit_code,
-            root,
-            work_dir: result.work_dir,
-            stdout,
-            stderr,
+            result,
+            attempt_dir,
             outputs: Ok(Default::default()),
         })
     }
 
     /// Gets the exit code of the evaluated task.
     pub fn exit_code(&self) -> i32 {
-        self.exit_code
+        self.result.exit_code
     }
 
-    /// Gets the task execution root for the evaluated task.
-    pub fn root(&self) -> &TaskExecutionRoot {
-        &self.root
+    /// Gets the attempt directory of the task.
+    pub fn attempt_dir(&self) -> &Path {
+        &self.attempt_dir
+    }
+
+    /// Gets the inputs that were given to the task.
+    pub fn inputs(&self) -> &[Input] {
+        &self.result.inputs
     }
 
     /// Gets the working directory of the evaluated task.
     pub fn work_dir(&self) -> &EvaluationPath {
-        &self.work_dir
+        &self.result.work_dir
     }
 
     /// Gets the stdout value of the evaluated task.
     pub fn stdout(&self) -> &Value {
-        &self.stdout
+        &self.result.stdout
     }
 
     /// Gets the stderr value of the evaluated task.
     pub fn stderr(&self) -> &Value {
-        &self.stderr
+        &self.result.stderr
     }
 
     /// Gets the outputs of the evaluated task.
@@ -394,7 +374,11 @@ impl EvaluatedTask {
     /// Handles the exit of a task execution.
     ///
     /// Returns an error if the task failed.
-    fn handle_exit(&self, requirements: &HashMap<String, Value>) -> anyhow::Result<()> {
+    async fn handle_exit(
+        &self,
+        requirements: &HashMap<String, Value>,
+        downloader: &dyn Downloader,
+    ) -> anyhow::Result<()> {
         let mut error = true;
         if let Some(return_codes) = requirements
             .get(TASK_REQUIREMENT_RETURN_CODES)
@@ -411,52 +395,58 @@ impl EvaluatedTask {
                     );
                 }
                 Value::Primitive(PrimitiveValue::Integer(ok)) => {
-                    if self.exit_code == i32::try_from(*ok).unwrap_or_default() {
+                    if self.result.exit_code == i32::try_from(*ok).unwrap_or_default() {
                         error = false;
                     }
                 }
                 Value::Compound(CompoundValue::Array(codes)) => {
                     error = !codes.as_slice().iter().any(|v| {
                         v.as_integer()
-                            .map(|i| i32::try_from(i).unwrap_or_default() == self.exit_code)
+                            .map(|i| i32::try_from(i).unwrap_or_default() == self.result.exit_code)
                             .unwrap_or(false)
                     });
                 }
                 _ => unreachable!("unexpected return codes value"),
             }
         } else {
-            error = self.exit_code != 0;
+            error = self.result.exit_code != 0;
         }
 
         if error {
             // Read the last `MAX_STDERR_LINES` number of lines from stderr
             // If there's a problem reading stderr, don't output it
-            let stderr = fs::File::open(self.root.stderr())
+            let stderr = download_file(downloader, None, self.stderr().as_file().unwrap())
+                .await
                 .ok()
-                .map(|f| {
-                    // Buffer the last N number of lines
-                    let reader = RevBufReader::new(f);
-                    let lines: Vec<_> = reader
-                        .lines()
-                        .take(MAX_STDERR_LINES)
-                        .map_while(|l| l.ok())
-                        .collect();
+                .and_then(|l| {
+                    fs::File::open(l).ok().map(|f| {
+                        // Buffer the last N number of lines
+                        let reader = RevBufReader::new(f);
+                        let lines: Vec<_> = reader
+                            .lines()
+                            .take(MAX_STDERR_LINES)
+                            .map_while(|l| l.ok())
+                            .collect();
 
-                    // Iterate the lines in reverse order as we read them in reverse
-                    lines
-                        .iter()
-                        .rev()
-                        .format_with("\n", |l, f| f(&format_args!("  {l}")))
-                        .to_string()
+                        // Iterate the lines in reverse order as we read them in reverse
+                        lines
+                            .iter()
+                            .rev()
+                            .format_with("\n", |l, f| f(&format_args!("  {l}")))
+                            .to_string()
+                    })
                 })
                 .unwrap_or_default();
 
+            // If the work directory is remote,
             bail!(
-                "task process terminated with exit code {code}: see the `stdout` and `stderr` \
-                 files in execution directory `{dir}{MAIN_SEPARATOR}` for task command \
-                 output{header}{stderr}{trailer}",
-                code = self.exit_code,
-                dir = self.root().attempt_dir().display(),
+                "process terminated with exit code {code}: see `{stdout_path}` and \
+                 `{stderr_path}` for task output and the related files in \
+                 `{dir}`{header}{stderr}{trailer}",
+                code = self.result.exit_code,
+                dir = self.attempt_dir().display(),
+                stdout_path = self.stdout().as_file().expect("must be file"),
+                stderr_path = self.stderr().as_file().expect("must be file"),
                 header = if stderr.is_empty() {
                     Cow::Borrowed("")
                 } else {
@@ -470,9 +460,29 @@ impl EvaluatedTask {
     }
 }
 
+/// Gets the kind of an input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum InputKind {
+    /// The input is a single file.
+    File,
+    /// The input is a directory.
+    Directory,
+}
+
+impl From<InputKind> for crankshaft::engine::task::input::Type {
+    fn from(value: InputKind) -> Self {
+        match value {
+            InputKind::File => Self::File,
+            InputKind::Directory => Self::Directory,
+        }
+    }
+}
+
 /// Represents a `File` or `Directory` input to a task.
 #[derive(Debug, Clone)]
 pub struct Input {
+    /// The input kind.
+    kind: InputKind,
     /// The path for the input.
     path: EvaluationPath,
     /// The download location for the input.
@@ -485,12 +495,34 @@ pub struct Input {
 
 impl Input {
     /// Creates a new input with the given path and access.
-    pub fn new(path: EvaluationPath) -> Self {
+    pub fn new(kind: InputKind, path: EvaluationPath) -> Self {
         Self {
+            kind,
             path,
             location: None,
             guest_path: None,
         }
+    }
+
+    /// Creates an input from a primitive value.
+    pub fn from_primitive(value: &PrimitiveValue) -> Result<Self> {
+        let (kind, path) = match value {
+            PrimitiveValue::File(path) => (InputKind::File, path),
+            PrimitiveValue::Directory(path) => (InputKind::Directory, path),
+            _ => bail!("value is not a `File` or `Directory`"),
+        };
+
+        Ok(Self {
+            kind,
+            path: path.parse()?,
+            location: None,
+            guest_path: None,
+        })
+    }
+
+    /// Gets the kind of the input.
+    pub fn kind(&self) -> InputKind {
+        self.kind
     }
 
     /// Gets the path to the input.
@@ -755,22 +787,40 @@ mod test {
     fn non_empty_trie_unix() {
         let mut trie = InputTrie::default();
         let inputs = [
-            Input::new("/".parse().unwrap()),
-            Input::new("/foo/bar/foo.txt".parse().unwrap()),
-            Input::new("/foo/bar/bar.txt".parse().unwrap()),
-            Input::new("/foo/baz/foo.txt".parse().unwrap()),
-            Input::new("/foo/baz/bar.txt".parse().unwrap()),
-            Input::new("/bar/foo/foo.txt".parse().unwrap()),
-            Input::new("/bar/foo/bar.txt".parse().unwrap()),
-            Input::new("/baz".parse().unwrap()),
-            Input::new("https://example.com/".parse().unwrap()),
-            Input::new("https://example.com/foo/bar/foo.txt".parse().unwrap()),
-            Input::new("https://example.com/foo/bar/bar.txt".parse().unwrap()),
-            Input::new("https://example.com/foo/baz/foo.txt".parse().unwrap()),
-            Input::new("https://example.com/foo/baz/bar.txt".parse().unwrap()),
-            Input::new("https://example.com/bar/foo/foo.txt".parse().unwrap()),
-            Input::new("https://example.com/bar/foo/bar.txt".parse().unwrap()),
-            Input::new("https://foo.com/bar".parse().unwrap()),
+            Input::new(InputKind::Directory, "/".parse().unwrap()),
+            Input::new(InputKind::File, "/foo/bar/foo.txt".parse().unwrap()),
+            Input::new(InputKind::File, "/foo/bar/bar.txt".parse().unwrap()),
+            Input::new(InputKind::File, "/foo/baz/foo.txt".parse().unwrap()),
+            Input::new(InputKind::File, "/foo/baz/bar.txt".parse().unwrap()),
+            Input::new(InputKind::File, "/bar/foo/foo.txt".parse().unwrap()),
+            Input::new(InputKind::File, "/bar/foo/bar.txt".parse().unwrap()),
+            Input::new(InputKind::Directory, "/baz".parse().unwrap()),
+            Input::new(InputKind::File, "https://example.com/".parse().unwrap()),
+            Input::new(
+                InputKind::File,
+                "https://example.com/foo/bar/foo.txt".parse().unwrap(),
+            ),
+            Input::new(
+                InputKind::File,
+                "https://example.com/foo/bar/bar.txt".parse().unwrap(),
+            ),
+            Input::new(
+                InputKind::File,
+                "https://example.com/foo/baz/foo.txt".parse().unwrap(),
+            ),
+            Input::new(
+                InputKind::File,
+                "https://example.com/foo/baz/bar.txt".parse().unwrap(),
+            ),
+            Input::new(
+                InputKind::File,
+                "https://example.com/bar/foo/foo.txt".parse().unwrap(),
+            ),
+            Input::new(
+                InputKind::File,
+                "https://example.com/bar/foo/bar.txt".parse().unwrap(),
+            ),
+            Input::new(InputKind::File, "https://foo.com/bar".parse().unwrap()),
         ];
 
         for input in &inputs {
@@ -815,22 +865,40 @@ mod test {
     fn non_empty_trie_windows() {
         let mut trie = InputTrie::default();
         let inputs = [
-            Input::new("C:\\".parse().unwrap()),
-            Input::new("C:\\foo\\bar\\foo.txt".parse().unwrap()),
-            Input::new("C:\\foo\\bar\\bar.txt".parse().unwrap()),
-            Input::new("C:\\foo\\baz\\foo.txt".parse().unwrap()),
-            Input::new("C:\\foo\\baz\\bar.txt".parse().unwrap()),
-            Input::new("C:\\bar\\foo\\foo.txt".parse().unwrap()),
-            Input::new("C:\\bar\\foo\\bar.txt".parse().unwrap()),
-            Input::new("C:\\baz".parse().unwrap()),
-            Input::new("https://example.com/".parse().unwrap()),
-            Input::new("https://example.com/foo/bar/foo.txt".parse().unwrap()),
-            Input::new("https://example.com/foo/bar/bar.txt".parse().unwrap()),
-            Input::new("https://example.com/foo/baz/foo.txt".parse().unwrap()),
-            Input::new("https://example.com/foo/baz/bar.txt".parse().unwrap()),
-            Input::new("https://example.com/bar/foo/foo.txt".parse().unwrap()),
-            Input::new("https://example.com/bar/foo/bar.txt".parse().unwrap()),
-            Input::new("https://foo.com/bar".parse().unwrap()),
+            Input::new(InputKind::Directory, "C:\\".parse().unwrap()),
+            Input::new(InputKind::File, "C:\\foo\\bar\\foo.txt".parse().unwrap()),
+            Input::new(InputKind::File, "C:\\foo\\bar\\bar.txt".parse().unwrap()),
+            Input::new(InputKind::File, "C:\\foo\\baz\\foo.txt".parse().unwrap()),
+            Input::new(InputKind::File, "C:\\foo\\baz\\bar.txt".parse().unwrap()),
+            Input::new(InputKind::File, "C:\\bar\\foo\\foo.txt".parse().unwrap()),
+            Input::new(InputKind::File, "C:\\bar\\foo\\bar.txt".parse().unwrap()),
+            Input::new(InputKind::Directory, "C:\\baz".parse().unwrap()),
+            Input::new(InputKind::File, "https://example.com/".parse().unwrap()),
+            Input::new(
+                InputKind::File,
+                "https://example.com/foo/bar/foo.txt".parse().unwrap(),
+            ),
+            Input::new(
+                InputKind::File,
+                "https://example.com/foo/bar/bar.txt".parse().unwrap(),
+            ),
+            Input::new(
+                InputKind::File,
+                "https://example.com/foo/baz/foo.txt".parse().unwrap(),
+            ),
+            Input::new(
+                InputKind::File,
+                "https://example.com/foo/baz/bar.txt".parse().unwrap(),
+            ),
+            Input::new(
+                InputKind::File,
+                "https://example.com/bar/foo/foo.txt".parse().unwrap(),
+            ),
+            Input::new(
+                InputKind::File,
+                "https://example.com/bar/foo/bar.txt".parse().unwrap(),
+            ),
+            Input::new(InputKind::File, "https://foo.com/bar".parse().unwrap()),
         ];
 
         for input in &inputs {

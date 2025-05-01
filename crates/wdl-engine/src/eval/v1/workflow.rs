@@ -27,7 +27,6 @@ use tokio::sync::RwLock;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
-use tracing::info;
 use tracing::trace;
 use wdl_analysis::diagnostics::only_one_namespace;
 use wdl_analysis::diagnostics::recursive_workflow_call;
@@ -732,7 +731,7 @@ impl WorkflowEvaluator {
             }
         };
 
-        info!(
+        debug!(
             workflow_id = id,
             workflow_name = workflow.name(),
             document = document.uri().as_str(),
@@ -1764,7 +1763,7 @@ mod test {
     use wdl_analysis::DiagnosticsConfig;
 
     use super::*;
-    use crate::config::BackendKind;
+    use crate::config::BackendConfig;
 
     #[tokio::test]
     async fn it_reports_progress() {
@@ -1829,9 +1828,10 @@ workflow w {
         }
 
         // Use a progress callback that simply increments the appropriate counter
-        let mut config = Config::default();
-        config.backend.default = BackendKind::Local;
-
+        let config = Config {
+            backend: BackendConfig::Local(Default::default()),
+            ..Default::default()
+        };
         let state = Arc::<State>::default();
         let state_cloned = state.clone();
         let evaluator = WorkflowEvaluator::new(config, CancellationToken::new())
@@ -1855,6 +1855,7 @@ workflow w {
                             assert!(id.starts_with("t-"));
                             state_cloned.tasks_started.fetch_add(1, Ordering::SeqCst);
                         }
+                        ProgressKind::TaskRetried { .. } => panic!("task should not be retried"),
                         ProgressKind::TaskExecutionStarted { id, .. } => {
                             assert!(id.starts_with("t-"));
                             state_cloned

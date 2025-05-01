@@ -60,7 +60,7 @@ use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::Inputs;
 use wdl_engine::config;
-use wdl_engine::config::BackendKind;
+use wdl_engine::config::BackendConfig;
 use wdl_engine::v1::TaskEvaluator;
 
 /// Regex used to remove both host and guest path prefixes.
@@ -173,19 +173,20 @@ fn compare_result(path: &Path, result: &str) -> Result<()> {
 fn configs() -> Vec<config::Config> {
     vec![
         {
-            let mut config = config::Config::default();
-            config.backend.default = BackendKind::Local;
-            config
+            config::Config {
+                backend: BackendConfig::Local(Default::default()),
+                ..Default::default()
+            }
         },
         // Currently we limit running the Docker backend to Linux as GitHub does not have Docker
         // installed on macOS hosted runners and the Windows hosted runners are configured to use
         // Windows containers
         #[cfg(target_os = "linux")]
         {
-            let mut config = config::Config::default();
-            config.backend.crankshaft.default = config::CrankshaftBackendKind::Docker;
-            config.backend.default = BackendKind::Crankshaft;
-            config
+            config::Config {
+                backend: BackendConfig::Docker(Default::default()),
+                ..Default::default()
+            }
         },
     ]
 }
@@ -276,24 +277,21 @@ fn compare_evaluation_results(
     temp_dir: &Path,
     evaluated: &EvaluatedTask,
 ) -> Result<()> {
-    let command = fs::read_to_string(evaluated.root().command()).with_context(|| {
+    let command_path = evaluated.attempt_dir().join("command");
+    let command = fs::read_to_string(&command_path).with_context(|| {
         format!(
             "failed to read task command file `{path}`",
-            path = evaluated.root().command().display()
+            path = command_path.display()
         )
     })?;
-    let stdout = fs::read_to_string(evaluated.root().stdout()).with_context(|| {
-        format!(
-            "failed to read task stdout file `{path}`",
-            path = evaluated.root().stdout().display()
-        )
-    })?;
-    let stderr = fs::read_to_string(evaluated.root().stderr()).with_context(|| {
-        format!(
-            "failed to read task stderr file `{path}`",
-            path = evaluated.root().stderr().display()
-        )
-    })?;
+
+    let stdout_path = evaluated.stdout().as_file().unwrap();
+    let stdout = fs::read_to_string(stdout_path.as_str())
+        .with_context(|| format!("failed to read task stdout file `{stdout_path}`"))?;
+
+    let stderr_path = evaluated.stderr().as_file().unwrap();
+    let stderr = fs::read_to_string(stderr_path.as_str())
+        .with_context(|| format!("failed to read task stderr file `{stderr_path}`"))?;
 
     // Strip both temp paths and test dir (input file) paths from the outputs
     let command = strip_paths(temp_dir, &command);

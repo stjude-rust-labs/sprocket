@@ -1,4 +1,4 @@
-error: task execution failed for task `test`: task process terminated with exit code 1: see the `stdout` and `stderr` files in execution directory `attempts/0/` for task command output
+error: task execution failed for task `test`: process terminated with exit code 1: see `attempts/0/stdout` and `attempts/0/stderr` for task output and the related files in `attempts/0`
 
 task stderr output (last 10 lines):
 

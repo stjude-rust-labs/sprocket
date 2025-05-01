@@ -2,17 +2,14 @@
 
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::fs;
 use std::future::Future;
 use std::ops::Add;
 use std::ops::Range;
 use std::ops::Sub;
 use std::path::Path;
 use std::path::PathBuf;
-use std::path::absolute;
 use std::sync::Arc;
 
-use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use futures::future::BoxFuture;
@@ -30,11 +27,23 @@ use crate::Value;
 use crate::http::HttpDownloader;
 use crate::path::EvaluationPath;
 
-pub mod crankshaft;
-pub mod local;
+mod docker;
+mod local;
+
+pub use docker::*;
+pub use local::*;
 
 /// The default work directory name.
-pub const WORK_DIR_NAME: &str = "work";
+pub(crate) const WORK_DIR_NAME: &str = "work";
+
+/// The default command file name.
+pub(crate) const COMMAND_FILE_NAME: &str = "command";
+
+/// The default stdout file name.
+pub(crate) const STDOUT_FILE_NAME: &str = "stdout";
+
+/// The default stderr file name.
+pub(crate) const STDERR_FILE_NAME: &str = "stderr";
 
 /// Represents constraints applied to a task's execution.
 pub struct TaskExecutionConstraints {
@@ -72,158 +81,62 @@ pub struct TaskExecutionConstraints {
     pub disks: IndexMap<String, i64>,
 }
 
-/// Represents the root directory of a task execution.
-///
-/// The directory layout for local task execution is:
-///
-/// ```text
-/// <root>/
-/// ├─ tmp/             # Where files are created by the stdlib for task evaluation
-/// ├─ attempt/         # Stores the execution attempts
-/// │  ├─ 0/            # First attempt root directory
-/// │  │  ├─ work/      # Working directory for the task's first execution
-/// │  │  ├─ command    # The evaluated command for the first execution
-/// │  │  ├─ stdout     # The standard output of the first execution
-/// │  │  ├─ stderr     # The standard error of the first execution
-/// │  ├─ 1/            # Second attempt (first retry)
-/// │  │  ├─ ...
-///
-/// Note that for remote task execution, the working directory will not be created.
+/// Represents information for spawning a task.
 #[derive(Debug)]
-pub struct TaskExecutionRoot {
-    /// The root directory for task execution.
-    root_dir: PathBuf,
-    /// The path to the directory for files created by the stdlib before and
-    /// after command evaluation.
-    temp_dir: PathBuf,
-    /// The root directory for the attempt.
-    attempt_dir: PathBuf,
-    /// The path to the command file.
-    command: PathBuf,
-    /// The path to the stdout file.
-    stdout: PathBuf,
-    /// The path to the stderr file.
-    stderr: PathBuf,
-}
-
-impl TaskExecutionRoot {
-    /// Creates a task execution root for the given path and execution attempt.
-    pub fn new(path: &Path, attempt: u64) -> Result<Self> {
-        let root_dir = absolute(path).with_context(|| {
-            format!(
-                "failed to determine absolute path of `{path}`",
-                path = path.display()
-            )
-        })?;
-
-        let mut attempt_dir = root_dir.join("attempts");
-        attempt_dir.push(attempt.to_string());
-
-        // Create both temp directories now as it may be needed for task evaluation
-        let temp_dir = root_dir.join("tmp");
-        fs::create_dir_all(&temp_dir).with_context(|| {
-            format!(
-                "failed to create directory `{path}`",
-                path = temp_dir.display()
-            )
-        })?;
-
-        let command = attempt_dir.join("command");
-        let stdout = attempt_dir.join("stdout");
-        let stderr = attempt_dir.join("stderr");
-
-        Ok(Self {
-            root_dir,
-            temp_dir,
-            attempt_dir,
-            command,
-            stdout,
-            stderr,
-        })
-    }
-
-    /// Gets the path to the root itself.
-    pub fn path(&self) -> &Path {
-        &self.root_dir
-    }
-
-    /// Gets the temporary directory path for task evaluation before and after
-    /// command evaluation.
-    ///
-    /// The temporary directory is created before spawning the task so that it
-    /// is available for task evaluation.
-    pub fn temp_dir(&self) -> &Path {
-        &self.temp_dir
-    }
-
-    /// Gets the attempt directory.
-    pub fn attempt_dir(&self) -> &Path {
-        &self.attempt_dir
-    }
-
-    /// Gets the command file path.
-    pub fn command(&self) -> &Path {
-        &self.command
-    }
-
-    /// Gets the stdout file path.
-    ///
-    /// The stdout file is created upon spawning the task.
-    pub fn stdout(&self) -> &Path {
-        &self.stdout
-    }
-
-    /// Gets the stderr file path.
-    ///
-    /// The stderr file is created upon spawning the task.
-    pub fn stderr(&self) -> &Path {
-        &self.stderr
-    }
-}
-/// Represents a request to spawn a task.
-#[derive(Debug)]
-pub struct TaskSpawnRequest {
-    /// The execution root of the task.
-    root: Arc<TaskExecutionRoot>,
-    /// The id of the task being spawned.
-    id: String,
+pub struct TaskSpawnInfo {
     /// The command of the task.
     command: String,
+    /// The inputs for task.
+    inputs: Vec<Input>,
     /// The requirements of the task.
     requirements: Arc<HashMap<String, Value>>,
     /// The hints of the task.
     hints: Arc<HashMap<String, Value>>,
     /// The environment variables of the task.
     env: Arc<IndexMap<String, String>>,
-    /// The inputs for the spawn request.
-    inputs: Arc<[Input]>,
+}
+
+impl TaskSpawnInfo {
+    /// Constructs a new task spawn information.
+    pub fn new(
+        command: String,
+        inputs: Vec<Input>,
+        requirements: Arc<HashMap<String, Value>>,
+        hints: Arc<HashMap<String, Value>>,
+        env: Arc<IndexMap<String, String>>,
+    ) -> Self {
+        Self {
+            command,
+            inputs,
+            requirements,
+            hints,
+            env,
+        }
+    }
+}
+
+/// Represents a request to spawn a task.
+#[derive(Debug)]
+pub struct TaskSpawnRequest {
+    /// The id of the task being spawned.
+    id: String,
+    /// The information for the task to spawn.
+    info: TaskSpawnInfo,
+    /// The attempt number for the spawn request.
+    attempt: u64,
+    /// The attempt directory for the task's execution.
+    attempt_dir: PathBuf,
 }
 
 impl TaskSpawnRequest {
     /// Creates a new task spawn request.
-    pub fn new(
-        root: Arc<TaskExecutionRoot>,
-        id: String,
-        command: String,
-        requirements: Arc<HashMap<String, Value>>,
-        hints: Arc<HashMap<String, Value>>,
-        env: Arc<IndexMap<String, String>>,
-        inputs: Arc<[Input]>,
-    ) -> Self {
+    pub fn new(id: String, info: TaskSpawnInfo, attempt: u64, attempt_dir: PathBuf) -> Self {
         Self {
-            root,
             id,
-            command,
-            requirements,
-            hints,
-            env,
-            inputs,
+            info,
+            attempt,
+            attempt_dir,
         }
-    }
-
-    /// Gets the execution root to spawn the task with.
-    pub fn root(&self) -> &TaskExecutionRoot {
-        &self.root
     }
 
     /// The identifier of the task being spawned.
@@ -233,37 +146,55 @@ impl TaskSpawnRequest {
 
     /// Gets the command for the task.
     pub fn command(&self) -> &str {
-        &self.command
-    }
-
-    /// Gets the requirements of the task.
-    pub fn requirements(&self) -> &HashMap<String, Value> {
-        &self.requirements
-    }
-
-    /// Gets the hints of the task.
-    pub fn hints(&self) -> &HashMap<String, Value> {
-        &self.hints
-    }
-
-    /// Gets the environment variables of the task.
-    pub fn env(&self) -> &IndexMap<String, String> {
-        &self.env
+        &self.info.command
     }
 
     /// Gets the inputs for the task.
     pub fn inputs(&self) -> &[Input] {
-        &self.inputs
+        &self.info.inputs
+    }
+
+    /// Gets the requirements of the task.
+    pub fn requirements(&self) -> &HashMap<String, Value> {
+        &self.info.requirements
+    }
+
+    /// Gets the hints of the task.
+    pub fn hints(&self) -> &HashMap<String, Value> {
+        &self.info.hints
+    }
+
+    /// Gets the environment variables of the task.
+    pub fn env(&self) -> &IndexMap<String, String> {
+        &self.info.env
+    }
+
+    /// Gets the attempt number for the task's execution.
+    ///
+    /// The attempt number starts at 0.
+    pub fn attempt(&self) -> u64 {
+        self.attempt
+    }
+
+    /// Gets the attempt directory for the task's execution.
+    pub fn attempt_dir(&self) -> &Path {
+        &self.attempt_dir
     }
 }
 
 /// Represents the result of a task's execution.
 #[derive(Debug)]
 pub struct TaskExecutionResult {
+    /// The inputs that were given to the task.
+    pub inputs: Vec<Input>,
     /// Stores the task process exit code.
     pub exit_code: i32,
     /// The task's working directory.
     pub work_dir: EvaluationPath,
+    /// The value of the task's stdout file.
+    pub stdout: Value,
+    /// The value of the task's stderr file.
+    pub stderr: Value,
 }
 
 /// Represents events that can be awaited on during task execution.
@@ -310,6 +241,7 @@ pub trait TaskExecutionBackend: Send + Sync {
         'b: 'd,
         'c: 'd,
         Self: 'd;
+
     /// Spawns a task with the execution backend.
     ///
     /// Returns the task execution event receives upon success.

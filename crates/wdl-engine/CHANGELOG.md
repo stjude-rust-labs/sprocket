@@ -9,36 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Implemented remote file localization for task execution (#[386](https://github.com/stjude-rust-labs/wdl/pull/386)).
-* Implemented concurrent file downloads for localization for task execution (#[424](https://github.com/stjude-rust-labs/wdl/pull/424)).
+* Implemented remote file localization for task execution ([#386](https://github.com/stjude-rust-labs/wdl/pull/386)).
+* Implemented concurrent file downloads for localization for task execution ([#424](https://github.com/stjude-rust-labs/wdl/pull/424)).
 
 #### Fixed
 
 * Fix overly verbose call stacks in task failure messages ([#435](https://github.com/stjude-rust-labs/wdl/pull/435))
-* Fix `sub` replacement of multiple instances (#[426](https://github.com/stjude-rust-labs/wdl/pull/426)).
-* Fix path translation in more expressions (#[422](https://github.com/stjude-rust-labs/wdl/pull/422)).
-* The `sep` placeholder option was not performing guest path translation (#[417](https://github.com/stjude-rust-labs/wdl/pull/417)).
+* Fix `sub` replacement of multiple instances ([#426](https://github.com/stjude-rust-labs/wdl/pull/426)).
+* Fix path translation in more expressions ([#422](https://github.com/stjude-rust-labs/wdl/pull/422)).
+* The `sep` placeholder option was not performing guest path translation ([#417](https://github.com/stjude-rust-labs/wdl/pull/417)).
 * Placeholder options are now type checked at runtime ([#345](https://github.com/stjude-rust-labs/wdl/pull/345)).
 * Whether or not a task manager state represents unlimited resources is now correctly calculated ([#397](https://github.com/stjude-rust-labs/wdl/pull/397)).
 * Fixed environment variable values are not using guest paths for Docker backend ([#398](https://github.com/stjude-rust-labs/wdl/pull/398)).
 * Ensure output files created by Docker tasks running as root have correct host user permissions ([#379](https://github.com/stjude-rust-labs/wdl/pull/379)).
-* Fixes `chown` functionlity by making the path absolute ([#428](https://github.com/stjude-rust-labs/wdl/pull/379)).
+* Fixes `chown` functionality by making the path absolute ([#428](https://github.com/stjude-rust-labs/wdl/pull/379)).
 
 #### Changed
 
-* Evaluation errors now contain a "backtrace" containing call locations (#[432](https://github.com/stjude-rust-labs/wdl/pull/432)).
-* Changed origin path resolution in inputs to accomodate incremental command line parsing ([#430](https://github.com/stjude-rust-labs/wdl/pull/430)).
+* Refactored `crankshaft` backend to the `docker` backend ([#436](https://github.com/stjude-rust-labs/wdl/pull/436)).
+* Evaluation errors now contain a "backtrace" containing call locations ([#432](https://github.com/stjude-rust-labs/wdl/pull/432)).
+* Changed origin path resolution in inputs to accommodate incremental command line parsing ([#430](https://github.com/stjude-rust-labs/wdl/pull/430)).
 
 ## 0.2.0 - 04-01-2025
 
 #### Added
 
-* Added support for cloud storage URIs (#[367](https://github.com/stjude-rust-labs/wdl/pull/367)).
-* Added support reading of remote files from the stdlib file functions (#[364](https://github.com/stjude-rust-labs/wdl/pull/364))
+* Added support for cloud storage URIs ([#367](https://github.com/stjude-rust-labs/wdl/pull/367)).
+* Added support reading of remote files from the stdlib file functions ([#364](https://github.com/stjude-rust-labs/wdl/pull/364))
 * Added support for YAML input files (.yml and .yaml) alongside JSON ([#352](https://github.com/stjude-rust-labs/wdl/pull/352)).
-* Added support for graceful cancellation of evaluation (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Added support for `max_cpu` and `max_memory` hints in task evaluation (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Added a Crankshaft backend with initial support for Docker (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Added support for graceful cancellation of evaluation ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Added support for `max_cpu` and `max_memory` hints in task evaluation ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Added a Crankshaft backend with initial support for Docker ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Added calculation for mounting input files for future backends that use
   containers ([#323](https://github.com/stjude-rust-labs/wdl/pull/323)).
 * Added retry logic for task execution ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
@@ -47,11 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
-* Fixed support for URLs in file stdlib functions (#[369](https://github.com/stjude-rust-labs/wdl/pull/369)).
-* Fixed panic when an input path in a complex type did not exist (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Fixed path translation in nested placeholder evaluation (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Fixed path translation to mount inputs individually (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Fixed not including task temp directories in mounts (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed support for URLs in file stdlib functions ([#369](https://github.com/stjude-rust-labs/wdl/pull/369)).
+* Fixed panic when an input path in a complex type did not exist ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed path translation in nested placeholder evaluation ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed path translation to mount inputs individually ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed not including task temp directories in mounts ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Fixed an incorrect type being used for scatter statement outputs ([#316](https://github.com/stjude-rust-labs/wdl/pull/316)).
 * Fixed handling of input dependencies in workflow graph evaluation ([#360](https://github.com/stjude-rust-labs/wdl/pull/360)).
 
@@ -62,9 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Updated for refactored `wdl-ast` API so that evaluation can now operate
   directly on AST nodes in `async` context ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
-* Docker backend is now the default backend (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Docker backend is now the default backend ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Refactored a common task management implementation to use in task execution
-  backends (#[327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+  backends ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 * Workflow evaluation now uses `tokio::spawn` internally for running graph
   evaluation concurrently ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 * Improved evaluation reporting to include how many tasks are ready for
@@ -101,12 +102,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Implemented WDL expression evaluation ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
 * Refactored API to remove reliance on the engine for creating values ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
 * Split value representation into primitive and compound values ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
-* Added `InputFiles` type for parsing WDL input JSON files (#[241](https://github.com/stjude-rust-labs/wdl/pull/241)).
+* Added `InputFiles` type for parsing WDL input JSON files ([#241](https://github.com/stjude-rust-labs/wdl/pull/241)).
 * Added the `wdl-engine` crate that will eventually implement a WDL execution
-  engine (#[225](https://github.com/stjude-rust-labs/wdl/pull/225)).
+  engine ([#225](https://github.com/stjude-rust-labs/wdl/pull/225)).
 
 #### Changed
 
 * Removed the `Engine` type in favor of direct use of a `WorkflowEvaluator` or
   `TaskEvaluator` ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
-* Require file existence for a successul validation parse of inputs ([#281](https://github.com/stjude-rust-labs/wdl/pull/281)).
+* Require file existence for a successful validation parse of inputs ([#281](https://github.com/stjude-rust-labs/wdl/pull/281)).

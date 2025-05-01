@@ -221,7 +221,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 * Adds initial version of parsing WDL 1.x grammar.
-* Adds `wdl-grammar` tool, a tool that is useful in creating and exhausitvely
+* Adds `wdl-grammar` tool, a tool that is useful in creating and exhaustively
   testing the `wdl-grammar` crate.
     * The following subcommands are included in the initial release:
         * `wdl-grammar create-test`: scaffolds otherwise arduous Rust tests that

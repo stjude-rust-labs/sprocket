@@ -33,7 +33,7 @@ clap-verbosity-flag = { version = "3.0.2", features = ["tracing"] }
 codespan-reporting = "0.12.0"
 colored = "3.0.0"
 convert_case = "0.8.0"
-crankshaft = { git = "https://github.com/stjude-rust-labs/crankshaft", rev = "4975725f4" }
+crankshaft = "0.2.0"
 dirs = "6.0.0"
 faster-hex = "0.10.0"
 ftree = "1.2.0"

@@ -11,17 +11,14 @@ use serde::Deserialize;
 use serde::Serialize;
 use tracing::warn;
 
+use crate::DockerBackend;
+use crate::LocalBackend;
 use crate::SYSTEM;
 use crate::TaskExecutionBackend;
 use crate::convert_unit_string;
-use crate::crankshaft::CrankshaftBackend;
-use crate::local::LocalTaskExecutionBackend;
 
 /// The inclusive maximum number of task retries the engine supports.
 pub const MAX_RETRIES: u64 = 100;
-
-/// The name of the crankshaft docker backend.
-pub const CRANKSHAFT_DOCKER_BACKEND_NAME: &str = "docker";
 
 /// The default task shell.
 pub const DEFAULT_TASK_SHELL: &str = "bash";
@@ -63,21 +60,17 @@ impl Config {
 
     /// Creates a new task execution backend based on this configuration.
     pub async fn create_backend(&self) -> Result<Arc<dyn TaskExecutionBackend>> {
-        match self.backend.default {
-            BackendKind::Local => {
+        match &self.backend {
+            BackendConfig::Local(config) => {
                 warn!(
                     "the engine is configured to use the local backend: tasks will not be run \
                      inside of a container"
                 );
-
-                Ok(Arc::new(LocalTaskExecutionBackend::new(
-                    &self.task,
-                    &self.backend.local,
-                )?))
+                Ok(Arc::new(LocalBackend::new(&self.task, config)?))
             }
-            BackendKind::Crankshaft => Ok(Arc::new(
-                CrankshaftBackend::new(&self.task, &self.backend.crankshaft).await?,
-            )),
+            BackendConfig::Docker(config) => {
+                Ok(Arc::new(DockerBackend::new(&self.task, config).await?))
+            }
         }
     }
 }
@@ -335,49 +328,28 @@ impl TaskConfig {
 }
 
 /// Represents supported task execution backends.
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub enum BackendKind {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum BackendConfig {
     /// Use the local task execution backend.
-    Local,
-    /// Use the crankshaft task execution backend.
-    #[default]
-    Crankshaft,
+    Local(LocalBackendConfig),
+    /// Use the Docker task execution backend.
+    Docker(DockerBackendConfig),
 }
 
-impl BackendKind {
-    /// Determines if the backend is the local task execution backend.
-    pub fn is_local(&self) -> bool {
-        matches!(self, Self::Local)
+impl Default for BackendConfig {
+    fn default() -> Self {
+        Self::Docker(Default::default())
     }
-
-    /// Determines if the backend is the crankshaft task execution backend.
-    pub fn is_crankshaft(&self) -> bool {
-        matches!(self, Self::Crankshaft)
-    }
-}
-
-/// Represents task execution backend configuration.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub struct BackendConfig {
-    /// The default execution backend to use.
-    #[serde(default, skip_serializing_if = "BackendKind::is_crankshaft")]
-    pub default: BackendKind,
-    /// Local task execution backend configuration.
-    #[serde(default)]
-    pub local: LocalBackendConfig,
-    /// Crankshaft execution backend configuration.
-    #[serde(default)]
-    pub crankshaft: CrankshaftBackendConfig,
 }
 
 impl BackendConfig {
     /// Validates the backend configuration.
     pub fn validate(&self) -> Result<()> {
-        self.local.validate()?;
-        self.crankshaft.validate()?;
-        Ok(())
+        match self {
+            Self::Local(config) => config.validate(),
+            Self::Docker(config) => config.validate(),
+        }
     }
 }
 
@@ -413,13 +385,13 @@ impl LocalBackendConfig {
     pub fn validate(&self) -> Result<()> {
         if let Some(cpu) = self.cpu {
             if cpu == 0 {
-                bail!("configuration value `backend.local.cpu` cannot be zero");
+                bail!("local backend configuration value `cpu` cannot be zero");
             }
 
             let total = SYSTEM.cpus().len() as u64;
             if cpu > total {
                 bail!(
-                    "configuration value `backend.local.cpu` cannot exceed the virtual CPUs \
+                    "local backend configuration value `cpu` cannot exceed the virtual CPUs \
                      available to the host ({total})"
                 );
             }
@@ -427,17 +399,17 @@ impl LocalBackendConfig {
 
         if let Some(memory) = &self.memory {
             let memory = convert_unit_string(memory).with_context(|| {
-                format!("configuration value `backend.local.memory` has invalid value `{memory}`")
+                format!("local backend configuration value `memory` has invalid value `{memory}`")
             })?;
 
             if memory == 0 {
-                bail!("configuration value `backend.local.memory` cannot be zero");
+                bail!("local backend configuration value `memory` cannot be zero");
             }
 
             let total = SYSTEM.total_memory();
             if memory > total {
                 bail!(
-                    "configuration value `backend.local.memory` cannot exceed the total memory of \
+                    "local backend configuration value `memory` cannot exceed the total memory of \
                      the host ({total} bytes)"
                 );
             }
@@ -447,44 +419,39 @@ impl LocalBackendConfig {
     }
 }
 
-/// Represents supported crankshaft execution backends.
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub enum CrankshaftBackendKind {
-    /// Use the Docker task execution backend.
-    #[default]
-    Docker,
+/// Gets the default value for the docker `cleanup` field.
+const fn cleanup_default() -> bool {
+    true
 }
 
-impl CrankshaftBackendKind {
-    /// Determines if the crankshaft backend is Docker.
-    pub fn is_docker(&self) -> bool {
-        matches!(self, Self::Docker)
-    }
-}
-
-/// Represents configuration for the crankshaft task execution backend.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+/// Represents configuration for the Docker backend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub struct CrankshaftBackendConfig {
-    /// The default execution backend to use.
-    #[serde(default, skip_serializing_if = "CrankshaftBackendKind::is_docker")]
-    pub default: CrankshaftBackendKind,
-
-    /// The docker backend configuration.
-    #[serde(default)]
-    pub docker: crankshaft::config::backend::docker::Config,
+pub struct DockerBackendConfig {
+    /// Whether or not to remove a task's container after the task completes.
+    ///
+    /// Defaults to `true`.
+    #[serde(default = "cleanup_default")]
+    pub cleanup: bool,
 }
 
-impl CrankshaftBackendConfig {
-    /// Validates the crankshaft task execution backend configuration.
+impl DockerBackendConfig {
+    /// Validates the Docker backend configuration.
     pub fn validate(&self) -> Result<()> {
         Ok(())
     }
 }
 
+impl Default for DockerBackendConfig {
+    fn default() -> Self {
+        Self { cleanup: true }
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     #[test]
@@ -506,36 +473,62 @@ mod test {
         );
 
         // Test invalid local backend cpu config
-        let mut config = Config::default();
-        config.backend.local.cpu = Some(0);
+        let config = Config {
+            backend: BackendConfig::Local(LocalBackendConfig {
+                cpu: Some(0),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
         assert_eq!(
             config.validate().unwrap_err().to_string(),
-            "configuration value `backend.local.cpu` cannot be zero"
+            "local backend configuration value `cpu` cannot be zero"
         );
-        let mut config = Config::default();
-        config.backend.local.cpu = Some(10000000);
+        let config = Config {
+            backend: BackendConfig::Local(LocalBackendConfig {
+                cpu: Some(10000000),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
         assert!(config.validate().unwrap_err().to_string().starts_with(
-            "configuration value `backend.local.cpu` cannot exceed the virtual CPUs available to \
+            "local backend configuration value `cpu` cannot exceed the virtual CPUs available to \
              the host"
         ));
 
         // Test invalid local backend memory config
-        let mut config = Config::default();
-        config.backend.local.memory = Some("0 GiB".to_string());
+        let config = Config {
+            backend: BackendConfig::Local(LocalBackendConfig {
+                memory: Some("0 GiB".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
         assert_eq!(
             config.validate().unwrap_err().to_string(),
-            "configuration value `backend.local.memory` cannot be zero"
+            "local backend configuration value `memory` cannot be zero"
         );
-        let mut config = Config::default();
-        config.backend.local.memory = Some("100 meows".to_string());
+        let config = Config {
+            backend: BackendConfig::Local(LocalBackendConfig {
+                memory: Some("100 meows".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
         assert_eq!(
             config.validate().unwrap_err().to_string(),
-            "configuration value `backend.local.memory` has invalid value `100 meows`"
+            "local backend configuration value `memory` has invalid value `100 meows`"
         );
-        let mut config = Config::default();
-        config.backend.local.memory = Some("10000 TiB".to_string());
+
+        let config = Config {
+            backend: BackendConfig::Local(LocalBackendConfig {
+                memory: Some("1000 TiB".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
         assert!(config.validate().unwrap_err().to_string().starts_with(
-            "configuration value `backend.local.memory` cannot exceed the total memory of the host"
+            "local backend configuration value `memory` cannot exceed the total memory of the host"
         ));
 
         let mut config = Config::default();
@@ -552,11 +545,8 @@ mod test {
             "should pass for valid configuration"
         );
 
-        let mut config_default = Config::default();
-        config_default.http.max_concurrent_downloads = None;
-        assert!(
-            config_default.validate().is_ok(),
-            "should pass for default (None)"
-        );
+        let mut config = Config::default();
+        config.http.max_concurrent_downloads = None;
+        assert!(config.validate().is_ok(), "should pass for default (None)");
     }
 }

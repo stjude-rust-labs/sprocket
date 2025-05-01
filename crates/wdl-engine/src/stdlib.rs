@@ -106,7 +106,7 @@ fn ensure_local_path<'a>(
 }
 
 /// Helper for downloading files in stdlib functions.
-async fn download_file<'a>(
+pub(crate) async fn download_file<'a>(
     downloader: &dyn Downloader,
     work_dir: Option<&EvaluationPath>,
     path: &'a str,
