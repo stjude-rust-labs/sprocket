@@ -51,6 +51,7 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::v1::CallKeyword;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::ConditionalStatement;
 use wdl_ast::v1::Decl;
@@ -83,6 +84,7 @@ use crate::http::HttpDownloader;
 use crate::path;
 use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
+use crate::tree::SyntaxToken;
 use crate::v1::ExprEvaluator;
 use crate::v1::TaskEvaluator;
 
@@ -1664,7 +1666,10 @@ impl WorkflowEvaluator {
                 if let EvaluationError::Source(e) = &mut e {
                     e.backtrace.push(CallLocation {
                         document: state.document.clone(),
-                        span: stmt.span(),
+                        span: stmt
+                            .token::<CallKeyword<SyntaxToken>>()
+                            .expect("should have call keyword")
+                            .span(),
                     });
                 }
 

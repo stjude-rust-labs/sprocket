@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fix overly verbose call stacks in task failure messages ([#435](https://github.com/stjude-rust-labs/wdl/pull/435))
 * Fix `sub` replacement of multiple instances (#[426](https://github.com/stjude-rust-labs/wdl/pull/426)).
 * Fix path translation in more expressions (#[422](https://github.com/stjude-rust-labs/wdl/pull/422)).
 * The `sep` placeholder option was not performing guest path translation (#[417](https://github.com/stjude-rust-labs/wdl/pull/417)).

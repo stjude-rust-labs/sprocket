@@ -18,18 +18,18 @@ task stderr output (last 10 lines):
  3 │ task my_task {
    │      ^^^^^^^ this task failed to execute
    │
-   ┌─ tests/workflows/callstack/first.wdl:11:5
+   ┌─ tests/workflows/callstack/first.wdl:17:5
    │
-11 │     call my_task
-   │     ------------ called from this location
+17 │     call my_task {
+   │     ---- called from this location
    │
    ┌─ tests/workflows/callstack/second.wdl:6:5
    │
  6 │     call first.test
-   │     --------------- called from this location
+   │     ---- called from this location
    │
    ┌─ tests/workflows/callstack/source.wdl:6:5
    │
  6 │     call second.test
-   │     ---------------- called from this location
+   │     ---- called from this location
 

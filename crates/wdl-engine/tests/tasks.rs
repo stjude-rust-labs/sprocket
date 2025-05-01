@@ -491,6 +491,21 @@ async fn main() {
             }
         };
 
+        if let Some(e) = result.error() {
+            println!("test {test_name} ... {failed}", failed = "failed".red());
+            errors.push((test_name.to_string(), e.to_string()));
+            continue;
+        }
+
+        if result.document().has_errors() {
+            println!("test {test_name} ... {failed}", failed = "failed".red());
+            errors.push((
+                test_name.to_string(),
+                "test WDL contains errors: run a `check` on `source.wdl`".to_string(),
+            ));
+            continue;
+        }
+
         futures.push(async { (test_name.to_string(), run_test(test, result).await) });
     }
 

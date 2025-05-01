@@ -166,15 +166,11 @@ async fn main() {
             ),
         ) {
             Ok(()) => {
-                println!(
-                    "{}: {}: {}",
-                    test_name,
-                    "ok".green(),
-                    result.document().uri()
-                );
+                println!("test {test_name} ... {ok}", ok = "ok".green());
             }
             Err(e) => {
-                errors.push(format!("{}: {}: {}", test_name, "error".red(), e));
+                println!("test {test_name} ... {failed}", failed = "failed".red());
+                errors.push((test_name, e));
             }
         }
     }
@@ -186,8 +182,8 @@ async fn main() {
             failed = "failed".red()
         );
 
-        for msg in errors.iter() {
-            eprintln!("{msg}", msg = msg.red());
+        for (name, msg) in errors.iter() {
+            eprintln!("{name}: {msg}", msg = msg.red());
         }
 
         std::process::exit(1);
