@@ -2,6 +2,7 @@
 
 use std::collections::HashSet;
 use std::fs;
+use std::panic;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -61,6 +62,24 @@ pub enum ParseState {
     },
 }
 
+impl ParseState {
+    /// Gets the version of parsed document.
+    pub fn version(&self) -> Option<i32> {
+        match self {
+            ParseState::Parsed { version, .. } => *version,
+            _ => None,
+        }
+    }
+
+    /// Gets the line index of parsed document.
+    pub fn lines(&self) -> Option<&Arc<LineIndex>> {
+        match self {
+            ParseState::Parsed { lines, .. } => Some(lines),
+            _ => None,
+        }
+    }
+}
+
 /// Represents a node in a document graph.
 #[derive(Debug)]
 pub struct DocumentGraphNode {
@@ -75,7 +94,10 @@ pub struct DocumentGraphNode {
     /// The analyzed document for the node.
     ///
     /// If `None`, an analysis does not exist for the current state of the node.
+    /// This will also be `None` if analysis panicked
     document: Option<Document>,
+    /// An error that occurred during the analysis phase for this node
+    analysis_error: Option<Arc<anyhow::Error>>,
 }
 
 impl DocumentGraphNode {
@@ -86,6 +108,7 @@ impl DocumentGraphNode {
             change: None,
             parse_state: ParseState::NotParsed,
             document: None,
+            analysis_error: None,
         }
     }
 
@@ -131,6 +154,7 @@ impl DocumentGraphNode {
 
         // Clear the analyzed document as there has been a change
         self.document = None;
+        self.analysis_error = None;
 
         if !matches!(
             self.parse_state,
@@ -154,6 +178,7 @@ impl DocumentGraphNode {
     pub fn parse_completed(&mut self, state: ParseState) {
         assert!(!matches!(state, ParseState::NotParsed));
         self.parse_state = state;
+        self.analysis_error = None;
 
         // Clear any document change
         self.change = None;
@@ -166,15 +191,28 @@ impl DocumentGraphNode {
         self.document.as_ref()
     }
 
+    /// Gets the analysis error, if any
+    pub fn analysis_error(&self) -> Option<&Arc<anyhow::Error>> {
+        self.analysis_error.as_ref()
+    }
+
     /// Marks the analysis as completed.
     pub fn analysis_completed(&mut self, document: Document) {
         self.document = Some(document);
+        self.analysis_error = None;
+    }
+
+    /// Marks the analysis as failed with an error
+    pub fn analysis_failed(&mut self, error: Arc<anyhow::Error>) {
+        self.document = None;
+        self.analysis_error = Some(error);
     }
 
     /// Marks the document node for reanalysis.
     ///
     /// This may occur when a dependency has changed.
     pub fn reanalyze(&mut self) {
+        self.analysis_error = None;
         self.document = None;
     }
 

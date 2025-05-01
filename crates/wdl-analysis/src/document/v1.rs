@@ -1371,6 +1371,11 @@ fn resolve_import(
         return Err(Some(import_failure(text.text(), e, span)));
     }
 
+    // Check for analysis error
+    if let Some(e) = import_node.analysis_error() {
+        return Err(Some(import_failure(text.text(), e, span)));
+    }
+
     // Ensure the import has a matching WDL version
     let import_root = import_node.root().expect("import should have parsed");
     let import_document = import_node

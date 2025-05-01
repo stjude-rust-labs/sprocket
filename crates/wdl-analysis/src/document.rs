@@ -481,6 +481,13 @@ pub struct Document {
 }
 
 impl Document {
+    /// Creates a new default document from a URI.
+    pub(crate) fn default_from_uri(uri: Arc<Url>) -> Self {
+        Self {
+            data: Arc::new(DocumentData::new(uri, None, None, Default::default())),
+        }
+    }
+
     /// Creates a new analyzed document from a document graph node.
     pub(crate) fn from_graph_node(
         config: DiagnosticsConfig,
@@ -491,16 +498,7 @@ impl Document {
 
         let diagnostics = match node.parse_state() {
             ParseState::NotParsed => panic!("node should have been parsed"),
-            ParseState::Error(_) => {
-                return Self {
-                    data: Arc::new(DocumentData::new(
-                        node.uri().clone(),
-                        None,
-                        None,
-                        Default::default(),
-                    )),
-                };
-            }
+            ParseState::Error(_) => return Self::default_from_uri(node.uri().clone()),
             ParseState::Parsed { diagnostics, .. } => diagnostics,
         };
 

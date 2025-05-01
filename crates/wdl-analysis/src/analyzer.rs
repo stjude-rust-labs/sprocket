@@ -97,6 +97,15 @@ pub struct AnalysisResult {
 impl AnalysisResult {
     /// Constructs a new analysis result for the given graph node.
     pub(crate) fn new(node: &DocumentGraphNode) -> Self {
+        if let Some(error) = node.analysis_error() {
+            return Self {
+                error: Some(error.clone()),
+                version: node.parse_state().version(),
+                lines: node.parse_state().lines().cloned(),
+                document: Document::default_from_uri(node.uri().clone()),
+            };
+        }
+
         let (error, version, lines) = match node.parse_state() {
             ParseState::NotParsed => unreachable!("document should have been parsed"),
             ParseState::Error(e) => (Some(e), None, None),
