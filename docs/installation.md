@@ -46,6 +46,59 @@ tool are available on GitHub at
   available on `main`) _or_ any experimental features by checking out the
   associated feature branch (`git checkout <branch-name>`).
 
+## Shell Completions
+
+`sprocket` can generate command-line completion scripts for various shells,
+allowing you to use tab completion for commands and arguments.
+
+::: warning Warning
+`sprocket` cli is currently under active development and is not yet
+considered stable. This means commands, flags, or arguments might change between
+versions. **You will need to regenerate the shell completion script using the
+steps below each time you update `sprocket`**.
+:::
+
+To generate a completion script, use the `completions` subcommand, specifying your shell:
+
+::: code-group
+
+```shell
+sprocket completions <SHELL>
+```
+
+:::
+
+Supported shells are: `bash`,`elvish`, `fish`, `powershell` and `zsh`.
+
+### Enabling Completions
+
+The exact steps to correctly enable shell completions depend on your specific
+shell and how it's configured. Generally it involves two main steps:
+
+1. Run the `sprocket completions <your shell>` command and redirect its STDOUT into a file,
+   often somewhere in your home directory. For example, a Bash user might run:
+
+::: code-group
+
+```shell
+sprocket completions bash > ~/.bash_completions/sprocket.bash
+```
+
+:::
+
+2. Modify you shell's startup configuration file (e.g. `~/.bashrc`, `~/.zshrc`,
+`~/.config/fish/config.fish`, PowerShell's `$PROFILE`, Elvish's
+`~/.config/elvish/rc.elv`) to source the file you just created. Continuing the
+Bash example, add this line to your `~/.bashrc`
+
+::: code-group
+
+```shell
+source ~/.bash_completions/sprocket.bash
+```
+
+:::
+
 [Homebrew]: https://brew.sh/
 [Rust]: https://rust-lang.org/
 [rustup]: https://rustup.rs/

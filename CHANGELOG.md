@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added TAB completions for `sprocket` commands ([#105](https://github.com/stjude-rust-labs/sprocket/pull/105)).
+
 ## 0.12.2 - 05-05-2025
 
 ### Fixed

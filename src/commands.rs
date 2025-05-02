@@ -2,6 +2,7 @@
 
 pub mod analyzer;
 pub mod check;
+pub mod completions;
 pub mod explain;
 pub mod format;
 pub mod run;
