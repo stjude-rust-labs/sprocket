@@ -31,4 +31,5 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           branch: chore/bump
-          title: "release: bump versions"
+          title: "release: bump crate versions"
+          commit-message: "release: bump crate versions"
