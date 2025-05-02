@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.12.0 - 05-02-2025
+
 ### Added
 
 * Introduced the `run` subcommand ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
