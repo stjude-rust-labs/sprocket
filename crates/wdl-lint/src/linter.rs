@@ -4,10 +4,10 @@ use std::collections::HashSet;
 
 use indexmap::IndexMap;
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Document as AnalysisDocument;
 use wdl_analysis::SyntaxNodeExt;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
-use wdl_analysis::document::Document as AnalysisDocument;
 use wdl_ast::AstNode;
 use wdl_ast::Comment;
 use wdl_ast::SupportedVersion;

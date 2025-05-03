@@ -15,7 +15,7 @@ use anyhow::bail;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use rev_buf_reader::RevBufReader;
-use wdl_analysis::document::Document;
+use wdl_analysis::Document;
 use wdl_analysis::document::Task;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;

@@ -13,7 +13,7 @@ use indexmap::IndexMap;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serde_yaml_ng::Value as YamlValue;
-use wdl_analysis::document::Document;
+use wdl_analysis::Document;
 use wdl_analysis::document::Task;
 use wdl_analysis::document::Workflow;
 use wdl_analysis::types::CallKind;
@@ -24,8 +24,10 @@ use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
 
 use crate::Coercible;
-use crate::Object;
 use crate::Value;
+
+/// A type alias to a JSON map (object).
+pub type JsonMap = serde_json::Map<String, JsonValue>;
 
 /// Helper for replacing input paths with a path derived from joining the
 /// specified path with the input path.
@@ -691,7 +693,7 @@ impl Inputs {
         // Parse the JSON (should be an object)
         let reader = BufReader::new(file);
 
-        let object = std::mem::take(
+        let map = std::mem::take(
             serde_json::from_reader::<_, JsonValue>(reader)?
                 .as_object_mut()
                 .with_context(|| {
@@ -700,17 +702,9 @@ impl Inputs {
                         path = path.display()
                     )
                 })?,
-        )
-        .into_iter()
-        .map(|(key, value)| {
-            let value: Value = serde_json::from_value(value)
-                .with_context(|| format!("invalid input key `{key}`"))?;
-            Ok((key, value))
-        })
-        .collect::<Result<IndexMap<_, _>>>()
-        .map(Object::from)?;
+        );
 
-        Self::parse_object(document, object)
+        Self::parse_object(document, map)
     }
 
     /// Parses a YAML inputs file from the given file path.
@@ -733,30 +727,22 @@ impl Inputs {
 
         // Parse the YAML
         let reader = BufReader::new(file);
-        let mut yaml = serde_yaml_ng::from_reader::<_, YamlValue>(reader)?;
-        let object = std::mem::take(yaml.as_mapping_mut().with_context(|| {
+        let yaml = serde_yaml_ng::from_reader::<_, YamlValue>(reader)?;
+
+        // Convert YAML to JSON format
+        let mut json = serde_json::to_value(yaml).with_context(|| {
+            format!(
+                "failed to convert YAML to JSON for processing `{path}`",
+                path = path.display()
+            )
+        })?;
+
+        let object = std::mem::take(json.as_object_mut().with_context(|| {
             format!(
                 "expected input file `{path}` to contain a YAML mapping",
                 path = path.display()
             )
-        })?)
-        .into_iter()
-        .map(|(key, value)| {
-            let key = key
-                .as_str()
-                .with_context(|| {
-                    format!(
-                        "input file `{path}` contains non-string keys in mapping",
-                        path = path.display()
-                    )
-                })?
-                .to_owned();
-            let value: Value = serde_yaml_ng::from_value(value)
-                .with_context(|| format!("invalid input key `{key}`"))?;
-            Ok((key, value))
-        })
-        .collect::<Result<IndexMap<_, _>>>()
-        .map(Object::from)?;
+        })?);
 
         Self::parse_object(document, object)
     }
@@ -848,7 +834,7 @@ impl Inputs {
     /// Returns `Ok(Some(_))` if the inputs are not empty.
     ///
     /// Returns `Ok(None)` if the inputs are empty.
-    pub fn parse_object(document: &Document, object: Object) -> Result<Option<(String, Self)>> {
+    pub fn parse_object(document: &Document, object: JsonMap) -> Result<Option<(String, Self)>> {
         // Determine the root workflow or task name
         let (key, name) = match object.iter().next() {
             Some((key, _)) => match key.split_once('.') {
@@ -882,14 +868,17 @@ impl Inputs {
     fn parse_task_inputs(
         document: &Document,
         task: &Task,
-        object: Object,
+        object: JsonMap,
     ) -> Result<(String, Self)> {
         let mut inputs = TaskInputs::default();
-        for (key, value) in object.iter() {
+        for (key, value) in object {
+            let value = serde_json::from_value(value)
+                .with_context(|| format!("invalid input key `{key}`"))?;
+
             match key.split_once(".") {
                 Some((prefix, remainder)) if prefix == task.name() => {
                     inputs
-                        .set_path_value(document, task, remainder, value.clone())
+                        .set_path_value(document, task, remainder, value)
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {
@@ -908,14 +897,17 @@ impl Inputs {
     fn parse_workflow_inputs(
         document: &Document,
         workflow: &Workflow,
-        object: Object,
+        object: JsonMap,
     ) -> Result<(String, Self)> {
         let mut inputs = WorkflowInputs::default();
-        for (key, value) in object.iter() {
+        for (key, value) in object {
+            let value = serde_json::from_value(value)
+                .with_context(|| format!("invalid input key `{key}`"))?;
+
             match key.split_once(".") {
                 Some((prefix, remainder)) if prefix == workflow.name() => {
                     inputs
-                        .set_path_value(document, workflow, remainder, value.clone())
+                        .set_path_value(document, workflow, remainder, value)
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {

@@ -31,6 +31,13 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::collections::HashSet;
+
+use wdl_ast::Direction;
+use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxNode;
+use wdl_ast::SyntaxToken;
+
 mod analyzer;
 pub mod diagnostics;
 pub mod document;
@@ -44,16 +51,11 @@ pub mod types;
 mod validation;
 mod visitor;
 
-use std::collections::HashSet;
-
 pub use analyzer::*;
+pub use document::Document;
 pub use rules::*;
 pub use validation::*;
 pub use visitor::*;
-use wdl_ast::Direction;
-use wdl_ast::SyntaxKind;
-use wdl_ast::SyntaxNode;
-use wdl_ast::SyntaxToken;
 
 /// The prefix of `except` comments.
 pub const EXCEPT_COMMENT_PREFIX: &str = "#@ except:";

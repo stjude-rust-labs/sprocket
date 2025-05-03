@@ -9,9 +9,9 @@ use std::collections::HashSet;
 use std::sync::OnceLock;
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Document;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
-use wdl_analysis::document::Document;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;

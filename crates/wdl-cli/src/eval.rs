@@ -4,7 +4,7 @@ use std::path::Path;
 
 use anyhow::anyhow;
 use tokio_util::sync::CancellationToken;
-use wdl_analysis::document::Document;
+use wdl_analysis::Document;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::EvaluationResult;

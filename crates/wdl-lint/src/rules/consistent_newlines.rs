@@ -1,9 +1,9 @@
 //! A lint rule for ensuring that newlines are consistent.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Document;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
-use wdl_analysis::document::Document;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;

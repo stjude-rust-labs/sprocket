@@ -3,10 +3,10 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use serde_json::Value as JsonValue;
+use serde_yaml_ng::Value as YamlValue;
 use thiserror::Error;
-use wdl_engine::CompoundValue;
-use wdl_engine::Object;
-use wdl_engine::Value;
+use wdl_engine::JsonMap;
 
 use crate::Inputs;
 
@@ -71,10 +71,10 @@ impl InputFile {
         let parent = path.parent().unwrap();
         let content: String = std::fs::read_to_string(path).map_err(Error::Io)?;
 
-        fn coerce_object_to_inputs(object: Object, parent: &Path) -> Result<Inputs> {
+        fn map_to_inputs(map: JsonMap, parent: &Path) -> Result<Inputs> {
             let mut inputs = Inputs::default();
 
-            for (key, value) in object.iter() {
+            for (key, value) in map.iter() {
                 inputs.insert(key.to_owned(), (parent.to_path_buf(), value.clone()));
             }
 
@@ -82,19 +82,31 @@ impl InputFile {
         }
 
         match path.extension().and_then(|ext| ext.to_str()) {
-            Some("json") => serde_json::from_str::<Value>(&content)
+            Some("json") => serde_json::from_str::<JsonValue>(&content)
                 .map_err(Error::from)
                 .and_then(|value| match value {
-                    Value::Compound(CompoundValue::Object(object)) => {
-                        coerce_object_to_inputs(object, parent)
-                    }
+                    JsonValue::Object(object) => map_to_inputs(object, parent),
                     _ => Err(Error::NonMapRoot(path.to_path_buf())),
                 }),
-            Some("yml") | Some("yaml") => serde_yaml_ng::from_str::<Value>(&content)
+            Some("yml") | Some("yaml") => serde_yaml_ng::from_str::<YamlValue>(&content)
                 .map_err(Error::from)
-                .and_then(|value| match value {
-                    Value::Compound(CompoundValue::Object(object)) => {
-                        coerce_object_to_inputs(object, parent)
+                .and_then(|value| match &value {
+                    YamlValue::Mapping(_) => {
+                        // SAFETY: a YAML mapping should always be able to be
+                        // transformed to a JSON value.
+                        let value = serde_json::to_value(value).unwrap();
+
+                        if let JsonValue::Object(map) = value {
+                            return map_to_inputs(map, parent);
+                        }
+
+                        // SAFETY: a serde map will always be translated to a
+                        // [`YamlValue::Mapping`] and a [`JsonValue::Object`],
+                        // so the above `if` statement should always evaluate to
+                        // `true`.
+                        unreachable!(
+                            "a YAML mapping must always coerce to a JSON object, found `{value}`"
+                        )
                     }
                     _ => Err(Error::NonMapRoot(path.to_path_buf())),
                 }),

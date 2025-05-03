@@ -17,10 +17,9 @@ use serde::Deserialize;
 use serde_json;
 use tracing::debug;
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Document;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
-use wdl_analysis::document::Document as AnalysisDocument;
-use wdl_analysis::document::Document;
 use wdl_analysis::document::ScopeRef;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
@@ -334,7 +333,7 @@ fn shellcheck_lint(
 /// A context for evaluating expressions in a command section.
 struct CommandContext<'a> {
     /// The document being linted.
-    document: AnalysisDocument,
+    document: Document,
     /// The scope of the command section.
     scope: ScopeRef<'a>,
 }
@@ -371,7 +370,7 @@ impl EvaluationContext for CommandContext<'_> {
 
 impl<'a> CommandContext<'a> {
     /// Create a new `CommandContext`.
-    fn new(document: AnalysisDocument, scope: ScopeRef<'a>) -> Self {
+    fn new(document: Document, scope: ScopeRef<'a>) -> Self {
         Self { document, scope }
     }
 }

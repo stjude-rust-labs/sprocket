@@ -9,12 +9,10 @@ use std::sync::LazyLock;
 
 use indexmap::IndexMap;
 use regex::Regex;
+use serde_json::Value;
 use thiserror::Error;
-use wdl_analysis::document::Document;
+use wdl_analysis::Document;
 use wdl_engine::Inputs as EngineInputs;
-use wdl_engine::Object;
-use wdl_engine::PrimitiveValue;
-use wdl_engine::Value;
 
 pub mod file;
 pub mod origin_paths;
@@ -184,9 +182,7 @@ impl FromStr for Input {
 
                 let value = serde_json::from_str(value).or_else(|_| {
                     if ASSUME_STRING_REGEX.is_match(value) {
-                        Ok(Value::Primitive(PrimitiveValue::String(
-                            value.to_owned().into(),
-                        )))
+                        Ok(Value::String(value.to_owned()))
                     } else {
                         Err(Error::Deserialize(value.to_owned()))
                     }
@@ -274,14 +270,16 @@ impl Inputs {
         self,
         document: &Document,
     ) -> anyhow::Result<Option<(String, EngineInputs, OriginPaths)>> {
-        let (origins, values): (IndexMap<_, _>, IndexMap<_, _>) = self
-            .0
-            .into_iter()
-            .map(|(key, (origin, value))| ((key.clone(), origin), (key, value)))
-            .unzip();
+        let (origins, values) = self.0.into_iter().fold(
+            (IndexMap::new(), serde_json::Map::new()),
+            |(mut origins, mut values), (key, (origin, value))| {
+                origins.insert(key.clone(), origin);
+                values.insert(key, value);
+                (origins, values)
+            },
+        );
 
-        let object = Object::from(values);
-        let result = EngineInputs::parse_object(document, object)?;
+        let result = EngineInputs::parse_object(document, values)?;
 
         Ok(result.map(|(callee_name, inputs)| {
             let callee_prefix = format!("{}.", callee_name);
@@ -371,13 +369,13 @@ mod tests {
         let input = r#"foo="bar""#.parse::<Input>().unwrap();
         let (key, value) = input.unwrap_pair();
         assert_eq!(key, "foo");
-        assert_eq!(value.unwrap_string().as_str(), "bar");
+        assert_eq!(value.as_str().unwrap(), "bar");
 
         // A standard key-value pair.
         let input = r#"foo.bar_baz_quux="qil""#.parse::<Input>().unwrap();
         let (key, value) = input.unwrap_pair();
         assert_eq!(key, "foo.bar_baz_quux");
-        assert_eq!(value.unwrap_string().as_str(), "qil");
+        assert_eq!(value.as_str().unwrap(), "qil");
 
         // An invalid identifier for the key.
         let err = r#"foo$="bar""#.parse::<Input>().unwrap_err();
@@ -393,7 +391,7 @@ mod tests {
         let input = r#"foo="bar$""#.parse::<Input>().unwrap();
         let (key, value) = input.unwrap_pair();
         assert_eq!(key, "foo");
-        assert_eq!(value.unwrap_string().as_str(), "bar$");
+        assert_eq!(value.as_str().unwrap(), "bar$");
     }
 
     #[test]
@@ -401,22 +399,22 @@ mod tests {
         // Helper functions.
         fn check_string_value(inputs: &Inputs, key: &str, value: &str) {
             let (_, input) = inputs.get(key).unwrap();
-            assert_eq!(input.as_string().unwrap().as_str(), value);
+            assert_eq!(input.as_str().unwrap(), value);
         }
 
         fn check_float_value(inputs: &Inputs, key: &str, value: f64) {
             let (_, input) = inputs.get(key).unwrap();
-            assert_eq!(input.as_float().unwrap(), value);
+            assert_eq!(input.as_f64().unwrap(), value);
         }
 
         fn check_boolean_value(inputs: &Inputs, key: &str, value: bool) {
             let (_, input) = inputs.get(key).unwrap();
-            assert_eq!(input.as_boolean().unwrap(), value);
+            assert_eq!(input.as_bool().unwrap(), value);
         }
 
         fn check_integer_value(inputs: &Inputs, key: &str, value: i64) {
             let (_, input) = inputs.get(key).unwrap();
-            assert_eq!(input.as_integer().unwrap(), value);
+            assert_eq!(input.as_i64().unwrap(), value);
         }
 
         // The standard coalescing order.
@@ -431,8 +429,8 @@ mod tests {
         check_string_value(&inputs, "foo", "bar");
         check_float_value(&inputs, "baz", 128.0);
         check_string_value(&inputs, "quux", "qil");
-        check_string_value(&inputs, "new", "foobarbaz");
-        check_string_value(&inputs, "new_two", "bazbarfoo");
+        check_string_value(&inputs, "new.key", "foobarbaz");
+        check_string_value(&inputs, "new_two.key", "bazbarfoo");
 
         // The opposite coalescing order.
         let inputs = Inputs::coalesce([
@@ -446,8 +444,8 @@ mod tests {
         check_string_value(&inputs, "foo", "bar");
         check_float_value(&inputs, "baz", 42.0);
         check_string_value(&inputs, "quux", "qil");
-        check_string_value(&inputs, "new", "foobarbaz");
-        check_string_value(&inputs, "new_two", "bazbarfoo");
+        check_string_value(&inputs, "new.key", "foobarbaz");
+        check_string_value(&inputs, "new_two.key", "bazbarfoo");
 
         // An example with some random key-value pairs thrown in.
         let inputs = Inputs::coalesce([
@@ -464,8 +462,8 @@ mod tests {
         check_string_value(&inputs, "foo", "bar");
         check_boolean_value(&inputs, "baz", false);
         check_string_value(&inputs, "quux", "jacks");
-        check_string_value(&inputs, "new", "foobarbaz");
-        check_string_value(&inputs, "new_two", "bazbarfoo");
+        check_string_value(&inputs, "new.key", "foobarbaz");
+        check_string_value(&inputs, "new_two.key", "bazbarfoo");
         check_integer_value(&inputs, "sandwich", -100);
 
         // An invalid key-value pair.
@@ -493,6 +491,6 @@ mod tests {
     fn multiple_equal_signs() {
         let (key, value) = r#"foo="bar=baz""#.parse::<Input>().unwrap().unwrap_pair();
         assert_eq!(key, "foo");
-        assert_eq!(&**value.unwrap_string(), "bar=baz");
+        assert_eq!(value.as_str().unwrap(), "bar=baz");
     }
 }

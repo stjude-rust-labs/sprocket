@@ -1,2 +1,2 @@
 baz: 128.0
-new_two: "bazbarfoo"
+new_two.key: "bazbarfoo"
