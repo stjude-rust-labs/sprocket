@@ -39,9 +39,6 @@ pub struct Analysis {
     /// Whether or not to enable linting.
     lint: bool,
 
-    /// Whether or not to enable `shellcheck`.
-    shellcheck: bool,
-
     /// The initialization callback.
     init: InitCb,
 
@@ -77,12 +74,6 @@ impl Analysis {
     /// Sets whether linting is enabled.
     pub fn lint(mut self, value: bool) -> Self {
         self.lint = value;
-        self
-    }
-
-    /// Sets whether `shellcheck` is enabled.
-    pub fn shellcheck(mut self, value: bool) -> Self {
-        self.shellcheck = value;
         self
     }
 
@@ -149,7 +140,6 @@ impl Default for Analysis {
             sources: Default::default(),
             exceptions: Default::default(),
             lint: Default::default(),
-            shellcheck: Default::default(),
             init: Box::new(|| {}),
             progress: Box::new(|_, _, _| Box::pin(async {})),
         }

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 * JSON and YAML files are now correctly parsed ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
+* Removes the unused `shellcheck` option in `wdl::cli::Analysis` ([#441](https://github.com/stjude-rust-labs/wdl/pull/441)).
 
 ## 0.1.1 - 05-02-2025
 
