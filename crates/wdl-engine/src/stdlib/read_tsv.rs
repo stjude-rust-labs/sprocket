@@ -20,6 +20,7 @@ use super::Function;
 use super::Signature;
 use crate::Array;
 use crate::CompoundValue;
+use crate::Object;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
@@ -249,7 +250,7 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
                 }
             }
 
-            rows.push(CompoundValue::Object(members.into()).into());
+            rows.push(CompoundValue::Object(Object::new(members)).into());
             i += 1;
         }
 

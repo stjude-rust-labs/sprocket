@@ -137,7 +137,7 @@ fn read_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
             }
         }
 
-        Ok(Object::from(members).into())
+        Ok(Object::new(members).into())
     }
     .boxed()
 }

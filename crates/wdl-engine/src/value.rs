@@ -876,7 +876,7 @@ impl<'de> serde::Deserialize<'de> for Value {
                     members.insert(key, map.next_value_seed(Deserialize)?);
                 }
 
-                Ok(Value::Compound(CompoundValue::Object(members.into())))
+                Ok(Value::Compound(CompoundValue::Object(Object::new(members))))
             }
 
             fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1791,40 +1791,37 @@ pub struct Object {
 
 impl Object {
     /// Creates a new `Object` value.
-    pub fn new<S, V>(items: impl IntoIterator<Item = (S, V)>) -> Self
-    where
-        S: Into<String>,
-        V: Into<Value>,
-    {
-        items
-            .into_iter()
-            .map(|(n, v)| {
-                let n = n.into();
-                let v = v.into();
-                (n, v)
-            })
-            .collect::<IndexMap<_, _>>()
-            .into()
+    ///
+    /// Keys **must** be known WDL identifiers checked by the caller.
+    pub(crate) fn new(members: IndexMap<String, Value>) -> Self {
+        Self {
+            members: if members.is_empty() {
+                None
+            } else {
+                Some(Arc::new(members))
+            },
+        }
     }
 
     /// Returns an empty object.
     pub fn empty() -> Self {
-        IndexMap::default().into()
+        Self::new(IndexMap::default())
     }
 
     /// Creates an object from an iterator of V1 AST metadata items.
     pub fn from_v1_metadata<N: TreeNode>(
         items: impl Iterator<Item = v1::MetadataObjectItem<N>>,
     ) -> Self {
-        items
-            .map(|i| {
-                (
-                    i.name().text().to_string(),
-                    Value::from_v1_metadata(&i.value()),
-                )
-            })
-            .collect::<IndexMap<_, _>>()
-            .into()
+        Object::new(
+            items
+                .map(|i| {
+                    (
+                        i.name().text().to_string(),
+                        Value::from_v1_metadata(&i.value()),
+                    )
+                })
+                .collect::<IndexMap<_, _>>(),
+        )
     }
 
     /// Gets the type of the `Object` value.
@@ -1893,18 +1890,6 @@ impl fmt::Display for Object {
         }
 
         write!(f, "}}")
-    }
-}
-
-impl From<IndexMap<String, Value>> for Object {
-    fn from(members: IndexMap<String, Value>) -> Self {
-        Self {
-            members: if members.is_empty() {
-                None
-            } else {
-                Some(Arc::new(members))
-            },
-        }
     }
 }
 
@@ -2617,7 +2602,7 @@ impl Coercible for CompoundValue {
             match self {
                 // Map[String, Y] -> Object
                 Self::Map(v) => {
-                    return Ok(Self::Object(
+                    return Ok(Self::Object(Object::new(
                         v.iter()
                             .map(|(k, v)| {
                                 let k = k
@@ -2630,9 +2615,8 @@ impl Coercible for CompoundValue {
                                     .to_string();
                                 Ok((k, v.clone()))
                             })
-                            .collect::<Result<IndexMap<_, _>>>()?
-                            .into(),
-                    ));
+                            .collect::<Result<IndexMap<_, _>>>()?,
+                    )));
                 }
                 // Struct -> Object
                 Self::Struct(v) => {

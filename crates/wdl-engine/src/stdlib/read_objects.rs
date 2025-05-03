@@ -134,7 +134,7 @@ fn read_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
                 }
             }
 
-            objects.push(Object::from(members).into());
+            objects.push(Object::new(members).into());
             i += 1;
         }
 

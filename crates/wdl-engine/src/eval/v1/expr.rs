@@ -649,7 +649,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             members.insert(name.text().to_string(), value);
         }
 
-        Ok(Object::from(members).into())
+        Ok(Object::new(members).into())
     }
 
     /// Evaluates a literal struct expression.
@@ -735,7 +735,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             members.insert(name.text().to_string(), value);
         }
 
-        Ok(Object::from(members).into())
+        Ok(Object::new(members).into())
     }
 
     /// Evaluates a hints item, whether in task `hints` section or a `hints`
@@ -778,7 +778,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             members.insert(name, value);
         }
 
-        Ok(Object::from(members).into())
+        Ok(Object::new(members).into())
     }
 
     /// Evaluates a literal output expression.
@@ -794,7 +794,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             members.insert(name, value);
         }
 
-        Ok(Object::from(members).into())
+        Ok(Object::new(members).into())
     }
 
     /// Evaluates a literal input/output item.
