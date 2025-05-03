@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `wdl_analysis::document::Document` was moved to `wdl_analysis::Document` ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
+
 ## 0.8.1 - 05-02-2025
 
 _A patch bump was required because an error was made during the release of `wdl` v0.13.0 regarding dependencies._
