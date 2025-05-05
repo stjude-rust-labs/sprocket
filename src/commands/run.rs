@@ -19,9 +19,11 @@ use tracing::Level;
 use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use wdl::ast::AstNode as _;
+use wdl::ast::Severity;
 use wdl::cli::Analysis;
 use wdl::cli::Evaluator;
 use wdl::cli::Inputs;
+use wdl::cli::analysis::AnalysisResults;
 use wdl::cli::analysis::Source;
 use wdl::cli::inputs::OriginPaths;
 use wdl::engine::EvaluationError;
@@ -209,7 +211,7 @@ pub async fn run(args: Args) -> Result<()> {
         .run()
         .await
     {
-        Ok(results) => results,
+        Ok(results) => results.into_inner(),
         Err(errors) => {
             // SAFETY: this is a non-empty, so it must always have a first
             // element.
@@ -217,8 +219,41 @@ pub async fn run(args: Args) -> Result<()> {
         }
     };
 
+    // Emits diagnostics for all analyzed documents
+    let mut errors = 0;
+    for result in &results {
+        let diagnostics = result.document().diagnostics();
+        if !diagnostics.is_empty() {
+            let path = result.document().path().to_string();
+            let source = result.document().root().text().to_string();
+
+            errors += diagnostics
+                .iter()
+                .filter(|d| d.severity() == Severity::Error)
+                .count();
+
+            emit_diagnostics(
+                &path,
+                source,
+                diagnostics,
+                &[],
+                args.report_mode,
+                args.no_color,
+            )
+            .context("failed to emit diagnostics")?;
+        }
+    }
+
+    if errors > 0 {
+        bail!(
+            "aborting due to previous {errors} error{s}",
+            s = if errors == 1 { "" } else { "s" }
+        );
+    }
+
     // SAFETY: this must exist, as we added it as the only source to be analyzed
     // above.
+    let results = AnalysisResults::try_new(results).unwrap();
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
     let output_dir = args
