@@ -32,10 +32,6 @@ pub struct Common {
     #[clap(short, long, value_name = "RULE")]
     pub except: Vec<String>,
 
-    /// Enable `shellcheck` lints.
-    #[clap(long, requires = "lint")]
-    pub shellcheck: bool,
-
     /// Causes the command to fail if warnings were reported.
     #[clap(long)]
     pub deny_warnings: bool,
@@ -144,7 +140,6 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         .extend_sources(args.common.sources)
         .extend_exceptions(args.common.except)
         .lint(args.lint)
-        .shellcheck(args.common.shellcheck)
         .run()
         .await
     {
