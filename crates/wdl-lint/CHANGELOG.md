@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.11.2 - 05-05-2025
+
+* Dependencies were updated.
+
 ## 0.11.1 - 05-02-2025
 
 _A patch bump was required because an error was made during the release of `wdl` v0.13.0 regarding dependencies._

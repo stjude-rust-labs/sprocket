@@ -1,6 +1,6 @@
 [package]
 name = "wdl-doc"
-version = "0.3.1"
+version = "0.3.2"
 description = "Documentation generator for Workflow Description Language (WDL) documents."
 license.workspace = true
 edition.workspace = true
@@ -10,7 +10,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-wdl-analysis = { path = "../wdl-analysis", version = "0.8.1" }
+wdl-analysis = { path = "../wdl-analysis", version = "0.8.2" }
 wdl-ast = { path = "../wdl-ast", version = "0.12.1" }
 
 ammonia.workspace = true

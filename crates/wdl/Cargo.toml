@@ -1,6 +1,6 @@
 [package]
 name = "wdl"
-version = "0.13.1"
+version = "0.13.2"
 authors.workspace = true
 description = "Lexing, parsing, validation, linting, documentation, analysis, and execution for Workflow Description Language (WDL) documents"
 rust-version.workspace = true
@@ -12,15 +12,15 @@ documentation = "https://docs.rs/wdl"
 readme = "../README.md"
 
 [dependencies]
-wdl-analysis = { path = "../wdl-analysis", version = "0.8.1", optional = true }
+wdl-analysis = { path = "../wdl-analysis", version = "0.8.2", optional = true }
 wdl-ast = { path = "../wdl-ast", version = "0.12.1", optional = true }
-wdl-cli = { path = "../wdl-cli", version = "0.1.1", optional = true }
-wdl-doc = { path = "../wdl-doc", version = "0.3.1", optional = true }
-wdl-engine = { path = "../wdl-engine", version = "0.3.1", optional = true }
+wdl-cli = { path = "../wdl-cli", version = "0.1.2", optional = true }
+wdl-doc = { path = "../wdl-doc", version = "0.3.2", optional = true }
+wdl-engine = { path = "../wdl-engine", version = "0.3.2", optional = true }
 wdl-format = { path = "../wdl-format", version = "0.6.1", optional = true }
 wdl-grammar = { path = "../wdl-grammar", version = "0.13.0", optional = true }
-wdl-lint = { path = "../wdl-lint", version = "0.11.1", optional = true }
-wdl-lsp = { path = "../wdl-lsp", version = "0.8.1", optional = true }
+wdl-lint = { path = "../wdl-lint", version = "0.11.2", optional = true }
+wdl-lsp = { path = "../wdl-lsp", version = "0.8.2", optional = true }
 
 anyhow = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
