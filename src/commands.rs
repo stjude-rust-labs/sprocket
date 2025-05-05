@@ -6,6 +6,7 @@ pub mod analyzer;
 pub mod check;
 pub mod completions;
 pub mod config;
+pub mod doc;
 pub mod explain;
 pub mod format;
 pub mod inputs;
@@ -53,4 +54,15 @@ pub enum Commands {
     /// It will not catch potential runtime errors that may occur when running
     /// the task or workflow.
     Validate(validate::Args),
+
+    /// Development commands.
+    #[command(subcommand)]
+    Dev(DevCommands),
+}
+
+/// Developmental and experimental commands.
+#[derive(Subcommand, Debug)]
+pub enum DevCommands {
+    /// Document a workspace.
+    Doc(doc::Args),
 }
