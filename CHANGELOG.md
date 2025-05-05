@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fix `sprocket run` not printing analysis diagnostics ([#110](https://github.com/stjude-rust-labs/sprocket/pull/110)).
+
 ## 0.12.1 - 05-05-2025
 
 ### Fixed
