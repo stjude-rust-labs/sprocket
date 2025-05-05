@@ -40,7 +40,7 @@ pub struct Common {
     #[clap(long)]
     pub deny_notes: bool,
 
-    /// Supress diagnostics from documents that were not explicitly provided in
+    /// Suppress diagnostics from documents that were not explicitly provided in
     /// the sources list (i.e., were imported from a provided source).
     ///
     /// If the sources list contains a directory, an error will be raised.
