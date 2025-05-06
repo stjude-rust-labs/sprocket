@@ -47,6 +47,10 @@ enum Commands {
     /// It will not catch potential runtime errors that may occur when running
     /// the task or workflow.
     Validate(commands::validate::Args),
+
+    /// Development commands.
+    #[command(subcommand)]
+    Dev(commands::DevCommands),
 }
 
 #[derive(Parser)]
@@ -97,6 +101,7 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Lint(args) => commands::check::lint(args).await,
         Commands::Run(args) => commands::run::run(args).await,
         Commands::Validate(args) => commands::validate::validate(args).await,
+        Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args).await,
     }
 }
 
