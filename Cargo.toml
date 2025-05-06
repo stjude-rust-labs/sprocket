@@ -1,6 +1,6 @@
 [package]
 name = "sprocket"
-version = "0.12.1"
+version = "0.12.2"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors = ["The Sprocket project contributors"]
 license = "MIT OR Apache-2.0"
