@@ -32,6 +32,9 @@ enum Commands {
     /// Formats a document.
     #[clap(alias = "fmt")]
     Format(commands::format::Args),
+    
+    /// Writes the input schema for a WDL document.
+    Input(commands::input::InputArgs),
 
     /// Lints a document or a directory containing documents.
     Lint(commands::check::LintArgs),
@@ -98,6 +101,7 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Check(args) => commands::check::check(args).await,
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Format(args) => commands::format::format(args),
+        Commands::Input(args) => commands::input::input(args).await,
         Commands::Lint(args) => commands::check::lint(args).await,
         Commands::Run(args) => commands::run::run(args).await,
         Commands::Validate(args) => commands::validate::validate(args).await,
