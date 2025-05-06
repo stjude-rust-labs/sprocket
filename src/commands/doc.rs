@@ -18,7 +18,7 @@ pub struct Args {
     pub workspace: PathBuf,
     /// Output directory for the generated documentation.
     /// If not specified, the documentation will be generated in
-    /// `<source>/docs`.
+    /// `<workspace>/docs`.
     #[arg(long, value_name = "DIR")]
     pub output: Option<PathBuf>,
     /// Whether to overwrite any existing documentation.
