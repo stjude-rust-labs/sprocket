@@ -1,11 +1,68 @@
 # Installation
 
 If you're looking for the latest stable version of the `sprocket` command line
-tool, you can download it from any of the [package managers](#package-managers)
-listed below. Otherwise, see the [build from source](#build-from-source) section
-on how to obtain and build a copy of the source code.
+tool, you can either [download it from the release page](#download), [build it
+from source](#build-from-source) (most common), get Sprocket through a [package
+manager](#package-managers) (support still being added), or use
+[Docker](#docker).
+
+## Download
+
+A pre-built binary for `sprocket` can be downloaded from the latest [release
+entry on GitHub](https://github.com/stjude-rust-labs/sprocket/releases). Each
+platform has different requirements regarding shared libraries that are expected
+to be installed.
+
+## Build From Source
+
+There are also a number of options to build `sprocket` from source, including
+pulling in the released source from [crates.io](#cratesio) or downloading the
+source directly from [GitHub](#github). 
+
+All methods for building `sprocket` from source require [Rust] and `cargo` to be
+installed. We recommend using [rustup] to accomplish this. 
+
+### Crates.io
+
+You can use `cargo` to install the latest version of `sprocket` from
+[crates.io].
+
+```shell
+cargo install sprocket
+```
+
+If desired, you can also check out a specific version of `sprocket`.
+
+```shell
+cargo install sprocket@0.12.2
+```
+
+### GitHub
+
+Both the source code and the instructions to build the `sprocket` command line
+tool are available on GitHub at [`stjude-rust-labs/sprocket`][github-src].
+
+* The [releases][github-releases] page contains all of the official releases for
+  the project.
+* If desired, you can install either the latest unpublished version (the code
+  available on `main`) _or_ any experimental features by checking out the
+  associated feature branch (`git checkout <branch-name>`).
+
+The simplest way is just to clone the repository and build the `main` branch,
+which is expected to always contained a compilable and correct (though, perhaps
+unreleased) version of Sprocket.
+
+```shell
+git clone git@github.com:stjude-rust-labs/sprocket.git
+cd sprocket
+cargo run --release
+```
 
 ## Package Managers
+
+Unfortunately, `sprocket` isn't available on any package managers yet. We expect
+this to change as Sprocket gains more popularity and meets package manager
+requirements for distribution.
 
 ### Homebrew
 
@@ -17,34 +74,22 @@ for Homebrew formulas. If you feel so inclined, help us get there by starring [t
 repo](https://github.com/stjude-rust-labs/sprocket)!
 :::
 
-### Crates.io
+### Other Package Managers
 
-Before you can build `sprocket`, you'll need to install [Rust]. We recommend
-using [rustup] to accomplish this. Once Rust is installed, you can install the
-latest version of `sprocket` by running the following command.
-
-::: code-group
-
-```shell
-cargo install sprocket
-```
-
+::: tip Note
+If you know of other, community-maintained
+packages for `sprocket`, please let us know by opening up [a pull
+request](https://github.com/stjude-rust-labs/sprocket/pulls).
 :::
 
-This will pull in the latest published version on [crates.io].
+## Docker
 
+Every released version of `sprocket` is available through the GitHub Container
+Registry.
 
-## Build From Source
-
-Both the source code and the instructions to build the `sprocket` command line
-tool are available on GitHub at
-[`stjude-rust-labs/sprocket`](https://github.com/stjude-rust-labs/sprocket).
-
-* The [releases](https://github.com/stjude-rust-labs/sprocket/releases) page
-  contains all of the official releases for the project.
-* If desired, you can install either the latest unpublished version (the code
-  available on `main`) _or_ any experimental features by checking out the
-  associated feature branch (`git checkout <branch-name>`).
+```bash
+docker run ghcr.io/stjude-rust-labs/sprocket:v0.12.2 -h
+```
 
 ## Shell Completions
 
@@ -99,7 +144,9 @@ source ~/.bash_completions/sprocket.bash
 
 :::
 
-[Homebrew]: https://brew.sh/
-[Rust]: https://rust-lang.org/
-[rustup]: https://rustup.rs/
 [crates.io]: https://crates.io/crates/sprocket
+[github-releases]: https://github.com/stjude-rust-labs/sprocket/releases
+[github-src]: https://github.com/stjude-rust-labs/sprocket
+[Homebrew]: https://brew.sh
+[Rust]: https://rust-lang.org
+[rustup]: https://rustup.rs
