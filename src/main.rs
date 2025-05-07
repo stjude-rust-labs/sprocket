@@ -31,7 +31,7 @@ struct Cli {
 }
 
 pub async fn inner() -> anyhow::Result<()> {
-    let mut cli = Cli::parse();
+    let cli = Cli::parse();
 
     tracing_log::LogTracer::init()?;
 
@@ -50,15 +50,15 @@ pub async fn inner() -> anyhow::Result<()> {
         toml::to_string_pretty(&config).unwrap_or_default()
     );
 
-    cli.command = config.merge_args(cli.command);
-
     match cli.command {
-        Commands::Check(args) => commands::check::check(args).await,
-        Commands::Lint(args) => commands::check::lint(args).await,
+        Commands::Check(args) => commands::check::check(args.apply(config)).await,
+        Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
-        Commands::Format(args) => commands::format::format(args),
-        Commands::ValidateInputs(args) => commands::validate::validate_inputs(args).await,
+        Commands::Format(args) => commands::format::format(args.apply(config)),
+        Commands::ValidateInputs(args) => {
+            commands::validate::validate_inputs(args.apply(config)).await
+        }
         Commands::Config(args) => commands::config::config(args, config),
     }
 }

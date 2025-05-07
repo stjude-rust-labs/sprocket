@@ -31,6 +31,18 @@ pub struct ValidateInputsArgs {
     pub report_mode: Option<Mode>,
 }
 
+impl ValidateInputsArgs {
+    /// Applies the configuration to the arguments.
+    pub fn apply(mut self, config: crate::config::Config) -> Self {
+        self.no_color = self.no_color || !config.common.color;
+        self.report_mode = match self.report_mode {
+            Some(mode) => Some(mode),
+            None => config.common.report_mode,
+        };
+        self
+    }
+}
+
 /// Validates the inputs for a task or workflow.
 ///
 /// * Every required input is supplied.
