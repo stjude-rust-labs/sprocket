@@ -35,6 +35,11 @@ export default defineConfig({
         text: "Visual Studio Code Extension",
         items: [{ text: "Getting Started", link: "/vscode/getting-started" }],
       },
+      {
+        text: "Sprocket CLI",
+        items: [
+          { text: "Configuration", link: "/cli/config" },
+      }
     ],
 
     socialLinks: [
