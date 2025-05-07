@@ -8,18 +8,16 @@ use clap::Parser;
 use serde_json::Map;
 use serde_json::Value;
 use wdl::analysis::types::CallKind;
-use wdl::ast::v1::Type;
 use wdl::ast::AstNode;
 use wdl::ast::AstToken;
 use wdl::ast::SyntaxKind;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::InputSection;
 use wdl::ast::v1::LiteralExpr;
+use wdl::ast::v1::Type;
 use wdl::cli::Analysis;
 use wdl::cli::analysis::AnalysisResults;
 use wdl::cli::analysis::Source;
-
-use crate::Mode;
 
 /// Arguments for the `input` subcommand.
 #[derive(Parser, Debug)]
@@ -28,14 +26,6 @@ pub struct InputArgs {
     /// validate.
     #[arg(value_name = "PATH or URL")]
     pub path: Source,
-
-    /// Disables color output.
-    #[arg(long)]
-    pub no_color: bool,
-
-    /// The report mode.
-    #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
-    pub report_mode: Mode,
 
     /// Show inputs with non-literal default values and non-required inputs.
     #[arg(long)]
@@ -60,12 +50,9 @@ pub struct InputArgs {
 }
 
 /// Compute key name for map
-fn compute_key_name(
-    prefix: &str,
-    name: &str,
-) -> String {
+fn compute_key_name(prefix: &str, name: &str) -> String {
     if prefix.is_empty() {
-        format!("{name}")
+        name.to_string()
     } else {
         format!("{prefix}.{name}")
     }
@@ -79,12 +66,10 @@ fn process_expression(
     show_expressions: bool,
     hide_defaults: bool,
     prefix: &str,
-) -> (String, Value){
+) -> (String, Value) {
     match expr {
         Expr::Literal(l) if !hide_defaults => match l {
-            LiteralExpr::Boolean(b) => {
-                (compute_key_name(prefix, name), Value::Bool(b.value()))
-            }
+            LiteralExpr::Boolean(b) => (compute_key_name(prefix, name), Value::Bool(b.value())),
             LiteralExpr::String(s) => {
                 if s.is_empty() {
                     (
@@ -99,36 +84,35 @@ fn process_expression(
                     (compute_key_name(prefix, name), Value::String(text))
                 }
             }
-            LiteralExpr::Integer(i) => {
-                (
-                    compute_key_name(prefix, name),
-                    Value::from(i.value().expect("should have a value")),
-                )
-            }
-            LiteralExpr::Float(f) => {
-                (
-                    compute_key_name(prefix, name),
-                    Value::from(f.value().expect("should have a value")),
-                )
-            }
+            LiteralExpr::Integer(i) => (
+                compute_key_name(prefix, name),
+                Value::from(i.value().expect("should have a value")),
+            ),
+            LiteralExpr::Float(f) => (
+                compute_key_name(prefix, name),
+                Value::from(f.value().expect("should have a value")),
+            ),
             LiteralExpr::Struct(s) => {
                 // Convert the struct to a map and store that.
                 let mut map_value = Map::new();
                 s.items().for_each(|f| {
                     let (name, value) = f.name_value();
-                    let (key, value) = process_expression(&value, name.text(), typ.clone(), show_expressions, hide_defaults, "");
+                    let (key, value) = process_expression(
+                        &value,
+                        name.text(),
+                        typ.clone(),
+                        show_expressions,
+                        hide_defaults,
+                        "",
+                    );
                     map_value.insert(key, value);
-                    // map_value.insert(name.inner().text().to_string(), Value::String(value.inner().text().to_string()));
                 });
                 (compute_key_name(prefix, name), Value::Object(map_value))
-                // (compute_key_name(prefix, name), Value::Object(s))
             }
-            _ => {
-                (
-                    compute_key_name(prefix, name),
-                    Value::String(format!("{} (default = {})", typ, expr.text())),
-                )
-            }
+            _ => (
+                compute_key_name(prefix, name),
+                Value::String(format!("{} (default = {})", typ, expr.text())),
+            ),
         },
         Expr::Negation(n) if !hide_defaults => {
             // Negation isn't a literal, but might contain one.
@@ -141,8 +125,7 @@ fn process_expression(
                         compute_key_name(prefix, name),
                         Value::String(format!("{} (default = {})", typ, expr.text())),
                     )
-                }
-                else {
+                } else {
                     ("".to_string(), Value::Null)
                 }
             } else {
@@ -160,8 +143,7 @@ fn process_expression(
                     compute_key_name(prefix, name),
                     Value::String(format!("{} (default = {})", typ, expr.text())),
                 )
-            }
-            else {
+            } else {
                 ("".to_string(), Value::Null)
             }
         }
@@ -191,7 +173,14 @@ fn process_input_section(
                     }
                 }
                 false => {
-                    let (key, value) = process_expression(&value, &name, typ, show_expressions, hide_defaults, wf_name);
+                    let (key, value) = process_expression(
+                        &value,
+                        &name,
+                        typ,
+                        show_expressions,
+                        hide_defaults,
+                        wf_name,
+                    );
                     if !key.is_empty() {
                         map.insert(key, value);
                     }
