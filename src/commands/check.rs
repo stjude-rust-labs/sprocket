@@ -15,7 +15,7 @@ use wdl::cli::Analysis;
 use wdl::cli::analysis::Source;
 use wdl::lint::find_nearest_rule;
 
-use super::explain::all_rule_ids;
+use super::explain::ALL_RULE_IDS;
 use crate::Mode;
 use crate::emit_diagnostics;
 use crate::get_display_config;
@@ -32,7 +32,7 @@ pub struct Common {
     ///
     /// Repeat the flag multiple times to except multiple rules.
     #[clap(short, long, value_name = "RULE",
-        value_parser = PossibleValuesParser::new(all_rule_ids()),
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         action = clap::ArgAction::Append,
         num_args = 1,
     )]

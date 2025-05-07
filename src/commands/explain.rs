@@ -1,6 +1,7 @@
 //! Implementation of the `explain` subcommand.
 
 use std::collections::HashSet;
+use std::sync::LazyLock;
 
 use anyhow::Ok;
 use anyhow::anyhow;
@@ -17,6 +18,30 @@ const USAGE: &str = "sprocket explain [RULE]
     sprocket explain --tag <TAG>
     sprocket explain --definitions";
 
+/// All rule IDs sorted alphabetically.
+pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
+    let mut ids: Vec<String> = analysis::rules()
+        .iter()
+        .map(|r| r.id().to_string())
+        .collect();
+    ids.extend(lint::rules().iter().map(|r| r.id().to_string()));
+    ids.sort();
+    ids
+});
+
+/// All tag names sorted alphabetically.
+static ALL_TAG_NAMES: LazyLock<Vec<String>> = LazyLock::new(|| {
+    let mut tags: HashSet<Tag> = HashSet::new();
+    for rule in lint::rules() {
+        for tag in rule.tags().iter() {
+            tags.insert(tag);
+        }
+    }
+    let mut tag_names: Vec<String> = tags.into_iter().map(|t| t.to_string()).collect();
+    tag_names.sort();
+    tag_names
+});
+
 /// Arguments for the `explain` subcommand.
 #[derive(Parser, Debug)]
 #[command(author, version, about, after_help = generate_after_help(), override_usage = USAGE)]
@@ -29,14 +54,14 @@ pub struct Args {
         "list_all_tags"
     ],
         value_name = "RULE",
-        value_parser = PossibleValuesParser::new(all_rule_ids())
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter())
     )]
     pub rule_name: Option<String>,
 
     /// List all rules with the given tag.
     #[arg(short, long, value_name = "TAG",
         conflicts_with_all = ["rule_name", "definitions"],
-        value_parser = PossibleValuesParser::new(all_tag_names())
+        value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter())
     )]
     pub tag: Option<String>,
 
@@ -58,35 +83,11 @@ fn generate_after_help() -> String {
     format!("{}\n\n{}", list_all_rules(), list_all_tags())
 }
 
-/// Gets all rule IDs sorted alphabetically.
-pub fn all_rule_ids() -> Vec<String> {
-    let mut ids: Vec<String> = analysis::rules()
-        .iter()
-        .map(|r| r.id().to_string())
-        .collect();
-    ids.extend(lint::rules().iter().map(|r| r.id().to_string()));
-    ids.sort();
-    ids
-}
-
-/// Gets all tag names sorted alphabetically.
-fn all_tag_names() -> Vec<String> {
-    let mut tags: HashSet<Tag> = HashSet::new();
-    for rule in lint::rules() {
-        for tag in rule.tags().iter() {
-            tags.insert(tag);
-        }
-    }
-    let mut tag_names: Vec<String> = tags.into_iter().map(|t| t.to_string()).collect();
-    tag_names.sort();
-    tag_names
-}
-
 /// Lists all rules as a string for displaying.
 pub fn list_all_rules() -> String {
     let mut result = String::from("Available rules:");
 
-    for id in all_rule_ids() {
+    for id in ALL_RULE_IDS.iter() {
         result.push_str(&format!("\n  - {}", id));
     }
     result
@@ -96,7 +97,7 @@ pub fn list_all_rules() -> String {
 pub fn list_all_tags() -> String {
     let mut result = String::from("Available tags:");
 
-    for tag in all_tag_names() {
+    for tag in ALL_TAG_NAMES.iter() {
         result.push_str(&format!("\n  - {}", tag));
     }
     result

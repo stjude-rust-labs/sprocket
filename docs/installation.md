@@ -52,7 +52,7 @@ tool are available on GitHub at
 allowing you to use tab completion for commands and arguments.
 
 ::: warning Warning
-`sprocket` cli is currently under active development and is not yet
+The `sprocket` command line tool is currently under active development and is not yet
 considered stable. This means commands, flags, or arguments might change between
 versions. **You will need to regenerate the shell completion script using the
 steps below each time you update `sprocket`**.
@@ -68,14 +68,14 @@ sprocket completions <SHELL>
 
 :::
 
-Supported shells are: `bash`,`elvish`, `fish`, `powershell` and `zsh`.
+Supported shells are: `bash`, `elvish`, `fish`, `powershell` and `zsh`.
 
 ### Enabling Completions
 
 The exact steps to correctly enable shell completions depend on your specific
 shell and how it's configured. Generally it involves two main steps:
 
-1. Run the `sprocket completions <your shell>` command and redirect its STDOUT into a file,
+1. Run the `sprocket completions <your shell>` command and redirect its standard output into a file,
    often somewhere in your home directory. For example, a Bash user might run:
 
 ::: code-group

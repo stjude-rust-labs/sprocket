@@ -12,14 +12,13 @@ use clap_complete::generate;
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Args {
-    /// The shell to generate completions for
+    /// The shell to generate completions for.
     #[arg(value_enum)]
     shell: Shell,
 }
 
 /// The main function for the `completions` subcommand.
 pub async fn completions(args: Args, cmd: &mut Command) -> Result<()> {
-    eprintln!("generating completion file for {:?}", args.shell);
     generate(
         args.shell,
         cmd,
