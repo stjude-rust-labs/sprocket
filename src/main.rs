@@ -32,7 +32,7 @@ enum Commands {
     /// Formats a document.
     #[clap(alias = "fmt")]
     Format(commands::format::Args),
-    
+
     /// Writes the input schema for a WDL document.
     Input(commands::input::InputArgs),
 

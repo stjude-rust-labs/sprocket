@@ -1,16 +1,12 @@
 //! Implementation of the `input` command.
 
 use std::collections::HashSet;
-use std::path::Path;
 
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
 use serde_json::Map;
 use serde_json::Value;
-use url::Url;
-use wdl::analysis::AnalysisResult;
-use wdl::analysis::path_to_uri;
 use wdl::analysis::types::CallKind;
 use wdl::ast::AstNode;
 use wdl::ast::AstToken;
@@ -18,7 +14,9 @@ use wdl::ast::SyntaxKind;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::InputSection;
 use wdl::ast::v1::LiteralExpr;
-use wdl::cli::analyze;
+use wdl::cli::Analysis;
+use wdl::cli::analysis::AnalysisResults;
+use wdl::cli::analysis::Source;
 
 use crate::Mode;
 
@@ -28,7 +26,7 @@ pub struct InputArgs {
     /// The path to the WDL document or a directory containing WDL documents to
     /// validate.
     #[arg(value_name = "PATH or URL")]
-    pub path: String,
+    pub path: Source,
 
     /// Disables color output.
     #[arg(long)]
@@ -113,14 +111,19 @@ fn process_input_section(
                                 Value::from(f.value().expect("should have a value")),
                             );
                         }
+                        LiteralExpr::Struct(s) => {
+                            // Convert the struct to a map and store that.
+                            let mut map_value = Map::new();
+                            s.items().for_each(|f| {
+                                let (name, value) = f.name_value();
+                                map_value.insert(name.inner().text().to_string(), Value::String(value.inner().text().to_string()));
+                            });
+                            map.insert(format!("{wf_name}.{name}"), Value::Object(map_value));
+                        }
                         _ => {
                             map.insert(
                                 format!("{wf_name}.{name}"),
-                                Value::String(format!(
-                                    "{} (default = {})",
-                                    typ,
-                                    value.text()
-                                )),
+                                Value::String(format!("{} (default = {})", typ, value.text())),
                             );
                         }
                     },
@@ -133,11 +136,7 @@ fn process_input_section(
                             if show_expressions && !hide_defaults {
                                 map.insert(
                                     format!("{wf_name}.{name}"),
-                                    Value::String(format!(
-                                        "{} (default = {})",
-                                        typ,
-                                        value.text()
-                                    )),
+                                    Value::String(format!("{} (default = {})", typ, value.text())),
                                 );
                             }
                         } else {
@@ -153,11 +152,7 @@ fn process_input_section(
                         if show_expressions && !hide_defaults {
                             map.insert(
                                 format!("{wf_name}.{name}"),
-                                Value::String(format!(
-                                    "{} (default = {})",
-                                    typ,
-                                    value.text()
-                                )),
+                                Value::String(format!("{} (default = {})", typ, value.text())),
                             );
                         }
                     }
@@ -212,7 +207,7 @@ fn process_task(
 }
 
 /// Process a workflow and its inputs.
-#[allow(clippy::only_used_in_recursion,clippy::too_many_arguments)]
+#[allow(clippy::only_used_in_recursion, clippy::too_many_arguments)]
 fn process_workflow(
     map: &mut Map<String, Value>,
     document: &wdl::analysis::document::Document,
@@ -223,7 +218,7 @@ fn process_workflow(
     hide_defaults: bool,
     nested_inputs: bool,
     prefix: &str,
-    results: &Vec<AnalysisResult>,
+    results: &AnalysisResults,
 ) {
     let inputs = workflow_ast.input();
     if let Some(inputs) = inputs {
@@ -330,32 +325,30 @@ fn process_workflow(
 
 /// Generate a map of inputs for a WDL document.
 async fn generate_inputs(
-    file: &String,
+    file: &Source,
     show_expressions: bool,
     hide_defaults: bool,
     nested_inputs: bool,
 ) -> Result<Map<String, Value>> {
-    let path = Path::new(file);
-
-    let remote_file = Url::parse(file).is_ok();
-    let uri = if remote_file {
-        Url::parse(file).unwrap()
-    } else {
-        path_to_uri(path).unwrap()
-    };
-
-    let results = match analyze(file, vec![], false, false).await {
+    // Parse the WDL document.
+    let results = match Analysis::default()
+        .extend_sources(vec![file.clone()])
+        .run()
+        .await
+    {
         Ok(results) => results,
-        Err(e) => {
-            bail!("failed to analyze WDL document: {}", e);
+        Err(errors) => {
+            // SAFETY: this is a non-empty, so it must always have a first
+            // element.
+            bail!(errors.into_iter().next().unwrap())
         }
     };
 
     // Find the result the matches our input file.
     let root = results
-        .iter()
-        .find(|r| **r.document().uri() == uri)
-        .expect("should have a root");
+        .filter(&[file])
+        .next()
+        .expect("should have a matching result");
     let document = root.document();
 
     // Create an empty map to store the inputs.
