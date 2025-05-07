@@ -15,6 +15,7 @@ anyhow = "1.0.91"
 chrono = "0.4.41"
 clap = { version = "4.5.37", features = ["derive", "string"] }
 clap-verbosity-flag = { version = "3.0.2", features = ["tracing"] }
+clap_complete = "4.5.48"
 codespan-reporting = "0.12.0"
 colored = "3.0.0"
 futures = "0.3.31"

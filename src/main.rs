@@ -3,6 +3,7 @@
 use std::io::IsTerminal;
 use std::io::stderr;
 
+use clap::CommandFactory;
 use clap::Parser;
 use clap::Subcommand;
 use clap_verbosity_flag::Verbosity;
@@ -47,6 +48,9 @@ enum Commands {
     /// It will not catch potential runtime errors that may occur when running
     /// the task or workflow.
     Validate(commands::validate::Args),
+
+    /// Generates shell completions.
+    Completions(commands::completions::Args),
 }
 
 #[derive(Parser)]
@@ -97,6 +101,10 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Lint(args) => commands::check::lint(args).await,
         Commands::Run(args) => commands::run::run(args).await,
         Commands::Validate(args) => commands::validate::validate(args).await,
+        Commands::Completions(args) => {
+            let mut cmd = Cli::command();
+            commands::completions::completions(args, &mut cmd).await
+        }
     }
 }
 
