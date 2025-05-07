@@ -1,7 +1,14 @@
 //! Implementation of the configuration module.
 
+use std::env;
+use std::path::Path;
+
 use anyhow::Context;
 use anyhow::Result;
+use figment::Figment;
+use figment::providers::Format;
+use figment::providers::Serialized;
+use figment::providers::Toml;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -15,14 +22,11 @@ use crate::commands::validate;
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Config {
     /// Configuration for the `format` command.
-    #[serde(rename = "format")]
-    pub format_config: FormatConfig,
+    pub format: FormatConfig,
     /// Configuration for the `check` and `lint` commands.
-    #[serde(rename = "check")]
-    pub check_config: CheckConfig,
+    pub check: CheckConfig,
     /// Common configuration options for all commands.
-    #[serde(rename = "common")]
-    pub common_config: CommonConfig,
+    pub common: CommonConfig,
 }
 
 /// Represents shared configuration options for Sprocket commands.
@@ -73,6 +77,48 @@ pub struct CheckConfig {
 }
 
 impl Config {
+    /// Create a new config instance by reading potential configurations.
+    pub fn new(path: Option<String>) -> Self {
+        // Check for a config file in the current directory
+        // Start a new Figment instance with default values
+        let mut figment = Figment::new().admerge(Serialized::from(Config::default(), "default"));
+
+        // Check XDG_CONFIG_HOME for a config file
+        // If XDG_CONFIG_HOME is not set, check HOME for a config file
+        if let Some(xdg_config_home) = dirs::config_dir() {
+            tracing::info!(
+                "reading configuration from XDG_CONFIG_HOME: \
+                 {xdg_config_home:?}/sprocket/sprocket.toml"
+            );
+            figment = figment.admerge(Toml::file(
+                xdg_config_home.join("sprocket").join("sprocket.toml"),
+            ));
+        }
+
+        // Check PWD for a config file
+        if Path::exists(Path::new("sprocket.toml")) {
+            tracing::info!("reading configuration from PWD/sprocket.toml");
+            figment = figment.admerge(Toml::file("sprocket.toml"));
+        }
+
+        // If provided, check config file from environment
+        if let Ok(config_file) = env::var("SPROCKET_CONFIG") {
+            tracing::info!("reading configuration from SPROCKET_CONFIG: {config_file:?}");
+            figment = figment.admerge(Toml::file(config_file));
+        }
+
+        // If provided, check command line config file
+        if let Some(ref cli) = path {
+            tracing::info!("reading configuration from --config: {cli:?}");
+            figment = figment.admerge(Toml::file(cli));
+        }
+
+        // Get the configuration from the Figment
+        let config: Config = figment.extract().expect("failed to extract config");
+
+        config
+    }
+
     /// Validate a configuration
     pub fn validate(&self) -> Result<()> {
         // Validate the configuration here
@@ -81,17 +127,17 @@ impl Config {
 
     /// Read a configuration file from the specified path.
     pub fn read_config(path: &str) -> Result<Self> {
-        let data = std::fs::read(path).context("Failed to open config file")?;
-        let text = String::from_utf8(data).expect("Failed to read config file");
+        let data = std::fs::read(path).context("failed to open config file")?;
+        let text = String::from_utf8(data).expect("failed to read config file");
         let config: Config =
-            toml::from_str(text.as_str()).context("Failed to parse config file")?;
+            toml::from_str(text.as_str()).context("failed to parse config file")?;
         Ok(config)
     }
 
     /// Write a configuration to the specified path.
     pub fn write_config(&self, path: &str) -> Result<()> {
-        let data = toml::to_string(self).context("Failed to serialize config")?;
-        std::fs::write(path, data).context("Failed to write config file")
+        let data = toml::to_string(self).context("failed to serialize config")?;
+        std::fs::write(path, data).context("failed to write config file")
     }
 
     /// Merge the current configuration with commandline arguments.
@@ -100,19 +146,17 @@ impl Config {
         match args {
             Commands::Format(format_args) => Commands::Format(format::FormatArgs {
                 path: format_args.path,
-                no_color: format_args.no_color || !self.common_config.color,
+                no_color: format_args.no_color || !self.common.color,
                 report_mode: match format_args.report_mode {
                     Some(mode) => Some(mode),
-                    None => self.common_config.report_mode,
+                    None => self.common.report_mode,
                 },
-                with_tabs: format_args.with_tabs || self.format_config.with_tabs,
+                with_tabs: format_args.with_tabs || self.format.with_tabs,
                 indentation_size: match format_args.indentation_size {
                     Some(size) => Some(size),
-                    None => self.format_config.indentation_size,
+                    None => self.format.indentation_size,
                 },
-                max_line_length: format_args
-                    .max_line_length
-                    .or(self.format_config.max_line_length),
+                max_line_length: format_args.max_line_length.or(self.format.max_line_length),
                 mode: format_args.mode,
             }),
             Commands::Check(check_args) => Commands::Check(check::CheckArgs {
@@ -122,19 +166,18 @@ impl Config {
                         .common
                         .except
                         .into_iter()
-                        .chain(self.check_config.except.clone())
+                        .chain(self.check.except.clone())
                         .collect(),
-                    deny_warnings: check_args.common.deny_warnings
-                        || self.check_config.deny_warnings,
-                    deny_notes: check_args.common.deny_notes || self.check_config.deny_notes,
+                    deny_warnings: check_args.common.deny_warnings || self.check.deny_warnings,
+                    deny_notes: check_args.common.deny_notes || self.check.deny_notes,
                     single_document: check_args.common.single_document,
                     show_remote_diagnostics: check_args.common.show_remote_diagnostics,
-                    shellcheck: check_args.common.shellcheck || self.check_config.shellcheck,
-                    hide_notes: check_args.common.hide_notes || self.check_config.hide_notes,
-                    no_color: check_args.common.no_color || !self.common_config.color,
+                    shellcheck: check_args.common.shellcheck || self.check.shellcheck,
+                    hide_notes: check_args.common.hide_notes || self.check.hide_notes,
+                    no_color: check_args.common.no_color || !self.common.color,
                     report_mode: match check_args.common.report_mode {
                         Some(mode) => Some(mode),
-                        None => self.common_config.report_mode,
+                        None => self.common.report_mode,
                     },
                 },
                 lint: check_args.lint,
@@ -143,10 +186,10 @@ impl Config {
                 Commands::ValidateInputs(validate::ValidateInputsArgs {
                     document: validate_args.document,
                     inputs: validate_args.inputs,
-                    no_color: validate_args.no_color || !self.common_config.color,
+                    no_color: validate_args.no_color || !self.common.color,
                     report_mode: match validate_args.report_mode {
                         Some(mode) => Some(mode),
-                        None => self.common_config.report_mode,
+                        None => self.common.report_mode,
                     },
                 })
             }
@@ -157,19 +200,18 @@ impl Config {
                         .common
                         .except
                         .into_iter()
-                        .chain(self.check_config.except.clone())
+                        .chain(self.check.except.clone())
                         .collect(),
-                    deny_warnings: lint_args.common.deny_warnings
-                        || self.check_config.deny_warnings,
-                    deny_notes: lint_args.common.deny_notes || self.check_config.deny_notes,
+                    deny_warnings: lint_args.common.deny_warnings || self.check.deny_warnings,
+                    deny_notes: lint_args.common.deny_notes || self.check.deny_notes,
                     single_document: lint_args.common.single_document,
                     show_remote_diagnostics: lint_args.common.show_remote_diagnostics,
-                    shellcheck: lint_args.common.shellcheck || self.check_config.shellcheck,
-                    hide_notes: lint_args.common.hide_notes || self.check_config.hide_notes,
-                    no_color: lint_args.common.no_color || !self.common_config.color,
+                    shellcheck: lint_args.common.shellcheck || self.check.shellcheck,
+                    hide_notes: lint_args.common.hide_notes || self.check.hide_notes,
+                    no_color: lint_args.common.no_color || !self.common.color,
                     report_mode: match lint_args.common.report_mode {
                         Some(mode) => Some(mode),
-                        None => self.common_config.report_mode,
+                        None => self.common.report_mode,
                     },
                 },
             }),
