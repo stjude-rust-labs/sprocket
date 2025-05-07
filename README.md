@@ -32,6 +32,7 @@
 
 - **`sprocket analyzer`** Run Sprocket as a LSP server for IDE integration.
 - **`sprocket check`** Performs static analysis on WDL documents.
+- **`sprocket config`** Print effective configuration.
 - **`sprocket explain`** Explain lint rules.
 - **`sprocket format`** Formats WDL documents.
 - **`sprocket lint`** Performs static analysis on WDL documents with additional
