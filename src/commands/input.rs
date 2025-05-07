@@ -26,6 +26,10 @@ pub struct InputArgs {
     #[arg(value_name = "PATH or URL")]
     pub path: Source,
 
+    /// Task name for which to generate inputs.
+    #[arg(long, value_name = "TASK")]
+    pub task: Option<String>,
+
     /// Show inputs with non-literal default values and non-required inputs.
     #[arg(long)]
     pub show_expressions: bool,
@@ -353,6 +357,7 @@ fn process_workflow(
 /// Generate a map of inputs for a WDL document.
 async fn generate_inputs(
     file: &Source,
+    name: Option<String>,
     show_expressions: bool,
     hide_defaults: bool,
     nested_inputs: bool,
@@ -381,34 +386,59 @@ async fn generate_inputs(
     // Create an empty map to store the inputs.
     let mut map = Map::new();
 
-    // If the document has a workflow, check it.
-    match document.workflow() {
-        Some(workflow) => {
-            let wf_name = workflow.name();
-
-            let root = document.root();
-            let ast = root.ast();
+    match name {
+        Some(name) => {
+            // Find the task or workflow with the given name.
+            let ast = document.root().ast();
             let ast = ast.as_v1().expect("should be V1 ast");
-            let wf_ast = ast
-                .workflows()
-                .find(|w| w.name().inner().text() == wf_name)
-                .expect("should have a workflow");
-
-            let specified = HashSet::new();
-            process_workflow(
-                &mut map,
-                document,
-                workflow,
-                &wf_ast,
-                &specified,
-                show_expressions,
-                hide_defaults,
-                nested_inputs,
-                wf_name,
-                &results,
-            );
+            let task_ast = match ast.tasks().find(|t| t.name().inner().text() == name) {
+                Some(task) => task,
+                None => {
+                    bail!("task `{name}` not found");
+                }
+            };
+            let inputs = task_ast.input();
+            if let Some(inputs) = inputs {
+                process_input_section(
+                    &mut map,
+                    inputs,
+                    show_expressions,
+                    hide_defaults,
+                    name.as_str(),
+                );
+            }
         }
-        None => bail!("no workflow found"),
+        None => {
+            // If the document has a workflow, check it.
+            match document.workflow() {
+                Some(workflow) => {
+                    let wf_name = workflow.name();
+
+                    let root = document.root();
+                    let ast = root.ast();
+                    let ast = ast.as_v1().expect("should be V1 ast");
+                    let wf_ast = ast
+                        .workflows()
+                        .find(|w| w.name().inner().text() == wf_name)
+                        .expect("should have a workflow");
+
+                    let specified = HashSet::new();
+                    process_workflow(
+                        &mut map,
+                        document,
+                        workflow,
+                        &wf_ast,
+                        &specified,
+                        show_expressions,
+                        hide_defaults,
+                        nested_inputs,
+                        wf_name,
+                        &results,
+                    );
+                }
+                None => bail!("no workflow found"),
+            }
+        }
     }
     Ok(map)
 }
@@ -419,6 +449,7 @@ pub async fn input(args: InputArgs) -> Result<()> {
 
     let inputs = generate_inputs(
         &path,
+        args.task,
         args.show_expressions,
         args.hide_defaults,
         args.nested_inputs,
