@@ -22,8 +22,7 @@ use wdl::cli::analysis::Source;
 /// Arguments for the `input` subcommand.
 #[derive(Parser, Debug)]
 pub struct InputArgs {
-    /// The path to the WDL document or a directory containing WDL documents to
-    /// validate.
+    /// The path to the WDL document for which to generate an input template.
     #[arg(value_name = "PATH or URL")]
     pub path: Source,
 
