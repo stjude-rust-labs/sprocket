@@ -77,8 +77,6 @@ pub struct CheckConfig {
     pub deny_warnings: bool,
     /// Causes the command to fail if any notes are reported.
     pub deny_notes: bool,
-    /// Run the `shellcheck` program on command sections.
-    pub shellcheck: bool,
     /// Hide diagnostics with `note` severity.
     pub hide_notes: bool,
 }

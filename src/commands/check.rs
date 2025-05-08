@@ -100,7 +100,6 @@ impl CheckArgs {
             .collect();
         self.common.deny_warnings = self.common.deny_warnings || config.check.deny_warnings;
         self.common.deny_notes = self.common.deny_notes || config.check.deny_notes;
-        self.common.shellcheck = self.common.shellcheck || config.check.shellcheck;
         self.common.hide_notes = self.common.hide_notes || config.check.hide_notes;
         self.common.no_color = self.common.no_color || !config.common.color;
         self.common.report_mode = match self.common.report_mode {
@@ -134,7 +133,6 @@ impl LintArgs {
             .collect();
         self.common.deny_warnings = self.common.deny_warnings || config.check.deny_warnings;
         self.common.deny_notes = self.common.deny_notes || config.check.deny_notes;
-        self.common.shellcheck = self.common.shellcheck || config.check.shellcheck;
         self.common.hide_notes = self.common.hide_notes || config.check.hide_notes;
         self.common.no_color = self.common.no_color || !config.common.color;
         self.common.report_mode = match self.common.report_mode {
@@ -180,7 +178,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
 
     report_unknown_rules(
         &args.common.except,
-        args.common.report_mode,
+        args.common.report_mode.unwrap_or_default(),
         args.common.no_color,
     )?;
 
@@ -272,7 +270,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                     }
                 }),
                 &[],
-                args.common.report_mode,
+                args.common.report_mode.unwrap_or_default(),
                 args.common.no_color,
             )
             .context("failed to emit diagnostics")?;

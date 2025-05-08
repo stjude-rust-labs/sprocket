@@ -47,7 +47,7 @@ pub struct Args {
     pub report_mode: Option<Mode>,
 }
 
-impl ValidateInputsArgs {
+impl Args {
     /// Applies the configuration to the arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
         self.no_color = self.no_color || !config.common.color;

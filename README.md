@@ -32,7 +32,7 @@
 
 - **`sprocket analyzer`** runs Sprocket as a LSP server, which is useful for IDE integration.
 - **`sprocket check`** performs static analysis on a document or directory of documents.
-- - **`sprocket config`** prints effective configuration.
+- **`sprocket config`** prints effective configuration.
 - **`sprocket explain`** explains validation and lint rules supported by Sprocket.
 - **`sprocket format`** formats a document.
 - **`sprocket lint`** performs static analysis on a document or directory of documents with additional linting rules enabled (effectively a shortcut for `check --lint`).

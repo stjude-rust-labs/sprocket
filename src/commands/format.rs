@@ -70,7 +70,7 @@ pub struct Args {
     pub mode: ModeGroup,
 }
 
-impl FormatArgs {
+impl Args {
     /// Applies the configuration to the command arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
         self.no_color = self.no_color || !config.common.color;

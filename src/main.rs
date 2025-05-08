@@ -12,13 +12,13 @@ use git_testament::git_testament;
 use git_testament::render_testament;
 use sprocket::commands;
 use sprocket::config::Config;
-use tracing_log::AsTrace;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt as _;
 
 use crate::commands::Commands;
 
 git_testament!(TESTAMENT);
+
 #[derive(Parser, Debug)]
 #[command(author, version = render_testament!(TESTAMENT), propagate_version = true, about, long_about = None)]
 struct Cli {

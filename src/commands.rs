@@ -15,37 +15,38 @@ pub mod validate;
 #[derive(Subcommand, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum Commands {
-    /// Checks a WDL document (or a directory containing WDL documents) and
-    /// reports diagnostics.
+    /// Runs the Language Server Protocol (LSP) server.
+    Analyzer(analyzer::Args),
+
+    /// Checks a document or a directory containing documents.
     Check(check::CheckArgs),
 
-    /// Lints Workflow Description Language files.
-    Lint(check::LintArgs),
-
-    /// Explains a rule.
+    /// Explains linting and validation rules.
     Explain(explain::Args),
 
-    /// Runs the analyzer LSP server.
-    Analyzer(analyzer::AnalyzerArgs),
-
-    /// Formats a WDL document.
+    /// Formats a document.
     #[clap(alias = "fmt")]
-    Format(format::FormatArgs),
+    Format(format::Args),
 
-    /// Validates an input JSON or YAML file against a task or workflow input
-    /// schema.
+    /// Lints a document or a directory containing documents.
+    Lint(check::LintArgs),
+
+    /// Runs a task or workflow.
+    Run(run::Args),
+
+    /// Validate a set of inputs against a task or workflow.
     ///
     /// This ensures that every required input is supplied, every supplied input
     /// is correctly typed, that no extraneous inputs are provided, and that any
     /// provided `File` or `Directory` inputs exist.
     ///
-    /// It will not catch potential runtime errors that
-    /// may occur when running the task or workflow.
-    ValidateInputs(validate::ValidateInputsArgs),
+    /// It will not catch potential runtime errors that may occur when running
+    /// the task or workflow.
+    Validate(validate::Args),
 
     /// Display the effective configuration.
-    Config(config::ConfigArgs),
+    Config(config::Args),
 
     /// Generates shell completions.
-    Completions(commands::completions::Args),
+    Completions(completions::Args),
 }
