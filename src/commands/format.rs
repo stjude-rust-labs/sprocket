@@ -76,16 +76,16 @@ impl FormatArgs {
         self.no_color = self.no_color || !config.common.color;
         self.report_mode = match self.report_mode {
             Some(mode) => Some(mode),
-            None => config.common.report_mode,
+            None => Some(config.common.report_mode),
         };
         self.with_tabs = self.with_tabs || config.format.with_tabs;
         self.indentation_size = match self.indentation_size {
             Some(size) => Some(size),
-            None => config.format.indentation_size,
+            None => Some(config.format.indentation_size),
         };
         self.max_line_length = match self.max_line_length {
             Some(length) => Some(length),
-            None => config.format.max_line_length,
+            None => Some(config.format.max_line_length),
         };
         self
     }

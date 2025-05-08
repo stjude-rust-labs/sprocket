@@ -33,28 +33,38 @@ pub struct CommonConfig {
     /// Display color output.
     pub color: bool,
     /// The report mode.
-    pub report_mode: Option<Mode>,
+    pub report_mode: Mode,
 }
 
 impl Default for CommonConfig {
     fn default() -> Self {
         Self {
             color: true,
-            report_mode: None,
+            report_mode: Mode::default(),
         }
     }
 }
 
 /// Represents the configuration for the Sprocket `format` command.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct FormatConfig {
     /// Use tabs for indentation (default is spaces).
     pub with_tabs: bool,
     /// The number of spaces to use for indentation levels (default is 4).
-    pub indentation_size: Option<usize>,
+    pub indentation_size: usize,
     /// The maximum line length (default is 90).
-    pub max_line_length: Option<usize>,
+    pub max_line_length: usize,
+}
+
+impl Default for FormatConfig {
+    fn default() -> Self {
+        Self {
+            with_tabs: false,
+            indentation_size: 4,
+            max_line_length: 90,
+        }
+    }
 }
 
 /// Represents the configuration for the Sprocket `check` and `lint` commands.

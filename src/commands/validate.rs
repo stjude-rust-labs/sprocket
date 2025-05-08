@@ -37,7 +37,7 @@ impl ValidateInputsArgs {
         self.no_color = self.no_color || !config.common.color;
         self.report_mode = match self.report_mode {
             Some(mode) => Some(mode),
-            None => config.common.report_mode,
+            None => Some(config.common.report_mode),
         };
         self
     }
