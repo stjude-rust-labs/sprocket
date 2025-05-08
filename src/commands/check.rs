@@ -70,8 +70,8 @@ pub struct Common {
     pub no_color: bool,
 
     /// The report mode.
-    #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
-    pub report_mode: Mode,
+    #[arg(short = 'm', long, value_name = "MODE")]
+    pub report_mode: Option<Mode>,
 }
 
 /// Arguments for the `check` subcommand.
@@ -87,6 +87,30 @@ pub struct CheckArgs {
     pub lint: bool,
 }
 
+impl CheckArgs {
+    /// Applies the configuration from the given config file to the command line
+    /// arguments.
+    pub fn apply(mut self, config: crate::config::Config) -> Self {
+        self.common.except = self
+            .common
+            .except
+            .clone()
+            .into_iter()
+            .chain(config.check.except.clone())
+            .collect();
+        self.common.deny_warnings = self.common.deny_warnings || config.check.deny_warnings;
+        self.common.deny_notes = self.common.deny_notes || config.check.deny_notes;
+        self.common.hide_notes = self.common.hide_notes || config.check.hide_notes;
+        self.common.no_color = self.common.no_color || !config.common.color;
+        self.common.report_mode = match self.common.report_mode {
+            Some(mode) => Some(mode),
+            None => Some(config.common.report_mode),
+        };
+
+        self
+    }
+}
+
 /// Arguments for the `lint` subcommand.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -94,6 +118,30 @@ pub struct LintArgs {
     /// The command command line arguments.
     #[command(flatten)]
     pub common: Common,
+}
+
+impl LintArgs {
+    /// Applies the configuration from the given config file to the command line
+    /// arguments.
+    pub fn apply(mut self, config: crate::config::Config) -> Self {
+        self.common.except = self
+            .common
+            .except
+            .clone()
+            .into_iter()
+            .chain(config.check.except.clone())
+            .collect();
+        self.common.deny_warnings = self.common.deny_warnings || config.check.deny_warnings;
+        self.common.deny_notes = self.common.deny_notes || config.check.deny_notes;
+        self.common.hide_notes = self.common.hide_notes || config.check.hide_notes;
+        self.common.no_color = self.common.no_color || !config.common.color;
+        self.common.report_mode = match self.common.report_mode {
+            Some(mode) => Some(mode),
+            None => Some(config.common.report_mode),
+        };
+
+        self
+    }
 }
 
 /// Performs the `check` subcommand.
@@ -130,7 +178,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
 
     report_unknown_rules(
         &args.common.except,
-        args.common.report_mode,
+        args.common.report_mode.unwrap_or_default(),
         args.common.no_color,
     )?;
 
@@ -222,7 +270,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                     }
                 }),
                 &[],
-                args.common.report_mode,
+                args.common.report_mode.unwrap_or_default(),
                 args.common.no_color,
             )
             .context("failed to emit diagnostics")?;

@@ -82,8 +82,30 @@ pub struct Args {
     pub no_color: bool,
 
     /// The report mode.
-    #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
-    pub report_mode: Mode,
+    #[arg(short = 'm', long, value_name = "MODE")]
+    pub report_mode: Option<Mode>,
+}
+
+impl Args {
+    /// Applies the configuration to the arguments.
+    pub fn apply(mut self, config: crate::config::Config) -> Self {
+        self.config = match self.config {
+            Some(path) => Some(path),
+            None => {
+                if config.run.config.exists() {
+                    Some(config.run.config)
+                } else {
+                    None
+                }
+            }
+        };
+        self.no_color = self.no_color || !config.common.color;
+        self.report_mode = match self.report_mode {
+            Some(mode) => Some(mode),
+            None => Some(config.common.report_mode),
+        };
+        self
+    }
 }
 
 /// Helper for displaying task ids.
@@ -237,7 +259,7 @@ pub async fn run(args: Args) -> Result<()> {
                 source,
                 diagnostics,
                 &[],
-                args.report_mode,
+                args.report_mode.unwrap_or_default(),
                 args.no_color,
             )
             .context("failed to emit diagnostics")?;
@@ -379,7 +401,7 @@ pub async fn run(args: Args) -> Result<()> {
                 Ok(())
             }
             Err(EvaluationError::Source(e)) => {
-                emit_diagnostics(&e.document.path(), e.document.root().text().to_string(), &[e.diagnostic], &e.backtrace, args.report_mode, args.no_color)?;
+                emit_diagnostics(&e.document.path(), e.document.root().text().to_string(), &[e.diagnostic], &e.backtrace, args.report_mode.unwrap_or_default(), args.no_color)?;
                 bail!("aborting due to evaluation error");
             }
             Err(EvaluationError::Other(e)) => Err(e)

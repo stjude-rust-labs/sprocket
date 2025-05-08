@@ -24,11 +24,14 @@ use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::emit;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
+use serde::Deserialize;
+use serde::Serialize;
 use wdl::ast::AstNode as _;
 use wdl::ast::Diagnostic;
 use wdl::engine::CallLocation;
 
 pub mod commands;
+pub mod config;
 
 /// The maximum number of call locations to print for evaluation errors.
 const MAX_CALL_LOCATIONS: usize = 10;
@@ -46,7 +49,7 @@ static ONE_LINE_CONFIG: LazyLock<Config> = LazyLock::new(|| Config {
 });
 
 /// The diagnostic mode to use for reporting diagnostics.
-#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Mode {
     /// Prints diagnostics as multiple lines.
     #[default]

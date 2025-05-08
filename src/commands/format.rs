@@ -13,6 +13,8 @@ use anyhow::bail;
 use clap::Parser;
 use colored::Colorize;
 use pretty_assertions::StrComparison;
+use serde::Deserialize;
+use serde::Serialize;
 use walkdir::WalkDir;
 use wdl::ast::Document;
 use wdl::ast::Node;
@@ -48,8 +50,8 @@ pub struct Args {
     pub no_color: bool,
 
     /// The report mode.
-    #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
-    pub report_mode: Mode,
+    #[arg(short = 'm', long, value_name = "MODE")]
+    pub report_mode: Option<Mode>,
 
     /// Use tabs for indentation (default is spaces).
     #[arg(long)]
@@ -65,11 +67,32 @@ pub struct Args {
 
     /// Argument group defining the mode of behavior.
     #[command(flatten)]
-    mode: ModeGroup,
+    pub mode: ModeGroup,
+}
+
+impl Args {
+    /// Applies the configuration to the command arguments.
+    pub fn apply(mut self, config: crate::config::Config) -> Self {
+        self.no_color = self.no_color || !config.common.color;
+        self.report_mode = match self.report_mode {
+            Some(mode) => Some(mode),
+            None => Some(config.common.report_mode),
+        };
+        self.with_tabs = self.with_tabs || config.format.with_tabs;
+        self.indentation_size = match self.indentation_size {
+            Some(size) => Some(size),
+            None => Some(config.format.indentation_size),
+        };
+        self.max_line_length = match self.max_line_length {
+            Some(length) => Some(length),
+            None => Some(config.format.max_line_length),
+        };
+        self
+    }
 }
 
 /// Argument group defining the mode of behavior
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Deserialize, Serialize)]
 #[group(required = true, multiple = false)]
 pub struct ModeGroup {
     /// Overwrite the WDL documents with the formatted versions.
@@ -210,7 +233,7 @@ pub fn format(args: Args) -> Result<()> {
             diagnostics += format_document(
                 config,
                 path,
-                args.report_mode,
+                args.report_mode.unwrap_or_default(),
                 args.no_color,
                 args.mode.check,
             )?;
@@ -219,7 +242,7 @@ pub fn format(args: Args) -> Result<()> {
         diagnostics += format_document(
             config,
             &args.path,
-            args.report_mode,
+            args.report_mode.unwrap_or_default(),
             args.no_color,
             args.mode.check,
         )?;
