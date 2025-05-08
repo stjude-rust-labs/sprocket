@@ -7,9 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added tab completions for `sprocket` commands ([#105](https://github.com/stjude-rust-labs/sprocket/pull/105)).
+* Added `shellcheck` to Dockerfile ([#114](https://github.com/stjude-rust-labs/sprocket/pull/114)).
+
+## 0.12.2 - 05-05-2025
+
+### Fixed
+
+* Fix `sprocket run` not printing analysis diagnostics ([#110](https://github.com/stjude-rust-labs/sprocket/pull/110)).
+
+## 0.12.1 - 05-05-2025
+
+### Fixed
+
+* Fixes parsing of input files ([#106](https://github.com/stjude-rust-labs/sprocket/pull/106)).
+* Removes unused `--shellcheck` argument ([#106](https://github.com/stjude-rust-labs/sprocket/pull/106)).
+
+## 0.12.0 - 05-02-2025
+
+### Added
+
+* Introduced the `run` subcommand ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
+
 ### Changed
 
 * Unknown `--except` rules will now emit a warning instead of being silently ignored ([#94](https://github.com/stjude-rust-labs/sprocket/pull/94))
+* Changed the `validate-inputs` subcommand to the more concise `validate` subcommand ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
+* Changed all existing subcommands to use the facilities provided in `wdl-cli` when possible ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
+* Updates the underlying `wdl` dependency to v0.13.1 ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
+
 
 ### Added
 

@@ -7,10 +7,18 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::io::IsTerminal as _;
+use std::io::Write as _;
 use std::sync::LazyLock;
 
+use anyhow::Context as _;
+use anyhow::Result;
 use clap::ValueEnum;
-use codespan_reporting::files::SimpleFile;
+use codespan_reporting::diagnostic::Label;
+use codespan_reporting::diagnostic::LabelStyle;
+use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::Config;
 use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::emit;
@@ -18,10 +26,15 @@ use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
 use serde::Deserialize;
 use serde::Serialize;
+use wdl::ast::AstNode as _;
 use wdl::ast::Diagnostic;
+use wdl::engine::CallLocation;
 
 pub mod commands;
 pub mod config;
+
+/// The maximum number of call locations to print for evaluation errors.
+const MAX_CALL_LOCATIONS: usize = 10;
 
 /// Configuration for full display style.
 static FULL_CONFIG: LazyLock<Config> = LazyLock::new(|| Config {
@@ -55,7 +68,7 @@ impl std::fmt::Display for Mode {
     }
 }
 
-/// Gets the display config to use for reporting diagnostics.
+/// Gets the display configuration based on the user's preferences.
 fn get_display_config(report_mode: Mode, no_color: bool) -> (&'static Config, StandardStream) {
     let config = match report_mode {
         Mode::Full => &FULL_CONFIG,
@@ -64,28 +77,66 @@ fn get_display_config(report_mode: Mode, no_color: bool) -> (&'static Config, St
 
     let color_choice = if no_color {
         ColorChoice::Never
-    } else {
+    } else if std::io::stderr().is_terminal() {
         ColorChoice::Always
+    } else {
+        ColorChoice::Never
     };
 
-    let writer = StandardStream::stderr(color_choice);
+    let stream = StandardStream::stderr(color_choice);
 
-    (config, writer)
+    (config, stream)
 }
 
 /// Emits the given diagnostics to the terminal.
 fn emit_diagnostics<'a>(
+    path: &str,
+    source: String,
     diagnostics: impl IntoIterator<Item = &'a Diagnostic>,
-    file_name: &str,
-    source: &str,
+    backtrace: &[CallLocation],
     report_mode: Mode,
     no_color: bool,
-) {
-    let file = SimpleFile::new(file_name, source);
+) -> Result<()> {
+    let mut map = HashMap::new();
+    let mut files = SimpleFiles::new();
 
-    let (config, writer) = get_display_config(report_mode, no_color);
-    let mut writer = writer.lock();
+    let file_id = files.add(Cow::Borrowed(path), source);
+
+    let (config, mut stream) = get_display_config(report_mode, no_color);
+
     for diagnostic in diagnostics {
-        emit(&mut writer, config, &file, &diagnostic.to_codespan()).unwrap();
+        let diagnostic = diagnostic.to_codespan(file_id).with_labels_iter(
+            backtrace.iter().take(MAX_CALL_LOCATIONS).map(|l| {
+                let id = l.document.id();
+                let file_id = *map.entry(id).or_insert_with(|| {
+                    files.add(l.document.path(), l.document.root().text().to_string())
+                });
+
+                Label {
+                    style: LabelStyle::Secondary,
+                    file_id,
+                    range: l.span.start()..l.span.end(),
+                    message: "called from this location".into(),
+                }
+            }),
+        );
+
+        emit(&mut stream, config, &files, &diagnostic).context("failed to emit diagnostic")?;
+
+        if backtrace.len() > MAX_CALL_LOCATIONS {
+            writeln!(
+                &mut stream,
+                "  and {count} more call{s}...",
+                count = backtrace.len() - MAX_CALL_LOCATIONS,
+                s = if backtrace.len() - MAX_CALL_LOCATIONS == 1 {
+                    ""
+                } else {
+                    "s"
+                }
+            )
+            .unwrap();
+        }
     }
+
+    Ok(())
 }

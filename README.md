@@ -30,16 +30,19 @@
 
 ## 🎨 Features
 
-- **`sprocket analyzer`** Run Sprocket as a LSP server for IDE integration.
-- **`sprocket check`** Performs static analysis on WDL documents.
-- **`sprocket config`** Print effective configuration.
-- **`sprocket explain`** Explain lint rules.
-- **`sprocket format`** Formats WDL documents.
-- **`sprocket lint`** Performs static analysis on WDL documents with additional
-  linting rules enabled.
-- **`sprocket validate-inputs`** Validates an input JSON or YAML against a task or workflow input schema.
+- **`sprocket analyzer`** runs Sprocket as a LSP server, which is useful for IDE integration.
+- **`sprocket check`** performs static analysis on a document or directory of documents.
+- - **`sprocket config`** prints effective configuration.
+- **`sprocket explain`** explains validation and lint rules supported by Sprocket.
+- **`sprocket format`** formats a document.
+- **`sprocket lint`** performs static analysis on a document or directory of documents with additional linting rules enabled (effectively a shortcut for `check --lint`).
+- **`sprocket run`** runs a task or workflow.
+- **`sprocket validate`** validates a set of inputs read from files or on the command line against a task or workflow.
+- **`sprocket completions`** generates shell completions for Sprocket.
 
 ## Guiding Principles
+
+The following are high-level guiding principles of the Sprocket project.
 
 - Provide a **high-performance** workflow execution engine capable of
   orchestrating massive bioinformatics workloads (the stated target is 20,000+
@@ -70,7 +73,7 @@ cargo install sprocket
 Sprocket is available as a Docker [image](https://github.com/stjude-rust-labs/sprocket/pkgs/container/sprocket).
 
 ```bash
-docker pull ghcr.io/stjude-rust-labs/sprocket:v0.11.0
+docker pull ghcr.io/stjude-rust-labs/sprocket:v0.12.0
 ```
 
 ## 🖥️ Development

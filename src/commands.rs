@@ -4,9 +4,11 @@ use clap::Subcommand;
 
 pub mod analyzer;
 pub mod check;
+pub mod completions;
 pub mod config;
 pub mod explain;
 pub mod format;
+pub mod run;
 pub mod validate;
 
 /// Represents the available commands for the Sprocket CLI.
@@ -43,4 +45,7 @@ pub enum Commands {
 
     /// Display the effective configuration.
     Config(config::ConfigArgs),
+
+    /// Generates shell completions.
+    Completions(commands::completions::Args),
 }
