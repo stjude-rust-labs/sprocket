@@ -2,6 +2,7 @@
 
 use std::env;
 use std::path::Path;
+use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -22,6 +23,8 @@ pub struct Config {
     pub format: FormatConfig,
     /// Configuration for the `check` and `lint` commands.
     pub check: CheckConfig,
+    /// Configuration for the `run` command.
+    pub run: RunConfig,
     /// Common configuration options for all commands.
     pub common: CommonConfig,
 }
@@ -79,6 +82,14 @@ pub struct CheckConfig {
     pub deny_notes: bool,
     /// Hide diagnostics with `note` severity.
     pub hide_notes: bool,
+}
+
+/// Represents the configuration for the Sprocket `run` command.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct RunConfig {
+    /// Path to the engine configuration file.
+    pub config: PathBuf,
 }
 
 impl Config {
