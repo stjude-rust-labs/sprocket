@@ -89,15 +89,29 @@ impl Config {
         let mut figment = Figment::new().admerge(Serialized::from(Config::default(), "default"));
 
         // Check XDG_CONFIG_HOME for a config file
-        // If XDG_CONFIG_HOME is not set, check HOME for a config file
-        if let Some(xdg_config_home) = dirs::config_dir() {
-            tracing::info!(
-                "reading configuration from XDG_CONFIG_HOME: \
-                 {xdg_config_home:?}/sprocket/sprocket.toml"
-            );
-            figment = figment.admerge(Toml::file(
-                xdg_config_home.join("sprocket").join("sprocket.toml"),
-            ));
+        // On MacOS, check HOME for a config file
+        #[cfg(target_os = "macos")]
+        {
+            if let Some(home) = dirs::home_dir() {
+                tracing::info!(
+                    "reading configuration from: {home:?}/.config/sprocket/sprocket.toml"
+                );
+                figment = figment.admerge(Toml::file(
+                    home.join(".config").join("sprocket").join("sprocket.toml"),
+                ));
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            if let Some(xdg_config_home) = dirs::config_dir() {
+                tracing::info!(
+                    "reading configuration from XDG_CONFIG_HOME: \
+                     {xdg_config_home:?}/sprocket/sprocket.toml"
+                );
+                figment = figment.admerge(Toml::file(
+                    xdg_config_home.join("sprocket").join("sprocket.toml"),
+                ));
+            }
         }
 
         // Check PWD for a config file

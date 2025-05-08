@@ -18,7 +18,7 @@ Sprocket will look for a `sprocket.toml` in the current working directory when t
 
 ### XDG_CONFIG_HOME
 
-Sprocket will attempt to read a configuration file from `XDG_CONFIG_HOME/sprocket/sprocket.toml`. The location of `XDG_CONFIG_HOME` is operating system dependent. The platform-specific values can be found [here](https://docs.rs/dirs/latest/dirs/fn.config_dir.html).
+Sprocket will attempt to read a configuration file from `XDG_CONFIG_HOME/sprocket/sprocket.toml`. The location of `XDG_CONFIG_HOME` is operating system dependent. The platform-specific values can be found [here](https://docs.rs/dirs/latest/dirs/fn.config_dir.html). On MacOS, Sprocket will attempt to read the configuration from `HOME/.config/sprocket/sprocket.toml`.
 
 ## Configuration Values
 
