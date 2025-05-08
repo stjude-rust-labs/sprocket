@@ -212,5 +212,5 @@ You should now have a clear idea on how the most commonly used commands within
 Sprocket work. With further questions or feature requests, we ask that you join
 the [#sprocket channel on the WDL
 Slack](https://join.slack.com/t/openwdl/shared_invite/zt-ctmj4mhf-cFBNxIiZYs6SY9HgM9UAVw)
-or file an issue on [tse Sprocket
+or file an issue on [the Sprocket
 repository](https://github.com/stjude-rust-labs/sprocket/issues).
