@@ -49,5 +49,6 @@ export default defineConfig({
       const response = await axios.get(grammarUrl);
       await shiki.loadLanguage(response.data);
     }
-  }
+  },
+  appearance: 'dark'
 });
