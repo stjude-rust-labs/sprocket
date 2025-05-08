@@ -110,7 +110,7 @@ impl CheckArgs {
         self.common.no_color = self.common.no_color || !config.common.color;
         self.common.report_mode = match self.common.report_mode {
             Some(mode) => Some(mode),
-            None => self.common.report_mode,
+            None => config.common.report_mode,
         };
 
         self
@@ -144,7 +144,7 @@ impl LintArgs {
         self.common.no_color = self.common.no_color || !config.common.color;
         self.common.report_mode = match self.common.report_mode {
             Some(mode) => Some(mode),
-            None => self.common.report_mode,
+            None => config.common.report_mode,
         };
 
         self
