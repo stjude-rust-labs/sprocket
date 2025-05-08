@@ -5,7 +5,7 @@ Sprocket. This should give you a good sense of where and how you might use
 Sprocket in your day-to-day work.
 
 To follow along, you are encouraged to download [this WDL
-document](./guided-tour/example.wdl){target="_self" download="example.wdl"} that
+document](/guided-tour/example.wdl){target="_self" download="example.wdl"} that
 has been specifically crafted for this walkthrough.
 
 ## Ensuring high-quality code
