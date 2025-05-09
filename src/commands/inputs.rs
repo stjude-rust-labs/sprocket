@@ -385,6 +385,9 @@ impl InputProcessor {
 
 /// Displays the input schema for a WDL document.
 pub async fn inputs(args: Args) -> Result<()> {
+    if let Source::Directory(_) = args.source {
+        bail!("directory sources are not supported for the `inputs` command");
+    }
     let results = match Analysis::default()
         .add_source(args.source.clone())
         .run()
