@@ -5,6 +5,6 @@ pub mod check;
 pub mod completions;
 pub mod explain;
 pub mod format;
-pub mod input;
+pub mod inputs;
 pub mod run;
 pub mod validate;

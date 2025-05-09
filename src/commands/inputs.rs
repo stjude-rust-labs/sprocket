@@ -8,6 +8,7 @@ use anyhow::bail;
 use clap::Parser;
 use serde_json::Map;
 use serde_json::Value;
+use serde_yaml_ng;
 use wdl::analysis::Document;
 use wdl::analysis::types::CallKind;
 use wdl::ast::AstNode;
@@ -383,7 +384,7 @@ impl InputProcessor {
 }
 
 /// Displays the input schema for a WDL document.
-pub async fn input(args: Args) -> Result<()> {
+pub async fn inputs(args: Args) -> Result<()> {
     let results = match Analysis::default()
         .add_source(args.source.clone())
         .run()
@@ -472,7 +473,7 @@ pub async fn input(args: Args) -> Result<()> {
     let inputs = inputs.into_inner();
 
     if args.yaml {
-        let yaml = serde_yaml::to_string(&inputs)?;
+        let yaml = serde_yaml_ng::to_string(&inputs)?;
         println!("{}", yaml);
     } else {
         let json = serde_json::to_string_pretty(&inputs)?;
