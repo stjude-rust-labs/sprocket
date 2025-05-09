@@ -3,368 +3,389 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
 use serde_json::Map;
 use serde_json::Value;
+use wdl::analysis::Document;
 use wdl::analysis::types::CallKind;
 use wdl::ast::AstNode;
 use wdl::ast::AstToken;
-use wdl::ast::SyntaxKind;
+use wdl::ast::v1::Decl;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::InputSection;
 use wdl::ast::v1::LiteralExpr;
+use wdl::ast::v1::TaskDefinition;
 use wdl::ast::v1::Type;
 use wdl::cli::Analysis;
-use wdl::cli::analysis::AnalysisResults;
 use wdl::cli::analysis::Source;
 
 /// Arguments for the `input` subcommand.
 #[derive(Parser, Debug)]
-pub struct InputArgs {
-    /// The path to the WDL document for which to generate an input template.
+pub struct Args {
+    /// A source WDL file or URL.
     #[arg(value_name = "PATH or URL")]
-    pub path: Source,
+    pub source: Source,
 
-    /// Task name for which to generate inputs.
-    #[arg(long, value_name = "TASK")]
-    pub task: Option<String>,
+    /// The name of the task or workflow for which to generate inputs.
+    #[clap(short, long, value_name = "NAME")]
+    pub name: Option<String>,
 
     /// Show inputs with non-literal default values and non-required inputs.
     #[arg(long)]
     pub show_expressions: bool,
 
-    /// Hide inputs with default values.
+    /// Include inputs with default values.
     #[arg(long)]
-    pub hide_defaults: bool,
+    pub include_defaults: bool,
 
-    /// Include task-level inputs.
-    #[arg(
-        long,
-        long_help = "Includes inputs from tasks called in the workflow. When using this option \
-                     may want to omit `--show-expressions` to avoid cluttering the output with \
-                     task-level inputs."
-    )]
-    pub nested_inputs: bool,
+    /// Generate inputs for all tasks called in the workflow.  
+    ///  
+    /// When using this option may want to omit `--show-expressions` to avoid
+    /// cluttering the output with task-level inputs.  
+    #[arg(long)]
+    pub include_nested_inputs: bool,
 
-    /// Output input template in YAML format.
+    /// Output the template as a YAML file.
     #[arg(long)]
     pub yaml: bool,
 }
 
-/// Compute key name for map
-fn compute_key_name(prefix: &str, name: &str) -> String {
-    if prefix.is_empty() {
-        name.to_string()
-    } else {
-        format!("{prefix}.{name}")
+/// An input key.
+#[derive(Clone, Debug)]
+pub struct Key(Vec<String>);
+
+impl Key {
+    /// Creates a new key with a preinitialized value.
+    pub fn new(value: String) -> Self {
+        Self(vec![value])
+    }
+
+    /// Creates a new, empty key.
+    pub fn empty() -> Self {
+        Self(vec![])
+    }
+
+    /// Pushes a value into the key.
+    pub fn push(mut self, value: impl Into<String>) -> Self {
+        self.0.push(value.into());
+        self
+    }
+
+    /// Joins the key using `.` as the delimeter.
+    pub fn join(self) -> Option<String> {
+        if self.0.is_empty() {
+            return None;
+        }
+
+        Some(self.0.join("."))
     }
 }
 
-/// Process an expression
-fn process_expression(
-    expr: &Expr,
-    name: &str,
-    typ: Type,
+/// An input processor.
+#[derive(Debug)]
+pub struct InputProcessor {
+    /// The results of the input processing.
+    results: Map<String, Value>,
+
+    /// Whether or not to include nested inputs.
+    include_nested_inputs: bool,
+
+    /// Whether or not to show expressions.
     show_expressions: bool,
-    hide_defaults: bool,
-    prefix: &str,
-) -> (String, Value) {
-    match expr {
-        Expr::Literal(l) if !hide_defaults => match l {
-            LiteralExpr::Boolean(b) => (compute_key_name(prefix, name), Value::Bool(b.value())),
-            LiteralExpr::String(s) => {
-                if s.is_empty() {
-                    (
-                        compute_key_name(prefix, name),
-                        Value::String("".to_string()),
-                    )
-                } else {
-                    let t = s.text();
-                    let t = t.expect("should have text");
-                    let mut text: String = "".to_string();
-                    t.unescape_to(&mut text);
-                    (compute_key_name(prefix, name), Value::String(text))
-                }
-            }
-            LiteralExpr::Integer(i) => (
-                compute_key_name(prefix, name),
-                Value::from(i.value().expect("should have a value")),
-            ),
-            LiteralExpr::Float(f) => (
-                compute_key_name(prefix, name),
-                Value::from(f.value().expect("should have a value")),
-            ),
-            LiteralExpr::Struct(s) => {
-                // Convert the struct to a map and store that.
-                let mut map_value = Map::new();
-                s.items().for_each(|f| {
-                    let (name, value) = f.name_value();
-                    let (key, value) = process_expression(
-                        &value,
-                        name.text(),
-                        typ.clone(),
-                        show_expressions,
-                        hide_defaults,
-                        "",
-                    );
-                    map_value.insert(key, value);
-                });
-                (compute_key_name(prefix, name), Value::Object(map_value))
-            }
-            _ => (
-                compute_key_name(prefix, name),
-                Value::String(format!("{} (default = {})", typ, expr.text())),
-            ),
-        },
-        Expr::Negation(n) if !hide_defaults => {
-            // Negation isn't a literal, but might contain one.
-            if n.inner().children().count() != 1
-                || n.inner().first_child().expect("should have a child").kind()
-                    != SyntaxKind::LiteralIntegerNode
-            {
-                if show_expressions && !hide_defaults {
-                    (
-                        compute_key_name(prefix, name),
-                        Value::String(format!("{} (default = {})", typ, expr.text())),
-                    )
-                } else {
-                    ("".to_string(), Value::Null)
-                }
-            } else {
-                let value = n
-                    .text()
-                    .to_string()
-                    .parse::<i64>()
-                    .expect("should be an integer");
-                (compute_key_name(prefix, name), Value::from(value))
-            }
-        }
-        _ => {
-            if show_expressions && !hide_defaults {
-                (
-                    compute_key_name(prefix, name),
-                    Value::String(format!("{} (default = {})", typ, expr.text())),
-                )
-            } else {
-                ("".to_string(), Value::Null)
-            }
-        }
-    }
+
+    /// Whether or not to include defaults.
+    include_defaults: bool,
 }
 
-/// Process an input section
-fn process_input_section(
-    map: &mut Map<String, Value>,
-    inputs: InputSection,
-    show_expressions: bool,
-    hide_defaults: bool,
-    wf_name: &str,
-) {
-    let inputs = inputs.declarations();
-    inputs.for_each(|i| match i {
-        wdl::ast::v1::Decl::Bound(bound_decl) => {
-            let name = bound_decl.name().text().to_string();
-            let typ = bound_decl.ty();
-            let value = bound_decl.expr();
-            match typ.is_optional() {
-                true => {
-                    // Only render bound, optional inputs if
-                    // hide_expressions and hide_defaults are false.
-                    if show_expressions && !hide_defaults {
-                        map.insert(format!("{wf_name}.{name}"), Value::String(typ.to_string()));
-                    }
-                }
-                false => {
-                    let (key, value) = process_expression(
-                        &value,
-                        &name,
-                        typ,
-                        show_expressions,
-                        hide_defaults,
-                        wf_name,
-                    );
-                    if !key.is_empty() {
-                        map.insert(key, value);
-                    }
-                }
-            }
-        }
-        wdl::ast::v1::Decl::Unbound(unbound_decl) => {
-            let name = unbound_decl.name().text().to_string();
-            let typ = unbound_decl.ty();
-            match typ.is_optional() {
-                true => {
-                    // Only render unbound, optional inputs if
-                    // hide_expressions and hide_defaults are false.
-                    if show_expressions && !hide_defaults {
-                        map.insert(format!("{wf_name}.{name}"), Value::Null);
-                    }
-                }
-                false => {
-                    // always render unbound and required inputs
-                    map.insert(format!("{wf_name}.{name}"), Value::String(typ.to_string()));
-                }
-            }
-        }
-    });
-}
-
-/// Process a task and its inputs.
-fn process_task(
-    map: &mut Map<String, Value>,
-    task: &wdl::ast::v1::TaskDefinition,
-    specified: &HashSet<String>,
-    show_expressions: bool,
-    hide_defaults: bool,
-    prefix: &str,
-    call_name: &str,
-) {
-    let inputs = task.input();
-    if let Some(inputs) = inputs {
-        process_input_section(
-            map,
-            inputs,
+impl InputProcessor {
+    /// Creates a new input processor.
+    pub fn new(
+        include_nested_inputs: bool,
+        show_expressions: bool,
+        include_defaults: bool,
+    ) -> Self {
+        Self {
+            results: Default::default(),
+            include_nested_inputs,
             show_expressions,
-            hide_defaults,
-            format!("{prefix}.{call_name}").as_str(),
-        );
-        // Remove any inputs that are specified in the workflow
-        // call.
-        specified.iter().for_each(|s| {
-            map.remove(format!("{prefix}.{call_name}.{s}").as_str());
-        });
-    }
-}
-
-/// Process a workflow and its inputs.
-#[allow(clippy::only_used_in_recursion, clippy::too_many_arguments)]
-fn process_workflow(
-    map: &mut Map<String, Value>,
-    document: &wdl::analysis::document::Document,
-    workflow_analysis: &wdl::analysis::document::Workflow,
-    workflow_ast: &wdl::ast::v1::WorkflowDefinition,
-    specified: &HashSet<String>,
-    show_expressions: bool,
-    hide_defaults: bool,
-    nested_inputs: bool,
-    prefix: &str,
-    results: &AnalysisResults,
-) {
-    let inputs = workflow_ast.input();
-    if let Some(inputs) = inputs {
-        process_input_section(map, inputs, show_expressions, hide_defaults, prefix);
+            include_defaults,
+        }
     }
 
-    // If the user wants nested inputs and the workflow allows it, process the
-    // calls.
-    if workflow_analysis.allows_nested_inputs() && nested_inputs {
-        let calls = workflow_analysis.calls();
-        calls.iter().for_each(|(call_name, call)| {
-            match call.kind() {
-                CallKind::Task => {
-                    let namespace = call.namespace();
-                    let name = call.name();
-                    let specified = call.specified();
-                    match namespace {
-                        Some(namespace) => {
-                            // task is imported
-                            let ns = document
-                                .namespace(namespace)
-                                .expect("should have a namespace");
-                            let doc = ns.document().root();
-                            let ast = doc.ast();
-                            let ast = ast.as_v1().expect("should be V1 ast");
-                            let task = ast
-                                .tasks()
-                                .find(|t| t.name().inner().text() == name)
-                                .expect("should have a task");
-                            process_task(
-                                map,
-                                &task,
-                                specified,
-                                show_expressions,
-                                hide_defaults,
-                                prefix,
-                                call_name,
-                            );
-                        }
-                        None => {
-                            // task is in this document
-                            let root = document.root();
-                            let ast = root.ast();
-                            let ast = ast.as_v1().expect("should be V1 ast");
-                            let task = ast
-                                .tasks()
-                                .find(|t| t.name().inner().to_string() == name)
-                                .expect("should have a task");
-                            process_task(
-                                map,
-                                &task,
-                                specified,
-                                show_expressions,
-                                hide_defaults,
-                                prefix,
-                                call_name,
-                            );
-                        }
-                    };
+    /// Consumes `self` and returns the inner results.
+    pub fn into_inner(self) -> Map<String, Value> {
+        self.results
+    }
+
+    /// Processes an expression.
+    fn expression(
+        &self,
+        ty: Type,
+        namespace: Key,
+        name: &str,
+        expr: &Expr,
+    ) -> Option<(Key, Value)> {
+        match expr {
+            Expr::Literal(l) if self.include_defaults => match l {
+                LiteralExpr::Boolean(v) => {
+                    return Some((namespace.push(name), Value::Bool(v.value())));
                 }
-                CallKind::Workflow => {
-                    // workflow is imported
-                    let namespace = call
-                        .namespace()
-                        .expect("workflow calls should have a namespace name");
-                    let name = call.name();
+                LiteralExpr::String(v) => {
+                    if let Some(text) = v.text() {
+                        let mut buffer = String::new();
+                        text.unescape_to(&mut buffer);
+                        return Some((namespace.push(name), Value::String(buffer)));
+                    } else {
+                        return Some((namespace.push(name), Value::String(Default::default())));
+                    }
+                }
+                LiteralExpr::Integer(v) => {
+                    return Some((namespace.push(name), Value::from(v.value().unwrap_or(0))));
+                }
+                LiteralExpr::Float(v) => {
+                    return Some((namespace.push(name), Value::from(v.value().unwrap_or(0.0))));
+                }
+                LiteralExpr::Struct(v) => {
+                    let map = v
+                        .items()
+                        .filter_map(|item| {
+                            let (name, value) = item.name_value();
+                            self.expression(ty.clone(), Key::empty(), name.text(), &value)
+                        })
+                        .map(|(k, v)| (k.join().expect("key to join"), v))
+                        .collect::<Map<_, _>>();
 
-                    let namespace = document
-                        .namespace(namespace)
-                        .expect("should have a namespace");
+                    return Some((namespace.push(name), Value::Object(map)));
+                }
+                _ => {
+                    let mut value = ty.to_string();
 
-                    let root = namespace.document().root();
-                    let ast = root.ast();
-                    let ast = ast.as_v1().expect("should be V1 ast");
-                    let wf_ast = ast
-                        .workflows()
-                        .find(|w| w.name().inner().text() == name)
-                        .expect("should have a workflow");
+                    if self.show_expressions {
+                        value.push_str(" (default = ");
+                        value.push_str(&expr.text().to_string());
+                        value.push(')');
+                    }
 
-                    process_workflow(
-                        map,
-                        namespace.document(),
-                        namespace
-                            .document()
-                            .workflow()
-                            .expect("should have a workflow"),
-                        &wf_ast,
-                        call.specified(),
-                        show_expressions,
-                        hide_defaults,
-                        nested_inputs,
-                        format!("{prefix}.{call_name}").as_str(),
-                        results,
-                    );
-                    // Remove any inputs that are specified in the workflow
-                    specified.iter().for_each(|s| {
-                        map.remove(format!("{prefix}.{call_name}.{s}").as_str());
-                    });
+                    return Some((namespace.push(name), Value::String(value)));
+                }
+            },
+            Expr::Negation(v) if self.include_defaults => {
+                if let Expr::Literal(literal) = v.operand() {
+                    if let LiteralExpr::Boolean(b) = literal {
+                        return Some((namespace.push(name), Value::Bool(!b.value())));
+                    } else if let LiteralExpr::Integer(n) = literal {
+                        return Some((
+                            namespace.push(name),
+                            Value::from(n.value().map(|v| -v).unwrap_or_default()),
+                        ));
+                    } else if let LiteralExpr::Float(n) = literal {
+                        return Some((
+                            namespace.push(name),
+                            Value::from(n.value().map(|v| -v).unwrap_or_default()),
+                        ));
+                    }
                 }
             }
-        })
+            _ => {}
+        }
+
+        if self.include_defaults {
+            let mut value = ty.to_string();
+
+            if self.show_expressions {
+                value.push_str(" (default = ");
+                value.push_str(&expr.text().to_string());
+                value.push(')');
+            }
+
+            Some((namespace.push(name), Value::String(value)))
+        } else {
+            None
+        }
+    }
+
+    /// Processes an input section.
+    fn input_section(&mut self, namespace: Key, input_section: InputSection) {
+        for decl in input_section.declarations() {
+            match decl {
+                Decl::Bound(decl) => {
+                    let name = decl.name();
+                    let ty = decl.ty();
+                    let expr = decl.expr();
+
+                    if ty.is_optional() {
+                        if self.include_defaults {
+                            let mut value = ty.to_string();
+
+                            if self.show_expressions {
+                                value.push_str(" (default = ");
+                                value.push_str(&expr.text().to_string());
+                                value.push(')');
+                            }
+
+                            self.results.insert(
+                                namespace
+                                    .clone()
+                                    .push(name.text())
+                                    .join()
+                                    .expect("key to join"),
+                                Value::String(value),
+                            );
+                        }
+                    } else if let Some((key, value)) =
+                        self.expression(ty, namespace.clone(), name.text(), &expr)
+                    {
+                        self.results.insert(key.join().expect("key to join"), value);
+                    }
+                }
+                Decl::Unbound(decl) => {
+                    let name = decl.name();
+                    let ty = decl.ty();
+
+                    if ty.is_optional() {
+                        if self.include_defaults {
+                            self.results.insert(
+                                namespace
+                                    .clone()
+                                    .push(name.text())
+                                    .join()
+                                    .expect("key to join"),
+                                Value::Null,
+                            );
+                        }
+                    } else {
+                        self.results.insert(
+                            namespace
+                                .clone()
+                                .push(name.text())
+                                .join()
+                                .expect("key to join"),
+                            Value::String(ty.to_string()),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// Processes a task.
+    fn task(&mut self, namespace: Key, task: &TaskDefinition, specified: &HashSet<String>) {
+        if let Some(inputs) = task.input() {
+            self.input_section(namespace.clone(), inputs);
+
+            // Any inputs specified by the call itself cannot be overridden.
+            specified.iter().for_each(|s| {
+                let key = namespace.clone().push(s).join().expect("key to join");
+                self.results.remove(&key);
+            });
+        }
+    }
+
+    /// Processes a workflow.
+    fn workflow(
+        &mut self,
+        namespace: Key,
+        document: &Document,
+        analysis_wf: &wdl::analysis::document::Workflow,
+        ast_wf: &wdl::ast::v1::WorkflowDefinition,
+        specified: &HashSet<String>,
+    ) -> Result<()> {
+        if let Some(inputs) = ast_wf.input() {
+            self.input_section(namespace.clone(), inputs);
+        }
+
+        if self.include_nested_inputs {
+            if !analysis_wf.allows_nested_inputs() {
+                bail!(
+                    "`--include-nested-inputs` specified, but the workflow does not support nested inputs"
+                );
+            }
+
+            for (call_name, call) in analysis_wf.calls() {
+                let namespace = namespace.clone().push(call_name);
+
+                match call.kind() {
+                    CallKind::Task => {
+                        let name = call.name();
+                        let specified = call.specified();
+
+                        fn get_task_def(document: &Document, name: &str) -> Result<TaskDefinition> {
+                            let ast = document.root().ast().into_v1().ok_or(anyhow!(
+                                "non-v1 WDL document `{}` cannot be processed with this subcommand",
+                                document.uri()
+                            ))?;
+
+                            Ok(ast
+                                .tasks()
+                                .find(|task| task.name().text() == name)
+                                .expect("referenced task to be present"))
+                        }
+
+                        if let Some(ns) = call.namespace() {
+                            // The task was imported from another namespace.
+                            let document = document
+                                .namespace(ns)
+                                .expect("referenced namespace should be present")
+                                .document();
+
+                            let task = get_task_def(document, name)?;
+                            self.task(namespace, &task, specified);
+                        } else {
+                            // The task is in the current document.
+                            let task = get_task_def(document, name)?;
+                            self.task(namespace, &task, specified);
+                        }
+                    }
+                    CallKind::Workflow => {
+                        // An imported subworkflow.
+                        let name = call.name();
+
+                        let document = document
+                            .namespace(
+                                call.namespace()
+                                    .expect("subworkflows will always have a namespace"),
+                            )
+                            .expect("referenced namespace should be present")
+                            .document();
+
+                        let ast = document.root().ast().into_v1().ok_or(anyhow!(
+                            "non-v1 WDL document `{}` cannot be processed with this subcommand",
+                            document.uri()
+                        ))?;
+
+                        let workflow = ast
+                            .workflows()
+                            .find(|workflow| workflow.name().text() == name)
+                            .expect("referenced workflow to be present");
+
+                        self.workflow(
+                            namespace.clone(),
+                            document,
+                            document.workflow().expect("workflow to be present"),
+                            &workflow,
+                            specified,
+                        )?;
+
+                        // Any inputs specified by the workflow itself cannot be overridden.
+                        specified.iter().for_each(|s| {
+                            let key = namespace.clone().push(s).join().expect("key to join");
+                            self.results.remove(&key);
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
-/// Generate a map of inputs for a WDL document.
-async fn generate_inputs(
-    file: &Source,
-    name: Option<String>,
-    show_expressions: bool,
-    hide_defaults: bool,
-    nested_inputs: bool,
-) -> Result<Map<String, Value>> {
-    // Parse the WDL document.
+/// Displays the input schema for a WDL document.
+pub async fn input(args: Args) -> Result<()> {
     let results = match Analysis::default()
-        .extend_sources(vec![file.clone()])
+        .add_source(args.source.clone())
         .run()
         .await
     {
@@ -376,86 +397,79 @@ async fn generate_inputs(
         }
     };
 
-    // Find the result the matches our input file.
-    let root = results
-        .filter(&[file])
+    let document = results
+        .filter(&[&args.source])
         .next()
-        .expect("should have a matching result");
-    let document = root.document();
+        .expect("the root source should always be included in the results")
+        .document();
 
-    // Create an empty map to store the inputs.
-    let mut map = Map::new();
-
-    match name {
-        Some(name) => {
-            // Find the task or workflow with the given name.
-            let ast = document.root().ast();
-            let ast = ast.as_v1().expect("should be V1 ast");
-            let task_ast = match ast.tasks().find(|t| t.name().inner().text() == name) {
-                Some(task) => task,
-                None => {
-                    bail!("task `{name}` not found");
-                }
-            };
-            let inputs = task_ast.input();
-            if let Some(inputs) = inputs {
-                process_input_section(
-                    &mut map,
-                    inputs,
-                    show_expressions,
-                    hide_defaults,
-                    name.as_str(),
-                );
-            }
-        }
-        None => {
-            // If the document has a workflow, check it.
-            match document.workflow() {
-                Some(workflow) => {
-                    let wf_name = workflow.name();
-
-                    let root = document.root();
-                    let ast = root.ast();
-                    let ast = ast.as_v1().expect("should be V1 ast");
-                    let wf_ast = ast
-                        .workflows()
-                        .find(|w| w.name().inner().text() == wf_name)
-                        .expect("should have a workflow");
-
-                    let specified = HashSet::new();
-                    process_workflow(
-                        &mut map,
-                        document,
-                        workflow,
-                        &wf_ast,
-                        &specified,
-                        show_expressions,
-                        hide_defaults,
-                        nested_inputs,
-                        wf_name,
-                        &results,
-                    );
-                }
-                None => bail!("no workflow found"),
-            }
-        }
-    }
-    Ok(map)
-}
-
-/// Displays the input schema for a WDL document.
-pub async fn input(args: InputArgs) -> Result<()> {
-    let path = args.path;
-
-    let inputs = generate_inputs(
-        &path,
-        args.task,
+    let mut inputs = InputProcessor::new(
+        args.include_nested_inputs,
         args.show_expressions,
-        args.hide_defaults,
-        args.nested_inputs,
-    )
-    .await
-    .unwrap();
+        args.include_defaults,
+    );
+
+    let ast = document.root().ast().into_v1().ok_or(anyhow!(
+        "non-v1 WDL document `{}` cannot be processed with this subcommand",
+        document.uri()
+    ))?;
+
+    if let Some(name) = args.name {
+        let namespace = Key::new(name.to_owned());
+
+        match (document.task_by_name(&name), document.workflow()) {
+            (Some(_), _) => {
+                // Task with name found.
+                let task = ast
+                    .tasks()
+                    .find(|task| task.name().text() == name)
+                    // SAFETY: we just checked that a task with this name should
+                    // be found, so this should always unwrap.
+                    .unwrap();
+
+                inputs.task(namespace, &task, &Default::default());
+            }
+            (None, Some(analysis_wf)) => {
+                if analysis_wf.name() != name {
+                    bail!("no task or workflow with name `{name}` was found")
+                }
+
+                let ast_wf = ast
+                    .workflows()
+                    .find(|workflow| workflow.name().text() == name)
+                    // SAFETY: we just checked that a workflow with this name should
+                    // be found, so this should always unwrap.
+                    .unwrap();
+
+                inputs.workflow(
+                    namespace,
+                    document,
+                    analysis_wf,
+                    &ast_wf,
+                    &Default::default(),
+                )?;
+            }
+            (None, None) => bail!("no task or workflow with name `{name}` was found"),
+        }
+    } else if let Some(workflow) = document.workflow() {
+        let name = workflow.name().to_owned();
+        let namespace = Key::new(name.clone());
+
+        let ast_wf = ast
+            .workflows()
+            .find(|workflow| workflow.name().text() == name)
+            // SAFETY: we just checked that a workflow with this name should
+            // be found, so this should always unwrap.
+            .unwrap();
+
+        inputs.workflow(namespace, document, workflow, &ast_wf, &Default::default())?;
+    } else {
+        bail!(
+            "no workflow was found; try specifying a task or workflow name with the `--name` argument"
+        )
+    }
+
+    let inputs = inputs.into_inner();
 
     if args.yaml {
         let yaml = serde_yaml::to_string(&inputs)?;

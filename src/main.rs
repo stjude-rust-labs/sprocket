@@ -34,7 +34,7 @@ enum Commands {
     Format(commands::format::Args),
 
     /// Writes the input schema for a WDL document.
-    Input(commands::input::InputArgs),
+    Input(commands::input::Args),
 
     /// Lints a document or a directory containing documents.
     Lint(commands::check::LintArgs),
