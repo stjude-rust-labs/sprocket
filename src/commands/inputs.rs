@@ -43,8 +43,8 @@ pub struct Args {
 
     /// Generate inputs for all tasks called in the workflow.  
     ///  
-    /// When using this option may want to omit `--show-expressions` to avoid
-    /// cluttering the output with task-level inputs.  
+    /// When using this option need to include `--show-expressions` and/or
+    /// `--include-defaults` to see nested options.
     #[arg(long)]
     pub include_nested_inputs: bool,
 
@@ -291,7 +291,6 @@ impl InputProcessor {
         document: &Document,
         analysis_wf: &wdl::analysis::document::Workflow,
         ast_wf: &wdl::ast::v1::WorkflowDefinition,
-        specified: &HashSet<String>,
     ) -> Result<()> {
         if let Some(inputs) = ast_wf.input() {
             self.input_section(namespace.clone(), inputs);
@@ -300,7 +299,8 @@ impl InputProcessor {
         if self.include_nested_inputs {
             if !analysis_wf.allows_nested_inputs() {
                 bail!(
-                    "`--include-nested-inputs` specified, but the workflow does not support nested inputs"
+                    "`--include-nested-inputs` specified, but the workflow does not support \
+                     nested inputs"
                 );
             }
 
@@ -342,6 +342,7 @@ impl InputProcessor {
                     CallKind::Workflow => {
                         // An imported subworkflow.
                         let name = call.name();
+                        let specified = call.specified();
 
                         let document = document
                             .namespace(
@@ -366,7 +367,6 @@ impl InputProcessor {
                             document,
                             document.workflow().expect("workflow to be present"),
                             &workflow,
-                            specified,
                         )?;
 
                         // Any inputs specified by the workflow itself cannot be overridden.
@@ -442,13 +442,7 @@ pub async fn inputs(args: Args) -> Result<()> {
                     // be found, so this should always unwrap.
                     .unwrap();
 
-                inputs.workflow(
-                    namespace,
-                    document,
-                    analysis_wf,
-                    &ast_wf,
-                    &Default::default(),
-                )?;
+                inputs.workflow(namespace, document, analysis_wf, &ast_wf)?;
             }
             (None, None) => bail!("no task or workflow with name `{name}` was found"),
         }
@@ -463,10 +457,11 @@ pub async fn inputs(args: Args) -> Result<()> {
             // be found, so this should always unwrap.
             .unwrap();
 
-        inputs.workflow(namespace, document, workflow, &ast_wf, &Default::default())?;
+        inputs.workflow(namespace, document, workflow, &ast_wf)?;
     } else {
         bail!(
-            "no workflow was found; try specifying a task or workflow name with the `--name` argument"
+            "no workflow was found; try specifying a task or workflow name with the `--name` \
+             argument"
         )
     }
 
