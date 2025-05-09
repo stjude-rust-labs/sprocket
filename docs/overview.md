@@ -1,14 +1,3 @@
-::: tip Note
-**Sprocket** is current an alpha-phase project. To that end,
-this page serves the purpose of describing what we hope Sprocket _will_ become
-rather than what it actually is today. If you're using Sprocket, we encourage
-you to follow the project on
-[GitHub](https://github.com/stjude-rust-labs/sprocket) to stay up to date on
-progress.
-:::
-
-# Introduction
-
 ![Sprocket Repository Header](/public/repo-header.png)
 
 **Sprocket** is an bioinformatics workflow execution engine built on top of the
@@ -34,6 +23,15 @@ code that drives Sprocket is split across the [`wdl`] family of crates, the
 [`sprocket`] command line tool, and the [Visual Studio Code extension]
 ([source](https://github.com/stjude-rust-labs/sprocket-vscode)).
 
+::: tip Note
+**Sprocket** is currently an alpha-phase project. To that end,
+this page serves the purpose of describing what we hope Sprocket _will_ become
+rather than what it actually is today. If you're using Sprocket, we encourage
+you to follow the project on
+[GitHub](https://github.com/stjude-rust-labs/sprocket) to stay up to date on
+progress.
+:::
+
 ## Project Goals
 
 ### High-Performance Workflow Execution Engine
@@ -48,8 +46,8 @@ The execution engine for Sprocket is comprised of two major components:
 - The **orchestration engine**, which handles the scheduling and monitoring of
   units of execution within a workflow, and
 - **Execution runtimes**, which carry out the work associated with a unit of
-  compute within a particular environment (e.g., local compute, a high-performance compute
-  cluster, or the cloud).
+  compute within a particular environment (e.g., local compute, a
+  high-performance compute cluster, or the cloud).
 
 Briefly, the orchestration engine is generally responsible for staging anything
 needed to run a job within a particular environment (localizing data, hooking up
@@ -60,9 +58,11 @@ carrying them out in an independent manner.
 Collectively, we consider the combination of an orchestration engine with one or
 more configured execution runtimes to comprise an **execution engine**. We
 envision the orchestration engine being provided by Sprocket alongside two
-official execution runtimes: (a) a local runtime and a (b) Kubernetes runtime.
-Beyond that, we plan to make it easy for vendors to build and maintain their own
-runtimes that are available within Sprocket.
+official execution runtimes: (a) a local, Docker-based runtime, (b) a Task
+Execution Service ([TES]) based runtime, and (c) a flexible "generic" runtime
+that can be used to configure execution within HPC clusters. Beyond that, we
+plan to make it easy for vendors to build and maintain their own runtimes that
+are available within Sprocket.
 
 Enabling the next generation of large-scale, open science by providing a robust
 and performant execution engine will always remain the top-level objective for
@@ -70,11 +70,13 @@ the project.
 
 ### Modern Development Tools
 
-A suite of development tools are included alongside the execution engine. We believe that, when you _do_ need to dust off your code
-editor and write an analysis workflow, that activity should as enjoyable as it
-can be. Supporting tools, such as
+A suite of development tools are included alongside the execution engine. We
+believe that, when you _do_ need to dust off your code editor and write an
+analysis workflow, that activity should as enjoyable as it can be. Supporting
+tools, such as
 [linters](https://github.com/stjude-rust-labs/wdl/tree/main/wdl-lint),
-formatters, [syntax
+[formatters](https://github.com/stjude-rust-labs/wdl/tree/main/wdl-format),
+[syntax
 highlighting](https://github.com/stjude-rust-labs/sprocket-vscode/blob/main/syntaxes/wdl.tmGrammar.json),
 and overall [editor
 integration](https://github.com/stjude-rust-labs/wdl/tree/main/wdl-lsp), are
@@ -125,6 +127,14 @@ when they do not otherwise inhibit the primary goals.
   maintained by the backend providers themselves. When that isn't possible,
   custom backends should be able to be configured by end-users with a moderate
   amount of effort.
+- **Native Windows compatibility.** Sprocket is exhaustively tested within a
+  native Windows environment. That being said, none of the primary developers
+  use Windows as their day-to-day development environment, so issues may slip
+  through the cracks. If you're on Windows machine and you run into issues
+  running natively, we recommend you [report the
+  issue](https://github.com/stjude-rust-labs/sprocket/issues) and then [install
+  and use WSL](https://learn.microsoft.com/en-us/windows/wsl/install) in the
+  meantime.
 
 ## Non-goals
 
@@ -143,10 +153,6 @@ The following are non-goals of the project.
 - **Simplicity at all costs.** Though we aim to make things simple when
   possible, complexity will be introduced when deemed necessary (this is
   particularly true when it comes to internal implementation details).
-- **Native Windows compatibility.** For now, Sprocket is intended to be used on
-  UNIX-like machines. If you're on Windows, we recommend you [install
-  WSL](https://learn.microsoft.com/en-us/windows/wsl/install) if you haven't
-  already.
 
 ## Naming
 
@@ -160,5 +166,6 @@ used.
 
 [`wdl`]: https://github.com/stjude-rust-labs/wdl
 [`sprocket`]: https://github.com/stjude-rust-labs/sprocket
+[TES]: https://www.ga4gh.org/product/task-execution-service-tes
 [Visual Studio Code extension]: https://marketplace.visualstudio.com/items?itemName=stjude-rust-labs.sprocket-vscode
 [Workflow Description Language]: https://openwdl.org

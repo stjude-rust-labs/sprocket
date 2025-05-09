@@ -1,4 +1,7 @@
 import { defineConfig } from "vitepress";
+import axios from 'axios';
+
+const grammarUrl = "https://raw.githubusercontent.com/stjude-rust-labs/sprocket-vscode/refs/heads/main/syntaxes/wdl.tmGrammar.json";
 
 export default defineConfig({
   title: "Sprocket",
@@ -22,13 +25,13 @@ export default defineConfig({
         ],
       },
     ],
-
     sidebar: [
       {
         text: "Getting Started",
         items: [
           { text: "Overview", link: "/overview" },
           { text: "Installation", link: "/installation" },
+          { text: "Guided Tour", link: "/guided-tour" },
         ],
       },
       {
@@ -36,9 +39,16 @@ export default defineConfig({
         items: [{ text: "Getting Started", link: "/vscode/getting-started" }],
       },
     ],
-
     socialLinks: [
       { icon: "github", link: "https://github.com/stjude-rust-labs/sprocket" },
     ],
   },
+  markdown: {
+    theme: 'github-dark',
+    shikiSetup: async (shiki) => {
+      const response = await axios.get(grammarUrl);
+      await shiki.loadLanguage(response.data);
+    }
+  },
+  appearance: 'dark'
 });
