@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added tab completions for `sprocket` commands ([#105](https://github.com/stjude-rust-labs/sprocket/pull/105)).
+* Added `shellcheck` to Dockerfile ([#114](https://github.com/stjude-rust-labs/sprocket/pull/114)).
 * Introduced the `input` subcommand ([#113](https://github.com/stjude-rust-labs/sprocket/pull/113)).
 
 ## 0.12.2 - 05-05-2025
