@@ -6,7 +6,8 @@ Sprocket in your day-to-day work.
 
 To follow along, you are encouraged to download [this WDL
 document](/guided-tour/example.wdl){target="_self" download="example.wdl"} that
-has been specifically crafted for this walkthrough.
+has been specifically crafted for this walkthrough. Further, if you have not
+already, please follow [this guide](./installation.md) to install Sprocket.
 
 ## Ensuring high-quality code
 
