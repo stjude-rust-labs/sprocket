@@ -29,3 +29,37 @@ The platform-specific locations can also be found [here](https://docs.rs/dirs/la
 ## Configuration Values
 
 Running the command `sprocket config resolve` will print the effective configuration. The default configuration can be written out using the `sprocket config init` argument.
+
+## Configuration Resolution
+
+Atomic configuration values are overwritten by higher priority configuration files. List values are appended.
+
+For example, if you specify the following in a configuration file in the current working directory.
+
+```
+[format]
+indentation_size = 5
+
+[check]
+except = ['ContainerUri']
+```
+
+And the following in a configuration file pointed to by `SPROCKET_CONFIG`.
+
+```
+[format]
+indentation_size = 3
+
+[check]
+except = ['SnakeCase']
+```
+
+The final, effective configuration will be:
+
+```
+[format]
+indentation_size = 3
+
+[check]
+except = ['ContainerUri', 'SnakeCase']
+```
