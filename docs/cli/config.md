@@ -22,4 +22,4 @@ Sprocket will attempt to read a configuration file from `XDG_CONFIG_HOME/sprocke
 
 ## Configuration Values
 
-Running the command `sprocket config` will print the effective configuration. The default configuration can be written out using the `--generate` argument.
+Running the command `sprocket config resolve` will print the effective configuration. The default configuration can be written out using the `sprocket config init` argument.
