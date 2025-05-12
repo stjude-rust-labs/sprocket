@@ -12,6 +12,7 @@ use git_testament::git_testament;
 use git_testament::render_testament;
 use sprocket::commands;
 use sprocket::config::Config;
+use tracing::trace;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt as _;
 
@@ -66,7 +67,7 @@ pub async fn inner() -> anyhow::Result<()> {
     let config = Config::new(cli.config);
 
     // Write effective configuration to the log
-    tracing::debug!(
+    trace!(
         "effective configuration:\n{}",
         toml::to_string_pretty(&config).unwrap_or_default()
     );

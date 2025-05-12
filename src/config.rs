@@ -12,6 +12,7 @@ use figment::providers::Serialized;
 use figment::providers::Toml;
 use serde::Deserialize;
 use serde::Serialize;
+use tracing::trace;
 
 use crate::Mode;
 
@@ -104,9 +105,7 @@ impl Config {
         #[cfg(target_os = "macos")]
         {
             if let Some(home) = dirs::home_dir() {
-                tracing::info!(
-                    "reading configuration from: {home:?}/.config/sprocket/sprocket.toml"
-                );
+                trace!("reading configuration from: {home:?}/.config/sprocket/sprocket.toml");
                 figment = figment.admerge(Toml::file(
                     home.join(".config").join("sprocket").join("sprocket.toml"),
                 ));
@@ -115,7 +114,7 @@ impl Config {
         #[cfg(not(target_os = "macos"))]
         {
             if let Some(xdg_config_home) = dirs::config_dir() {
-                tracing::info!(
+                trace!(
                     "reading configuration from XDG_CONFIG_HOME: \
                      {xdg_config_home:?}/sprocket/sprocket.toml"
                 );
@@ -127,19 +126,19 @@ impl Config {
 
         // Check PWD for a config file
         if Path::exists(Path::new("sprocket.toml")) {
-            tracing::info!("reading configuration from PWD/sprocket.toml");
+            trace!("reading configuration from PWD/sprocket.toml");
             figment = figment.admerge(Toml::file("sprocket.toml"));
         }
 
         // If provided, check config file from environment
         if let Ok(config_file) = env::var("SPROCKET_CONFIG") {
-            tracing::info!("reading configuration from SPROCKET_CONFIG: {config_file:?}");
+            trace!("reading configuration from SPROCKET_CONFIG: {config_file:?}");
             figment = figment.admerge(Toml::file(config_file));
         }
 
         // If provided, check command line config file
         if let Some(ref cli) = path {
-            tracing::info!("reading configuration from --config: {cli:?}");
+            trace!("reading configuration from --config: {cli:?}");
             figment = figment.admerge(Toml::file(cli));
         }
 

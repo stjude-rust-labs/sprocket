@@ -15,7 +15,6 @@ pub struct Args {
 /// Runs the `config` command.
 pub fn config(args: Args, config: crate::config::Config) -> anyhow::Result<()> {
     if args.generate {
-        tracing::info!("Generating default configuration file...");
         let default_config = Config::default();
         println!(
             "{}",
