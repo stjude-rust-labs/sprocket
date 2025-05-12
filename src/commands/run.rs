@@ -94,8 +94,13 @@ impl Args {
             None => {
                 if config.run.config.exists() {
                     Some(config.run.config)
-                } else {
+                } else if config.run.config.as_os_str().is_empty() {
                     None
+                } else {
+                    panic!(
+                        "specified configuration file `{}` does not exist",
+                        config.run.config.display()
+                    );
                 }
             }
         };
