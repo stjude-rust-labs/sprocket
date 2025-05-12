@@ -138,7 +138,7 @@ impl Config {
 
         // If provided, check command line config file
         if let Some(ref cli) = path {
-            trace!("reading configuration from --config: {cli:?}");
+            trace!("reading configuration from provided configuration file: {cli:?}");
             figment = figment.admerge(Toml::file(cli));
         }
 
