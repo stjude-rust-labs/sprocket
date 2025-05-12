@@ -21,6 +21,12 @@ pub enum Commands {
     /// Checks a document or a directory containing documents.
     Check(check::CheckArgs),
 
+    /// Generates shell completions.
+    Completions(completions::Args),
+
+    /// Display the effective configuration.
+    Config(config::Args),
+
     /// Explains linting and validation rules.
     Explain(explain::Args),
 
@@ -43,10 +49,4 @@ pub enum Commands {
     /// It will not catch potential runtime errors that may occur when running
     /// the task or workflow.
     Validate(validate::Args),
-
-    /// Display the effective configuration.
-    Config(config::Args),
-
-    /// Generates shell completions.
-    Completions(completions::Args),
 }
