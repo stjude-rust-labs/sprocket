@@ -1,12 +1,14 @@
 //! Implementation of the config command.
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
+use clap::Subcommand;
 
 use crate::config::Config;
 
 /// Arguments for the `config` subcommand.
 #[derive(Parser, Debug, Clone)]
 pub struct Args {
+    /// Subcommand for the `config` command.
     #[command(subcommand)]
     command: ConfigSubcommand,
 }
@@ -20,7 +22,6 @@ pub enum ConfigSubcommand {
     /// Displays the current configuration.
     Resolve,
 }
-
 
 /// Runs the `config` command.
 pub fn config(args: Args, config: Config) -> anyhow::Result<()> {
