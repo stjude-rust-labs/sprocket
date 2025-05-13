@@ -5,55 +5,22 @@ use std::io::stderr;
 
 use clap::CommandFactory;
 use clap::Parser;
-use clap::Subcommand;
 use clap_verbosity_flag::Verbosity;
 use clap_verbosity_flag::WarnLevel;
 use colored::Colorize;
 use git_testament::git_testament;
 use git_testament::render_testament;
 use sprocket::commands;
+use sprocket::config::Config;
+use tracing::trace;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt as _;
 
+use crate::commands::Commands;
+
 git_testament!(TESTAMENT);
 
-#[derive(Subcommand)]
-#[allow(clippy::large_enum_variant)]
-enum Commands {
-    /// Runs the Language Server Protocol (LSP) server.
-    Analyzer(commands::analyzer::Args),
-
-    /// Checks a document or a directory containing documents.
-    Check(commands::check::CheckArgs),
-
-    /// Explains linting and validation rules.
-    Explain(commands::explain::Args),
-
-    /// Formats a document.
-    #[clap(alias = "fmt")]
-    Format(commands::format::Args),
-
-    /// Lints a document or a directory containing documents.
-    Lint(commands::check::LintArgs),
-
-    /// Runs a task or workflow.
-    Run(commands::run::Args),
-
-    /// Validate a set of inputs against a task or workflow.
-    ///
-    /// This ensures that every required input is supplied, every supplied input
-    /// is correctly typed, that no extraneous inputs are provided, and that any
-    /// provided `File` or `Directory` inputs exist.
-    ///
-    /// It will not catch potential runtime errors that may occur when running
-    /// the task or workflow.
-    Validate(commands::validate::Args),
-
-    /// Generates shell completions.
-    Completions(commands::completions::Args),
-}
-
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(author, version = render_testament!(TESTAMENT), propagate_version = true, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -61,6 +28,17 @@ struct Cli {
 
     #[command(flatten)]
     verbosity: Verbosity<WarnLevel>,
+
+    /// Path to the configuration file.
+    #[arg(long, short)]
+    config: Option<String>,
+
+    /// Skip searching for and loading configuration files.
+    ///
+    /// Only a configuration file specified as a command line argument will be
+    /// used.
+    #[arg(long, short)]
+    skip_config_search: bool,
 }
 
 pub async fn inner() -> anyhow::Result<()> {
@@ -93,18 +71,27 @@ pub async fn inner() -> anyhow::Result<()> {
         }
     };
 
+    let config = Config::new(cli.config, cli.skip_config_search);
+
+    // Write effective configuration to the log
+    trace!(
+        "effective configuration:\n{}",
+        toml::to_string_pretty(&config).unwrap_or_default()
+    );
+
     match cli.command {
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
-        Commands::Check(args) => commands::check::check(args).await,
+        Commands::Check(args) => commands::check::check(args.apply(config)).await,
         Commands::Explain(args) => commands::explain::explain(args),
-        Commands::Format(args) => commands::format::format(args),
-        Commands::Lint(args) => commands::check::lint(args).await,
+        Commands::Format(args) => commands::format::format(args.apply(config)),
+        Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
         Commands::Run(args) => commands::run::run(args).await,
-        Commands::Validate(args) => commands::validate::validate(args).await,
+        Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
         Commands::Completions(args) => {
             let mut cmd = Cli::command();
             commands::completions::completions(args, &mut cmd).await
         }
+        Commands::Config(args) => commands::config::config(args, config),
     }
 }
 
