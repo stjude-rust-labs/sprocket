@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Updates the underlying `wdl` dependency to v0.13.1 ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
 
 
+### Added
+
+* Added configuration file support ([#104](https://github.com/stjude-rust-labs/sprocket/pull/104)).
+
 ## 0.11.0 - 04-01-2025
 
 ### Added

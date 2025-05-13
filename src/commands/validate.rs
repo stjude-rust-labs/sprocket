@@ -43,8 +43,20 @@ pub struct Args {
     pub no_color: bool,
 
     /// The report mode.
-    #[arg(short = 'm', long, default_value_t, value_name = "MODE")]
-    pub report_mode: Mode,
+    #[arg(short = 'm', long, value_name = "MODE")]
+    pub report_mode: Option<Mode>,
+}
+
+impl Args {
+    /// Applies the configuration to the arguments.
+    pub fn apply(mut self, config: crate::config::Config) -> Self {
+        self.no_color = self.no_color || !config.common.color;
+        self.report_mode = match self.report_mode {
+            Some(mode) => Some(mode),
+            None => Some(config.common.report_mode),
+        };
+        self
+    }
 }
 
 /// The main function for the `validate` subcommand.
