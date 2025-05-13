@@ -35,6 +35,9 @@ pub enum Commands {
     #[clap(alias = "fmt")]
     Format(format::Args),
 
+    /// Writes the inputs schema for a WDL document.
+    Inputs(inputs::Args),
+
     /// Lints a document or a directory containing documents.
     Lint(check::LintArgs),
 
