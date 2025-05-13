@@ -30,7 +30,7 @@ pub enum Commands {
     /// Explains linting and validation rules.
     Explain(explain::Args),
 
-    /// Formats a document.
+    /// Formats a document or a directory containing documents.
     #[clap(alias = "fmt")]
     Format(format::Args),
 

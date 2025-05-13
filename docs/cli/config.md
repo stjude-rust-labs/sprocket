@@ -1,6 +1,6 @@
 # Configuration Files
 
-The Sprocket configuration loader sources from command-line options, environment variables, and configuration files, in that priority order.
+The Sprocket configuration loader sources and merges values from a location specified by a command-line option, an environment variable, and common configuration locations, in that priority order.
 
 ## Configuration Options
 
