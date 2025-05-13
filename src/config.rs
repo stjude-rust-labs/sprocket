@@ -116,13 +116,10 @@ impl Config {
         }
         #[cfg(not(target_os = "macos"))]
         {
-            if let Some(xdg_config_home) = dirs::config_dir() {
-                trace!(
-                    "reading configuration from XDG_CONFIG_HOME: \
-                     {xdg_config_home:?}/sprocket/sprocket.toml"
-                );
+            if let Some(config_home) = dirs::config_dir() {
+                trace!("reading configuration from: {config_home:?}/sprocket/sprocket.toml");
                 figment = figment.admerge(Toml::file(
-                    xdg_config_home.join("sprocket").join("sprocket.toml"),
+                    config_home.join("sprocket").join("sprocket.toml"),
                 ));
             }
         }
