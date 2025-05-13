@@ -33,18 +33,15 @@ pub struct Args {
     #[clap(short, long, value_name = "NAME")]
     pub name: Option<String>,
 
-    /// Show inputs with non-literal default values and non-required inputs.
+    /// Show inputs with non-literal default values.
     #[arg(long)]
     pub show_expressions: bool,
 
-    /// Include inputs with default values.
-    #[arg(long)]
-    pub include_defaults: bool,
+    /// Hide inputs with default values.
+    #[arg(long, conflicts_with = "show_expressions")]
+    pub hide_defaults: bool,
 
     /// Generate inputs for all tasks called in the workflow.  
-    ///  
-    /// When using this option need to include `--show-expressions` and/or
-    /// `--include-defaults` to see nested options.
     #[arg(long)]
     pub include_nested_inputs: bool,
 
@@ -97,7 +94,7 @@ pub struct InputProcessor {
     show_expressions: bool,
 
     /// Whether or not to include defaults.
-    include_defaults: bool,
+    hide_defaults: bool,
 }
 
 impl InputProcessor {
@@ -105,13 +102,13 @@ impl InputProcessor {
     pub fn new(
         include_nested_inputs: bool,
         show_expressions: bool,
-        include_defaults: bool,
+        hide_defaults: bool,
     ) -> Self {
         Self {
             results: Default::default(),
             include_nested_inputs,
             show_expressions,
-            include_defaults,
+            hide_defaults,
         }
     }
 
@@ -129,7 +126,7 @@ impl InputProcessor {
         expr: &Expr,
     ) -> Option<(Key, Value)> {
         match expr {
-            Expr::Literal(l) if self.include_defaults => match l {
+            Expr::Literal(l) if !self.hide_defaults => match l {
                 LiteralExpr::Boolean(v) => {
                     return Some((namespace.push(name), Value::Bool(v.value())));
                 }
@@ -160,19 +157,29 @@ impl InputProcessor {
 
                     return Some((namespace.push(name), Value::Object(map)));
                 }
-                _ => {
-                    let mut value = ty.to_string();
+                LiteralExpr::Array(a) => {
+                    let mut values = vec![];
 
-                    if self.show_expressions {
-                        value.push_str(" (default = ");
-                        value.push_str(&expr.text().to_string());
-                        value.push(')');
+                    for item in a.elements() {
+                        if let Some((key, value)) =
+                            self.expression(ty.clone(), Key::empty(), name, &item)
+                        {
+                            values.push((key.join().expect("key to join"), value));
+                        }
                     }
+
+                    return Some((
+                        namespace.push(name),
+                        Value::Array(values.into_iter().map(|(_, v)| v).collect()),
+                    ));
+                }
+                _ => {
+                    let value = expr.text().to_string();
 
                     return Some((namespace.push(name), Value::String(value)));
                 }
             },
-            Expr::Negation(v) if self.include_defaults => {
+            Expr::Negation(v) if !self.hide_defaults => {
                 if let Expr::Literal(literal) = v.operand() {
                     if let LiteralExpr::Boolean(b) = literal {
                         return Some((namespace.push(name), Value::Bool(!b.value())));
@@ -192,15 +199,12 @@ impl InputProcessor {
             _ => {}
         }
 
-        if self.include_defaults {
+
+        if self.show_expressions {
             let mut value = ty.to_string();
-
-            if self.show_expressions {
-                value.push_str(" (default = ");
-                value.push_str(&expr.text().to_string());
-                value.push(')');
-            }
-
+            value.push_str(" (default = ");
+            value.push_str(&expr.text().to_string());
+            value.push(')');
             Some((namespace.push(name), Value::String(value)))
         } else {
             None
@@ -217,7 +221,7 @@ impl InputProcessor {
                     let expr = decl.expr();
 
                     if ty.is_optional() {
-                        if self.include_defaults {
+                        if !self.hide_defaults {
                             let mut value = ty.to_string();
 
                             if self.show_expressions {
@@ -246,7 +250,7 @@ impl InputProcessor {
                     let ty = decl.ty();
 
                     if ty.is_optional() {
-                        if self.include_defaults {
+                        if !self.hide_defaults {
                             self.results.insert(
                                 namespace
                                     .clone()
@@ -410,7 +414,7 @@ pub async fn inputs(args: Args) -> Result<()> {
     let mut inputs = InputProcessor::new(
         args.include_nested_inputs,
         args.show_expressions,
-        args.include_defaults,
+        args.hide_defaults,
     );
 
     let ast = document.root().ast().into_v1().ok_or(anyhow!(
