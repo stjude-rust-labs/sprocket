@@ -63,10 +63,13 @@ pub struct FormatConfig {
 
 impl Default for FormatConfig {
     fn default() -> Self {
+        let config = wdl::format::config::Config::default();
         Self {
             with_tabs: false,
-            indentation_size: 4,
-            max_line_length: 90,
+            indentation_size: config.indent().num(),
+            max_line_length: config
+                .max_line_length()
+                .expect("should have a max line length"),
         }
     }
 }
