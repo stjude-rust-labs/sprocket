@@ -32,6 +32,13 @@ struct Cli {
     /// Path to the configuration file.
     #[arg(long, short)]
     config: Option<String>,
+
+    /// Skip searching for and loading configuration files.
+    ///
+    /// Only a configuration file specified as a command line argument will be
+    /// used.
+    #[arg(long, short)]
+    skip_config_search: bool,
 }
 
 pub async fn inner() -> anyhow::Result<()> {
@@ -64,7 +71,7 @@ pub async fn inner() -> anyhow::Result<()> {
         }
     };
 
-    let config = Config::new(cli.config);
+    let config = Config::new(cli.config, cli.skip_config_search);
 
     // Write effective configuration to the log
     trace!(

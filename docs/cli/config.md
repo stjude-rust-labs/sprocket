@@ -63,3 +63,5 @@ indentation_size = 3
 [check]
 except = ['ContainerUri', 'SnakeCase']
 ```
+
+Configuration resolution can be disabled by passing the `--skip-config-search` option on the command line. This will disable searching for and loading configuration files. The only configuration loaded will be that (if) specified by the `--config` command line argument.

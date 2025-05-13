@@ -98,42 +98,44 @@ pub struct RunConfig {
 
 impl Config {
     /// Create a new config instance by reading potential configurations.
-    pub fn new(path: Option<String>) -> Self {
+    pub fn new(path: Option<String>, skip_config_search: bool) -> Self {
         // Check for a config file in the current directory
         // Start a new Figment instance with default values
         let mut figment = Figment::new().admerge(Serialized::from(Config::default(), "default"));
 
-        // Check XDG_CONFIG_HOME for a config file
-        // On MacOS, check HOME for a config file
-        #[cfg(target_os = "macos")]
-        {
-            if let Some(home) = dirs::home_dir() {
-                trace!("reading configuration from: {home:?}/.config/sprocket/sprocket.toml");
-                figment = figment.admerge(Toml::file(
-                    home.join(".config").join("sprocket").join("sprocket.toml"),
-                ));
+        if !skip_config_search {
+            // Check XDG_CONFIG_HOME for a config file
+            // On MacOS, check HOME for a config file
+            #[cfg(target_os = "macos")]
+            {
+                if let Some(home) = dirs::home_dir() {
+                    trace!("reading configuration from: {home:?}/.config/sprocket/sprocket.toml");
+                    figment = figment.admerge(Toml::file(
+                        home.join(".config").join("sprocket").join("sprocket.toml"),
+                    ));
+                }
             }
-        }
-        #[cfg(not(target_os = "macos"))]
-        {
-            if let Some(config_home) = dirs::config_dir() {
-                trace!("reading configuration from: {config_home:?}/sprocket/sprocket.toml");
-                figment = figment.admerge(Toml::file(
-                    config_home.join("sprocket").join("sprocket.toml"),
-                ));
+            #[cfg(not(target_os = "macos"))]
+            {
+                if let Some(config_home) = dirs::config_dir() {
+                    trace!("reading configuration from: {config_home:?}/sprocket/sprocket.toml");
+                    figment = figment.admerge(Toml::file(
+                        config_home.join("sprocket").join("sprocket.toml"),
+                    ));
+                }
             }
-        }
 
-        // Check PWD for a config file
-        if Path::exists(Path::new("sprocket.toml")) {
-            trace!("reading configuration from PWD/sprocket.toml");
-            figment = figment.admerge(Toml::file("sprocket.toml"));
-        }
+            // Check PWD for a config file
+            if Path::exists(Path::new("sprocket.toml")) {
+                trace!("reading configuration from PWD/sprocket.toml");
+                figment = figment.admerge(Toml::file("sprocket.toml"));
+            }
 
-        // If provided, check config file from environment
-        if let Ok(config_file) = env::var("SPROCKET_CONFIG") {
-            trace!("reading configuration from SPROCKET_CONFIG: {config_file:?}");
-            figment = figment.admerge(Toml::file(config_file));
+            // If provided, check config file from environment
+            if let Ok(config_file) = env::var("SPROCKET_CONFIG") {
+                trace!("reading configuration from SPROCKET_CONFIG: {config_file:?}");
+                figment = figment.admerge(Toml::file(config_file));
+            }
         }
 
         // If provided, check command line config file
