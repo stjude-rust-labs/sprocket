@@ -99,11 +99,7 @@ pub struct InputProcessor {
 
 impl InputProcessor {
     /// Creates a new input processor.
-    pub fn new(
-        include_nested_inputs: bool,
-        show_expressions: bool,
-        hide_defaults: bool,
-    ) -> Self {
+    pub fn new(include_nested_inputs: bool, show_expressions: bool, hide_defaults: bool) -> Self {
         Self {
             results: Default::default(),
             include_nested_inputs,
@@ -198,7 +194,6 @@ impl InputProcessor {
             }
             _ => {}
         }
-
 
         if self.show_expressions {
             let mut value = ty.to_string();
@@ -300,14 +295,7 @@ impl InputProcessor {
             self.input_section(namespace.clone(), inputs);
         }
 
-        if self.include_nested_inputs {
-            if !analysis_wf.allows_nested_inputs() {
-                bail!(
-                    "`--include-nested-inputs` specified, but the workflow does not support \
-                     nested inputs"
-                );
-            }
-
+        if self.include_nested_inputs && analysis_wf.allows_nested_inputs() {
             for (call_name, call) in analysis_wf.calls() {
                 let namespace = namespace.clone().push(call_name);
 
@@ -442,6 +430,10 @@ pub async fn inputs(args: Args) -> Result<()> {
                     bail!("no task or workflow with name `{name}` was found")
                 }
 
+                if !analysis_wf.allows_nested_inputs() && args.include_nested_inputs {
+                    bail!("workflow `{name}` does not allow nested inputs");
+                }
+
                 let ast_wf = ast
                     .workflows()
                     .find(|workflow| workflow.name().text() == name)
@@ -455,6 +447,11 @@ pub async fn inputs(args: Args) -> Result<()> {
         }
     } else if let Some(workflow) = document.workflow() {
         let name = workflow.name().to_owned();
+
+        if !workflow.allows_nested_inputs() && args.include_nested_inputs {
+            bail!("workflow `{name}` does not allow nested inputs");
+        }
+
         let namespace = Key::new(name.clone());
 
         let ast_wf = ast
