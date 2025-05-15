@@ -16,6 +16,7 @@ use indicatif::ProgressStyle;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
+use tracing::debug;
 use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use wdl::ast::AstNode as _;
@@ -28,6 +29,9 @@ use wdl::cli::analysis::Source;
 use wdl::cli::inputs::OriginPaths;
 use wdl::engine::EvaluationError;
 use wdl::engine::Inputs as EngineInputs;
+use wdl::engine::config::BackendConfig;
+use wdl::engine::config::Config;
+use wdl::engine::config::backend::CrankshaftBackendConfig;
 use wdl::engine::v1::ProgressKind;
 
 use crate::Mode;
@@ -72,6 +76,10 @@ pub struct Args {
     /// The path to the engine TOML configuration file.
     #[clap(short, long, value_name = "CONFIG")]
     pub config: Option<PathBuf>,
+
+    /// The Crankshaft backend to use.
+    #[clap(short, long, value_name = "BACKEND")]
+    pub crankshaft_backend: Option<String>,
 
     /// Overwrites the execution output directory if it exists.
     #[clap(long)]
@@ -313,7 +321,7 @@ pub async fn run(args: Args) -> Result<()> {
         })?;
     }
 
-    let config = args
+    let mut config: Config = args
         .config
         .map(|p| {
             let contents = std::fs::read_to_string(&p).with_context(|| {
@@ -328,6 +336,19 @@ pub async fn run(args: Args) -> Result<()> {
         })
         .transpose()?
         .unwrap_or_default();
+
+    if let Some(backend) = args.crankshaft_backend {
+        if !matches!(config.backend, BackendConfig::Crankshaft(_)) {
+            debug!(
+                "due to the provided `--crankshaft-backend` flag, the configured \
+                backend was overridden by Crankshaft",
+            );
+        }
+
+        config.backend = BackendConfig::Crankshaft(CrankshaftBackendConfig {
+            backend: Some(backend),
+        });
+    }
 
     let inferred = Inputs::coalesce(args.inputs)?.into_engine_inputs(document)?;
 
