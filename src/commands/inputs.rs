@@ -199,6 +199,24 @@ impl InputProcessor {
 
                     return Some((namespace.push(name), Value::Object(map)));
                 }
+                LiteralExpr::Pair(p) => {
+                    let mut map = Map::new();
+                    let (left, right) = p.exprs();
+
+                    if let Some((_key, value)) =
+                    self.expression(ty.clone(), Key::empty(), name, &left)
+                    {
+                        map.insert("left".to_string(), value);
+                    }
+
+                    if let Some((_key, value)) =
+                    self.expression(ty.clone(), Key::empty(), name, &right)
+                    {
+                        map.insert("right".to_string(), value);
+                    }
+
+                    return Some((namespace.push(name), Value::Object(map)));
+                }
                 _ => {
                     let value = expr.text().to_string();
 
