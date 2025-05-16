@@ -217,6 +217,18 @@ impl InputProcessor {
 
                     return Some((namespace.push(name), Value::Object(map)));
                 }
+                LiteralExpr::Object(v) => {
+                    let map = v
+                        .items()
+                        .filter_map(|item| {
+                            let (name, value) = item.name_value();
+                            self.expression(ty.clone(), Key::empty(), name.text(), &value)
+                        })
+                        .map(|(k, v)| (k.join().expect("key to join"), v))
+                        .collect::<Map<_, _>>();
+
+                    return Some((namespace.push(name), Value::Object(map)));
+                }
                 _ => {
                     let value = expr.text().to_string();
 
