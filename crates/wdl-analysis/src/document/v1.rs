@@ -783,7 +783,7 @@ fn add_decl(
 /// Returns `true` if the workflow was added to the document or `false` if not
 /// (i.e. there was a conflict).
 fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> bool {
-    // Check for conflicts with task names or an existing workspace
+    // Check for conflicts with task names or an existing workflow
     let name = workflow.name();
     match document.tasks.get(name.text()) {
         Some(s) => {

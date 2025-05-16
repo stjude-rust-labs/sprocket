@@ -335,7 +335,7 @@ fn bump(version: &str, patch_bump: bool) -> String {
 
 /// Publishes a crate.
 async fn publish(name: &str, version: &str, manifest_path: &Path, dry_run: bool) -> bool {
-    if !SORTED_CRATES_TO_PUBLISH.iter().any(|s| *s == name) {
+    if !SORTED_CRATES_TO_PUBLISH.contains(&name) {
         return true;
     }
 
