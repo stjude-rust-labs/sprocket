@@ -175,17 +175,14 @@ impl InputProcessor {
                     for item in m.items() {
                         let (k, v) = item.key_value();
                         let key_name: String = match k {
-                            Expr::Literal(ref l) => match l {
-                                LiteralExpr::String(k) => {
-                                    if let Some(text) = k.text() {
-                                        let mut buffer = String::new();
-                                        text.unescape_to(&mut buffer);
-                                        buffer
-                                    } else {
-                                        String::new()
-                                    }
+                            Expr::Literal(LiteralExpr::String(k) ) => {
+                                if let Some(text) = k.text() {
+                                    let mut buffer = String::new();
+                                    text.unescape_to(&mut buffer);
+                                    buffer
+                                } else {
+                                    String::new()
                                 }
-                                _ => k.text().to_string(),
                             },
                             _ => k.text().to_string(),
                         };
@@ -204,13 +201,13 @@ impl InputProcessor {
                     let (left, right) = p.exprs();
 
                     if let Some((_key, value)) =
-                    self.expression(ty.clone(), Key::empty(), name, &left)
+                        self.expression(ty.clone(), Key::empty(), name, &left)
                     {
                         map.insert("left".to_string(), value);
                     }
 
                     if let Some((_key, value)) =
-                    self.expression(ty.clone(), Key::empty(), name, &right)
+                        self.expression(ty.clone(), Key::empty(), name, &right)
                     {
                         map.insert("right".to_string(), value);
                     }
