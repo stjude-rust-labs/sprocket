@@ -175,7 +175,7 @@ impl InputProcessor {
                     for item in m.items() {
                         let (k, v) = item.key_value();
                         let key_name: String = match k {
-                            Expr::Literal(LiteralExpr::String(k) ) => {
+                            Expr::Literal(LiteralExpr::String(k)) => {
                                 if let Some(text) = k.text() {
                                     let mut buffer = String::new();
                                     text.unescape_to(&mut buffer);
@@ -183,7 +183,7 @@ impl InputProcessor {
                                 } else {
                                     String::new()
                                 }
-                            },
+                            }
                             _ => k.text().to_string(),
                         };
 
