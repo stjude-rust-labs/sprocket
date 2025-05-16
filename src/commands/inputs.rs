@@ -169,6 +169,36 @@ impl InputProcessor {
                         Value::Array(values.into_iter().map(|(_, v)| v).collect()),
                     ));
                 }
+                LiteralExpr::Map(m) => {
+                    let mut map = Map::new();
+
+                    for item in m.items() {
+                        let (k, v) = item.key_value();
+                        let key_name: String = match k {
+                            Expr::Literal(ref l) => match l {
+                                LiteralExpr::String(k) => {
+                                    if let Some(text) = k.text() {
+                                        let mut buffer = String::new();
+                                        text.unescape_to(&mut buffer);
+                                        buffer
+                                    } else {
+                                        String::new()
+                                    }
+                                }
+                                _ => k.text().to_string(),
+                            },
+                            _ => k.text().to_string(),
+                        };
+
+                        if let Some((_key, value)) =
+                            self.expression(ty.clone(), Key::empty(), name, &v)
+                        {
+                            map.insert(key_name, value);
+                        }
+                    }
+
+                    return Some((namespace.push(name), Value::Object(map)));
+                }
                 _ => {
                     let value = expr.text().to_string();
 
