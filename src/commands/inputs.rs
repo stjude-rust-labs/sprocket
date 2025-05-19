@@ -1,4 +1,4 @@
-//! Implementation of the `input` command.
+//! Implementation of the `inputs` command.
 
 use std::collections::HashSet;
 
@@ -22,7 +22,7 @@ use wdl::ast::v1::Type;
 use wdl::cli::Analysis;
 use wdl::cli::analysis::Source;
 
-/// Arguments for the `input` subcommand.
+/// Arguments for the `inputs` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
     /// A source WDL file or URL.
