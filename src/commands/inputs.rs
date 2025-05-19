@@ -43,7 +43,7 @@ pub struct Args {
 
     /// Generate inputs for all tasks called in the workflow.  
     #[arg(long)]
-    pub include_nested_inputs: bool,
+    pub nested_inputs: bool,
 
     /// Output the template as a YAML file.
     #[arg(long)]
@@ -457,7 +457,7 @@ pub async fn inputs(args: Args) -> Result<()> {
         .document();
 
     let mut inputs = InputProcessor::new(
-        args.include_nested_inputs,
+        args.nested_inputs,
         args.show_expressions,
         args.hide_defaults,
     );
@@ -487,7 +487,7 @@ pub async fn inputs(args: Args) -> Result<()> {
                     bail!("no task or workflow with name `{name}` was found")
                 }
 
-                if !analysis_wf.allows_nested_inputs() && args.include_nested_inputs {
+                if !analysis_wf.allows_nested_inputs() && args.nested_inputs {
                     bail!("workflow `{name}` does not allow nested inputs");
                 }
 
@@ -505,7 +505,7 @@ pub async fn inputs(args: Args) -> Result<()> {
     } else if let Some(workflow) = document.workflow() {
         let name = workflow.name().to_owned();
 
-        if !workflow.allows_nested_inputs() && args.include_nested_inputs {
+        if !workflow.allows_nested_inputs() && args.nested_inputs {
             bail!("workflow `{name}` does not allow nested inputs");
         }
 
