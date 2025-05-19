@@ -42,6 +42,7 @@ be out of sync with released packages.
 | `PascalCase`                | Clarity, Naming, Style        | Ensures that structs are defined with PascalCase names.                                             |
 | `PreambleCommentPlacement`  | Clarity                       | Ensures that documents have correct comments in the preamble.                                       |
 | `PreambleFormatted`         | Clarity, Spacing, Style       | Ensures that documents have correct whitespace in the preamble.                                     |
+| `RedundantNone`             | Style, Clarity                | Ensures optional inputs don't have redundant `None` assignments.                                    |
 | `RequirementsSection`       | Completeness, Portability     | Ensures that >=v1.2 tasks have a requirements section.                                              |
 | `RuntimeSection`            | Completeness, Portability     | Ensures that <v1.2 tasks have a runtime section.                                                    |
 | `SectionOrdering`           | Sorting, Style                | Ensures that sections within tasks and workflows are sorted.                                        |

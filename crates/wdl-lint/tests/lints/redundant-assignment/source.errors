@@ -1,0 +1,8 @@
+note[RedundantNone]: redundant assignment of `None` to optional input `also_maybe_five_but_is_not`
+   ┌─ tests/lints/redundant-assignment/source.wdl:11:46
+   │
+11 │         String? also_maybe_five_but_is_not = None
+   │                                              ^^^^
+   │
+   = fix: remove `= None` for input `also_maybe_five_but_is_not`
+
