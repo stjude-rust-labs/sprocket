@@ -1,6 +1,5 @@
 //! Implementation of the `inputs` command.
 
-use core::panic;
 use std::collections::HashSet;
 
 use anyhow::Result;
@@ -229,7 +228,7 @@ impl InputProcessor {
                 }
                 LiteralExpr::Hints(_) | LiteralExpr::Input(_) | LiteralExpr::Output(_) => {
                     // These are not allowed in the input section.
-                    panic!("unexpected literal expression");
+                    unreachable!("unexpected literal expression");
                 }
             },
             Expr::Negation(v) if !self.hide_defaults => {
