@@ -1,5 +1,6 @@
 //! Implementation of the `inputs` command.
 
+use core::panic;
 use std::collections::HashSet;
 
 use anyhow::Result;
@@ -176,13 +177,10 @@ impl InputProcessor {
                         let (k, v) = item.key_value();
                         let key_name: String = match k {
                             Expr::Literal(LiteralExpr::String(k)) => {
-                                if let Some(text) = k.text() {
-                                    let mut buffer = String::new();
-                                    text.unescape_to(&mut buffer);
-                                    buffer
-                                } else {
-                                    String::new()
-                                }
+                                let text = k.text().expect("should have string text");
+                                let mut buffer = String::new();
+                                text.unescape_to(&mut buffer);
+                                buffer
                             }
                             _ => k.text().to_string(),
                         };
@@ -226,10 +224,12 @@ impl InputProcessor {
 
                     return Some((namespace.push(name), Value::Object(map)));
                 }
-                _ => {
-                    let value = expr.text().to_string();
-
-                    return Some((namespace.push(name), Value::String(value)));
+                LiteralExpr::None(_) => {
+                    return Some((namespace.push(name), Value::Null));
+                }
+                LiteralExpr::Hints(_) | LiteralExpr::Input(_) | LiteralExpr::Output(_) => {
+                    // These are not allowed in the input section.
+                    panic!("unexpected literal expression");
                 }
             },
             Expr::Negation(v) if !self.hide_defaults => {
