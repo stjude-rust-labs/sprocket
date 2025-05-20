@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use assert_cmd::{Command, assert::Assert};
+use assert_cmd::Command;
+use assert_cmd::assert::Assert;
 
 fn get_test_file_path(file_name: &str) -> String {
     let mut source_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
