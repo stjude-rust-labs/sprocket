@@ -38,3 +38,7 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 url = "2.5.4"
 walkdir = "2.5.0"
 wdl = { version = "0.13.2", features = ["cli", "codespan", "engine", "lsp"] }
+
+
+[dev-dependencies]
+assert_cmd = "2.0.17"
