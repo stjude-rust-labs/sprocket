@@ -82,6 +82,52 @@ impl EvaluationError {
             backtrace: Default::default(),
         }))
     }
+
+    /// Helper for tests for converting an evaluation error to a string.
+    #[cfg(feature = "codespan-reporting")]
+    #[allow(clippy::inherent_to_string)]
+    pub fn to_string(&self) -> String {
+        use codespan_reporting::diagnostic::Label;
+        use codespan_reporting::diagnostic::LabelStyle;
+        use codespan_reporting::files::SimpleFiles;
+        use codespan_reporting::term::Config;
+        use codespan_reporting::term::termcolor::Buffer;
+        use codespan_reporting::term::{self};
+        use wdl_ast::AstNode;
+
+        match self {
+            Self::Source(e) => {
+                let mut files = SimpleFiles::new();
+                let mut map = HashMap::new();
+
+                let file_id = files.add(e.document.path(), e.document.root().text().to_string());
+
+                let diagnostic =
+                    e.diagnostic
+                        .to_codespan(file_id)
+                        .with_labels_iter(e.backtrace.iter().map(|l| {
+                            let id = l.document.id();
+                            let file_id = *map.entry(id).or_insert_with(|| {
+                                files.add(l.document.path(), l.document.root().text().to_string())
+                            });
+
+                            Label {
+                                style: LabelStyle::Secondary,
+                                file_id,
+                                range: l.span.start()..l.span.end(),
+                                message: "called from this location".into(),
+                            }
+                        }));
+
+                let mut buffer = Buffer::no_color();
+                term::emit(&mut buffer, &Config::default(), &files, &diagnostic)
+                    .expect("failed to emit diagnostic");
+
+                String::from_utf8(buffer.into_inner()).expect("should be UTF-8")
+            }
+            Self::Other(e) => format!("{e:?}"),
+        }
+    }
 }
 
 impl From<anyhow::Error> for EvaluationError {

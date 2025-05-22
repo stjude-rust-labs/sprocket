@@ -7,11 +7,13 @@ use std::future::Future;
 use std::mem;
 use std::path::Path;
 use std::path::absolute;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
+use anyhow::bail;
 use indexmap::IndexMap;
 use petgraph::algo::toposort;
 use tokio_util::sync::CancellationToken;
@@ -44,6 +46,7 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::StrippedCommandPart;
+use wdl_ast::v1::TASK_HINT_DISKS;
 use wdl_ast::v1::TASK_HINT_MAX_CPU;
 use wdl_ast::v1::TASK_HINT_MAX_CPU_ALIAS;
 use wdl_ast::v1::TASK_HINT_MAX_MEMORY;
@@ -51,6 +54,7 @@ use wdl_ast::v1::TASK_HINT_MAX_MEMORY_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER;
 use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_CPU;
+use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
@@ -65,11 +69,13 @@ use crate::EvaluationError;
 use crate::EvaluationResult;
 use crate::Input;
 use crate::InputKind;
+use crate::ONE_GIBIBYTE;
 use crate::Outputs;
 use crate::PrimitiveValue;
 use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
+use crate::StorageUnit;
 use crate::TaskExecutionBackend;
 use crate::TaskInputs;
 use crate::TaskSpawnInfo;
@@ -99,9 +105,11 @@ pub const DEFAULT_TASK_REQUIREMENT_CONTAINER: &str = "ubuntu:latest";
 /// The default value for the `cpu` requirement.
 pub const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
 /// The default value for the `memory` requirement.
-pub const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * 1024 * 1024 * 1024;
+pub const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 /// The default value for the `max_retries` requirement.
 pub const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
+/// The default value for the `disks` requirement (in GiB).
+pub const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
 
 /// The index of a task's root scope.
 const ROOT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(0);
@@ -220,6 +228,219 @@ pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> 
             unreachable!("value should be an integer or string");
         })
         .transpose()
+}
+
+/// Represents the type of a disk.
+///
+/// Disk types are specified via hints.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DiskType {
+    /// The disk type is a solid state drive.
+    SSD,
+    /// The disk type is a hard disk drive.
+    HDD,
+}
+
+impl FromStr for DiskType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "SSD" => Ok(Self::SSD),
+            "HDD" => Ok(Self::HDD),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Represents a task disk requirement.
+pub struct DiskRequirement {
+    /// The size of the disk, in GiB.
+    pub size: i64,
+
+    /// The disk type as specified by a corresponding task hint.
+    pub ty: Option<DiskType>,
+}
+
+/// Gets the `disks` requirement.
+///
+/// Upon success, returns a mapping of mount point to disk requirement.
+pub(crate) fn disks<'a>(
+    requirements: &'a HashMap<String, Value>,
+    hints: &HashMap<String, Value>,
+) -> Result<HashMap<&'a str, DiskRequirement>> {
+    /// Helper for looking up a disk type from the hints.
+    ///
+    /// If we don't recognize the specification, we ignore it.
+    fn lookup_type(mount_point: Option<&str>, hints: &HashMap<String, Value>) -> Option<DiskType> {
+        hints.get(TASK_HINT_DISKS).and_then(|v| {
+            if let Some(ty) = v.as_string() {
+                return ty.parse().ok();
+            }
+
+            if let Some(map) = v.as_map() {
+                // Find the corresponding key; we have to scan the keys because the map is
+                // storing primitive values
+                if let Some((_, v)) = map.iter().find(|(k, _)| match (k, mount_point) {
+                    (None, None) => true,
+                    (None, Some(_)) | (Some(_), None) => false,
+                    (Some(k), Some(mount_point)) => k
+                        .as_string()
+                        .map(|k| k.as_str() == mount_point)
+                        .unwrap_or(false),
+                }) {
+                    return v.as_string().and_then(|ty| ty.parse().ok());
+                }
+            }
+
+            None
+        })
+    }
+
+    /// Parses a disk specification into a size (in GiB) and optional mount
+    /// point.
+    fn parse_disk_spec(spec: &str) -> Option<(i64, Option<&str>)> {
+        let iter = spec.split_whitespace();
+        let mut first = None;
+        let mut second = None;
+        let mut third = None;
+
+        for part in iter {
+            if first.is_none() {
+                first = Some(part);
+                continue;
+            }
+
+            if second.is_none() {
+                second = Some(part);
+                continue;
+            }
+
+            if third.is_none() {
+                third = Some(part);
+                continue;
+            }
+
+            return None;
+        }
+
+        match (first, second, third) {
+            (None, None, None) => None,
+            (Some(size), None, None) => {
+                // Specification is `<size>` (in GiB)
+                Some((size.parse().ok()?, None))
+            }
+            (Some(first), Some(second), None) => {
+                // Check for `<size> <unit>`; convert from the specified unit to GiB
+                if let Ok(size) = first.parse() {
+                    let unit: StorageUnit = second.parse().ok()?;
+                    let size = unit.bytes(size)? / (ONE_GIBIBYTE as u64);
+                    return Some((size.try_into().ok()?, None));
+                }
+
+                // Specification is `<mount-point> <size>` (where size is already in GiB)
+                // The mount point must be absolute, i.e. start with `/`
+                if !first.starts_with('/') {
+                    return None;
+                }
+
+                Some((second.parse().ok()?, Some(first)))
+            }
+            (Some(mount_point), Some(size), Some(unit)) => {
+                // Specification is `<mount-point> <size> <units>`
+                let unit: StorageUnit = unit.parse().ok()?;
+                let size = unit.bytes(size.parse().ok()?)? / (ONE_GIBIBYTE as u64);
+
+                // Mount point must be absolute
+                if !mount_point.starts_with('/') {
+                    return None;
+                }
+
+                Some((size.try_into().ok()?, Some(mount_point)))
+            }
+            _ => unreachable!("should have one, two, or three values"),
+        }
+    }
+
+    /// Inserts a disk into the disks map.
+    fn insert_disk<'a>(
+        spec: &'a str,
+        hints: &HashMap<String, Value>,
+        disks: &mut HashMap<&'a str, DiskRequirement>,
+    ) -> Result<()> {
+        let (size, mount_point) =
+            parse_disk_spec(spec).with_context(|| format!("invalid disk specification `{spec}"))?;
+
+        let prev = disks.insert(
+            mount_point.unwrap_or("/"),
+            DiskRequirement {
+                size,
+                ty: lookup_type(mount_point, hints),
+            },
+        );
+
+        if prev.is_some() {
+            bail!(
+                "duplicate mount point `{mp}` specified in `disks` requirement",
+                mp = mount_point.unwrap_or("/")
+            );
+        }
+
+        Ok(())
+    }
+
+    let mut disks = HashMap::new();
+    if let Some(v) = requirements.get(TASK_REQUIREMENT_DISKS) {
+        if let Some(size) = v.as_integer() {
+            // Disk spec is just the size (in GiB)
+            if size < 0 {
+                bail!("task requirement `disks` cannot be less than zero");
+            }
+
+            disks.insert(
+                "/",
+                DiskRequirement {
+                    size,
+                    ty: lookup_type(None, hints),
+                },
+            );
+        } else if let Some(spec) = v.as_string() {
+            insert_disk(spec, hints, &mut disks)?;
+        } else if let Some(v) = v.as_array() {
+            for spec in v.as_slice() {
+                insert_disk(
+                    spec.as_string().expect("spec should be a string"),
+                    hints,
+                    &mut disks,
+                )?;
+            }
+        } else {
+            unreachable!("value should be an integer, string, or array");
+        }
+    }
+
+    Ok(disks)
+}
+
+/// Gets the `preemptible` hint from a hints map.
+///
+/// This hint is not part of the WDL standard but is used for compatibility with
+/// Cromwell where backends can support preemptible retries before using
+/// dedicated instances.
+pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> i64 {
+    const TASK_HINT_PREEMPTIBLE: &str = "preemptible";
+    const DEFAULT_TASK_HINT_PREEMPTIBLE: i64 = 0;
+
+    hints
+        .get(TASK_HINT_PREEMPTIBLE)
+        .and_then(|v| {
+            Some(
+                v.coerce(&PrimitiveType::Integer.into())
+                    .ok()?
+                    .unwrap_integer(),
+            )
+        })
+        .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE)
 }
 
 /// Used to evaluate expressions in tasks.

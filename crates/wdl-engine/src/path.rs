@@ -8,11 +8,8 @@ use std::str::FromStr;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use anyhow::bail;
 use path_clean::clean;
 use url::Url;
-
-use crate::PrimitiveValue;
 
 /// Determines if the given string is prefixed with a `file` URL scheme.
 pub fn is_file_url(s: &str) -> bool {
@@ -71,14 +68,6 @@ impl EvaluationPath {
                 .join(path)
                 .map(Self::Remote)
                 .with_context(|| format!("failed to join `{path}` to URL `{dir}`")),
-        }
-    }
-
-    /// Creates a path from a primitive `File` or `Directory` value.
-    pub fn from_primitive_value(v: &PrimitiveValue) -> Result<Self> {
-        match v {
-            PrimitiveValue::File(path) | PrimitiveValue::Directory(path) => path.parse(),
-            _ => bail!("primitive value must be a `File` or a `Directory`"),
         }
     }
 

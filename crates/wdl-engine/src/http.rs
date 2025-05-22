@@ -66,6 +66,18 @@ pub trait Downloader: Send + Sync {
         'a: 'c,
         'b: 'c,
         Self: 'c;
+
+    /// Gets the size of a resource at a given URL.
+    ///
+    /// Returns `Ok(Some(_))` if the size is known.
+    ///
+    /// Returns `Ok(None)` if the URL is valid but the size cannot be
+    /// determined.
+    fn size<'a, 'b, 'c>(&'a self, url: &'b Url) -> BoxFuture<'c, Result<Option<u64>>>
+    where
+        'a: 'c,
+        'b: 'c,
+        Self: 'c;
 }
 
 /// Represents a location of a downloaded file.
@@ -117,6 +129,23 @@ pub enum Status {
     Downloading(Arc<Notify>),
     /// The requested resource has already been downloaded.
     Downloaded(Result<Location<'static>, Arc<anyhow::Error>>),
+}
+
+/// Helper for displaying URLs in log messages.
+struct DisplayUrl<'a>(&'a Url);
+
+impl fmt::Display for DisplayUrl<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Only write the scheme, host, and path so that potential authentication
+        // information doesn't end up in the log
+        write!(
+            f,
+            "{scheme}://{host}{path}",
+            scheme = self.0.scheme(),
+            host = self.0.host_str().unwrap_or(""),
+            path = self.0.path()
+        )
+    }
 }
 
 /// Responsible for downloading and caching remote files using HTTP.
@@ -176,24 +205,8 @@ impl HttpDownloader {
     ///
     /// Returns the file's local location upon success.
     async fn get(&self, url: &Url) -> Result<Location<'static>> {
-        struct DisplayUrl<'a>(&'a Url);
-
-        impl fmt::Display for DisplayUrl<'_> {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                // Only write the scheme, host, and path so that potential authentication
-                // information doesn't end up in the log
-                write!(
-                    f,
-                    "{scheme}://{host}{path}",
-                    scheme = self.0.scheme(),
-                    host = self.0.host_str().unwrap_or(""),
-                    path = self.0.path()
-                )
-            }
-        }
-
         // TODO: progress indicator?
-        info!("downloading `{url}`", url = DisplayUrl(url));
+        debug!("sending GET for `{url}`", url = DisplayUrl(url));
 
         // Perform the download
         let response = self.client.get(url.as_str()).send().await?;
@@ -202,7 +215,7 @@ impl HttpDownloader {
         if !status.is_success() {
             if let Ok(text) = response.text().await {
                 debug!(
-                    "response from get of `{url}` was `{text}`",
+                    "response from GET of `{url}` was `{text}`",
                     url = DisplayUrl(url)
                 );
             }
@@ -394,7 +407,7 @@ impl Downloader for HttpDownloader {
                             delay_secs,
                             attempt + 1,
                             MAX_DOWNLOAD_ATTEMPTS,
-                            url = url
+                            url = DisplayUrl(&url)
                         );
 
                         drop(permit);
@@ -422,6 +435,70 @@ impl Downloader for HttpDownloader {
 
             notify.notify_waiters();
             result
+        }
+        .boxed()
+    }
+
+    /// Gets the size of a resource at a given URL.
+    ///
+    /// Returns `Ok(Some(_))` if the size is known.
+    ///
+    /// Returns `Ok(None)` if the URL is valid but the size cannot be
+    /// determined.
+    fn size<'a, 'b, 'c>(&'a self, url: &'b Url) -> BoxFuture<'c, Result<Option<u64>>>
+    where
+        'a: 'c,
+        'b: 'c,
+        Self: 'c,
+    {
+        async move {
+            let url: Cow<'_, Url> = match url.scheme() {
+                "file" => {
+                    let path = url
+                        .to_file_path()
+                        .map_err(|_| anyhow!("invalid file URL `{url}`"))?;
+                    let metadata = path.metadata().with_context(|| {
+                        format!(
+                            "cannot retrieve metadata for file `{path}`",
+                            path = path.display()
+                        )
+                    })?;
+                    return Ok(Some(metadata.len()));
+                }
+                "http" | "https" => Cow::Borrowed(url),
+                "az" => Cow::Owned(azure::rewrite_url(url)?),
+                "s3" => Cow::Owned(s3::rewrite_url(&self.config.storage.s3, url)?),
+                "gs" => Cow::Owned(google::rewrite_url(url)?),
+                _ => {
+                    return Err(anyhow!(
+                        "cannot determine the size of the resource at unsupported URL `{url}`"
+                    ));
+                }
+            };
+
+            // Apply any authentication to the URL based on configuration
+            let url = self.apply_auth(url);
+
+            // Perform the HEAD request
+            debug!("sending HEAD for `{url}`", url = DisplayUrl(&url));
+            let response = self.client.head(url.as_str()).send().await?;
+
+            let status = response.status();
+            if !status.is_success() {
+                if let Ok(text) = response.text().await {
+                    debug!(
+                        "response from HEAD of `{url}` was `{text}`",
+                        url = DisplayUrl(&url)
+                    );
+                }
+
+                bail!("server responded with status {status}");
+            }
+
+            Ok(response
+                .headers()
+                .get("content-length")
+                .and_then(|v| v.to_str().ok().and_then(|v| v.parse().ok())))
         }
         .boxed()
     }

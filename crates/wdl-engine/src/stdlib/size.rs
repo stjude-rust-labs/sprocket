@@ -9,6 +9,7 @@ use anyhow::bail;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tokio::fs;
+use url::Url;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
@@ -21,11 +22,68 @@ use crate::PrimitiveValue;
 use crate::StorageUnit;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
+use crate::http::Downloader;
+use crate::path;
 use crate::path::EvaluationPath;
 use crate::stdlib::ensure_local_path;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "size";
+
+/// Gets the size of a local file.
+async fn file_size(path: impl AsRef<Path>) -> Result<u64> {
+    let path = path.as_ref();
+
+    let metadata = fs::metadata(path).await.with_context(|| {
+        format!(
+            "failed to read metadata for file `{path}`",
+            path = path.display()
+        )
+    })?;
+
+    if !metadata.is_file() {
+        bail!("path `{path}` is not a file", path = path.display());
+    }
+
+    Ok(metadata.len())
+}
+
+/// Gets the size of a remote resource.
+async fn resource_size(downloader: &dyn Downloader, url: &Url) -> Result<u64> {
+    downloader
+        .size(url)
+        .await
+        .with_context(|| format!("failed to determine content length of URL `{url}`"))?
+        .with_context(|| format!("URL `{url}` has an unknown content length"))
+}
+
+/// Gets the size of a file path.
+///
+/// The path might be to a local file or to a remote URL.
+async fn file_path_size(
+    downloader: &dyn Downloader,
+    work_dir: Option<&EvaluationPath>,
+    path: &str,
+) -> Result<u64> {
+    // If the path is a URL, get the resource size
+    if let Some(url) = path::parse_url(path) {
+        return resource_size(downloader, &url).await;
+    }
+
+    // If the path is absolute, get the file size
+    if Path::new(path).is_absolute() {
+        return file_size(path).await;
+    }
+
+    // If the provided path is relative, we must have a working directory to join to
+    let work_dir = work_dir.with_context(|| {
+        format!("relative path `{path}` can only be used in a task output section")
+    })?;
+    match work_dir.join(path)? {
+        EvaluationPath::Local(path) => file_size(path).await,
+        EvaluationPath::Remote(url) => resource_size(downloader, &url).await,
+    }
+}
 
 /// Determines the size of a file, directory, or the sum total sizes of the
 /// files/directories contained within a compound value. The files may be
@@ -33,7 +91,7 @@ const FUNCTION_NAME: &str = "size";
 /// returned in bytes unless the optional second argument is specified with a
 /// unit.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#glob
+/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#size
 fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert!(!context.arguments.is_empty() && context.arguments.len() < 3);
@@ -63,34 +121,44 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
         // directory and treat it as such.
         let value = match context.arguments[0].value.as_string() {
             Some(s) => {
-                let path = ensure_local_path(context.work_dir(), s).map_err(|e| {
-                    function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
-                })?;
-
-                let metadata = fs::metadata(&path)
-                    .await
-                    .with_context(|| {
-                        format!(
-                            "failed to read metadata for file `{path}`",
-                            path = path.display()
-                        )
-                    })
-                    .map_err(|e| {
+                // If the path is a URL that isn't `file` schemed, treat as a file
+                if !path::is_file_url(s) && path::is_url(s) {
+                    PrimitiveValue::File(s.clone()).into()
+                } else {
+                    let path = ensure_local_path(context.work_dir(), s).map_err(|e| {
                         function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
                     })?;
-                if metadata.is_dir() {
-                    PrimitiveValue::Directory(s.clone()).into()
-                } else {
-                    PrimitiveValue::File(s.clone()).into()
+
+                    let metadata = fs::metadata(&path)
+                        .await
+                        .with_context(|| {
+                            format!(
+                                "failed to read metadata for file `{path}`",
+                                path = path.display()
+                            )
+                        })
+                        .map_err(|e| {
+                            function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
+                        })?;
+                    if metadata.is_dir() {
+                        PrimitiveValue::Directory(s.clone()).into()
+                    } else {
+                        PrimitiveValue::File(s.clone()).into()
+                    }
                 }
             }
             _ => context.arguments[0].value.clone(),
         };
 
-        calculate_disk_size(&value, unit, context.work_dir())
-            .await
-            .map_err(|e| function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site))
-            .map(Into::into)
+        calculate_disk_size(
+            context.context.downloader(),
+            &value,
+            unit,
+            context.work_dir(),
+        )
+        .await
+        .map_err(|e| function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site))
+        .map(Into::into)
     }
     .boxed()
 }
@@ -103,6 +171,7 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
 /// The size of a directory is based on the sum of the files contained in the
 /// directory.
 fn calculate_disk_size<'a>(
+    downloader: &'a dyn Downloader,
     value: &'a Value,
     unit: StorageUnit,
     cwd: Option<&'a EvaluationPath>,
@@ -110,8 +179,8 @@ fn calculate_disk_size<'a>(
     async move {
         match value {
             Value::None => Ok(0.0),
-            Value::Primitive(v) => primitive_disk_size(v, unit, cwd).await,
-            Value::Compound(v) => compound_disk_size(v, unit, cwd).await,
+            Value::Primitive(v) => primitive_disk_size(downloader, v, unit, cwd).await,
+            Value::Compound(v) => compound_disk_size(downloader, v, unit, cwd).await,
             Value::Task(_) => bail!("the size of a task variable cannot be calculated"),
             Value::Hints(_) => bail!("the size of a hints value cannot be calculated"),
             Value::Input(_) => bail!("the size of an input value cannot be calculated"),
@@ -124,25 +193,15 @@ fn calculate_disk_size<'a>(
 
 /// Calculates the disk size of the given primitive value in the given unit.
 async fn primitive_disk_size(
+    downloader: &dyn Downloader,
     value: &PrimitiveValue,
     unit: StorageUnit,
     work_dir: Option<&EvaluationPath>,
 ) -> Result<f64> {
     match value {
         PrimitiveValue::File(path) => {
-            let path = ensure_local_path(work_dir, path)?;
-            let metadata = fs::metadata(&path).await.with_context(|| {
-                format!(
-                    "failed to read metadata for file `{path}`",
-                    path = path.display()
-                )
-            })?;
-
-            if !metadata.is_file() {
-                bail!("path `{path}` is not a file", path = path.display());
-            }
-
-            Ok(unit.units(metadata.len()))
+            let size = file_path_size(downloader, work_dir, path).await?;
+            Ok(unit.units(size))
         }
         PrimitiveValue::Directory(path) => {
             let path = ensure_local_path(work_dir, path)?;
@@ -154,17 +213,22 @@ async fn primitive_disk_size(
 
 /// Calculates the disk size for a compound value in the given unit.
 async fn compound_disk_size(
+    downloader: &dyn Downloader,
     value: &CompoundValue,
     unit: StorageUnit,
     work_dir: Option<&EvaluationPath>,
 ) -> Result<f64> {
     match value {
-        CompoundValue::Pair(pair) => Ok(calculate_disk_size(pair.left(), unit, work_dir).await?
-            + calculate_disk_size(pair.right(), unit, work_dir).await?),
+        CompoundValue::Pair(pair) => {
+            Ok(
+                calculate_disk_size(downloader, pair.left(), unit, work_dir).await?
+                    + calculate_disk_size(downloader, pair.right(), unit, work_dir).await?,
+            )
+        }
         CompoundValue::Array(array) => {
             let mut size = 0.0;
             for e in array.as_slice() {
-                size += calculate_disk_size(e, unit, work_dir).await?;
+                size += calculate_disk_size(downloader, e, unit, work_dir).await?;
             }
 
             Ok(size)
@@ -173,9 +237,9 @@ async fn compound_disk_size(
             let mut size = 0.0;
             for (k, v) in map.iter() {
                 size += match k {
-                    Some(k) => primitive_disk_size(k, unit, work_dir).await?,
+                    Some(k) => primitive_disk_size(downloader, k, unit, work_dir).await?,
                     None => 0.0,
-                } + calculate_disk_size(v, unit, work_dir).await?;
+                } + calculate_disk_size(downloader, v, unit, work_dir).await?;
             }
 
             Ok(size)
@@ -183,7 +247,7 @@ async fn compound_disk_size(
         CompoundValue::Object(object) => {
             let mut size = 0.0;
             for (_, v) in object.iter() {
-                size += calculate_disk_size(v, unit, work_dir).await?;
+                size += calculate_disk_size(downloader, v, unit, work_dir).await?;
             }
 
             Ok(size)
@@ -191,7 +255,7 @@ async fn compound_disk_size(
         CompoundValue::Struct(s) => {
             let mut size = 0.0;
             for (_, v) in s.iter() {
-                size += calculate_disk_size(v, unit, work_dir).await?;
+                size += calculate_disk_size(downloader, v, unit, work_dir).await?;
             }
 
             Ok(size)
@@ -319,13 +383,10 @@ mod test {
              `Gi`, `TiB`, and `Ti`"
         );
 
-        let diagnostic = eval_v1_expr(&env, V1::Two, "size('https://example.com/foo')")
+        let value = eval_v1_expr(&env, V1::Two, "size('https://example.com/foo')")
             .await
-            .unwrap_err();
-        assert_eq!(
-            diagnostic.message(),
-            "call to function `size` failed: operation not supported for URL `https://example.com/foo`"
-        );
+            .unwrap();
+        approx::assert_relative_eq!(value.unwrap_float(), 1234.0);
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "size('does-not-exist', 'B')")
             .await

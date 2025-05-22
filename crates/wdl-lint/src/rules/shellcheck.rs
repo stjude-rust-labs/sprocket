@@ -64,7 +64,7 @@ const SHELLCHECK_SUPPRESS: &[&str] = &[
 /// Shellcheck lints that we want to keep,
 /// but ignore the fix suggestion.
 const SHELLCHECK_IGNORE_FIX: &[&str] = &[
-    "2086", /* Double quote to prevent globbing and word splitting (fix messge includes our
+    "2086", /* Double quote to prevent globbing and word splitting (fix message includes our
             * substitution) */
 ];
 
@@ -119,7 +119,7 @@ struct ShellCheckReplacement {
 
 /// A ShellCheck diagnostic.
 ///
-/// The `file` field is ommitted as we have no use for it.
+/// The `file` field is omitted as we have no use for it.
 #[derive(Clone, Debug, Deserialize)]
 struct ShellCheckDiagnostic {
     /// Line number comment starts on.

@@ -130,10 +130,12 @@ impl TaskManagerRequest for LocalTaskRequest {
             )
             .kill_on_drop(true);
 
-        // Set an environment variable on Windows to get consistent PATH searching
-        // See: https://github.com/rust-lang/rust/issues/122660
+        // Set the PATH variable for the child on Windows to get consistent PATH
+        // searching. See: https://github.com/rust-lang/rust/issues/122660
         #[cfg(windows)]
-        command.env("WDL_TASK_EVALUATION", "1");
+        if let Ok(path) = std::env::var("PATH") {
+            command.env("PATH", path);
+        }
 
         let mut child = command.spawn().context("failed to spawn `bash`")?;
 

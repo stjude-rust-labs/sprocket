@@ -10,12 +10,15 @@ use anyhow::bail;
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::warn;
+use url::Url;
 
 use crate::DockerBackend;
 use crate::LocalBackend;
 use crate::SYSTEM;
 use crate::TaskExecutionBackend;
+use crate::TesBackend;
 use crate::convert_unit_string;
+use crate::path::is_url;
 
 /// The inclusive maximum number of task retries the engine supports.
 pub const MAX_RETRIES: u64 = 100;
@@ -71,6 +74,7 @@ impl Config {
             BackendConfig::Docker(config) => {
                 Ok(Arc::new(DockerBackend::new(&self.task, config).await?))
             }
+            BackendConfig::Tes(config) => Ok(Arc::new(TesBackend::new(&self.task, config).await?)),
         }
     }
 }
@@ -335,6 +339,8 @@ pub enum BackendConfig {
     Local(LocalBackendConfig),
     /// Use the Docker task execution backend.
     Docker(DockerBackendConfig),
+    /// Use the TES task execution backend.
+    Tes(Box<TesBackendConfig>),
 }
 
 impl Default for BackendConfig {
@@ -349,6 +355,7 @@ impl BackendConfig {
         match self {
             Self::Local(config) => config.validate(),
             Self::Docker(config) => config.validate(),
+            Self::Tes(config) => config.validate(),
         }
     }
 }
@@ -448,6 +455,142 @@ impl Default for DockerBackendConfig {
     }
 }
 
+/// Represents HTTP basic authentication configuration.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct BasicAuthConfig {
+    /// The TES backend authentication username.
+    pub username: Option<String>,
+    /// The TES backend authentication password.
+    pub password: Option<String>,
+}
+
+impl BasicAuthConfig {
+    /// Validates the HTTP basic auth configuration.
+    pub fn validate(&self) -> Result<()> {
+        if self.username.is_none() {
+            bail!("HTTP basic auth configuration value `username` is required");
+        }
+
+        if self.password.is_none() {
+            bail!("HTTP basic auth configuration value `password` is required");
+        }
+
+        Ok(())
+    }
+}
+
+/// Represents the kind of authentication for a TES backend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum TesBackendAuthConfig {
+    /// Use basic authentication for the TES backend.
+    Basic(BasicAuthConfig),
+}
+
+impl TesBackendAuthConfig {
+    /// Validates the TES backend authentication configuration.
+    pub fn validate(&self) -> Result<()> {
+        match self {
+            Self::Basic(auth) => auth.validate(),
+        }
+    }
+}
+
+/// Represents configuration for the Task Execution Service (TES) backend.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct TesBackendConfig {
+    /// The URL of the Task Execution Service.
+    #[serde(default)]
+    pub url: Option<Url>,
+
+    /// The authentication configuration for the TES backend.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth: Option<TesBackendAuthConfig>,
+
+    /// The cloud storage URL for storing inputs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inputs: Option<Url>,
+
+    /// The cloud storage URL for storing outputs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub outputs: Option<Url>,
+
+    /// The polling interval, in seconds, for checking task status.
+    ///
+    /// Defaults to 60 second.
+    #[serde(default)]
+    pub interval: Option<u64>,
+
+    /// The maximum task concurrency for the backend.
+    ///
+    /// Defaults to unlimited.
+    #[serde(default)]
+    pub max_concurrency: Option<u64>,
+}
+
+impl TesBackendConfig {
+    /// Validates the TES backend configuration.
+    pub fn validate(&self) -> Result<()> {
+        match &self.url {
+            Some(url) => {
+                if url.scheme() != "https" {
+                    bail!(
+                        "TES backend configuration value `url` has invalid value `{url}`: URL \
+                         must use a HTTPS scheme"
+                    );
+                }
+            }
+            None => bail!("TES backend configuration value `url` is required"),
+        }
+
+        if let Some(auth) = &self.auth {
+            auth.validate()?;
+        }
+
+        match &self.inputs {
+            Some(url) => {
+                if !is_url(url.as_str()) {
+                    bail!(
+                        "TES backend storage configuration value `inputs` has invalid value \
+                         `{url}`: URL scheme is not supported"
+                    );
+                }
+
+                if !url.path().ends_with('/') {
+                    bail!(
+                        "TES backend storage configuration value `inputs` has invalid value \
+                         `{url}`: URL path must end with a slash"
+                    );
+                }
+            }
+            None => bail!("TES backend configuration value `inputs` is required"),
+        }
+
+        match &self.outputs {
+            Some(url) => {
+                if !is_url(url.as_str()) {
+                    bail!(
+                        "TES backend storage configuration value `outputs` has invalid value \
+                         `{url}`: URL scheme is not supported"
+                    );
+                }
+
+                if !url.path().ends_with('/') {
+                    bail!(
+                        "TES backend storage configuration value `outputs` has invalid value \
+                         `{url}`: URL path must end with a slash"
+                    );
+                }
+            }
+            None => bail!("TES backend storage configuration value `outputs` is required"),
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use pretty_assertions::assert_eq;
@@ -530,6 +673,45 @@ mod test {
         assert!(config.validate().unwrap_err().to_string().starts_with(
             "local backend configuration value `memory` cannot exceed the total memory of the host"
         ));
+
+        // Test missing TES URL
+        let config = Config {
+            backend: BackendConfig::Tes(Default::default()),
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().unwrap_err().to_string(),
+            "TES backend configuration value `url` is required"
+        );
+
+        // Test invalid TES basic auth
+        let config = Config {
+            backend: BackendConfig::Tes(Box::new(TesBackendConfig {
+                url: Some(Url::parse("https://example.com").unwrap()),
+                auth: Some(TesBackendAuthConfig::Basic(Default::default())),
+                ..Default::default()
+            })),
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().unwrap_err().to_string(),
+            "HTTP basic auth configuration value `username` is required"
+        );
+        let config = Config {
+            backend: BackendConfig::Tes(Box::new(TesBackendConfig {
+                url: Some(Url::parse("https://example.com").unwrap()),
+                auth: Some(TesBackendAuthConfig::Basic(BasicAuthConfig {
+                    username: Some("Foo".into()),
+                    ..Default::default()
+                })),
+                ..Default::default()
+            })),
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().unwrap_err().to_string(),
+            "HTTP basic auth configuration value `password` is required"
+        );
 
         let mut config = Config::default();
         config.http.max_concurrent_downloads = Some(0);

@@ -18,7 +18,6 @@
 //! `BLESS` environment variable when running this test.
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::ffi::OsStr;
@@ -34,12 +33,6 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use codespan_reporting::diagnostic::Label;
-use codespan_reporting::diagnostic::LabelStyle;
-use codespan_reporting::files::SimpleFiles;
-use codespan_reporting::term;
-use codespan_reporting::term::Config;
-use codespan_reporting::term::termcolor::Buffer;
 use colored::Colorize;
 use futures::StreamExt;
 use futures::stream;
@@ -53,7 +46,6 @@ use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::rules;
-use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::EvaluatedTask;
@@ -200,10 +192,7 @@ async fn run_test(test: &Path, result: &AnalysisResult) -> Result<()> {
     };
 
     if let Some(diagnostic) = diagnostics.iter().find(|d| d.severity() == Severity::Error) {
-        bail!(eval_error_to_string(&EvaluationError::new(
-            result.document().clone(),
-            diagnostic.clone()
-        )));
+        bail!(EvaluationError::new(result.document().clone(), diagnostic.clone()).to_string());
     }
 
     let (name, mut inputs) = match Inputs::parse(result.document(), test.join("inputs.json"))? {
@@ -254,14 +243,14 @@ async fn run_test(test: &Path, result: &AnalysisResult) -> Result<()> {
                         compare_result(&test.join("outputs.json"), &outputs)?;
                     }
                     Err(e) => {
-                        let error = eval_error_to_string(&e);
+                        let error = e.to_string();
                         let error = strip_paths(dir.path(), &error);
                         compare_result(&test.join("error.txt"), &error)?;
                     }
                 }
             }
             Err(e) => {
-                let error = eval_error_to_string(&e);
+                let error = e.to_string();
                 let error = strip_paths(dir.path(), &error);
                 compare_result(&test.join("error.txt"), &error)?;
             }
@@ -411,42 +400,6 @@ fn compare_evaluation_results(
     }
 
     Ok(())
-}
-
-/// Creates a string from the given evaluation error.
-fn eval_error_to_string(e: &EvaluationError) -> String {
-    match e {
-        EvaluationError::Source(e) => {
-            let mut files = SimpleFiles::new();
-            let mut map = HashMap::new();
-
-            let file_id = files.add(e.document.path(), e.document.root().text().to_string());
-
-            let diagnostic =
-                e.diagnostic
-                    .to_codespan(file_id)
-                    .with_labels_iter(e.backtrace.iter().map(|l| {
-                        let id = l.document.id();
-                        let file_id = *map.entry(id).or_insert_with(|| {
-                            files.add(l.document.path(), l.document.root().text().to_string())
-                        });
-
-                        Label {
-                            style: LabelStyle::Secondary,
-                            file_id,
-                            range: l.span.start()..l.span.end(),
-                            message: "called from this location".into(),
-                        }
-                    }));
-
-            let mut buffer = Buffer::no_color();
-            term::emit(&mut buffer, &Config::default(), &files, &diagnostic)
-                .expect("failed to emit diagnostic");
-
-            String::from_utf8(buffer.into_inner()).expect("should be UTF-8")
-        }
-        EvaluationError::Other(e) => format!("{e:?}"),
-    }
 }
 
 #[tokio::main]

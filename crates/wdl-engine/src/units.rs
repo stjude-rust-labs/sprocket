@@ -44,19 +44,19 @@ impl StorageUnit {
         }
     }
 
-    /// Converts the given number of bytes into the corresponding number of
-    /// bytes based on the unit.
-    pub fn bytes(&self, bytes: u64) -> Option<u64> {
+    /// Converts the given number of units into the corresponding number of
+    /// bytes.
+    pub fn bytes(&self, num: u64) -> Option<u64> {
         match self {
-            Self::Bytes => Some(bytes),
-            Self::Kilobytes => bytes.checked_mul(1000),
-            Self::Megabytes => bytes.checked_mul(1000000),
-            Self::Gigabytes => bytes.checked_mul(1000000000),
-            Self::Terabytes => bytes.checked_mul(1000000000000),
-            Self::Kibibytes => bytes.checked_mul(1024),
-            Self::Mebibytes => bytes.checked_mul(1048576),
-            Self::Gibibytes => bytes.checked_mul(1073741824),
-            Self::Tebibytes => bytes.checked_mul(1099511627776),
+            Self::Bytes => Some(num),
+            Self::Kilobytes => num.checked_mul(1000),
+            Self::Megabytes => num.checked_mul(1000000),
+            Self::Gigabytes => num.checked_mul(1000000000),
+            Self::Terabytes => num.checked_mul(1000000000000),
+            Self::Kibibytes => num.checked_mul(1024),
+            Self::Mebibytes => num.checked_mul(1048576),
+            Self::Gibibytes => num.checked_mul(1073741824),
+            Self::Tebibytes => num.checked_mul(1099511627776),
         }
     }
 }

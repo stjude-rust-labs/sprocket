@@ -1870,6 +1870,7 @@ workflow test {
                 |_| async {},
             )
             .await
+            .map_err(|e| e.to_string())
             .expect("failed to evaluate workflow");
         assert_eq!(outputs.iter().count(), 3, "expected three outputs");
 
@@ -2043,6 +2044,7 @@ workflow w {
                 },
             )
             .await
+            .map_err(|e| e.to_string())
             .expect("failed to evaluate workflow");
         assert_eq!(outputs.iter().count(), 0, "expected no outputs");
 

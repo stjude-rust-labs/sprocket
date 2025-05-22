@@ -119,7 +119,7 @@ impl DocumentGraphNode {
 
     /// Notifies the document node that there's been an incremental change.
     pub fn notify_incremental_change(&mut self, change: IncrementalChange) {
-        info!("document `{uri}` has incrementally changed", uri = self.uri);
+        debug!("document `{uri}` has incrementally changed", uri = self.uri);
 
         // Clear the analyzed document as there has been a change
         self.document = None;

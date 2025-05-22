@@ -1552,6 +1552,15 @@ pub(crate) mod test {
             }
             .boxed()
         }
+
+        fn size<'a, 'b, 'c>(&'a self, _: &'b Url) -> BoxFuture<'c, anyhow::Result<Option<u64>>>
+        where
+            'a: 'c,
+            'b: 'c,
+            Self: 'c,
+        {
+            std::future::ready(Ok(Some(1234))).boxed()
+        }
     }
 
     /// Represents test evaluation context to an expression evaluator.

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Implemented a TES task execution backend ([#454](https://github.com/stjude-rust-labs/wdl/pull/454)).
+
 ## 0.3.2 - 05-05-2025
 
 #### Fixed

@@ -24,32 +24,34 @@ repository = "https://github.com/stjude-rust-labs/wdl"
 rust-version = "1.85.0"
 
 [workspace.dependencies]
-ammonia = "4.0.0"
+ammonia = "4.1.0"
 anyhow = "1.0.98"
 approx = "0.5.1"
-chrono = "0.4.40"
-clap = { version = "4.5.37", features = ["derive"] }
-clap-verbosity-flag = { version = "3.0.2", features = ["tracing"] }
+base64 = "0.22.1"
+chrono = "0.4.41"
+clap = { version = "4.5.38", features = ["derive"] }
+clap-verbosity-flag = { version = "3.0.3", features = ["tracing"] }
 codespan-reporting = "0.12.0"
 colored = "3.0.0"
 convert_case = "0.8.0"
-crankshaft = "0.2.0"
+crankshaft = { version = "0.2.0", git = "https://github.com/stjude-rust-labs/crankshaft", rev = "6b17024" }
 dirs = "6.0.0"
 faster-hex = "0.10.0"
 ftree = "1.2.0"
 notify = "8.0.0"
 futures = "0.3.31"
-git2 = "0.20.1"
+git2 = "0.20.2"
 glob = "0.3.2"
 http-cache-stream-reqwest = "0.1.0"
 indexmap = { version = "2.9.0", features = ["serde"] }
 indicatif = "0.17.11"
 itertools = "0.14.0"
+libc = "0.2"
 line-index = "0.1.2"
 logos = "0.15.0"
 maud = "0.27.0"
 nonempty = "0.11.0"
-opener = "0.7.2"
+opener = "0.8.1"
 ordered-float = "5.0.0"
 pathdiff = "0.2.3"
 parking_lot = "0.12.3"
@@ -62,20 +64,21 @@ rayon = "1.10.0"
 regex = "1.11.1"
 reqwest = { version = "0.12.15", default-features = false, features = ["rustls-tls", "http2", "charset"] }
 reqwest-middleware = "0.4.2"
+rev_buf_reader = "0.3.0"
 rowan = "0.16.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.140"
 serde_with = "3.12.0"
-serde_yaml_ng = "0.10"
+serde_yaml_ng = "0.10.0"
 shellexpand = "3.1.1"
 strsim = "0.11.1"
-sysinfo = "0.34.2"
-tempfile = "3.19.1"
+sysinfo = "0.35.1"
+tempfile = "3.20.0"
 thiserror = "2.0.12"
-tokio = { version = "1.44.2", features = ["full"] }
-tokio-util = "0.7.14"
-toml = "0.8.20"
-toml_edit = { version = "0.22.24", features = ["serde"] }
+tokio = { version = "1.45.0", features = ["full"] }
+tokio-util = "0.7.15"
+toml = "0.8.22"
+toml_edit = { version = "0.22.26", features = ["serde"] }
 tower-lsp = "0.20.0"
 tracing = "0.1.41"
 tracing-indicatif = "0.3.9"

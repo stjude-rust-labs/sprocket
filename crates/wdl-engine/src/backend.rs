@@ -29,9 +29,11 @@ use crate::path::EvaluationPath;
 
 mod docker;
 mod local;
+mod tes;
 
 pub use docker::*;
 pub use local::*;
+pub use tes::*;
 
 /// The default work directory name.
 pub(crate) const WORK_DIR_NAME: &str = "work";

@@ -173,7 +173,7 @@ where
 
     /// Runs the analysis queue.
     pub fn run(&self, mut receiver: UnboundedReceiver<Request<Context>>) {
-        info!("analysis queue has started");
+        debug!("analysis queue has started");
 
         while let Some(request) = self.tokio.block_on(receiver.recv()) {
             match request {
@@ -182,14 +182,14 @@ where
                     completed,
                 }) => {
                     let start = Instant::now();
-                    info!(
+                    debug!(
                         "received request to add {count} document(s) to the graph",
                         count = documents.len()
                     );
 
                     self.add_documents(documents);
 
-                    info!(
+                    debug!(
                         "request to add documents completed in {elapsed:?}",
                         elapsed = start.elapsed()
                     );
@@ -203,14 +203,14 @@ where
                 }) => {
                     let start = Instant::now();
                     if let Some(document) = &document {
-                        info!("received request to document `{document}`");
+                        debug!("received request to document `{document}`");
                     } else {
-                        info!("received request to analyze all documents");
+                        debug!("received request to analyze all documents");
                     }
 
                     match self.analyze(document, context, &completed) {
                         Cancelable::Completed(results) => {
-                            info!(
+                            debug!(
                                 "request to analyze documents completed in {elapsed:?}",
                                 elapsed = start.elapsed()
                             );
@@ -218,7 +218,7 @@ where
                             completed.send(results).ok();
                         }
                         Cancelable::Canceled => {
-                            info!(
+                            debug!(
                                 "request to analyze documents was canceled after {elapsed:?}",
                                 elapsed = start.elapsed()
                             );
@@ -230,14 +230,14 @@ where
                     completed,
                 }) => {
                     let start = Instant::now();
-                    info!(
+                    debug!(
                         "received request to remove {count} documents(s)",
                         count = documents.len()
                     );
 
                     self.remove_documents(documents);
 
-                    info!(
+                    debug!(
                         "request to remove documents completed in {elapsed:?}",
                         elapsed = start.elapsed()
                     );
@@ -317,7 +317,7 @@ where
             }
         }
 
-        info!("analysis queue has shut down");
+        debug!("analysis queue has shut down");
     }
 
     /// Adds a set of documents to the document graph.
@@ -365,7 +365,7 @@ where
 
         loop {
             if completed.is_closed() {
-                info!("analysis request has been canceled");
+                debug!("analysis request has been canceled");
                 return Cancelable::Canceled;
             }
 
@@ -419,7 +419,7 @@ where
         let mut results: Vec<AnalysisResult> = Vec::new();
         while subgraph.node_count() > 0 {
             if completed.is_closed() {
-                info!("analysis request has been canceled");
+                debug!("analysis request has been canceled");
                 return Cancelable::Canceled;
             }
 
@@ -566,7 +566,7 @@ where
 
                 let now = Instant::now();
                 if count < total && (now - last_progress).as_millis() > MINIMUM_PROGRESS_MILLIS {
-                    info!("{count} out of {total} {kind} task(s) have completed");
+                    debug!("{count} out of {total} {kind} task(s) have completed");
                     last_progress = now;
                     update_progress(context.clone(), kind, count, total).await;
                 }
@@ -576,13 +576,13 @@ where
         });
 
         if results.len() < total {
-            info!(
+            debug!(
                 "{count} out of {total} {kind} task(s) have completed; canceled {canceled} tasks",
                 count = results.len(),
                 canceled = total - results.len()
             );
         } else {
-            info!(
+            debug!(
                 "{count} out of {total} {kind} task(s) have completed",
                 count = results.len()
             );
