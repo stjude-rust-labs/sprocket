@@ -25,7 +25,7 @@ pub struct Args {
     ///
     /// If specified, any existing files in the output directory will be
     /// deleted. Otherwise, the command will ignore existing files.
-    /// **Regadless** of this flag, the command will overwrite any existing
+    /// Regardless of this flag, the command will overwrite any existing
     /// files which conflict with the generated documentation.
     #[arg(long)]
     pub overwrite: bool,
