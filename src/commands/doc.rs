@@ -29,7 +29,7 @@ pub struct Args {
     /// files which conflict with the generated documentation.
     #[arg(long)]
     pub overwrite: bool,
-    /// Whether to open the generated documentation in the default web browser.
+    /// Open the generated documentation in the default web browser.
     #[arg(long)]
     pub open: bool,
     /// An optional path to a custom theme directory.
