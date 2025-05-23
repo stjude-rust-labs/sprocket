@@ -16,6 +16,9 @@ use wdl::doc::document_workspace;
 pub struct Args {
     /// Path to the local WDL workspace to document.
     pub workspace: PathBuf,
+    /// Path to a Markdown file to embed in the `<output>/index.html` file.
+    #[arg(long, value_name = "MARKDOWN FILE")]
+    pub homepage: Option<PathBuf>,
     /// Output directory for the generated documentation.
     /// If not specified, the documentation will be generated in
     /// `<workspace>/docs`.
@@ -83,7 +86,7 @@ pub async fn doc(args: Args) -> anyhow::Result<()> {
         .output
         .unwrap_or(args.workspace.join(DEFAULT_OUTPUT_DIR));
 
-    document_workspace(args.workspace, &docs_dir, css).await?;
+    document_workspace(args.workspace, &docs_dir, css, args.homepage).await?;
 
     if args.open {
         opener::open(docs_dir.join("index.html"))
