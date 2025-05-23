@@ -338,6 +338,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bstr"
+version = "1.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "234113d19d0d7d613b40e86fb654acf958910802bcceab913a4f9e7cda03b1a4"
+dependencies = [
+ "memchr",
+ "regex-automata 0.4.9",
+ "serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -805,6 +816,17 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot_core 0.9.10",
+]
+
+[[package]]
+name = "dbus"
+version = "0.9.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bb21987b9fb1613058ba3843121dd18b163b254d8a6e797e144cbac14d96d1b"
+dependencies = [
+ "libc",
+ "libdbus-sys",
+ "winapi",
 ]
 
 [[package]]
@@ -1750,6 +1772,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
+name = "libdbus-sys"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06085512b750d640299b79be4bad3d2fa90a9c00b1fd9e1b46364f66f0485c72"
+dependencies = [
+ "cc",
+ "pkg-config",
+]
+
+[[package]]
 name = "libredox"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2038,6 +2070,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "549e471b99ccaf2f89101bec68f4d244457d5a95a9c3d0672e9564124397741d"
 
 [[package]]
+name = "normpath"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8911957c4b1549ac0dc74e30db9c8b0e66ddcd6d7acc33098f4c63a64a6d7ed"
+dependencies = [
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "ntapi"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2100,6 +2141,18 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+
+[[package]]
+name = "opener"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0812e5e4df08da354c851a3376fead46db31c2214f849d3de356d774d057681"
+dependencies = [
+ "bstr",
+ "dbus",
+ "normpath",
+ "windows-sys 0.59.0",
+]
 
 [[package]]
 name = "openssl"
@@ -3215,6 +3268,7 @@ dependencies = [
  "indexmap 2.9.0",
  "indicatif",
  "nonempty",
+ "opener",
  "pest",
  "pretty_assertions",
  "serde",
@@ -4188,8 +4242,6 @@ dependencies = [
 [[package]]
 name = "wdl"
 version = "0.13.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cd23f064d1cf64bb7713dbf1b305b0291848ba9fab73815830217d4233f80c7"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4206,8 +4258,6 @@ dependencies = [
 [[package]]
 name = "wdl-analysis"
 version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fcd868377063017e365c712e50930f0f738637fa9e0398b83a88bd0a3d73d5c"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4233,8 +4283,6 @@ dependencies = [
 [[package]]
 name = "wdl-ast"
 version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb0a2184bc886a87725b8916cf86fe77d6c10290f26823a7da357c99de513edb"
 dependencies = [
  "macropol",
  "paste",
@@ -4247,8 +4295,6 @@ dependencies = [
 [[package]]
 name = "wdl-cli"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e01c5aff526fc1f55b9467de1dfb62b350297ebcaf8615120559d667c762144"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4274,13 +4320,12 @@ dependencies = [
 [[package]]
 name = "wdl-doc"
 version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0047fc868a746933e13779efc7c44721c366a354fbb9502aa15a3bad3faf402f"
 dependencies = [
  "ammonia",
  "anyhow",
  "indexmap 2.9.0",
  "maud",
+ "path-clean",
  "pathdiff",
  "pulldown-cmark",
  "tokio",
@@ -4291,8 +4336,6 @@ dependencies = [
 [[package]]
 name = "wdl-engine"
 version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8f9d6a5d367fa99f2a3deaaff3494190b3a236941c8b03577b413c6d38e23ed"
 dependencies = [
  "anyhow",
  "crankshaft",
@@ -4331,8 +4374,6 @@ dependencies = [
 [[package]]
 name = "wdl-format"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afa125737770e6af91c315d9241659371901254e71fceb83388b2f63949d6cec"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4341,8 +4382,6 @@ dependencies = [
 [[package]]
 name = "wdl-grammar"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f783d89bd7baa370a0be62ff1ed6b546f39ca10f8e4bd9b1be14e39b9cf71cd"
 dependencies = [
  "codespan-reporting",
  "itertools",
@@ -4354,8 +4393,6 @@ dependencies = [
 [[package]]
 name = "wdl-lint"
 version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc15a4c51dfdd0e44fb2177b9143275b7c6a1ae3ee0942a87332bff1e50e19d6"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4375,8 +4412,6 @@ dependencies = [
 [[package]]
 name = "wdl-lsp"
 version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be8041cfa5d82db63ab4347d4ccc4b30cb6f7651ba4c4736334cf4842a21fefa"
 dependencies = [
  "anyhow",
  "indexmap 2.9.0",
