@@ -33,6 +33,7 @@ pub struct Common {
     /// Repeat the flag multiple times to except multiple rules.
     #[clap(short, long, value_name = "RULE",
         value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
     )]
