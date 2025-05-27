@@ -24,7 +24,7 @@ pub struct Args {
     /// `<workspace>/docs`.
     #[arg(long, value_name = "DIR")]
     pub output: Option<PathBuf>,
-    /// Whether to overwrite any existing documentation.
+    /// Overwrite any existing documentation.
     ///
     /// If specified, any existing files in the output directory will be
     /// deleted. Otherwise, the command will ignore existing files.
@@ -45,17 +45,17 @@ pub struct Args {
     pub theme: Option<PathBuf>,
 }
 
-/// Build a stylesheet for the documentation, given the path to the `themes`
+/// Build a stylesheet for the documentation, given a path to the theme
 /// directory.
-pub fn build_stylesheet(themes_dir: &Path) -> Result<PathBuf> {
-    let themes_dir = absolute(themes_dir)?;
+pub fn build_stylesheet(theme_dir: &Path) -> Result<PathBuf> {
+    let theme_dir = absolute(theme_dir)?;
     let output = std::process::Command::new("npx")
         .arg("@tailwindcss/cli")
         .arg("-i")
         .arg("src/main.css")
         .arg("-o")
         .arg("dist/style.css")
-        .current_dir(&themes_dir)
+        .current_dir(&theme_dir)
         .output()?;
     if !output.status.success() {
         bail!(
@@ -63,7 +63,7 @@ pub fn build_stylesheet(themes_dir: &Path) -> Result<PathBuf> {
             stderr = String::from_utf8_lossy(&output.stderr)
         );
     }
-    let css_path = themes_dir.join("dist/style.css");
+    let css_path = theme_dir.join("dist/style.css");
     if !css_path.exists() {
         bail!("failed to build stylesheet: no output file found");
     }
