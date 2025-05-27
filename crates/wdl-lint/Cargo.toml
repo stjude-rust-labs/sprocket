@@ -1,6 +1,6 @@
 [package]
 name = "wdl-lint"
-version = "0.11.2"
+version = "0.12.0"
 description = "Lint rules for Workflow Description Language (WDL) documents"
 rust-version.workspace = true
 authors.workspace = true
@@ -12,8 +12,8 @@ documentation = "https://docs.rs/wdl-lint"
 readme = "../README.md"
 
 [dependencies]
-wdl-ast = { path = "../wdl-ast", version = "0.12.1" }
-wdl-analysis = { path = "../wdl-analysis", version = "0.8.2" }
+wdl-ast = { path = "../wdl-ast", version = "0.13.0" }
+wdl-analysis = { path = "../wdl-analysis", version = "0.9.0" }
 
 anyhow = { workspace = true }
 convert_case = { workspace = true }

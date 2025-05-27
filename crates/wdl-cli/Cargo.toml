@@ -1,6 +1,6 @@
 [package]
 name = "wdl-cli"
-version = "0.1.2"
+version = "0.2.0"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -11,10 +11,10 @@ description = "Facilities for building command-line tools using the `wdl` crates
 documentation = "https://docs.rs/wdl-cli"
 
 [dependencies]
-wdl-analysis = { path = "../wdl-analysis", version = "0.8.2" }
-wdl-ast = { path = "../wdl-ast", version = "0.12.1" }
-wdl-engine = { path = "../wdl-engine", version = "0.3.2" }
-wdl-lint = { path = "../wdl-lint", version = "0.11.1" }
+wdl-analysis = { path = "../wdl-analysis", version = "0.9.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.13.0" }
+wdl-engine = { path = "../wdl-engine", version = "0.4.0" }
+wdl-lint = { path = "../wdl-lint", version = "0.12.0" }
 
 anyhow.workspace = true
 codespan-reporting.workspace = true

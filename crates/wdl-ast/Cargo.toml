@@ -1,6 +1,6 @@
 [package]
 name = "wdl-ast"
-version = "0.12.1"
+version = "0.13.0"
 authors.workspace = true
 rust-version.workspace = true
 edition.workspace = true

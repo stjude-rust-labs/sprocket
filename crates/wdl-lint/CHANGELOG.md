@@ -7,13 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.12.0 - 05-27-2025
+
 #### Added
 
 * Added `RedundantNone` rule ([#444](https://github.com/stjude-rust-labs/wdl/pull/444)).
 
+#### Dependencies
+
+* Bumps dependencies.
+
 ## 0.11.2 - 05-05-2025
 
-* Dependencies were updated.
+#### Dependencies
+
+* Bumps dependencies.
 
 ## 0.11.1 - 05-02-2025
 

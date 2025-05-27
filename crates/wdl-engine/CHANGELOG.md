@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.4.0 - 05-27-2025
+
 #### Added
 
 * Implemented a TES task execution backend ([#454](https://github.com/stjude-rust-labs/wdl/pull/454)).
 * Adds the `insecure` option to the TES backend configuration ([#459](https://github.com/stjude-rust-labs/wdl/pull/459)).
+
+#### Dependencies
+
+* Bumps dependencies.
 
 ## 0.3.2 - 05-05-2025
 
@@ -18,7 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * JSON and YAML files are now correctly parsed ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
 * The `From<IndexMap<String, Value>>` method was moved to the private constructor `wdl_engine::Object::new()`, as there are some guarantees the caller has to uphold that weren't obvious in the `From` implementation ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
-* Dependencies were updated.
+
+#### Dependencies
+
+* Bumps dependencies.
 
 ## 0.3.1 - 05-02-2025
 
