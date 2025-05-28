@@ -74,7 +74,7 @@ cargo install sprocket
 Sprocket is available as a Docker [image](https://github.com/stjude-rust-labs/sprocket/pkgs/container/sprocket).
 
 ```bash
-docker pull ghcr.io/stjude-rust-labs/sprocket:v0.12.2
+docker pull ghcr.io/stjude-rust-labs/sprocket:v0.13.0
 ```
 
 ## 🖥️ Development

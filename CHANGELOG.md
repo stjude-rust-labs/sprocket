@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.13.0 - 05-28-2025
+
 ### Added
 
 * Added tab completions for `sprocket` commands ([#105](https://github.com/stjude-rust-labs/sprocket/pull/105)).
-* Added `shellcheck` to Dockerfile ([#114](https://github.com/stjude-rust-labs/sprocket/pull/114)).
 * Introduced the `inputs` subcommand ([#113](https://github.com/stjude-rust-labs/sprocket/pull/113)).
+
+### Fixed
+
+* Added `shellcheck` to Dockerfile ([#114](https://github.com/stjude-rust-labs/sprocket/pull/114)).
 * Fixed `check --except` and `explain` rule not being case-insensitive ([#116](https://github.com/stjude-rust-labs/sprocket/issues/116)).
+
+## Dependencies
+
+* Updates dependencies (including `wdl` to `v0.14.0`).
 
 ## 0.12.2 - 05-05-2025
 
