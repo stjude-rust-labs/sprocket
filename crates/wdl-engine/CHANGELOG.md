@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 * Implemented a TES task execution backend ([#454](https://github.com/stjude-rust-labs/wdl/pull/454)).
+* Adds the `insecure` option to the TES backend configuration ([#459](https://github.com/stjude-rust-labs/wdl/pull/459)).
 
 ## 0.3.2 - 05-05-2025
 
