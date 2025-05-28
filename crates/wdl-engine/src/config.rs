@@ -528,6 +528,11 @@ pub struct TesBackendConfig {
     /// Defaults to unlimited.
     #[serde(default)]
     pub max_concurrency: Option<u64>,
+
+    /// Whether or not the TES server URL may use an insecure protocol like
+    /// HTTP.
+    #[serde(default)]
+    pub insecure: bool,
 }
 
 impl TesBackendConfig {
@@ -535,7 +540,7 @@ impl TesBackendConfig {
     pub fn validate(&self) -> Result<()> {
         match &self.url {
             Some(url) => {
-                if url.scheme() != "https" {
+                if !self.insecure && url.scheme() != "https" {
                     bail!(
                         "TES backend configuration value `url` has invalid value `{url}`: URL \
                          must use a HTTPS scheme"
@@ -683,6 +688,41 @@ mod test {
             config.validate().unwrap_err().to_string(),
             "TES backend configuration value `url` is required"
         );
+
+        // Insecure TES URL
+        let config = Config {
+            backend: BackendConfig::Tes(
+                TesBackendConfig {
+                    url: Some("http://example.com".parse().unwrap()),
+                    inputs: Some("http://example.com".parse().unwrap()),
+                    outputs: Some("http://example.com".parse().unwrap()),
+                    ..Default::default()
+                }
+                .into(),
+            ),
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().unwrap_err().to_string(),
+            "TES backend configuration value `url` has invalid value `http://example.com/`: URL \
+             must use a HTTPS scheme"
+        );
+
+        // Allow insecure URL
+        let config = Config {
+            backend: BackendConfig::Tes(
+                TesBackendConfig {
+                    url: Some("http://example.com".parse().unwrap()),
+                    inputs: Some("http://example.com".parse().unwrap()),
+                    outputs: Some("http://example.com".parse().unwrap()),
+                    insecure: true,
+                    ..Default::default()
+                }
+                .into(),
+            ),
+            ..Default::default()
+        };
+        config.validate().expect("configuration should validate");
 
         // Test invalid TES basic auth
         let config = Config {
