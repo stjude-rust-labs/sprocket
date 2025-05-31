@@ -1,0 +1,17 @@
+checking `file.wdl`
+[1mDiff[0m [31m< left[0m / [32mright >[0m :
+ ## Unused input.
+ 
+[31m<[0m[1;48;5;52;31m    [0m[31mversion 1.1[0m
+[32m>version 1.1[0m
+ 
+[31m<[0m
+ workflow test {
+[31m<                            input {[0m
+[31m<            Int x[0m
+[31m<        }[0m
+[32m>    input {[0m
+[32m>        Int x[0m
+[32m>    }[0m
+ }
+[32m>[0m

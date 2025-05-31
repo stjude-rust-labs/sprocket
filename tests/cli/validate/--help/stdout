@@ -1,0 +1,46 @@
+Validate a set of inputs against a task or workflow.
+
+This ensures that every required input is supplied, every supplied input is correctly typed, that no extraneous inputs are provided, and that any provided `File` or `Directory` inputs exist.
+
+It will not catch potential runtime errors that may occur when running the task or workflow.
+
+Usage: sprocket validate [OPTIONS] <PATH or URL> [INPUTS]...
+
+Arguments:
+  <PATH or URL>
+          The path or URL to a document containing the task or workflow to validate inputs against
+
+  [INPUTS]...
+          The inputs for the task or workflow.
+          
+          These inputs can be either paths to files containing inputs or key-value pairs passed in on the command line.
+
+Options:
+  -n, --name <NAME>
+          The name of the task or workflow to validate inputs against.
+          
+          If inputs are provided, this will be attempted to be inferred from the prefixed names of the inputs (e.g, `<name>.<input-name>`).
+          
+          If no inputs are provided and this argument is not provided, it will be assumed you're trying to validate the workflow present in the specified document.
+
+      --no-color
+          Disables color output
+
+  -m, --report-mode <MODE>
+          The report mode
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version

@@ -1,0 +1,4 @@
+error: invalid value 'cmd' for '<SHELL>'
+  [possible values: bash, elvish, fish, powershell, zsh]
+
+For more information, try '--help'.

@@ -1,0 +1,21 @@
+Rules with the tag `Clarity`:
+  - CallInputSpacing
+  - CommandSectionIndentation
+  - ConsistentNewlines
+  - ContainerUri
+  - DeclarationName
+  - DoubleQuotes
+  - HereDocCommands
+  - ImportPlacement
+  - ImportSorted
+  - ImportWhitespace
+  - InputSorted
+  - KnownRules
+  - LineWidth
+  - LintDirectiveFormatted
+  - LintDirectiveValid
+  - MetaSections
+  - PascalCase
+  - PreambleCommentPlacement
+  - PreambleFormatted
+  - SnakeCase

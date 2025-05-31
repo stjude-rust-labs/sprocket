@@ -1,0 +1,48 @@
+Runs a task or workflow
+
+Usage: sprocket run [OPTIONS] <PATH or URL> [INPUTS]...
+
+Arguments:
+  <PATH or URL>
+          A source WDL file or URL
+
+  [INPUTS]...
+          The inputs for the task or workflow.
+          
+          These inputs can be either paths to files containing inputs or key-value pairs passed in on the command line.
+
+Options:
+  -n, --name <NAME>
+          The name of the task or workflow to run.
+          
+          If inputs are provided, this will be attempted to be inferred from the prefixed names of the inputs (e.g, `<name>.<input-name>`).
+          
+          If no inputs are provided and this argument is not provided, it will be assumed you're trying to run the workflow present in the specified WDL document.
+
+  -o, --output <OUTPUT_DIR>
+          The execution output directory; defaults to the task name if provided, otherwise, `output`
+
+  -c, --config <CONFIG>
+          The path to the engine TOML configuration file
+
+      --overwrite
+          Overwrites the execution output directory if it exists
+
+      --no-color
+          Disables color output
+
+  -m, --report-mode <MODE>
+          The report mode
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+  -h, --help
+          Print help (see a summary with '-h')

@@ -1,0 +1,79 @@
+Explains linting and validation rules
+
+Usage: sprocket explain [RULE]
+    sprocket explain --tag <TAG>
+    sprocket explain --definitions
+
+Arguments:
+  [RULE]  The name of the rule to explain [possible values: CallInputSpacing, CommandSectionIndentation, CommentWhitespace, ConciseInput, ConsistentNewlines, ContainerUri, DeclarationName, DeprecatedObject, DeprecatedPlaceholder, DoubleQuotes, ElementSpacing, EndingNewline, ExpectedRuntimeKeys, ExpressionSpacing, HereDocCommands, ImportPlacement, ImportSorted, ImportWhitespace, InputName, InputSorted, KnownRules, LineWidth, LintDirectiveFormatted, LintDirectiveValid, MatchingOutputMeta, MetaDescription, MetaKeyValueFormatting, MetaSections, OutputName, OutputSection, ParameterMetaMatched, PascalCase, PreambleCommentPlacement, PreambleFormatted, RequirementsSection, RuntimeSection, SectionOrdering, ShellCheck, SnakeCase, TodoComment, TrailingComma, UnnecessaryFunctionCall, UnusedCall, UnusedDeclaration, UnusedImport, UnusedInput, VersionStatementFormatted, Whitespace]
+
+Options:
+  -t, --tag <TAG>       List all rules with the given tag [possible values: Clarity, Completeness, Correctness, Deprecated, Naming, Portability, Sorting, Spacing, Style]
+      --definitions     Display general WDL definitions
+      --list-all-rules  Lists all rules and exits
+      --list-all-tags   Lists all tags and exits
+  -v, --verbose...      Increase logging verbosity
+  -q, --quiet...        Decrease logging verbosity
+  -h, --help            Print help
+  -V, --version         Print version
+
+Available rules:
+  - CallInputSpacing
+  - CommandSectionIndentation
+  - CommentWhitespace
+  - ConciseInput
+  - ConsistentNewlines
+  - ContainerUri
+  - DeclarationName
+  - DeprecatedObject
+  - DeprecatedPlaceholder
+  - DoubleQuotes
+  - ElementSpacing
+  - EndingNewline
+  - ExpectedRuntimeKeys
+  - ExpressionSpacing
+  - HereDocCommands
+  - ImportPlacement
+  - ImportSorted
+  - ImportWhitespace
+  - InputName
+  - InputSorted
+  - KnownRules
+  - LineWidth
+  - LintDirectiveFormatted
+  - LintDirectiveValid
+  - MatchingOutputMeta
+  - MetaDescription
+  - MetaKeyValueFormatting
+  - MetaSections
+  - OutputName
+  - OutputSection
+  - ParameterMetaMatched
+  - PascalCase
+  - PreambleCommentPlacement
+  - PreambleFormatted
+  - RequirementsSection
+  - RuntimeSection
+  - SectionOrdering
+  - ShellCheck
+  - SnakeCase
+  - TodoComment
+  - TrailingComma
+  - UnnecessaryFunctionCall
+  - UnusedCall
+  - UnusedDeclaration
+  - UnusedImport
+  - UnusedInput
+  - VersionStatementFormatted
+  - Whitespace
+
+Available tags:
+  - Clarity
+  - Completeness
+  - Correctness
+  - Deprecated
+  - Naming
+  - Portability
+  - Sorting
+  - Spacing
+  - Style
