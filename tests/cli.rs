@@ -4,30 +4,38 @@
 //! These directories can be arbitrarily nested to group similar tests together
 //!
 //! Each test can contain the following files (but all are optional)
-//! * `sprocket_command` - entrypoint of each test, contains a sprocket command that will be
+//! * `sprocket_command` - entrypoint of each test, contains a sprocket command
+//!   that will be
 //! run (without the sprocket keyword)
-//! * `inputs` - a directory containing the starting files that the test will run with.
-//! These are copied to a temp folder, and the command above will be run inside this temp folder.
-//! *  `outputs` - a directory containing the expected ending files that the temp folder will
-//! end up with. These often will be a copy of the inputs directory if the command does not change
-//! the input files.
+//! * `inputs` - a directory containing the starting files that the test will
+//!   run with.
+//! These are copied to a temp folder, and the command above will be run inside
+//! this temp folder.
+//! * `outputs` - a directory containing the expected ending files that the temp
+//!   folder will
+//! end up with. These often will be a copy of the inputs directory if the
+//! command does not change the input files.
 //! * `stdout` - the expected stdout from the task
 //! * `stderr` - the expected stderr from the task
 //!
 //! The expected files may be automatically generated or updated by setting the
 //! `BLESS` environment variable when running this test.
 
-use anyhow::{Context, Result, anyhow, bail};
+use std::env;
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::exit;
+use std::thread::available_parallelism;
+
+use anyhow::Context;
+use anyhow::Result;
+use anyhow::anyhow;
+use anyhow::bail;
 use assert_cmd::Command;
 use colored::Colorize;
-use futures::{StreamExt, stream};
+use futures::StreamExt;
+use futures::stream;
 use pretty_assertions::StrComparison;
-use std::{
-    env,
-    path::{Path, PathBuf},
-    process::exit,
-    thread::available_parallelism,
-};
 use tempfile::TempDir;
 use tokio::fs;
 use walkdir::WalkDir;

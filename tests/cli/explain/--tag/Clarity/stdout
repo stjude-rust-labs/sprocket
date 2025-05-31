@@ -18,4 +18,5 @@ Rules with the tag `Clarity`:
   - PascalCase
   - PreambleCommentPlacement
   - PreambleFormatted
+  - RedundantNone
   - SnakeCase
