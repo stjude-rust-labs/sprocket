@@ -1,14 +1,19 @@
 //! Implementation of the `doc` command.
 
 use std::path::PathBuf;
+use std::sync::mpsc;
 
-use anyhow::bail;
-use anyhow::Ok;
 use anyhow::Result;
+use anyhow::bail;
 use clap::Parser;
-use wdl::doc::document_workspace;
+use notify::Event;
+use notify::RecursiveMode;
+use notify::Result as NotifyResult;
+use notify::Watcher;
+use notify::recommended_watcher;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
+use wdl::doc::document_workspace;
 use wdl::doc::install_theme;
 
 /// Arguments for the `doc` subcommand.
@@ -50,6 +55,12 @@ pub struct Args {
     /// Requires the `--theme` argument to be specified.
     #[arg(long)]
     pub install: bool,
+
+    /// Whether to watch the theme directory for changes.
+    ///
+    /// Requires the `--theme` argument to be specified.
+    #[arg(long)]
+    pub watch: bool,
 }
 
 /// The default output directory for the generated documentation.
@@ -79,12 +90,53 @@ pub async fn doc(args: Args) -> Result<()> {
         .output
         .unwrap_or(args.workspace.join(DEFAULT_OUTPUT_DIR));
 
-    document_workspace(args.workspace, &docs_dir, css, args.homepage).await?;
+    document_workspace(
+        &args.workspace,
+        &docs_dir,
+        css.clone(),
+        args.homepage.clone(),
+    )
+    .await?;
 
     if args.open {
         opener::open(docs_dir.join("index.html"))
             .map_err(|e| anyhow::anyhow!("failed to open documentation: {e}"))?;
     }
 
-    Ok(())
+    if args.watch {
+        if let Some(theme) = &args.theme {
+            let (tx, rx) = mpsc::channel::<NotifyResult<Event>>();
+            let mut watcher = recommended_watcher(tx)?;
+
+            watcher.watch(&theme.join("src"), RecursiveMode::Recursive)?;
+            watcher.watch(&theme.join("web-components"), RecursiveMode::Recursive)?;
+
+            println!("watching for changes in theme directory...");
+            println!("press Ctrl+C to stop watching");
+
+            loop {
+                match rx.recv() {
+                    Ok(Ok(Event { .. })) => {
+                        println!("regenerating documentation...");
+                        build_stylesheet(theme)?;
+                        build_web_components(theme)?;
+                        document_workspace(
+                            &args.workspace,
+                            &docs_dir,
+                            css.clone(),
+                            args.homepage.clone(),
+                        )
+                        .await?;
+                        println!("done");
+                    }
+                    Ok(Err(e)) => eprintln!("watch error: {}", e),
+                    Err(e) => eprintln!("watch error: {}", e),
+                }
+            }
+        } else {
+            bail!("the --watch flag requires the --theme argument to be specified");
+        }
+    }
+
+    anyhow::Ok(())
 }
