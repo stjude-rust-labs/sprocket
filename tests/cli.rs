@@ -127,19 +127,24 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
 
     let command_assert = command.assert();
     let command_output = CommandOutput {
-        stdout: normalize_string(&String::from_utf8(command_assert.get_output().stdout.clone())
-            .context("failed to get stdout from sprocket command")?),
-        stderr: normalize_string(&String::from_utf8(command_assert.get_output().stderr.clone())
-            .context("failed to get stderr from sprocket command")?),
+        stdout: normalize_string(
+            &String::from_utf8(command_assert.get_output().stdout.clone())
+                .context("failed to get stdout from sprocket command")?,
+        ),
+        stderr: normalize_string(
+            &String::from_utf8(command_assert.get_output().stderr.clone())
+                .context("failed to get stderr from sprocket command")?,
+        ),
     };
 
     Ok(command_output)
 }
 
-fn normalize_string(input: &str)-> String {
+fn normalize_string(input: &str) -> String {
     input
         .replace("\r\n", "\n")
-        .replace("sprocket.exe", "sprocket").to_string()
+        .replace("sprocket.exe", "sprocket")
+        .to_string()
 }
 
 async fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
