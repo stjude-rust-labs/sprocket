@@ -76,13 +76,8 @@ pub async fn doc(args: Args) -> Result<()> {
         }
     }
 
-    let css = args
-        .theme
-        .as_ref()
-        .map(|theme| build_stylesheet(theme))
-        .transpose()?;
-
     if let Some(theme) = &args.theme {
+        build_stylesheet(theme)?;
         build_web_components(theme)?;
     }
 
@@ -90,13 +85,7 @@ pub async fn doc(args: Args) -> Result<()> {
         .output
         .unwrap_or(args.workspace.join(DEFAULT_OUTPUT_DIR));
 
-    document_workspace(
-        &args.workspace,
-        &docs_dir,
-        css.clone(),
-        args.homepage.clone(),
-    )
-    .await?;
+    document_workspace(&args.workspace, &docs_dir, args.homepage.clone()).await?;
 
     if args.open {
         opener::open(docs_dir.join("index.html"))
@@ -120,13 +109,8 @@ pub async fn doc(args: Args) -> Result<()> {
                         println!("regenerating documentation...");
                         build_stylesheet(theme)?;
                         build_web_components(theme)?;
-                        document_workspace(
-                            &args.workspace,
-                            &docs_dir,
-                            css.clone(),
-                            args.homepage.clone(),
-                        )
-                        .await?;
+                        document_workspace(&args.workspace, &docs_dir, args.homepage.clone())
+                            .await?;
                         println!("done");
                     }
                     Ok(Err(e)) => eprintln!("watch error: {}", e),
