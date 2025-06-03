@@ -597,8 +597,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft"
-version = "0.2.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=6b17024#6b170247c00993a43d71571e56e10e251d6d89da"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75a8e579e135d62491e791b4e22de376bbcc55667492618d2722da54114f1648"
 dependencies = [
  "crankshaft-config",
  "crankshaft-engine",
@@ -607,7 +608,8 @@ dependencies = [
 [[package]]
 name = "crankshaft-config"
 version = "0.2.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=6b17024#6b170247c00993a43d71571e56e10e251d6d89da"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc556efa065005f792a179b37ca38b64b4cde134650d564ba09b92f4b40a0a17"
 dependencies = [
  "bon",
  "config",
@@ -621,9 +623,9 @@ dependencies = [
 [[package]]
 name = "crankshaft-docker"
 version = "0.2.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=6b17024#6b170247c00993a43d71571e56e10e251d6d89da"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72e6f6da2da70bf81bd3ff2d6f093995d9169f04783edacb4664e2c7c6193acf"
 dependencies = [
- "anyhow",
  "bollard",
  "bon",
  "futures",
@@ -638,8 +640,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-engine"
-version = "0.2.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=6b17024#6b170247c00993a43d71571e56e10e251d6d89da"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c2b58eba9cc8ad4ee97cc56dd1cda85bad7fdd0dfbd9f17a22424afd750ef8c"
 dependencies = [
  "anyhow",
  "async-trait",
