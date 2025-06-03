@@ -1,0 +1,278 @@
+
+use builtin;
+use str;
+
+set edit:completion:arg-completer[sprocket] = {|@words|
+    fn spaces {|n|
+        builtin:repeat $n ' ' | str:join ''
+    }
+    fn cand {|text desc|
+        edit:complex-candidate $text &display=$text' '(spaces (- 14 (wcswidth $text)))$desc
+    }
+    var command = 'sprocket'
+    for word $words[1..-1] {
+        if (str:has-prefix $word '-') {
+            break
+        }
+        set command = $command';'$word
+    }
+    var completions = [
+        &'sprocket'= {
+            cand -c 'Path to the configuration file'
+            cand --config 'Path to the configuration file'
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -s 'Skip searching for and loading configuration files'
+            cand --skip-config-search 'Skip searching for and loading configuration files'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand -V 'Print version'
+            cand --version 'Print version'
+            cand analyzer 'Runs the Language Server Protocol (LSP) server'
+            cand check 'Checks a document or a directory containing documents'
+            cand completions 'Generates shell completions'
+            cand config 'Display the effective configuration'
+            cand explain 'Explains linting and validation rules'
+            cand format 'Formats a document or a directory containing documents'
+            cand inputs 'Writes the inputs schema for a WDL document'
+            cand lint 'Lints a document or a directory containing documents'
+            cand run 'Runs a task or workflow'
+            cand validate 'Validate a set of inputs against a task or workflow'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'sprocket;analyzer'= {
+            cand --stdio 'Use stdin and stdout for the RPC transport'
+            cand --lint 'Whether or not to enable all lint rules'
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'sprocket;check'= {
+            cand -e 'Excepts (ignores) an analysis or lint rule'
+            cand --except 'Excepts (ignores) an analysis or lint rule'
+            cand -m 'The report mode'
+            cand --report-mode 'The report mode'
+            cand --deny-warnings 'Causes the command to fail if warnings were reported'
+            cand --deny-notes 'Causes the command to fail if notes were reported'
+            cand --suppress-imports 'Suppress diagnostics from documents that were not explicitly provided in the sources list (i.e., were imported from a provided source)'
+            cand --show-remote-diagnostics 'Show diagnostics for remote documents'
+            cand --hide-notes 'Hide diagnostics with `note` severity'
+            cand --no-color 'Disables color output'
+            cand -l 'Enable lint checks in addition to validation errors'
+            cand --lint 'Enable lint checks in addition to validation errors'
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'sprocket;completions'= {
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'sprocket;config'= {
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+            cand init 'Generates a default configuration file'
+            cand resolve 'Displays the current configuration'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'sprocket;config;init'= {
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'sprocket;config;resolve'= {
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'sprocket;config;help'= {
+            cand init 'Generates a default configuration file'
+            cand resolve 'Displays the current configuration'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'sprocket;config;help;init'= {
+        }
+        &'sprocket;config;help;resolve'= {
+        }
+        &'sprocket;config;help;help'= {
+        }
+        &'sprocket;explain'= {
+            cand -t 'List all rules with the given tag'
+            cand --tag 'List all rules with the given tag'
+            cand --definitions 'Display general WDL definitions'
+            cand --list-all-rules 'Lists all rules and exits'
+            cand --list-all-tags 'Lists all tags and exits'
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'sprocket;format'= {
+            cand -m 'The report mode'
+            cand --report-mode 'The report mode'
+            cand --indentation-size 'The number of spaces to use for indentation levels (default is 4)'
+            cand --max-line-length 'The maximum line length (default is 90)'
+            cand --no-color 'Disables color output'
+            cand --with-tabs 'Use tabs for indentation (default is spaces)'
+            cand --overwrite 'Overwrite the WDL documents with the formatted versions'
+            cand --check 'Check if files are formatted correctly and print diff if not'
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'sprocket;inputs'= {
+            cand -n 'The name of the task or workflow for which to generate inputs'
+            cand --name 'The name of the task or workflow for which to generate inputs'
+            cand --show-expressions 'Show inputs with non-literal default values'
+            cand --hide-defaults 'Hide inputs with default values'
+            cand --nested-inputs 'Generate inputs for all tasks called in the workflow'
+            cand --yaml 'Output the template as a YAML file'
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'sprocket;lint'= {
+            cand -e 'Excepts (ignores) an analysis or lint rule'
+            cand --except 'Excepts (ignores) an analysis or lint rule'
+            cand -m 'The report mode'
+            cand --report-mode 'The report mode'
+            cand --deny-warnings 'Causes the command to fail if warnings were reported'
+            cand --deny-notes 'Causes the command to fail if notes were reported'
+            cand --suppress-imports 'Suppress diagnostics from documents that were not explicitly provided in the sources list (i.e., were imported from a provided source)'
+            cand --show-remote-diagnostics 'Show diagnostics for remote documents'
+            cand --hide-notes 'Hide diagnostics with `note` severity'
+            cand --no-color 'Disables color output'
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'sprocket;run'= {
+            cand -n 'The name of the task or workflow to run'
+            cand --name 'The name of the task or workflow to run'
+            cand -o 'The execution output directory; defaults to the task name if provided, otherwise, `output`'
+            cand --output 'The execution output directory; defaults to the task name if provided, otherwise, `output`'
+            cand -c 'The path to the engine TOML configuration file'
+            cand --config 'The path to the engine TOML configuration file'
+            cand -m 'The report mode'
+            cand --report-mode 'The report mode'
+            cand --overwrite 'Overwrites the execution output directory if it exists'
+            cand --no-color 'Disables color output'
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'sprocket;validate'= {
+            cand -n 'The name of the task or workflow to validate inputs against'
+            cand --name 'The name of the task or workflow to validate inputs against'
+            cand -m 'The report mode'
+            cand --report-mode 'The report mode'
+            cand --no-color 'Disables color output'
+            cand -v 'Increase logging verbosity'
+            cand --verbose 'Increase logging verbosity'
+            cand -q 'Decrease logging verbosity'
+            cand --quiet 'Decrease logging verbosity'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'sprocket;help'= {
+            cand analyzer 'Runs the Language Server Protocol (LSP) server'
+            cand check 'Checks a document or a directory containing documents'
+            cand completions 'Generates shell completions'
+            cand config 'Display the effective configuration'
+            cand explain 'Explains linting and validation rules'
+            cand format 'Formats a document or a directory containing documents'
+            cand inputs 'Writes the inputs schema for a WDL document'
+            cand lint 'Lints a document or a directory containing documents'
+            cand run 'Runs a task or workflow'
+            cand validate 'Validate a set of inputs against a task or workflow'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'sprocket;help;analyzer'= {
+        }
+        &'sprocket;help;check'= {
+        }
+        &'sprocket;help;completions'= {
+        }
+        &'sprocket;help;config'= {
+            cand init 'Generates a default configuration file'
+            cand resolve 'Displays the current configuration'
+        }
+        &'sprocket;help;config;init'= {
+        }
+        &'sprocket;help;config;resolve'= {
+        }
+        &'sprocket;help;explain'= {
+        }
+        &'sprocket;help;format'= {
+        }
+        &'sprocket;help;inputs'= {
+        }
+        &'sprocket;help;lint'= {
+        }
+        &'sprocket;help;run'= {
+        }
+        &'sprocket;help;validate'= {
+        }
+        &'sprocket;help;help'= {
+        }
+    ]
+    $completions[$command]
+}

@@ -1,0 +1,7 @@
+{
+  "test.foo": "Foo",
+  "test.bar": "Bar",
+  "test.baz": "Baz",
+  "test.x": null,
+  "test.y": "Array[Float]"
+}

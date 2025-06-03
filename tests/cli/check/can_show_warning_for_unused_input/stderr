@@ -1,0 +1,6 @@
+warning[UnusedInput]: unused input `x`
+  ┌─ unused-input.wdl:8:13
+  │
+8 │         Int x
+  │             ^
+
