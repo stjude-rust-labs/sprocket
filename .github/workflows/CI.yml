@@ -29,6 +29,8 @@ jobs:
 
   test:
     runs-on: ${{ matrix.os }}
+    env: 
+      DOCKER_DEFAULT_PLATFORM: "linux/amd64"
     strategy:
       fail-fast: false
       matrix:
@@ -46,14 +48,7 @@ jobs:
           brew install colima
           brew install lima-additional-guestagents
           # M1 and M2 Macs that the Github Actions supplies don't support nested virtualization. This forces x86 emulation to get around this
-          colima start --arch x86_64
-      - name: Setup Docker on windows
-        if: ${{'windows-latest' == matrix.os}}
-        uses: docker/setup-docker-action@v4
-        with:
-          set-host: true
-      - name: Check docker version
-        run: docker version
+          colima start --network-address --arch x86_64
       - name: Run tests
         run: cargo test --all-features
 
