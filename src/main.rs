@@ -82,17 +82,18 @@ pub async fn inner() -> anyhow::Result<()> {
     match cli.command {
         Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
         Commands::Check(args) => commands::check::check(args.apply(config)).await,
-        Commands::Explain(args) => commands::explain::explain(args),
-        Commands::Format(args) => commands::format::format(args.apply(config)),
-        Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
-        Commands::Run(args) => commands::run::run(args).await,
-        Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
         Commands::Completions(args) => {
             let mut cmd = Cli::command();
             commands::completions::completions(args, &mut cmd).await
         }
         Commands::Config(args) => commands::config::config(args, config),
+        Commands::Explain(args) => commands::explain::explain(args),
+        Commands::Format(args) => commands::format::format(args.apply(config)),
+        Commands::Inputs(args) => commands::inputs::inputs(args).await,
+        Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
         Commands::Lock(args) => commands::lock::lock(args.apply(config)).await,
+        Commands::Run(args) => commands::run::run(args).await,
+        Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
     }
 }
 

@@ -8,6 +8,7 @@ pub mod completions;
 pub mod config;
 pub mod explain;
 pub mod format;
+pub mod inputs;
 pub mod lock;
 pub mod run;
 pub mod validate;
@@ -34,6 +35,9 @@ pub enum Commands {
     /// Formats a document or a directory containing documents.
     #[clap(alias = "fmt")]
     Format(format::Args),
+
+    /// Writes the inputs schema for a WDL document.
+    Inputs(inputs::Args),
 
     /// Lints a document or a directory containing documents.
     Lint(check::LintArgs),

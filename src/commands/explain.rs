@@ -54,7 +54,8 @@ pub struct Args {
         "list_all_tags"
     ],
         value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter())
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        ignore_case = true,
     )]
     pub rule_name: Option<String>,
 
