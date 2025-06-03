@@ -37,6 +37,19 @@ jobs:
       - uses: actions/checkout@v3
       - name: Update Rust
         run: rustup update stable && rustup default stable
+      - name: Setup Docker on Mac
+        if: ${{'macos-latest' == matrix.os}}
+        run: |
+          brew update
+          brew install docker
+          brew install qemu
+          brew install colima
+          # M1 and M2 Macs that the Github Actions supplies don't support nested virtualization. This forces x86 emulation to get around this
+          colima start --arch x86_64
+      - name: Setup Docker on windows
+        if: ${{'windows-latest' == matrix.os}}
+        uses: docker/setup-docker-action@v4
+      - name: Run tests
       - run: cargo test --all-features
 
   docs:
