@@ -92,6 +92,7 @@ pub async fn inner() -> anyhow::Result<()> {
             commands::completions::completions(args, &mut cmd).await
         }
         Commands::Config(args) => commands::config::config(args, config),
+        Commands::Lock(args) => commands::lock::lock(args.apply(config)).await,
     }
 }
 
