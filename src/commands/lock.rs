@@ -17,6 +17,8 @@ use wdl::cli::analysis::Source;
 
 use crate::Mode;
 
+const LOCK_FILE: &str = "sprocket.lock";
+
 /// Arguments for the `lock` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -119,8 +121,7 @@ pub async fn lock(args: Args) -> Result<()> {
     if !map.is_empty() {
         let lock = Lock { images: map };
         let data = toml::to_string_pretty(&lock)?;
-        let path = "sprocket.lock";
-        std::fs::write(path, data)?;
+        std::fs::write(LOCK_FILE, data)?;
     }
 
     Ok(())
