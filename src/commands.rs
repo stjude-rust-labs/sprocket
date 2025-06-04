@@ -9,6 +9,7 @@ pub mod config;
 pub mod explain;
 pub mod format;
 pub mod inputs;
+pub mod lock;
 pub mod run;
 pub mod validate;
 
@@ -40,6 +41,9 @@ pub enum Commands {
 
     /// Lints a document or a directory containing documents.
     Lint(check::LintArgs),
+
+    /// Locks Docker images to a sha256 digest.
+    Lock(lock::Args),
 
     /// Runs a task or workflow.
     Run(run::Args),
