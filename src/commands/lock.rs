@@ -7,8 +7,11 @@ use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
 use crankshaft_docker::Docker as crankshaft_docker;
-use wdl::ast::AstNode;
+use serde::Deserialize;
+use serde::Serialize;
 use wdl::ast::AstToken;
+use wdl::ast::v1::Expr;
+use wdl::ast::v1::LiteralExpr;
 use wdl::cli::Analysis;
 use wdl::cli::analysis::Source;
 
@@ -42,6 +45,13 @@ impl Args {
     }
 }
 
+/// Represents the lock file structure.
+#[derive(Debug, Serialize, Deserialize)]
+struct Lock {
+    /// A mapping of Docker image names to their sha256 digests.
+    images: HashMap<String, String>,
+}
+
 /// Performs the `lock` command.
 pub async fn lock(args: Args) -> Result<()> {
     let results = match Analysis::default().add_source(args.source).run().await {
@@ -66,10 +76,12 @@ pub async fn lock(args: Args) -> Result<()> {
                     if let Some(runtime) = t.runtime() {
                         if let Some(container) = runtime.container() {
                             if let Ok(image) = container.value() {
-                                if let Ok(text) =
-                                    serde_json::from_str(image.expr().text().to_string().as_str())
-                                {
-                                    images.insert(text);
+                                if let Expr::Literal(LiteralExpr::String(s)) = image.expr() {
+                                    if let Some(text) = s.text() {
+                                        let mut buffer = String::new();
+                                        text.unescape_to(&mut buffer);
+                                        images.insert(buffer.clone());
+                                    }
                                 }
                             }
                         }
@@ -82,6 +94,7 @@ pub async fn lock(args: Args) -> Result<()> {
     for image in images {
         let prefix = image.split(':').next().unwrap_or("");
         let docker = crankshaft_docker::with_defaults()?;
+
         docker
             .ensure_image(&image)
             .await
@@ -92,6 +105,7 @@ pub async fn lock(args: Args) -> Result<()> {
             .inspect_image(image.as_str())
             .await
             .expect("should inspect image");
+
         if let Some(digests) = image_info.repo_digests {
             for d in digests {
                 if !d.starts_with(prefix) {
@@ -103,7 +117,8 @@ pub async fn lock(args: Args) -> Result<()> {
     }
 
     if !map.is_empty() {
-        let data = toml::to_string_pretty(&map)?;
+        let lock = Lock { images: map };
+        let data = toml::to_string_pretty(&lock)?;
         let path = "sprocket.lock";
         std::fs::write(path, data)?;
     }
