@@ -21,6 +21,7 @@ use line_index::LineCol;
 use line_index::LineIndex;
 use line_index::WideEncoding;
 use line_index::WideLineCol;
+use lsp_types::GotoDefinitionResponse;
 use path_clean::clean;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc;
@@ -44,6 +45,7 @@ use crate::queue::AddRequest;
 use crate::queue::AnalysisQueue;
 use crate::queue::AnalyzeRequest;
 use crate::queue::FormatRequest;
+use crate::queue::GotoDefinitionRequest;
 use crate::queue::NotifyChangeRequest;
 use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::RemoveRequest;
@@ -716,6 +718,36 @@ where
 
         rx.await.map_err(|_| {
             anyhow!("failed to send format request to the queue because the channel has closed")
+        })
+    }
+
+    /// Performs a "goto definition" for a symbol at the current position.
+    pub async fn goto_definition(
+        &self,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::GotoDefinition(GotoDefinitionRequest {
+                document,
+                position,
+                encoding,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send goto definition request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive goto definition response from analysis queue because the \
+                 channel has closed"
+            )
         })
     }
 }

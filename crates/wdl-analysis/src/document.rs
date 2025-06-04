@@ -69,11 +69,13 @@ impl Namespace {
 /// Represents a struct in a document.
 #[derive(Debug, Clone)]
 pub struct Struct {
+    /// The name of the struct.
+    name: String,
     /// The span that introduced the struct.
     ///
     /// This is either the name of a struct definition (local) or an import's
     /// URI or alias (imported).
-    span: Span,
+    name_span: Span,
     /// The offset of the CST node from the start of the document.
     ///
     /// This is used to adjust diagnostics resulting from traversing the struct
@@ -94,6 +96,26 @@ pub struct Struct {
 }
 
 impl Struct {
+    /// Gets the name of the struct.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Gets the span of the name.
+    pub fn name_span(&self) -> Span {
+        self.name_span
+    }
+
+    /// Gets the offset of the struct
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Gets the node of the struct.
+    pub fn node(&self) -> &rowan::GreenNode {
+        &self.node
+    }
+
     /// Gets the namespace that defines this struct.
     ///
     /// Returns `None` for structs defined in the containing document or `Some`
@@ -302,17 +324,24 @@ impl Input {
 pub struct Output {
     /// The type of the output.
     ty: Type,
+    /// The span of the output name.
+    name_span: Span,
 }
 
 impl Output {
     /// Creates a new output with the given type.
-    pub(crate) fn new(ty: Type) -> Self {
-        Self { ty }
+    pub(crate) fn new(ty: Type, name_span: Span) -> Self {
+        Self { ty, name_span }
     }
 
     /// Gets the type of the output.
     pub fn ty(&self) -> &Type {
         &self.ty
+    }
+
+    /// Gets the span of output's name.
+    pub fn name_span(&self) -> Span {
+        self.name_span
     }
 }
 

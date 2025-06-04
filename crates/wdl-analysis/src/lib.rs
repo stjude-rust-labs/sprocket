@@ -56,6 +56,7 @@ pub use document::Document;
 pub use rules::*;
 pub use validation::*;
 pub use visitor::*;
+pub mod handlers;
 
 /// The prefix of `except` comments.
 pub const EXCEPT_COMMENT_PREFIX: &str = "#@ except:";

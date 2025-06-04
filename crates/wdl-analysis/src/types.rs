@@ -233,6 +233,16 @@ impl Type {
         }
     }
 
+    /// Converts the type to a call type
+    ///
+    /// Returns `None` if the type if not a call type.
+    pub fn as_call(&self) -> Option<&CallType> {
+        match self {
+            Self::Call(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
     /// Determines if the type is `Union`.
     pub fn is_union(&self) -> bool {
         matches!(self, Type::Union)
@@ -983,7 +993,7 @@ impl CallType {
     pub fn promote(&self, kind: PromotionKind) -> Self {
         let mut ty = self.clone();
         for output in Arc::make_mut(&mut ty.outputs).values_mut() {
-            *output = Output::new(output.ty().promote(kind));
+            *output = Output::new(output.ty().promote(kind), output.name_span());
         }
 
         ty

@@ -30,6 +30,7 @@ use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::ScatterStatement;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
+use wdl_ast::v1::TypeRef;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
 
@@ -332,14 +333,14 @@ fn add_namespace(
                     if prev.namespace.is_none() {
                         document.diagnostics.push(struct_conflicts_with_import(
                             aliased_name,
-                            prev.span,
+                            prev.name_span,
                             span,
                         ));
                     } else {
                         document.diagnostics.push(imported_struct_conflict(
                             aliased_name,
                             span,
-                            prev.span,
+                            prev.name_span,
                             !aliased,
                         ));
                     }
@@ -350,7 +351,8 @@ fn add_namespace(
                 document.structs.insert(
                     aliased_name.to_string(),
                     Struct {
-                        span,
+                        name_span: span,
+                        name: aliased_name.to_string(),
                         offset: s.offset,
                         node: s.node.clone(),
                         namespace: Some(ns.clone()),
@@ -388,14 +390,14 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
                 document.diagnostics.push(struct_conflicts_with_import(
                     name.text(),
                     name.span(),
-                    prev.span,
+                    prev.name_span,
                 ))
             }
         } else {
             document.diagnostics.push(name_conflict(
                 name.text(),
                 Context::Struct(name.span()),
-                Context::Struct(prev.span),
+                Context::Struct(prev.name_span),
             ));
         }
         return;
@@ -422,7 +424,8 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
     document.structs.insert(
         name.text().to_string(),
         Struct {
-            span: name.span(),
+            name_span: name.span(),
+            name: name.text().to_string(),
             namespace: None,
             offset: definition.span().start(),
             node: definition.inner().green().into(),
@@ -504,7 +507,7 @@ fn create_output_type_map(
         }
 
         let ty = convert_ast_type(document, &decl.ty());
-        map.insert(name.text().to_string(), Output { ty });
+        map.insert(name.text().to_string(), Output::new(ty, name.span()));
     }
 
     map.into()
@@ -1440,6 +1443,27 @@ fn set_struct_types(document: &mut DocumentData) {
         return;
     }
 
+    /// Recursively finds all nested struct type dependencies to build
+    /// dependency graphs
+    fn find_type_refs(ty: &wdl_ast::v1::Type, deps: &mut Vec<TypeRef>) {
+        match ty {
+            wdl_ast::v1::Type::Ref(r) => deps.push(r.clone()),
+            wdl_ast::v1::Type::Array(a) => {
+                find_type_refs(&a.element_type(), deps);
+            }
+            wdl_ast::v1::Type::Map(m) => {
+                let (_, v) = m.types();
+                find_type_refs(&v, deps);
+            }
+            wdl_ast::v1::Type::Pair(p) => {
+                let (left, right) = p.types();
+                find_type_refs(&left, deps);
+                find_type_refs(&right, deps);
+            }
+            wdl_ast::v1::Type::Object(_) | wdl_ast::v1::Type::Primitive(_) => {}
+        }
+    }
+
     // Populate a type dependency graph; any edges that would form cycles are turned
     // into diagnostics.
     let mut graph: DiGraphMap<_, _, RandomState> = DiGraphMap::new();
@@ -1454,9 +1478,12 @@ fn set_struct_types(document: &mut DocumentData) {
         let definition: StructDefinition =
             StructDefinition::cast(SyntaxNode::new_root(s.node.clone())).expect("node should cast");
         for member in definition.members() {
-            if let wdl_ast::v1::Type::Ref(r) = member.ty() {
+            let mut deps = Vec::new();
+            find_type_refs(&member.ty(), &mut deps);
+
+            for dep in deps {
                 // Add an edge to the referenced struct
-                if let Some(to) = document.structs.get_index_of(r.name().text()) {
+                if let Some(to) = document.structs.get_index_of(dep.name().text()) {
                     // Only add an edge to another local struct definition
                     if document.structs[to].namespace.is_some() {
                         continue;

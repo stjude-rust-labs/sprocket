@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added `goto_definition` support for WDL Language Server ([#468](https://github.com/stjude-rust-labs/wdl/pull/468)).
+
 ## 0.9.0 - 05-27-2025
 
 #### Dependencies
