@@ -17,6 +17,7 @@ use wdl::cli::analysis::Source;
 
 use crate::Mode;
 
+/// Default name for the lock file.
 const LOCK_FILE: &str = "sprocket.lock";
 
 /// Arguments for the `lock` subcommand.
