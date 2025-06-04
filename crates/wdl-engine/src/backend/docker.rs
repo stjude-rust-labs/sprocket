@@ -47,9 +47,8 @@ use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
 use crate::Value;
 use crate::WORK_DIR_NAME;
+use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
-use crate::config::DockerBackendConfig;
-use crate::config::TaskConfig;
 use crate::http::Downloader;
 use crate::http::HttpDownloader;
 use crate::http::Location;
@@ -85,14 +84,14 @@ const GUEST_STDERR_PATH: &str = "/stderr";
 /// as well as the result receiver channel.
 #[derive(Debug)]
 struct DockerTaskRequest {
+    /// The engine configuration.
+    config: Arc<Config>,
     /// The inner task spawn request.
     inner: TaskSpawnRequest,
     /// The underlying Crankshaft backend.
     backend: Arc<docker::Backend>,
     /// The name of the task.
     name: String,
-    /// The optional shell to use.
-    shell: Arc<Option<String>>,
     /// The requested container for the task.
     container: String,
     /// The requested CPU reservation for the task.
@@ -197,7 +196,13 @@ impl TaskManagerRequest for DockerTaskRequest {
             .executions(NonEmpty::new(
                 Execution::builder()
                     .image(&self.container)
-                    .program(self.shell.as_deref().unwrap_or(DEFAULT_TASK_SHELL))
+                    .program(
+                        self.config
+                            .task
+                            .shell
+                            .as_deref()
+                            .unwrap_or(DEFAULT_TASK_SHELL),
+                    )
                     .args(["-C".to_string(), GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
                     .env({
@@ -264,12 +269,10 @@ impl TaskManagerRequest for DockerTaskRequest {
 
 /// Represents the Docker backend.
 pub struct DockerBackend {
+    /// The engine configuration.
+    config: Arc<Config>,
     /// The underlying Crankshaft backend.
     inner: Arc<docker::Backend>,
-    /// The shell to use.
-    shell: Arc<Option<String>>,
-    /// The default container to use.
-    container: Option<String>,
     /// The maximum amount of concurrency supported.
     max_concurrency: u64,
     /// The maximum CPUs for any of one node.
@@ -285,15 +288,21 @@ pub struct DockerBackend {
 impl DockerBackend {
     /// Constructs a new Docker task execution backend with the given
     /// configuration.
-    pub async fn new(task: &TaskConfig, config: &DockerBackendConfig) -> Result<Self> {
-        task.validate()?;
-        config.validate()?;
-
+    ///
+    /// The provided configuration is expected to have already been validated.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given configuration is not configured to use the docker
+    /// backend.
+    pub async fn new(config: Arc<Config>) -> Result<Self> {
         info!("initializing Docker backend");
+
+        let backend_config = config.backend.as_docker().expect("expected docker backend");
 
         let backend = docker::Backend::initialize_default_with(
             backend::docker::Config::builder()
-                .cleanup(config.cleanup)
+                .cleanup(backend_config.cleanup)
                 .build(),
         )
         .await
@@ -316,9 +325,8 @@ impl DockerBackend {
         };
 
         Ok(Self {
+            config,
             inner: Arc::new(backend),
-            shell: Arc::new(task.shell.clone()),
-            container: task.shell.clone(),
             max_concurrency: cpu,
             max_cpu,
             max_memory,
@@ -341,7 +349,7 @@ impl TaskExecutionBackend for DockerBackend {
         requirements: &HashMap<String, Value>,
         _: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container = container(requirements, self.container.as_deref());
+        let container = container(requirements, self.config.task.container.as_deref());
 
         let cpu = cpu(requirements);
         if (self.max_cpu as f64) < cpu {
@@ -462,7 +470,7 @@ impl TaskExecutionBackend for DockerBackend {
         let requirements = request.requirements();
         let hints = request.hints();
 
-        let container = container(requirements, self.container.as_deref()).into_owned();
+        let container = container(requirements, self.config.task.container.as_deref()).into_owned();
         let cpu = cpu(requirements);
         let memory = memory(requirements)? as u64;
         let max_cpu = max_cpu(hints);
@@ -480,8 +488,8 @@ impl TaskExecutionBackend for DockerBackend {
         );
         self.manager.send(
             DockerTaskRequest {
+                config: self.config.clone(),
                 inner: request,
-                shell: self.shell.clone(),
                 backend: self.inner.clone(),
                 name,
                 container,

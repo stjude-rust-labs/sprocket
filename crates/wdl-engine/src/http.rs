@@ -52,6 +52,40 @@ const MAX_DOWNLOAD_ATTEMPTS: u32 = 3;
 /// Initial delay before the first retry.
 const INITIAL_RETRY_DELAY: Duration = Duration::from_secs(1);
 
+/// Rewrites a given URL to a `http`, `https`, or `file` schemed URL.
+///
+/// Applies any cloud storage authentication to the URL.
+pub fn rewrite_url<'a>(config: &Config, url: Cow<'a, Url>) -> Result<Cow<'a, Url>> {
+    let url: Cow<'_, Url> = match url.scheme() {
+        "file" => return Ok(url),
+        "http" | "https" => url,
+        "az" => Cow::Owned(azure::rewrite_url(&url)?),
+        "s3" => Cow::Owned(s3::rewrite_url(&config.storage.s3, &url)?),
+        "gs" => Cow::Owned(google::rewrite_url(&url)?),
+        _ => bail!("unsupported URL `{url}`"),
+    };
+
+    // Attempt to apply auth for Azure storage
+    let (matched, url) = azure::apply_auth(&config.storage.azure, url);
+    if matched {
+        return Ok(url);
+    }
+
+    // Attempt to apply auth for S3 storage
+    let (matched, url) = s3::apply_auth(&config.storage.s3, url);
+    if matched {
+        return Ok(url);
+    }
+
+    // Finally, attempt to apply auth for Google Cloud Storage
+    let (matched, url) = google::apply_auth(&config.storage.google, url);
+    if matched {
+        return Ok(url);
+    }
+
+    Ok(url)
+}
+
 /// A trait implemented by types responsible for downloading remote files over
 /// HTTP for evaluation.
 pub trait Downloader: Send + Sync {
@@ -274,31 +308,6 @@ impl HttpDownloader {
 
         Ok(Location::Temp(path.into()))
     }
-
-    /// Applies authentication to the given URL.
-    ///
-    /// Returns the provided URL unchanged if there was no auth to apply.
-    fn apply_auth<'a>(&self, url: Cow<'a, Url>) -> Cow<'a, Url> {
-        // Attempt to apply auth for Azure storage
-        let (matched, url) = azure::apply_auth(&self.config.storage.azure, url);
-        if matched {
-            return url;
-        }
-
-        // Attempt to apply auth for S3 storage
-        let (matched, url) = s3::apply_auth(&self.config.storage.s3, url);
-        if matched {
-            return url;
-        }
-
-        // Finally, attempt to apply auth for Google Cloud Storage
-        let (matched, url) = google::apply_auth(&self.config.storage.google, url);
-        if matched {
-            return url;
-        }
-
-        url
-    }
 }
 
 impl Downloader for HttpDownloader {
@@ -312,24 +321,18 @@ impl Downloader for HttpDownloader {
         Self: 'c,
     {
         async move {
-            let url: Cow<'_, Url> = match url.scheme() {
-                "file" => {
-                    return Ok(Location::Path(Cow::Owned(
-                        url.to_file_path()
-                            .map_err(|_| anyhow!("invalid file URL `{url}`"))?,
-                    )));
-                }
-                "http" | "https" => Cow::Borrowed(url),
-                "az" => Cow::Owned(azure::rewrite_url(url)?),
-                "s3" => Cow::Owned(s3::rewrite_url(&self.config.storage.s3, url)?),
-                "gs" => Cow::Owned(google::rewrite_url(url)?),
-                _ => return Err(anyhow!("cannot download unsupported URL `{url}`").into()),
-            };
+            let url = rewrite_url(&self.config, Cow::Borrowed(url))?;
+
+            // File URLs don't need to be downloaded
+            if url.scheme() == "file" {
+                return Ok(Location::Path(
+                    url.to_file_path()
+                        .map_err(|_| anyhow!("invalid file URL `{url}`"))?
+                        .into(),
+                ));
+            }
 
             // TODO: support downloading "directories" for cloud storage URLs
-
-            // Apply any authentication to the URL based on configuration
-            let url = self.apply_auth(url);
 
             // This loop exists so that all requests to download the same URL will block
             // waiting for a notification that the download has completed.
@@ -452,32 +455,21 @@ impl Downloader for HttpDownloader {
         Self: 'c,
     {
         async move {
-            let url: Cow<'_, Url> = match url.scheme() {
-                "file" => {
-                    let path = url
-                        .to_file_path()
-                        .map_err(|_| anyhow!("invalid file URL `{url}`"))?;
-                    let metadata = path.metadata().with_context(|| {
-                        format!(
-                            "cannot retrieve metadata for file `{path}`",
-                            path = path.display()
-                        )
-                    })?;
-                    return Ok(Some(metadata.len()));
-                }
-                "http" | "https" => Cow::Borrowed(url),
-                "az" => Cow::Owned(azure::rewrite_url(url)?),
-                "s3" => Cow::Owned(s3::rewrite_url(&self.config.storage.s3, url)?),
-                "gs" => Cow::Owned(google::rewrite_url(url)?),
-                _ => {
-                    return Err(anyhow!(
-                        "cannot determine the size of the resource at unsupported URL `{url}`"
-                    ));
-                }
-            };
+            let url = rewrite_url(&self.config, Cow::Borrowed(url))?;
 
-            // Apply any authentication to the URL based on configuration
-            let url = self.apply_auth(url);
+            // Check for local file
+            if url.scheme() == "file" {
+                let path = url
+                    .to_file_path()
+                    .map_err(|_| anyhow!("invalid file URL `{url}`"))?;
+                let metadata = path.metadata().with_context(|| {
+                    format!(
+                        "cannot retrieve metadata for file `{path}`",
+                        path = path.display()
+                    )
+                })?;
+                return Ok(Some(metadata.len()));
+            }
 
             // Perform the HEAD request
             debug!("sending HEAD for `{url}`", url = DisplayUrl(&url));

@@ -6,6 +6,7 @@ use std::fs;
 use std::fs::File;
 use std::path::Path;
 use std::process::Stdio;
+use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -35,9 +36,8 @@ use crate::SYSTEM;
 use crate::TaskExecutionResult;
 use crate::Value;
 use crate::WORK_DIR_NAME;
+use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
-use crate::config::LocalBackendConfig;
-use crate::config::TaskConfig;
 use crate::convert_unit_string;
 use crate::http::Downloader;
 use crate::http::HttpDownloader;
@@ -52,6 +52,8 @@ use crate::v1::memory;
 /// as well as the result receiver channel.
 #[derive(Debug)]
 struct LocalTaskRequest {
+    /// The engine configuration.
+    config: Arc<Config>,
     /// The inner task spawn request.
     inner: TaskSpawnRequest,
     /// The requested CPU reservation for the task.
@@ -62,8 +64,6 @@ struct LocalTaskRequest {
     ///
     /// Note that memory isn't actually reserved for the task process.
     memory: u64,
-    /// The optional shell to use.
-    shell: Option<String>,
     /// The cancellation token for the request.
     token: CancellationToken,
 }
@@ -114,7 +114,13 @@ impl TaskManagerRequest for LocalTaskRequest {
             )
         })?;
 
-        let mut command = Command::new(self.shell.as_deref().unwrap_or(DEFAULT_TASK_SHELL));
+        let mut command = Command::new(
+            self.config
+                .task
+                .shell
+                .as_deref()
+                .unwrap_or(DEFAULT_TASK_SHELL),
+        );
         command
             .current_dir(&work_dir)
             .arg("-C")
@@ -192,12 +198,12 @@ impl TaskManagerRequest for LocalTaskRequest {
 /// directly without the use of a container; only use this backend on trusted
 /// WDL. </div>
 pub struct LocalBackend {
+    /// The engine configuration.
+    config: Arc<Config>,
     /// The total CPU of the host.
     cpu: u64,
     /// The total memory of the host.
     memory: u64,
-    /// The optional shell to use.
-    shell: Option<String>,
     /// The underlying task manager.
     manager: TaskManager<LocalTaskRequest>,
 }
@@ -205,12 +211,22 @@ pub struct LocalBackend {
 impl LocalBackend {
     /// Constructs a new local task execution backend with the given
     /// configuration.
-    pub fn new(task: &TaskConfig, config: &LocalBackendConfig) -> Result<Self> {
-        task.validate()?;
-        config.validate()?;
+    ///
+    /// The provided configuration is expected to have already been validated.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given configuration is not configured to use the local
+    /// backend.
+    pub fn new(config: Arc<Config>) -> Result<Self> {
+        info!("initializing local backend");
 
-        let cpu = config.cpu.unwrap_or_else(|| SYSTEM.cpus().len() as u64);
-        let memory = config
+        let backend_config = config.backend.as_local().expect("expected local backend");
+
+        let cpu = backend_config
+            .cpu
+            .unwrap_or_else(|| SYSTEM.cpus().len() as u64);
+        let memory = backend_config
             .memory
             .as_ref()
             .map(|s| convert_unit_string(s).expect("value should be valid"))
@@ -218,9 +234,9 @@ impl LocalBackend {
         let manager = TaskManager::new(cpu, cpu, memory, memory);
 
         Ok(Self {
+            config,
             cpu,
             memory,
-            shell: task.shell.clone(),
             manager,
         })
     }
@@ -284,7 +300,7 @@ impl TaskExecutionBackend for LocalBackend {
         Self: 'd,
     {
         async move {
-            let mut download_futs = JoinSet::new();
+            let mut downloads = JoinSet::new();
 
             for (idx, input) in inputs.iter_mut().enumerate() {
                 match input.path() {
@@ -302,7 +318,7 @@ impl TaskExecutionBackend for LocalBackend {
                     EvaluationPath::Remote(url) => {
                         let downloader = downloader.clone();
                         let url = url.clone();
-                        download_futs.spawn(async move {
+                        downloads.spawn(async move {
                             let location_result = downloader.download(&url).await;
 
                             match location_result {
@@ -314,7 +330,7 @@ impl TaskExecutionBackend for LocalBackend {
                 }
             }
 
-            while let Some(result) = download_futs.join_next().await {
+            while let Some(result) = downloads.join_next().await {
                 match result {
                     Ok(Ok((idx, location))) => {
                         let guest_path = location
@@ -361,10 +377,10 @@ impl TaskExecutionBackend for LocalBackend {
 
         self.manager.send(
             LocalTaskRequest {
+                config: self.config.clone(),
                 inner: request,
                 cpu,
                 memory,
-                shell: self.shell.clone(),
                 token,
             },
             spawned_tx,

@@ -1,5 +1,6 @@
 //! Implementation of the TES backend.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -10,9 +11,8 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD;
 use crankshaft::config::backend;
+use crankshaft::config::backend::tes::http::HttpAuthConfig;
 use crankshaft::engine::Task;
 use crankshaft::engine::service::name::GeneratorIterator;
 use crankshaft::engine::service::name::UniqueAlphanumeric;
@@ -50,11 +50,11 @@ use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
 use crate::Value;
 use crate::WORK_DIR_NAME;
+use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
-use crate::config::TaskConfig;
 use crate::config::TesBackendAuthConfig;
-use crate::config::TesBackendConfig;
 use crate::http::HttpDownloader;
+use crate::http::rewrite_url;
 use crate::path::EvaluationPath;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
@@ -95,18 +95,16 @@ const DEFAULT_TES_INTERVAL: u64 = 60;
 /// as well as the result receiver channel.
 #[derive(Debug)]
 struct TesTaskRequest {
+    /// The engine configuration.
+    config: Arc<Config>,
     /// The inner task spawn request.
     inner: TaskSpawnRequest,
     /// The Crankshaft TES backend to use.
     backend: Arc<tes::Backend>,
     /// The name of the task.
     name: String,
-    /// The optional shell to use.
-    shell: Arc<Option<String>>,
     /// The requested container for the task.
     container: String,
-    /// The associated engine configuration.
-    config: Arc<TesBackendConfig>,
     /// The requested CPU reservation for the task.
     cpu: f64,
     /// The requested memory reservation for the task, in bytes.
@@ -224,7 +222,9 @@ impl TaskManagerRequest for TesTaskRequest {
                     .path(input.guest_path().expect("should have guest path"))
                     .contents(match input.path() {
                         EvaluationPath::Local(path) => Contents::Path(path.clone()),
-                        EvaluationPath::Remote(url) => Contents::Url(url.clone()),
+                        EvaluationPath::Remote(url) => Contents::Url(
+                            rewrite_url(&self.config, Cow::Borrowed(url))?.into_owned(),
+                        ),
                     })
                     .ty(input.kind())
                     .read_only(true)
@@ -236,15 +236,30 @@ impl TaskManagerRequest for TesTaskRequest {
         // should always unwrap
         let outputs_url = self
             .config
+            .backend
+            .as_tes()
+            .unwrap()
             .outputs
             .as_ref()
             .expect("should have outputs URL")
             .join(&task_dir)
             .expect("should join");
 
-        let mut work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
-        let stdout_url = outputs_url.join(STDOUT_FILE_NAME).expect("should join");
-        let stderr_url = outputs_url.join(STDERR_FILE_NAME).expect("should join");
+        let mut work_dir_url = rewrite_url(
+            &self.config,
+            Cow::Owned(outputs_url.join(WORK_DIR_NAME).expect("should join")),
+        )?
+        .into_owned();
+        let stdout_url = rewrite_url(
+            &self.config,
+            Cow::Owned(outputs_url.join(STDOUT_FILE_NAME).expect("should join")),
+        )?
+        .into_owned();
+        let stderr_url = rewrite_url(
+            &self.config,
+            Cow::Owned(outputs_url.join(STDERR_FILE_NAME).expect("should join")),
+        )?
+        .into_owned();
 
         // The TES backend will output three things: the working directory contents,
         // stdout, and stderr.
@@ -274,7 +289,13 @@ impl TaskManagerRequest for TesTaskRequest {
                 .executions(NonEmpty::new(
                     Execution::builder()
                         .image(&self.container)
-                        .program(self.shell.as_deref().unwrap_or(DEFAULT_TASK_SHELL))
+                        .program(
+                            self.config
+                                .task
+                                .shell
+                                .as_deref()
+                                .unwrap_or(DEFAULT_TASK_SHELL),
+                        )
                         .args(["-C".to_string(), GUEST_COMMAND_PATH.to_string()])
                         .work_dir(GUEST_WORK_DIR)
                         .env(self.inner.env().clone())
@@ -333,14 +354,10 @@ impl TaskManagerRequest for TesTaskRequest {
 
 /// Represents the Task Execution Service (TES) backend.
 pub struct TesBackend {
+    /// The engine configuration.
+    config: Arc<Config>,
     /// The underlying Crankshaft backend.
     inner: Arc<tes::Backend>,
-    /// The shell to use.
-    shell: Arc<Option<String>>,
-    /// The default container to use.
-    container: Option<String>,
-    /// The associated backend configuration.
-    config: Arc<TesBackendConfig>,
     /// The maximum amount of concurrency supported.
     max_concurrency: u64,
     /// The maximum CPUs for any of one node.
@@ -356,11 +373,17 @@ pub struct TesBackend {
 impl TesBackend {
     /// Constructs a new TES task execution backend with the given
     /// configuration.
-    pub async fn new(task: &TaskConfig, config: &TesBackendConfig) -> Result<Self> {
-        task.validate()?;
-        config.validate()?;
-
+    ///
+    /// The provided configuration is expected to have already been validated.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given configuration is not configured to use the TES
+    /// backend.
+    pub async fn new(config: Arc<Config>) -> Result<Self> {
         info!("initializing TES backend");
+
+        let backend_config = config.backend.as_tes().expect("expected TES backend");
 
         // There's no way to ask the TES service for its limits, so use the maximums
         // allowed
@@ -369,28 +392,44 @@ impl TesBackend {
         let manager = TaskManager::new_unlimited(max_cpu, max_memory);
 
         let mut http = backend::tes::http::Config::default();
-        if let Some(TesBackendAuthConfig::Basic(auth)) = &config.auth {
-            http.basic_auth_token = Some(STANDARD.encode(format!(
-                "{user}:{pass}",
-                user = auth.username.as_ref().expect("should have user name"),
-                pass = auth.password.as_ref().expect("should have password")
-            )));
+        match &backend_config.auth {
+            Some(TesBackendAuthConfig::Basic(config)) => {
+                http.auth = Some(HttpAuthConfig::Basic {
+                    username: config
+                        .username
+                        .clone()
+                        .ok_or_else(|| anyhow!("missing `username` in basic auth"))?,
+                    password: config
+                        .password
+                        .clone()
+                        .ok_or_else(|| anyhow!("missing `password` in basic auth"))?,
+                });
+            }
+            Some(TesBackendAuthConfig::Bearer(config)) => {
+                http.auth = Some(HttpAuthConfig::Bearer {
+                    token: config
+                        .token
+                        .clone()
+                        .ok_or_else(|| anyhow!("missing `token` in bearer auth"))?,
+                });
+            }
+            None => {}
         }
 
         let backend = tes::Backend::initialize(
             backend::tes::Config::builder()
-                .url(config.url.clone().expect("should have URL"))
+                .url(backend_config.url.clone().expect("should have URL"))
                 .http(http)
-                .interval(config.interval.unwrap_or(DEFAULT_TES_INTERVAL))
+                .interval(backend_config.interval.unwrap_or(DEFAULT_TES_INTERVAL))
                 .build(),
         );
 
+        let max_concurrency = backend_config.max_concurrency.unwrap_or(u64::MAX);
+
         Ok(Self {
+            config,
             inner: Arc::new(backend),
-            shell: Arc::new(task.shell.clone()),
-            container: task.container.clone(),
-            config: Arc::new(config.clone()),
-            max_concurrency: config.max_concurrency.unwrap_or(u64::MAX),
+            max_concurrency,
             max_cpu,
             max_memory,
             manager,
@@ -412,7 +451,7 @@ impl TaskExecutionBackend for TesBackend {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container = container(requirements, self.container.as_deref());
+        let container = container(requirements, self.config.task.container.as_deref());
 
         let cpu = cpu(requirements);
         if (self.max_cpu as f64) < cpu {
@@ -494,7 +533,7 @@ impl TaskExecutionBackend for TesBackend {
         let requirements = request.requirements();
         let hints = request.hints();
 
-        let container = container(requirements, self.container.as_deref()).into_owned();
+        let container = container(requirements, self.config.task.container.as_deref()).into_owned();
         let cpu = cpu(requirements);
         let memory = memory(requirements)? as u64;
         let max_cpu = max_cpu(hints);
@@ -513,12 +552,11 @@ impl TaskExecutionBackend for TesBackend {
         );
         self.manager.send(
             TesTaskRequest {
+                config: self.config.clone(),
                 inner: request,
                 backend: self.inner.clone(),
                 name,
-                shell: self.shell.clone(),
                 container,
-                config: self.config.clone(),
                 cpu,
                 memory,
                 max_cpu,

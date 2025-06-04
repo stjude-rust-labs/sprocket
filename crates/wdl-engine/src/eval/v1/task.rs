@@ -691,22 +691,10 @@ impl TaskEvaluator {
     ///
     /// Returns an error if the configuration isn't valid.
     pub async fn new(config: Config, token: CancellationToken) -> Result<Self> {
-        let backend = config.create_backend().await?;
-        Self::new_with_backend(config, backend, token)
-    }
-
-    /// Constructs a new task evaluator with the given evaluation
-    /// configuration, task execution backend, and cancellation token.
-    ///
-    /// Returns an error if the configuration isn't valid.
-    pub fn new_with_backend(
-        config: Config,
-        backend: Arc<dyn TaskExecutionBackend>,
-        token: CancellationToken,
-    ) -> Result<Self> {
         config.validate()?;
 
         let config = Arc::new(config);
+        let backend = config.create_backend().await?;
         let downloader = HttpDownloader::new(config.clone())?;
 
         Ok(Self {
