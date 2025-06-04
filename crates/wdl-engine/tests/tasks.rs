@@ -57,7 +57,7 @@ use wdl_engine::v1::TaskEvaluator;
 
 /// Regex used to remove both host and guest path prefixes.
 static PATH_PREFIX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(attempts[\/\\]\d+[\/\\]|\/mnt\/inputs\/\d+\/)"#).expect("invalid regex")
+    Regex::new(r#"(attempts[\/\\]\d+[\/\\]|\/mnt\/task\/inputs\/\d+\/)"#).expect("invalid regex")
 });
 
 /// Regex used to replace temporary file names in task command files with
