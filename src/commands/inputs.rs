@@ -483,7 +483,10 @@ pub async fn inputs(args: Args) -> Result<()> {
             }
             (None, Some(analysis_wf)) => {
                 if analysis_wf.name() != name {
-                    bail!("no task or workflow with name `{name}` was found")
+                    bail!(
+                        "no task or workflow with name `{name}` was found in document `{path}`",
+                        path = document.path()
+                    );
                 }
 
                 if !analysis_wf.allows_nested_inputs() && args.nested_inputs {
@@ -499,7 +502,10 @@ pub async fn inputs(args: Args) -> Result<()> {
 
                 inputs.workflow(namespace, document, analysis_wf, &ast_wf)?;
             }
-            (None, None) => bail!("no task or workflow with name `{name}` was found"),
+            (None, None) => bail!(
+                "no task or workflow with name `{name}` was found in document `{path}`",
+                path = document.path()
+            ),
         }
     } else if let Some(workflow) = document.workflow() {
         let name = workflow.name().to_owned();
@@ -519,10 +525,30 @@ pub async fn inputs(args: Args) -> Result<()> {
 
         inputs.workflow(namespace, document, workflow, &ast_wf)?;
     } else {
-        bail!(
-            "no workflow was found; try specifying a task or workflow name with the `--name` \
-             argument"
-        )
+        let mut tasks = document.tasks();
+        let first = tasks.next();
+        if tasks.next().is_some() {
+            bail!(
+                "document `{path}` contains more than one task: use the `--name` option to refer \
+                 to a specific task by name",
+                path = document.path()
+            )
+        } else if let Some(task) = first {
+            let namespace = Key::new(task.name().to_string());
+
+            let task = ast
+                .tasks()
+                .find(|t| t.name().text() == task.name())
+                // SAFETY: the task should be present, so this should always unwrap.
+                .unwrap();
+
+            inputs.task(namespace, &task, &Default::default());
+        } else {
+            bail!(
+                "document `{path}` contains no workflow or task",
+                path = document.path()
+            );
+        }
     }
 
     let inputs = inputs.into_inner();

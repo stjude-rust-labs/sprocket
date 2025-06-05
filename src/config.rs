@@ -2,10 +2,10 @@
 
 use std::env;
 use std::path::Path;
-use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use figment::Figment;
 use figment::providers::Format;
 use figment::providers::Serialized;
@@ -13,6 +13,7 @@ use figment::providers::Toml;
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::trace;
+use wdl::engine;
 
 use crate::Mode;
 
@@ -31,7 +32,7 @@ pub struct Config {
 }
 
 /// Represents shared configuration options for Sprocket commands.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CommonConfig {
     /// Display color output.
@@ -50,7 +51,7 @@ impl Default for CommonConfig {
 }
 
 /// Represents the configuration for the Sprocket `format` command.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct FormatConfig {
     /// Use tabs for indentation (default is spaces).
@@ -92,13 +93,14 @@ pub struct CheckConfig {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct RunConfig {
-    /// Path to the engine configuration file.
-    pub config: PathBuf,
+    /// The engine configuration.
+    #[serde(flatten)]
+    pub engine: Option<engine::config::Config>,
 }
 
 impl Config {
     /// Create a new config instance by reading potential configurations.
-    pub fn new(path: Option<String>, skip_config_search: bool) -> Self {
+    pub fn new(path: Option<&Path>, skip_config_search: bool) -> Result<Self> {
         // Check for a config file in the current directory
         // Start a new Figment instance with default values
         let mut figment = Figment::new().admerge(Serialized::from(Config::default(), "default"));
@@ -107,53 +109,62 @@ impl Config {
             // Check XDG_CONFIG_HOME for a config file
             // On MacOS, check HOME for a config file
             #[cfg(target_os = "macos")]
-            {
-                if let Some(home) = dirs::home_dir() {
-                    trace!("reading configuration from: {home:?}/.config/sprocket/sprocket.toml");
-                    figment = figment.admerge(Toml::file(
-                        home.join(".config").join("sprocket").join("sprocket.toml"),
-                    ));
-                }
-            }
+            let dir = dirs::home_dir().map(|p| p.join(".config"));
             #[cfg(not(target_os = "macos"))]
-            {
-                if let Some(config_home) = dirs::config_dir() {
-                    trace!("reading configuration from: {config_home:?}/sprocket/sprocket.toml");
-                    figment = figment.admerge(Toml::file(
-                        config_home.join("sprocket").join("sprocket.toml"),
-                    ));
+            let dir = dirs::config_dir();
+
+            if let Some(dir) = dir {
+                let path = dir.join("sprocket").join("sprocket.toml");
+                if path.exists() {
+                    trace!("reading configuration from `{path}`", path = path.display());
+                    figment = figment.admerge(Toml::file_exact(path));
                 }
             }
 
             // Check PWD for a config file
-            if Path::exists(Path::new("sprocket.toml")) {
-                trace!("reading configuration from PWD/sprocket.toml");
-                figment = figment.admerge(Toml::file("sprocket.toml"));
+            let path = Path::new("sprocket.toml");
+            if path.exists() {
+                trace!("reading configuration from `{path}`", path = path.display());
+                figment = figment.admerge(Toml::file_exact(path));
             }
 
             // If provided, check config file from environment
-            if let Ok(config_file) = env::var("SPROCKET_CONFIG") {
-                trace!("reading configuration from SPROCKET_CONFIG: {config_file:?}");
-                figment = figment.admerge(Toml::file(config_file));
+            if let Ok(path) = env::var("SPROCKET_CONFIG") {
+                let path = Path::new(&path);
+                if !path.exists() {
+                    bail!(
+                        "configuration file `{path}` specified with environment variable \
+                         `SPROCKET_CONFIG` does not exist",
+                        path = path.display()
+                    );
+                }
+
+                trace!(
+                    "reading configuration from `{path}` via `SPROCKET_CONFIG`",
+                    path = path.display()
+                );
+                figment = figment.admerge(Toml::file(path));
             }
         }
 
         // If provided, check command line config file
-        if let Some(ref cli) = path {
-            trace!("reading configuration from provided configuration file: {cli:?}");
-            figment = figment.admerge(Toml::file(cli));
+        if let Some(path) = path {
+            if !path.exists() {
+                bail!(
+                    "configuration file `{path}` does not exist",
+                    path = path.display()
+                );
+            }
+
+            trace!(
+                "reading configuration from `{path}` via CLI option",
+                path = path.display()
+            );
+            figment = figment.admerge(Toml::file(path));
         }
 
         // Get the configuration from the Figment
-        let config: Config = match figment.extract() {
-            Ok(config) => config,
-            Err(e) => {
-                tracing::error!("failed to read configuration: {e}");
-                panic!("failed to read configuration: {e}");
-            }
-        };
-
-        config
+        figment.extract().context("failed to merge configuration")
     }
 
     /// Validate a configuration

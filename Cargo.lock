@@ -586,9 +586,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75a8e579e135d62491e791b4e22de376bbcc55667492618d2722da54114f1648"
+checksum = "c8ed6b39990c7fc0732b774ff740d5fafc1fcb37c862bc49bcf826af13517292"
 dependencies = [
  "crankshaft-config",
  "crankshaft-engine",
@@ -596,10 +596,11 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-config"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc556efa065005f792a179b37ca38b64b4cde134650d564ba09b92f4b40a0a17"
+checksum = "9c0d3e120e20355f86e616717e7c85a32fb69bc07348a095ada8b821897b2685"
 dependencies = [
+ "base64 0.22.1",
  "bon",
  "config",
  "dirs",
@@ -629,9 +630,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-engine"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c2b58eba9cc8ad4ee97cc56dd1cda85bad7fdd0dfbd9f17a22424afd750ef8c"
+checksum = "314abca1152870eaaabde8d81ab6629bde785e16cf44f94f3ef87b5fdfd1a374"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3458,9 +3459,9 @@ dependencies = [
 
 [[package]]
 name = "tes"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d10f97e801c2ae3d87941b48f63aeaaffa772dd0a2926442f9e6984a3b45fc93"
+checksum = "4ac7405fae669db1198bfc4ee601311a6319a462bb2022b04b4b9f57c25407b1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3472,6 +3473,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_url_params",
+ "thiserror 2.0.12",
  "tokio",
  "tracing",
  "url",
@@ -4231,8 +4233,7 @@ dependencies = [
 [[package]]
 name = "wdl"
 version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a002d6df0b4baf75b7e00b5fdfc8a9d54c0ae9c7e28a11ce6546b4f0fa751af"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4249,8 +4250,7 @@ dependencies = [
 [[package]]
 name = "wdl-analysis"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56224146684c608a43f610bc8f95f643ae87e873776d3d72d2181a5712e28cc2"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4276,8 +4276,7 @@ dependencies = [
 [[package]]
 name = "wdl-ast"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1eb942868f649180c9e6d38874b98d9b7d0bdc2a663f12999481879726e4a93"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "macropol",
  "paste",
@@ -4290,8 +4289,7 @@ dependencies = [
 [[package]]
 name = "wdl-cli"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a22d4196ed6c85f9884f8451901f64d9fd7ad0547f46005296cfbdee11013e7"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4317,8 +4315,7 @@ dependencies = [
 [[package]]
 name = "wdl-doc"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0d44afbe56e3b71549396175e780317b21891eb867e30e5ab48713fe654712f"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4334,11 +4331,9 @@ dependencies = [
 [[package]]
 name = "wdl-engine"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90779c9d857d109686a0b9d2505d64ed11f92634015a3c2d90ef72ba913d9710"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
  "chrono",
  "crankshaft",
  "dirs",
@@ -4376,8 +4371,7 @@ dependencies = [
 [[package]]
 name = "wdl-format"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1835fecd338f3482c3d29682f2e4f508c96a357f1aca57fc4daf602ef33e7a5a"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4386,8 +4380,7 @@ dependencies = [
 [[package]]
 name = "wdl-grammar"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f783d89bd7baa370a0be62ff1ed6b546f39ca10f8e4bd9b1be14e39b9cf71cd"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "codespan-reporting",
  "itertools",
@@ -4399,8 +4392,7 @@ dependencies = [
 [[package]]
 name = "wdl-lint"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "332b776cc97930b749be6b5cfede8dc38b9e4da42155a9403e77aaca9efddf80"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4420,8 +4412,7 @@ dependencies = [
 [[package]]
 name = "wdl-lsp"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95ebbe3e6236d372578ff36ed5fbf744d1de594ac706a06ac7a69bc99a7c5dc3"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "indexmap 2.9.0",

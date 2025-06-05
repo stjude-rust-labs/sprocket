@@ -26,6 +26,7 @@ use wdl::cli::Inputs;
 use wdl::cli::analysis::AnalysisResults;
 use wdl::cli::analysis::Source;
 use wdl::cli::inputs::OriginPaths;
+use wdl::engine;
 use wdl::engine::EvaluationError;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::v1::ProgressKind;
@@ -69,10 +70,6 @@ pub struct Args {
     #[clap(short, long, value_name = "OUTPUT_DIR")]
     pub output: Option<PathBuf>,
 
-    /// The path to the engine TOML configuration file.
-    #[clap(short, long, value_name = "CONFIG")]
-    pub config: Option<PathBuf>,
-
     /// Overwrites the execution output directory if it exists.
     #[clap(long)]
     pub overwrite: bool,
@@ -84,26 +81,16 @@ pub struct Args {
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
+
+    /// The engine configuration to use.
+    #[clap(skip)]
+    pub engine: Option<engine::config::Config>,
 }
 
 impl Args {
     /// Applies the configuration to the arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.config = match self.config {
-            Some(path) => Some(path),
-            None => {
-                if config.run.config.exists() {
-                    Some(config.run.config)
-                } else if config.run.config.as_os_str().is_empty() {
-                    None
-                } else {
-                    panic!(
-                        "specified configuration file `{}` does not exist",
-                        config.run.config.display()
-                    );
-                }
-            }
-        };
+        self.engine = config.run.engine;
         self.no_color = self.no_color || !config.common.color;
         self.report_mode = match self.report_mode {
             Some(mode) => Some(mode),
@@ -313,22 +300,6 @@ pub async fn run(args: Args) -> Result<()> {
         })?;
     }
 
-    let config = args
-        .config
-        .map(|p| {
-            let contents = std::fs::read_to_string(&p).with_context(|| {
-                format!(
-                    "failed to read configuration file `{path}`",
-                    path = p.display(),
-                )
-            })?;
-
-            toml::from_str(&contents)
-                .with_context(|| format!("invalid configuration file `{path}`", path = p.display()))
-        })
-        .transpose()?
-        .unwrap_or_default();
-
     let inferred = Inputs::coalesce(args.inputs)?.into_engine_inputs(document)?;
 
     let (name, inputs, origins) = if let Some(inputs) = inferred {
@@ -344,10 +315,16 @@ pub async fn run(args: Args) -> Result<()> {
                     if workflow.name() == name {
                         (name, EngineInputs::Workflow(Default::default()), origins)
                     } else {
-                        bail!("no task or workflow with name `{name}` was found")
+                        bail!(
+                            "no task or workflow with name `{name}` was found in document `{path}`",
+                            path = document.path()
+                        );
                     }
                 }
-                (None, None) => bail!("no task or workflow with name `{name}` was found"),
+                (None, None) => bail!(
+                    "no task or workflow with name `{name}` was found in document `{path}`",
+                    path = document.path()
+                ),
             }
         } else if let Some(workflow) = document.workflow() {
             (
@@ -356,11 +333,26 @@ pub async fn run(args: Args) -> Result<()> {
                 origins,
             )
         } else {
-            bail!(
-                "no workflow was found in `{path}`; either specify a document with a workflow or \
-                 use the `-n` option to refer to a specific task or workflow by name",
-                path = args.source
-            )
+            let mut tasks = document.tasks();
+            let first = tasks.next();
+            if tasks.next().is_some() {
+                bail!(
+                    "document `{path}` contains more than one task: use the `--name` option to \
+                     refer to a specific task by name",
+                    path = document.path()
+                )
+            } else if let Some(task) = first {
+                (
+                    task.name().to_owned(),
+                    EngineInputs::Task(Default::default()),
+                    origins,
+                )
+            } else {
+                bail!(
+                    "document `{path}` contains no workflow or task",
+                    path = document.path()
+                );
+            }
         }
     };
 
@@ -380,7 +372,14 @@ pub async fn run(args: Args) -> Result<()> {
     );
 
     let state = Mutex::<State>::default();
-    let evaluator = Evaluator::new(document, &name, inputs, origins, config, &output_dir);
+    let evaluator = Evaluator::new(
+        document,
+        &name,
+        inputs,
+        origins,
+        args.engine.unwrap_or_default(),
+        &output_dir,
+    );
     let token = CancellationToken::new();
 
     let mut evaluate = evaluator
