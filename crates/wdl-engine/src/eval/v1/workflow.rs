@@ -1831,7 +1831,11 @@ workflow test {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let config = Config {
-            backend: BackendConfig::Local(Default::default()),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(Default::default()),
+            )]
+            .into(),
             ..Default::default()
         };
         let evaluator = WorkflowEvaluator::new(config, CancellationToken::new())
@@ -1972,7 +1976,11 @@ workflow w {
 
         // Use a progress callback that simply increments the appropriate counter
         let config = Config {
-            backend: BackendConfig::Local(Default::default()),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(Default::default()),
+            )]
+            .into(),
             ..Default::default()
         };
         let state = Arc::<State>::default();

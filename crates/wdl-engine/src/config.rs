@@ -1,11 +1,13 @@
 //! Implementation of engine configuration.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use serde::Deserialize;
 use serde::Serialize;
@@ -29,6 +31,9 @@ pub const DEFAULT_TASK_SHELL: &str = "bash";
 /// The default maximum number of concurrent HTTP downloads.
 pub const DEFAULT_MAX_CONCURRENT_DOWNLOADS: u64 = 10;
 
+/// The default backend name.
+pub const DEFAULT_BACKEND_NAME: &str = "default";
+
 /// Represents WDL evaluation configuration.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
@@ -42,9 +47,20 @@ pub struct Config {
     /// Task evaluation configuration.
     #[serde(default)]
     pub task: TaskConfig,
-    /// Task execution backend configuration.
+    /// The name of the backend to use.
+    ///
+    /// If not specified and `backends` has multiple entries, it will use a name
+    /// of `default`.
+    pub backend: Option<String>,
+    /// Task execution backends configuration.
+    ///
+    /// If the collection is empty and `backend` is not specified, the engine
+    /// default backend is used.
+    ///
+    /// If the collection has exactly one entry and `backend` is not specified,
+    /// the singular entry will be used.
     #[serde(default)]
-    pub backend: BackendConfig,
+    pub backends: HashMap<String, BackendConfig>,
     /// Storage configuration.
     #[serde(default)]
     pub storage: StorageConfig,
@@ -56,23 +72,58 @@ impl Config {
         self.http.validate()?;
         self.workflow.validate()?;
         self.task.validate()?;
-        self.backend.validate()?;
+
+        if self.backend.is_none() && self.backends.len() < 2 {
+            // This is OK, we'll use either the singular backends entry (1) or
+            // the default (0)
+        } else {
+            // Check the backends map for the backend name (or "default")
+            let backend = self.backend.as_deref().unwrap_or(DEFAULT_BACKEND_NAME);
+            if !self.backends.contains_key(backend) {
+                bail!("a backend named `{backend}` is not present in the configuration");
+            }
+        }
+
+        for backend in self.backends.values() {
+            backend.validate()?;
+        }
+
         self.storage.validate()?;
         Ok(())
     }
 
     /// Creates a new task execution backend based on this configuration.
     pub async fn create_backend(self: &Arc<Self>) -> Result<Arc<dyn TaskExecutionBackend>> {
-        match &self.backend {
-            BackendConfig::Local(_) => {
+        let config = if self.backend.is_none() && self.backends.len() < 2 {
+            if self.backends.len() == 1 {
+                // Use the singular entry
+                Cow::Borrowed(self.backends.values().next().unwrap())
+            } else {
+                // Use the default
+                Cow::Owned(BackendConfig::default())
+            }
+        } else {
+            // Lookup the backend to use
+            let backend = self.backend.as_deref().unwrap_or(DEFAULT_BACKEND_NAME);
+            Cow::Borrowed(self.backends.get(backend).ok_or_else(|| {
+                anyhow!("a backend named `{backend}` is not present in the configuration")
+            })?)
+        };
+
+        match config.as_ref() {
+            BackendConfig::Local(config) => {
                 warn!(
                     "the engine is configured to use the local backend: tasks will not be run \
                      inside of a container"
                 );
-                Ok(Arc::new(LocalBackend::new(self.clone())?))
+                Ok(Arc::new(LocalBackend::new(self.clone(), config)?))
             }
-            BackendConfig::Docker(_) => Ok(Arc::new(DockerBackend::new(self.clone()).await?)),
-            BackendConfig::Tes(_) => Ok(Arc::new(TesBackend::new(self.clone()).await?)),
+            BackendConfig::Docker(config) => {
+                Ok(Arc::new(DockerBackend::new(self.clone(), config).await?))
+            }
+            BackendConfig::Tes(config) => {
+                Ok(Arc::new(TesBackend::new(self.clone(), config).await?))
+            }
         }
     }
 }
@@ -670,12 +721,42 @@ mod test {
             "configuration value `workflow.scatter.concurrency` cannot be zero"
         );
 
+        // Test invalid backend name
+        let config = Config {
+            backend: Some("foo".into()),
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().unwrap_err().to_string(),
+            "a backend named `foo` is not present in the configuration"
+        );
+        let config = Config {
+            backend: Some("bar".into()),
+            backends: [("foo".to_string(), BackendConfig::default())].into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().unwrap_err().to_string(),
+            "a backend named `bar` is not present in the configuration"
+        );
+
+        // Test a singular backend
+        let config = Config {
+            backends: [("foo".to_string(), BackendConfig::default())].into(),
+            ..Default::default()
+        };
+        config.validate().expect("config should validate");
+
         // Test invalid local backend cpu config
         let config = Config {
-            backend: BackendConfig::Local(LocalBackendConfig {
-                cpu: Some(0),
-                ..Default::default()
-            }),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(LocalBackendConfig {
+                    cpu: Some(0),
+                    ..Default::default()
+                }),
+            )]
+            .into(),
             ..Default::default()
         };
         assert_eq!(
@@ -683,10 +764,14 @@ mod test {
             "local backend configuration value `cpu` cannot be zero"
         );
         let config = Config {
-            backend: BackendConfig::Local(LocalBackendConfig {
-                cpu: Some(10000000),
-                ..Default::default()
-            }),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(LocalBackendConfig {
+                    cpu: Some(10000000),
+                    ..Default::default()
+                }),
+            )]
+            .into(),
             ..Default::default()
         };
         assert!(config.validate().unwrap_err().to_string().starts_with(
@@ -696,10 +781,14 @@ mod test {
 
         // Test invalid local backend memory config
         let config = Config {
-            backend: BackendConfig::Local(LocalBackendConfig {
-                memory: Some("0 GiB".to_string()),
-                ..Default::default()
-            }),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(LocalBackendConfig {
+                    memory: Some("0 GiB".to_string()),
+                    ..Default::default()
+                }),
+            )]
+            .into(),
             ..Default::default()
         };
         assert_eq!(
@@ -707,10 +796,14 @@ mod test {
             "local backend configuration value `memory` cannot be zero"
         );
         let config = Config {
-            backend: BackendConfig::Local(LocalBackendConfig {
-                memory: Some("100 meows".to_string()),
-                ..Default::default()
-            }),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(LocalBackendConfig {
+                    memory: Some("100 meows".to_string()),
+                    ..Default::default()
+                }),
+            )]
+            .into(),
             ..Default::default()
         };
         assert_eq!(
@@ -719,10 +812,14 @@ mod test {
         );
 
         let config = Config {
-            backend: BackendConfig::Local(LocalBackendConfig {
-                memory: Some("1000 TiB".to_string()),
-                ..Default::default()
-            }),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(LocalBackendConfig {
+                    memory: Some("1000 TiB".to_string()),
+                    ..Default::default()
+                }),
+            )]
+            .into(),
             ..Default::default()
         };
         assert!(config.validate().unwrap_err().to_string().starts_with(
@@ -731,7 +828,11 @@ mod test {
 
         // Test missing TES URL
         let config = Config {
-            backend: BackendConfig::Tes(Default::default()),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Tes(Default::default()),
+            )]
+            .into(),
             ..Default::default()
         };
         assert_eq!(
@@ -741,15 +842,19 @@ mod test {
 
         // Insecure TES URL
         let config = Config {
-            backend: BackendConfig::Tes(
-                TesBackendConfig {
-                    url: Some("http://example.com".parse().unwrap()),
-                    inputs: Some("http://example.com".parse().unwrap()),
-                    outputs: Some("http://example.com".parse().unwrap()),
-                    ..Default::default()
-                }
-                .into(),
-            ),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Tes(
+                    TesBackendConfig {
+                        url: Some("http://example.com".parse().unwrap()),
+                        inputs: Some("http://example.com".parse().unwrap()),
+                        outputs: Some("http://example.com".parse().unwrap()),
+                        ..Default::default()
+                    }
+                    .into(),
+                ),
+            )]
+            .into(),
             ..Default::default()
         };
         assert_eq!(
@@ -760,27 +865,35 @@ mod test {
 
         // Allow insecure URL
         let config = Config {
-            backend: BackendConfig::Tes(
-                TesBackendConfig {
-                    url: Some("http://example.com".parse().unwrap()),
-                    inputs: Some("http://example.com".parse().unwrap()),
-                    outputs: Some("http://example.com".parse().unwrap()),
-                    insecure: true,
-                    ..Default::default()
-                }
-                .into(),
-            ),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Tes(
+                    TesBackendConfig {
+                        url: Some("http://example.com".parse().unwrap()),
+                        inputs: Some("http://example.com".parse().unwrap()),
+                        outputs: Some("http://example.com".parse().unwrap()),
+                        insecure: true,
+                        ..Default::default()
+                    }
+                    .into(),
+                ),
+            )]
+            .into(),
             ..Default::default()
         };
         config.validate().expect("configuration should validate");
 
         // Test invalid TES basic auth
         let config = Config {
-            backend: BackendConfig::Tes(Box::new(TesBackendConfig {
-                url: Some(Url::parse("https://example.com").unwrap()),
-                auth: Some(TesBackendAuthConfig::Basic(Default::default())),
-                ..Default::default()
-            })),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Tes(Box::new(TesBackendConfig {
+                    url: Some(Url::parse("https://example.com").unwrap()),
+                    auth: Some(TesBackendAuthConfig::Basic(Default::default())),
+                    ..Default::default()
+                })),
+            )]
+            .into(),
             ..Default::default()
         };
         assert_eq!(
@@ -788,14 +901,18 @@ mod test {
             "HTTP basic auth configuration value `username` is required"
         );
         let config = Config {
-            backend: BackendConfig::Tes(Box::new(TesBackendConfig {
-                url: Some(Url::parse("https://example.com").unwrap()),
-                auth: Some(TesBackendAuthConfig::Basic(BasicAuthConfig {
-                    username: Some("Foo".into()),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Tes(Box::new(TesBackendConfig {
+                    url: Some(Url::parse("https://example.com").unwrap()),
+                    auth: Some(TesBackendAuthConfig::Basic(BasicAuthConfig {
+                        username: Some("Foo".into()),
+                        ..Default::default()
+                    })),
                     ..Default::default()
                 })),
-                ..Default::default()
-            })),
+            )]
+            .into(),
             ..Default::default()
         };
         assert_eq!(
@@ -805,11 +922,15 @@ mod test {
 
         // Test invalid TES bearer auth
         let config = Config {
-            backend: BackendConfig::Tes(Box::new(TesBackendConfig {
-                url: Some(Url::parse("https://example.com").unwrap()),
-                auth: Some(TesBackendAuthConfig::Bearer(Default::default())),
-                ..Default::default()
-            })),
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Tes(Box::new(TesBackendConfig {
+                    url: Some(Url::parse("https://example.com").unwrap()),
+                    auth: Some(TesBackendAuthConfig::Bearer(Default::default())),
+                    ..Default::default()
+                })),
+            )]
+            .into(),
             ..Default::default()
         };
         assert_eq!(

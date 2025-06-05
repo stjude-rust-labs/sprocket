@@ -53,6 +53,7 @@ use crate::WORK_DIR_NAME;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TesBackendAuthConfig;
+use crate::config::TesBackendConfig;
 use crate::http::HttpDownloader;
 use crate::http::rewrite_url;
 use crate::path::EvaluationPath;
@@ -97,6 +98,8 @@ const DEFAULT_TES_INTERVAL: u64 = 60;
 struct TesTaskRequest {
     /// The engine configuration.
     config: Arc<Config>,
+    /// The backend configuration.
+    backend_config: Arc<TesBackendConfig>,
     /// The inner task spawn request.
     inner: TaskSpawnRequest,
     /// The Crankshaft TES backend to use.
@@ -235,10 +238,7 @@ impl TaskManagerRequest for TesTaskRequest {
         // SAFETY: currently `outputs` is required by configuration validation, so it
         // should always unwrap
         let outputs_url = self
-            .config
-            .backend
-            .as_tes()
-            .unwrap()
+            .backend_config
             .outputs
             .as_ref()
             .expect("should have outputs URL")
@@ -356,6 +356,8 @@ impl TaskManagerRequest for TesTaskRequest {
 pub struct TesBackend {
     /// The engine configuration.
     config: Arc<Config>,
+    /// The backend configuration.
+    backend_config: Arc<TesBackendConfig>,
     /// The underlying Crankshaft backend.
     inner: Arc<tes::Backend>,
     /// The maximum amount of concurrency supported.
@@ -375,15 +377,8 @@ impl TesBackend {
     /// configuration.
     ///
     /// The provided configuration is expected to have already been validated.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the given configuration is not configured to use the TES
-    /// backend.
-    pub async fn new(config: Arc<Config>) -> Result<Self> {
+    pub async fn new(config: Arc<Config>, backend_config: &TesBackendConfig) -> Result<Self> {
         info!("initializing TES backend");
-
-        let backend_config = config.backend.as_tes().expect("expected TES backend");
 
         // There's no way to ask the TES service for its limits, so use the maximums
         // allowed
@@ -428,6 +423,7 @@ impl TesBackend {
 
         Ok(Self {
             config,
+            backend_config: Arc::new(backend_config.clone()),
             inner: Arc::new(backend),
             max_concurrency,
             max_cpu,
@@ -553,6 +549,7 @@ impl TaskExecutionBackend for TesBackend {
         self.manager.send(
             TesTaskRequest {
                 config: self.config.clone(),
+                backend_config: self.backend_config.clone(),
                 inner: request,
                 backend: self.inner.clone(),
                 name,

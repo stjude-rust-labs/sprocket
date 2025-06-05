@@ -38,6 +38,7 @@ use crate::Value;
 use crate::WORK_DIR_NAME;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
+use crate::config::LocalBackendConfig;
 use crate::convert_unit_string;
 use crate::http::Downloader;
 use crate::http::HttpDownloader;
@@ -213,15 +214,8 @@ impl LocalBackend {
     /// configuration.
     ///
     /// The provided configuration is expected to have already been validated.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the given configuration is not configured to use the local
-    /// backend.
-    pub fn new(config: Arc<Config>) -> Result<Self> {
+    pub fn new(config: Arc<Config>, backend_config: &LocalBackendConfig) -> Result<Self> {
         info!("initializing local backend");
-
-        let backend_config = config.backend.as_local().expect("expected local backend");
 
         let cpu = backend_config
             .cpu

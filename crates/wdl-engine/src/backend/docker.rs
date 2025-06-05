@@ -49,6 +49,7 @@ use crate::Value;
 use crate::WORK_DIR_NAME;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
+use crate::config::DockerBackendConfig;
 use crate::http::Downloader;
 use crate::http::HttpDownloader;
 use crate::http::Location;
@@ -290,15 +291,8 @@ impl DockerBackend {
     /// configuration.
     ///
     /// The provided configuration is expected to have already been validated.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the given configuration is not configured to use the docker
-    /// backend.
-    pub async fn new(config: Arc<Config>) -> Result<Self> {
+    pub async fn new(config: Arc<Config>, backend_config: &DockerBackendConfig) -> Result<Self> {
         info!("initializing Docker backend");
-
-        let backend_config = config.backend.as_docker().expect("expected docker backend");
 
         let backend = docker::Backend::initialize_default_with(
             backend::docker::Config::builder()

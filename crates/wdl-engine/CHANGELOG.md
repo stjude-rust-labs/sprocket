@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fixed guest paths for redirected stdio for both the Docker and TES backends ([#470](https://github.com/stjude-rust-labs/wdl/pull/470)).
 
+### Changed
+
+* Backend configuration has changed to allow multiple backends to be defined ([#469](https://github.com/stjude-rust-labs/wdl/pull/469)).
+
 ## 0.4.0 - 05-27-2025
 
 #### Added
