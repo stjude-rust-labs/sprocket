@@ -4,7 +4,7 @@ import CodePreview from "./CodePreview.vue";
 </script>
 
 <template>
-  <main class="vp-raw hero__background">
+  <main class="hero__background">
     <div class="container">
       <div class="hero__content">
         <!-- Left: Headline and Actions -->
@@ -149,9 +149,11 @@ import CodePreview from "./CodePreview.vue";
 .hero__btn--slack {
   background: #23272d;
   color: #fff;
+  border: 1px solid transparent;
 }
 
 .hero__btn--slack:hover {
+  border-color: var(--theme-violet-800);
   background: var(--theme-blue-600);
 }
 
