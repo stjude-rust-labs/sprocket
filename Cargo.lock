@@ -4233,7 +4233,7 @@ dependencies = [
 [[package]]
 name = "wdl"
 version = "0.14.0"
-source = "git+https://github.com/peterhuene/wdl?branch=multiple-backends#94653c915a609adeec30c909b61c03c64981e2d8"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4250,7 +4250,7 @@ dependencies = [
 [[package]]
 name = "wdl-analysis"
 version = "0.9.0"
-source = "git+https://github.com/peterhuene/wdl?branch=multiple-backends#94653c915a609adeec30c909b61c03c64981e2d8"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4276,7 +4276,7 @@ dependencies = [
 [[package]]
 name = "wdl-ast"
 version = "0.13.0"
-source = "git+https://github.com/peterhuene/wdl?branch=multiple-backends#94653c915a609adeec30c909b61c03c64981e2d8"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "macropol",
  "paste",
@@ -4289,7 +4289,7 @@ dependencies = [
 [[package]]
 name = "wdl-cli"
 version = "0.2.0"
-source = "git+https://github.com/peterhuene/wdl?branch=multiple-backends#94653c915a609adeec30c909b61c03c64981e2d8"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4315,7 +4315,7 @@ dependencies = [
 [[package]]
 name = "wdl-doc"
 version = "0.4.0"
-source = "git+https://github.com/peterhuene/wdl?branch=multiple-backends#94653c915a609adeec30c909b61c03c64981e2d8"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4331,7 +4331,7 @@ dependencies = [
 [[package]]
 name = "wdl-engine"
 version = "0.4.0"
-source = "git+https://github.com/peterhuene/wdl?branch=multiple-backends#94653c915a609adeec30c909b61c03c64981e2d8"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4371,7 +4371,7 @@ dependencies = [
 [[package]]
 name = "wdl-format"
 version = "0.7.0"
-source = "git+https://github.com/peterhuene/wdl?branch=multiple-backends#94653c915a609adeec30c909b61c03c64981e2d8"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4380,7 +4380,7 @@ dependencies = [
 [[package]]
 name = "wdl-grammar"
 version = "0.13.0"
-source = "git+https://github.com/peterhuene/wdl?branch=multiple-backends#94653c915a609adeec30c909b61c03c64981e2d8"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "codespan-reporting",
  "itertools",
@@ -4392,7 +4392,7 @@ dependencies = [
 [[package]]
 name = "wdl-lint"
 version = "0.12.0"
-source = "git+https://github.com/peterhuene/wdl?branch=multiple-backends#94653c915a609adeec30c909b61c03c64981e2d8"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4412,7 +4412,7 @@ dependencies = [
 [[package]]
 name = "wdl-lsp"
 version = "0.9.0"
-source = "git+https://github.com/peterhuene/wdl?branch=multiple-backends#94653c915a609adeec30c909b61c03c64981e2d8"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "indexmap 2.9.0",
