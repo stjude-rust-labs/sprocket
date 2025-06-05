@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* Removed the `--config` option of `sprocket run`; the run command's
+  configuration is now merged into `sprocket.toml` under the `run` section ([#121](github.com/stjude-rust-labs/sprocket/pull/121))
+
+### Fixed
+
+* The `sprocket run`, `sprocket validate`, and `sprocket inputs` commands will
+  no longer require the `--name` option if passed a WDL document containing a
+  single task and no workflow ([#121](github.com/stjude-rust-labs/sprocket/pull/121)).
+
 ## 0.13.0 - 05-28-2025
 
 ### Added
