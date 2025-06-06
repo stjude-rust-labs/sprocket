@@ -85,6 +85,10 @@ pub async fn doc(args: Args) -> Result<()> {
         .output
         .unwrap_or(args.workspace.join(DEFAULT_OUTPUT_DIR));
 
+    if args.overwrite && docs_dir.exists() {
+        std::fs::remove_dir_all(&docs_dir)?;
+    }
+
     document_workspace(&args.workspace, &docs_dir, args.homepage.clone()).await?;
 
     if args.open {
