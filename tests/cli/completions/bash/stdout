@@ -591,7 +591,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__run)
-            opts="-n -o -c -m -v -q -h --name --output --config --overwrite --no-color --report-mode --verbose --quiet --help <PATH or URL> [INPUTS]..."
+            opts="-n -o -m -v -q -h --name --output --overwrite --no-color --report-mode --verbose --quiet --help <PATH or URL> [INPUTS]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -610,14 +610,6 @@ _sprocket() {
                     return 0
                     ;;
                 -o)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --config)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -c)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

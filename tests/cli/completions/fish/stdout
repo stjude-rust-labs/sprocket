@@ -24,7 +24,7 @@ function __fish_sprocket_using_subcommand
 	contains -- $cmd[1] $argv
 end
 
-complete -c sprocket -n "__fish_sprocket_needs_command" -s c -l config -d 'Path to the configuration file' -r
+complete -c sprocket -n "__fish_sprocket_needs_command" -s c -l config -d 'Path to the configuration file' -r -F
 complete -c sprocket -n "__fish_sprocket_needs_command" -s v -l verbose -d 'Increase logging verbosity'
 complete -c sprocket -n "__fish_sprocket_needs_command" -s q -l quiet -d 'Decrease logging verbosity'
 complete -c sprocket -n "__fish_sprocket_needs_command" -s s -l skip-config-search -d 'Skip searching for and loading configuration files'
@@ -231,7 +231,6 @@ complete -c sprocket -n "__fish_sprocket_using_subcommand lint" -s h -l help -d 
 complete -c sprocket -n "__fish_sprocket_using_subcommand lint" -s V -l version -d 'Print version'
 complete -c sprocket -n "__fish_sprocket_using_subcommand run" -s n -l name -d 'The name of the task or workflow to run' -r
 complete -c sprocket -n "__fish_sprocket_using_subcommand run" -s o -l output -d 'The execution output directory; defaults to the task name if provided, otherwise, `output`' -r -F
-complete -c sprocket -n "__fish_sprocket_using_subcommand run" -s c -l config -d 'The path to the engine TOML configuration file' -r -F
 complete -c sprocket -n "__fish_sprocket_using_subcommand run" -s m -l report-mode -d 'The report mode' -r -f -a "full\t'Prints diagnostics as multiple lines'
 one-line\t'Prints diagnostics as one line'"
 complete -c sprocket -n "__fish_sprocket_using_subcommand run" -l overwrite -d 'Overwrites the execution output directory if it exists'

@@ -222,8 +222,6 @@ Register-ArgumentCompleter -Native -CommandName 'sprocket' -ScriptBlock {
             [CompletionResult]::new('--name', '--name', [CompletionResultType]::ParameterName, 'The name of the task or workflow to run')
             [CompletionResult]::new('-o', '-o', [CompletionResultType]::ParameterName, 'The execution output directory; defaults to the task name if provided, otherwise, `output`')
             [CompletionResult]::new('--output', '--output', [CompletionResultType]::ParameterName, 'The execution output directory; defaults to the task name if provided, otherwise, `output`')
-            [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'The path to the engine TOML configuration file')
-            [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'The path to the engine TOML configuration file')
             [CompletionResult]::new('-m', '-m', [CompletionResultType]::ParameterName, 'The report mode')
             [CompletionResult]::new('--report-mode', '--report-mode', [CompletionResultType]::ParameterName, 'The report mode')
             [CompletionResult]::new('--overwrite', '--overwrite', [CompletionResultType]::ParameterName, 'Overwrites the execution output directory if it exists')

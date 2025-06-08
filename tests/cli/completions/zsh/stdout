@@ -15,8 +15,8 @@ _sprocket() {
 
     local context curcontext="$curcontext" state line
     _arguments "${_arguments_options[@]}" : \
-'-c+[Path to the configuration file]:CONFIG:_default' \
-'--config=[Path to the configuration file]:CONFIG:_default' \
+'-c+[Path to the configuration file]:CONFIG:_files' \
+'--config=[Path to the configuration file]:CONFIG:_files' \
 '*-v[Increase logging verbosity]' \
 '*--verbose[Increase logging verbosity]' \
 '(-v --verbose)*-q[Decrease logging verbosity]' \
@@ -257,8 +257,6 @@ _arguments "${_arguments_options[@]}" : \
 '--name=[The name of the task or workflow to run]:NAME:_default' \
 '-o+[The execution output directory; defaults to the task name if provided, otherwise, \`output\`]:OUTPUT_DIR:_files' \
 '--output=[The execution output directory; defaults to the task name if provided, otherwise, \`output\`]:OUTPUT_DIR:_files' \
-'-c+[The path to the engine TOML configuration file]:CONFIG:_files' \
-'--config=[The path to the engine TOML configuration file]:CONFIG:_files' \
 '-m+[The report mode]:MODE:((full\:"Prints diagnostics as multiple lines"
 one-line\:"Prints diagnostics as one line"))' \
 '--report-mode=[The report mode]:MODE:((full\:"Prints diagnostics as multiple lines"

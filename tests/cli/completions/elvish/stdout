@@ -204,8 +204,6 @@ set edit:completion:arg-completer[sprocket] = {|@words|
             cand --name 'The name of the task or workflow to run'
             cand -o 'The execution output directory; defaults to the task name if provided, otherwise, `output`'
             cand --output 'The execution output directory; defaults to the task name if provided, otherwise, `output`'
-            cand -c 'The path to the engine TOML configuration file'
-            cand --config 'The path to the engine TOML configuration file'
             cand -m 'The report mode'
             cand --report-mode 'The report mode'
             cand --overwrite 'Overwrites the execution output directory if it exists'

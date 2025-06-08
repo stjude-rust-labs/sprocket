@@ -22,9 +22,6 @@ Options:
   -o, --output <OUTPUT_DIR>
           The execution output directory; defaults to the task name if provided, otherwise, `output`
 
-  -c, --config <CONFIG>
-          The path to the engine TOML configuration file
-
       --overwrite
           Overwrites the execution output directory if it exists
 
