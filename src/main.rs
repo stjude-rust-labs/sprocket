@@ -2,6 +2,7 @@
 
 use std::io::IsTerminal;
 use std::io::stderr;
+use std::path::PathBuf;
 
 use clap::CommandFactory;
 use clap::Parser;
@@ -31,7 +32,7 @@ struct Cli {
 
     /// Path to the configuration file.
     #[arg(long, short)]
-    config: Option<String>,
+    config: Option<PathBuf>,
 
     /// Skip searching for and loading configuration files.
     ///
@@ -71,7 +72,7 @@ pub async fn inner() -> anyhow::Result<()> {
         }
     };
 
-    let config = Config::new(cli.config, cli.skip_config_search);
+    let config = Config::new(cli.config.as_deref(), cli.skip_config_search)?;
 
     // Write effective configuration to the log
     trace!(
@@ -92,7 +93,7 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Inputs(args) => commands::inputs::inputs(args).await,
         Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
         Commands::Lock(args) => commands::lock::lock(args).await,
-        Commands::Run(args) => commands::run::run(args).await,
+        Commands::Run(args) => commands::run::run(args.apply(config)).await,
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
     }
 }
