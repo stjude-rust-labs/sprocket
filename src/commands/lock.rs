@@ -15,8 +15,6 @@ use wdl::ast::v1::LiteralExpr;
 use wdl::cli::Analysis;
 use wdl::cli::analysis::Source;
 
-use crate::Mode;
-
 /// Default name for the lock file.
 const LOCK_FILE: &str = "sprocket.lock";
 
@@ -26,26 +24,6 @@ pub struct Args {
     /// A source WDL file or URL.
     #[clap(value_name = "PATH or URL")]
     pub source: Source,
-
-    /// Disables color output.
-    #[arg(long)]
-    pub no_color: bool,
-
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
-}
-
-impl Args {
-    /// Applies the configuration to the command arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.no_color = self.no_color || !config.common.color;
-        self.report_mode = match self.report_mode {
-            Some(mode) => Some(mode),
-            None => Some(config.common.report_mode),
-        };
-        self
-    }
 }
 
 /// Represents the lock file structure.
