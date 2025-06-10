@@ -95,7 +95,7 @@ pub struct CheckConfig {
 pub struct RunConfig {
     /// The engine configuration.
     #[serde(flatten)]
-    pub engine: Option<engine::config::Config>,
+    pub engine: engine::config::Config,
 }
 
 impl Config {
