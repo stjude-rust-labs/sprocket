@@ -5,6 +5,7 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use anyhow::bail;
+use chrono::prelude::*;
 use clap::Parser;
 use crankshaft_docker::Docker as crankshaft_docker;
 use serde::Deserialize;
@@ -29,6 +30,9 @@ pub struct Args {
 /// Represents the lock file structure.
 #[derive(Debug, Serialize, Deserialize)]
 struct Lock {
+    /// The time when the lock file was created.
+    #[serde(rename = "generation_time")]
+    timestamp: String,
     /// A mapping of Docker image names to their sha256 digests.
     images: HashMap<String, String>,
 }
@@ -72,34 +76,32 @@ pub async fn lock(args: Args) -> Result<()> {
         }
     }
 
+    let time = Utc::now();
+
     let mut map: HashMap<String, String> = HashMap::new();
+    images.insert("ghcr.io/stjude-rust-labs/sprocket:v0.13.0".to_string());
     for image in images {
         let prefix = image.split(':').next().unwrap_or("");
         let docker = crankshaft_docker::with_defaults()?;
 
-        docker
-            .ensure_image(&image)
-            .await
-            .expect("should ensure image");
-
-        let image_info = docker
+        let i = docker
             .inner()
-            .inspect_image(image.as_str())
+            .inspect_registry_image(&image, None)
             .await
-            .expect("should inspect image");
+            .expect("should inspect registry image");
 
-        if let Some(digests) = image_info.repo_digests {
-            for d in digests {
-                if !d.starts_with(prefix) {
-                    continue;
-                }
-                map.insert(image.clone(), d.clone());
-            }
-        }
+        // Insert the manifest digest into the map.
+        map.insert(
+            image.clone(),
+            prefix.to_owned() + "@" + &i.descriptor.digest.expect("should have a digest"),
+        );
     }
 
     if !map.is_empty() {
-        let lock = Lock { images: map };
+        let lock = Lock {
+            timestamp: time.to_string(),
+            images: map,
+        };
         let data = toml::to_string_pretty(&lock)?;
         std::fs::write(LOCK_FILE, data)?;
     }
