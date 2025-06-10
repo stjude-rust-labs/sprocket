@@ -4,9 +4,8 @@
 //! These directories can be arbitrarily nested to group similar tests together
 //!
 //! Each test can contain the following files (but all are optional)
-//! * `sprocket_command` - entrypoint of each test, contains a sprocket command
-//!   that will be
-//! run (without the sprocket keyword)
+//! * `args` - entrypoint of each test, contains a sprocket command
+//!   that will be run (without the sprocket keyword)
 //! * `inputs` - a directory containing the starting files that the test will
 //!   run with.
 //! These are copied to a temp folder, and the command above will be run inside
@@ -17,7 +16,7 @@
 //! command does not change the input files.
 //! * `stdout` - the expected stdout from the task
 //! * `stderr` - the expected stderr from the task
-//!
+//! * `exit_code` - the expected exit code from the task
 //! The expected files may be automatically generated or updated by setting the
 //! `BLESS` environment variable when running this test.
 
@@ -47,7 +46,7 @@ fn find_tests(starting_dir: &Path) -> Vec<PathBuf> {
         let path = entry.path();
         if path.is_dir() {
             tests.append(&mut find_tests(path.as_path()));
-        } else if path.file_name().unwrap() == "sprocket_command" {
+        } else if path.file_name().unwrap() == "args" {
             tests.push(path.parent().unwrap().to_path_buf());
         }
     }
@@ -63,6 +62,7 @@ fn get_test_name(path: &Path, test_root: &Path) -> String {
 struct CommandOutput {
     stdout: String,
     stderr: String,
+    exit_code: i32,
 }
 
 async fn run_test(test_path: &Path) -> Result<()> {
@@ -71,7 +71,7 @@ async fn run_test(test_path: &Path) -> Result<()> {
         .context("failed to setup working test directory")?;
     let command_output = run_sprocket(test_path, &working_test_directory.path())
         .await
-        .context("failed to run sproket command")?;
+        .context("failed to run sprocket command")?;
     compare_test_results(test_path, &working_test_directory.path(), &command_output).await
 }
 
@@ -114,7 +114,7 @@ async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
 }
 
 async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<CommandOutput> {
-    let command_path = test_path.join("sprocket_command");
+    let command_path = test_path.join("args");
     let command_string = fs::read_to_string(&command_path).await.context(format!(
         "failed to read command at path {:?}",
         &command_path
@@ -126,6 +126,7 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
         .args(command_input);
 
     let command_assert = command.assert();
+    
     let command_output = CommandOutput {
         stdout: normalize_string(
             &String::from_utf8(command_assert.get_output().stdout.clone())
@@ -135,6 +136,7 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
             &String::from_utf8(command_assert.get_output().stderr.clone())
                 .context("failed to get stderr from sprocket command")?,
         ),
+        exit_code: command_assert.get_output().status.code().ok_or_else(|| anyhow!("failed to get command exit code"))?,
     };
 
     Ok(command_output)
@@ -264,6 +266,7 @@ async fn compare_test_results(
     let expected_output_folder = test_path.join("outputs");
     let expected_stderr_file = test_path.join("stderr");
     let expected_stdout_file = test_path.join("stdout");
+    let expected_exit_code_file = test_path.join("exit_code");
     if env::var_os("BLESS").is_some() {
         fs::write(&expected_stderr_file, command_output.stderr.as_bytes())
             .await
@@ -274,6 +277,8 @@ async fn compare_test_results(
         fs::remove_dir_all(&expected_output_folder)
             .await
             .unwrap_or_default();
+        fs::write(&expected_exit_code_file, command_output.exit_code.to_string().as_bytes()).await
+            .context("failed to write exit code")?;
         recursive_copy(working_test_directory, &expected_output_folder)
             .await
             .context(
@@ -283,6 +288,7 @@ async fn compare_test_results(
     compare_results(&expected_stderr_file, &command_output.stderr).await?;
     compare_results(&expected_stdout_file, &command_output.stdout).await?;
     recursive_compare(&expected_output_folder, working_test_directory).await?;
+    compare_results(&expected_exit_code_file, &command_output.exit_code.to_string()).await?;
     Ok(())
 }
 
