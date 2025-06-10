@@ -89,7 +89,7 @@ pub fn list_all_rules() -> String {
     let mut result = String::from("Available rules:");
 
     for id in ALL_RULE_IDS.iter() {
-        result.push_str(&format!("\n  - {}", id));
+        result.push_str(&format!("\n  - {id}"));
     }
     result
 }
@@ -99,7 +99,7 @@ pub fn list_all_tags() -> String {
     let mut result = String::from("Available tags:");
 
     for tag in ALL_TAG_NAMES.iter() {
-        result.push_str(&format!("\n  - {}", tag));
+        result.push_str(&format!("\n  - {tag}"));
     }
     result
 }
@@ -156,7 +156,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
     if let Some(tag) = args.tag {
         let target = tag.parse::<Tag>().map_err(|_| {
             println!("{}\n", list_all_tags());
-            anyhow!("invalid tag `{}`", tag)
+            anyhow!("invalid tag `{tag}`")
         })?;
 
         let rules = lint::rules()
@@ -166,13 +166,13 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
 
         if rules.is_empty() {
             println!("{}\n", list_all_tags());
-            bail!("no rules found with the tag `{}`", tag);
+            bail!("no rules found with the tag `{tag}`");
         } else {
-            println!("Rules with the tag `{}`:", tag);
+            println!("Rules with the tag `{tag}`:");
             let mut rule_ids = rules.iter().map(|rule| rule.id()).collect::<Vec<_>>();
             rule_ids.sort();
             for id in rule_ids {
-                println!("  - {}", id);
+                println!("  - {id}");
             }
         }
         return Ok(());
