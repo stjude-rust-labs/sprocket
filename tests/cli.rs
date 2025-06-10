@@ -4,8 +4,8 @@
 //! These directories can be arbitrarily nested to group similar tests together
 //!
 //! Each test can contain the following files (but all are optional)
-//! * `args` - entrypoint of each test, contains a sprocket command
-//!   that will be run (without the sprocket keyword)
+//! * `args` - entrypoint of each test, contains a sprocket command that will be
+//!   run (without the sprocket keyword)
 //! * `inputs` - a directory containing the starting files that the test will
 //!   run with.
 //! These are copied to a temp folder, and the command above will be run inside
@@ -126,7 +126,7 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
         .args(command_input);
 
     let command_assert = command.assert();
-    
+
     let command_output = CommandOutput {
         stdout: normalize_string(
             &String::from_utf8(command_assert.get_output().stdout.clone())
@@ -136,7 +136,11 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
             &String::from_utf8(command_assert.get_output().stderr.clone())
                 .context("failed to get stderr from sprocket command")?,
         ),
-        exit_code: command_assert.get_output().status.code().ok_or_else(|| anyhow!("failed to get command exit code"))?,
+        exit_code: command_assert
+            .get_output()
+            .status
+            .code()
+            .ok_or_else(|| anyhow!("failed to get command exit code"))?,
     };
 
     Ok(command_output)
@@ -277,8 +281,12 @@ async fn compare_test_results(
         fs::remove_dir_all(&expected_output_folder)
             .await
             .unwrap_or_default();
-        fs::write(&expected_exit_code_file, command_output.exit_code.to_string().as_bytes()).await
-            .context("failed to write exit code")?;
+        fs::write(
+            &expected_exit_code_file,
+            command_output.exit_code.to_string().as_bytes(),
+        )
+        .await
+        .context("failed to write exit code")?;
         recursive_copy(working_test_directory, &expected_output_folder)
             .await
             .context(
@@ -288,7 +296,11 @@ async fn compare_test_results(
     compare_results(&expected_stderr_file, &command_output.stderr).await?;
     compare_results(&expected_stdout_file, &command_output.stdout).await?;
     recursive_compare(&expected_output_folder, working_test_directory).await?;
-    compare_results(&expected_exit_code_file, &command_output.exit_code.to_string()).await?;
+    compare_results(
+        &expected_exit_code_file,
+        &command_output.exit_code.to_string(),
+    )
+    .await?;
     Ok(())
 }
 
