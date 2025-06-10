@@ -1,5 +1,5 @@
-## This is a test of passing complex type inputs.
-## No error should be present in `error.txt`.
+## This is a representative WDL workflow to test the behavior of the default inputs command
+## This will show the necessary inputs required in json format necessary to run this command in the stdout
 
 version 1.2
 

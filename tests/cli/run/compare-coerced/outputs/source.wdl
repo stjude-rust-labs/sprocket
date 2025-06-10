@@ -1,3 +1,6 @@
+## This is a representative WDL workflow to test the behavior of the run command
+
+
 version 1.2
 
 task compare_coerced {

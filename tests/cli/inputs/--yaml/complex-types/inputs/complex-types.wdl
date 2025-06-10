@@ -1,5 +1,5 @@
-## This is a test of passing complex type inputs.
-## No error should be present in `error.txt`.
+## This is a representative WDL workflow to test the behavior of the inputs --yaml command
+## This will show the necessary inputs required in yaml format necessary to run this command in the stdout
 
 version 1.2
 

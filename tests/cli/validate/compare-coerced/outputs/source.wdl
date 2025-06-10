@@ -1,3 +1,6 @@
+## This is a representative WDL workflow to test the behavior of the validate command
+## This will check that the inputs provided are correct for the WDL workflow being run
+
 version 1.2
 
 task compare_coerced {

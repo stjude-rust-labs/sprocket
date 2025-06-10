@@ -1,6 +1,7 @@
-## Unused input.
+## This WDL file contains an unused input called x.
+## This test intends to show check --deny-warnings flag converts the unused input warning into an error instead
 
-version 1.1
+version 1.2
 
 
 workflow test {
