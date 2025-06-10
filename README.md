@@ -69,6 +69,14 @@ running the following command.
 cargo install sprocket
 ```
 
+### Homebrew
+
+Sprocket is also available on [Homebrew](https://brew.sh) for both MacOS and Linux. Once Homebrew is installed, you can install Sprocket with the following command.
+
+```bash
+brew install sprocket
+```
+
 ### Docker
 
 Sprocket is available as a Docker [image](https://github.com/stjude-rust-labs/sprocket/pkgs/container/sprocket).
