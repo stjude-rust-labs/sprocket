@@ -143,8 +143,10 @@ fn emit_diagnostics<'a>(
     Ok(())
 }
 
-/// Returns a vectory containing a single source for the current working
+/// Returns a vector containing a single source for the current working
 /// directory.
 fn cwd_source() -> Vec<Source> {
-    vec![Source::Directory(PathBuf::from("."))]
+    vec![Source::Directory(PathBuf::from(
+        std::path::Component::CurDir.as_os_str(),
+    ))]
 }
