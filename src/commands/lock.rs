@@ -79,7 +79,6 @@ pub async fn lock(args: Args) -> Result<()> {
     let time = Utc::now();
 
     let mut map: HashMap<String, String> = HashMap::new();
-    images.insert("ghcr.io/stjude-rust-labs/sprocket:v0.13.0".to_string());
     for image in images {
         let prefix = image.split(':').next().unwrap_or("");
         let docker = crankshaft_docker::with_defaults()?;
