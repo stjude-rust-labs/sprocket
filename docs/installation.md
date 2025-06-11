@@ -14,7 +14,7 @@ Sprocket is available through the [Homebrew package manager](https://brew.sh) on
 both MacOS and Linux. After installing Homebrew, you can install Sprocket with
 the following command.
 
-```
+```bash
 brew install sprocket
 ```
 
