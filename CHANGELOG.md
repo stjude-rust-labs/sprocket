@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Removed the `--config` option of `sprocket run`; the run command's
   configuration is now merged into `sprocket.toml` under the `run` section ([#121](github.com/stjude-rust-labs/sprocket/pull/121))
+* Added the current working directory as the default source for the `check`,
+  `format` and `lint` subcommands
+  ([#127](github.com/stjude-rust-labs/sprocket/pull/127)).
 
 ### Fixed
 

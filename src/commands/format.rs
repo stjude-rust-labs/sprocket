@@ -42,8 +42,8 @@ use crate::emit_diagnostics;
 pub struct Args {
     /// The path to the WDL document or a directory containing WDL documents to
     /// format or check (`-` for STDIN).
-    #[arg(value_name = "PATH or DIR")]
-    pub path: PathBuf,
+    #[arg(value_name = "PATH or DIR", default_value = ".")]
+    pub path: String,
 
     /// Disables color output.
     #[arg(long)]
@@ -217,13 +217,11 @@ pub fn format(args: Args) -> Result<()> {
         .build();
 
     let mut diagnostics = 0;
-    if args.path.to_str() != Some("-") && args.path.is_dir() {
-        for entry in WalkDir::new(&args.path) {
+    let path = PathBuf::from(args.path);
+    if path.to_str() != Some("-") && path.is_dir() {
+        for entry in WalkDir::new(&path) {
             let entry = entry.with_context(|| {
-                format!(
-                    "failed to walk directory `{path}`",
-                    path = args.path.display()
-                )
+                format!("failed to walk directory `{path}`", path = path.display())
             })?;
             let path = entry.path();
             if !path.is_file() || path.extension().and_then(OsStr::to_str) != Some("wdl") {
@@ -241,7 +239,7 @@ pub fn format(args: Args) -> Result<()> {
     } else {
         diagnostics += format_document(
             config,
-            &args.path,
+            &path,
             args.report_mode.unwrap_or_default(),
             args.no_color,
             args.mode.check,

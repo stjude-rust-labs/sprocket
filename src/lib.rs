@@ -11,6 +11,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::IsTerminal as _;
 use std::io::Write as _;
+use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use anyhow::Context as _;
@@ -28,6 +29,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use wdl::ast::AstNode as _;
 use wdl::ast::Diagnostic;
+use wdl::cli::analysis::Source;
 use wdl::engine::CallLocation;
 
 pub mod commands;
@@ -139,4 +141,10 @@ fn emit_diagnostics<'a>(
     }
 
     Ok(())
+}
+
+/// Returns a vectory containing a single source for the current working
+/// directory.
+fn cwd_source() -> Vec<Source> {
+    vec![Source::Directory(PathBuf::from("."))]
 }

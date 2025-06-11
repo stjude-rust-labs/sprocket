@@ -17,6 +17,7 @@ use wdl::lint::find_nearest_rule;
 
 use super::explain::ALL_RULE_IDS;
 use crate::Mode;
+use crate::cwd_source;
 use crate::emit_diagnostics;
 use crate::get_display_config;
 
@@ -25,7 +26,7 @@ use crate::get_display_config;
 #[command(author, version, about)]
 pub struct Common {
     /// A set of source documents as files, directories, or URLs.
-    #[clap(value_name = "PATH or URL")]
+    #[clap(value_name = "PATH or URL", default_values_t = cwd_source())]
     pub sources: Vec<Source>,
 
     /// Excepts (ignores) an analysis or lint rule.
