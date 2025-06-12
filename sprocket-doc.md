@@ -28,6 +28,10 @@ Example:
 ## # This is a header
 ##
 ## This is a paragraph with **bolding**, _italics_, and `code` formatting
+
+version 1.2
+
+workflow foo {}
 ```
 
 ## v1.0 and v1.1 structs
