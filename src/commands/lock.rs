@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 use anyhow::Result;
 use anyhow::bail;
@@ -24,7 +25,7 @@ const LOCK_FILE: &str = "sprocket.lock";
 pub struct Args {
     /// A source WDL file or URL.
     #[clap(value_name = "PATH or URL")]
-    pub source: Source,
+    pub source: Option<Source>,
 }
 
 /// Represents the lock file structure.
@@ -39,7 +40,12 @@ struct Lock {
 
 /// Performs the `lock` command.
 pub async fn lock(args: Args) -> Result<()> {
-    let results = match Analysis::default().add_source(args.source).run().await {
+    let s = args.source.unwrap_or(
+        Source::Directory(PathBuf::from(
+            std::path::Component::CurDir.as_os_str()
+        ))
+    );
+    let results = match Analysis::default().add_source(s).run().await {
         Ok(results) => results,
         Err(errors) => {
             // SAFETY: this is a non-empty, so it must always have a first
