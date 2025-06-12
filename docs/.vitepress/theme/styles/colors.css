@@ -1,0 +1,31 @@
+:root {
+  /**
+   * Theme Colors
+   * --------------------------------------------------------------------------
+   */
+
+  /* Blue */
+  --theme-blue-900: #070A19;
+  --theme-blue-800: #0D0F20;
+  --theme-blue-700: #0F1425;
+  --theme-blue-600: #16192A;
+  --theme-blue-500: #1D2133;
+  --theme-blue-400: #2A2E44;
+  --theme-blue-300: #464D6E;
+  --theme-blue-200: #7780A3;
+  --theme-blue-100: #A1A8C4;
+  --theme-blue-50: #D3D6E3;
+
+  /* Lilac (Secondary Brand Color) */
+  --theme-lilac-300: #99A7F1;
+  --theme-lilac-100: #BEC7FA;
+
+  /* Violet */
+  --theme-violet-800: #5d15e3;
+  --theme-violet-900: #4200be;
+
+  /* Gradient (3 stops, pink to blue) */
+  --theme-gradient-stop-start: #e59cff;
+  --theme-gradient-stop-middle: #ba9cff;
+  --theme-gradient-stop-end: #9cb2ff;
+}
