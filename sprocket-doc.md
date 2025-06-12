@@ -16,7 +16,19 @@ While it is technically possible to supply your own custom CSS styling, this cap
 
 ## Per WDL file `index.html`
 
-At a minimum, the `index.html` associated with each WDL file will have a table of contents with links to each struct, task, or workflow documentation page in that directory. If the WDL file has a "preamble", that will be rendered as Markdown text above the table of contents. TODO - define preamble
+At a minimum, the `index.html` associated with each WDL file will have a table of contents with links to each struct, task, or workflow documentation page in that directory. If the WDL file has a "preamble", that will be rendered as Markdown text above the table of contents.
+
+### Preamble
+
+Preamble comments are special comments at the start of a WDL file that begin with double pound signs (`##`). These comments are used for documentation that doesn't fit within any of the WDL-defined documentation elements (i.e., `meta` and `parameter_meta` sections). They may provide context for a collection of tasks or structs, or they may provide a high-level overview of a workflow.
+
+Example:
+
+```wdl
+## # This is a header
+##
+## This is a paragraph with **bolding**, _italics_, and `code` formatting
+```
 
 ## v1.0 and v1.1 structs
 
@@ -24,7 +36,7 @@ The WDL specification does not offer a way to document structs prior to WDL v1.2
 
 ## v1.2 structs
 
-TODO not yet implemented
+Structs defined in v1.2 WDL _will_ eventually get rich HTML documentation similar to tasks and workflows. However this has not yet been implemented, so they are given the same treatment as pre-v1.2 structs.
 
 ## Parameters (inputs and outputs)
 
