@@ -29,8 +29,6 @@ jobs:
 
   test:
     runs-on: ${{ matrix.os }}
-    env: 
-      DOCKER_DEFAULT_PLATFORM: "linux/amd64"
     strategy:
       fail-fast: false
       matrix:
