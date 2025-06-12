@@ -40,11 +40,9 @@ struct Lock {
 
 /// Performs the `lock` command.
 pub async fn lock(args: Args) -> Result<()> {
-    let s = args.source.unwrap_or(
-        Source::Directory(PathBuf::from(
-            std::path::Component::CurDir.as_os_str()
-        ))
-    );
+    let s = args.source.unwrap_or(Source::Directory(PathBuf::from(
+        std::path::Component::CurDir.as_os_str(),
+    )));
     let results = match Analysis::default().add_source(s).run().await {
         Ok(results) => results,
         Err(errors) => {
