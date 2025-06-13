@@ -58,7 +58,7 @@ jobs:
           curl -L --url "https://github.com/containers/podman/releases/download/v5.5.1/podman-5.5.1-setup.exe" -o Podman.exe
           Start-Process Podman.exe -Wait -ArgumentList "/norestart /passive" -Verb runAs;
           Add-Content $env:GITHUB_PATH "C:\Program Files\RedHat\Podman\"
-      - name: Statup Docker (Windows)
+      - name: Startup Docker (Windows)
         if: ${{'windows-latest' == matrix.os}}
         run: |
           podman machine init
