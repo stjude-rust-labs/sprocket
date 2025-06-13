@@ -555,10 +555,10 @@ pub async fn inputs(args: Args) -> Result<()> {
 
     if args.yaml {
         let yaml = serde_yaml_ng::to_string(&inputs)?;
-        println!("{}", yaml);
+        println!("{yaml}");
     } else {
         let json = serde_json::to_string_pretty(&inputs)?;
-        println!("{}", json);
+        println!("{json}");
     }
 
     Ok(())
