@@ -34,6 +34,8 @@ struct Lock {
     /// The time when the lock file was created.
     #[serde(rename = "generation_time")]
     timestamp: String,
+    /// A set of workflow names that were found in the source.
+    workflows: HashMap<String, String>,
     /// A mapping of Docker image names to their sha256 digests.
     images: HashMap<String, String>,
 }
@@ -52,10 +54,16 @@ pub async fn lock(args: Args) -> Result<()> {
         }
     };
 
+    let mut workflows = HashMap::new();
     let mut images: HashSet<String> = HashSet::new();
     let mut buffer = String::new();
     for result in results {
         let doc = result.document().root();
+
+        if let Some(wf) = result.document().workflow() {
+            workflows.insert(wf.name().to_owned(), result.document().uri().to_string());
+        }
+
         for task in result.document().tasks() {
             doc.ast()
                 .as_v1()
@@ -103,6 +111,7 @@ pub async fn lock(args: Args) -> Result<()> {
     if !map.is_empty() {
         let lock = Lock {
             timestamp: time.to_string(),
+            workflows: workflows,
             images: map,
         };
         let data = toml::to_string_pretty(&lock)?;
