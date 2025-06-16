@@ -111,7 +111,7 @@ pub async fn lock(args: Args) -> Result<()> {
     if !map.is_empty() {
         let lock = Lock {
             timestamp: time.to_string(),
-            workflows: workflows,
+            workflows,
             images: map,
         };
         let data = toml::to_string_pretty(&lock)?;
