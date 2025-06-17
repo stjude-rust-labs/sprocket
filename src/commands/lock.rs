@@ -17,7 +17,7 @@ use wdl::ast::v1::LiteralExpr;
 use wdl::cli::Analysis;
 use wdl::cli::analysis::Source;
 
-/// Default name for the lock file.
+/// Name for the lock file.
 const LOCK_FILE: &str = "sprocket.lock";
 
 /// Arguments for the `lock` subcommand.
@@ -26,6 +26,10 @@ pub struct Args {
     /// A source WDL file or URL.
     #[clap(value_name = "PATH or URL")]
     pub source: Option<Source>,
+
+    /// Output directory for the lock file.
+    #[clap(short, long, value_name = "DIR")]
+    pub output: Option<PathBuf>,
 }
 
 /// Represents the lock file structure.
@@ -42,6 +46,12 @@ struct Lock {
 
 /// Performs the `lock` command.
 pub async fn lock(args: Args) -> Result<()> {
+    let output_path = args
+        .output
+        .unwrap_or_else(|| PathBuf::from(std::path::Component::CurDir.as_os_str()))
+        .join(LOCK_FILE);
+
+    // TODO: replace with `Default` once that's upstream
     let s = args.source.unwrap_or(Source::Directory(PathBuf::from(
         std::path::Component::CurDir.as_os_str(),
     )));
@@ -91,9 +101,10 @@ pub async fn lock(args: Args) -> Result<()> {
     let time = Utc::now();
 
     let mut map: HashMap<String, String> = HashMap::new();
+    let docker = crankshaft_docker::with_defaults()?;
+
     for image in images {
         let prefix = image.split(':').next().unwrap_or("");
-        let docker = crankshaft_docker::with_defaults()?;
 
         let i = docker
             .inner()
@@ -115,7 +126,16 @@ pub async fn lock(args: Args) -> Result<()> {
             images: map,
         };
         let data = toml::to_string_pretty(&lock)?;
-        std::fs::write(LOCK_FILE, data)?;
+        std::fs::write(output_path, data)?;
+    } else {
+        let lock = Lock {
+            timestamp: time.to_string(),
+            workflows: HashMap::new(),
+            images: HashMap::new(),
+        };
+
+        let data = toml::to_string_pretty(&lock)?;
+        std::fs::write(output_path, data)?;
     }
 
     Ok(())
