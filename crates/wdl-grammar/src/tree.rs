@@ -7,8 +7,6 @@ use std::collections::VecDeque;
 use std::fmt;
 use std::iter;
 
-use itertools::Either;
-use rowan::Direction;
 use rowan::GreenNodeBuilder;
 use rowan::GreenNodeData;
 use strum::VariantArray;
@@ -709,116 +707,6 @@ impl fmt::Display for SyntaxTree {
 impl fmt::Debug for SyntaxTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
-    }
-}
-
-/// An extension trait for [`SyntaxNode`]s, [`SyntaxToken`]s, and
-/// [`SyntaxElement`]s.
-pub trait SyntaxExt {
-    /// Returns whether `self` matches the provided element.
-    fn matches(&self, other: &SyntaxElement) -> bool;
-
-    /// Gets the parent of the element.
-    ///
-    /// Returns `None` for the root node.
-    fn parent(&self) -> Option<SyntaxNode>;
-
-    /// Gets the child index of the element.
-    fn index(&self) -> usize;
-
-    /// Gets the siblings with tokens.
-    ///
-    /// **NOTE:** this is needed because Rowan does not encapsulate this
-    /// functionality in a trait. Once wrapped here, most of the functions
-    /// provided by this extension trait can just be provided, which simplifies
-    /// the code. Generally speaking, this should just defer to the underlying
-    /// `siblings_with_tokens` method for each type.
-    fn siblings_with_tokens(&self, direction: Direction) -> impl Iterator<Item = SyntaxElement>;
-
-    /// Returns all of the siblings _before_ the current element.
-    ///
-    /// The siblings are returned in the order they were parsed.
-    fn preceding_siblings(&self) -> impl Iterator<Item = SyntaxElement> {
-        let index = self.index();
-        self.parent()
-            .into_iter()
-            .flat_map(move |p| p.children_with_tokens().take(index))
-    }
-
-    /// Returns all of the siblings _after_ the current element.
-    ///
-    /// The siblings are returned in the order they were parsed.
-    fn succeeding_siblings(&self) -> impl Iterator<Item = SyntaxElement> {
-        self.siblings_with_tokens(Direction::Next)
-            // NOTE: this `skip` is necessary because `siblings_with_tokens` returns the current
-            // node.
-            .skip(1)
-    }
-
-    /// Gets all elements that are adjacent to a particular element (not
-    /// including the element itself). This means in both the forward and
-    /// reverse direction.
-    ///
-    /// The siblings are returned in the order they were parsed.
-    fn adjacent(&self) -> impl Iterator<Item = SyntaxElement> {
-        self.preceding_siblings().chain(self.succeeding_siblings())
-    }
-}
-
-impl SyntaxExt for SyntaxNode {
-    fn matches(&self, other: &SyntaxElement) -> bool {
-        other.as_node().map(|n| n == self).unwrap_or(false)
-    }
-
-    fn siblings_with_tokens(&self, direction: Direction) -> impl Iterator<Item = SyntaxElement> {
-        self.siblings_with_tokens(direction)
-    }
-
-    fn parent(&self) -> Option<SyntaxNode> {
-        self.parent()
-    }
-
-    fn index(&self) -> usize {
-        self.index()
-    }
-}
-
-impl SyntaxExt for SyntaxToken {
-    fn matches(&self, other: &SyntaxElement) -> bool {
-        other.as_token().map(|n| n == self).unwrap_or(false)
-    }
-
-    fn siblings_with_tokens(&self, direction: Direction) -> impl Iterator<Item = SyntaxElement> {
-        self.siblings_with_tokens(direction)
-    }
-
-    fn parent(&self) -> Option<SyntaxNode> {
-        self.parent()
-    }
-
-    fn index(&self) -> usize {
-        self.index()
-    }
-}
-
-impl SyntaxExt for SyntaxElement {
-    fn matches(&self, other: &SyntaxElement) -> bool {
-        self == other
-    }
-
-    fn siblings_with_tokens(&self, direction: Direction) -> impl Iterator<Item = SyntaxElement> {
-        match self {
-            SyntaxElement::Node(node) => Either::Left(node.siblings_with_tokens(direction)),
-            SyntaxElement::Token(token) => Either::Right(token.siblings_with_tokens(direction)),
-        }
-    }
-
-    fn parent(&self) -> Option<SyntaxNode> {
-        self.parent()
-    }
-
-    fn index(&self) -> usize {
-        self.index()
     }
 }
 

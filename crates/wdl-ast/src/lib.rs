@@ -44,7 +44,6 @@ pub use wdl_grammar::Severity;
 pub use wdl_grammar::Span;
 pub use wdl_grammar::SupportedVersion;
 pub use wdl_grammar::SyntaxElement;
-pub use wdl_grammar::SyntaxExt;
 pub use wdl_grammar::SyntaxKind;
 pub use wdl_grammar::SyntaxNode;
 pub use wdl_grammar::SyntaxToken;
