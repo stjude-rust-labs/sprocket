@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Removed inherent impls of `can_cast()`, `cast()`, and `inner()` for `Expr` and `PlaceholderOption` that were redundant with methods on `AstNode` ([#480](https://github.com/stjude-rust-labs/wdl/pull/480)).
+
 ## 0.13.0 - 05-27-2025
 
 #### Fixed
