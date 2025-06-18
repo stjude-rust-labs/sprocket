@@ -51,7 +51,7 @@ Each entry in the `input` section of a task or workflow is expected to have a co
     - The `Common` group of inputs will always come after the required inputs
     - Inputs without a `group` will be rendered under "Other Inputs" which will be the last input table
     - The `Resource` group of inputs will immediately precede the "Other Inputs" table
-    - All other groups will render alphabetically between the `Common` table and the `Resource`table.
+    - All other groups will render alphabetically between the `Common` table and the `Resource` table.
 - `help`: will render at the top of the "Additional Meta" cell of the table
 
 If an input has a `String` value for its parameter meta entry instead of a meta object, that string value will be treated as if it were the `description` key of a meta object.
