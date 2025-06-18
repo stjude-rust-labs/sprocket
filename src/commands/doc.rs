@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 use std::sync::mpsc;
 
+use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
@@ -70,15 +71,30 @@ const DEFAULT_OUTPUT_DIR: &str = "docs";
 pub async fn doc(args: Args) -> Result<()> {
     if args.install {
         if let Some(theme_path) = &args.theme {
-            install_theme(theme_path)?;
+            install_theme(theme_path).with_context(|| {
+                format!(
+                    "failed to install theme from {}",
+                    theme_path.display()
+                )
+            })?;
         } else {
             bail!("the --install flag requires the --theme argument to be specified");
         }
     }
 
     if let Some(theme) = &args.theme {
-        build_stylesheet(theme)?;
-        build_web_components(theme)?;
+        build_stylesheet(theme).with_context(|| {
+            format!(
+                "failed to build stylesheet for theme at {}",
+                theme.display()
+            )
+        })?;
+        build_web_components(theme).with_context(|| {
+            format!(
+                "failed to build web components for theme at {}",
+                theme.display()
+            )
+        })?;
     }
 
     let docs_dir = args
@@ -89,7 +105,12 @@ pub async fn doc(args: Args) -> Result<()> {
         std::fs::remove_dir_all(&docs_dir)?;
     }
 
-    document_workspace(&args.workspace, &docs_dir, args.homepage.clone()).await?;
+    document_workspace(&args.workspace, &docs_dir, args.homepage.clone(), args.theme.clone()).await.with_context(|| {
+        format!(
+            "failed to generate documentation for workspace at {}",
+            args.workspace.display()
+        )
+    })?;
 
     if args.open {
         opener::open(docs_dir.join("index.html"))
@@ -102,7 +123,6 @@ pub async fn doc(args: Args) -> Result<()> {
             let mut watcher = recommended_watcher(tx)?;
 
             watcher.watch(&theme.join("src"), RecursiveMode::Recursive)?;
-            watcher.watch(&theme.join("web-components"), RecursiveMode::Recursive)?;
 
             println!("watching for changes in theme directory...");
             println!("press Ctrl+C to stop watching");
@@ -111,10 +131,25 @@ pub async fn doc(args: Args) -> Result<()> {
                 match rx.recv() {
                     Ok(Ok(Event { .. })) => {
                         println!("regenerating documentation...");
-                        build_stylesheet(theme)?;
-                        build_web_components(theme)?;
-                        document_workspace(&args.workspace, &docs_dir, args.homepage.clone())
-                            .await?;
+                        build_stylesheet(theme).with_context(|| {
+                            format!(
+                                "failed to build stylesheet for theme at {}",
+                                theme.display()
+                            )
+                        })?;
+                        build_web_components(theme).with_context(|| {
+                            format!(
+                                "failed to build web components for theme at {}",
+                                theme.display()
+                            )
+                        })?;
+                        document_workspace(&args.workspace, &docs_dir, args.homepage.clone(), args.theme.clone())
+                            .await.with_context(|| {
+                                format!(
+                                    "failed to regenerate documentation for workspace at {}",
+                                    args.workspace.display()
+                                )
+                            })?;
                         println!("done");
                     }
                     Ok(Err(e)) => eprintln!("watch error: {}", e),
