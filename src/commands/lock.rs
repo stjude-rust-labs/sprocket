@@ -11,7 +11,6 @@ use clap::Parser;
 use crankshaft_docker::Docker as crankshaft_docker;
 use serde::Deserialize;
 use serde::Serialize;
-use wdl::ast::AstToken;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::LiteralExpr;
 use wdl::cli::Analysis;
@@ -38,8 +37,6 @@ struct Lock {
     /// The time when the lock file was created.
     #[serde(rename = "generation_time")]
     timestamp: String,
-    /// A set of workflow names that were found in the source.
-    workflows: HashMap<String, String>,
     /// A mapping of Docker image names to their sha256 digests.
     images: HashMap<String, String>,
 }
@@ -64,37 +61,25 @@ pub async fn lock(args: Args) -> Result<()> {
         }
     };
 
-    let mut workflows = HashMap::new();
     let mut images: HashSet<String> = HashSet::new();
     let mut buffer = String::new();
     for result in results {
         let doc = result.document().root();
 
-        if let Some(wf) = result.document().workflow() {
-            workflows.insert(wf.name().to_owned(), result.document().uri().to_string());
-        }
-
-        for task in result.document().tasks() {
-            doc.ast()
-                .as_v1()
-                .expect("should be a v1 document")
-                .tasks()
-                .filter(|t| t.name().text() == task.name())
-                .for_each(|t| {
-                    if let Some(runtime) = t.runtime() {
-                        if let Some(container) = runtime.container() {
-                            if let Ok(image) = container.value() {
-                                if let Expr::Literal(LiteralExpr::String(s)) = image.expr() {
-                                    if let Some(text) = s.text() {
-                                        text.unescape_to(&mut buffer);
-                                        images.insert(buffer.clone());
-                                    }
-                                }
+        for task in doc.ast().as_v1().expect("should be a v1 document").tasks() {
+            if let Some(runtime) = task.runtime() {
+                if let Some(container) = runtime.container() {
+                    if let Ok(image) = container.value() {
+                        if let Expr::Literal(LiteralExpr::String(s)) = image.expr() {
+                            if let Some(text) = s.text() {
+                                text.unescape_to(&mut buffer);
+                                images.insert(buffer.clone());
                             }
                         }
                     }
-                    buffer.clear();
-                });
+                }
+            }
+            buffer.clear();
         }
     }
 
@@ -122,7 +107,6 @@ pub async fn lock(args: Args) -> Result<()> {
     if !map.is_empty() {
         let lock = Lock {
             timestamp: time.to_string(),
-            workflows,
             images: map,
         };
         let data = toml::to_string_pretty(&lock)?;
@@ -130,7 +114,6 @@ pub async fn lock(args: Args) -> Result<()> {
     } else {
         let lock = Lock {
             timestamp: time.to_string(),
-            workflows: HashMap::new(),
             images: HashMap::new(),
         };
 
