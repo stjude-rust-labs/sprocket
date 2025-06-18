@@ -21,8 +21,11 @@
 //! `BLESS` environment variable when running this test.
 
 use std::env;
+use std::env::current_exe;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Command;
+use std::process::Stdio;
 use std::process::exit;
 use std::thread::available_parallelism;
 
@@ -30,7 +33,6 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use assert_cmd::Command;
 use colored::Colorize;
 use futures::StreamExt;
 use futures::stream;
@@ -113,37 +115,42 @@ async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
+// while running tests, current_exe returns the path
+// /target/{profile}/deps/cli-some-hash the sprocket executable is just a couple
+// folders above this, so we just find it relative to that
+fn get_sprocket_exe() -> Result<PathBuf> {
+    let mut current_exe = current_exe().context("failed to find sprocket executable")?;
+    current_exe.pop();
+    current_exe.pop();
+    current_exe.push(format!("sprocket{}", env::consts::EXE_SUFFIX));
+    Ok(current_exe)
+}
+
 async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<CommandOutput> {
-    let command_path = test_path.join("args");
-    let command_string = fs::read_to_string(&command_path).await.context(format!(
-        "failed to read command at path {:?}",
-        &command_path
-    ))?;
-    let command_input = shlex::split(&command_string).unwrap();
-    let mut command = Command::cargo_bin("sprocket")?;
-    command
-        .current_dir(working_test_directory)
-        .args(command_input);
+    let sprocket_exe = get_sprocket_exe()?;
+    let args_path = test_path.join("args");
+    let args_string = fs::read_to_string(&args_path)
+        .await
+        .context(format!("failed to read command at path {:?}", &args_path))?;
+    let args = shlex::split(&args_string).ok_or_else(|| anyhow!("failed to split command args"))?;
+    let mut command = Command::new(sprocket_exe);
+    command.current_dir(working_test_directory).args(args);
+    let result = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .context("failed to spawn command")?
+        .wait_with_output()
+        .context("failed while waiting for command to finish")?;
 
-    let command_assert = command.assert();
-
-    let command_output = CommandOutput {
-        stdout: normalize_string(
-            &String::from_utf8(command_assert.get_output().stdout.clone())
-                .context("failed to get stdout from sprocket command")?,
-        ),
-        stderr: normalize_string(
-            &String::from_utf8(command_assert.get_output().stderr.clone())
-                .context("failed to get stderr from sprocket command")?,
-        ),
-        exit_code: command_assert
-            .get_output()
+    Ok(CommandOutput {
+        stdout: String::from_utf8(result.stdout).context("failed to convert stdout to string")?,
+        stderr: String::from_utf8(result.stderr).context("failed to convert stderr to string")?,
+        exit_code: result
             .status
             .code()
-            .ok_or_else(|| anyhow!("failed to get command exit code"))?,
-    };
-
-    Ok(command_output)
+            .ok_or_else(|| anyhow!("failed to get status code"))?,
+    })
 }
 
 fn normalize_string(input: &str) -> String {
