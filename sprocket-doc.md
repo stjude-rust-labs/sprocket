@@ -16,13 +16,9 @@ While it is technically possible to supply your own custom CSS styling, this cap
 
 ## Per WDL file `index.html`
 
-At a minimum, the `index.html` associated with each WDL file will have a table of contents with links to each struct, task, or workflow documentation page in that directory. If the WDL file has a "preamble", that will be rendered as Markdown text above the table of contents.
+At a minimum, the `index.html` associated with each WDL file will have a table of contents with links to each struct, task, or workflow documentation page in that directory. If the WDL file has a "preamble" (a comment block before the version statement where each line starts with `##`), that will be rendered as Markdown text above the table of contents.
 
-### Preamble
-
-Preamble comments are special comments at the start of a WDL file that begin with double pound signs (`##`). These comments are used for documentation that doesn't fit within any of the WDL-defined documentation elements (i.e., `meta` and `parameter_meta` sections). They may provide context for a collection of tasks or structs, or they may provide a high-level overview of a workflow.
-
-Example:
+Example preamble:
 
 ```wdl
 ## # This is a header
@@ -68,12 +64,14 @@ Similar to inputs, each output should either be documented with an object which 
 
 ## Meta entries with special handling
 
+All meta entries will render in the final HTML documentation, but there are some special cases we introduce.
+
 Every struct, task, and workflow `meta` section should have a `description` key with a `String` value. This description string can have Markdown formatting. The `description` string should be less than 140 characters or it will be clipped in some contexts.
 
 The `help` key should only have a `String` value, but can be of any length. It's best practice to keep `description` short, and put any additional text needed under the `help` key. Help strings can also be styled with Markdown!
 
 The `external_help` key should have a URL as its value, and will be rendered as a button which will open a new tab or window visiting the link.
 
-If the `warning` key has a `String` value, it will be rendered in a special "warning box" to draw the attention of users.
+If a `warning` key has a `String` value, it will be rendered in a special "warning box" to draw the attention of users.
 
 Workflows can have a `category` key which will group workflow pages on the left sidebar.
