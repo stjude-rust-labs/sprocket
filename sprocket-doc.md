@@ -4,9 +4,15 @@ Sprocket is capable of rendering rich HTML documentation for any WDL workspace! 
 
 If you've already generated documentation for your workspace and have found any awkward rendering or unexpected behavior, you should refer here to see if there's a convention offered to better address your specific use case.
 
+## Homepage
+
+We encourage you to customize the experience of your users by writing a custom Markdown document that will be embedded at the root of your generated documentation. Every page is going to contain links back to the homepage. If you don't provide anything for the homepage, your users will be faced with an empty screen which says "There's nothing to see on this page".
+
+Currently, we do not offer a way to include arbitrary assets, so unfortunately you cannot embed a custom logo or add pages other than a homepage. We're working on this feature though, so be sure to follow along with our development!
+
 ## Distributing generated documentation
 
-The generated documentation directory (named `docs` by default) is completely self contained and can be moved, zipped, and shared without any of the raw WDL files it documents. Please let us know if you run into any issues while sharing your documentation!
+The generated documentation directory (named `docs` by default) is completely self contained and can be moved, zipped, and shared without any of the raw WDL files it documents. Please let us know if you run into any issues while sharing your documentation.
 
 ## Custom themes
 
@@ -34,40 +40,40 @@ The WDL specification does not offer a way to document structs prior to WDL v1.2
 
 Structs defined in v1.2 WDL _will_ eventually get rich HTML documentation similar to tasks and workflows. However this has not yet been implemented, so they are given the same treatment as pre-v1.2 structs.
 
+## Meta entries with special handling
+
+All meta entries will render in the final HTML documentation, but there are some special cases we introduce. Each of the below keys are expected to have a WDL `String` value.
+
+`description`
+: Every struct, task, and workflow `meta` section should have a `description` key. This description string can have Markdown formatting. The `description` string should be less than 140 characters or it will be clipped in some contexts.
+
+`help`
+: This text can be of any length. It's best practice to keep `description` short, and put any additional text needed under the `help` key. Help strings can also be styled with Markdown.
+
+`category`
+: Workflows can have a `category` key which will group workflow pages on the left sidebar.
+
+`external_help`
+: This key should have a URL as its value (i.e. a valid hyperlink represented as a WDL `String`), and will be rendered as a button which will open a new tab or window visiting the link.
+
+`warning`
+: This text will be rendered in a special "warning box" to draw the attention of users.
+
 ## Parameters (inputs and outputs)
 
-Each input and output to a workflow or task should be documented, but there is some flexibility in the specifics.
+Each input and output to a workflow or task should be documented, but there is some flexibility in the specifics. To get the most out of `sprocket doc`, it's recommended that each instance of parameter documentation be a meta object. That object should have at least a `description` key. If a parameter has a `String` value for its meta entry instead of a meta object, that string value will be treated as if it were the `description` key of a meta object with no other entries.
 
 ### Inputs
 
-Each entry in the `input` section of a task or workflow is expected to have a corresponding entry in the `parameter_meta` section. To get the most out of `sprocket doc`, it's recommended that each input entry be a meta object. That object should have at least a `description` key. There is special handling for the following keys:
+Each entry in the `input` section of a task or workflow is expected to have a corresponding entry in the `parameter_meta` section. There is special handling for the `group` key of a meta object when used as documentation for an input:
 
-- `group`: all inputs sharing the same `String` value will be rendered together in a dedicated table
-    - required inputs are _always_ rendered under the "Required Inputs" table and thus should _not_ have a `group` key (it will be ignored if present)
-    - The `Common` group of inputs will always come after the required inputs
-    - Inputs without a `group` will be rendered under "Other Inputs" which will be the last input table
-    - The `Resource` group of inputs will immediately precede the "Other Inputs" table
-    - All other groups will render alphabetically between the `Common` table and the `Resource` table.
-- `help`: will render at the top of the "Additional Meta" cell of the table
-
-If an input has a `String` value for its parameter meta entry instead of a meta object, that string value will be treated as if it were the `description` key of a meta object.
+- all inputs sharing the same `String` value for the `group` key will be rendered together in a dedicated table
+- required inputs are _always_ rendered under the "Required Inputs" table and thus should _not_ have a `group` key (it will be ignored if present)
+- the `Common` group of inputs will always come after the required inputs
+- inputs without a `group` will be rendered under "Other Inputs" which will be the last input table
+- the `Resource` group of inputs will immediately precede the "Other Inputs" table
+- all other groups will render alphabetically between the `Common` table and the `Resource` table.
 
 ### Outputs
 
-Outputs can be documented in one of two places: either in the task/workflow `meta` section under an `outputs` key or at the root of the `parameter_meta` section. To be compliant with the [Sprocket `MatchingOutputMeta` lint rule](https://docs.rs/wdl/latest/wdl/lint/index.html#lint-rules), you should document each output under an `outputs` key in the `meta` section.
-
-Similar to inputs, each output should either be documented with an object which has a `description` key with a `String` value, or a `String` value directly. 
-
-## Meta entries with special handling
-
-All meta entries will render in the final HTML documentation, but there are some special cases we introduce.
-
-Every struct, task, and workflow `meta` section should have a `description` key with a `String` value. This description string can have Markdown formatting. The `description` string should be less than 140 characters or it will be clipped in some contexts.
-
-The `help` key should only have a `String` value, but can be of any length. It's best practice to keep `description` short, and put any additional text needed under the `help` key. Help strings can also be styled with Markdown!
-
-The `external_help` key should have a URL as its value, and will be rendered as a button which will open a new tab or window visiting the link.
-
-If a `warning` key has a `String` value, it will be rendered in a special "warning box" to draw the attention of users.
-
-Workflows can have a `category` key which will group workflow pages on the left sidebar.
+Outputs can be documented in one of two places: either in the task/workflow `meta` section under an `outputs` key or at the root of the `parameter_meta` section. To be compliant with the [Sprocket `MatchingOutputMeta` lint rule](https://docs.rs/wdl/latest/wdl/lint/index.html#lint-rules), you should document each output under an `outputs` key in the `meta` section and not include outputs anywhere in the `parameter_meta`.
