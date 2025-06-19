@@ -1,29 +1,25 @@
 # How to make the most of Sprocket doc
 
-Sprocket is capable of rendering rich HTML documentation for any WDL workspace! However to make the most of this tool, there are certain documentation conventions which should be followed. Of course you are free to ignore this document, and Sprocket should do a passable job of documenting your WDL, but there may be some awkward rendering or unexpected behavior if you aren't conforming to what the tool expects.
+Sprocket is capable of rendering rich HTML documentation for any WDL workspace! However to make the most of this tool, there are certain documentation conventions which should be followed. This page describes practices that are optional, but that enhance the quality of the resulting documentation.
 
-## General structure
+If you've already generated documentation for your workspace and have found any awkward rendering or unexpected behavior, you should refer here to see if there's a convention offered to better address your specific use case.
+
+## Distributing generated documentation
 
 The generated documentation directory (named `docs` by default) is completely self contained and can be moved, zipped, and shared without any of the raw WDL files it documents. Please let us know if you run into any issues while sharing your documentation!
-
-The `docs` directory will always contain a `style.css` file, an `index.js` file, an `index.html` file, and an `assets/` directory filled with SVG icons and logos. The rest of the contents are dynamically created based on the structure of the WDL workspace being documented. Each WDL file found in the workspace will be represented as a directory within `docs`. The relative path from the root of the workspace to each WDL file is reproduced in the `docs` directory to keep your documentation organized.
-
-The directory for each WDL file will have an `index.html` file and one HTML file per struct, task, or workflow defined in the WDL.
 
 ## Custom themes
 
 While it is technically possible to supply your own custom CSS styling, this capability is currently undocumented. We recommend you stick with the default styling at this point in time, but do let us know what kinds of customization you would like to see in future releases! 
 
-## Per WDL file `index.html`
+## Using preamble comments for file-level documentation
 
-At a minimum, the `index.html` associated with each WDL file will have a table of contents with links to each struct, task, or workflow documentation page in that directory. If the WDL file has a "preamble" (a comment block before the version statement where each line starts with `##`), that will be rendered as Markdown text above the table of contents.
-
-Example preamble:
+To provide top-level documentation for a file, add a comment block before the `version` statement where each line starts with `##`. These preamble comments will be rendered as Markdown above the generated table of contents on that file's dedicated page. For example:
 
 ```wdl
 ## # This is a header
 ##
-## This is a paragraph with **bolding**, _italics_, and `code` formatting
+## This is a paragraph with **bolding**, _italics_, and `code` formatting.
 
 version 1.2
 
@@ -44,7 +40,7 @@ Each input and output to a workflow or task should be documented, but there is s
 
 ### Inputs
 
-Each entry in the `input` section of a task or workflow is expected to have a corresponding entry in the `parameter_meta` section. To get the most out of `sprocket doc`, it's recommended that each input entry be an object. That object should have at least a `description` key. There is special handling for the following sub-keys:
+Each entry in the `input` section of a task or workflow is expected to have a corresponding entry in the `parameter_meta` section. To get the most out of `sprocket doc`, it's recommended that each input entry be a meta object. That object should have at least a `description` key. There is special handling for the following keys:
 
 - `group`: all inputs sharing the same `String` value will be rendered together in a dedicated table
     - required inputs are _always_ rendered under the "Required Inputs" table and thus should _not_ have a `group` key (it will be ignored if present)
@@ -58,7 +54,7 @@ If an input has a `String` value for its parameter meta entry instead of a meta 
 
 ### Outputs
 
-Outputs should be documented in one of two places: either in the task/workflow `meta` section under an `outputs` key or at the root of the `parameter_meta` section.
+Outputs can be documented in one of two places: either in the task/workflow `meta` section under an `outputs` key or at the root of the `parameter_meta` section. To be compliant with the [Sprocket `MatchingOutputMeta` lint rule](https://docs.rs/wdl/latest/wdl/lint/index.html#lint-rules), you should document each output under an `outputs` key in the `meta` section.
 
 Similar to inputs, each output should either be documented with an object which has a `description` key with a `String` value, or a `String` value directly. 
 
