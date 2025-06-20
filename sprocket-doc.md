@@ -2,11 +2,11 @@
 
 Sprocket is capable of rendering rich HTML documentation for any WDL workspace! However to make the most of this tool, there are certain documentation conventions which should be followed. This page describes practices that are optional, but that enhance the quality of the resulting documentation.
 
-If you've already generated documentation for your workspace and have found any awkward rendering or unexpected behavior, you should refer here to see if there's a convention offered to better address your specific use case.
+If you find any awkward rendering or unexpected behavior, refer to this document and see if a convention better addresses your specific use case.
 
 ## Homepage
 
-We encourage you to customize the experience of your users by writing a custom Markdown document that will be embedded at the root of your generated documentation. Every page is going to contain links back to the homepage. If you don't provide anything for the homepage, your users will be faced with an empty screen which says "There's nothing to see on this page".
+We encourage you to customize the experience of your user documentation by writing a custom Markdown document that will be embedded at the root of your generated documentation. Every page contains links back to the homepage. If no homepage is provided, your users will be faced with an empty screen stating "There's nothing to see on this page".
 
 Currently, we do not offer a way to include arbitrary assets, so unfortunately you cannot embed a custom logo or add pages other than a homepage. We're working on this feature though, so be sure to follow along with our development!
 
@@ -38,17 +38,17 @@ The WDL specification does not offer a way to document structs prior to WDL v1.2
 
 ## v1.2 structs
 
-Structs defined in v1.2 WDL _will_ eventually get rich HTML documentation similar to tasks and workflows. However this has not yet been implemented, so they are given the same treatment as pre-v1.2 structs.
+HTML documentation for structs defined in v1.2 WDL has not yet been implemented, so they are given the same treatment as pre-v1.2 structs.
 
 ## Meta entries with special handling
 
-All meta entries will render in the final HTML documentation, but there are some special cases we introduce. Each of the below keys are expected to have a WDL `String` value.
+All meta entries will render in the final HTML documentation, but there are some special conventions we introduce. Each key below is expected to have a WDL `String` value.
 
 `description`
 : Every struct, task, and workflow `meta` section should have a `description` key. This description string can have Markdown formatting. The `description` string should be less than 140 characters or it will be clipped in some contexts.
 
 `help`
-: This text can be of any length. It's best practice to keep `description` short, and put any additional text needed under the `help` key. Help strings can also be styled with Markdown.
+: This text can be of any length. It is best practice to keep `description` short and put any additional text needed under the `help` key. Help strings can also be styled with Markdown.
 
 `category`
 : Workflows can have a `category` key which will group workflow pages on the left sidebar.
@@ -61,7 +61,7 @@ All meta entries will render in the final HTML documentation, but there are some
 
 ## Parameters (inputs and outputs)
 
-Each input and output to a workflow or task should be documented, but there is some flexibility in the specifics. To get the most out of `sprocket doc`, it's recommended that each instance of parameter documentation be a meta object. That object should have at least a `description` key. If a parameter has a `String` value for its meta entry instead of a meta object, that string value will be treated as if it were the `description` key of a meta object with no other entries.
+Each input and output to a workflow or task should be documented, but there is some flexibility in the specifics. To get the most out of `sprocket doc`, it is recommended that each instance of parameter documentation be a meta object. That object should have at least a `description` key. If a parameter has a `String` value for its meta entry instead of a meta object, that string value will be treated as if it were the `description` key of a meta object with no other entries.
 
 ### Inputs
 
