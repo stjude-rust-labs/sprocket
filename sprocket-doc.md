@@ -6,7 +6,7 @@ If you find any awkward rendering or unexpected behavior, refer to this document
 
 ## Homepage
 
-We encourage you to customize the experience of your user documentation by writing a custom Markdown document that will be embedded at the root of your generated documentation. Every page contains links back to the homepage. If no homepage is provided, your users will be faced with an empty screen stating "There's nothing to see on this page".
+We encourage you to customize the experience of your user documentation by writing a custom Markdown document which can be embedded at the root of your generated documentation by specifying it on the command line when generating the documentation. Every page contains links back to the homepage. If no homepage is provided, your users will be faced with an empty screen stating "There's nothing to see on this page".
 
 Currently, we do not offer a way to include arbitrary assets, so unfortunately you cannot embed a custom logo or add pages other than a homepage. We're working on this feature though, so be sure to follow along with our development!
 
