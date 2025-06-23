@@ -42,7 +42,7 @@ pub enum Commands {
     /// Lints a document or a directory containing documents.
     Lint(check::LintArgs),
 
-    /// Locks Docker images to a sha256 digest.
+    /// (Experimental) Locks Docker images to a sha256 digest.
     Lock(lock::Args),
 
     /// Runs a task or workflow.

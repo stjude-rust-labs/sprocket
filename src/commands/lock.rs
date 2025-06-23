@@ -62,7 +62,6 @@ pub async fn lock(args: Args) -> Result<()> {
     };
 
     let mut images: HashSet<String> = HashSet::new();
-    let mut buffer = String::new();
     for result in results {
         let doc = result.document().root();
 
@@ -72,14 +71,14 @@ pub async fn lock(args: Args) -> Result<()> {
                     if let Ok(image) = container.value() {
                         if let Expr::Literal(LiteralExpr::String(s)) = image.expr() {
                             if let Some(text) = s.text() {
+                                let mut buffer = String::new();
                                 text.unescape_to(&mut buffer);
-                                images.insert(buffer.clone());
+                                images.insert(buffer);
                             }
                         }
                     }
                 }
             }
-            buffer.clear();
         }
     }
 
