@@ -6,14 +6,43 @@ from source](#build-from-source) (most common), get Sprocket through a [package
 manager](#package-managers) (support still being added), or use
 [Docker](#docker).
 
-## Download
+## Package managers
+
+### Homebrew
+
+Sprocket is available through the [Homebrew package manager](https://brew.sh) on
+both MacOS and Linux. After installing Homebrew, you can install Sprocket with
+the following command.
+
+```bash
+brew install sprocket
+```
+
+### Other package managers
+
+::: tip Note
+If you know of other, community-maintained
+packages for `sprocket`, please let us know by opening up [a pull
+request](https://github.com/stjude-rust-labs/sprocket/pulls).
+:::
+
+## Docker images
+
+Every released version of `sprocket` is available through the GitHub Container
+Registry.
+
+```bash
+docker run ghcr.io/stjude-rust-labs/sprocket:v0.13.0 -h
+```
+
+## Direct download
 
 A pre-built binary for `sprocket` can be downloaded from the latest [release
 entry on GitHub](https://github.com/stjude-rust-labs/sprocket/releases). Each
 platform has different requirements regarding shared libraries that are expected
 to be installed.
 
-## Build From Source
+## Build from source
 
 There are also a number of options to build `sprocket` from source, including
 pulling in the released source from [crates.io](#cratesio) or downloading the
@@ -58,40 +87,8 @@ cd sprocket
 cargo run --release
 ```
 
-## Package Managers
 
-Unfortunately, `sprocket` isn't available on any package managers yet. We expect
-this to change as Sprocket gains more popularity and meets package manager
-requirements for distribution.
-
-### Homebrew
-
-::: warning Notice
-While we'd like to make `sprocket` easily installable via [Homebrew], we're
-waiting to surpass the [75 star
-requirement](https://docs.brew.sh/Acceptable-Formulae#niche-or-self-submitted-stuff)
-for Homebrew formulas. If you feel so inclined, help us get there by starring [the
-repo](https://github.com/stjude-rust-labs/sprocket)!
-:::
-
-### Other Package Managers
-
-::: tip Note
-If you know of other, community-maintained
-packages for `sprocket`, please let us know by opening up [a pull
-request](https://github.com/stjude-rust-labs/sprocket/pulls).
-:::
-
-## Docker
-
-Every released version of `sprocket` is available through the GitHub Container
-Registry.
-
-```bash
-docker run ghcr.io/stjude-rust-labs/sprocket:v0.13.0 -h
-```
-
-## Shell Completions
+## Shell completions
 
 `sprocket` can generate command-line completion scripts for various shells,
 allowing you to use tab completion for commands and arguments.

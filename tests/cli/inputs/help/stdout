@@ -1,0 +1,17 @@
+Writes the inputs schema for a WDL document
+
+Usage: sprocket inputs [OPTIONS] <PATH or URL>
+
+Arguments:
+  <PATH or URL>  A source WDL file or URL
+
+Options:
+  -n, --name <NAME>       The name of the task or workflow for which to generate inputs
+      --show-expressions  Show inputs with non-literal default values
+      --hide-defaults     Hide inputs with default values
+      --nested-inputs     Generate inputs for all tasks called in the workflow
+      --yaml              Output the template as a YAML file
+  -v, --verbose...        Increase logging verbosity
+  -q, --quiet...          Decrease logging verbosity
+  -h, --help              Print help
+  -V, --version           Print version

@@ -1,0 +1,7 @@
+warning[UnusedInput]: unused input `x`
+  ┌─ unused-input.wdl:9:13
+  │
+9 │         Int x
+  │             ^
+
+error: failing due to 1 warning (`--deny-warnings` was specified)
