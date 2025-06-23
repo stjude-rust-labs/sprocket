@@ -11,6 +11,7 @@ use clap::Parser;
 use crankshaft_docker::Docker as crankshaft_docker;
 use serde::Deserialize;
 use serde::Serialize;
+use wdl::ast::AstToken;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::LiteralExpr;
 use wdl::cli::Analysis;
@@ -74,10 +75,41 @@ pub async fn lock(args: Args) -> Result<()> {
                                 let mut buffer = String::new();
                                 text.unescape_to(&mut buffer);
                                 images.insert(buffer);
+                            } else {
+                                tracing::warn!(
+                                    "Skipping image with placeholder value in task {} in document \
+                                     {}",
+                                    task.name().inner().text(),
+                                    result.document().path()
+                                );
                             }
+                        } else {
+                            tracing::warn!(
+                                "Skipping image with non-literal value in task {} in document {}",
+                                task.name().inner().text(),
+                                result.document().path()
+                            );
                         }
+                    } else {
+                        tracing::warn!(
+                            "Skipping task {} in document {} with no container image",
+                            task.name().inner().text(),
+                            result.document().path()
+                        );
                     }
+                } else {
+                    tracing::warn!(
+                        "Skipping task {} in document {} with no container image",
+                        task.name().inner().text(),
+                        result.document().path()
+                    );
                 }
+            } else {
+                tracing::warn!(
+                    "Skipping task {} in document {} with no runtime section",
+                    task.name().inner().text(),
+                    result.document().path()
+                );
             }
         }
     }
