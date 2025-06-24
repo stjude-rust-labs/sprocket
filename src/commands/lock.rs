@@ -67,50 +67,36 @@ pub async fn lock(args: Args) -> Result<()> {
         let doc = result.document().root();
 
         for task in doc.ast().as_v1().expect("should be a v1 document").tasks() {
-            if let Some(runtime) = task.runtime() {
-                if let Some(container) = runtime.container() {
-                    if let Ok(image) = container.value() {
-                        if let Expr::Literal(LiteralExpr::String(s)) = image.expr() {
-                            if let Some(text) = s.text() {
-                                let mut buffer = String::new();
-                                text.unescape_to(&mut buffer);
-                                images.insert(buffer);
-                            } else {
-                                tracing::warn!(
-                                    "Skipping image with placeholder value in task {} in document \
-                                     {}",
-                                    task.name().inner().text(),
-                                    result.document().path()
-                                );
-                            }
-                        } else {
-                            tracing::warn!(
-                                "Skipping image with non-literal value in task {} in document {}",
-                                task.name().inner().text(),
-                                result.document().path()
-                            );
-                        }
-                    } else {
-                        tracing::warn!(
-                            "Skipping task {} in document {} with no container image",
-                            task.name().inner().text(),
-                            result.document().path()
-                        );
-                    }
-                } else {
-                    tracing::warn!(
-                        "Skipping task {} in document {} with no container image",
-                        task.name().inner().text(),
-                        result.document().path()
-                    );
-                }
-            } else {
+            let task_name_token = task.name();
+            let task_name = task_name_token.inner().text();
+            let doc_path = result.document().path();
+            let Some(runtime) = task.runtime() else {
                 tracing::warn!(
-                    "Skipping task {} in document {} with no runtime section",
-                    task.name().inner().text(),
-                    result.document().path()
+                    "Skipping task {task_name} in document {doc_path} with no runtime section",
                 );
-            }
+                continue;
+            };
+            let Some(image) = runtime.container().and_then(|c| c.value().ok()) else {
+                tracing::warn!(
+                    "Skipping task {task_name} in document {doc_path} with no container image",
+                );
+                continue;
+            };
+            let Expr::Literal(LiteralExpr::String(s)) = image.expr() else {
+                tracing::warn!(
+                    "Skipping image with non-literal value in task {task_name} in document {doc_path}",
+                );
+                continue;
+            };
+            let Some(text) = s.text() else {
+                tracing::warn!(
+                    "Skipping image with placeholder value in task {task_name} in document {doc_path}",
+                );
+                continue;
+            };
+            let mut buffer = String::new();
+            text.unescape_to(&mut buffer);
+            images.insert(buffer);
         }
     }
 
