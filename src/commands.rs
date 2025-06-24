@@ -55,7 +55,7 @@ pub enum Commands {
     /// the task or workflow.
     Validate(validate::Args),
 
-    /// Development commands.
+    /// Developmental and experimental commands.
     #[command(subcommand)]
     Dev(DevCommands),
 }
