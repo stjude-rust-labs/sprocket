@@ -92,9 +92,9 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Format(args) => commands::format::format(args.apply(config)),
         Commands::Inputs(args) => commands::inputs::inputs(args).await,
         Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
-        Commands::Lock(args) => commands::lock::lock(args).await,
         Commands::Run(args) => commands::run::run(args.apply(config)).await,
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
+        Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
     }
 }
 
