@@ -84,13 +84,15 @@ pub async fn lock(args: Args) -> Result<()> {
             };
             let Expr::Literal(LiteralExpr::String(s)) = image.expr() else {
                 tracing::warn!(
-                    "Skipping image with non-literal value in task {task_name} in document {doc_path}",
+                    "Skipping image with non-literal value in task {task_name} in document \
+                     {doc_path}",
                 );
                 continue;
             };
             let Some(text) = s.text() else {
                 tracing::warn!(
-                    "Skipping image with placeholder value in task {task_name} in document {doc_path}",
+                    "Skipping image with placeholder value in task {task_name} in document \
+                     {doc_path}",
                 );
                 continue;
             };
