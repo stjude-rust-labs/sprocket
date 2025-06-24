@@ -125,7 +125,7 @@ pub async fn lock(args: Args) -> Result<()> {
 
     let lock = Lock {
         timestamp: time.to_string(),
-        images: if !map.is_empty() { map } else { HashMap::new() },
+        images: map,
     };
     let data = toml::to_string_pretty(&lock)?;
     std::fs::write(output_path, data)?;
