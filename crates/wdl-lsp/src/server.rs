@@ -331,13 +331,19 @@ impl LanguageServer for Server {
     async fn initialize(&self, params: InitializeParams) -> RpcResult<InitializeResult> {
         debug!("received `initialize` request: {params:#?}");
 
-        {
-            let mut folders = self.folders.write();
-            *folders = params
-                .workspace_folders
-                .unwrap_or_default()
-                .into_iter()
-                .collect();
+        if let Some(folders) = params.workspace_folders {
+            for mut folder in folders {
+                normalize_uri_path(&mut folder.uri);
+                self.folders.write().push(folder.clone());
+                if let Ok(path) = folder.uri.to_file_path() {
+                    if let Err(e) = self.analyzer.add_directory(path).await {
+                        error!(
+                            "failed to add initial workspace directory {uri}: {e}",
+                            uri = folder.uri
+                        );
+                    }
+                }
+            }
         }
 
         {
@@ -398,34 +404,10 @@ impl LanguageServer for Server {
             self.register_watcher().await;
         }
 
-        // Process the initial workspace folders
-        let folders = {
-            let mut folders = self.folders.write();
-            mem::take(&mut *folders)
-        };
-
-        if !folders.is_empty() {
-            self.did_change_workspace_folders(DidChangeWorkspaceFoldersParams {
-                event: WorkspaceFoldersChangeEvent {
-                    added: folders,
-                    removed: Vec::new(),
-                },
-            })
-            .await;
-        }
-
         info!(
             "{name} (v{version}) server initialized",
-            name = self
-                .options
-                .name
-                .as_deref()
-                .unwrap_or(env!("CARGO_CRATE_NAME")),
-            version = self
-                .options
-                .version
-                .as_deref()
-                .unwrap_or(env!("CARGO_PKG_VERSION"))
+            name = self.name(),
+            version = self.version()
         );
     }
 
