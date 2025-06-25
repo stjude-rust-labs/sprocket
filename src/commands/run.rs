@@ -401,7 +401,7 @@ pub async fn run(args: Args) -> Result<()> {
         },
         res = &mut evaluate => match res {
             Ok(outputs) => {
-                println!("{outputs}", outputs = serde_json::to_string_pretty(&outputs)?);
+                println!("{outputs}", outputs = serde_json::to_string_pretty(&outputs.with_name(&name))?);
                 Ok(())
             }
             Err(EvaluationError::Source(e)) => {
