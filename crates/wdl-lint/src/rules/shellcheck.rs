@@ -34,7 +34,10 @@ use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
+use wdl_ast::v1::Expr;
+use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::Placeholder;
+use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StrippedCommandPart;
 
 use crate::Rule;
@@ -375,13 +378,110 @@ impl<'a> CommandContext<'a> {
     }
 }
 
+/// Detect embedded quotes surrounding an expression in a string.
+///
+/// This is a utility function called by `evaluates_to_bash_literal`. Only
+/// `expr` that are addition or strings with potentially embedded placeholders
+/// are valid input. For a given expression, it checks through all descendants
+/// to see if there are any name references (variables) that are surrounded by
+/// escaped quotes. In WDL, the parent expression is either an addition
+/// (concatenation, e.g. `~{"foo " + bar + " baz"}`) operation or a string with
+/// an embedded placeholder (e.g. `~{"foo ~{bar} baz"`). So the escaped quotes
+/// are not in a single string literal. The descendant expressions must be
+/// traversed to check for quoting.
+fn is_quoted(expr: &Expr) -> bool {
+    let mut opened = false;
+    let mut name = false;
+
+    for c in expr.descendants::<Expr>() {
+        match c {
+            Expr::Literal(LiteralExpr::String(ref s)) => {
+                for p in s.parts() {
+                    match p {
+                        StringPart::Text(t) => {
+                            let mut buffer = String::new();
+                            t.unescape_to(&mut buffer);
+                            buffer.match_indices(&['\'', '"']).for_each(|(..)| {
+                                if opened && name {
+                                    name = false;
+                                }
+                                opened = !opened;
+                            });
+                        }
+                        StringPart::Placeholder(_placeholder) => {
+                            if !opened {
+                                return false;
+                            }
+                            name = true;
+                        }
+                    }
+                }
+            }
+            Expr::NameRef(_) => {
+                if !opened {
+                    return false;
+                }
+                name = true;
+            }
+            _ => {}
+        }
+    }
+    !name
+}
+
+/// Evaluate an expression to determine if it can be simplified to a literal.
+///
+/// Many WDL expressions can be simplified to a bash literal. For example
+/// concatenation of strings (e.g. `"foo" + "bar"`) is a WDL expression, but can
+/// be represented as a string for shellcheck. This function checks for various
+/// WDL functions and their arguments to evaluate if the WDL expression
+/// ultimately evaluates to a literal in the bash script.
+fn evaluates_to_bash_literal(expr: &Expr) -> bool {
+    match expr {
+        Expr::Literal(LiteralExpr::String(s)) => {
+            if s.text().is_some() {
+                return true;
+            }
+            is_quoted(expr)
+        }
+        Expr::Literal(_) => true,
+        Expr::Call(c) => match c.target().text() {
+            // `sep` concatenates its arguments with a separator.
+            // `prefix` and `suffix` add a prefix or suffix to the argument.
+            // So we check the array argument to see if it evaluates to a
+            // bash literal.
+            "sep" | "prefix" | "suffix" => evaluates_to_bash_literal(
+                &c.arguments()
+                    .nth(1)
+                    .expect("`sep`/`prefix`/`suffix` call should have two arguments"),
+            ),
+            // `quote` and `squote` both return quoted strings, so they can be treated as bash
+            // literals.
+            "quote" | "squote" => true,
+            _ => false,
+        },
+        Expr::Parenthesized(p) => evaluates_to_bash_literal(&p.expr()),
+        Expr::If(i) => {
+            let (_, if_expr, else_expr) = i.exprs();
+            evaluates_to_bash_literal(&if_expr) && evaluates_to_bash_literal(&else_expr)
+        }
+        Expr::Addition(a) => {
+            let balanced = is_quoted(expr);
+            let (left, right) = a.operands();
+            (evaluates_to_bash_literal(&left) && evaluates_to_bash_literal(&right)) || balanced
+        }
+        _ => false,
+    }
+}
+
 /// Convert a WDL placeholder to a bash variable or literal.
 ///
 /// The boolean returned indicates whether the placeholder was replaced with a
 /// literal (true) or a bash variable (false).
 /// If the placeholder is an integer, float, or boolean,
 /// it is replaced with a literal value.
-/// Otherwise, it is replaced with a bash variable.
+/// If it is a string, then the string is checked to see if it evaluates to a
+/// literal. Otherwise, it is replaced with a bash variable.
 fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
     let placeholder_len: usize = placeholder.inner().text_range().len().into();
 
@@ -396,12 +496,18 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
                     true,
                 );
             }
+            PrimitiveType::String => {
+                if evaluates_to_bash_literal(&placeholder.expr()) {
+                    return ("a".repeat(placeholder_len), true);
+                }
+            }
             _ => {}
         }
     };
 
-    // don't start variable with numbers
-    let mut bash_var = String::from("WDL");
+    // Don't start variable with numbers. This is lowercase to avoid triggering
+    // Shellcheck's misspelling rule: https://www.shellcheck.net/wiki/SC2153
+    let mut bash_var = String::from("wdl");
     bash_var
         .push_str(&Alphanumeric.sample_string(&mut rand::rng(), placeholder_len.saturating_sub(3)));
     (bash_var, false)
@@ -640,6 +746,8 @@ impl Visitor for ShellCheckRule {
 mod tests {
     use ftree::FenwickTree;
     use pretty_assertions::assert_eq;
+    use wdl_ast::Document;
+    use wdl_ast::v1::Expr;
 
     use super::ShellCheckReplacement;
     use super::normalize_replacements;
@@ -702,5 +810,118 @@ mod tests {
         let mut fixer = Fixer::new(ref_str);
         fixer.apply_replacement(rep);
         assert_eq!(fixer.value(), expected);
+    }
+
+    /// Parse a string containing a placeholder expression in the context of a
+    /// `command` with a handful of inputs in scope.
+    fn parse_placeholder_as_expr(command: &str) -> Expr {
+        let source = format!(
+            r#"
+version 1.2
+
+task test {{
+    input {{
+        String foo = "bar"
+        Int baz = 42
+        Array[File] arr = ["a", "b", "c"]
+    }}
+    command {{
+        {}
+    }}
+}}
+"#,
+            command
+        );
+        let (document, _diagnostics) = Document::parse(&source);
+        document
+            .ast()
+            .as_v1()
+            .expect("should be a v1 AST")
+            .tasks()
+            .next()
+            .expect("has a task")
+            .command()
+            .expect("has a command")
+            .parts()
+            // 0th element is the text preceding the start of the spliced command
+            .nth(1)
+            .expect("has a command part")
+            .unwrap_placeholder()
+            .expr()
+    }
+
+    #[test]
+    fn test_is_quoted1() {
+        // Both sides of the addition are literals
+        assert!(super::is_quoted(&parse_placeholder_as_expr(
+            r#"echo ~{"hello" + " world"}"#
+        )));
+    }
+    #[test]
+    fn test_is_quoted2() {
+        // This contains an unquoted variable.
+        assert!(!super::is_quoted(&parse_placeholder_as_expr(
+            r#"echo ~{"hello " + foo + " world"}"#
+        )));
+    }
+    #[test]
+    fn test_is_quoted3() {
+        // This contains a quoted variable.
+        assert!(super::is_quoted(&parse_placeholder_as_expr(
+            r#"echo ~{"hello '" + foo + "' world"}"#
+        )));
+    }
+    #[test]
+    fn test_is_quoted4() {
+        // This contains a hanging quote.
+        assert!(!super::is_quoted(&parse_placeholder_as_expr(
+            r#"echo ~{"hello '" + foo + " world"}"#
+        )));
+    }
+
+    #[test]
+    fn test_evaluates_to_bash_literal1() {
+        // Both sides of the addition are literals
+        assert!(super::evaluates_to_bash_literal(
+            &parse_placeholder_as_expr(r#"echo ~{"hello" + " world"}"#)
+        ));
+    }
+    #[test]
+    fn test_evaluates_to_bash_literal2() {
+        // This is not a literal because of the unquoted
+        // placeholder substitution.
+        assert!(!super::evaluates_to_bash_literal(
+            &parse_placeholder_as_expr(r#"echo ~{"hello " + foo + " world"}"#)
+        ));
+    }
+    #[test]
+    fn test_evaluates_to_bash_literal3() {
+        // This is a literal because of the quoted
+        // placeholder substitution.
+        assert!(super::evaluates_to_bash_literal(
+            &parse_placeholder_as_expr(r#"echo ~{"hello '" + foo + "' world"}"#)
+        ));
+    }
+    #[test]
+    fn test_evaluates_to_bash_literal4() {
+        // This is a literal because all array elements are literals.
+        assert!(super::evaluates_to_bash_literal(
+            &parse_placeholder_as_expr(r#"echo ~{sep(" ", ["a", "b", "c"])}"#)
+        ));
+    }
+    #[test]
+    fn test_evaluates_to_bash_literal5() {
+        // This is not a literal because the array is not
+        // guaranteed to be all literals.
+        assert!(!super::evaluates_to_bash_literal(
+            &parse_placeholder_as_expr(r#"echo ~{sep(" ", arr)}"#)
+        ));
+    }
+    #[test]
+    fn test_evaluates_to_bash_literal6() {
+        // Surrounding with quotes makes it a literal.
+        assert!(super::evaluates_to_bash_literal(
+            &parse_placeholder_as_expr(r#"echo ~{sep(" ", quote(arr))}"#)
+        ));
     }
 }
