@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no longer require the `--name` option if passed a WDL document containing a
   single task and no workflow ([#121](github.com/stjude-rust-labs/sprocket/pull/121)).
 
+### Added
+
+* Added `dev` subcommand to contain developmental and experimental subcommands ([#120](https://github.com/stjude-rust-labs/sprocket/pull/120)).
+* Added `dev lock` subcommand to store container manifest checksums ([#120](https://github.com/stjude-rust-labs/sprocket/pull/120)).
+
 ## 0.13.0 - 05-28-2025
 
 ### Added

@@ -9,6 +9,7 @@ pub mod config;
 pub mod explain;
 pub mod format;
 pub mod inputs;
+pub mod lock;
 pub mod run;
 pub mod validate;
 
@@ -53,4 +54,15 @@ pub enum Commands {
     /// It will not catch potential runtime errors that may occur when running
     /// the task or workflow.
     Validate(validate::Args),
+
+    /// Developmental and experimental commands.
+    #[command(subcommand)]
+    Dev(DevCommands),
+}
+
+/// Developmental and experimental commands.
+#[derive(Subcommand, Debug)]
+pub enum DevCommands {
+    /// Locks Docker images to a sha256 digest.
+    Lock(lock::Args),
 }

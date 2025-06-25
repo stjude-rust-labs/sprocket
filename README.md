@@ -34,6 +34,7 @@
 - **`sprocket check`** performs static analysis on a document or directory of documents.
 - **`sprocket completions`** generates shell completions for Sprocket.
 - **`sprocket config`** prints configuration values.
+- **`sprocket dev`** subcommand containing developmental and experimental commands.
 - **`sprocket explain`** explains validation and lint rules supported by Sprocket.
 - **`sprocket format`** formats a document or directory of documents.
 - **`sprocket inputs`** writes template input file (JSON or YAML) for a task or workflow.
