@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `sprocket run`, `sprocket validate`, and `sprocket inputs` commands will
   no longer require the `--name` option if passed a WDL document containing a
   single task and no workflow ([#121](github.com/stjude-rust-labs/sprocket/pull/121)).
+* The `sprocket run` command now correctly includes the workflow/task name
+  prefix in the output ([#131](github.com/stjude-rust-labs/sprocket/pull/131)).
 
 ### Added
 
