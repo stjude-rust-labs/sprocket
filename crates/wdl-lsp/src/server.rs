@@ -390,6 +390,7 @@ impl LanguageServer for Server {
                 )),
                 document_formatting_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
+                references_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -722,5 +723,33 @@ impl LanguageServer for Server {
             })?;
 
         Ok(result)
+    }
+
+    async fn references(&self, mut params: ReferenceParams) -> RpcResult<Option<Vec<Location>>> {
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+
+        debug!("received `textDocument/references` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.text_document_position.position.line,
+            params.text_document_position.position.character,
+        );
+
+        let result = self
+            .analyzer
+            .find_all_references(
+                params.text_document_position.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+                params.context.include_declaration,
+            )
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?;
+
+        Ok(Some(result))
     }
 }

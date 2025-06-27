@@ -21,6 +21,7 @@ use petgraph::stable_graph::StableDiGraph;
 use petgraph::visit::Bfs;
 use petgraph::visit::EdgeRef;
 use petgraph::visit::Visitable;
+use petgraph::visit::Walker;
 use reqwest::Client;
 use rowan::GreenNode;
 use tokio::runtime::Handle;
@@ -627,5 +628,13 @@ impl DocumentGraph {
 
         self.cycles
             .retain(|(from, to)| !collected.contains(from) && !collected.contains(to));
+    }
+
+    /// Gets all nodes that have a dependency on the given node.
+    pub fn transitive_dependents(
+        &self,
+        index: petgraph::graph::NodeIndex,
+    ) -> impl Iterator<Item = NodeIndex> {
+        Bfs::new(&self.inner, index).iter(&self.inner)
     }
 }

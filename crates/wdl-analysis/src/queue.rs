@@ -16,6 +16,7 @@ use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use indexmap::IndexSet;
 use lsp_types::GotoDefinitionResponse;
+use lsp_types::Location;
 use parking_lot::RwLock;
 use petgraph::Direction;
 use petgraph::graph::NodeIndex;
@@ -66,6 +67,8 @@ pub enum Request<Context> {
     Format(FormatRequest),
     /// A request to goto definition of a symbol.
     GotoDefinition(GotoDefinitionRequest),
+    /// A request to find all references of a symbol.
+    FindAllReferences(FindAllReferencesRequest),
 }
 
 /// Represents a request to add documents to the graph.
@@ -136,6 +139,20 @@ pub struct GotoDefinitionRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<GotoDefinitionResponse>>,
+}
+
+/// Represents a request to find all references to a symbol at a given position.
+pub struct FindAllReferencesRequest {
+    /// The document where the request was initiated.
+    pub document: Url,
+    /// The position of the symbol in the document.
+    pub position: SourcePosition,
+    /// The encoding used for the position.
+    pub encoding: SourcePositionEncoding,
+    /// Wether to include the declaration in the results.
+    pub include_declaration: bool,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Vec<Location>>,
 }
 
 /// A simple enumeration to signal a cancellation to the caller.
@@ -362,6 +379,44 @@ where
                                  {err:?}"
                             );
                             completed.send(None).ok();
+                        }
+                    }
+                }
+                Request::FindAllReferences(FindAllReferencesRequest {
+                    document,
+                    position,
+                    encoding,
+                    include_declaration,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request for find all references at {document}: {line}:{char}",
+                        line = position.line,
+                        char = position.character
+                    );
+
+                    let graph = self.graph.read();
+                    match handlers::find_all_references(
+                        &graph,
+                        document,
+                        position,
+                        encoding,
+                        include_declaration,
+                    ) {
+                        Ok(result) => {
+                            debug!(
+                                "find all references request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            debug!(
+                                "error occurred while completing the find all references: {err:?}"
+                            );
+                            completed.send(vec![]).ok();
                         }
                     }
                 }
