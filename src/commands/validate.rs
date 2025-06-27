@@ -78,7 +78,14 @@ pub async fn validate(args: Args) -> Result<()> {
     // above.
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inferred = Inputs::coalesce(args.inputs)?.into_engine_inputs(document)?;
+    let inferred = Inputs::coalesce(&args.inputs)
+        .with_context(|| {
+            format!(
+                "JSON syntax error in input file(s): {}",
+                args.inputs.join(", ")
+            )
+        })?
+        .into_engine_inputs(document)?;
 
     let (name, inputs, _) = if let Some(inputs) = inferred {
         inputs
