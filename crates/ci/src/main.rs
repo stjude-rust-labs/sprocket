@@ -343,16 +343,13 @@ async fn publish(name: &str, version: &str, manifest_path: &Path, dry_run: bool)
     // binary may be re-run and there's no need to re-attempt previous work.
     let client = reqwest::Client::new();
     let req = client
-        .get(format!("https://crates.io/api/v1/crates/{}", name))
+        .get(format!("https://crates.io/api/v1/crates/{name}"))
         .header("User-Agent", "curl/8.7.1"); // crates.io requires a user agent apparently
     let response = req.send().await.expect("failed to get crate info");
     if response.status().is_success() {
         let text = response.text().await.expect("failed to get response text");
-        if text.contains(&format!("\"newest_version\":\"{}\"", version)) {
-            println!(
-                "skip publish {} because {} is latest version",
-                name, version,
-            );
+        if text.contains(&format!("\"newest_version\":\"{version}\"")) {
+            println!("skip publish {name} because {version} is latest version",);
             return true;
         }
     } else {
@@ -375,7 +372,7 @@ async fn publish(name: &str, version: &str, manifest_path: &Path, dry_run: bool)
     };
 
     if !status.success() {
-        println!("FAIL: failed to publish `{}`: {}", name, status);
+        println!("FAIL: failed to publish `{name}`: {status}");
         return false;
     }
 

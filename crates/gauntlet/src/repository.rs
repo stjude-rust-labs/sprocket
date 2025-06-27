@@ -54,7 +54,7 @@ impl<'de> Deserialize<'de> for RawHash {
 impl fmt::Display for RawHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for byte in &self.0 {
-            write!(f, "{:02x}", byte)?;
+            write!(f, "{byte:02x}")?;
         }
         Ok(())
     }
@@ -89,7 +89,7 @@ impl Repository {
         let git_repo = RepoBuilder::new()
             .fetch_options(fo)
             .clone(
-                format!("https://github.com/{}.git", identifier).as_str(),
+                format!("https://github.com/{identifier}.git").as_str(),
                 &repo_root,
             )
             .expect("failed to clone repository");

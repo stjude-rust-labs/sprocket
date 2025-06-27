@@ -298,8 +298,8 @@ impl fmt::Debug for SyntaxNode {
                             write!(f, "  ")?;
                         }
                         match element {
-                            NodeOrToken::Node(node) => writeln!(f, "{:?}", node)?,
-                            NodeOrToken::Token(token) => writeln!(f, "{:?}", token)?,
+                            NodeOrToken::Node(node) => writeln!(f, "{node:?}")?,
+                            NodeOrToken::Token(token) => writeln!(f, "{token:?}")?,
                         }
                         level += 1;
                     }
@@ -388,7 +388,7 @@ impl fmt::Debug for SyntaxToken {
         for idx in 21..25 {
             if text.is_char_boundary(idx) {
                 let text = format!("{} ...", &text[..idx]);
-                return write!(f, " {:?}", text);
+                return write!(f, " {text:?}");
             }
         }
         unreachable!()

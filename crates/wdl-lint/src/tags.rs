@@ -152,6 +152,6 @@ impl std::fmt::Display for TagSet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut tags = self.iter().collect::<Vec<_>>();
         tags.sort();
-        write!(f, "{:?}", tags)
+        write!(f, "{tags:?}")
     }
 }

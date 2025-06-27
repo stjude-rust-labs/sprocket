@@ -21,8 +21,8 @@ impl MaxLineLength {
             MIN_MAX_LINE_LENGTH..=MAX_MAX_LINE_LENGTH => Self(Some(value)),
             _ => {
                 return Err(format!(
-                    "The maximum line length must be between {} and {} or 0",
-                    MIN_MAX_LINE_LENGTH, MAX_MAX_LINE_LENGTH
+                    "The maximum line length must be between {MIN_MAX_LINE_LENGTH} and \
+                     {MAX_MAX_LINE_LENGTH} or 0"
                 ));
             }
         };

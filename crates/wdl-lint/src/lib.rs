@@ -154,8 +154,8 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
             for related_id in r.related_rules() {
                 if related_id == self_id {
                     panic!(
-                        "Rule `{id}` refers to itself in its related rules. This is not allowed.",
-                        id = self_id
+                        "Rule `{self_id}` refers to itself in its related rules. This is not \
+                         allowed."
                     );
                 }
             }

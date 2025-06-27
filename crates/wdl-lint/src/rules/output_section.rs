@@ -45,7 +45,6 @@ fn missing_output_section(name: &str, context: Context, span: Span) -> Diagnosti
         .with_label(format!("this {context} is missing an output section"), span)
         .with_fix(format!(
             "add an output section to the {context} to enable call-caching",
-            context = context,
         ))
 }
 

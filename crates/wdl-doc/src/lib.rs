@@ -302,7 +302,7 @@ pub async fn document_workspace(
             match item {
                 DocumentItem::Struct(s) => {
                     let name = s.name().text().to_owned();
-                    let path = cur_dir.join(format!("{}-struct.html", name));
+                    let path = cur_dir.join(format!("{name}-struct.html"));
 
                     let r#struct = r#struct::Struct::new(s.clone());
 
@@ -312,7 +312,7 @@ pub async fn document_workspace(
                 }
                 DocumentItem::Task(t) => {
                     let name = t.name().text().to_owned();
-                    let path = cur_dir.join(format!("{}-task.html", name));
+                    let path = cur_dir.join(format!("{name}-task.html"));
 
                     let task = task::Task::new(
                         name.clone(),
@@ -329,7 +329,7 @@ pub async fn document_workspace(
                 }
                 DocumentItem::Workflow(w) => {
                     let name = w.name().text().to_owned();
-                    let path = cur_dir.join(format!("{}-workflow.html", name));
+                    let path = cur_dir.join(format!("{name}-workflow.html"));
 
                     let workflow = workflow::Workflow::new(
                         name.clone(),

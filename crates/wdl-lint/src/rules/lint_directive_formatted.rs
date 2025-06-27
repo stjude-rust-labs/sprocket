@@ -39,8 +39,7 @@ fn invalid_lint_directive(name: &str, span: Span) -> Diagnostic {
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(format!(
-            "use any of the recognized lint directives: [{:#?}]",
-            accepted_directives
+            "use any of the recognized lint directives: [{accepted_directives:#?}]"
         ))
 }
 

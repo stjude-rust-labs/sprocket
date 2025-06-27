@@ -26,7 +26,7 @@ fn redundant_input_assignment(span: Span, name: &str) -> Diagnostic {
     Diagnostic::note("redundant input assignment")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix(format!("can be shortened to `{}`", name))
+        .with_fix(format!("can be shortened to `{name}`"))
 }
 
 /// Detects a redundant input assignment.

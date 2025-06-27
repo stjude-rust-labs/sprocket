@@ -61,10 +61,10 @@ impl std::fmt::Display for PreToken {
             PreToken::IndentStart => write!(f, "<IndentStart>"),
             PreToken::IndentEnd => write!(f, "<IndentEnd>"),
             PreToken::LineSpacingPolicy(policy) => {
-                write!(f, "<LineSpacingPolicy@{:?}>", policy)
+                write!(f, "<LineSpacingPolicy@{policy:?}>")
             }
             PreToken::Literal(value, kind) => {
-                write!(f, "<Literal-{:?}@{}>", kind, value,)
+                write!(f, "<Literal-{kind:?}@{value}>",)
             }
             PreToken::Trivia(trivia) => match trivia {
                 Trivia::BlankLine => {
@@ -72,10 +72,10 @@ impl std::fmt::Display for PreToken {
                 }
                 Trivia::Comment(comment) => match comment {
                     Comment::Preceding(value) => {
-                        write!(f, "<Comment-Preceding@{}>", value,)
+                        write!(f, "<Comment-Preceding@{value}>",)
                     }
                     Comment::Inline(value) => {
-                        write!(f, "<Comment-Inline@{}>", value,)
+                        write!(f, "<Comment-Inline@{value}>",)
                     }
                 },
             },

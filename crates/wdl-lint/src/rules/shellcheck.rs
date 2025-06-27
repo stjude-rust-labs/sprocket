@@ -826,11 +826,10 @@ task test {{
         Array[File] arr = ["a", "b", "c"]
     }}
     command {{
-        {}
+        {command}
     }}
 }}
-"#,
-            command
+"#
         );
         let (document, _diagnostics) = Document::parse(&source);
         document

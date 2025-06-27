@@ -35,7 +35,7 @@ async fn inner() -> Result<(), Box<dyn std::error::Error>> {
 
     let filter = match args.log_all_modules {
         true => EnvFilter::default().add_directive(level.into()),
-        false => EnvFilter::default().add_directive(format!("wdl_gauntlet={}", level).parse()?),
+        false => EnvFilter::default().add_directive(format!("wdl_gauntlet={level}").parse()?),
     };
 
     tracing_subscriber::fmt().with_env_filter(filter).init();
@@ -49,7 +49,7 @@ async fn inner() -> Result<(), Box<dyn std::error::Error>> {
 async fn main() {
     match inner().await {
         Ok(_) => {}
-        Err(err) => eprintln!("error: {}", err),
+        Err(err) => eprintln!("error: {err}"),
     }
 }
 

@@ -26,7 +26,7 @@ fn input_not_sorted(span: Span, sorted_inputs: String) -> Diagnostic {
     Diagnostic::note("input not sorted")
         .with_rule(ID)
         .with_label("input section must be sorted".to_string(), span)
-        .with_fix(format!("sort input statements as: \n{}", sorted_inputs))
+        .with_fix(format!("sort input statements as: \n{sorted_inputs}"))
 }
 
 /// Define an ordering for declarations.

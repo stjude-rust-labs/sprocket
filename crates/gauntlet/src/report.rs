@@ -270,20 +270,20 @@ impl<T: std::io::Write> Report<T> {
                 counts
             });
 
-        write!(self.inner, "Passed {}/{} tests", passed, considered)?;
+        write!(self.inner, "Passed {passed}/{considered} tests")?;
 
         let mut with = Vec::new();
 
         match missing {
             0 => {}
             1 => with.push(String::from("1 missing diagnostic")),
-            v => with.push(format!("{} missing diagnostics", v)),
+            v => with.push(format!("{v} missing diagnostics")),
         }
 
         match unexpected {
             0 => {}
             1 => with.push(String::from("1 unexpected diagnostic")),
-            v => with.push(format!("{} unexpected diagnostics", v)),
+            v => with.push(format!("{v} unexpected diagnostics")),
         }
 
         if !with.is_empty() {

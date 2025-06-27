@@ -254,10 +254,10 @@ workflow bar # This is an inline comment on the workflow ident.
         let result = formatter.format(&document);
         match result {
             Ok(s) => {
-                print!("{}", s);
+                print!("{s}");
             }
             Err(err) => {
-                panic!("failed to format document: {}", err);
+                panic!("failed to format document: {err}");
             }
         }
     }

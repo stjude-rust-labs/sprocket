@@ -170,7 +170,7 @@ impl Config {
             let mut file = File::create(path).map_err(Error::InputOutput)?;
             let contents = toml::to_string_pretty(&self.inner).map_err(Error::SerializeToml)?;
 
-            write!(file, "{}", contents).map_err(Error::InputOutput)
+            write!(file, "{contents}").map_err(Error::InputOutput)
         } else {
             Err(Error::SaveOnAnonymousConfig)
         }

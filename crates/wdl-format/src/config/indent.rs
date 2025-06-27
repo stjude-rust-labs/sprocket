@@ -36,8 +36,8 @@ impl Indent {
             (false, Some(n)) => {
                 if n > MAX_SPACE_INDENT {
                     Err(format!(
-                        "Indentation with spaces cannot have more than {} characters",
-                        MAX_SPACE_INDENT
+                        "Indentation with spaces cannot have more than {MAX_SPACE_INDENT} \
+                         characters"
                     ))
                 } else {
                     Ok(Indent::Spaces(n))

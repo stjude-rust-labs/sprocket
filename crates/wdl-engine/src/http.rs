@@ -429,10 +429,7 @@ impl Downloader for HttpDownloader {
                 match downloads.insert(url.clone().into_owned(), Status::Downloaded(result.clone()))
                 {
                     Some(Status::Downloading(notify)) => notify,
-                    _ => panic!(
-                        "expected to find a downloading status for `{url}`",
-                        url = url
-                    ),
+                    _ => panic!("expected to find a downloading status for `{url}`"),
                 }
             };
 

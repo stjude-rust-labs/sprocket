@@ -25,8 +25,7 @@ fn import_not_sorted(span: Span, sorted_imports: String) -> Diagnostic {
         .with_rule(ID)
         .with_label("imports must be sorted", span)
         .with_fix(format!(
-            "sort the imports lexicographically:\n{}",
-            sorted_imports
+            "sort the imports lexicographically:\n{sorted_imports}"
         ))
 }
 /// Creates an improper comment diagnostic.

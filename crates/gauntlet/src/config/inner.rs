@@ -40,7 +40,7 @@ impl Diagnostic {
             path = document.path()
         );
         let url = if let Some(line_no) = line_no {
-            format!("{}/#L{}", url, line_no)
+            format!("{url}/#L{line_no}")
         } else {
             url
         };

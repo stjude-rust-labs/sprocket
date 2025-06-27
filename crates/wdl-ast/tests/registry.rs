@@ -225,7 +225,7 @@ static REGISTRY: LazyLock<HashMap<&'static str, Box<[SyntaxKind]>>> = LazyLock::
     // [`HashMap`] to ensure on the fly that no keys are duplicated.
     for (r#type, kinds) in types {
         if result.contains_key(&r#type) {
-            panic!("the `{:?}` key is duplicated", r#type);
+            panic!("the `{type:?}` key is duplicated");
         }
 
         result.insert(r#type, kinds);
@@ -338,7 +338,7 @@ fn ensures_one_to_one() {
     if !missing.is_empty() {
         let mut missing = missing
             .into_iter()
-            .map(|kind| format!("{:?}", kind))
+            .map(|kind| format!("{kind:?}"))
             .collect::<Vec<_>>();
         missing.sort();
 
@@ -357,7 +357,7 @@ fn ensures_one_to_one() {
                 let mut types = types.clone();
                 types.sort();
 
-                let mut result = format!("== {:?} ==", kind);
+                let mut result = format!("== {kind:?} ==");
                 for r#type in types {
                     result.push_str("\n* ");
                     result.push_str(r#type);

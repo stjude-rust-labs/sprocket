@@ -52,7 +52,7 @@ async fn main() {
             println!("Successfully generated docs");
         }
         Err(e) => {
-            eprintln!("Failed to generate docs: {}", e);
+            eprintln!("Failed to generate docs: {e}");
             exit(1);
         }
     }

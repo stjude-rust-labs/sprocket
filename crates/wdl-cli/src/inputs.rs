@@ -282,7 +282,7 @@ impl Inputs {
         let result = EngineInputs::parse_object(document, values)?;
 
         Ok(result.map(|(callee_name, inputs)| {
-            let callee_prefix = format!("{}.", callee_name);
+            let callee_prefix = format!("{callee_name}.");
 
             let origins = origins
                 .into_iter()
