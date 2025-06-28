@@ -914,6 +914,17 @@ impl<N: TreeNode> CallInputItem<N> {
     pub fn parent(&self) -> CallStatement<N> {
         <Self as AstNode<N>>::parent(self).expect("should have parent")
     }
+
+    /// If a call input has the same name as a declaration from the current
+    /// scope, the name of the input may appear alone (without an expression) to
+    /// implicitly bind the value of that declaration.
+    ///
+    /// For example, if a `workflow` and `task` both have inputs `x` and `z` of
+    /// the same types, then `call mytask {x, y=b, z}` is equivalent to
+    /// `call mytask {x=x, y=b, z=z}`.
+    pub fn is_implicit_bind(&self) -> bool {
+        self.expr().is_none()
+    }
 }
 
 impl<N: TreeNode> AstNode<N> for CallInputItem<N> {

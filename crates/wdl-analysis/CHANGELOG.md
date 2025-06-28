@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added support for struct members, struct literals and call inputs in `goto_definition` ([#491](https://github.com/stjude-rust-labs/wdl/pull/491)).
 * Added `find references` support for WDL Language Server ([#484](https://github.com/stjude-rust-labs/wdl/pull/484)).
 * Added `goto_definition` support for WDL Language Server ([#468](https://github.com/stjude-rust-labs/wdl/pull/468)).
 
