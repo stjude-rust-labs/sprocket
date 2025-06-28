@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed unhelpful error message in `sprocket validate` ([#133](https://github.com/stjude-rust-labs/sprocket/pull/133)).
 * Fixed run configuration to not use a default configuration when there is an
   error in the flattened engine configuration fields ([#124](https://github.com/stjude-rust-labs/sprocket/pull/124)).
 * The `sprocket run`, `sprocket validate`, and `sprocket inputs` commands will
