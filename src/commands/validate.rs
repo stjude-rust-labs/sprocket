@@ -81,8 +81,8 @@ pub async fn validate(args: Args) -> Result<()> {
     let inferred = Inputs::coalesce(&args.inputs)
         .with_context(|| {
             format!(
-                "JSON syntax error in input file(s): {}",
-                args.inputs.join(", ")
+                "failed to parse inputs from `{sources}`",
+                sources = args.inputs.join("`, `")
             )
         })?
         .into_engine_inputs(document)?;
