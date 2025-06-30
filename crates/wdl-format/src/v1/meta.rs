@@ -8,14 +8,21 @@ use crate::Writable as _;
 use crate::element::FormatElement;
 
 /// Formats a [`LiteralNull`](wdl_ast::v1::LiteralNull).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_null(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal null children");
     let null = children.next().expect("literal null token");
     (&null).write(stream);
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`MetadataArray`](wdl_ast::v1::MetadataArray).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_metadata_array(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("metadata array children");
 
@@ -64,6 +71,10 @@ pub fn format_metadata_array(element: &FormatElement, stream: &mut TokenStream<P
 }
 
 /// Formats a [`MetadataObject`](wdl_ast::v1::MetadataObject).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_metadata_object(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("metadata object children");
 
@@ -116,6 +127,10 @@ pub fn format_metadata_object(element: &FormatElement, stream: &mut TokenStream<
 }
 
 /// Formats a [`MetadataObjectItem`](wdl_ast::v1::MetadataObjectItem).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_metadata_object_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("metadata object item children");
 
@@ -130,11 +145,13 @@ pub fn format_metadata_object_item(element: &FormatElement, stream: &mut TokenSt
 
     let value = children.next().expect("metadata object item value");
     (&value).write(stream);
-
-    assert!(children.next().is_none());
 }
 
 /// Formats a [MetadataSection](wdl_ast::v1::MetadataSection).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_metadata_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("meta section children");
 
@@ -177,6 +194,10 @@ pub fn format_metadata_section(element: &FormatElement, stream: &mut TokenStream
 }
 
 /// Formats a [`ParameterMetadataSection`](wdl_ast::v1::ParameterMetadataSection).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_parameter_metadata_section(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,

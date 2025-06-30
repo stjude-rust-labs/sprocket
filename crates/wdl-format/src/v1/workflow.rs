@@ -11,6 +11,10 @@ use crate::Writable as _;
 use crate::element::FormatElement;
 
 /// Formats a [`ConditionalStatement`](wdl_ast::v1::ConditionalStatement).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_conditional_statement(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("conditional statement children");
 
@@ -46,6 +50,10 @@ pub fn format_conditional_statement(element: &FormatElement, stream: &mut TokenS
 }
 
 /// Formats a [`ScatterStatement`](wdl_ast::v1::ScatterStatement).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_scatter_statement(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("scatter statement children");
 
@@ -92,10 +100,14 @@ pub fn format_scatter_statement(element: &FormatElement, stream: &mut TokenStrea
 }
 
 /// Formats a [`WorkflowDefinition`](wdl_ast::v1::WorkflowDefinition).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_workflow_definition(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("workflow definition children");
 
-    stream.blank_lines_allowed_between_comments();
+    stream.ignore_trailing_blank_lines();
 
     let workflow_keyword = children.next().expect("workflow keyword");
     assert!(workflow_keyword.element().kind() == SyntaxKind::WorkflowKeyword);
@@ -176,11 +188,11 @@ pub fn format_workflow_definition(element: &FormatElement, stream: &mut TokenStr
         stream.blank_line();
     }
 
-    stream.blank_lines_allowed();
+    stream.allow_blank_lines();
     for child in body {
         (&child).write(stream);
     }
-    stream.blank_lines_allowed_between_comments();
+    stream.ignore_trailing_blank_lines();
     stream.blank_line();
 
     if let Some(output) = output {
@@ -201,6 +213,10 @@ pub fn format_workflow_definition(element: &FormatElement, stream: &mut TokenStr
 }
 
 /// Formats a [`WorkflowHintsArray`](wdl_ast::v1::WorkflowHintsArray).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_workflow_hints_array(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("workflow hints array children");
 
@@ -246,6 +262,10 @@ pub fn format_workflow_hints_array(element: &FormatElement, stream: &mut TokenSt
 }
 
 /// Formats a [`WorkflowHintsItem`](wdl_ast::v1::WorkflowHintsItem).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_workflow_hints_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("workflow hints item children");
 
@@ -262,11 +282,13 @@ pub fn format_workflow_hints_item(element: &FormatElement, stream: &mut TokenStr
     (&value).write(stream);
 
     stream.end_line();
-
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`WorkflowHintsObjectItem`](wdl_ast::v1::WorkflowHintsObjectItem).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_workflow_hints_object_item(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
@@ -288,11 +310,13 @@ pub fn format_workflow_hints_object_item(
     (&value).write(stream);
 
     stream.end_line();
-
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`WorkflowHintsObject`](wdl_ast::v1::WorkflowHintsObject).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_workflow_hints_object(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("workflow hints object children");
 
@@ -311,6 +335,10 @@ pub fn format_workflow_hints_object(element: &FormatElement, stream: &mut TokenS
 }
 
 /// Formats a [`WorkflowHintsSection`](wdl_ast::v1::WorkflowHintsSection).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_workflow_hints_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("workflow hints section children");
 

@@ -8,6 +8,10 @@ use crate::Writable as _;
 use crate::element::FormatElement;
 
 /// Formats a [`CallTarget`](wdl_ast::v1::CallTarget).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_call_target(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("call target children") {
         (&child).write(stream);
@@ -15,6 +19,10 @@ pub fn format_call_target(element: &FormatElement, stream: &mut TokenStream<PreT
 }
 
 /// Formats a [`CallAlias`](wdl_ast::v1::CallAlias).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_call_alias(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("call alias children") {
         (&child).write(stream);
@@ -23,6 +31,10 @@ pub fn format_call_alias(element: &FormatElement, stream: &mut TokenStream<PreTo
 }
 
 /// Formats a [`CallAfter`](wdl_ast::v1::CallAfter).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_call_after(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("call after children") {
         (&child).write(stream);
@@ -31,6 +43,10 @@ pub fn format_call_after(element: &FormatElement, stream: &mut TokenStream<PreTo
 }
 
 /// Formats a [`CallInputItem`](wdl_ast::v1::CallInputItem).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_call_input_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("call input item children");
 
@@ -46,11 +62,14 @@ pub fn format_call_input_item(element: &FormatElement, stream: &mut TokenStream<
 
         let value = children.next().expect("call input item value");
         (&value).write(stream);
-        assert!(children.next().is_none());
     }
 }
 
 /// Formats a [`CallStatement`](wdl_ast::v1::CallStatement).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_call_statement(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("call statement children");
 

@@ -20,27 +20,10 @@ pub const NEWLINE: &str = "\r\n";
 /// Newline constant used for formatting on non-windows platforms.
 #[cfg(not(windows))]
 pub const NEWLINE: &str = "\n";
-
 /// A space.
 pub const SPACE: &str = " ";
-
 /// A tab.
 pub const TAB: &str = "\t";
-
-/// Returns exactly one entity from an enumerable list of entities (usually a
-/// [`Vec`]).
-#[macro_export]
-macro_rules! exactly_one {
-    ($entities:expr_2021, $name:expr_2021) => {
-        match $entities.len() {
-            0 => unreachable!("we should never have zero {}", $name),
-            // SAFETY: we just checked to ensure that exactly
-            // one element exists, so this will always unwrap.
-            1 => $entities.pop().unwrap(),
-            _ => unreachable!("we should not have two or more {}", $name),
-        }
-    };
-}
 
 /// An element that can be written to a token stream.
 pub trait Writable {

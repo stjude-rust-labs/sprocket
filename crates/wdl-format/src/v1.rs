@@ -17,6 +17,12 @@ use crate::Writable as _;
 use crate::element::FormatElement;
 
 /// Formats an [`Ast`](wdl_ast::Ast).
+///
+/// This is the entry point for formatting WDL v1.x files.
+///
+/// # Panics
+///
+/// It will panic if the provided `element` is not a valid WDL v1.x AST.
 pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("AST children");
 
@@ -54,7 +60,7 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
         a_uri.text().cmp(b_uri.text())
     });
 
-    stream.blank_lines_allowed_between_comments();
+    stream.ignore_trailing_blank_lines();
     for import in imports {
         (&import).write(stream);
     }
@@ -77,6 +83,11 @@ pub fn format_version_statement(element: &FormatElement, stream: &mut TokenStrea
 }
 
 /// Formats an [`InputSection`](wdl_ast::v1::InputSection).
+///
+/// # Panics
+///
+/// This will panic if the provided `element` is not a valid WDL v1.x
+/// input section.
 pub fn format_input_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("input section children");
 
@@ -112,6 +123,11 @@ pub fn format_input_section(element: &FormatElement, stream: &mut TokenStream<Pr
 }
 
 /// Formats an [`OutputSection`](wdl_ast::v1::OutputSection).
+///
+/// # Panics
+///
+/// This will panic if the provided `element` is not a valid WDL v1.x
+/// output section.
 pub fn format_output_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("output section children");
 
@@ -137,6 +153,11 @@ pub fn format_output_section(element: &FormatElement, stream: &mut TokenStream<P
 }
 
 /// Formats a [`LiteralInputItem`](wdl_ast::v1::LiteralInputItem).
+///
+/// # Panics
+///
+/// This will panic if the provided `element` is not a valid WDL v1.x
+/// literal input item.
 pub fn format_literal_input_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal input item children");
 
@@ -152,11 +173,14 @@ pub fn format_literal_input_item(element: &FormatElement, stream: &mut TokenStre
     let hints_node = children.next().expect("literal input item hints node");
     assert!(hints_node.element().kind() == SyntaxKind::LiteralHintsNode);
     (&hints_node).write(stream);
-
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`LiteralInput`](wdl_ast::v1::LiteralInput).
+///
+/// # Panics
+///
+/// This will panic if the provided `element` is not a valid WDL v1.x
+/// literal input.
 pub fn format_literal_input(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal input children");
 
@@ -182,6 +206,11 @@ pub fn format_literal_input(element: &FormatElement, stream: &mut TokenStream<Pr
 }
 
 /// Formats a [`LiteralHintsItem`](wdl_ast::v1::LiteralHintsItem).
+///
+/// # Panics
+///
+/// This will panic if the provided `element` is not a valid WDL v1.x
+/// literal hints item.
 pub fn format_literal_hints_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal hints item children");
 
@@ -196,11 +225,14 @@ pub fn format_literal_hints_item(element: &FormatElement, stream: &mut TokenStre
 
     let value = children.next().expect("literal hints item value");
     (&value).write(stream);
-
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`LiteralHints`](wdl_ast::v1::LiteralHints).
+///
+/// # Panics
+///
+/// This will panic if the provided `element` is not a valid WDL v1.x
+/// literal hints.
 pub fn format_literal_hints(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal hints children");
 
@@ -243,11 +275,13 @@ pub fn format_literal_hints(element: &FormatElement, stream: &mut TokenStream<Pr
 }
 
 /// Formats a [`LiteralOutputItem`](wdl_ast::v1::LiteralOutputItem).
+///
+/// # Panics
+///
+/// This will panic if the provided `element` is not a valid WDL v1.x
+/// literal output item.
 pub fn format_literal_output_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
-    let mut children = element
-        .children()
-        .expect("literal output item children")
-        .peekable();
+    let mut children = element.children().expect("literal output item children");
 
     for child in children.by_ref() {
         if matches!(child.element().kind(), SyntaxKind::Ident | SyntaxKind::Dot) {
@@ -262,11 +296,14 @@ pub fn format_literal_output_item(element: &FormatElement, stream: &mut TokenStr
 
     let value = children.next().expect("literal output item value");
     (&value).write(stream);
-
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`LiteralOutput`](wdl_ast::v1::LiteralOutput).
+///
+/// # Panics
+///
+/// This will panic if the provided `element` is not a valid WDL v1.x
+/// literal output.
 pub fn format_literal_output(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal output children");
 

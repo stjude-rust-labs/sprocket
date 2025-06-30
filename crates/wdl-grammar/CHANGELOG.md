@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Removed
 
-* Removed the `SyntaxExt` trait ([#482](https://github.com/stjude-rust-labs/wdl/pull/482))
+* Removed the `SyntaxExt` trait ([#482](https://github.com/stjude-rust-labs/wdl/pull/482)).
+
+#### Deprecated
+
+* Deprecated `SyntaxTokenExt::succeeding_trivia()` ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
 
 ## 0.13.0 - 05-02-2025
 

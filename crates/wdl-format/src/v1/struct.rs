@@ -8,6 +8,10 @@ use crate::Writable as _;
 use crate::element::FormatElement;
 
 /// Formats a [`StructDefinition`](wdl_ast::v1::StructDefinition).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_struct_definition(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("struct definition children");
 
@@ -75,6 +79,10 @@ pub fn format_struct_definition(element: &FormatElement, stream: &mut TokenStrea
 }
 
 /// Formats a [`LiteralStructItem`](wdl_ast::v1::LiteralStructItem).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_struct_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal struct item children");
 
@@ -93,6 +101,10 @@ pub fn format_literal_struct_item(element: &FormatElement, stream: &mut TokenStr
 }
 
 /// Formats a [`LiteralStruct`](wdl_ast::v1::LiteralStruct).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_struct(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal struct children");
 

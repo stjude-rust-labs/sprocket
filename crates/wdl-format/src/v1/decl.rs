@@ -8,6 +8,10 @@ use crate::Writable as _;
 use crate::element::FormatElement;
 
 /// Formats a [`PrimitiveType`](wdl_ast::v1::PrimitiveType).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_primitive_type(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("primitive type children") {
         (&child).write(stream);
@@ -15,6 +19,10 @@ pub fn format_primitive_type(element: &FormatElement, stream: &mut TokenStream<P
 }
 
 /// Formats an [`ArrayType`](wdl_ast::v1::ArrayType).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_array_type(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("array type children") {
         (&child).write(stream);
@@ -22,6 +30,10 @@ pub fn format_array_type(element: &FormatElement, stream: &mut TokenStream<PreTo
 }
 
 /// Formats a [`MapType`](wdl_ast::v1::MapType).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_map_type(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("map type children") {
         (&child).write(stream);
@@ -32,6 +44,10 @@ pub fn format_map_type(element: &FormatElement, stream: &mut TokenStream<PreToke
 }
 
 /// Formats an [`ObjectType`](wdl_ast::v1::ObjectType).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_object_type(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("object type children") {
         (&child).write(stream);
@@ -39,6 +55,10 @@ pub fn format_object_type(element: &FormatElement, stream: &mut TokenStream<PreT
 }
 
 /// Formats a [`PairType`](wdl_ast::v1::PairType).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_pair_type(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("pair type children") {
         (&child).write(stream);
@@ -49,6 +69,10 @@ pub fn format_pair_type(element: &FormatElement, stream: &mut TokenStream<PreTok
 }
 
 /// Formats a [`TypeRef`](wdl_ast::v1::TypeRef).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_type_ref(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("type ref children") {
         (&child).write(stream);
@@ -56,6 +80,10 @@ pub fn format_type_ref(element: &FormatElement, stream: &mut TokenStream<PreToke
 }
 
 /// Formats an [`UnboundDecl`](wdl_ast::v1::UnboundDecl).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_unbound_decl(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("unbound decl children") {
         (&child).write(stream);
@@ -65,6 +93,10 @@ pub fn format_unbound_decl(element: &FormatElement, stream: &mut TokenStream<Pre
 }
 
 /// Formats a [`BoundDecl`](wdl_ast::v1::BoundDecl).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_bound_decl(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("bound decl children") {
         (&child).write(stream);

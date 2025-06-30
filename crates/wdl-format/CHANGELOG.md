@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added panic documentation to functions which may panic ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
+* Added documentation to places which needed more clarity ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
+
+#### Changed
+
+* Renamed some methods of `TokenStream<PreToken>` for increased clarity ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
+
+#### Removed
+
+* Removed the `exactly_one!` macro ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
+
 ## 0.7.0 - 05-27-2025
 
 #### Dependencies

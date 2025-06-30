@@ -10,10 +10,14 @@ use crate::Writable as _;
 use crate::element::FormatElement;
 
 /// Formats a [`TaskDefinition`](wdl_ast::v1::TaskDefinition).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_task_definition(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("task definition children");
 
-    stream.blank_lines_allowed_between_comments();
+    stream.ignore_trailing_blank_lines();
 
     let task_keyword = children.next().expect("task keyword");
     assert!(task_keyword.element().kind() == SyntaxKind::TaskKeyword);
@@ -98,12 +102,12 @@ pub fn format_task_definition(element: &FormatElement, stream: &mut TokenStream<
         stream.blank_line();
     }
 
-    stream.blank_lines_allowed();
+    stream.allow_blank_lines();
     let body_empty = body.is_empty();
     for child in body {
         (&child).write(stream);
     }
-    stream.blank_lines_allowed_between_comments();
+    stream.ignore_trailing_blank_lines();
     if !body_empty {
         stream.blank_line();
     }
@@ -144,6 +148,10 @@ pub fn format_task_definition(element: &FormatElement, stream: &mut TokenStream<
 }
 
 /// Formats a [`CommandSection`](wdl_ast::v1::CommandSection).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("command section children");
 
@@ -270,6 +278,10 @@ pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<
 }
 
 /// Formats a [`RequirementsItem`](wdl_ast::v1::RequirementsItem).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_requirements_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("requirements item children");
 
@@ -284,11 +296,13 @@ pub fn format_requirements_item(element: &FormatElement, stream: &mut TokenStrea
 
     let value = children.next().expect("requirements item value");
     (&value).write(stream);
-
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`RequirementsSection`](wdl_ast::v1::RequirementsSection).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_requirements_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("requirements section children");
 
@@ -333,6 +347,10 @@ pub fn format_requirements_section(element: &FormatElement, stream: &mut TokenSt
 }
 
 /// Formats a [`TaskHintsItem`](wdl_ast::v1::TaskHintsItem).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_task_hints_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("task hints item children");
 
@@ -352,6 +370,10 @@ pub fn format_task_hints_item(element: &FormatElement, stream: &mut TokenStream<
 }
 
 /// Formats a [`RuntimeItem`](wdl_ast::v1::RuntimeItem).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_runtime_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("runtime item children");
 
@@ -366,11 +388,13 @@ pub fn format_runtime_item(element: &FormatElement, stream: &mut TokenStream<Pre
 
     let value = children.next().expect("runtime item value");
     (&value).write(stream);
-
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`RuntimeSection`](wdl_ast::v1::RuntimeSection).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_runtime_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("runtime section children");
 
@@ -415,6 +439,10 @@ pub fn format_runtime_section(element: &FormatElement, stream: &mut TokenStream<
 }
 
 /// Formats a [`TaskHintsSection`](wdl_ast::v1::TaskHintsSection).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_task_hints_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("task hints section children");
 

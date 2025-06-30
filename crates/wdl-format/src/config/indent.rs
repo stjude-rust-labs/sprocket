@@ -43,7 +43,7 @@ impl Indent {
                     Ok(Indent::Spaces(n))
                 }
             }
-            (false, None) => Ok(Indent::Spaces(DEFAULT_SPACE_INDENT)),
+            (false, None) => Ok(Indent::default()),
         }
     }
 

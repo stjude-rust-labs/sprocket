@@ -21,7 +21,10 @@ use crate::TriviaBlankLineSpacingPolicy;
 /// expected to write [`PostToken`](super::PostToken)s directly).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PreToken {
-    /// A blank line.
+    /// A non-trivial blank line.
+    ///
+    /// This will not be ignored by the postprocessor (unlike
+    /// [`Trivia::BlankLine`] which is potentially ignored).
     BlankLine,
 
     /// The end of a line.
@@ -46,9 +49,15 @@ pub enum PreToken {
     Trivia(Trivia),
 
     /// A temporary indent start. Used in command section formatting.
+    ///
+    /// Command sections must account for indentation from both the
+    /// WDL context and the embedded Bash context, so this is used to
+    /// add additional indentation from the Bash context.
     TempIndentStart,
 
     /// A temporary indent end. Used in command section formatting.
+    ///
+    /// See [`PreToken::TempIndentStart`] for more information.
     TempIndentEnd,
 }
 
@@ -132,7 +141,7 @@ impl TokenStream<PreToken> {
     }
 
     /// Inserts a trivial blank lines "always allowed" context change.
-    pub fn blank_lines_allowed(&mut self) {
+    pub fn allow_blank_lines(&mut self) {
         self.0.push(PreToken::LineSpacingPolicy(
             TriviaBlankLineSpacingPolicy::Always,
         ));
@@ -140,13 +149,18 @@ impl TokenStream<PreToken> {
 
     /// Inserts a trivial blank lines "not allowed after comments" context
     /// change.
-    pub fn blank_lines_allowed_between_comments(&mut self) {
+    pub fn ignore_trailing_blank_lines(&mut self) {
         self.0.push(PreToken::LineSpacingPolicy(
             TriviaBlankLineSpacingPolicy::RemoveTrailingBlanks,
         ));
     }
 
     /// Inserts any preceding trivia into the stream.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if the provided token is itself trivia, as trivia
+    /// cannot have trivia.
     fn push_preceding_trivia(&mut self, token: &wdl_ast::Token) {
         assert!(!token.inner().kind().is_trivia());
         let preceding_trivia = token.inner().preceding_trivia();
@@ -171,6 +185,11 @@ impl TokenStream<PreToken> {
     }
 
     /// Inserts any inline trivia into the stream.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if the provided token is itself trivia, as trivia
+    /// cannot have trivia.
     fn push_inline_trivia(&mut self, token: &wdl_ast::Token) {
         assert!(!token.inner().kind().is_trivia());
         if let Some(token) = token.inner().inline_comment() {
@@ -186,6 +205,10 @@ impl TokenStream<PreToken> {
     /// This will also push any preceding or inline trivia into the stream.
     /// Any token may have preceding or inline trivia, unless that token is
     /// itself trivia (i.e. trivia cannot have trivia).
+    ///
+    /// # Panics
+    ///
+    /// This will panic if the provided token is trivia.
     pub fn push_ast_token(&mut self, token: &wdl_ast::Token) {
         self.push_preceding_trivia(token);
         self.0.push(PreToken::Literal(
@@ -196,8 +219,13 @@ impl TokenStream<PreToken> {
     }
 
     /// Pushes a literal string into the stream in place of an AST token.
+    ///
     /// This will insert any trivia that would have been inserted with the AST
     /// token.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if the provided token is trivia.
     pub fn push_literal_in_place_of_token(&mut self, token: &wdl_ast::Token, replacement: String) {
         self.push_preceding_trivia(token);
         self.0.push(PreToken::Literal(
@@ -208,6 +236,7 @@ impl TokenStream<PreToken> {
     }
 
     /// Pushes a literal string into the stream.
+    ///
     /// This will not insert any trivia.
     pub fn push_literal(&mut self, value: String, kind: SyntaxKind) {
         self.0.push(PreToken::Literal(Rc::new(value), kind));

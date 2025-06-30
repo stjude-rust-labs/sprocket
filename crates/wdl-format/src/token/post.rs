@@ -90,9 +90,13 @@ impl Token for PostToken {
 
 impl PostToken {
     /// Gets the width of the [`PostToken`].
+    ///
+    /// This is used to determine how much space the token takes up _within a
+    /// single line_ for the purposes of respecting the maximum line length.
+    /// As such, newlines are considered zero-width tokens.
     fn width(&self, config: &crate::Config) -> usize {
         match self {
-            Self::Space => SPACE.len(),
+            Self::Space => SPACE.len(), // 1 character
             Self::Newline => 0,
             Self::Indent => config.indent().num(),
             Self::TempIndent(value) => value.len(),
@@ -233,6 +237,9 @@ impl Postprocessor {
             }
         }
 
+        // TODO: bug where trailing trivia is not processed
+        // https://github.com/stjude-rust-labs/wdl/issues/497
+
         output
     }
 
@@ -347,6 +354,7 @@ impl Postprocessor {
                             }
                             self.end_line(stream);
                             stream.push(PostToken::Literal(value));
+                            self.position = LinePosition::MiddleOfLine;
                         }
                         Comment::Inline(value) => {
                             assert!(self.position == LinePosition::MiddleOfLine);
@@ -362,7 +370,6 @@ impl Postprocessor {
                             stream.push(PostToken::Literal(value));
                         }
                     }
-                    self.position = LinePosition::MiddleOfLine;
                     self.end_line(stream);
                 }
             },
@@ -503,7 +510,8 @@ impl Postprocessor {
     ///
     /// Removes any trailing spaces or indents and adds a newline only if state
     /// is not [`LinePosition::StartOfLine`]. State is then set to
-    /// [`LinePosition::StartOfLine`]. Safe to call multiple times in a row.
+    /// [`LinePosition::StartOfLine`]. Finally, indentation is added. Safe to
+    /// call multiple times in a row.
     fn end_line(&mut self, stream: &mut TokenStream<PostToken>) {
         self.trim_last_line(stream);
         if self.position != LinePosition::StartOfLine {

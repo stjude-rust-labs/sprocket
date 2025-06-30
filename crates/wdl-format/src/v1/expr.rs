@@ -8,6 +8,10 @@ use crate::Writable as _;
 use crate::element::FormatElement;
 
 /// Formats a [`SepOption`](wdl_ast::v1::SepOption).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_sep_option(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("sep option children");
 
@@ -23,11 +27,13 @@ pub fn format_sep_option(element: &FormatElement, stream: &mut TokenStream<PreTo
     assert!(sep_value.element().kind() == SyntaxKind::LiteralStringNode);
     (&sep_value).write(stream);
     stream.end_word();
-
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`DefaultOption`](wdl_ast::v1::DefaultOption).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_default_option(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("default option children");
 
@@ -42,11 +48,13 @@ pub fn format_default_option(element: &FormatElement, stream: &mut TokenStream<P
     let default_value = children.next().expect("default value");
     (&default_value).write(stream);
     stream.end_word();
-
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`TrueFalseOption`](wdl_ast::v1::TrueFalseOption).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_true_false_option(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("true false option children");
 
@@ -94,11 +102,13 @@ pub fn format_true_false_option(element: &FormatElement, stream: &mut TokenStrea
         (&first_value).write(stream);
     }
     stream.end_word();
-
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`Placeholder`](wdl_ast::v1::Placeholder).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_placeholder(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("placeholder children");
 
@@ -127,6 +137,10 @@ pub fn format_placeholder(element: &FormatElement, stream: &mut TokenStream<PreT
 }
 
 /// Formats a [`LiteralString`](wdl_ast::v1::LiteralString).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_string(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("literal string children") {
         match child.element().kind() {
@@ -149,7 +163,9 @@ pub fn format_literal_string(element: &FormatElement, stream: &mut TokenStream<P
                         '\\' => {
                             if let Some(next_c) = chars.peek() {
                                 if *next_c == '\'' {
-                                    // Do not write this backslash
+                                    // Do not write this backslash as single quotes don't need
+                                    // escaping in a double-quoted string (and we format all
+                                    // LiteralStrings as double-quoted strings).
                                     prev_c = Some(c);
                                     continue;
                                 }
@@ -159,6 +175,9 @@ pub fn format_literal_string(element: &FormatElement, stream: &mut TokenStream<P
                         '"' => {
                             if let Some(pc) = prev_c {
                                 if pc != '\\' {
+                                    // This double quote sign is not escaped, so we need to escape
+                                    // it. This happens when a single quoted string is re-formatted
+                                    // as a double quoted string.
                                     replacement.push('\\');
                                 }
                             }
@@ -190,15 +209,22 @@ pub fn format_literal_string(element: &FormatElement, stream: &mut TokenStream<P
 }
 
 /// Formats a [`LiteralNone`](wdl_ast::v1::LiteralNone).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_none(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal none children");
     let none = children.next().expect("literal none token");
     assert!(none.element().kind() == SyntaxKind::NoneKeyword);
     (&none).write(stream);
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`LiteralPair`](wdl_ast::v1::LiteralPair).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_pair(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal pair children");
 
@@ -220,18 +246,24 @@ pub fn format_literal_pair(element: &FormatElement, stream: &mut TokenStream<Pre
     let close_paren = children.next().expect("literal pair close paren");
     assert!(close_paren.element().kind() == SyntaxKind::CloseParen);
     (&close_paren).write(stream);
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`LiteralBoolean`](wdl_ast::v1::LiteralBoolean).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_boolean(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal boolean children");
     let bool = children.next().expect("literal boolean token");
     (&bool).write(stream);
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`NegationExpr`](wdl_ast::v1::NegationExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_negation_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("negation expr children");
     let minus = children.next().expect("negation expr minus");
@@ -240,10 +272,13 @@ pub fn format_negation_expr(element: &FormatElement, stream: &mut TokenStream<Pr
 
     let expr = children.next().expect("negation expr expr");
     (&expr).write(stream);
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`LiteralInteger`](wdl_ast::v1::LiteralInteger).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_integer(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("literal integer children") {
         (&child).write(stream);
@@ -251,6 +286,10 @@ pub fn format_literal_integer(element: &FormatElement, stream: &mut TokenStream<
 }
 
 /// Formats a [`LiteralFloat`](wdl_ast::v1::LiteralFloat).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_float(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("literal float children") {
         (&child).write(stream);
@@ -258,14 +297,21 @@ pub fn format_literal_float(element: &FormatElement, stream: &mut TokenStream<Pr
 }
 
 /// Formats a [`NameRefExpr`](wdl_ast::v1::NameRefExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_name_ref_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("name ref children");
     let name = children.next().expect("name ref name");
     (&name).write(stream);
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`LiteralArray`](wdl_ast::v1::LiteralArray).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_array(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal array children");
 
@@ -313,6 +359,10 @@ pub fn format_literal_array(element: &FormatElement, stream: &mut TokenStream<Pr
 }
 
 /// Formats a [`LiteralMapItem`](wdl_ast::v1::LiteralMapItem).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_map_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal map item children");
 
@@ -326,10 +376,13 @@ pub fn format_literal_map_item(element: &FormatElement, stream: &mut TokenStream
 
     let value = children.next().expect("literal map item value");
     (&value).write(stream);
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`LiteralMap`](wdl_ast::v1::LiteralMap).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_map(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal map children");
 
@@ -372,6 +425,10 @@ pub fn format_literal_map(element: &FormatElement, stream: &mut TokenStream<PreT
 }
 
 /// Formats a [`LiteralObjectItem`](wdl_ast::v1::LiteralObjectItem).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_object_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal object item children");
 
@@ -390,6 +447,10 @@ pub fn format_literal_object_item(element: &FormatElement, stream: &mut TokenStr
 }
 
 /// Formats a [`LiteralObject`](wdl_ast::v1::LiteralObject).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_literal_object(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal object children");
 
@@ -432,6 +493,10 @@ pub fn format_literal_object(element: &FormatElement, stream: &mut TokenStream<P
 }
 
 /// Formats a [`AccessExpr`](wdl_ast::v1::AccessExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_access_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("access expr children") {
         (&child).write(stream);
@@ -439,6 +504,10 @@ pub fn format_access_expr(element: &FormatElement, stream: &mut TokenStream<PreT
 }
 
 /// Formats a [`CallExpr`](wdl_ast::v1::CallExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_call_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("call expr children") {
         (&child).write(stream);
@@ -449,6 +518,10 @@ pub fn format_call_expr(element: &FormatElement, stream: &mut TokenStream<PreTok
 }
 
 /// Formats an [`IndexExpr`](wdl_ast::v1::IndexExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_index_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("index expr children") {
         (&child).write(stream);
@@ -456,104 +529,136 @@ pub fn format_index_expr(element: &FormatElement, stream: &mut TokenStream<PreTo
 }
 
 /// Formats an [`AdditionExpr`](wdl_ast::v1::AdditionExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_addition_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("addition expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::Plus;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::Plus;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`SubtractionExpr`](wdl_ast::v1::SubtractionExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_subtraction_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("subtraction expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::Minus;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::Minus;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`MultiplicationExpr`](wdl_ast::v1::MultiplicationExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_multiplication_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("multiplication expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::Asterisk;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::Asterisk;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`DivisionExpr`](wdl_ast::v1::DivisionExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_division_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("division expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::Slash;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::Slash;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`ModuloExpr`](wdl_ast::v1::ModuloExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_modulo_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("modulo expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::Percent;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::Percent;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats an [`ExponentiationExpr`](wdl_ast::v1::ExponentiationExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_exponentiation_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("exponentiation expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::Exponentiation;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::Exponentiation;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`LogicalAndExpr`](wdl_ast::v1::LogicalAndExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_logical_and_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("logical and expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::LogicalAnd;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::LogicalAnd;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`LogicalNotExpr`](wdl_ast::v1::LogicalNotExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_logical_not_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("logical not expr children");
     let not = children.next().expect("logical not expr not");
@@ -562,108 +667,139 @@ pub fn format_logical_not_expr(element: &FormatElement, stream: &mut TokenStream
 
     let expr = children.next().expect("logical not expr expr");
     (&expr).write(stream);
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`LogicalOrExpr`](wdl_ast::v1::LogicalOrExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_logical_or_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("logical or expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::LogicalOr;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::LogicalOr;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats an [`EqualityExpr`](wdl_ast::v1::EqualityExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_equality_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("equality expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::Equal;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::Equal;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`InequalityExpr`](wdl_ast::v1::InequalityExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_inequality_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("inequality expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::NotEqual;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::NotEqual;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`LessExpr`](wdl_ast::v1::LessExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_less_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("less expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::Less;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::Less;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`LessEqualExpr`](wdl_ast::v1::LessEqualExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_less_equal_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("less equal expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::LessEqual;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::LessEqual;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`GreaterExpr`](wdl_ast::v1::GreaterExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_greater_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("greater expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::Greater;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::Greater;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`GreaterEqualExpr`](wdl_ast::v1::GreaterEqualExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_greater_equal_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("greater equal expr children") {
-        let should_end_word = child.element().kind() == SyntaxKind::GreaterEqual;
-        if should_end_word {
+        let whitespace_wrapped = child.element().kind() == SyntaxKind::GreaterEqual;
+        if whitespace_wrapped {
             stream.end_word();
         }
         (&child).write(stream);
-        if should_end_word {
+        if whitespace_wrapped {
             stream.end_word();
         }
     }
 }
 
 /// Formats a [`ParenthesizedExpr`](wdl_ast::v1::ParenthesizedExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_parenthesized_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("parenthesized expr children") {
         (&child).write(stream);
@@ -671,6 +807,10 @@ pub fn format_parenthesized_expr(element: &FormatElement, stream: &mut TokenStre
 }
 
 /// Formats an [`IfExpr`](wdl_ast::v1::IfExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
 pub fn format_if_expr(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("if expr children") {
         (&child).write(stream);
