@@ -1,5 +1,9 @@
 # How to make the most of Sprocket doc
 
+> [!CAUTION]
+> This document describes the beta release of the `doc` command, which is currently exposed under the `dev` subcommand (i.e. `sprocket dev doc`).
+> This functionality is experimental and may change  prior to a full release.
+
 Sprocket is capable of rendering rich HTML documentation for any WDL workspace! However to make the most of this tool, there are certain documentation conventions which should be followed. This page describes practices that are optional, but that enhance the quality of the resulting documentation.
 
 If you find any awkward rendering or unexpected behavior, refer to this document and see if a convention better addresses your specific use case.
