@@ -44,10 +44,9 @@ pub struct Args {
     pub open: bool,
     /// An optional path to a custom theme directory.
     ///
-    /// The theme directory is expected to contain a `package.json` file with a
-    /// dependency for `"@tailwindcss/cli": "^4.0.0"` and a `src` directory
-    /// with a `main.css` file. It should also have a `build` script that
-    /// compiles web components into a `dist/index.js` file.
+    /// This argument is meant to be used by developers of the `wdl` crates;
+    /// customizing the theme used for the generated documentation is currently
+    /// unsupported.
     #[arg(long, value_name = "DIR")]
     pub theme: Option<PathBuf>,
 
@@ -72,23 +71,23 @@ pub async fn doc(args: Args) -> Result<()> {
     if args.install {
         if let Some(theme_path) = &args.theme {
             install_theme(theme_path).with_context(|| {
-                format!("failed to install theme from {}", theme_path.display())
+                format!("failed to install theme from `{}`", theme_path.display())
             })?;
         } else {
-            bail!("the --install flag requires the --theme argument to be specified");
+            bail!("the `--install` flag requires the `--theme` argument to be specified");
         }
     }
 
     if let Some(theme) = &args.theme {
         build_stylesheet(theme).with_context(|| {
             format!(
-                "failed to build stylesheet for theme at {}",
+                "failed to build stylesheet for theme at `{}`",
                 theme.display()
             )
         })?;
         build_web_components(theme).with_context(|| {
             format!(
-                "failed to build web components for theme at {}",
+                "failed to build web components for theme at `{}`",
                 theme.display()
             )
         })?;
@@ -111,7 +110,7 @@ pub async fn doc(args: Args) -> Result<()> {
     .await
     .with_context(|| {
         format!(
-            "failed to generate documentation for workspace at {}",
+            "failed to generate documentation for workspace at `{}`",
             args.workspace.display()
         )
     })?;
@@ -137,13 +136,13 @@ pub async fn doc(args: Args) -> Result<()> {
                         println!("regenerating documentation...");
                         build_stylesheet(theme).with_context(|| {
                             format!(
-                                "failed to build stylesheet for theme at {}",
+                                "failed to build stylesheet for theme at `{}`",
                                 theme.display()
                             )
                         })?;
                         build_web_components(theme).with_context(|| {
                             format!(
-                                "failed to build web components for theme at {}",
+                                "failed to build web components for theme at `{}`",
                                 theme.display()
                             )
                         })?;
@@ -156,7 +155,7 @@ pub async fn doc(args: Args) -> Result<()> {
                         .await
                         .with_context(|| {
                             format!(
-                                "failed to regenerate documentation for workspace at {}",
+                                "failed to regenerate documentation for workspace at `{}`",
                                 args.workspace.display()
                             )
                         })?;
@@ -167,7 +166,7 @@ pub async fn doc(args: Args) -> Result<()> {
                 }
             }
         } else {
-            bail!("the --watch flag requires the --theme argument to be specified");
+            bail!("the `--watch` flag requires the `--theme` argument to be specified");
         }
     }
 
