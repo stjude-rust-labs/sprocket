@@ -126,6 +126,7 @@ pub async fn doc(args: Args) -> Result<()> {
             let mut watcher = recommended_watcher(tx)?;
 
             watcher.watch(&theme.join("src"), RecursiveMode::Recursive)?;
+            watcher.watch(&theme.join("web-components"), RecursiveMode::Recursive)?;
 
             tracing::warn!("watching for changes in theme directory...");
             tracing::warn!("press Ctrl+C to stop watching");
