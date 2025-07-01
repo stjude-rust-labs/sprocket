@@ -72,10 +72,7 @@ pub async fn doc(args: Args) -> Result<()> {
     if args.install {
         if let Some(theme_path) = &args.theme {
             install_theme(theme_path).with_context(|| {
-                format!(
-                    "failed to install theme from {}",
-                    theme_path.display()
-                )
+                format!("failed to install theme from {}", theme_path.display())
             })?;
         } else {
             bail!("the --install flag requires the --theme argument to be specified");
@@ -105,7 +102,14 @@ pub async fn doc(args: Args) -> Result<()> {
         std::fs::remove_dir_all(&docs_dir)?;
     }
 
-    document_workspace(&args.workspace, &docs_dir, args.homepage.clone(), args.theme.clone()).await.with_context(|| {
+    document_workspace(
+        &args.workspace,
+        &docs_dir,
+        args.homepage.clone(),
+        args.theme.clone(),
+    )
+    .await
+    .with_context(|| {
         format!(
             "failed to generate documentation for workspace at {}",
             args.workspace.display()
@@ -143,17 +147,23 @@ pub async fn doc(args: Args) -> Result<()> {
                                 theme.display()
                             )
                         })?;
-                        document_workspace(&args.workspace, &docs_dir, args.homepage.clone(), args.theme.clone())
-                            .await.with_context(|| {
-                                format!(
-                                    "failed to regenerate documentation for workspace at {}",
-                                    args.workspace.display()
-                                )
-                            })?;
+                        document_workspace(
+                            &args.workspace,
+                            &docs_dir,
+                            args.homepage.clone(),
+                            args.theme.clone(),
+                        )
+                        .await
+                        .with_context(|| {
+                            format!(
+                                "failed to regenerate documentation for workspace at {}",
+                                args.workspace.display()
+                            )
+                        })?;
                         println!("done");
                     }
-                    Ok(Err(e)) => eprintln!("watch error: {}", e),
-                    Err(e) => eprintln!("watch error: {}", e),
+                    Ok(Err(e)) => eprintln!("watch error: {e}"),
+                    Err(e) => eprintln!("watch error: {e}"),
                 }
             }
         } else {
