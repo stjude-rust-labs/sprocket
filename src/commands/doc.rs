@@ -127,13 +127,13 @@ pub async fn doc(args: Args) -> Result<()> {
 
             watcher.watch(&theme.join("src"), RecursiveMode::Recursive)?;
 
-            println!("watching for changes in theme directory...");
-            println!("press Ctrl+C to stop watching");
+            tracing::warn!("watching for changes in theme directory...");
+            tracing::warn!("press Ctrl+C to stop watching");
 
             loop {
                 match rx.recv() {
                     Ok(Ok(Event { .. })) => {
-                        println!("regenerating documentation...");
+                        tracing::info!("regenerating documentation...");
                         build_stylesheet(theme).with_context(|| {
                             format!(
                                 "failed to build stylesheet for theme at `{}`",
@@ -159,10 +159,10 @@ pub async fn doc(args: Args) -> Result<()> {
                                 args.workspace.display()
                             )
                         })?;
-                        println!("done");
+                        tracing::info!("done");
                     }
-                    Ok(Err(e)) => eprintln!("watch error: {e}"),
-                    Err(e) => eprintln!("watch error: {e}"),
+                    Ok(Err(e)) => tracing::error!("watch error: {e}"),
+                    Err(e) => tracing::error!("watch error: {e}"),
                 }
             }
         } else {
