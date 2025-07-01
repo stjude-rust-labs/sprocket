@@ -24,7 +24,7 @@ While it is technically possible to supply your own custom CSS styling, this cap
 
 ## Using preamble comments for file-level documentation
 
-To provide top-level documentation for a file, add a comment block before the `version` statement where each line starts with `##`. These preamble comments will be rendered as Markdown above the generated table of contents on that file's dedicated page. For example:
+To provide top-level documentation for a file, add a comment block before the `version` statement where each line starts with a double pound sign (i.e., `##`, which we term a "preamble comment"). These preamble comments will be rendered as Markdown above the generated table of contents on that file's dedicated page. For example:
 
 ```wdl
 ## # This is a header
