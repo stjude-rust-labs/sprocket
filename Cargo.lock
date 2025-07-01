@@ -4398,6 +4398,7 @@ dependencies = [
 [[package]]
 name = "wdl"
 version = "0.14.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=a-frantz%2Fwdl-doc#37ae72dc69a9054421ff101873b54b9581ad703b"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4414,6 +4415,7 @@ dependencies = [
 [[package]]
 name = "wdl-analysis"
 version = "0.9.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=a-frantz%2Fwdl-doc#37ae72dc69a9054421ff101873b54b9581ad703b"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4440,6 +4442,7 @@ dependencies = [
 [[package]]
 name = "wdl-ast"
 version = "0.13.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=a-frantz%2Fwdl-doc#37ae72dc69a9054421ff101873b54b9581ad703b"
 dependencies = [
  "macropol",
  "paste",
@@ -4452,6 +4455,7 @@ dependencies = [
 [[package]]
 name = "wdl-cli"
 version = "0.2.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=a-frantz%2Fwdl-doc#37ae72dc69a9054421ff101873b54b9581ad703b"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4477,6 +4481,7 @@ dependencies = [
 [[package]]
 name = "wdl-doc"
 version = "0.4.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=a-frantz%2Fwdl-doc#37ae72dc69a9054421ff101873b54b9581ad703b"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4495,6 +4500,7 @@ dependencies = [
 [[package]]
 name = "wdl-engine"
 version = "0.4.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=a-frantz%2Fwdl-doc#37ae72dc69a9054421ff101873b54b9581ad703b"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4534,6 +4540,7 @@ dependencies = [
 [[package]]
 name = "wdl-format"
 version = "0.7.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=a-frantz%2Fwdl-doc#37ae72dc69a9054421ff101873b54b9581ad703b"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4542,6 +4549,7 @@ dependencies = [
 [[package]]
 name = "wdl-grammar"
 version = "0.13.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=a-frantz%2Fwdl-doc#37ae72dc69a9054421ff101873b54b9581ad703b"
 dependencies = [
  "codespan-reporting",
  "logos",
@@ -4552,6 +4560,7 @@ dependencies = [
 [[package]]
 name = "wdl-lint"
 version = "0.12.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=a-frantz%2Fwdl-doc#37ae72dc69a9054421ff101873b54b9581ad703b"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4571,6 +4580,7 @@ dependencies = [
 [[package]]
 name = "wdl-lsp"
 version = "0.9.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=a-frantz%2Fwdl-doc#37ae72dc69a9054421ff101873b54b9581ad703b"
 dependencies = [
  "anyhow",
  "indexmap 2.9.0",
