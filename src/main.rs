@@ -94,6 +94,7 @@ pub async fn inner() -> anyhow::Result<()> {
         Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
         Commands::Run(args) => commands::run::run(args.apply(config)).await,
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
+        Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
     }
 }
 
