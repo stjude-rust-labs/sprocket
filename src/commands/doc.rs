@@ -46,8 +46,8 @@ pub struct Args {
 
     /// Install the theme if it is not already installed.
     ///
-    /// Requires the `--theme` argument to be specified.
-    #[arg(long)]
+    /// `npm` and `npx` are expected to be available in the environment.
+    #[arg(long, requires = "theme")]
     pub install: bool,
 }
 
@@ -104,8 +104,7 @@ pub async fn doc(args: Args) -> Result<()> {
     })?;
 
     if args.open {
-        opener::open(docs_dir.join("index.html"))
-            .context("failed to open documentation"))?;
+        opener::open(docs_dir.join("index.html")).context("failed to open documentation")?;
     }
 
     anyhow::Ok(())
