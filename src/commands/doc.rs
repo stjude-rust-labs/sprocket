@@ -105,7 +105,7 @@ pub async fn doc(args: Args) -> Result<()> {
 
     if args.open {
         opener::open(docs_dir.join("index.html"))
-            .map_err(|e| anyhow::anyhow!("failed to open documentation: {e}"))?;
+            .context("failed to open documentation"))?;
     }
 
     anyhow::Ok(())
