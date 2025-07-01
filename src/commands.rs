@@ -10,6 +10,7 @@ pub mod doc;
 pub mod explain;
 pub mod format;
 pub mod inputs;
+pub mod lock;
 pub mod run;
 pub mod validate;
 
@@ -55,7 +56,7 @@ pub enum Commands {
     /// the task or workflow.
     Validate(validate::Args),
 
-    /// Development commands.
+    /// Developmental and experimental commands.
     #[command(subcommand)]
     Dev(DevCommands),
 }
@@ -65,4 +66,6 @@ pub enum Commands {
 pub enum DevCommands {
     /// Document a workspace.
     Doc(doc::Args),
+    /// Locks Docker images to a sha256 digest.
+    Lock(lock::Args),
 }

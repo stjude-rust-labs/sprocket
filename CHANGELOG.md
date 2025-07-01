@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `sprocket run`, `sprocket validate`, and `sprocket inputs` commands will
   no longer require the `--name` option if passed a WDL document containing a
   single task and no workflow ([#121](github.com/stjude-rust-labs/sprocket/pull/121)).
+* The `sprocket run` command now correctly includes the workflow/task name
+  prefix in the output ([#131](github.com/stjude-rust-labs/sprocket/pull/131)).
+
+### Added
+
+* Added `dev` subcommand to contain developmental and experimental subcommands ([#120](https://github.com/stjude-rust-labs/sprocket/pull/120)).
+* Added `dev lock` subcommand to store container manifest checksums ([#120](https://github.com/stjude-rust-labs/sprocket/pull/120)).
 
 ## 0.13.0 - 05-28-2025
 

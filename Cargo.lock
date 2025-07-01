@@ -3391,6 +3391,7 @@ dependencies = [
  "clap_complete",
  "codespan-reporting",
  "colored",
+ "crankshaft-docker",
  "dirs",
  "figment",
  "futures",
