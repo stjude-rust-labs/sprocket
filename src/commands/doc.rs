@@ -1,17 +1,11 @@
 //! Implementation of the `doc` command.
 
 use std::path::PathBuf;
-use std::sync::mpsc;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
-use notify::Event;
-use notify::RecursiveMode;
-use notify::Result as NotifyResult;
-use notify::Watcher;
-use notify::recommended_watcher;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
 use wdl::doc::document_workspace;
@@ -55,12 +49,6 @@ pub struct Args {
     /// Requires the `--theme` argument to be specified.
     #[arg(long)]
     pub install: bool,
-
-    /// Whether to watch the theme directory for changes.
-    ///
-    /// Requires the `--theme` argument to be specified.
-    #[arg(long)]
-    pub watch: bool,
 }
 
 /// The default output directory for the generated documentation.
@@ -118,57 +106,6 @@ pub async fn doc(args: Args) -> Result<()> {
     if args.open {
         opener::open(docs_dir.join("index.html"))
             .map_err(|e| anyhow::anyhow!("failed to open documentation: {e}"))?;
-    }
-
-    if args.watch {
-        if let Some(theme) = &args.theme {
-            let (tx, rx) = mpsc::channel::<NotifyResult<Event>>();
-            let mut watcher = recommended_watcher(tx)?;
-
-            watcher.watch(&theme.join("src"), RecursiveMode::Recursive)?;
-            watcher.watch(&theme.join("web-components"), RecursiveMode::Recursive)?;
-
-            tracing::warn!("watching for changes in theme directory...");
-            tracing::warn!("press Ctrl+C to stop watching");
-
-            loop {
-                match rx.recv() {
-                    Ok(Ok(Event { .. })) => {
-                        tracing::info!("regenerating documentation...");
-                        build_stylesheet(theme).with_context(|| {
-                            format!(
-                                "failed to build stylesheet for theme at `{}`",
-                                theme.display()
-                            )
-                        })?;
-                        build_web_components(theme).with_context(|| {
-                            format!(
-                                "failed to build web components for theme at `{}`",
-                                theme.display()
-                            )
-                        })?;
-                        document_workspace(
-                            &args.workspace,
-                            &docs_dir,
-                            args.homepage.clone(),
-                            args.theme.clone(),
-                        )
-                        .await
-                        .with_context(|| {
-                            format!(
-                                "failed to regenerate documentation for workspace at `{}`",
-                                args.workspace.display()
-                            )
-                        })?;
-                        tracing::info!("done");
-                    }
-                    Ok(Err(e)) => tracing::error!("watch error: {e}"),
-                    Err(e) => tracing::error!("watch error: {e}"),
-                }
-            }
-        } else {
-            bail!("the `--watch` flag requires the `--theme` argument to be specified");
-        }
     }
 
     anyhow::Ok(())

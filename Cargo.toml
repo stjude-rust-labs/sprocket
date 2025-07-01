@@ -27,7 +27,6 @@ git-testament = "0.2.5"
 indexmap = "2.9.0"
 indicatif = "0.17.8"
 nonempty = "0.11.0"
-notify = "8.0.0"
 opener = "0.7.2"
 pest = { version = "2.7.14", features = ["pretty-print"] }
 pretty_assertions = "1.4.1"
