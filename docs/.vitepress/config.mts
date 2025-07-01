@@ -42,6 +42,7 @@ export default defineConfig({
         text: "Sprocket CLI",
         items: [
           { text: "Configuration", link: "/cli/config" },
+          { text: "Doc", link: "/cli/doc" },
           { text: "Lock", link: "/cli/lock" },
         ],
       },
