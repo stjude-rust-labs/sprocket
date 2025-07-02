@@ -8,9 +8,11 @@ Sprocket is capable of rendering rich HTML documentation for any WDL workspace! 
 
 If you find any awkward rendering or unexpected behavior, refer to this document and see if a convention better addresses your specific use case.
 
+The [St. Jude Cloud `workflows` repository](https://github.com/stjudecloud/workflows) uses the development build of Sprocket for its documentation, which can be viewed [here](https://stjudecloud.github.io/workflows/index.html).
+
 ## Homepage
 
-We encourage you to customize the experience of your user documentation by writing a custom Markdown document which can be embedded at the root of your generated documentation. A Markdown file can be embedded in the homepage with a command line argument when generating the documentation. Every page contains links back to the homepage. If no homepage is provided, your users will be faced with an empty screen stating "There's nothing to see on this page".
+We encourage you to customize the experience of your user documentation by writing a custom Markdown document which can be embedded at the root of your generated documentation. A Markdown file can be embedded in the homepage with the `--homepage <MARKDOWN FILE>` flag during documentation generation. Every page contains links back to the homepage. If no homepage is provided, your users will be faced with an empty screen stating "There's nothing to see on this page".
 
 Currently, we do not offer a way to include arbitrary assets, so unfortunately you cannot embed a custom logo or other such content. We're working on this feature though, so be sure to follow along with our development!
 
@@ -20,7 +22,7 @@ The generated documentation directory (named `docs` by default) is completely se
 
 ## Custom themes
 
-While it is technically possible to supply your own custom CSS styling, this capability is currently undocumented. We recommend you stick with the default styling at this point in time, but do let us know what kinds of customization you would like to see in future releases! 
+While it is technically possible to supply your own custom CSS styling, this capability is currently undocumented. We recommend sticking with the default styling at this point in time, but do let us know what kinds of customization you would like to see in future releases! 
 
 ## Using preamble comments for file-level documentation
 
@@ -61,7 +63,7 @@ All meta entries will render in the final HTML documentation, but there are some
 : This key should have a URL as its value (i.e. a valid hyperlink represented as a WDL `String`), and will be rendered as a button which will open a new tab or window visiting the link.
 
 `warning`
-: This text will be rendered in a special "warning box" to draw the attention of users.
+: This text will be rendered in a special "warning box" to draw the attention of users. This can also be styled with Markdown formatting.
 
 ## Parameters (inputs and outputs)
 
