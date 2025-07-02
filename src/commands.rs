@@ -6,6 +6,7 @@ pub mod analyzer;
 pub mod check;
 pub mod completions;
 pub mod config;
+pub mod doc;
 pub mod explain;
 pub mod format;
 pub mod inputs;
@@ -63,6 +64,8 @@ pub enum Commands {
 /// Developmental and experimental commands.
 #[derive(Subcommand, Debug)]
 pub enum DevCommands {
+    /// Document a workspace.
+    Doc(doc::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
 }
