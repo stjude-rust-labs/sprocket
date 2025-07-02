@@ -1,0 +1,328 @@
+/* Font Definitions */
+@font-face {
+  font-family: 'Karelia';
+  src: url('/fonts/Karelia-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Karelia';
+  src: url('/fonts/Karelia-RegularItalic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Karelia';
+  src: url('/fonts/Karelia-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Karelia';
+  src: url('/fonts/Karelia-MediumItalic.otf') format('opentype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Karelia';
+  src: url('/fonts/Karelia-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Karelia';
+  src: url('/fonts/Karelia-BoldItalic.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/**
+ * Responsive Typography Utility Classes
+ * --------------------------------------------------------------------------
+ * Collection of utility classes for typography;
+ *
+ * Usage:
+ * <p class="typo-body1">This is a body 1</p>
+ *
+ * Available classes:
+ * .typo-h1
+ * .typo-h2
+ * .typo-body1
+ * .typo-body2
+ * .typo-btn
+ * .typo-caption1
+ * .typo-caption2
+ * .typo-caption3
+ * .typo-code
+ */
+
+/* Header 1 */
+.typo-h1 {
+  font-family: 'Karelia', sans-serif;
+  font-weight: 500;
+  font-size: 38px;
+  line-height: 100%;
+  letter-spacing: -2%;
+  font-weight: 600; /* Semibold */
+}
+
+/* Header 2 */
+.typo-h2 {
+  font-family: 'Karelia', sans-serif;
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 110%;
+  letter-spacing: 0;
+  font-weight: 600; /* Semibold */
+}
+
+/* Body 1 */
+.typo-body1 {
+  font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 160%;
+  letter-spacing: 0;
+  font-weight: 400; /* Regular */
+}
+
+/* Body 2 */
+.typo-body2 {
+  font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 150%;
+  letter-spacing: 0;
+  font-weight: 400; /* Regular */
+}
+
+/* Button Text */
+.typo-btn {
+  font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 150%;
+  letter-spacing: 0;
+  font-weight: 600; /* Semibold */
+}
+
+/* Caption 1 */
+.typo-caption1 {
+  font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+  font-size: 12px;
+  line-height: 130%;
+  letter-spacing: 0;
+  font-weight: 400; /* Regular */
+}
+
+/* Caption 2 */
+.typo-caption2 {
+  font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+  font-size: 12px;
+  line-height: 130%;
+  letter-spacing: 0;
+  font-weight: 500; /* Medium */
+}
+
+/* Caption 3 */
+.typo-caption3 {
+  font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+  font-size: 11px;
+  line-height: 130%;
+  letter-spacing: 0;
+  font-weight: 500; /* Medium */
+  text-transform: uppercase;
+}
+
+/* Code Text */
+.typo-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 160%;
+  letter-spacing: 0;
+  font-weight: 400; /* Regular */
+}
+
+.hero {
+  background: var(--vp-home-hero-name-background);
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Header 1 */
+  .typo-h1 {
+    font-family: 'Karelia', sans-serif;
+  font-weight: 500;
+    font-size: 38px;
+    line-height: 100%;
+    letter-spacing: -2%;
+    font-weight: 600; /* Semibold */
+  }
+
+  /* Header 2 */
+  .typo-h2 {
+    font-family: 'Karelia', sans-serif;
+  font-weight: 500;
+    font-size: 20px;
+    line-height: 110%;
+    letter-spacing: 0;
+    font-weight: 600; /* Semibold */
+  }
+
+  /* Body 1 */
+  .typo-body1 {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 160%;
+    letter-spacing: 0;
+    font-weight: 400; /* Regular */
+  }
+
+  /* Body 2 */
+  .typo-body2 {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 150%;
+    letter-spacing: 0;
+    font-weight: 400; /* Regular */
+  }
+
+  /* Button Text */
+  .typo-btn {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 150%;
+    letter-spacing: 0;
+    font-weight: 600; /* Semibold */
+  }
+
+  /* Caption 1 */
+  .typo-caption1 {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 130%;
+    letter-spacing: 0;
+    font-weight: 400; /* Regular */
+  }
+
+  /* Caption 2 */
+  .typo-caption2 {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 130%;
+    letter-spacing: 0;
+    font-weight: 500; /* Medium */
+  }
+
+  /* Caption 3 */
+  .typo-caption3 {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 11px;
+    line-height: 130%;
+    letter-spacing: 0;
+    font-weight: 500; /* Medium */
+    text-transform: uppercase;
+  }
+
+  /* Code Text */
+  .typo-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 160%;
+    letter-spacing: 0;
+    font-weight: 400; /* Regular */
+  }
+}
+
+@media (min-width: 1025px) {
+  /* Header 1 */
+  .typo-h1 {
+    font-family: 'Karelia', sans-serif;
+  font-weight: 500;
+    font-size: 50px;
+    line-height: 100%;
+    letter-spacing: -2%;
+    font-weight: 600; /* Semibold */
+  }
+
+  /* Header 2 */
+  .typo-h2 {
+    font-family: 'Karelia', sans-serif;
+  font-weight: 500;
+    font-size: 24px;
+    line-height: 110%;
+    letter-spacing: 0;
+    font-weight: 600; /* Semibold */
+  }
+
+  /* Body 1 */
+  .typo-body1 {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 18px;
+    line-height: 160%;
+    letter-spacing: 0;
+    font-weight: 400; /* Regular */
+  }
+
+  /* Body 2 */
+  .typo-body2 {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 150%;
+    letter-spacing: 0;
+    font-weight: 400; /* Regular */
+  }
+
+  /* Button Text */
+  .typo-btn {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 150%;
+    letter-spacing: 0;
+    font-weight: 600; /* Semibold */
+  }
+
+  /* Caption 1 */
+  .typo-caption1 {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 130%;
+    letter-spacing: 0;
+    font-weight: 400; /* Regular */
+  }
+
+  /* Caption 2 */
+  .typo-caption2 {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 130%;
+    letter-spacing: 0;
+    font-weight: 500; /* Medium */
+  }
+
+  /* Caption 3 */
+  .typo-caption3 {
+    font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, system-ui, Arial, sans-serif;
+    font-size: 11px;
+    line-height: 130%;
+    letter-spacing: 0;
+    font-weight: 500; /* Medium */
+    text-transform: uppercase;
+  }
+
+  /* Code Text */
+  .typo-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 160%;
+    letter-spacing: 0;
+    font-weight: 400; /* Regular */
+  }
+}
