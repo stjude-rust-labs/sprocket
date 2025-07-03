@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added `goto_definition`, `find_all_references` tests ([#489](https://github.com/stjude-rust-labs/wdl/pull/489)).
+
 #### Fixed
 
 * Ensure the server is fully initialized before responding ([#487](https://github.com/stjude-rust-labs/wdl/pull/487)).

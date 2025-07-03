@@ -21,6 +21,9 @@ pathdiff.workspace = true
 pulldown-cmark.workspace = true
 tokio.workspace = true
 
+[dev-dependencies]
+fs_extra.workspace = true
+
 [lints]
 workspace = true
 
