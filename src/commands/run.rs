@@ -300,7 +300,14 @@ pub async fn run(args: Args) -> Result<()> {
         })?;
     }
 
-    let inferred = Inputs::coalesce(args.inputs)?.into_engine_inputs(document)?;
+    let inferred = Inputs::coalesce(&args.inputs)
+        .with_context(|| {
+            format!(
+                "failed to parse inputs from `{sources}`",
+                sources = args.inputs.join("`, `")
+            )
+        })?
+        .into_engine_inputs(document)?;
 
     let (name, inputs, origins) = if let Some(inputs) = inferred {
         inputs
