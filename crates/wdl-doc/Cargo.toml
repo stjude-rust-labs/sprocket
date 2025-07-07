@@ -17,11 +17,15 @@ ammonia.workspace = true
 anyhow.workspace = true
 indexmap.workspace = true
 maud.workspace = true
+path-clean.workspace = true
 pathdiff.workspace = true
 pulldown-cmark.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
+pretty_assertions.workspace = true
 fs_extra.workspace = true
 
 [lints]

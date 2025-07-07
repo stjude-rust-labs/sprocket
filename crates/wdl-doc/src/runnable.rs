@@ -1,12 +1,14 @@
-//! HTML generation for WDL callables (workflows and tasks).
+//! HTML generation for WDL runnables (workflows and tasks).
 
 pub mod task;
 pub mod workflow;
 
-use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::path::MAIN_SEPARATOR;
+use std::path::Path;
 
 use maud::Markup;
+use maud::PreEscaped;
 use maud::html;
 use wdl_ast::AstToken;
 use wdl_ast::v1::InputSection;
@@ -15,64 +17,41 @@ use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::OutputSection;
 use wdl_ast::v1::ParameterMetadataSection;
 
-use crate::meta::render_value;
+use crate::VersionBadge;
+use crate::docs_tree::Header;
+use crate::docs_tree::PageSections;
+use crate::meta::MetaMap;
+use crate::meta::MetaMapExt;
+use crate::parameter::Group;
 use crate::parameter::InputOutput;
 use crate::parameter::Parameter;
+use crate::parameter::render_non_required_parameters_table;
 
-/// A map of metadata key-value pairs, sorted by key.
-pub type MetaMap = BTreeMap<String, MetadataValue>;
-
-/// A group of inputs.
-#[derive(Debug, Eq, PartialEq)]
-pub struct Group(pub String);
-
-impl PartialOrd for Group {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Group {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self.0 == "Common" {
-            return std::cmp::Ordering::Less;
-        }
-        if other.0 == "Common" {
-            return std::cmp::Ordering::Greater;
-        }
-        if self.0 == "Resources" {
-            return std::cmp::Ordering::Greater;
-        }
-        if other.0 == "Resources" {
-            return std::cmp::Ordering::Less;
-        }
-        self.0.cmp(&other.0)
-    }
-}
-
-/// A callable (workflow or task) in a WDL document.
-pub trait Callable {
-    /// Get the name of the callable.
+/// A runnable (workflow or task) in a WDL document.
+pub(crate) trait Runnable {
+    /// Get the name of the runnable.
     fn name(&self) -> &str;
 
-    /// Get the [`MetaMap`] of the callable.
+    /// Get the [`MetaMap`] of the runnable.
     fn meta(&self) -> &MetaMap;
 
-    /// Get the inputs of the callable.
+    /// Get the inputs of the runnable.
     fn inputs(&self) -> &[Parameter];
 
-    /// Get the outputs of the callable.
+    /// Get the outputs of the runnable.
     fn outputs(&self) -> &[Parameter];
 
-    /// Get the description of the callable.
-    fn description(&self) -> Markup {
-        self.meta()
-            .get("description")
-            .map(render_value)
-            .unwrap_or_else(|| html! {})
-    }
+    /// Get the [`VersionBadge`] of the runnable.
+    fn version(&self) -> &VersionBadge;
 
-    /// Get the required input parameters of the callable.
+    /// Get the path from the root of the WDL workspace to the WDL document
+    /// which contains this runnable.
+    fn wdl_path(&self) -> Option<&Path>;
+
+    /// Is this runnable a workflow? Or is it a task?
+    fn is_workflow(&self) -> bool;
+
+    /// Get the required input parameters of the runnable.
     fn required_inputs(&self) -> impl Iterator<Item = &Parameter> {
         self.inputs().iter().filter(|param| {
             param
@@ -94,7 +73,7 @@ pub trait Callable {
             .collect()
     }
 
-    /// Get the inputs of the callable that are part of `group`.
+    /// Get the inputs of the runnable that are part of `group`.
     fn inputs_in_group<'a>(&'a self, group: &'a Group) -> impl Iterator<Item = &'a Parameter> {
         self.inputs().iter().filter(move |param| {
             if let Some(param_group) = param.group() {
@@ -106,7 +85,7 @@ pub trait Callable {
         })
     }
 
-    /// Get the inputs of the callable that are neither required nor part of a
+    /// Get the inputs of the runnable that are neither required nor part of a
     /// group.
     fn other_inputs(&self) -> impl Iterator<Item = &Parameter> {
         self.inputs().iter().filter(|param| {
@@ -117,110 +96,169 @@ pub trait Callable {
         })
     }
 
-    /// Render the required inputs of the callable.
-    fn render_required_inputs(&self) -> Markup {
-        let mut iter = self.required_inputs().peekable();
-        if iter.peek().is_some() {
-            return html! {
-                h3 { "Required Inputs" }
-                table class="border" {
-                    thead class="border" { tr {
-                        th { "Name" }
-                        th { "Type" }
-                        th { "Description" }
-                        th { "Additional Meta" }
-                    }}
-                    tbody class="border" {
-                        @for param in iter {
-                            (param.render())
-                        }
-                    }
-                }
-            };
-        };
-        html! {}
+    /// Render the version of the runnable as a badge.
+    fn render_version(&self) -> Markup {
+        self.version().render()
     }
 
-    /// Render the inputs with a group of the callable.
-    fn render_group_inputs(&self) -> Markup {
-        let group_tables = self.input_groups().into_iter().map(|group| {
+    /// Render the description of the runnable as HTML.
+    ///
+    /// This will always return some text; in the absence of a `description`
+    /// key, it will return a default message ("No description provided").
+    fn render_description(&self, summarize: bool) -> Markup {
+        self.meta().render_description(summarize)
+    }
+
+    /// Render the "run with" component of the runnable.
+    fn render_run_with(&self, _assets: &Path) -> Markup {
+        if let Some(wdl_path) = self.wdl_path() {
+            let unix_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
+            let windows_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "\\");
             html! {
-                h3 { (group.0) }
-                table class="border" {
-                    thead class="border" { tr {
-                        th { "Name" }
-                        th { "Type" }
-                        th { "Default" }
-                        th { "Description" }
-                        th { "Additional Meta" }
-                    }}
-                    tbody class="border" {
-                        @for param in self.inputs_in_group(&group) {
-                            (param.render())
+                div x-data="{ unix: true }" class="main__run-with-container" {
+                    div class="main__run-with-label" {
+                        span class="main__run-with-label-text" {
+                            "RUN WITH"
+                        }
+                        button x-on:click="unix = !unix" class="main__run-with-toggle" {
+                            div x-bind:class="unix ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
+                                "Unix"
+                            }
+                            div x-bind:class="!unix ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
+                                "Windows"
+                            }
+                        }
+                    }
+                    div class="main__run-with-content" {
+                        p class="main__run-with-content-text" {
+                            "sprocket run "
+                            @if !self.is_workflow() {
+                                "--name "
+                                (self.name())
+                                " "
+                            }
+                            span x-show="unix" {
+                                (unix_path)
+                            }
+                            span x-show="!unix" {
+                                (windows_path)
+                            }
+                            " [INPUTS]..."
                         }
                     }
                 }
             }
-        });
-        html! {
+        } else {
+            html! {}
+        }
+    }
+
+    /// Render the required inputs of the runnable if present.
+    fn render_required_inputs(&self, assets: &Path) -> Option<Markup> {
+        let mut iter = self.required_inputs().peekable();
+        iter.peek()?;
+
+        let rows = iter
+            .map(|param| param.render(assets).into_string())
+            .collect::<Vec<_>>()
+            .join(&html! { div class="main__grid-row-separator" {} }.into_string());
+
+        Some(html! {
+            h3 id="required-inputs" class="main__section-subheader" { "Required Inputs" }
+            div class="main__grid-container" {
+                div class="main__grid-req-inputs-container" {
+                    div class="main__grid-header-cell" { "Name" }
+                    div class="main__grid-header-cell" { "Type" }
+                    div class="main__grid-header-cell" { "Description" }
+                    div class="main__grid-header-separator" {}
+                    (PreEscaped(rows))
+                }
+            }
+        })
+    }
+
+    /// Render the inputs with a group of the runnable if present.
+    ///
+    /// This will render each group with a subheader and a table
+    /// of parameters that are part of that group.
+    fn render_group_inputs(&self, assets: &Path) -> Option<Markup> {
+        let mut group_tables = self
+            .input_groups()
+            .into_iter()
+            .map(|group| {
+                html! {
+                    h3 id=(group.id()) class="main__section-subheader" { (group.display_name()) }
+                    (render_non_required_parameters_table(self.inputs_in_group(&group), assets))
+                }
+            })
+            .peekable();
+        group_tables.peek()?;
+
+        Some(html! {
             @for group_table in group_tables {
                 (group_table)
             }
-        }
+        })
     }
 
-    /// Render the inputs that are neither required nor part of a group.
-    fn render_other_inputs(&self) -> Markup {
+    /// Render the inputs that are neither required nor part of a group if
+    /// present.
+    fn render_other_inputs(&self, assets: &Path) -> Option<Markup> {
         let mut iter = self.other_inputs().peekable();
-        if iter.peek().is_some() {
-            return html! {
-                h3 { "Other Inputs" }
-                table class="border" {
-                    thead class="border" { tr {
-                        th { "Name" }
-                        th { "Type" }
-                        th { "Default" }
-                        th { "Description" }
-                        th { "Additional Meta" }
-                    }}
-                    tbody class="border" {
-                        @for param in iter {
-                            (param.render())
-                        }
-                    }
-                }
-            };
-        };
-        html! {}
+        iter.peek()?;
+
+        Some(html! {
+            h3 id="other-inputs" class="main__section-subheader" { "Other Inputs" }
+            (render_non_required_parameters_table(iter, assets))
+        })
     }
 
-    /// Render the inputs of the callable.
-    fn render_inputs(&self) -> Markup {
-        html! {
-            h2 { "Inputs" }
-            (self.render_required_inputs())
-            (self.render_group_inputs())
-            (self.render_other_inputs())
+    /// Render the inputs of the runnable.
+    fn render_inputs(&self, assets: &Path) -> (Markup, PageSections) {
+        let mut inner_markup = Vec::new();
+        let mut headers = PageSections::default();
+        headers.push(Header::Header("Inputs".to_string(), "inputs".to_string()));
+        if let Some(req) = self.render_required_inputs(assets) {
+            inner_markup.push(req);
+            headers.push(Header::SubHeader(
+                "Required Inputs".to_string(),
+                "required-inputs".to_string(),
+            ));
         }
+        if let Some(group) = self.render_group_inputs(assets) {
+            inner_markup.push(group);
+            for group in self.input_groups() {
+                headers.push(Header::SubHeader(
+                    group.display_name().to_string(),
+                    group.id(),
+                ));
+            }
+        }
+        if let Some(other) = self.render_other_inputs(assets) {
+            inner_markup.push(other);
+            headers.push(Header::SubHeader(
+                "Other Inputs".to_string(),
+                "other-inputs".to_string(),
+            ));
+        }
+        let markup = html! {
+            div class="main__section" {
+                h2 id="inputs" class="main__section-header" { "Inputs" }
+                @for section in inner_markup {
+                    (section)
+                }
+            }
+        };
+
+        (markup, headers)
     }
 
-    /// Render the outputs of the callable.
-    fn render_outputs(&self) -> Markup {
+    /// Render the outputs of the runnable.
+    fn render_outputs(&self, assets: &Path) -> Markup {
         html! {
-            h2 { "Outputs" }
-            table  {
-                thead class="border" { tr {
-                    th { "Name" }
-                    th { "Type" }
-                    th { "Expression" }
-                    th { "Description" }
-                    th { "Additional Meta" }
-                }}
-                tbody class="border" {
-                    @for param in self.outputs() {
-                        (param.render())
-                    }
-                }
+            div class="main__section" {
+                h2 id="outputs" class="main__section-header" { "Outputs" }
+                (render_non_required_parameters_table(self.outputs().iter(), assets))
             }
         }
     }
@@ -299,6 +337,7 @@ mod tests {
     use wdl_ast::Document;
 
     use super::*;
+    use crate::parameter::Group;
 
     #[test]
     fn test_group_cmp() {
@@ -450,11 +489,17 @@ mod tests {
         );
         assert_eq!(inputs.len(), 3);
         assert_eq!(inputs[0].name(), "a");
-        assert_eq!(inputs[0].description().into_string(), "An integer");
+        assert_eq!(inputs[0].description(false).into_string(), "An integer");
         assert_eq!(inputs[1].name(), "b");
-        assert_eq!(inputs[1].description().into_string(), "");
+        assert_eq!(
+            inputs[1].description(false).into_string(),
+            "No description provided"
+        );
         assert_eq!(inputs[2].name(), "c");
-        assert_eq!(inputs[2].description().into_string(), "Another integer");
+        assert_eq!(
+            inputs[2].description(false).into_string(),
+            "Another integer"
+        );
     }
 
     #[test]
@@ -505,10 +550,16 @@ mod tests {
         );
         assert_eq!(outputs.len(), 3);
         assert_eq!(outputs[0].name(), "a");
-        assert_eq!(outputs[0].description().into_string(), "An integer");
+        assert_eq!(outputs[0].description(false).into_string(), "An integer");
         assert_eq!(outputs[1].name(), "b");
-        assert_eq!(outputs[1].description().into_string(), "A different place!");
+        assert_eq!(
+            outputs[1].description(false).into_string(),
+            "A different place!"
+        );
         assert_eq!(outputs[2].name(), "c");
-        assert_eq!(outputs[2].description().into_string(), "Another integer");
+        assert_eq!(
+            outputs[2].description(false).into_string(),
+            "Another integer"
+        );
     }
 }

@@ -10,35 +10,50 @@
 use std::env;
 use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::exit;
 
 use fs_extra::dir::CopyOptions;
 use fs_extra::dir::copy;
+use pretty_assertions::StrComparison;
 use wdl_doc::document_workspace;
+
+/// Recursively read every file in a directory
+fn read_dir_recursively(path: &Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            files.extend(read_dir_recursively(&path)?);
+        } else {
+            files.push(path);
+        }
+    }
+    Ok(files)
+}
 
 #[tokio::main]
 async fn main() {
-    #[cfg(not(windows))]
-    let test_dir = Path::new("tests/codebase");
-    #[cfg(not(windows))]
-    let docs_dir = Path::new("tests/output_docs");
-
-    #[cfg(windows)]
-    let test_dir = Path::new("tests\\codebase");
-    #[cfg(windows)]
-    let docs_dir = Path::new("tests\\output_docs");
+    let test_dir = Path::new("tests").join("codebase");
+    let docs_dir = Path::new("tests").join("output_docs");
 
     // If `tests/codebase/docs` exists, delete it
     if test_dir.join("docs").exists() {
         fs::remove_dir_all(test_dir.join("docs")).unwrap();
     }
 
-    match document_workspace(test_dir.to_path_buf(), None::<&str>, true).await {
-        Ok(_) => {
-            println!("Successfully generated docs");
-        }
+    match document_workspace(
+        test_dir.to_path_buf(),
+        test_dir.join("docs"),
+        None::<&str>,
+        None::<&str>,
+    )
+    .await
+    {
+        Ok(_) => {}
         Err(e) => {
-            eprintln!("Failed to generate docs: {e}");
+            eprintln!("failed to generate docs: {e}");
             exit(1);
         }
     }
@@ -48,37 +63,62 @@ async fn main() {
     // repopulating it with the generated docs (at `tests/codebase/docs/`).
     if env::var("BLESS").is_ok() {
         if docs_dir.exists() {
-            fs::remove_dir_all(docs_dir).unwrap();
+            fs::remove_dir_all(&docs_dir).unwrap();
         }
-        fs::create_dir_all(docs_dir).unwrap();
+        fs::create_dir_all(&docs_dir).unwrap();
 
         let options = CopyOptions::new().content_only(true);
-        copy(test_dir.join("docs"), docs_dir, &options).unwrap();
+        copy(test_dir.join("docs"), &docs_dir, &options).unwrap();
 
-        println!("Blessed docs");
         exit(0);
     }
 
-    // Compare the generated docs with the expected output
-    // For now, check that the paths exist as expected.
-    // TODO: check HTML content.
+    // Compare the generated docs with the expected output.
+    // Recursively read the contents of the `tests/codebase/docs` directory
+    // and compare them with the contents of the `tests/output_docs` directory.
+    // If the contents are different, print the differences and exit with a
+    // non-zero exit code.
     let mut success = true;
-    for entry in fs::read_dir(docs_dir).unwrap() {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        // Normalize the path to be relative to the `docs` directory
-        // regardless of OS path separator.
-        let expected_path = test_dir
-            .join("docs")
-            .join(path.strip_prefix(docs_dir).unwrap());
-        if !expected_path.exists() {
-            eprintln!("Expected path does not exist: {}", expected_path.display());
+    for file_name in read_dir_recursively(&test_dir.join("docs")).unwrap() {
+        let expected_file = docs_dir.join(file_name.strip_prefix(test_dir.join("docs")).unwrap());
+        if !expected_file.exists() {
+            println!("missing file: {}", expected_file.display());
+            success = false;
+            continue;
+        }
+
+        if expected_file.extension().and_then(|e| e.to_str()) == Some("svg") {
+            // Ignore image files
+            continue;
+        }
+
+        // TODO: snapshotting the HTML/CSS files is not a good test,
+        // In the future, we should check out a better test framework for this.
+        // Potential lead: https://github.com/Vrtgs/thirtyfour
+
+        let expected_contents = fs::read_to_string(&expected_file)
+            .unwrap()
+            .replace("\\", "/")
+            // serde-json pre-escapes some of the HTML paths resulting in double
+            // slashes for some content during normalization.
+            .replace("//", "/");
+        let generated_contents = fs::read_to_string(&file_name)
+            .unwrap()
+            .replace("\r\n", "\n")
+            .replace("\\", "/")
+            .replace("//", "/");
+
+        if expected_contents != generated_contents {
+            println!("File contents differ: {}", expected_file.display());
+            println!(
+                "Diff:\n{}",
+                StrComparison::new(&expected_contents, &generated_contents)
+            );
             success = false;
         }
     }
 
     if success {
-        println!("Docs are as expected");
         exit(0);
     } else {
         exit(1);
