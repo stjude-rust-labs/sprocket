@@ -41,7 +41,7 @@ tracing-indicatif = "0.3.9"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 url = "2.5.4"
 walkdir = "2.5.0"
-wdl = { version = "0.14.0", features = ["cli", "codespan", "engine", "lsp", "doc"], git = "https://github.com/stjude-rust-labs/wdl", rev = "833d86d93c45909df6bab089e336f3c28c831997" }
+wdl = { version = "0.14.0", features = ["cli", "codespan", "engine", "lsp", "doc"], git = "https://github.com/stjude-rust-labs/wdl", rev = "01c89787aca4a22773973562a6810f2200a2e30b" }
 
 
 [dev-dependencies]
