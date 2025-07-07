@@ -8,7 +8,7 @@ Sprocket is capable of rendering rich HTML documentation for any WDL workspace! 
 
 If you find any awkward rendering or unexpected behavior, refer to this document and see if a convention better addresses your specific use case.
 
-The [St. Jude Cloud `workflows` repository](https://github.com/stjudecloud/workflows) uses the development build of Sprocket for its documentation, which can be viewed [here](https://stjudecloud.github.io/workflows/index.html).
+The [St. Jude Cloud `workflows` repository](https://github.com/stjudecloud/workflows) uses Sprocket for its documentation, which can be viewed [here](https://stjudecloud.github.io/workflows/index.html).
 
 ## Homepage
 
