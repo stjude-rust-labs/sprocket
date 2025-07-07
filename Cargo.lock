@@ -338,17 +338,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bstr"
-version = "1.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "234113d19d0d7d613b40e86fb654acf958910802bcceab913a4f9e7cda03b1a4"
-dependencies = [
- "memchr",
- "regex-automata 0.4.9",
- "serde",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -368,9 +357,9 @@ checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 
 [[package]]
 name = "cc"
-version = "1.2.27"
+version = "1.2.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d487aa071b5f64da6f19a3e848e3578944b726ee5a4854b82172f02aa876bfdc"
+checksum = "5c1599538de2394445747c8cf7935946e3cc27e9625f889d979bfb2aaf569362"
 dependencies = [
  "shlex",
 ]
@@ -817,17 +806,6 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot_core 0.9.11",
-]
-
-[[package]]
-name = "dbus"
-version = "0.9.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bb21987b9fb1613058ba3843121dd18b163b254d8a6e797e144cbac14d96d1b"
-dependencies = [
- "libc",
- "libdbus-sys",
- "winapi",
 ]
 
 [[package]]
@@ -1483,9 +1461,9 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
-version = "0.1.14"
+version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc2fdfdbff08affe55bb779f33b053aa1fe5dd5b54c257343c17edfa55711bdb"
+checksum = "7f66d5bd4c6f02bf0542fad85d626775bab9258cf795a4256dcaf3161114d1df"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -1683,9 +1661,9 @@ dependencies = [
 
 [[package]]
 name = "indicatif"
-version = "0.17.12"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4adb2ee6ad319a912210a36e56e3623555817bcc877a7e6e8802d1d69c4d8056"
+checksum = "70a646d946d06bedbbc4cac4c218acf4bbf2d87757a784857025f4d447e4e1cd"
 dependencies = [
  "console",
  "portable-atomic",
@@ -1787,16 +1765,6 @@ name = "libc"
 version = "0.2.174"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1171693293099992e19cddea4e8b849964e9846f4acee11b3948bcc337be8776"
-
-[[package]]
-name = "libdbus-sys"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06085512b750d640299b79be4bad3d2fa90a9c00b1fd9e1b46364f66f0485c72"
-dependencies = [
- "cc",
- "pkg-config",
-]
 
 [[package]]
 name = "libredox"
@@ -2093,15 +2061,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "549e471b99ccaf2f89101bec68f4d244457d5a95a9c3d0672e9564124397741d"
 
 [[package]]
-name = "normpath"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8911957c4b1549ac0dc74e30db9c8b0e66ddcd6d7acc33098f4c63a64a6d7ed"
-dependencies = [
- "windows-sys 0.59.0",
-]
-
-[[package]]
 name = "ntapi"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2174,18 +2133,6 @@ name = "once_cell_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
-
-[[package]]
-name = "opener"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0812e5e4df08da354c851a3376fead46db31c2214f849d3de356d774d057681"
-dependencies = [
- "bstr",
- "dbus",
- "normpath",
- "windows-sys 0.59.0",
-]
 
 [[package]]
 name = "openssl"
@@ -2962,13 +2909,12 @@ dependencies = [
 
 [[package]]
 name = "rust-ini"
-version = "0.21.1"
+version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e310ef0e1b6eeb79169a1171daf9abcb87a2e17c03bee2c4bb100b55c75409f"
+checksum = "e7295b7ce3bf4806b419dc3420745998b447178b7005e2011947b38fc5aa6791"
 dependencies = [
  "cfg-if",
  "ordered-multimap",
- "trim-in-place",
 ]
 
 [[package]]
@@ -3090,9 +3036,9 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "1.0.3"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1375ba8ef45a6f15d83fa8748f1079428295d403d6ea991d09ab100155fbc06d"
+checksum = "82d20c4491bc164fa2f6c5d44565947a52ad80b9505d8e36f8d54c27c739fcd0"
 dependencies = [
  "dyn-clone",
  "ref-cast",
@@ -3231,7 +3177,7 @@ dependencies = [
  "indexmap 1.9.3",
  "indexmap 2.10.0",
  "schemars 0.9.0",
- "schemars 1.0.3",
+ "schemars 1.0.4",
  "serde",
  "serde_derive",
  "serde_json",
@@ -3342,7 +3288,6 @@ dependencies = [
  "indexmap 2.10.0",
  "indicatif",
  "nonempty",
- "opener",
  "pest",
  "pretty_assertions",
  "serde",
@@ -3709,9 +3654,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.46.0"
+version = "1.46.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1140bb80481756a8cbe10541f37433b459c5aa1e727b4c020fbfebdc25bf3ec4"
+checksum = "0cc3a2344dafbe23a245241fe8b09735b521110d30fcefbbd5feb1797ca35d17"
 dependencies = [
  "backtrace",
  "bytes",
@@ -3741,9 +3686,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-metrics"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7817b32d36c9b94744d7aa3f8fc13526aa0f5112009d7045f3c659413a6e44ac"
+checksum = "23ff82f660c98e4ff60da5eb8fa864a4130f34b56d92d5cd23d6fdfcc14e95fa"
 dependencies = [
  "futures-util",
  "pin-project-lite",
@@ -3963,9 +3908,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-indicatif"
-version = "0.3.9"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8201ca430e0cd893ef978226fd3516c06d9c494181c8bf4e5b32e30ed4b40aa1"
+checksum = "8c714cc8fc46db04fcfddbd274c6ef59bebb1b435155984e7c6e89c3ce66f200"
 dependencies = [
  "indicatif",
  "tracing",
@@ -4001,12 +3946,6 @@ dependencies = [
  "tracing-core",
  "tracing-log",
 ]
-
-[[package]]
-name = "trim-in-place"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "343e926fc669bc8cde4fa3129ab681c63671bae288b1f1081ceee6d9d37904fc"
 
 [[package]]
 name = "try-lock"
@@ -4348,7 +4287,7 @@ dependencies = [
 [[package]]
 name = "wdl"
 version = "0.14.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=833d86d93c45909df6bab089e336f3c28c831997#833d86d93c45909df6bab089e336f3c28c831997"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4365,14 +4304,13 @@ dependencies = [
 [[package]]
 name = "wdl-analysis"
 version = "0.9.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=833d86d93c45909df6bab089e336f3c28c831997#833d86d93c45909df6bab089e336f3c28c831997"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
  "futures",
  "indexmap 2.10.0",
  "line-index",
- "lsp-types",
  "parking_lot 0.12.4",
  "path-clean",
  "petgraph",
@@ -4392,7 +4330,7 @@ dependencies = [
 [[package]]
 name = "wdl-ast"
 version = "0.13.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=833d86d93c45909df6bab089e336f3c28c831997#833d86d93c45909df6bab089e336f3c28c831997"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "macropol",
  "paste",
@@ -4405,7 +4343,7 @@ dependencies = [
 [[package]]
 name = "wdl-cli"
 version = "0.2.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=833d86d93c45909df6bab089e336f3c28c831997#833d86d93c45909df6bab089e336f3c28c831997"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4431,17 +4369,14 @@ dependencies = [
 [[package]]
 name = "wdl-doc"
 version = "0.4.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=833d86d93c45909df6bab089e336f3c28c831997#833d86d93c45909df6bab089e336f3c28c831997"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "ammonia",
  "anyhow",
  "indexmap 2.10.0",
  "maud",
- "path-clean",
  "pathdiff",
  "pulldown-cmark",
- "serde",
- "serde_json",
  "tokio",
  "wdl-analysis",
  "wdl-ast",
@@ -4450,7 +4385,7 @@ dependencies = [
 [[package]]
 name = "wdl-engine"
 version = "0.4.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=833d86d93c45909df6bab089e336f3c28c831997#833d86d93c45909df6bab089e336f3c28c831997"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4490,7 +4425,7 @@ dependencies = [
 [[package]]
 name = "wdl-format"
 version = "0.7.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=833d86d93c45909df6bab089e336f3c28c831997#833d86d93c45909df6bab089e336f3c28c831997"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4499,9 +4434,10 @@ dependencies = [
 [[package]]
 name = "wdl-grammar"
 version = "0.13.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=833d86d93c45909df6bab089e336f3c28c831997#833d86d93c45909df6bab089e336f3c28c831997"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "codespan-reporting",
+ "itertools",
  "logos",
  "rowan",
  "strum",
@@ -4510,7 +4446,7 @@ dependencies = [
 [[package]]
 name = "wdl-lint"
 version = "0.12.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=833d86d93c45909df6bab089e336f3c28c831997#833d86d93c45909df6bab089e336f3c28c831997"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4530,7 +4466,7 @@ dependencies = [
 [[package]]
 name = "wdl-lsp"
 version = "0.9.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=833d86d93c45909df6bab089e336f3c28c831997#833d86d93c45909df6bab089e336f3c28c831997"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "indexmap 2.10.0",
