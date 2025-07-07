@@ -558,7 +558,7 @@ impl<'a> TypeParameters<'a> {
     /// allowed.
     pub fn new(parameters: &'a [TypeParameter]) -> Self {
         assert!(
-            parameters.len() < MAX_TYPE_PARAMETERS,
+            parameters.len() <= MAX_TYPE_PARAMETERS,
             "no more than {MAX_TYPE_PARAMETERS} type parameters is supported"
         );
 
