@@ -3181,20 +3181,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "serde_with_macros",
  "time",
-]
-
-[[package]]
-name = "serde_with_macros"
-version = "3.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de90945e6565ce0d9a25098082ed4ee4002e047cb59892c318d66821e14bb30f"
-dependencies = [
- "darling 0.20.11",
- "proc-macro2",
- "quote",
- "syn 2.0.104",
 ]
 
 [[package]]
@@ -4300,6 +4287,7 @@ dependencies = [
 [[package]]
 name = "wdl"
 version = "0.14.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4316,13 +4304,13 @@ dependencies = [
 [[package]]
 name = "wdl-analysis"
 version = "0.9.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
  "futures",
  "indexmap 2.10.0",
  "line-index",
- "lsp-types",
  "parking_lot 0.12.4",
  "path-clean",
  "petgraph",
@@ -4330,7 +4318,6 @@ dependencies = [
  "regex",
  "reqwest",
  "rowan",
- "serde",
  "tokio",
  "tracing",
  "url",
@@ -4343,6 +4330,7 @@ dependencies = [
 [[package]]
 name = "wdl-ast"
 version = "0.13.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "macropol",
  "paste",
@@ -4355,6 +4343,7 @@ dependencies = [
 [[package]]
 name = "wdl-cli"
 version = "0.2.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4380,6 +4369,7 @@ dependencies = [
 [[package]]
 name = "wdl-doc"
 version = "0.4.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4395,6 +4385,7 @@ dependencies = [
 [[package]]
 name = "wdl-engine"
 version = "0.4.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4434,6 +4425,7 @@ dependencies = [
 [[package]]
 name = "wdl-format"
 version = "0.7.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4442,18 +4434,19 @@ dependencies = [
 [[package]]
 name = "wdl-grammar"
 version = "0.13.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "codespan-reporting",
+ "itertools",
  "logos",
  "rowan",
- "serde",
- "serde_with",
  "strum",
 ]
 
 [[package]]
 name = "wdl-lint"
 version = "0.12.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4473,6 +4466,7 @@ dependencies = [
 [[package]]
 name = "wdl-lsp"
 version = "0.9.0"
+source = "git+https://github.com/stjude-rust-labs/wdl?rev=ccc8850#ccc88507fcda2d1ba4ba20ba4ce6c83958e13404"
 dependencies = [
  "anyhow",
  "indexmap 2.10.0",
