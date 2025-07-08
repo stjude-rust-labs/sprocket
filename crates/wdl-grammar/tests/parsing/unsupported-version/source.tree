@@ -1,8 +1,0 @@
-RootNode@0..78
-  Comment@0..44 "# This is a test for  ..."
-  Whitespace@44..46 "\n\n"
-  VersionStatementNode@46..62
-    VersionKeyword@46..53 "version"
-    Whitespace@53..54 " "
-    Version@54..62 "100000.0"
-  Unparsed@62..78 "\n\ntask test {\n}\n"

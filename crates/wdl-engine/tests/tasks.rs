@@ -44,8 +44,6 @@ use tokio_util::sync::CancellationToken;
 use walkdir::WalkDir;
 use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
-use wdl_analysis::DiagnosticsConfig;
-use wdl_analysis::rules;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::EvaluatedTask;
@@ -416,7 +414,7 @@ async fn main() {
     println!("\nrunning {} tests\n", tests.len());
 
     // Start with a single analysis pass over all the test files
-    let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_, _, _, _| async {});
+    let analyzer = Analyzer::default();
     for test in &tests {
         analyzer
             .add_directory(test.clone())

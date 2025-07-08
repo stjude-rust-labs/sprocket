@@ -20,12 +20,14 @@ use std::path::absolute;
 
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term;
-use codespan_reporting::term::Config;
+use codespan_reporting::term::Config as CodespanConfig;
 use codespan_reporting::term::termcolor::Buffer;
 use colored::Colorize;
 use path_clean::clean;
 use pretty_assertions::StrComparison;
+use tracing_subscriber::EnvFilter;
 use wdl_analysis::Analyzer;
+use wdl_analysis::Config;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
@@ -76,7 +78,7 @@ fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> 
     for diagnostic in diagnostics {
         term::emit(
             &mut buffer,
-            &Config::default(),
+            &CodespanConfig::default(),
             &file,
             &diagnostic.to_codespan(()),
         )
@@ -120,32 +122,41 @@ fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<(), Strin
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .init();
+
     let tests = find_tests();
     println!("\nrunning {} tests\n", tests.len());
-
-    // Start with a single analysis pass over all the test files
-    let analyzer = Analyzer::new(DiagnosticsConfig::except_all(), |_, _, _, _| async {});
-    for test in &tests {
-        analyzer
-            .add_directory(test.clone())
-            .await
-            .expect("should add directory");
-    }
-    let results = analyzer
-        .analyze(())
-        .await
-        .expect("failed to analyze documents");
 
     let mut errors = Vec::new();
     for test in &tests {
         let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
 
-        // Discover the results that are relevant only to this test
+        // Add this test's directory to a new analyzer, reading in a custom config if
+        // present.
         let base = clean(absolute(test).expect("should be made absolute"));
         let source_path = base.join("source.wdl");
         let errors_path = base.join("source.errors");
+        let config_path = base.join("config.toml");
 
+        let config = if config_path.exists() {
+            toml::from_str(&std::fs::read_to_string(config_path)?)?
+        } else {
+            Config::default().with_diagnostics_config(DiagnosticsConfig::except_all())
+        };
+        let analyzer = Analyzer::new(config, |_, _, _, _| async {});
+        analyzer
+            .add_directory(base)
+            .await
+            .expect("should add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze documents");
+
+        // Discover the results that are relevant only to this test
         let result = results
             .iter()
             .find_map(|result| {
@@ -190,4 +201,6 @@ async fn main() {
     }
 
     println!("\ntest result: ok. {count} passed\n", count = tests.len());
+
+    Ok(())
 }

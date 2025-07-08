@@ -17,6 +17,9 @@ pub const UNUSED_CALL_RULE_ID: &str = "UnusedCall";
 /// The rule identifier for unnecessary function call warnings.
 pub const UNNECESSARY_FUNCTION_CALL: &str = "UnnecessaryFunctionCall";
 
+/// The rule identifier for unsupported version fallback warnings.
+pub const USING_FALLBACK_VERSION: &str = "UsingFallbackVersion";
+
 /// A trait implemented by analysis rules.
 pub trait Rule: Send + Sync {
     /// The unique identifier for the rule.
@@ -48,6 +51,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<UnusedDeclarationRule>::default(),
         Box::<UnusedCallRule>::default(),
         Box::<UnnecessaryFunctionCall>::default(),
+        Box::<UsingFallbackVersion>::default(),
     ];
 
     // Ensure all the rule ids are unique and pascal case
@@ -258,6 +262,46 @@ impl Rule for UnnecessaryFunctionCall {
 
     fn explanation(&self) -> &'static str {
         "Unnecessary function calls may impact evaluation performance."
+    }
+
+    fn deny(&mut self) {
+        self.0 = Severity::Error;
+    }
+
+    fn severity(&self) -> Severity {
+        self.0
+    }
+}
+
+/// Represents the using fallback version rule.
+#[derive(Debug, Clone, Copy)]
+pub struct UsingFallbackVersion(Severity);
+
+impl UsingFallbackVersion {
+    /// Creates a new using fallback version rule.
+    pub fn new() -> Self {
+        Self(Severity::Warning)
+    }
+}
+
+impl Default for UsingFallbackVersion {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Rule for UsingFallbackVersion {
+    fn id(&self) -> &'static str {
+        USING_FALLBACK_VERSION
+    }
+
+    fn description(&self) -> &'static str {
+        "Warns if interpretation of a document with an unsupported version falls back to a default."
+    }
+
+    fn explanation(&self) -> &'static str {
+        "A document with an unsupported version may have unpredictable behavior if interpreted as \
+         a different version."
     }
 
     fn deny(&mut self) {

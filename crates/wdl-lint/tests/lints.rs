@@ -21,12 +21,13 @@ use std::path::absolute;
 
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term;
-use codespan_reporting::term::Config;
+use codespan_reporting::term::Config as CodespanConfig;
 use codespan_reporting::term::termcolor::Buffer;
 use colored::Colorize;
 use path_clean::clean;
 use pretty_assertions::StrComparison;
 use wdl_analysis::Analyzer;
+use wdl_analysis::Config as AnalysisConfig;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::Validator;
 use wdl_ast::AstNode;
@@ -74,7 +75,7 @@ fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> 
     for diagnostic in diagnostics {
         term::emit(
             &mut buffer,
-            &Config::default(),
+            &CodespanConfig::default(),
             &file,
             &diagnostic.to_codespan(()),
         )
@@ -123,7 +124,7 @@ async fn main() {
     println!("\nrunning {} tests\n", tests.len());
 
     let analyzer = Analyzer::new_with_validator(
-        DiagnosticsConfig::except_all(),
+        AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
         |_, _, _, _| async {},
         || {
             let mut validator = Validator::default();

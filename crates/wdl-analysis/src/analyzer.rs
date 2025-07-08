@@ -6,7 +6,6 @@ use std::future::Future;
 use std::mem::ManuallyDrop;
 use std::ops::Range;
 use std::path::Path;
-use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -29,16 +28,8 @@ use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use url::Url;
 use walkdir::WalkDir;
-use wdl_ast::Severity;
-use wdl_ast::SyntaxNode;
 
-use crate::Rule;
-use crate::SyntaxNodeExt;
-use crate::UNNECESSARY_FUNCTION_CALL;
-use crate::UNUSED_CALL_RULE_ID;
-use crate::UNUSED_DECL_RULE_ID;
-use crate::UNUSED_IMPORT_RULE_ID;
-use crate::UNUSED_INPUT_RULE_ID;
+use crate::config::Config;
 use crate::document::Document;
 use crate::graph::DocumentGraphNode;
 use crate::graph::ParseState;
@@ -53,7 +44,6 @@ use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::RemoveRequest;
 use crate::queue::Request;
 use crate::rayon::RayonHandle;
-use crate::rules;
 
 /// Represents the kind of analysis progress being reported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -296,138 +286,6 @@ pub struct IncrementalChange {
     pub edits: Vec<SourceEdit>,
 }
 
-/// Configuration for analysis diagnostics.
-///
-/// Only the analysis diagnostics that aren't inherently treated as errors are
-/// represented here.
-///
-/// These diagnostics default to a warning severity.
-#[derive(Debug, Clone, Copy)]
-pub struct DiagnosticsConfig {
-    /// The severity for the "unused import" diagnostic.
-    ///
-    /// A value of `None` disables the diagnostic.
-    pub unused_import: Option<Severity>,
-    /// The severity for the "unused input" diagnostic.
-    ///
-    /// A value of `None` disables the diagnostic.
-    pub unused_input: Option<Severity>,
-    /// The severity for the "unused declaration" diagnostic.
-    ///
-    /// A value of `None` disables the diagnostic.
-    pub unused_declaration: Option<Severity>,
-    /// The severity for the "unused call" diagnostic.
-    ///
-    /// A value of `None` disables the diagnostic.
-    pub unused_call: Option<Severity>,
-    /// The severity for the "unnecessary function call" diagnostic.
-    ///
-    /// A value of `None` disables the diagnostic.
-    pub unnecessary_function_call: Option<Severity>,
-}
-
-impl Default for DiagnosticsConfig {
-    fn default() -> Self {
-        let mut unused_import = None;
-        let mut unused_input = None;
-        let mut unused_declaration = None;
-        let mut unused_call = None;
-        let mut unnecessary_function_call = None;
-
-        for rule in rules() {
-            let rule = rule.as_ref();
-            match rule.id() {
-                UNUSED_IMPORT_RULE_ID => unused_import = Some(rule.severity()),
-                UNUSED_INPUT_RULE_ID => unused_input = Some(rule.severity()),
-                UNUSED_DECL_RULE_ID => unused_declaration = Some(rule.severity()),
-                UNUSED_CALL_RULE_ID => unused_call = Some(rule.severity()),
-                UNNECESSARY_FUNCTION_CALL => unnecessary_function_call = Some(rule.severity()),
-                _ => {
-                    unreachable!("unknown rule ID: {}", rule.id());
-                }
-            }
-        }
-
-        Self {
-            unused_import,
-            unused_input,
-            unused_declaration,
-            unused_call,
-            unnecessary_function_call,
-        }
-    }
-}
-
-impl DiagnosticsConfig {
-    /// Creates a new diagnostics configuration from a rule set.
-    pub fn new<T: AsRef<dyn Rule>>(rules: impl IntoIterator<Item = T>) -> Self {
-        let mut unused_import = None;
-        let mut unused_input = None;
-        let mut unused_declaration = None;
-        let mut unused_call = None;
-        let mut unnecessary_function_call = None;
-
-        for rule in rules {
-            let rule = rule.as_ref();
-            match rule.id() {
-                UNUSED_IMPORT_RULE_ID => unused_import = Some(rule.severity()),
-                UNUSED_INPUT_RULE_ID => unused_input = Some(rule.severity()),
-                UNUSED_DECL_RULE_ID => unused_declaration = Some(rule.severity()),
-                UNUSED_CALL_RULE_ID => unused_call = Some(rule.severity()),
-                UNNECESSARY_FUNCTION_CALL => unnecessary_function_call = Some(rule.severity()),
-                _ => {}
-            }
-        }
-
-        Self {
-            unused_import,
-            unused_input,
-            unused_declaration,
-            unused_call,
-            unnecessary_function_call,
-        }
-    }
-
-    /// Gets the excepted set of diagnostics based on any `#@ except` comments
-    /// that precede the given syntax node.
-    pub fn excepted_for_node(mut self, node: &SyntaxNode) -> Self {
-        let exceptions = node.rule_exceptions();
-
-        if exceptions.contains(UNUSED_IMPORT_RULE_ID) {
-            self.unused_import = None;
-        }
-
-        if exceptions.contains(UNUSED_INPUT_RULE_ID) {
-            self.unused_input = None;
-        }
-
-        if exceptions.contains(UNUSED_DECL_RULE_ID) {
-            self.unused_declaration = None;
-        }
-
-        if exceptions.contains(UNUSED_CALL_RULE_ID) {
-            self.unused_call = None;
-        }
-
-        if exceptions.contains(UNNECESSARY_FUNCTION_CALL) {
-            self.unnecessary_function_call = None;
-        }
-
-        self
-    }
-
-    /// Excepts all of the diagnostics.
-    pub fn except_all() -> Self {
-        Self {
-            unused_import: None,
-            unused_input: None,
-            unused_declaration: None,
-            unused_call: None,
-            unnecessary_function_call: None,
-        }
-    }
-}
-
 /// Represents a Workflow Description Language (WDL) document analyzer.
 ///
 /// By default, analysis parses documents, performs validation checks, resolves
@@ -453,14 +311,14 @@ impl<Context> Analyzer<Context>
 where
     Context: Send + Clone + 'static,
 {
-    /// Constructs a new analyzer with the given diagnostics config.
+    /// Constructs a new analyzer with the given config.
     ///
     /// The provided progress callback will be invoked during analysis.
     ///
     /// The analyzer will use a default validator for validation.
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
-    pub fn new<Progress, Return>(config: DiagnosticsConfig, progress: Progress) -> Self
+    pub fn new<Progress, Return>(config: Config, progress: Progress) -> Self
     where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
@@ -468,8 +326,7 @@ where
         Self::new_with_validator(config, progress, crate::Validator::default)
     }
 
-    /// Constructs a new analyzer with the given diagnostics config and
-    /// validator function.
+    /// Constructs a new analyzer with the given config and validator function.
     ///
     /// The provided progress callback will be invoked during analysis.
     ///
@@ -478,7 +335,7 @@ where
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
     pub fn new_with_validator<Progress, Return, Validator>(
-        config: DiagnosticsConfig,
+        config: Config,
         progress: Progress,
         validator: Validator,
     ) -> Self
@@ -529,7 +386,8 @@ where
     ///
     /// Returns an error if there was a problem discovering documents for the
     /// specified path.
-    pub async fn add_directory(&self, path: PathBuf) -> Result<()> {
+    pub async fn add_directory(&self, path: impl AsRef<Path>) -> Result<()> {
+        let path = path.as_ref().to_path_buf();
         // Start by searching for documents
         let documents = RayonHandle::spawn(move || -> Result<IndexSet<Url>> {
             let mut documents = IndexSet::new();
@@ -788,7 +646,7 @@ where
 
 impl Default for Analyzer<()> {
     fn default() -> Self {
-        Self::new(DiagnosticsConfig::default(), |_, _, _, _| async {})
+        Self::new(Default::default(), |_, _, _, _| async {})
     }
 }
 
@@ -817,11 +675,10 @@ mod test {
     use wdl_ast::Severity;
 
     use super::*;
-    use crate::rules;
 
     #[tokio::test]
     async fn it_returns_empty_results() {
-        let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
+        let analyzer = Analyzer::default();
         let results = analyzer.analyze(()).await.unwrap();
         assert!(results.is_empty());
     }
@@ -845,7 +702,7 @@ workflow test {
         .expect("failed to create test file");
 
         // Analyze the file and check the resulting diagnostic
-        let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
+        let analyzer = Analyzer::default();
         analyzer
             .add_document(path_to_uri(&path).expect("should convert to URI"))
             .await
@@ -900,7 +757,7 @@ workflow test {
         .expect("failed to create test file");
 
         // Analyze the file and check the resulting diagnostic
-        let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
+        let analyzer = Analyzer::default();
         analyzer
             .add_document(path_to_uri(&path).expect("should convert to URI"))
             .await
@@ -972,7 +829,7 @@ workflow test {
         .expect("failed to create test file");
 
         // Analyze the file and check the resulting diagnostic
-        let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
+        let analyzer = Analyzer::default();
         analyzer
             .add_document(path_to_uri(&path).expect("should convert to URI"))
             .await
@@ -1051,7 +908,7 @@ workflow test {
         .expect("failed to create test file");
 
         // Add all three documents to the analyzer
-        let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
+        let analyzer = Analyzer::default();
         analyzer
             .add_directory(dir.path().to_path_buf())
             .await

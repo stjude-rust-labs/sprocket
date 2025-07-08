@@ -26,16 +26,15 @@ use anyhow::Result;
 use anyhow::bail;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term;
-use codespan_reporting::term::Config;
+use codespan_reporting::term::Config as CodespanConfig;
 use codespan_reporting::term::termcolor::Buffer;
 use colored::Colorize;
 use path_clean::clean;
 use pretty_assertions::StrComparison;
 use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
-use wdl_analysis::DiagnosticsConfig;
+use wdl_analysis::Config;
 use wdl_analysis::path_to_uri;
-use wdl_analysis::rules;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 
@@ -135,7 +134,7 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
             for diagnostic in diagnostics.as_ref() {
                 term::emit(
                     &mut buffer,
-                    &Config::default(),
+                    &CodespanConfig::default(),
                     &file,
                     &diagnostic.to_codespan(()),
                 )
@@ -153,27 +152,18 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     // These are the tests that require single document analysis as they are
     // sensitive to parse order
     /// The tests that require single document analysis.
     const SINGLE_DOCUMENT_TESTS: &[&str] = &["import-dependency-cycle"];
 
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
     let tests = find_tests();
     println!("\nrunning {} tests\n", tests.len());
-
-    // Start with a single analysis pass over all the test files
-    let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_, _, _, _| async {});
-    for test in &tests {
-        analyzer
-            .add_directory(test.clone())
-            .await
-            .expect("should add directory");
-    }
-    let results = analyzer
-        .analyze(())
-        .await
-        .expect("failed to analyze documents");
 
     let mut errors = Vec::new();
     let mut single_file = Vec::new();
@@ -184,8 +174,27 @@ async fn main() {
             continue;
         }
 
-        // Discover the results that are relevant only to this test
+        // Add this test's directory to a new analyzer, reading in a custom config if
+        // present.
         let base = clean(absolute(test).expect("should be made absolute"));
+        let config_path = base.join("config.toml");
+        let config = if config_path.exists() {
+            toml::from_str(&std::fs::read_to_string(config_path)?)?
+        } else {
+            Config::default()
+        };
+        let analyzer = Analyzer::new(config, |_, _, _, _| async {});
+        analyzer
+            .add_directory(&base)
+            .await
+            .expect("should add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze documents");
+
+        // Discover the results that are relevant only to this test
+        //
         // NOTE: clippy appears to be incorrect that this can be modified to use
         // `filter_map`. Perhaps this should be revisited in the future.
         #[allow(clippy::filter_map_bool_then)]
@@ -214,9 +223,15 @@ async fn main() {
     // Some tests are sensitive to the order in which files are parsed (e.g.
     // detecting cycles) For those, use a new analyzer and analyze the
     // `source.wdl` directly
-    let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_, _, _, _| async {});
     for test_name in single_file {
         let test = Path::new("tests/analysis").join(test_name);
+        let config_path = test.join("config.toml");
+        let config = if config_path.exists() {
+            toml::from_str(&std::fs::read_to_string(config_path)?)?
+        } else {
+            Config::default()
+        };
+        let analyzer = Analyzer::new(config, |_, _, _, _| async {});
         let document = test.join("source.wdl");
         let uri = path_to_uri(&document).expect("should be valid URI");
         analyzer
@@ -253,4 +268,6 @@ async fn main() {
     }
 
     println!("\ntest result: ok. {count} passed\n", count = tests.len());
+
+    Ok(())
 }

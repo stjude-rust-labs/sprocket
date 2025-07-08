@@ -489,14 +489,44 @@ impl<N: TreeNode> Document<N> {
 
     /// Gets the AST representation of the document.
     pub fn ast(&self) -> Ast<N> {
-        self.version_statement()
-            .as_ref()
-            .and_then(|s| s.version().text().parse::<SupportedVersion>().ok())
-            .map(|v| match v {
-                SupportedVersion::V1(_) => Ast::V1(v1::Ast(self.0.clone())),
-                _ => Ast::Unsupported,
-            })
-            .unwrap_or(Ast::Unsupported)
+        self.ast_with_version_fallback(None)
+    }
+
+    /// Gets the AST representation of the document, falling back to the
+    /// specified WDL version if the document's version statement contains
+    /// an unrecognized version.
+    ///
+    /// A fallback version of `None` does not have any fallback behavior, and is
+    /// equivalent to calling [`Document::ast()`].
+    ///
+    /// <div class="warning">
+    ///
+    /// It is the caller's responsibility to ensure that falling back to the
+    /// given version does not introduce unwanted behavior. For applications
+    /// where correctness is essential, the caller should only provide a
+    /// version that is known to be compatible with the version declared in
+    /// the document.
+    ///
+    /// </div>
+    pub fn ast_with_version_fallback(&self, fallback_version: Option<SupportedVersion>) -> Ast<N> {
+        let Some(stmt) = self.version_statement() else {
+            return Ast::Unsupported;
+        };
+        // Parse the version statement, fall back to the fallback, and finally give up
+        // if neither of those works.
+        let Some(version) = stmt
+            .version()
+            .text()
+            .parse::<SupportedVersion>()
+            .ok()
+            .or(fallback_version)
+        else {
+            return Ast::Unsupported;
+        };
+        match version {
+            SupportedVersion::V1(_) => Ast::V1(v1::Ast(self.0.clone())),
+            _ => Ast::Unsupported,
+        }
     }
 
     /// Morphs a document of one node type to a document of a different node

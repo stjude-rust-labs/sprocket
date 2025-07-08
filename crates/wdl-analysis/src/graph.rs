@@ -29,9 +29,12 @@ use tracing::debug;
 use tracing::info;
 use url::Url;
 use wdl_ast::AstNode;
+use wdl_ast::AstToken as _;
 use wdl_ast::Diagnostic;
+use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
+use crate::Config;
 use crate::IncrementalChange;
 use crate::document::Document;
 
@@ -54,6 +57,12 @@ pub enum ParseState {
         ///
         /// If `None`, the parsed version had no incremental changes.
         version: Option<i32>,
+        /// The WDL version of the document.
+        ///
+        /// This usually comes from the `version` statement in the parsed
+        /// document, but can be overridden by
+        /// [`Config::with_fallback_version()`].
+        wdl_version: Option<SupportedVersion>,
         /// The root CST node of.
         root: GreenNode,
         /// The line index of the document.
@@ -84,6 +93,8 @@ impl ParseState {
 /// Represents a node in a document graph.
 #[derive(Debug)]
 pub struct DocumentGraphNode {
+    /// The analyzer configuration.
+    config: Config,
     /// The URI of the document.
     uri: Arc<Url>,
     /// The current incremental change to the document.
@@ -103,8 +114,9 @@ pub struct DocumentGraphNode {
 
 impl DocumentGraphNode {
     /// Constructs a new unparsed document graph node.
-    pub fn new(uri: Arc<Url>) -> Self {
+    pub fn new(config: Config, uri: Arc<Url>) -> Self {
         Self {
+            config,
             uri,
             change: None,
             parse_state: ParseState::NotParsed,
@@ -231,6 +243,22 @@ impl DocumentGraphNode {
         None
     }
 
+    /// Gets the WDL version of the document.
+    ///
+    /// Returns `None` if the document was not parsed or was missing a version
+    /// statement.
+    pub fn wdl_version(&self) -> Option<SupportedVersion> {
+        if let ParseState::Parsed {
+            wdl_version: Some(v),
+            ..
+        } = &self.parse_state
+        {
+            Some(*v)
+        } else {
+            None
+        }
+    }
+
     /// Determines if the document needs to be parsed.
     pub fn needs_parse(&self) -> bool {
         self.change.is_some() || matches!(self.parse_state, ParseState::NotParsed)
@@ -345,15 +373,61 @@ impl DocumentGraphNode {
 
         // Reparse from the source
         let start = Instant::now();
-        let (document, diagnostics) = wdl_ast::Document::parse(&source);
+        let (document, mut diagnostics) = wdl_ast::Document::parse(&source);
         info!(
             "parsing of `{uri}` completed in {elapsed:?}",
             uri = self.uri,
             elapsed = start.elapsed()
         );
 
+        // Apply version fallback logic at this point, so that appropriate diagnostics
+        // will prevent subsequent analysis from occurring on an unexpected
+        // version
+        let mut wdl_version = None;
+        if let Some(version_token) = document.version_statement().map(|stmt| stmt.version()) {
+            match (
+                version_token.text().parse::<SupportedVersion>(),
+                self.config.fallback_version(),
+            ) {
+                // The version in the document is supported, so there's no diagnostic to add
+                (Ok(version), _) => {
+                    wdl_version = Some(version);
+                }
+                // The version in the document is not supported, but fallback behavior is configured
+                (Err(unrecognized), Some(fallback)) => {
+                    if let Some(severity) = self.config.diagnostics_config().using_fallback_version
+                    {
+                        diagnostics.push(
+                            Diagnostic::warning(format!(
+                                "unsupported WDL version `{unrecognized}`; interpreting document \
+                                 as version `{fallback}`"
+                            ))
+                            .with_severity(severity)
+                            .with_label(
+                                "this version of WDL is not supported",
+                                version_token.span(),
+                            ),
+                        );
+                    }
+                    wdl_version = Some(fallback);
+                }
+                // Add an error diagnostic if the version is unsupported and don't overwrite
+                // `wdl_version`
+                (Err(unrecognized), None) => {
+                    diagnostics.push(
+                        Diagnostic::error(format!("unsupported WDL version `{unrecognized}`"))
+                            .with_label(
+                                "this version of WDL is not supported",
+                                version_token.span(),
+                            ),
+                    );
+                }
+            };
+        }
+
         Ok(ParseState::Parsed {
             version,
+            wdl_version,
             root: document.inner().green().into(),
             lines,
             diagnostics,
@@ -388,8 +462,10 @@ impl DocumentGraphNode {
 }
 
 /// Represents a graph of WDL analyzed documents.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct DocumentGraph {
+    /// The analyzer configuration.
+    config: Config,
     /// The inner directional graph.
     ///
     /// Edges in the graph denote inverse dependency relationships (i.e. "is
@@ -417,6 +493,17 @@ pub struct DocumentGraph {
 }
 
 impl DocumentGraph {
+    /// Make a new [`DocumentGraph`] with the given configuration.
+    pub fn new(config: Config) -> Self {
+        DocumentGraph {
+            config,
+            inner: StableDiGraph::new(),
+            indexes: IndexMap::new(),
+            roots: IndexSet::new(),
+            cycles: HashSet::new(),
+        }
+    }
+
     /// Add a node to the document graph.
     pub fn add_node(&mut self, uri: Url, rooted: bool) -> NodeIndex {
         let index = match self.indexes.get(&uri) {
@@ -424,7 +511,9 @@ impl DocumentGraph {
             _ => {
                 debug!("inserting `{uri}` into the document graph");
                 let uri = Arc::new(uri);
-                let index = self.inner.add_node(DocumentGraphNode::new(uri.clone()));
+                let index = self
+                    .inner
+                    .add_node(DocumentGraphNode::new(self.config.clone(), uri.clone()));
                 self.indexes.insert(uri, index);
                 index
             }

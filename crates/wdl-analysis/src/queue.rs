@@ -36,11 +36,11 @@ use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
 
 use crate::AnalysisResult;
-use crate::DiagnosticsConfig;
 use crate::IncrementalChange;
 use crate::ProgressKind;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
+use crate::config::Config;
 use crate::document::Document;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
@@ -167,8 +167,8 @@ enum Cancelable<T> {
 pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     /// The document graph maintained by the analysis queue.
     graph: Arc<RwLock<DocumentGraph>>,
-    /// The diagnostics configuration to use.
-    config: DiagnosticsConfig,
+    /// The configuration to use.
+    config: Config,
     /// The handle to the tokio runtime for blocking on async tasks.
     tokio: Handle,
     /// The HTTP client to use for fetching documents.
@@ -189,14 +189,9 @@ where
     Validator: Fn() -> crate::Validator + Send + Sync + 'static,
 {
     /// Constructs a new analysis queue.
-    pub fn new(
-        config: DiagnosticsConfig,
-        tokio: Handle,
-        progress: Progress,
-        validator: Validator,
-    ) -> Self {
+    pub fn new(config: Config, tokio: Handle, progress: Progress, validator: Validator) -> Self {
         Self {
-            graph: Default::default(),
+            graph: Arc::new(RwLock::new(DocumentGraph::new(config.clone()))),
             config,
             tokio,
             progress: Arc::new(progress),
@@ -314,10 +309,7 @@ where
                                     // just silently return.
                                     ParseState::NotParsed | ParseState::Error(_) => None,
                                     ParseState::Parsed {
-                                        version: _,
-                                        root: _,
-                                        lines,
-                                        diagnostics,
+                                        lines, diagnostics, ..
                                     } => {
                                         // If there are any diagnostics that are
                                         // errors, we shouldn't attempt to format the
@@ -336,15 +328,18 @@ where
                             })
                         })
                         .and_then(|(line, col, document)| {
-                            document.ast().into_v1().and_then(|ast| {
-                                let formatter = Formatter::default();
-                                let element = Node::Ast(ast).into_format_element();
+                            document
+                                .ast_with_version_fallback(self.config.fallback_version())
+                                .into_v1()
+                                .and_then(|ast| {
+                                    let formatter = Formatter::default();
+                                    let element = Node::Ast(ast).into_format_element();
 
-                                formatter
-                                    .format(&element)
-                                    .ok()
-                                    .map(|formatted| (line, col, formatted))
-                            })
+                                    formatter
+                                        .format(&element)
+                                        .ok()
+                                        .map(|formatted| (line, col, formatted))
+                                })
                         });
 
                     completed.send(result).ok();
@@ -563,7 +558,7 @@ where
                         }
 
                         let graph = self.graph.clone();
-                        let config = self.config;
+                        let config = self.config.clone();
                         let validator = self.validator.clone();
                         Some(RayonHandle::spawn(move || {
                             thread_local! {
@@ -573,7 +568,7 @@ where
                             let result = panic::catch_unwind(AssertUnwindSafe(|| {
                                 VALIDATOR.with_borrow_mut(|v| {
                                     let validator = v.get_or_insert_with(|| validator());
-                                    Self::analyze_node(config, graph.clone(), index, validator)
+                                    Self::analyze_node(&config, graph.clone(), index, validator)
                                 })
                             }));
 
@@ -742,7 +737,11 @@ where
             graph.remove_dependency_edges(index);
 
             // Add back dependency edges for the document's imports
-            match graph.get(index).root().map(|d| d.ast()) {
+            match graph
+                .get(index)
+                .root()
+                .map(|d| d.ast_with_version_fallback(self.config.fallback_version()))
+            {
                 None | Some(Ast::Unsupported) => {}
                 Some(Ast::V1(ast)) => {
                     for import in ast.imports() {
@@ -802,7 +801,7 @@ where
 
     /// Analyzes a node in the document graph.
     fn analyze_node(
-        config: DiagnosticsConfig,
+        config: &Config,
         graph: Arc<RwLock<DocumentGraph>>,
         index: NodeIndex,
         validator: &mut crate::Validator,
@@ -812,7 +811,9 @@ where
         let mut document = Document::from_graph_node(config, &graph, index);
 
         match &graph.get(index).parse_state() {
-            ParseState::Parsed { diagnostics, .. } if diagnostics.is_empty() => {
+            ParseState::Parsed { diagnostics, .. }
+                if !diagnostics.iter().any(|diag| diag.severity().is_error()) =>
+            {
                 if let Err(new_diagnostics) = validator.validate(&document) {
                     document.extend_diagnostics(new_diagnostics);
                 }

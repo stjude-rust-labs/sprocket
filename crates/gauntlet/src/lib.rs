@@ -40,6 +40,7 @@ use report::Status;
 use report::UnmatchedStatus;
 pub use repository::Repository;
 use wdl::analysis::Analyzer;
+use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::analysis::Validator;
 use wdl::analysis::rules;
@@ -200,7 +201,9 @@ pub async fn gauntlet(args: Args) -> Result<()> {
 
         let analyzer = Analyzer::new_with_validator(
             // Don't bother duplicating analysis warnings for arena mode
-            DiagnosticsConfig::new(if args.arena { Vec::new() } else { rules() }),
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::new(
+                if args.arena { Vec::new() } else { rules() },
+            )),
             move |_: (), _, _, _| async move {},
             move || {
                 let mut validator = if args.arena {

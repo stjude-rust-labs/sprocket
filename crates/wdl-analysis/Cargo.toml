@@ -26,6 +26,7 @@ rayon = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
 rowan = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
 tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
@@ -38,6 +39,8 @@ codespan-reporting = { workspace = true }
 colored = { workspace = true }
 pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
+toml = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [features]
 default = []

@@ -1,13 +1,10 @@
 //! Module for the WDL grammar functions.
 
 use super::Diagnostic;
-use super::Span;
 use super::lexer::PreambleToken;
 use super::parser::Event;
-use super::parser::Marker;
 use super::parser::Parser;
 use super::tree::SyntaxKind;
-use crate::SupportedVersion;
 use crate::lexer::VersionStatementToken;
 
 pub mod v1;
@@ -72,40 +69,24 @@ type PreambleParser<'a> = Parser<'a, PreambleToken>;
 /// Parses a WDL document.
 ///
 /// Returns the parser events that result from parsing the document.
-pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Vec<Diagnostic>) {
+pub fn document(mut parser: PreambleParser<'_>) -> (Vec<Event>, Vec<Diagnostic>) {
     let root = parser.start();
     // Look for a starting `version` keyword token
     // If this fails, an error is emitted and we'll skip parsing the remainder of
     // the file.
     let (mut parser, diagnostic) = match parser.peek() {
         Some((PreambleToken::VersionKeyword, _)) => {
-            let marker = parser.start();
-            let (mut parser, res) = version_statement(parser, marker);
-            match res {
-                Ok(span) => {
-                    // A version statement was successfully parsed, check to see if the
-                    // version is supported by this implementation
-                    let version = &source[span.start()..span.end()];
-
-                    match version.parse::<SupportedVersion>() {
-                        Ok(_) => {
-                            let mut parser = parser.morph();
-                            v1::items(&mut parser);
-                            root.complete(&mut parser, SyntaxKind::RootNode);
-                            let output = parser.finish();
-                            return (output.events, output.diagnostics);
-                        }
-                        _ => (
-                            parser,
-                            Diagnostic::error(format!("unsupported WDL version `{version}`"))
-                                .with_label("this version of WDL is not supported", span),
-                        ),
-                    }
+            match version_statement(parser) {
+                (parser, None) => {
+                    // A version statement was successfully parsed; continue on with parsing the
+                    // rest of the document.
+                    let mut parser = parser.morph();
+                    v1::items(&mut parser);
+                    root.complete(&mut parser, SyntaxKind::RootNode);
+                    let output = parser.finish();
+                    return (output.events, output.diagnostics);
                 }
-                Err((marker, e)) => {
-                    marker.abandon(&mut parser);
-                    (parser, e)
-                }
+                (parser, Some(diag)) => (parser, diag),
             }
         }
         found => {
@@ -133,22 +114,19 @@ pub fn document(source: &str, mut parser: PreambleParser<'_>) -> (Vec<Event>, Ve
 
 /// Parses the version statement of a WDL source file.
 ///
-/// Returns the source span of the version token if present.
-pub fn version_statement(
+/// Returns a diagnostic upon failure.
+fn version_statement(
     mut parser: Parser<'_, PreambleToken>,
-    marker: Marker,
-) -> (
-    Parser<'_, PreambleToken>,
-    Result<Span, (Marker, Diagnostic)>,
-) {
+) -> (Parser<'_, PreambleToken>, Option<Diagnostic>) {
+    let marker = parser.start();
     parser.require(PreambleToken::VersionKeyword);
 
     let mut parser: Parser<'_, VersionStatementToken> = parser.morph();
-    let span = match parser.expect(VersionStatementToken::Version) {
-        Ok(span) => span,
-        Err(e) => return (parser.morph(), Err((marker, e))),
-    };
+    if let Err(e) = parser.expect(VersionStatementToken::Version) {
+        marker.abandon(&mut parser);
+        return (parser.morph(), Some(e));
+    }
 
     marker.complete(&mut parser, SyntaxKind::VersionStatementNode);
-    (parser.morph(), Ok(span))
+    (parser.morph(), None)
 }

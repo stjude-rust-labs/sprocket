@@ -39,6 +39,7 @@ use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxToken;
 
 mod analyzer;
+mod config;
 pub mod diagnostics;
 pub mod document;
 pub mod eval;
@@ -52,6 +53,8 @@ mod validation;
 mod visitor;
 
 pub use analyzer::*;
+pub use config::Config;
+pub use config::DiagnosticsConfig;
 pub use document::Document;
 pub use rules::*;
 pub use validation::*;

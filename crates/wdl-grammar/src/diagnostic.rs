@@ -95,7 +95,9 @@ impl From<TextRange> for Span {
 }
 
 /// Represents the severity of a diagnostic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize,
+)]
 pub enum Severity {
     /// The diagnostic is displayed as an error.
     Error,
@@ -103,6 +105,32 @@ pub enum Severity {
     Warning,
     /// The diagnostic is displayed as a note.
     Note,
+}
+
+impl Severity {
+    /// Returns `true` if the severity is [`Error`].
+    ///
+    /// [`Error`]: Severity::Error
+    #[must_use]
+    pub fn is_error(&self) -> bool {
+        matches!(self, Self::Error)
+    }
+
+    /// Returns `true` if the severity is [`Warning`].
+    ///
+    /// [`Warning`]: Severity::Warning
+    #[must_use]
+    pub fn is_warning(&self) -> bool {
+        matches!(self, Self::Warning)
+    }
+
+    /// Returns `true` if the severity is [`Note`].
+    ///
+    /// [`Note`]: Severity::Note
+    #[must_use]
+    pub fn is_note(&self) -> bool {
+        matches!(self, Self::Note)
+    }
 }
 
 /// Represents a diagnostic to display to the user.

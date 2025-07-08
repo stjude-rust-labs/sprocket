@@ -24,14 +24,13 @@ use tracing::error;
 use tracing::info;
 use uuid::Uuid;
 use wdl_analysis::Analyzer;
-use wdl_analysis::DiagnosticsConfig;
+use wdl_analysis::Config as AnalysisConfig;
 use wdl_analysis::IncrementalChange;
 use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
 use wdl_analysis::SourcePositionEncoding;
 use wdl_analysis::Validator;
 use wdl_analysis::path_to_uri;
-use wdl_analysis::rules;
 use wdl_lint::Linter;
 
 use crate::proto;
@@ -245,11 +244,15 @@ impl Server {
     pub fn new(client: Client, options: ServerOptions) -> Self {
         let lint = options.lint;
         let analyzer_client = client.clone();
+        // TODO ACF 2025-07-07: add configurability around the fallback behavior; see
+        // https://github.com/stjude-rust-labs/wdl/issues/517
+        let analyzer_config =
+            AnalysisConfig::default().with_fallback_version(Some(Default::default()));
         Self {
             client,
             options,
             analyzer: Analyzer::<ProgressToken>::new_with_validator(
-                DiagnosticsConfig::new(rules()),
+                analyzer_config,
                 move |token, kind, current, total| {
                     let client = analyzer_client.clone();
                     async move {

@@ -46,8 +46,6 @@ use pulldown_cmark::Parser;
 use runnable::task;
 use runnable::workflow;
 use wdl_analysis::Analyzer;
-use wdl_analysis::DiagnosticsConfig;
-use wdl_analysis::rules;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::DocumentItem;
@@ -343,7 +341,7 @@ impl VersionBadge {
 /// Analyze a workspace directory, ensure it is error-free, and return the
 /// results.
 async fn analyze_workspace(workspace: PathBuf) -> Result<Vec<wdl_analysis::AnalysisResult>> {
-    let analyzer = Analyzer::new(DiagnosticsConfig::new(rules()), |_: (), _, _, _| async {});
+    let analyzer = Analyzer::default();
     analyzer
         .add_directory(workspace.clone())
         .await

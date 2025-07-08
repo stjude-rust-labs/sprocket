@@ -1760,6 +1760,7 @@ mod test {
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use wdl_analysis::Analyzer;
+    use wdl_analysis::Config as AnalysisConfig;
     use wdl_analysis::DiagnosticsConfig;
 
     use super::*;
@@ -1819,7 +1820,10 @@ workflow test {
         .expect("failed to write WDL source file");
 
         // Analyze the source file
-        let analyzer = Analyzer::new(DiagnosticsConfig::except_all(), |(), _, _, _| async {});
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
         analyzer
             .add_directory(root_dir.path().to_path_buf())
             .await
@@ -1952,7 +1956,10 @@ workflow w {
         .expect("failed to write WDL source file");
 
         // Analyze the source files
-        let analyzer = Analyzer::new(DiagnosticsConfig::except_all(), |(), _, _, _| async {});
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
         analyzer
             .add_directory(root_dir.path().to_path_buf())
             .await

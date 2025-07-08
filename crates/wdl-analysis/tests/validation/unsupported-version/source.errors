@@ -1,5 +1,5 @@
 error: unsupported WDL version `100000.0`
-  ┌─ tests/parsing/unsupported-version/source.wdl:3:9
+  ┌─ tests/validation/unsupported-version/source.wdl:3:9
   │
 3 │ version 100000.0
   │         ^^^^^^^^ this version of WDL is not supported

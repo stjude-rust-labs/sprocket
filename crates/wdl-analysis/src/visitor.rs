@@ -22,10 +22,10 @@
 //! "shared" across different WDL versions.
 
 use rowan::WalkEvent;
+use tracing::trace;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
-use wdl_ast::Document as AstDocument;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
@@ -63,8 +63,8 @@ use crate::document::Document as AnalysisDocument;
 
 /// Represents the reason an AST node has been visited.
 ///
-/// Each node is visited exactly once, but the visitor will receive
-/// a call for entering the node and a call for exiting the node.
+/// Each node is visited exactly once, but the visitor will receive a call for
+/// entering the node and a call for exiting the node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VisitReason {
     /// The visit has entered the node.
@@ -331,24 +331,25 @@ pub(crate) fn visit<V: Visitor>(
     diagnostics: &mut Diagnostics,
     visitor: &mut V,
 ) {
+    trace!(
+        uri = %document.uri(),
+        "beginning document traversal",
+    );
     for event in document.root().inner().preorder_with_tokens() {
         let (reason, element) = match event {
             WalkEvent::Enter(node) => (VisitReason::Enter, node),
             WalkEvent::Leave(node) => (VisitReason::Exit, node),
         };
-
+        trace!(uri = %document.uri(), ?reason, element = ?element.kind());
         match element.kind() {
-            SyntaxKind::RootNode => {
-                let ast_document = AstDocument::cast(element.into_node().unwrap())
-                    .expect("root node should be a document");
-
-                let version = ast_document
-                    .version_statement()
-                    .and_then(|s| s.version().text().parse::<SupportedVersion>().ok())
-                    .expect("only WDL documents with supported versions can be visited");
-
-                visitor.document(diagnostics, reason, document, version)
-            }
+            SyntaxKind::RootNode => visitor.document(
+                diagnostics,
+                reason,
+                document,
+                document
+                    .version()
+                    .expect("visited document must have a version"),
+            ),
             SyntaxKind::VersionStatementNode => visitor.version_statement(
                 diagnostics,
                 reason,

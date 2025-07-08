@@ -18,7 +18,6 @@ use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
-use wdl_ast::Version;
 use wdl_ast::v1::Ast;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::CommandPart;
@@ -46,12 +45,13 @@ use super::Struct;
 use super::TASK_VAR_NAME;
 use super::Task;
 use super::Workflow;
-use crate::DiagnosticsConfig;
 use crate::SyntaxNodeExt;
 use crate::UNUSED_CALL_RULE_ID;
 use crate::UNUSED_DECL_RULE_ID;
 use crate::UNUSED_IMPORT_RULE_ID;
 use crate::UNUSED_INPUT_RULE_ID;
+use crate::config::Config;
+use crate::config::DiagnosticsConfig;
 use crate::diagnostics::Context;
 use crate::diagnostics::Io;
 use crate::diagnostics::call_input_type_mismatch;
@@ -191,11 +191,10 @@ fn sort_scopes(scopes: &mut Vec<Scope>) {
 /// Creates a new document for a V1 AST.
 pub(crate) fn populate_document(
     document: &mut DocumentData,
-    config: DiagnosticsConfig,
+    config: &Config,
     graph: &DocumentGraph,
     index: NodeIndex,
     ast: &Ast,
-    version: &wdl_ast::Version,
 ) {
     assert!(
         matches!(
@@ -211,7 +210,7 @@ pub(crate) fn populate_document(
     for item in ast.items() {
         match item {
             DocumentItem::Import(import) => {
-                add_namespace(document, graph, &import, index, version);
+                add_namespace(document, graph, &import, index);
             }
             DocumentItem::Struct(s) => {
                 add_struct(document, &s);
@@ -256,10 +255,9 @@ fn add_namespace(
     graph: &DocumentGraph,
     import: &ImportStatement,
     importer_index: NodeIndex,
-    importer_version: &Version,
 ) {
     // Start by resolving the import to its document
-    let (uri, imported) = match resolve_import(graph, import, importer_index, importer_version) {
+    let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
         Err(Some(diagnostic)) => {
             document.diagnostics.push(diagnostic);
@@ -514,7 +512,7 @@ fn create_output_type_map(
 }
 
 /// Adds a task to the document.
-fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: &TaskDefinition) {
+fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefinition) {
     /// Helper function for creating a scope for a task section.
     fn create_section_scope(
         version: Option<SupportedVersion>,
@@ -604,7 +602,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
                 }
 
                 // Check for unused input
-                if let Some(severity) = config.unused_input {
+                if let Some(severity) = config.diagnostics_config().unused_input {
                     if decl.env().is_none() {
                         // For any input that isn't an environment variable, check to see if there's
                         // a single implicit dependency edge; if so, it might be unused
@@ -640,7 +638,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
                 }
 
                 // Check for unused declaration
-                if let Some(severity) = config.unused_declaration {
+                if let Some(severity) = config.diagnostics_config().unused_declaration {
                     let name = decl.name();
                     // Don't warn for environment variables as they are always implicitly used
                     if decl.env().is_none()
@@ -696,7 +694,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
                 let mut context = EvaluationContext::new(
                     document,
                     ScopeRef::new(&task.scopes, scope_index),
-                    config,
+                    config.clone(),
                 );
                 let mut evaluator = ExprTypeEvaluator::new(&mut context);
                 for part in section.parts() {
@@ -710,7 +708,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
                 let mut context = EvaluationContext::new(
                     document,
                     ScopeRef::new(&task.scopes, ScopeIndex(0)),
-                    config,
+                    config.clone(),
                 );
                 let mut evaluator = ExprTypeEvaluator::new(&mut context);
                 for item in section.items() {
@@ -722,7 +720,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
                 let mut context = EvaluationContext::new(
                     document,
                     ScopeRef::new(&task.scopes, ScopeIndex(0)),
-                    config,
+                    config.clone(),
                 );
                 let mut evaluator = ExprTypeEvaluator::new(&mut context);
                 for item in section.items() {
@@ -734,7 +732,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
                 let mut context = EvaluationContext::new_for_task(
                     document,
                     ScopeRef::new(&task.scopes, ScopeIndex(0)),
-                    config,
+                    config.clone(),
                     &task,
                 );
                 let mut evaluator = ExprTypeEvaluator::new(&mut context);
@@ -752,7 +750,7 @@ fn add_task(config: DiagnosticsConfig, document: &mut DocumentData, definition: 
 
 /// Adds a declaration to a scope.
 fn add_decl(
-    config: DiagnosticsConfig,
+    config: &Config,
     document: &mut DocumentData,
     mut scope: ScopeRefMut<'_>,
     decl: &Decl,
@@ -828,11 +826,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
 }
 
 /// Finishes populating a workflow.
-fn populate_workflow(
-    config: DiagnosticsConfig,
-    document: &mut DocumentData,
-    workflow: &WorkflowDefinition,
-) {
+fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &WorkflowDefinition) {
     // Populate type maps for the workflow's inputs and outputs
     let inputs = match workflow.input() {
         Some(section) => create_input_type_map(document, section.declarations()),
@@ -873,7 +867,7 @@ fn populate_workflow(
                 }
 
                 // Check for unused input
-                if let Some(severity) = config.unused_input {
+                if let Some(severity) = config.diagnostics_config().unused_input {
                     let name = decl.name();
                     if graph
                         .edges_directed(index, Direction::Outgoing)
@@ -910,7 +904,7 @@ fn populate_workflow(
                 }
 
                 // Check for unused declaration
-                if let Some(severity) = config.unused_declaration {
+                if let Some(severity) = config.diagnostics_config().unused_declaration {
                     let name = decl.name();
                     if graph
                         .edges_directed(index, Direction::Outgoing)
@@ -993,7 +987,7 @@ fn populate_workflow(
                 );
 
                 // Check for unused call
-                if let Some(severity) = config.unused_call {
+                if let Some(severity) = config.diagnostics_config().unused_call {
                     if graph
                         .edges_directed(index, Direction::Outgoing)
                         .next()
@@ -1052,7 +1046,7 @@ fn populate_workflow(
 
 /// Adds a conditional statement to the current scope.
 fn add_conditional_statement(
-    config: DiagnosticsConfig,
+    config: &Config,
     document: &mut DocumentData,
     scopes: &mut Vec<Scope>,
     parent: ScopeIndex,
@@ -1072,7 +1066,8 @@ fn add_conditional_statement(
 
     // Evaluate the statement's expression; it is expected to be a boolean
     let expr = statement.expr();
-    let mut context = EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config);
+    let mut context =
+        EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
     let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
 
@@ -1085,7 +1080,7 @@ fn add_conditional_statement(
 
 /// Adds a scatter statement to the current scope.
 fn add_scatter_statement(
-    config: DiagnosticsConfig,
+    config: &Config,
     document: &mut DocumentData,
     scopes: &mut Vec<Scope>,
     parent: ScopeIndex,
@@ -1105,7 +1100,8 @@ fn add_scatter_statement(
 
     // Evaluate the statement expression; it is expected to be an array
     let expr = statement.expr();
-    let mut context = EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config);
+    let mut context =
+        EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
     let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
     let element_ty = match ty {
@@ -1126,7 +1122,7 @@ fn add_scatter_statement(
 
 /// Adds a call statement to the current scope.
 fn add_call_statement(
-    config: DiagnosticsConfig,
+    config: &Config,
     document: &mut DocumentData,
     workflow_name: &str,
     mut scope: ScopeRefMut<'_>,
@@ -1343,7 +1339,6 @@ fn resolve_import(
     graph: &DocumentGraph,
     stmt: &ImportStatement,
     importer_index: NodeIndex,
-    importer_version: &Version,
 ) -> Result<(Arc<Url>, Document), Option<Diagnostic>> {
     let uri = stmt.uri();
     let span = uri.span();
@@ -1356,55 +1351,75 @@ fn resolve_import(
         }
     };
 
-    let uri = match graph.get(importer_index).uri().join(text.text()) {
+    let importer_node = graph.get(importer_index);
+    let uri = match importer_node.uri().join(text.text()) {
         Ok(uri) => uri,
         Err(e) => return Err(Some(invalid_relative_import(&e, span))),
     };
 
-    let import_index = graph.get_index(&uri).expect("missing import node in graph");
-    let import_node = graph.get(import_index);
+    let imported_index = graph.get_index(&uri).expect("missing import node in graph");
+    let imported_node = graph.get(imported_index);
 
     // Check for an import cycle to report
-    if graph.contains_cycle(importer_index, import_index) {
+    if graph.contains_cycle(importer_index, imported_index) {
         return Err(Some(import_cycle(span)));
     }
 
     // Check for a failure to load the import
-    if let ParseState::Error(e) = import_node.parse_state() {
+    if let ParseState::Error(e) = imported_node.parse_state() {
         return Err(Some(import_failure(text.text(), e, span)));
     }
 
     // Check for analysis error
-    if let Some(e) = import_node.analysis_error() {
+    if let Some(e) = imported_node.analysis_error() {
         return Err(Some(import_failure(text.text(), e, span)));
     }
 
     // Ensure the import has a matching WDL version
-    let import_root = import_node.root().expect("import should have parsed");
-    let import_document = import_node
+    let imported_document = imported_node
         .document()
         .cloned()
         .expect("import should have been analyzed");
 
-    // Check for compatible imports
-    match import_root.version_statement() {
-        Some(stmt) => {
-            let our_version = stmt.version();
-            if matches!((our_version.text().split('.').next(), importer_version.text().split('.').next()), (Some(our_major), Some(their_major)) if our_major != their_major)
-            {
+    let Some(imported_version) = imported_document.version() else {
+        match imported_document.root().version_statement() {
+            // The import's version statement is flat-out missing
+            None => return Err(Some(import_missing_version(span))),
+            // The import has a version statement, but it's not a supported version and no fallback
+            // is configured
+            Some(imported_version_stmt) => {
                 return Err(Some(incompatible_import(
-                    our_version.text(),
+                    imported_version_stmt.version().text(),
                     span,
-                    importer_version,
+                    &importer_node
+                        .root()
+                        .and_then(|root| root.version_statement())
+                        .expect("importer should have a version statement")
+                        .version(),
                 )));
             }
         }
-        None => {
-            return Err(Some(import_missing_version(span)));
-        }
+    };
+    let ParseState::Parsed {
+        wdl_version: Some(importer_version),
+        ..
+    } = importer_node.parse_state()
+    else {
+        panic!("importer should have a parsed version");
+    };
+    if !imported_version.has_same_major_version(*importer_version) {
+        return Err(Some(incompatible_import(
+            &imported_version.to_string(),
+            span,
+            &importer_node
+                .root()
+                .and_then(|root| root.version_statement())
+                .expect("importer should have a version statement")
+                .version(),
+        )));
     }
 
-    Ok((import_node.uri().clone(), import_document))
+    Ok((imported_node.uri().clone(), imported_document))
 }
 
 /// Sets the struct types in the document.
@@ -1533,8 +1548,8 @@ struct EvaluationContext<'a> {
     document: &'a mut DocumentData,
     /// The current evaluation scope.
     scope: ScopeRef<'a>,
-    /// The diagnostics configuration to use for expression evaluation.
-    config: DiagnosticsConfig,
+    /// The configuration to use for expression evaluation.
+    config: Config,
     /// The context of the task being evaluated.
     ///
     /// This is only `Some` when evaluating a task's `hints` section.`
@@ -1543,11 +1558,7 @@ struct EvaluationContext<'a> {
 
 impl<'a> EvaluationContext<'a> {
     /// Constructs a new expression type evaluation context.
-    pub fn new(
-        document: &'a mut DocumentData,
-        scope: ScopeRef<'a>,
-        config: DiagnosticsConfig,
-    ) -> Self {
+    pub fn new(document: &'a mut DocumentData, scope: ScopeRef<'a>, config: Config) -> Self {
         Self {
             document,
             scope,
@@ -1563,7 +1574,7 @@ impl<'a> EvaluationContext<'a> {
     pub fn new_for_task(
         document: &'a mut DocumentData,
         scope: ScopeRef<'a>,
-        config: DiagnosticsConfig,
+        config: Config,
         task: &'a Task,
     ) -> Self {
         Self {
@@ -1606,7 +1617,7 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     }
 
     fn diagnostics_config(&self) -> DiagnosticsConfig {
-        self.config
+        *self.config.diagnostics_config()
     }
 
     fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
@@ -1616,14 +1627,14 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
 /// Performs a type check of an expression.
 fn type_check_expr(
-    config: DiagnosticsConfig,
+    config: &Config,
     document: &mut DocumentData,
     scope: ScopeRef<'_>,
     expr: &Expr,
     expected: &Type,
     expected_span: Span,
 ) {
-    let mut context = EvaluationContext::new(document, scope, config);
+    let mut context = EvaluationContext::new(document, scope, config.clone());
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
     let actual = evaluator.evaluate_expr(expr).unwrap_or(Type::Union);
 

@@ -2,5 +2,5 @@
 
 version 100000.0
 
-task test {
+workflow test {
 }
