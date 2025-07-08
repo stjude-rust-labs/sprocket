@@ -114,6 +114,11 @@ pub struct Args {
     #[arg(long, group = "action")]
     pub update: bool,
 
+    #[arg(long)]
+    /// Whether to keep temporary directories containing the cloned repositories
+    /// after execution.
+    pub keep: bool,
+
     /// Displays warnings as part of the report output.
     #[arg(long)]
     pub show_warnings: bool,
@@ -160,7 +165,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
         }
     };
 
-    let mut work_dir = WorkDir::default();
+    let mut work_dir = WorkDir::new(args.keep);
 
     if args.update {
         info!("updating repository commit hashes.");

@@ -21,15 +21,18 @@ pub struct WorkDir {
 /// Create a default `WorkDir`.
 impl Default for WorkDir {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
 
 impl WorkDir {
     /// Create a new `WorkDir`.
-    pub fn new() -> Self {
+    pub fn new(keep: bool) -> Self {
         Self {
-            root: TempDir::new().expect("failed to create temporary directory"),
+            root: tempfile::Builder::new()
+                .disable_cleanup(keep)
+                .tempdir()
+                .expect("failed to create temporary directory"),
             repositories: IndexMap::new(),
         }
     }

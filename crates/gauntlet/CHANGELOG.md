@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `--shellcheck` flag to run shellcheck lints in arena mode ([#264](https://github.com/stjude-rust-labs/wdl/pull/264))
 * Full analysis instead of basic validation ([#207](https://github.com/stjude-rust-labs/wdl/pull/172))
 * Checkout submodules ([#207](https://github.com/stjude-rust-labs/wdl/pull/172))
+* `--keep` flag to persist temporary directories containing cloned repositories after `gauntlet` exits ([#520](https://github.com/stjude-rust-labs/wdl/pull/520))
 
 #### Changed
 
@@ -23,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 * Added diagnostic message normalization to ensure consistent behavior across platforms ([#385](https://github.com/stjude-rust-labs/wdl/issues/385))
+* Increased the fetch depth for repositories from 25 to 100 ([#520](https://github.com/stjude-rust-labs/wdl/pull/520))
+* Fixed a mismatch in the hashes checked out for submodules ([#520](https://github.com/stjude-rust-labs/wdl/pull/520))
 
 ## 0.5.0 - 08-22-2024
 

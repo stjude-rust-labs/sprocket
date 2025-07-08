@@ -10,6 +10,7 @@ use git2::build::RepoBuilder;
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::info;
+use tracing::trace;
 
 pub mod identifier;
 pub mod work_dir;
@@ -18,7 +19,7 @@ pub use identifier::Identifier;
 pub use work_dir::WorkDir;
 
 /// Fetch up to this many commits when cloning a repository.
-const FETCH_DEPTH: i32 = 25;
+const FETCH_DEPTH: i32 = 100;
 
 /// A byte slice that can be converted to a [`git2::Oid`].
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
@@ -101,7 +102,7 @@ impl Repository {
                         git2::Oid::from_bytes(&hash.0).expect("failed to convert hash"),
                         Some(git2::ObjectType::Commit),
                     )
-                    .expect("failed to find object");
+                    .expect("failed to find object; perhaps `FETCH_DEPTH` needs to be increased?");
                 git_repo
                     .set_head_detached(obj.id())
                     .expect("failed to set head detached");
@@ -146,6 +147,7 @@ impl Repository {
             .join(self.identifier.name());
 
         std::fs::create_dir_all(&repo_root).expect("failed to create repository root directory");
+        trace!(repo_root = %repo_root.display(), "created repo root");
 
         let git_repo = match git2::Repository::open(&repo_root) {
             Ok(repo) => {
@@ -173,15 +175,12 @@ impl Repository {
                         git2::Oid::from_bytes(&hash.0).expect("failed to convert hash"),
                         Some(git2::ObjectType::Commit),
                     )
-                    .expect("failed to find object");
-                git_repo
-                    .set_head_detached(obj.id())
-                    .expect("failed to set head detached");
+                    .expect("failed to find object; perhaps `FETCH_DEPTH` needs to be increased?");
                 let mut co = git2::build::CheckoutBuilder::new();
                 co.force();
                 git_repo
-                    .checkout_head(Some(&mut co))
-                    .expect("failed to checkout head");
+                    .checkout_tree(&obj, Some(&mut co))
+                    .expect("failed to checkout tree");
             }
             None => {
                 unreachable!("commit hash must be set");
@@ -200,6 +199,10 @@ impl Repository {
             submodule
                 .update(true, Some(&mut opts))
                 .expect("failed to update submodule");
+
+            // TODO ACF 2025-07-08: this does not account for recursive
+            // submodules, though with our current set of repos that
+            // does not cause us problems in practice.
         }
 
         repo_root
