@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* The `ShellCheck` lint rule has been revisited to reduce false positives ([wdl:#457](https://github.com/stjude-rust-labs/wdl/pull/457)).
 * Fixed unhelpful error message in `sprocket validate` ([#133](https://github.com/stjude-rust-labs/sprocket/pull/133)).
 * Fixed run configuration to not use a default configuration when there is an
   error in the flattened engine configuration fields ([#124](https://github.com/stjude-rust-labs/sprocket/pull/124)).
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* The LSP now supports "falling back" to interpresting WDL documents as v1.2 when the version is unrecognized (e.g. `version development`) ([wdl:#475](https://github.com/stjude-rust-labs/wdl/pull/475)).
 * `check`, `lint`, and `format` will now default to the CWD if no `source` argument is provided ([#137](https://github.com/stjude-rust-labs/sprocket/pull/137)).
 * Added `dev` subcommand to contain developmental and experimental subcommands ([#120](https://github.com/stjude-rust-labs/sprocket/pull/120)).
 * Added `dev lock` subcommand to store container manifest checksums ([#120](https://github.com/stjude-rust-labs/sprocket/pull/120)).
