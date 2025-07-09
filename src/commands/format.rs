@@ -16,13 +16,13 @@ use serde::Serialize;
 use walkdir::WalkDir;
 use wdl::ast::Document;
 use wdl::ast::Node;
+use wdl::cli::analysis::Source;
 use wdl::format::Config;
 use wdl::format::Formatter;
 use wdl::format::config::Builder;
 use wdl::format::config::Indent;
 use wdl::format::config::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
-use wdl::cli::analysis::Source;
 
 use crate::Mode;
 use crate::emit_diagnostics;
@@ -39,8 +39,8 @@ use crate::emit_diagnostics;
                   formatted and print the diff if not."
 )]
 pub struct Args {
-    /// The path to the local WDL document or directory containing WDL documents to
-    /// format or check.
+    /// The path to the local WDL document or directory containing WDL documents
+    /// to format or check.
     #[arg(value_name = "PATH or DIR")]
     pub source: Option<Source>,
 
@@ -209,10 +209,7 @@ pub fn format(args: Args) -> Result<()> {
     if let Source::Directory(path) = source {
         for entry in WalkDir::new(&path) {
             let entry = entry.with_context(|| {
-                format!(
-                    "failed to walk directory `{path}`",
-                    path = path.display()
-                )
+                format!("failed to walk directory `{path}`", path = path.display())
             })?;
             let path = entry.path();
             if !path.is_file() || path.extension().and_then(OsStr::to_str) != Some("wdl") {

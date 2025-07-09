@@ -94,9 +94,7 @@ pub async fn doc(args: Args) -> Result<()> {
         })?;
     }
 
-    let docs_dir = args
-        .output
-        .unwrap_or(workspace.join(DEFAULT_OUTPUT_DIR));
+    let docs_dir = args.output.unwrap_or(workspace.join(DEFAULT_OUTPUT_DIR));
 
     if args.overwrite && docs_dir.exists() {
         std::fs::remove_dir_all(&docs_dir)?;
