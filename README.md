@@ -62,12 +62,22 @@ The following are high-level guiding principles of the Sprocket project.
 
 ### Installation
 
-Before you can install `sprocket`, you'll need to install
-[Rust](https://www.rust-lang.org/). We recommend using [rustup](https://rustup.rs/) to accomplish this. Once Rust is installed, you can install the latest version of `sprocket` by
-running the following command.
+Check the [GitHub releases page](https://github.com/stjude-rust-labs/sprocket/releases)
+to see if Sprocket is available for your platform.
+
+Note that the prebuilt Sprocket for Linux may not work on every distribution
+due to library dependencies.
+
+If Sprocket is not available for your platform or architecture, you may install
+it with `cargo` from a [Rust](https://www.rust-lang.org/) toolchain.
+
+We recommend using [rustup](https://rustup.rs/) to install a Rust toolchain.
+
+Once Rust is installed, you can install the latest version of Sprocket by
+running the following command:
 
 ```bash
-cargo install sprocket
+cargo install sprocket --locked
 ```
 
 ### Homebrew
