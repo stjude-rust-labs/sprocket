@@ -25,7 +25,7 @@ use wdl::cli::analysis::Source;
 /// Arguments for the `inputs` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// A source WDL file or URL.
+    /// A source WDL document or URL.
     #[arg(value_name = "PATH or URL")]
     pub source: Source,
 

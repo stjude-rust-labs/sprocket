@@ -5,7 +5,7 @@ Usage: sprocket explain [RULE]
     sprocket explain --definitions
 
 Arguments:
-  [RULE]  The name of the rule to explain [possible values: CallInputSpacing, CommandSectionIndentation, CommentWhitespace, ConciseInput, ConsistentNewlines, ContainerUri, DeclarationName, DeprecatedObject, DeprecatedPlaceholder, DoubleQuotes, ElementSpacing, EndingNewline, ExpectedRuntimeKeys, ExpressionSpacing, HereDocCommands, ImportPlacement, ImportSorted, ImportWhitespace, InputName, InputSorted, KnownRules, LineWidth, LintDirectiveFormatted, LintDirectiveValid, MatchingOutputMeta, MetaDescription, MetaKeyValueFormatting, MetaSections, OutputName, OutputSection, ParameterMetaMatched, PascalCase, PreambleCommentPlacement, PreambleFormatted, RedundantNone, RequirementsSection, RuntimeSection, SectionOrdering, ShellCheck, SnakeCase, TodoComment, TrailingComma, UnnecessaryFunctionCall, UnusedCall, UnusedDeclaration, UnusedImport, UnusedInput, VersionStatementFormatted, Whitespace]
+  [RULE]  The name of the rule to explain [possible values: CallInputSpacing, CommandSectionIndentation, CommentWhitespace, ConciseInput, ConsistentNewlines, ContainerUri, DeclarationName, DeprecatedObject, DeprecatedPlaceholder, DoubleQuotes, ElementSpacing, EndingNewline, ExpectedRuntimeKeys, ExpressionSpacing, HereDocCommands, ImportPlacement, ImportSorted, ImportWhitespace, InputName, InputSorted, KnownRules, LineWidth, LintDirectiveFormatted, LintDirectiveValid, MatchingOutputMeta, MetaDescription, MetaKeyValueFormatting, MetaSections, OutputName, OutputSection, ParameterMetaMatched, PascalCase, PreambleCommentPlacement, PreambleFormatted, RedundantNone, RequirementsSection, RuntimeSection, SectionOrdering, ShellCheck, SnakeCase, TodoComment, TrailingComma, UnnecessaryFunctionCall, UnusedCall, UnusedDeclaration, UnusedImport, UnusedInput, UsingFallbackVersion, VersionStatementFormatted, Whitespace]
 
 Options:
   -t, --tag <TAG>       List all rules with the given tag [possible values: Clarity, Completeness, Correctness, Deprecated, Naming, Portability, Sorting, Spacing, Style]
@@ -65,6 +65,7 @@ Available rules:
   - UnusedDeclaration
   - UnusedImport
   - UnusedInput
+  - UsingFallbackVersion
   - VersionStatementFormatted
   - Whitespace
 

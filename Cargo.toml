@@ -1,6 +1,6 @@
 [package]
 name = "sprocket"
-version = "0.13.0"
+version = "0.14.0"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors = ["The Sprocket project contributors"]
 license = "MIT OR Apache-2.0"
@@ -41,7 +41,7 @@ tracing-indicatif = "0.3.9"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 url = "2.5.4"
 walkdir = "2.5.0"
-wdl = { version = "0.14.0", features = ["cli", "codespan", "engine", "lsp", "doc"], git = "https://github.com/stjude-rust-labs/wdl", rev = "01c89787aca4a22773973562a6810f2200a2e30b" }
+wdl = { version = "0.15.0", features = ["cli", "codespan", "engine", "lsp", "doc"] }
 
 
 [dev-dependencies]

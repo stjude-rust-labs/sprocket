@@ -6,6 +6,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
+use wdl::cli::analysis::Source;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
 use wdl::doc::document_workspace;
@@ -16,7 +17,7 @@ use wdl::doc::install_theme;
 #[command(author, version, about)]
 pub struct Args {
     /// Path to the local WDL workspace to document.
-    pub workspace: PathBuf,
+    pub workspace: Option<Source>,
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
     #[arg(long, value_name = "MARKDOWN FILE")]
     pub homepage: Option<PathBuf>,
@@ -56,6 +57,11 @@ const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
 pub async fn doc(args: Args) -> Result<()> {
+    let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
+        workspace
+    } else {
+        bail!("`workspace` must be a local directory for the `doc` command")
+    };
     if args.install {
         if let Some(theme_path) = &args.theme {
             install_theme(theme_path).with_context(|| {
@@ -81,16 +87,14 @@ pub async fn doc(args: Args) -> Result<()> {
         })?;
     }
 
-    let docs_dir = args
-        .output
-        .unwrap_or(args.workspace.join(DEFAULT_OUTPUT_DIR));
+    let docs_dir = args.output.unwrap_or(workspace.join(DEFAULT_OUTPUT_DIR));
 
     if args.overwrite && docs_dir.exists() {
         std::fs::remove_dir_all(&docs_dir)?;
     }
 
     document_workspace(
-        &args.workspace,
+        &workspace,
         &docs_dir,
         args.homepage.clone(),
         args.theme.clone(),
@@ -99,7 +103,7 @@ pub async fn doc(args: Args) -> Result<()> {
     .with_context(|| {
         format!(
             "failed to generate documentation for workspace at `{}`",
-            args.workspace.display()
+            workspace.display()
         )
     })?;
 

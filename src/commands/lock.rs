@@ -23,7 +23,7 @@ const LOCK_FILE: &str = "sprocket.lock";
 /// Arguments for the `lock` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// A source WDL file, directory, or URL.
+    /// A source WDL document, directory, or URL.
     #[clap(value_name = "PATH or URL")]
     pub source: Option<Source>,
 
@@ -49,10 +49,7 @@ pub async fn lock(args: Args) -> Result<()> {
         .unwrap_or_else(|| PathBuf::from(std::path::Component::CurDir.as_os_str()))
         .join(LOCK_FILE);
 
-    // TODO: replace with `Default` once that's upstream
-    let s = args.source.unwrap_or(Source::Directory(PathBuf::from(
-        std::path::Component::CurDir.as_os_str(),
-    )));
+    let s = args.source.unwrap_or_default();
     let results = match Analysis::default().add_source(s).run().await {
         Ok(results) => results,
         Err(errors) => {

@@ -34,9 +34,9 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "ammonia"
-version = "4.1.0"
+version = "4.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ada2ee439075a3e70b6992fce18ac4e407cd05aea9ca3f75d2c0b0c20bbb364"
+checksum = "d6b346764dd0814805de8abf899fe03065bcee69bb1a4771c785817e39f3978f"
 dependencies = [
  "cssparser",
  "html5ever",
@@ -490,9 +490,9 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "0.15.11"
+version = "0.15.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "595aae20e65c3be792d05818e8c63025294ac3cb7e200f11459063a352a6ef80"
+checksum = "5b1eb4fb07bc7f012422df02766c7bd5971effb894f573865642f06fa3265440"
 dependencies = [
  "async-trait",
  "convert_case 0.6.0",
@@ -502,7 +502,7 @@ dependencies = [
  "rust-ini",
  "serde",
  "serde_json",
- "toml",
+ "toml 0.9.0",
  "winnow",
  "yaml-rust2",
 ]
@@ -969,7 +969,7 @@ checksum = "8cb01cd46b0cf372153850f4c6c272d9cbea2da513e07538405148f95bd789f3"
 dependencies = [
  "atomic",
  "serde",
- "toml",
+ "toml 0.8.23",
  "uncased",
  "version_check",
 ]
@@ -1290,12 +1290,11 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "html5ever"
-version = "0.31.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "953cbbe631aae7fc0a112702ad5d3aaf09da38beaf45ea84610d6e1c358f569c"
+checksum = "55d958c2f74b664487a2035fe1dadb032c48718a03b63f3ab0b8537db8549ed4"
 dependencies = [
  "log",
- "mac",
  "markup5ever",
  "match_token",
 ]
@@ -1952,9 +1951,9 @@ checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
 name = "markup5ever"
-version = "0.16.2"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e4cd8c02f18a011991a039855480c64d74291c5792fcc160d55d77dc4de4a39"
+checksum = "311fe69c934650f8f19652b3946075f0fc41ad8757dbb68f1ca14e7900ecc1c3"
 dependencies = [
  "log",
  "tendril",
@@ -1963,9 +1962,9 @@ dependencies = [
 
 [[package]]
 name = "match_token"
-version = "0.1.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88a9689d8d44bf9964484516275f5cd4c9b59457a6940c1d5d0ecbb94510a36b"
+checksum = "ac84fd3f360fcc43dc5f5d186f02a94192761a080e8bc58621ad4d12296a58cf"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3197,6 +3196,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_spanned"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40734c41988f7306bb04f0ecf60ec0f3f1caa34290e4e8ea471dcd3346483b83"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_url_params"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3234,7 +3242,20 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+ "serde_with_macros",
  "time",
+]
+
+[[package]]
+name = "serde_with_macros"
+version = "3.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de90945e6565ce0d9a25098082ed4ee4002e047cb59892c318d66821e14bb30f"
+dependencies = [
+ "darling 0.20.11",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
 ]
 
 [[package]]
@@ -3324,7 +3345,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3351,7 +3372,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
- "toml",
+ "toml 0.8.23",
  "tracing",
  "tracing-indicatif",
  "tracing-subscriber",
@@ -3801,9 +3822,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc1beb996b9d83529a9e75c17a1686767d148d70663143c7854d8b4a09ced362"
 dependencies = [
  "serde",
- "serde_spanned",
- "toml_datetime",
+ "serde_spanned 0.6.9",
+ "toml_datetime 0.6.11",
  "toml_edit",
+]
+
+[[package]]
+name = "toml"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f271e09bde39ab52250160a67e88577e0559ad77e9085de6e9051a2c4353f8f8"
+dependencies = [
+ "serde",
+ "serde_spanned 1.0.0",
+ "toml_datetime 0.7.0",
+ "toml_parser",
+ "winnow",
 ]
 
 [[package]]
@@ -3816,6 +3850,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml_datetime"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bade1c3e902f58d73d3f294cd7f20391c1cb2fbcb643b73566bc773971df91e3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "toml_edit"
 version = "0.22.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3823,9 +3866,18 @@ checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
 dependencies = [
  "indexmap 2.10.0",
  "serde",
- "serde_spanned",
- "toml_datetime",
+ "serde_spanned 0.6.9",
+ "toml_datetime 0.6.11",
  "toml_write",
+ "winnow",
+]
+
+[[package]]
+name = "toml_parser"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5c1c469eda89749d2230d8156a5969a69ffe0d6d01200581cdc6110674d293e"
+dependencies = [
  "winnow",
 ]
 
@@ -4340,8 +4392,9 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.14.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=01c89787aca4a22773973562a6810f2200a2e30b#01c89787aca4a22773973562a6810f2200a2e30b"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "243c57e5b8e9ca728a1c2725520fb71b2c99d8f65af699c8ac6ffdc36d57d9fc"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4357,8 +4410,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-analysis"
-version = "0.9.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=01c89787aca4a22773973562a6810f2200a2e30b#01c89787aca4a22773973562a6810f2200a2e30b"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c5256b3608e4d5ec93617cd4319d14ba64cbeff3f8736c1e08e6e07b5417042"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4373,6 +4427,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rowan",
+ "serde",
  "tokio",
  "tracing",
  "url",
@@ -4384,8 +4439,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-ast"
-version = "0.13.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=01c89787aca4a22773973562a6810f2200a2e30b#01c89787aca4a22773973562a6810f2200a2e30b"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b030b82f1df6438707c7354306452e9e5afa4551e3552c25d1b0e2cb3bda6908"
 dependencies = [
  "macropol",
  "paste",
@@ -4397,8 +4453,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-cli"
-version = "0.2.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=01c89787aca4a22773973562a6810f2200a2e30b#01c89787aca4a22773973562a6810f2200a2e30b"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8b3325b70978fed4e4c53f50a33f8b626ea02f517bdbad1db7bc1f8912f370b"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4423,8 +4480,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-doc"
-version = "0.4.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=01c89787aca4a22773973562a6810f2200a2e30b#01c89787aca4a22773973562a6810f2200a2e30b"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b63c6891eac607133042c1d32831025f39d4e026c63503c90f304aa633e6ec2"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4442,8 +4500,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-engine"
-version = "0.4.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=01c89787aca4a22773973562a6810f2200a2e30b#01c89787aca4a22773973562a6810f2200a2e30b"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "507225fa21411b2089fb1f8ce074c17511115246e5b923015a977b46108c67d0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4482,8 +4541,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-format"
-version = "0.7.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=01c89787aca4a22773973562a6810f2200a2e30b#01c89787aca4a22773973562a6810f2200a2e30b"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d8207f2bbb662d4c5901fd263dc85415c88f39f6fd1baee9e1a622370e93c87"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4491,19 +4551,23 @@ dependencies = [
 
 [[package]]
 name = "wdl-grammar"
-version = "0.13.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=01c89787aca4a22773973562a6810f2200a2e30b#01c89787aca4a22773973562a6810f2200a2e30b"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0aaee7127f7234943f9917720f844ecef4dbda478112435f8bf9128d22c3b49e"
 dependencies = [
  "codespan-reporting",
  "logos",
  "rowan",
+ "serde",
+ "serde_with",
  "strum",
 ]
 
 [[package]]
 name = "wdl-lint"
-version = "0.12.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=01c89787aca4a22773973562a6810f2200a2e30b#01c89787aca4a22773973562a6810f2200a2e30b"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20ca71d42ac63e824091e6d75a5f8ee9977c2a7ab624c74d528bc2be6052938c"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4522,8 +4586,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.9.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?rev=01c89787aca4a22773973562a6810f2200a2e30b#01c89787aca4a22773973562a6810f2200a2e30b"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b289606499bff47165f60bd3d1f22733294ee09ab196e04b6fa39a4dcc8d9105"
 dependencies = [
  "anyhow",
  "indexmap 2.10.0",

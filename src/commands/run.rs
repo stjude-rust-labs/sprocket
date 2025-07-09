@@ -186,6 +186,10 @@ fn progress(kind: ProgressKind<'_>, pb: &tracing::Span, state: &Mutex<State>) {
 
 /// The main function for the `run` subcommand.
 pub async fn run(args: Args) -> Result<()> {
+    if let Source::Directory(_) = args.source {
+        bail!("directory sources are not supported for the `run` command");
+    }
+
     let style = ProgressStyle::with_template(
         "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}",
     )

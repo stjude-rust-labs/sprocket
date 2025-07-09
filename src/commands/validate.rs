@@ -61,6 +61,10 @@ impl Args {
 
 /// The main function for the `validate` subcommand.
 pub async fn validate(args: Args) -> Result<()> {
+    if let Source::Directory(_) = args.source {
+        bail!("directory sources are not supported for the `validate` command");
+    }
+
     let results = match Analysis::default()
         .add_source(args.source.clone())
         .run()
