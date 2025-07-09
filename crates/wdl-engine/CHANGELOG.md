@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.5.0 - 07-09-2025
+
 ### Added
 
 * TES input and outputs now include authentication query parameters ([#466](https://github.com/stjude-rust-labs/wdl/pull/466)).

@@ -14,4 +14,6 @@ The first step in making a release is to run the [`bump` GitHub action](https://
 
 Then the `bump` action will open a PR with the above changes for manual review. Please ensure everything looks good and the CI is passing before merging the PR!
 
-Once the bump PR merges, tag the HEAD commit with `wdl-v{VERSION}` (where `VERSION` matches the latest version in `wdl/Cargo.toml`) and the CI should handle the rest!
+Once the bump PR merges, tag the HEAD commit with `wdl-v{VERSION}` (where `VERSION` matches the latest version in `wdl/Cargo.toml`) and the CI should handle publishing each crate to crates.io.
+
+Next up is making a GitHub release, which should be done manually. TODO (a-frantz): document this

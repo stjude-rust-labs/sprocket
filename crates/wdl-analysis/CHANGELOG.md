@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.10.0 - 07-09-2025
+
 #### Added
 
 * Added support for struct members, struct literals and call inputs in `goto_definition` ([#491](https://github.com/stjude-rust-labs/wdl/pull/491)).

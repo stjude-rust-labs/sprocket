@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.13.0 - 07-09-2025
+
 #### Changed
 
 * `ShellCheck` now has additional logic to suppress erroneous warnings for globbing and word splitting ([#457](https://github.com/stjude-rust-labs/wdl/pull/457)).
