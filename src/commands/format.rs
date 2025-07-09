@@ -4,14 +4,12 @@ use std::ffi::OsStr;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
-use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
-use colored::Colorize;
 use pretty_assertions::StrComparison;
 use serde::Deserialize;
 use serde::Serialize;
@@ -24,6 +22,7 @@ use wdl::format::config::Builder;
 use wdl::format::config::Indent;
 use wdl::format::config::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
+use wdl::cli::analysis::Source;
 
 use crate::Mode;
 use crate::emit_diagnostics;
@@ -40,10 +39,10 @@ use crate::emit_diagnostics;
                   formatted and print the diff if not."
 )]
 pub struct Args {
-    /// The path to the WDL document or a directory containing WDL documents to
-    /// format or check (`-` for STDIN).
+    /// The path to the local WDL document or directory containing WDL documents to
+    /// format or check.
     #[arg(value_name = "PATH or DIR")]
-    pub path: PathBuf,
+    pub source: Option<Source>,
 
     /// Disables color output.
     #[arg(long)]
@@ -138,21 +137,6 @@ fn format_document(
     no_color: bool,
     check_only: bool,
 ) -> Result<usize> {
-    if path.to_str() != Some("-") {
-        let action = if check_only { "checking" } else { "formatting" };
-        println!(
-            "{action_colored} `{path}`",
-            action_colored = if no_color {
-                action.normal()
-            } else {
-                action.green()
-            },
-            path = path.display()
-        );
-    } else if !check_only {
-        bail!("cannot overwrite STDIN");
-    }
-
     let source = read_source(path)?;
     let (document, diagnostics) = Document::parse(&source);
     if !diagnostics.is_empty() {
@@ -198,6 +182,11 @@ fn format_document(
 
 /// Runs the `format` command.
 pub fn format(args: Args) -> Result<()> {
+    if let Some(Source::Remote(_)) = args.source {
+        bail!("remote sources are not supported for the `format` command");
+    }
+
+    let source = args.source.unwrap_or_default();
     let indent = match Indent::try_new(args.with_tabs, args.indentation_size) {
         Ok(indent) => indent,
         Err(e) => bail!("failed to create indentation configuration: {}", e),
@@ -217,12 +206,12 @@ pub fn format(args: Args) -> Result<()> {
         .build();
 
     let mut diagnostics = 0;
-    if args.path.to_str() != Some("-") && args.path.is_dir() {
-        for entry in WalkDir::new(&args.path) {
+    if let Source::Directory(path) = source {
+        for entry in WalkDir::new(&path) {
             let entry = entry.with_context(|| {
                 format!(
                     "failed to walk directory `{path}`",
-                    path = args.path.display()
+                    path = path.display()
                 )
             })?;
             let path = entry.path();
@@ -238,14 +227,16 @@ pub fn format(args: Args) -> Result<()> {
                 args.mode.check,
             )?;
         }
-    } else {
+    } else if let Source::File(path) = source {
         diagnostics += format_document(
             config,
-            &args.path,
+            &path.to_file_path().expect("should be local file path"),
             args.report_mode.unwrap_or_default(),
             args.no_color,
             args.mode.check,
         )?;
+    } else {
+        unreachable!()
     }
 
     if diagnostics > 0 {

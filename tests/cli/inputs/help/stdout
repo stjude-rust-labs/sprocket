@@ -3,7 +3,7 @@ Writes the inputs schema for a WDL document
 Usage: sprocket inputs [OPTIONS] <PATH or URL>
 
 Arguments:
-  <PATH or URL>  A source WDL file or URL
+  <PATH or URL>  A source WDL document or URL
 
 Options:
   -n, --name <NAME>       The name of the task or workflow for which to generate inputs

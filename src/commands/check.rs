@@ -26,7 +26,7 @@ use crate::get_display_config;
 pub struct Common {
     /// A set of source documents as files, directories, or URLs.
     #[clap(value_name = "PATH or URL")]
-    pub sources: Vec<Source>,
+    pub sources: Option<Vec<Source>>,
 
     /// Excepts (ignores) an analysis or lint rule.
     ///
@@ -147,12 +147,18 @@ impl LintArgs {
 
 /// Performs the `check` subcommand.
 pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
-    if args.common.sources.is_empty() {
-        bail!("you must provide at least one source file, directory, or URL");
-    }
+    let sources = if let Some(sources) = args.common.sources {
+        if sources.is_empty() {
+            vec![Source::default()]
+        } else {
+            sources
+        }
+    } else {
+        vec![Source::default()]
+    };
 
     if args.common.suppress_imports {
-        for source in args.common.sources.iter() {
+        for source in sources.iter() {
             if let Source::Directory(dir) = source {
                 bail!(
                     "`--suppress-imports` was specified but the provided inputs contain a \
@@ -164,9 +170,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     }
 
     let show_remote_diagnostics = {
-        let any_remote_sources = args
-            .common
-            .sources
+        let any_remote_sources = sources
             .iter()
             .any(|source| matches!(source, Source::Remote(_)));
 
@@ -183,16 +187,14 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         args.common.no_color,
     )?;
 
-    let provided_source_uris = args
-        .common
-        .sources
+    let provided_source_uris = sources
         .iter()
         .flat_map(|s| s.as_url())
         .cloned()
         .collect::<HashSet<_>>();
 
     let results = match Analysis::default()
-        .extend_sources(args.common.sources)
+        .extend_sources(sources)
         .extend_exceptions(args.common.except)
         .lint(args.lint)
         .run()

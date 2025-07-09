@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* `check`, `lint`, and `format` will now default to the CWD if no `source` argument is provided. 
 * Added `dev` subcommand to contain developmental and experimental subcommands ([#120](https://github.com/stjude-rust-labs/sprocket/pull/120)).
 * Added `dev lock` subcommand to store container manifest checksums ([#120](https://github.com/stjude-rust-labs/sprocket/pull/120)).
 * Added `dev doc` subcommand for documenting WDL workspaces ([#107](https://github.com/stjude-rust-labs/sprocket/pull/107)).
