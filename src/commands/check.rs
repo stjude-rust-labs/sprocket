@@ -26,7 +26,7 @@ use crate::get_display_config;
 pub struct Common {
     /// A set of source documents as files, directories, or URLs.
     #[clap(value_name = "PATH or URL")]
-    pub sources: Option<Vec<Source>>,
+    pub sources: Vec<Source>,
 
     /// Excepts (ignores) an analysis or lint rule.
     ///
@@ -147,15 +147,10 @@ impl LintArgs {
 
 /// Performs the `check` subcommand.
 pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
-    let sources = if let Some(sources) = args.common.sources {
-        if sources.is_empty() {
-            vec![Source::default()]
-        } else {
-            sources
-        }
-    } else {
-        vec![Source::default()]
-    };
+    let mut sources = args.common.sources;
+    if sources.is_empty() {
+        sources.push(Source::default());
+    }
 
     if args.common.suppress_imports {
         for source in sources.iter() {

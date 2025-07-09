@@ -57,7 +57,7 @@ const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
 pub async fn doc(args: Args) -> Result<()> {
-    let workspace = if let Some(Source::Directory(workspace)) = args.workspace.unwrap_or_default() {
+    let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
         workspace
     } else {
         bail!("`workspace` must be a local directory for the `doc` command")
