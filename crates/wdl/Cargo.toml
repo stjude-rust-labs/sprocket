@@ -1,6 +1,6 @@
 [package]
 name = "wdl"
-version = "0.15.0"
+version = "0.15.1"
 authors.workspace = true
 description = "Lexing, parsing, validation, linting, documentation, analysis, and execution for Workflow Description Language (WDL) documents"
 rust-version.workspace = true
@@ -14,7 +14,7 @@ readme = "../README.md"
 [dependencies]
 wdl-analysis = { path = "../wdl-analysis", version = "0.10.0", optional = true }
 wdl-ast = { path = "../wdl-ast", version = "0.14.0", optional = true }
-wdl-cli = { path = "../wdl-cli", version = "0.3.0", optional = true }
+wdl-cli = { path = "../wdl-cli", version = "0.3.1", optional = true }
 wdl-doc = { path = "../wdl-doc", version = "0.5.0", optional = true }
 wdl-engine = { path = "../wdl-engine", version = "0.5.0", optional = true }
 wdl-format = { path = "../wdl-format", version = "0.8.0", optional = true }
