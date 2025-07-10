@@ -4392,9 +4392,9 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "243c57e5b8e9ca728a1c2725520fb71b2c99d8f65af699c8ac6ffdc36d57d9fc"
+checksum = "7d8b3d8b45fa05bc4b5ea636116438e0dac57c8d83450f54bcd6a032cc1ab690"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4453,9 +4453,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-cli"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8b3325b70978fed4e4c53f50a33f8b626ea02f517bdbad1db7bc1f8912f370b"
+checksum = "caf633c709dc0afbc6c42716ad13f32bc4c9fc160099f3f77c26106bc84bb204"
 dependencies = [
  "anyhow",
  "codespan-reporting",
