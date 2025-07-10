@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 
 use serde_json::Value as JsonValue;
 use serde_yaml_ng::Value as YamlValue;
@@ -23,7 +24,7 @@ pub enum Error {
 
     /// An I/O error.
     #[error(transparent)]
-    Io(std::io::Error),
+    Io(#[from] std::io::Error),
 
     /// The input file did not contain a map at the root.
     #[error("input file `{0}` did not contain a map from strings to values at the root")]
@@ -59,33 +60,36 @@ impl InputFile {
     /// - If no recognized extension is found, an [`Error::UnsupportedFileExt`]
     ///   is returned.
     pub fn read<P: AsRef<Path>>(path: P) -> Result<Inputs> {
+        fn map_to_inputs(map: JsonMap, origin: &Path) -> Inputs {
+            let mut inputs = Inputs::default();
+
+            for (key, value) in map.iter() {
+                inputs.insert(key.to_owned(), (origin.to_path_buf(), value.clone()));
+            }
+
+            inputs
+        }
+
         let path = path.as_ref();
 
         if path.is_dir() {
             return Err(Error::InvalidDir(path.to_path_buf()));
         }
 
+        let content: String = std::fs::read_to_string(path)?;
+
+        // Use the absolute path to the file's parent directory as the origin
         // SAFETY: the check above ensures that the path is not a directory,
         // which means that it can't be the root directory, which means that
         // this call to `.parent()` cannot return `None`.
-        let parent = path.parent().unwrap();
-        let content: String = std::fs::read_to_string(path).map_err(Error::Io)?;
-
-        fn map_to_inputs(map: JsonMap, parent: &Path) -> Result<Inputs> {
-            let mut inputs = Inputs::default();
-
-            for (key, value) in map.iter() {
-                inputs.insert(key.to_owned(), (parent.to_path_buf(), value.clone()));
-            }
-
-            Ok(inputs)
-        }
+        let origin = absolute(path)?;
+        let origin = origin.parent().unwrap();
 
         match path.extension().and_then(|ext| ext.to_str()) {
             Some("json") => serde_json::from_str::<JsonValue>(&content)
                 .map_err(Error::from)
                 .and_then(|value| match value {
-                    JsonValue::Object(object) => map_to_inputs(object, parent),
+                    JsonValue::Object(object) => Ok(map_to_inputs(object, origin)),
                     _ => Err(Error::NonMapRoot(path.to_path_buf())),
                 }),
             Some("yml") | Some("yaml") => serde_yaml_ng::from_str::<YamlValue>(&content)
@@ -95,9 +99,8 @@ impl InputFile {
                         // SAFETY: a YAML mapping should always be able to be
                         // transformed to a JSON value.
                         let value = serde_json::to_value(value).unwrap();
-
                         if let JsonValue::Object(map) = value {
-                            return map_to_inputs(map, parent);
+                            return Ok(map_to_inputs(map, origin));
                         }
 
                         // SAFETY: a serde map will always be translated to a

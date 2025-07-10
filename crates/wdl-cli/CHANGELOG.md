@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Use absolute path for the origin of inputs read in from files ([#523](https://github.com/stjude-rust-labs/wdl/pull/523)).
+
 ## 0.3.0 - 07-09-2025
 
 #### Changed
