@@ -1,22 +1,23 @@
 //! CLI Tests
 //!
-//! This tests looks for "sprocket_command" files in the `/tests/cli` directory
-//! These directories can be arbitrarily nested to group similar tests together
+//! This test looks for command files in the `tests/cli` directory to run with
+//! Sprocket.
 //!
-//! Each test can contain the following files (but all are optional)
-//! * `args` - entrypoint of each test, contains a sprocket command that will be
-//!   run (without the sprocket keyword)
-//! * `inputs` - a directory containing the starting files that the test will
-//!   run with.
-//! These are copied to a temp folder, and the command above will be run inside
-//! this temp folder.
-//! * `outputs` - a directory containing the expected ending files that the temp
-//!   folder will
-//! end up with. These often will be a copy of the inputs directory if the
-//! command does not change the input files.
-//! * `stdout` - the expected stdout from the task
-//! * `stderr` - the expected stderr from the task
-//! * `exit_code` - the expected exit code from the task
+//! These directories can be arbitrarily nested to group similar tests together.
+//!
+//! Each test can contain the following files (but all are optional):
+//!   * `args` - entrypoint of each test, contains a sprocket command that will
+//!     be run (without the sprocket keyword).
+//!   * `inputs` - a directory containing the starting files that the test will
+//!     run with. These are copied to a temp folder, and the command above will
+//!     be run inside this temp folder.
+//!   * `outputs` - a directory containing the expected ending files that the
+//!     temp folder will end up with. These often will be a copy of the inputs
+//!     directory if the command does not change the input files.
+//!   * `stdout` - the expected stdout from the task.
+//!   * `stderr` - the expected stderr from the task.
+//!   * `exit_code` - the expected exit code from the task.
+//!
 //! The expected files may be automatically generated or updated by setting the
 //! `BLESS` environment variable when running this test.
 
@@ -71,17 +72,17 @@ async fn run_test(test_path: &Path) -> Result<()> {
     let working_test_directory = setup_working_test_directory(test_path)
         .await
         .context("failed to setup working test directory")?;
-    let command_output = run_sprocket(test_path, &working_test_directory.path())
+    let command_output = run_sprocket(test_path, working_test_directory.path())
         .await
         .context("failed to run sprocket command")?;
-    compare_test_results(test_path, &working_test_directory.path(), &command_output).await
+    compare_test_results(test_path, working_test_directory.path(), &command_output).await
 }
 
 async fn setup_working_test_directory(test_path: &Path) -> Result<TempDir> {
     let inputs_directory = test_path.join("inputs");
     let working_test_directory = TempDir::new().context("failed to create temp directory")?;
     if inputs_directory.exists() {
-        recursive_copy(&inputs_directory, &working_test_directory.path())
+        recursive_copy(&inputs_directory, working_test_directory.path())
             .await
             .context("failed to copy input files to temp directory")?;
     }
@@ -92,14 +93,14 @@ async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
     if !target.exists() {
         fs::create_dir_all(target)
             .await
-            .context(format!("failed to create target directory {:?}", target))
-            .context(format!("failed to create base directory at {:?}", target))?;
+            .context(format!("failed to create target directory {target:?}"))
+            .context(format!("failed to create base directory at {target:?}"))?;
     }
-    for entry in WalkDir::new(&source).into_iter() {
+    for entry in WalkDir::new(source).into_iter() {
         let entry = entry?;
         let from = entry.path();
         let normalized_relative_path = from
-            .strip_prefix(&source)
+            .strip_prefix(source)
             .context("failed to strip path prefix from source")?;
         let to = target.join(normalized_relative_path);
         if entry.file_type().is_dir() {
@@ -162,8 +163,8 @@ fn normalize_string(input: &str) -> String {
 
 async fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
     let result = fs::read_to_string(expected_path).await;
-    let expected = result.context(format!("failed to read result file {:?}", expected_path))?;
-    if normalize_string(&expected) != normalize_string(&actual.to_string()) {
+    let expected = result.context(format!("failed to read result file {expected_path:?}"))?;
+    if normalize_string(&expected) != normalize_string(actual) {
         Err(anyhow!(
             "result from `{}` is not as expected: \n{}",
             expected_path.display(),
@@ -177,14 +178,14 @@ async fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
 async fn compare_files(expected_path: &Path, actual_path: &Path) -> Result<()> {
     let actual = fs::read_to_string(actual_path)
         .await
-        .context(format!("failed to read actual file {:?}", actual_path))?;
+        .context(format!("failed to read actual file {actual_path:?}"))?;
     compare_results(expected_path, &actual).await
 }
 
 fn build_relative_path_list(path: &Path) -> Result<Vec<PathBuf>> {
     let mut path_list = Vec::new();
     if path.exists() {
-        for entry in WalkDir::new(&path).into_iter() {
+        for entry in WalkDir::new(path).into_iter() {
             let entry = entry?;
             let normalized_relative_path = entry
                 .path()
@@ -199,20 +200,17 @@ fn build_relative_path_list(path: &Path) -> Result<Vec<PathBuf>> {
     Ok(path_list)
 }
 
-fn get_paths_only_owned_by_left_side(left: &Vec<PathBuf>, right: &Vec<PathBuf>) -> Vec<PathBuf> {
+fn get_paths_only_owned_by_left_side(left: &[PathBuf], right: &[PathBuf]) -> Vec<PathBuf> {
     left.iter()
-        .filter(|entry| !right.contains(entry).clone())
-        .map(|entry| entry.clone())
+        .filter(|entry| !right.contains(entry))
+        .cloned()
         .collect()
 }
 
-fn get_paths_shared_by_left_and_right_sides(
-    left: &Vec<PathBuf>,
-    right: &Vec<PathBuf>,
-) -> Vec<PathBuf> {
+fn get_paths_shared_by_left_and_right_sides(left: &[PathBuf], right: &[PathBuf]) -> Vec<PathBuf> {
     left.iter()
-        .filter(|entry| right.contains(entry).clone())
-        .map(|entry| entry.clone())
+        .filter(|entry| right.contains(entry))
+        .cloned()
         .collect()
 }
 
