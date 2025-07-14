@@ -494,7 +494,7 @@ impl From<CallType> for Type {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompoundType {
     /// The type is an `Array`.
-    Array(Arc<ArrayType>),
+    Array(ArrayType),
     /// The type is a `Pair`.
     Pair(Arc<PairType>),
     /// The type is a `Map`.
@@ -647,7 +647,7 @@ impl Coercible for CompoundType {
 
 impl From<ArrayType> for CompoundType {
     fn from(value: ArrayType) -> Self {
-        Self::Array(value.into())
+        Self::Array(value)
     }
 }
 
@@ -673,11 +673,8 @@ impl From<StructType> for CompoundType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArrayType {
     /// The element type of the array.
-    element_type: Type,
+    element_type: Arc<Type>,
     /// Whether or not the array type is non-empty.
-    ///
-    /// This is `None` for literal arrays so that the array may coerce to both
-    /// empty and non-empty types.
     non_empty: bool,
 }
 
@@ -685,7 +682,7 @@ impl ArrayType {
     /// Constructs a new array type.
     pub fn new(element_type: impl Into<Type>) -> Self {
         Self {
-            element_type: element_type.into(),
+            element_type: Arc::new(element_type.into()),
             non_empty: false,
         }
     }
@@ -693,7 +690,7 @@ impl ArrayType {
     /// Constructs a new non-empty array type.
     pub fn non_empty(element_type: impl Into<Type>) -> Self {
         Self {
-            element_type: element_type.into(),
+            element_type: Arc::new(element_type.into()),
             non_empty: true,
         }
     }
@@ -706,6 +703,14 @@ impl ArrayType {
     /// Determines if the array type is non-empty.
     pub fn is_non_empty(&self) -> bool {
         self.non_empty
+    }
+
+    /// Consumes the array type and removes the non-empty (`+`) qualifier.
+    pub fn unqualified(self) -> ArrayType {
+        Self {
+            element_type: self.element_type,
+            non_empty: false,
+        }
     }
 }
 
@@ -723,6 +728,7 @@ impl fmt::Display for ArrayType {
 
 impl Coercible for ArrayType {
     fn is_coercible_to(&self, target: &Self) -> bool {
+        // Note: non-empty constraints are enforced at runtime and are not checked here.
         self.element_type.is_coercible_to(&target.element_type)
     }
 }

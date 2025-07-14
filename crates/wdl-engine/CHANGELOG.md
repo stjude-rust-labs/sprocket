@@ -7,17 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Fixed a panic that may occur in array and map literal evaluation ([#529](https://github.com/stjude-rust-labs/wdl/pull/529)).
+
 ## 0.5.0 - 07-09-2025
 
-### Added
+#### Added
 
 * TES input and outputs now include authentication query parameters ([#466](https://github.com/stjude-rust-labs/wdl/pull/466)).
 
-### Fixed
+#### Fixed
 
 * Fixed guest paths for redirected stdio for both the Docker and TES backends ([#470](https://github.com/stjude-rust-labs/wdl/pull/470)).
 
-### Changed
+#### Changed
 
 * Backend configuration has changed to allow multiple backends to be defined ([#469](https://github.com/stjude-rust-labs/wdl/pull/469)).
 

@@ -504,11 +504,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                 // Ensure the remaining element types share a common type
                 for expr in elements {
-                    let value = self.evaluate_expr(&expr).await?;
+                    let mut value = self.evaluate_expr(&expr).await?;
                     let actual = value.ty();
 
                     match expected.common_type(&actual) {
                         Some(ty) => {
+                            value = value.coerce(&ty).map_err(|e| {
+                                runtime_type_mismatch(e, &ty, expected_span, &actual, expr.span())
+                            })?;
                             expected = ty;
                             expected_span = expr.span();
                         }
@@ -581,13 +584,22 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 // Ensure the remaining items types share common types
                 for item in items {
                     let (key, value) = item.key_value();
-                    let actual_key = self.evaluate_expr(&key).await?;
+                    let mut actual_key = self.evaluate_expr(&key).await?;
                     let actual_key_ty = actual_key.ty();
-                    let actual_value = self.evaluate_expr(&value).await?;
+                    let mut actual_value = self.evaluate_expr(&value).await?;
                     let actual_value_ty = actual_value.ty();
 
                     match expected_key_ty.common_type(&actual_key_ty) {
                         Some(ty) => {
+                            actual_key = actual_key.coerce(&ty).map_err(|e| {
+                                runtime_type_mismatch(
+                                    e,
+                                    &ty,
+                                    expected_key_span,
+                                    &actual_key_ty,
+                                    key.span(),
+                                )
+                            })?;
                             expected_key_ty = ty;
                             expected_key_span = key.span();
                         }
@@ -604,6 +616,15 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                     match expected_value_ty.common_type(&actual_value_ty) {
                         Some(ty) => {
+                            actual_value = actual_value.coerce(&ty).map_err(|e| {
+                                runtime_type_mismatch(
+                                    e,
+                                    &ty,
+                                    expected_value_span,
+                                    &actual_value_ty,
+                                    value.span(),
+                                )
+                            })?;
                             expected_value_ty = ty;
                             expected_value_span = value.span();
                         }
@@ -618,13 +639,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
                     }
 
-                    let key = match actual_key {
+                    let actual_key = match actual_key {
                         Value::None => None,
                         Value::Primitive(key) => Some(key),
                         _ => panic!("the key type is not primitive, but had a common type"),
                     };
 
-                    elements.push((key, actual_value));
+                    elements.push((actual_key, actual_value));
                 }
 
                 (expected_key_ty, expected_value_ty, elements)

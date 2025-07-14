@@ -511,26 +511,6 @@ impl Value {
         }
     }
 
-    /// Creates a clone of the value, but makes the type required.
-    ///
-    /// This only affects compound values that internally store their type.
-    pub(crate) fn clone_as_required(&self) -> Self {
-        match self {
-            Self::Compound(v) => Self::Compound(v.clone_as_required()),
-            _ => self.clone(),
-        }
-    }
-
-    /// Creates a clone of the value, but makes the type optional.
-    ///
-    /// This only affects compound values that internally store their type.
-    pub(crate) fn clone_as_optional(&self) -> Self {
-        match self {
-            Self::Compound(v) => Self::Compound(v.clone_as_optional()),
-            _ => self.clone(),
-        }
-    }
-
     /// Determines if two values have equality according to the WDL
     /// specification.
     ///
@@ -1461,7 +1441,7 @@ impl Pair {
         right: impl Into<Value>,
     ) -> Result<Self> {
         let ty = ty.into();
-        if let Type::Compound(CompoundType::Pair(ty), optional) = ty {
+        if let Type::Compound(CompoundType::Pair(ty), _) = ty {
             let left = left
                 .into()
                 .coerce(ty.left_type())
@@ -1471,7 +1451,7 @@ impl Pair {
                 .coerce(ty.right_type())
                 .context("failed to coerce pair's right value")?;
             return Ok(Self::new_unchecked(
-                Type::Compound(CompoundType::Pair(ty), optional),
+                Type::Compound(CompoundType::Pair(ty), false),
                 left,
                 right,
             ));
@@ -1485,7 +1465,7 @@ impl Pair {
     pub(crate) fn new_unchecked(ty: Type, left: Value, right: Value) -> Self {
         assert!(ty.as_pair().is_some());
         Self {
-            ty,
+            ty: ty.require(),
             values: Arc::new((left, right)),
         }
     }
@@ -1544,7 +1524,7 @@ impl Array {
         V: Into<Value>,
     {
         let ty = ty.into();
-        if let Type::Compound(CompoundType::Array(ty), optional) = ty {
+        if let Type::Compound(CompoundType::Array(ty), _) = ty {
             let element_type = ty.element_type();
             let elements = elements
                 .into_iter()
@@ -1557,7 +1537,7 @@ impl Array {
                 .collect::<Result<Vec<_>>>()?;
 
             return Ok(Self::new_unchecked(
-                Type::Compound(CompoundType::Array(ty), optional),
+                Type::Compound(CompoundType::Array(ty.unqualified()), false),
                 elements,
             ));
         }
@@ -1568,7 +1548,12 @@ impl Array {
     /// Constructs a new array without checking the given elements conform to
     /// the given type.
     pub(crate) fn new_unchecked(ty: Type, elements: Vec<Value>) -> Self {
-        assert!(ty.as_array().is_some());
+        let ty = if let Type::Compound(CompoundType::Array(ty), _) = ty {
+            Type::Compound(CompoundType::Array(ty.unqualified()), false)
+        } else {
+            panic!("type is not an array type");
+        };
+
         Self {
             ty,
             elements: if elements.is_empty() {
@@ -1649,7 +1634,7 @@ impl Map {
         V: Into<Value>,
     {
         let ty = ty.into();
-        if let Type::Compound(CompoundType::Map(ty), optional) = ty {
+        if let Type::Compound(CompoundType::Map(ty), _) = ty {
             let key_type = ty.key_type();
             let value_type = ty.value_type();
 
@@ -1681,7 +1666,7 @@ impl Map {
                 .collect::<Result<_>>()?;
 
             return Ok(Self::new_unchecked(
-                Type::Compound(CompoundType::Map(ty), optional),
+                Type::Compound(CompoundType::Map(ty), false),
                 elements,
             ));
         }
@@ -1697,7 +1682,7 @@ impl Map {
     ) -> Self {
         assert!(ty.as_map().is_some());
         Self {
-            ty,
+            ty: ty.require(),
             elements: if elements.is_empty() {
                 None
             } else {
@@ -1969,7 +1954,11 @@ impl Struct {
         members: Arc<IndexMap<String, Value>>,
     ) -> Self {
         assert!(ty.as_struct().is_some());
-        Self { ty, name, members }
+        Self {
+            ty: ty.require(),
+            name,
+            members,
+        }
     }
 
     /// Gets the type of the `Struct` value.
@@ -2357,54 +2346,6 @@ impl CompoundValue {
         }
 
         Ok(())
-    }
-
-    /// Creates a clone of the value, but makes the type required.
-    fn clone_as_required(&self) -> Self {
-        match self {
-            Self::Pair(v) => Self::Pair(Pair {
-                ty: v.ty.require(),
-                values: v.values.clone(),
-            }),
-            Self::Array(v) => Self::Array(Array {
-                ty: v.ty.require(),
-                elements: v.elements.clone(),
-            }),
-            Self::Map(v) => Self::Map(Map {
-                ty: v.ty.require(),
-                elements: v.elements.clone(),
-            }),
-            Self::Object(_) => self.clone(),
-            Self::Struct(v) => Self::Struct(Struct {
-                ty: v.ty.require(),
-                name: v.name.clone(),
-                members: v.members.clone(),
-            }),
-        }
-    }
-
-    /// Creates a clone of the value, but makes the type optional.
-    fn clone_as_optional(&self) -> Self {
-        match self {
-            Self::Pair(v) => Self::Pair(Pair {
-                ty: v.ty.optional(),
-                values: v.values.clone(),
-            }),
-            Self::Array(v) => Self::Array(Array {
-                ty: v.ty.optional(),
-                elements: v.elements.clone(),
-            }),
-            Self::Map(v) => Self::Map(Map {
-                ty: v.ty.optional(),
-                elements: v.elements.clone(),
-            }),
-            Self::Object(_) => self.clone(),
-            Self::Struct(v) => Self::Struct(Struct {
-                ty: v.ty.optional(),
-                name: v.name.clone(),
-                members: v.members.clone(),
-            }),
-        }
     }
 }
 

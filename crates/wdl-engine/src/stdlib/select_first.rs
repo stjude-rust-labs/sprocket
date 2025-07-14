@@ -39,7 +39,7 @@ fn select_first(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     }
 
     match array.as_slice().iter().find(|v| !v.is_none()) {
-        Some(v) => Ok(v.clone_as_required()),
+        Some(v) => Ok(v.clone()),
         None => {
             if context.arguments.len() < 2 {
                 return Err(function_call_failed(
@@ -49,7 +49,7 @@ fn select_first(context: CallContext<'_>) -> Result<Value, Diagnostic> {
                 ));
             }
 
-            Ok(context.arguments[1].value.clone_as_required())
+            Ok(context.arguments[1].value.clone())
         }
     }
 }

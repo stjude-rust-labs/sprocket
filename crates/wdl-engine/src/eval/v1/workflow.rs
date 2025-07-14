@@ -1281,7 +1281,7 @@ impl WorkflowEvaluator {
             let mut scopes = state.scopes.write().await;
             let (parent, child) = scopes.parent_mut(scope);
             for (name, value) in child.local() {
-                parent.insert(name.to_string(), value.clone_as_optional());
+                parent.insert(name.to_string(), value.clone());
             }
 
             scopes.free(scope);
