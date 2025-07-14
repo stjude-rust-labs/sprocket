@@ -93,8 +93,8 @@ async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
     if !target.exists() {
         fs::create_dir_all(target)
             .await
-            .context(format!("failed to create target directory {target:?}"))
-            .context(format!("failed to create base directory at {target:?}"))?;
+            .with_context(|| format!("failed to create target directory {target:?}"))
+            .with_context(|| format!("failed to create base directory at {target:?}"))?;
     }
     for entry in WalkDir::new(source).into_iter() {
         let entry = entry?;
@@ -106,11 +106,11 @@ async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
         if entry.file_type().is_dir() {
             fs::create_dir_all(&to)
                 .await
-                .context(format!("failed to create directory at {:?}", &to))?;
+                .with_context(|| format!("failed to create directory at {:?}", &to))?;
         } else {
             fs::copy(&from, &to)
                 .await
-                .context(format!("failed to copy file to {:?}", &to))?;
+                .with_context(|| format!("failed to copy file to {:?}", &to))?;
         }
     }
     Ok(())
@@ -132,7 +132,7 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
     let args_path = test_path.join("args");
     let args_string = fs::read_to_string(&args_path)
         .await
-        .context(format!("failed to read command at path {:?}", &args_path))?;
+        .with_context(|| format!("failed to read command at path {:?}", &args_path))?;
     let args = shlex::split(&args_string).ok_or_else(|| anyhow!("failed to split command args"))?;
     let mut command = Command::new(sprocket_exe);
     command.current_dir(working_test_directory).args(args);
@@ -157,28 +157,31 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
 fn normalize_string(input: &str) -> String {
     input
         .replace("\r\n", "\n")
+        .replace("\\r\\n", "\\n")
         .replace("sprocket.exe", "sprocket")
         .to_string()
 }
 
 async fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
-    let result = fs::read_to_string(expected_path).await;
-    let expected = result.context(format!("failed to read result file {expected_path:?}"))?;
+    let expected = fs::read_to_string(expected_path)
+        .await
+        .with_context(|| format!("failed to read result file {expected_path:?}"))?;
+
     if normalize_string(&expected) != normalize_string(actual) {
-        Err(anyhow!(
+        bail!(
             "result from `{}` is not as expected: \n{}",
             expected_path.display(),
             StrComparison::new(&expected, &actual)
-        ))
-    } else {
-        Ok(())
+        )
     }
+
+    Ok(())
 }
 
 async fn compare_files(expected_path: &Path, actual_path: &Path) -> Result<()> {
     let actual = fs::read_to_string(actual_path)
         .await
-        .context(format!("failed to read actual file {actual_path:?}"))?;
+        .with_context(|| format!("failed to read actual file {actual_path:?}"))?;
     compare_results(expected_path, &actual).await
 }
 
@@ -279,10 +282,10 @@ async fn compare_test_results(
     let expects_outputs = expected_output_dir.is_dir();
 
     if env::var_os("BLESS").is_some() {
-        fs::write(&expected_stderr_file, command_output.stderr.as_bytes())
+        fs::write(&expected_stderr_file, &command_output.stderr)
             .await
             .context("failed to write stderr output")?;
-        fs::write(&expected_stdout_file, command_output.stdout.as_bytes())
+        fs::write(&expected_stdout_file, &command_output.stdout)
             .await
             .context("failed to write stdout output")?;
         fs::remove_dir_all(&expected_output_dir)
@@ -290,7 +293,7 @@ async fn compare_test_results(
             .unwrap_or_default();
         fs::write(
             &expected_exit_code_file,
-            command_output.exit_code.to_string().as_bytes(),
+            &command_output.exit_code.to_string(),
         )
         .await
         .context("failed to write exit code")?;
