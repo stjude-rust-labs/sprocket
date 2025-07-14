@@ -1,5 +1,5 @@
 #@ except: MetaDescription, RequirementsSection
-#@ except: ExpectedRuntimeKeys, MetaSections, OutputSection
+#@ except: ExpectedRuntimeKeys, MetaSections
 
 version 1.2
 

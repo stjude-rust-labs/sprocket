@@ -81,7 +81,7 @@ intend to use more than one component crate in conjunction.
 
 ### Minimum Supported Rust Version
 
-The minimum supported Rust version is currently `1.80.0`.
+The minimum supported Rust version is currently `1.88.0`.
 
 There is a CI job that verifies the declared minimum supported version.
 
@@ -102,7 +102,7 @@ cargo install cargo-msrv
 And run the following command:
 
 ```bash
-cargo msrv --min 1.80.0
+cargo msrv --min 1.88.0
 ```
 
 If the reported version is newer than the crate's current minimum supported

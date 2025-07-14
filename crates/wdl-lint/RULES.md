@@ -37,7 +37,6 @@ be out of sync with released packages.
 | `MetaKeyValueFormatting`    | Style                         | Ensures that metadata objects and arrays are properly spaced.                                       |
 | `MetaSections`              | Clarity, Completeness         | Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections.            |
 | `OutputName`                | Naming                        | Ensures output names are meaningful (e.g., not generic like 'output', 'out', or too short).         |
-| `OutputSection`             | Completeness, Portability     | Ensures that tasks and workflows have an `output` section.                                          |
 | `ParameterMetaMatched`      | Completeness, Sorting         | Ensures that inputs have a matching entry in a `parameter_meta` section.                            |
 | `PascalCase`                | Clarity, Naming, Style        | Ensures that structs are defined with PascalCase names.                                             |
 | `PreambleCommentPlacement`  | Clarity                       | Ensures that documents have correct comments in the preamble.                                       |

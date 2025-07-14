@@ -984,32 +984,11 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .as_ref()
                         .expect("should have workflow")
                         .allows_nested_inputs,
-                );
-
-                // Check for unused call
-                if let Some(severity) = config.diagnostics_config().unused_call {
-                    if graph
+                    graph
                         .edges_directed(index, Direction::Outgoing)
                         .next()
-                        .is_none()
-                        && !statement.inner().is_rule_excepted(UNUSED_CALL_RULE_ID)
-                    {
-                        let target_name = statement
-                            .target()
-                            .names()
-                            .last()
-                            .expect("expected a last call target name");
-
-                        let name = statement
-                            .alias()
-                            .map(|a| a.name())
-                            .unwrap_or_else(|| target_name);
-
-                        document
-                            .diagnostics
-                            .push(unused_call(name.text(), name.span()).with_severity(severity));
-                    }
-                }
+                        .is_some(),
+                );
             }
             WorkflowGraphNode::ExitConditional(statement) => {
                 let scope_index = scope_indexes
@@ -1128,6 +1107,7 @@ fn add_call_statement(
     mut scope: ScopeRefMut<'_>,
     statement: &CallStatement,
     nested_inputs_allowed: bool,
+    is_used: bool,
 ) {
     // Determine the target name
     let target_name = statement
@@ -1222,6 +1202,18 @@ fn add_call_statement(
 
     // Don't modify the scope if there's a conflict
     if scope.lookup(name.text()).is_none() {
+        // Check for unused call
+        if let Some(severity) = config.diagnostics_config().unused_call
+            && !is_used
+            && !statement.inner().is_rule_excepted(UNUSED_CALL_RULE_ID)
+            && let Some(ty) = ty.as_call()
+            && !ty.outputs().is_empty()
+        {
+            document
+                .diagnostics
+                .push(unused_call(name.text(), name.span()).with_severity(severity));
+        }
+
         scope.insert(name.text(), name.span(), ty);
     }
 }

@@ -94,7 +94,6 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<rules::PascalCaseRule>::default(),
         Box::<rules::ImportWhitespaceRule>::default(),
         Box::<rules::MetaSectionsRule>::default(),
-        Box::<rules::OutputSectionRule>::default(),
         Box::<rules::ImportSortedRule>::default(),
         Box::<rules::InputSortedRule>::default(),
         Box::<rules::LineWidthRule>::default(),

@@ -1,4 +1,4 @@
-#@ except: MetaSections, OutputSection
+#@ except: MetaSections
 
 version 1.1
 

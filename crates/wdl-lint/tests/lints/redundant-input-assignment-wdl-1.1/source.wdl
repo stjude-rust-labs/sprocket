@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, OutputSection, MetaSections
+#@ except: MetaDescription, ExpectedRuntimeKeys, MetaSections
 
 version 1.1
 

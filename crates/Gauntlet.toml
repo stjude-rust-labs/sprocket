@@ -2092,16 +2092,6 @@ message = "Arrays.wdl:26:10: warning[UnusedDeclaration]: unused declaration `pip
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/broad/arrays/single_sample/Arrays.wdl/#L26"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/pipelines/broad/arrays/single_sample/Arrays.wdl"
-message = "Arrays.wdl:322:28: warning[UnusedCall]: unused call `UpdateChipWellBarcodeIndex`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/broad/arrays/single_sample/Arrays.wdl/#L322"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/broad/arrays/validate_chip/ValidateChip.wdl"
-message = "ValidateChip.wdl:137:24: warning[UnusedCall]: unused call `ValidateVariants`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/broad/arrays/validate_chip/ValidateChip.wdl/#L137"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/pipelines/broad/arrays/validate_chip/ValidateChip.wdl"
 message = "ValidateChip.wdl:255:10: warning[UnusedInput]: unused input `call_vcf_index_file`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/broad/arrays/validate_chip/ValidateChip.wdl/#L255"
@@ -2213,11 +2203,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/broad/dna_seq/germline/joint_genotyping/reblocking/ReblockGVCF.wdl"
-message = "ReblockGVCF.wdl:57:28: warning[UnusedCall]: unused call `ValidateVCF`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/broad/dna_seq/germline/joint_genotyping/reblocking/ReblockGVCF.wdl/#L57"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/broad/dna_seq/germline/joint_genotyping/reblocking/ReblockGVCF.wdl"
 message = "ReblockGVCF.wdl:9:10: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/broad/dna_seq/germline/joint_genotyping/reblocking/ReblockGVCF.wdl/#L9"
 
@@ -2285,11 +2270,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 document = "broadinstitute/warp:/pipelines/broad/dna_seq/germline/variant_calling/VariantCalling.wdl"
 message = "VariantCalling.wdl:12:10: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/broad/dna_seq/germline/variant_calling/VariantCalling.wdl/#L12"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/broad/dna_seq/germline/variant_calling/VariantCalling.wdl"
-message = "VariantCalling.wdl:209:26: warning[UnusedCall]: unused call `ValidateVCF`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/broad/dna_seq/germline/variant_calling/VariantCalling.wdl/#L209"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/broad/dna_seq/somatic/single_sample/ugwgs/UltimaGenomicsWholeGenomeCramOnly.wdl"
@@ -2562,11 +2542,6 @@ message = "SlideSeq.wdl:7:51: warning[UnusedImport]: unused import namespace `Op
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/skylab/slideseq/SlideSeq.wdl/#L7"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/pipelines/skylab/smartseq2_multisample/MultiSampleSmartSeq2.wdl"
-message = "MultiSampleSmartSeq2.wdl:71:28: warning[UnusedCall]: unused call `checkArrays`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/skylab/smartseq2_multisample/MultiSampleSmartSeq2.wdl/#L71"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/smartseq2_single_nucleus_multisample/MultiSampleSmartSeq2SingleNucleus.wdl"
 message = "MultiSampleSmartSeq2SingleNucleus.wdl:34:15: warning[UnusedInput]: unused input `batch_name`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/skylab/smartseq2_single_nucleus_multisample/MultiSampleSmartSeq2SingleNucleus.wdl/#L34"
@@ -2597,11 +2572,6 @@ message = "MultiSampleSmartSeq2SingleNucleus.wdl:39:22: warning[UnusedInput]: un
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/skylab/smartseq2_single_nucleus_multisample/MultiSampleSmartSeq2SingleNucleus.wdl/#L39"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/pipelines/skylab/smartseq2_single_nucleus_multisample/MultiSampleSmartSeq2SingleNucleus.wdl"
-message = "MultiSampleSmartSeq2SingleNucleus.wdl:81:40: warning[UnusedCall]: unused call `checkArrays`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/skylab/smartseq2_single_nucleus_multisample/MultiSampleSmartSeq2SingleNucleus.wdl/#L81"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/pipelines/skylab/snm3C/snm3C.wdl"
 message = "snm3C.wdl:278:14: warning[UnusedInput]: unused input `chromosome_sizes`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/pipelines/skylab/snm3C/snm3C.wdl/#L278"
@@ -2613,18 +2583,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 
 [[diagnostics]]
 document = "broadinstitute/warp:/projects/optimus/CreateOptimusAdapterMetadata.wdl"
-message = "CreateOptimusAdapterMetadata.wdl:217:14: warning[UnusedCall]: unused call `ValidateStagingArea`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/projects/optimus/CreateOptimusAdapterMetadata.wdl/#L217"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/projects/optimus/CreateOptimusAdapterMetadata.wdl"
 message = "CreateOptimusAdapterMetadata.wdl:45:10: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/projects/optimus/CreateOptimusAdapterMetadata.wdl/#L45"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/projects/smartseq2/CreateSs2AdapterMetadata.wdl"
-message = "CreateSs2AdapterMetadata.wdl:231:14: warning[UnusedCall]: unused call `ValidateStagingArea`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/projects/smartseq2/CreateSs2AdapterMetadata.wdl/#L231"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/projects/smartseq2/CreateSs2AdapterMetadata.wdl"
@@ -3097,21 +3057,6 @@ message = "CheckCembaOutputs.wdl:1:1: error: a WDL document must start with a ve
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tests/cemba/pr/CheckCembaOutputs.wdl/#L1"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/tests/skylab/scATAC/pr/test_scATAC_PR.wdl"
-message = "test_scATAC_PR.wdl:35:34: warning[UnusedCall]: unused call `checker`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tests/skylab/scATAC/pr/test_scATAC_PR.wdl/#L35"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tests/skylab/smartseq2_multisample/pr/test_smartseq2_multisample_PR.wdl"
-message = "test_smartseq2_multisample_PR.wdl:58:46: warning[UnusedCall]: unused call `checker_workflow`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tests/skylab/smartseq2_multisample/pr/test_smartseq2_multisample_PR.wdl/#L58"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tests/skylab/smartseq2_multisample/pr_single_end/test_smartseq2_multisample_PR_SINGLE_END.wdl"
-message = "test_smartseq2_multisample_PR_SINGLE_END.wdl:58:46: warning[UnusedCall]: unused call `checker_workflow`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tests/skylab/smartseq2_multisample/pr_single_end/test_smartseq2_multisample_PR_SINGLE_END.wdl/#L58"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/tests/skylab/smartseq2_single_nucleus/pr/test_smartseq2_single_nucleus_PR.wdl"
 message = "test_smartseq2_single_nucleus_PR.wdl:28:19: warning: missing required call input `cloud_provider` for workflow `MultiSampleSmartSeq2SingleNucleus`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/tests/skylab/smartseq2_single_nucleus/pr/test_smartseq2_single_nucleus_PR.wdl/#L28"
@@ -3122,24 +3067,9 @@ message = "VerifyArrays.wdl:46:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyArrays.wdl/#L46"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyArrays.wdl"
-message = "VerifyArrays.wdl:49:38: warning[UnusedCall]: unused call `VerifyIlluminaGenotypingArray`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyArrays.wdl/#L49"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyArrays.wdl"
-message = "VerifyArrays.wdl:66:40: warning[UnusedCall]: unused call `CompareParamsFiles`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyArrays.wdl/#L66"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyCheckFingerprint.wdl"
 message = "VerifyCheckFingerprint.wdl:31:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyCheckFingerprint.wdl/#L31"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyCheckFingerprint.wdl"
-message = "VerifyCheckFingerprint.wdl:42:55: warning[UnusedCall]: unused call `CompareOutputFingerprintVcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyCheckFingerprint.wdl/#L42"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyCramToUnmappedBamsUpdated.wdl"
@@ -3157,19 +3087,9 @@ message = "VerifyExomeReprocessing.wdl:37:35: warning[UnusedCall]: unused call `
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyExomeReprocessing.wdl/#L37"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyExternalReprocessing.wdl"
-message = "VerifyExternalReprocessing.wdl:10:10: warning[UnusedCall]: unused call `AssertTrue`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyExternalReprocessing.wdl/#L10"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyGDCSomaticSingleSample.wdl"
 message = "VerifyGDCSomaticSingleSample.wdl:17:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyGDCSomaticSingleSample.wdl/#L17"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyGDCSomaticSingleSample.wdl"
-message = "VerifyGDCSomaticSingleSample.wdl:26:20: warning[UnusedCall]: unused call `CompareBams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyGDCSomaticSingleSample.wdl/#L26"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyGermlineSingleSample.wdl"
@@ -3177,49 +3097,9 @@ message = "VerifyGermlineSingleSample.wdl:22:14: warning[UnusedInput]: unused in
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyGermlineSingleSample.wdl/#L22"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyGermlineSingleSample.wdl"
-message = "VerifyGermlineSingleSample.wdl:26:14: warning[UnusedCall]: unused call `CompareVCFsVerbosely`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyGermlineSingleSample.wdl/#L26"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyGermlineSingleSample.wdl"
-message = "VerifyGermlineSingleSample.wdl:40:8: warning[UnusedCall]: unused call `CompareGvcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyGermlineSingleSample.wdl/#L40"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyGermlineSingleSample.wdl"
-message = "VerifyGermlineSingleSample.wdl:46:14: warning[UnusedCall]: unused call `CompareCrais`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyGermlineSingleSample.wdl/#L46"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyGermlineSingleSample.wdl"
-message = "VerifyGermlineSingleSample.wdl:52:14: warning[UnusedCall]: unused call `CompareCrams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyGermlineSingleSample.wdl/#L52"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyGvcf.wdl"
 message = "VerifyGvcf.wdl:13:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyGvcf.wdl/#L13"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyGvcf.wdl"
-message = "VerifyGvcf.wdl:16:20: warning[UnusedCall]: unused call `CompareVCFsVerbosely`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyGvcf.wdl/#L16"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyGvcf.wdl"
-message = "VerifyGvcf.wdl:24:20: warning[UnusedCall]: unused call `CompareVcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyGvcf.wdl/#L24"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyIlluminaGenotypingArray.wdl"
-message = "VerifyIlluminaGenotypingArray.wdl:102:24: warning[UnusedCall]: unused call `CompareGreenIdatMdf5Sum`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyIlluminaGenotypingArray.wdl/#L102"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyIlluminaGenotypingArray.wdl"
-message = "VerifyIlluminaGenotypingArray.wdl:108:24: warning[UnusedCall]: unused call `CompareRedIdatMdf5Sum`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyIlluminaGenotypingArray.wdl/#L108"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyIlluminaGenotypingArray.wdl"
@@ -3227,29 +3107,9 @@ message = "VerifyIlluminaGenotypingArray.wdl:43:14: warning[UnusedInput]: unused
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyIlluminaGenotypingArray.wdl/#L43"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyIlluminaGenotypingArray.wdl"
-message = "VerifyIlluminaGenotypingArray.wdl:83:55: warning[UnusedCall]: unused call `CompareOutputVcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyIlluminaGenotypingArray.wdl/#L83"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyIlluminaGenotypingArray.wdl"
-message = "VerifyIlluminaGenotypingArray.wdl:89:55: warning[UnusedCall]: unused call `CompareOutputFingerprintVcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyIlluminaGenotypingArray.wdl/#L89"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyIlluminaGenotypingArray.wdl"
-message = "VerifyIlluminaGenotypingArray.wdl:95:14: warning[UnusedCall]: unused call `CompareGtcs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyIlluminaGenotypingArray.wdl/#L95"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyImputation.wdl"
 message = "VerifyImputation.wdl:43:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyImputation.wdl/#L43"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyImputation.wdl"
-message = "VerifyImputation.wdl:56:55: warning[UnusedCall]: unused call `CompareOutputVcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyImputation.wdl/#L56"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyImputation.wdl"
@@ -3265,11 +3125,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 document = "broadinstitute/warp:/verification/VerifyJointGenotyping.wdl"
 message = "VerifyJointGenotyping.wdl:48:28: warning[UnusedCall]: unused call `VerifyMetrics`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyJointGenotyping.wdl/#L48"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyJointGenotyping.wdl"
-message = "VerifyJointGenotyping.wdl:54:40: warning[UnusedCall]: unused call `CompareIntervals`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyJointGenotyping.wdl/#L54"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyMetrics.wdl"
@@ -3292,69 +3147,14 @@ message = "VerifyMultiSampleArrays.wdl:25:14: warning[UnusedInput]: unused input
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiSampleArrays.wdl/#L25"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyMultiSampleArrays.wdl"
-message = "VerifyMultiSampleArrays.wdl:28:14: warning[UnusedCall]: unused call `CompareVcfsAllowingQualityDifferences`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiSampleArrays.wdl/#L28"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyMultiSampleSmartSeq2SingleNucleus.wdl"
 message = "VerifyMultiSampleSmartSeq2SingleNucleus.wdl:12:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiSampleSmartSeq2SingleNucleus.wdl/#L12"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyMultiSampleSmartSeq2SingleNucleus.wdl"
-message = "VerifyMultiSampleSmartSeq2SingleNucleus.wdl:24:43: warning[UnusedCall]: unused call `CompareH5adFiles`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiSampleSmartSeq2SingleNucleus.wdl/#L24"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyMultiome.wdl"
 message = "VerifyMultiome.wdl:35:18: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiome.wdl/#L35"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyMultiome.wdl"
-message = "VerifyMultiome.wdl:38:37: warning[UnusedCall]: unused call `CompareOptimusBams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiome.wdl/#L38"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyMultiome.wdl"
-message = "VerifyMultiome.wdl:45:52: warning[UnusedCall]: unused call `CompareGeneMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiome.wdl/#L45"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyMultiome.wdl"
-message = "VerifyMultiome.wdl:51:52: warning[UnusedCall]: unused call `CompareCellMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiome.wdl/#L51"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyMultiome.wdl"
-message = "VerifyMultiome.wdl:57:37: warning[UnusedCall]: unused call `CompareAtacBams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiome.wdl/#L57"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyMultiome.wdl"
-message = "VerifyMultiome.wdl:63:38: warning[UnusedCall]: unused call `CompareFragment`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiome.wdl/#L63"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyMultiome.wdl"
-message = "VerifyMultiome.wdl:68:46: warning[UnusedCall]: unused call `CompareH5adFilesATAC`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiome.wdl/#L68"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyMultiome.wdl"
-message = "VerifyMultiome.wdl:73:45: warning[UnusedCall]: unused call `CompareH5adFilesOptimus`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiome.wdl/#L73"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyMultiome.wdl"
-message = "VerifyMultiome.wdl:78:45: warning[UnusedCall]: unused call `CompareLibraryMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiome.wdl/#L78"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyMultiome.wdl"
-message = "VerifyMultiome.wdl:83:51: warning[UnusedCall]: unused call `CompareAtacLibraryMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyMultiome.wdl/#L83"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyMultiome.wdl"
@@ -3382,79 +3182,9 @@ message = "VerifyOptimus.wdl:23:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyOptimus.wdl/#L23"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyOptimus.wdl"
-message = "VerifyOptimus.wdl:26:35: warning[UnusedCall]: unused call `CompareBams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyOptimus.wdl/#L26"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyOptimus.wdl"
-message = "VerifyOptimus.wdl:33:50: warning[UnusedCall]: unused call `CompareGeneMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyOptimus.wdl/#L33"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyOptimus.wdl"
-message = "VerifyOptimus.wdl:39:50: warning[UnusedCall]: unused call `CompareCellMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyOptimus.wdl/#L39"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyOptimus.wdl"
-message = "VerifyOptimus.wdl:45:43: warning[UnusedCall]: unused call `CompareH5adFilesOptimus`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyOptimus.wdl/#L45"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyOptimus.wdl"
-message = "VerifyOptimus.wdl:51:43: warning[UnusedCall]: unused call `CompareLibraryMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyOptimus.wdl/#L51"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyPairedTag.wdl"
 message = "VerifyPairedTag.wdl:35:18: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyPairedTag.wdl/#L35"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyPairedTag.wdl"
-message = "VerifyPairedTag.wdl:38:37: warning[UnusedCall]: unused call `CompareOptimusBams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyPairedTag.wdl/#L38"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyPairedTag.wdl"
-message = "VerifyPairedTag.wdl:45:52: warning[UnusedCall]: unused call `CompareGeneMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyPairedTag.wdl/#L45"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyPairedTag.wdl"
-message = "VerifyPairedTag.wdl:51:52: warning[UnusedCall]: unused call `CompareCellMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyPairedTag.wdl/#L51"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyPairedTag.wdl"
-message = "VerifyPairedTag.wdl:57:37: warning[UnusedCall]: unused call `CompareAtacBams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyPairedTag.wdl/#L57"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyPairedTag.wdl"
-message = "VerifyPairedTag.wdl:63:38: warning[UnusedCall]: unused call `CompareFragment`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyPairedTag.wdl/#L63"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyPairedTag.wdl"
-message = "VerifyPairedTag.wdl:68:46: warning[UnusedCall]: unused call `CompareH5adFilesATAC`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyPairedTag.wdl/#L68"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyPairedTag.wdl"
-message = "VerifyPairedTag.wdl:73:45: warning[UnusedCall]: unused call `CompareH5adFilesOptimus`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyPairedTag.wdl/#L73"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyPairedTag.wdl"
-message = "VerifyPairedTag.wdl:78:45: warning[UnusedCall]: unused call `CompareLibraryMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyPairedTag.wdl/#L78"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyPairedTag.wdl"
-message = "VerifyPairedTag.wdl:84:51: warning[UnusedCall]: unused call `CompareAtacLibraryMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyPairedTag.wdl/#L84"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyPairedTag.wdl"
@@ -3468,33 +3198,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyRNAWithUMIs.wdl"
-message = "VerifyRNAWithUMIs.wdl:103:50: warning[UnusedCall]: unused call `CompareGeneCounts`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyRNAWithUMIs.wdl/#L103"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyRNAWithUMIs.wdl"
-message = "VerifyRNAWithUMIs.wdl:109:50: warning[UnusedCall]: unused call `CompareExonCounts`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyRNAWithUMIs.wdl/#L109"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyRNAWithUMIs.wdl"
 message = "VerifyRNAWithUMIs.wdl:28:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyRNAWithUMIs.wdl/#L28"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyRNAWithUMIs.wdl"
-message = "VerifyRNAWithUMIs.wdl:37:40: warning[UnusedCall]: unused call `CompareTextMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyRNAWithUMIs.wdl/#L37"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyRNAWithUMIs.wdl"
-message = "VerifyRNAWithUMIs.wdl:43:35: warning[UnusedCall]: unused call `CompareOutputBam`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyRNAWithUMIs.wdl/#L43"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyRNAWithUMIs.wdl"
-message = "VerifyRNAWithUMIs.wdl:97:50: warning[UnusedCall]: unused call `CompareGeneTpms`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyRNAWithUMIs.wdl/#L97"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyReprocessing.wdl"
@@ -3507,41 +3212,6 @@ message = "VerifySlideSeq.wdl:23:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifySlideSeq.wdl/#L23"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifySlideSeq.wdl"
-message = "VerifySlideSeq.wdl:26:35: warning[UnusedCall]: unused call `CompareBams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifySlideSeq.wdl/#L26"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifySlideSeq.wdl"
-message = "VerifySlideSeq.wdl:33:50: warning[UnusedCall]: unused call `CompareGeneMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifySlideSeq.wdl/#L33"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifySlideSeq.wdl"
-message = "VerifySlideSeq.wdl:39:50: warning[UnusedCall]: unused call `CompareCellMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifySlideSeq.wdl/#L39"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifySlideSeq.wdl"
-message = "VerifySlideSeq.wdl:45:50: warning[UnusedCall]: unused call `CompareUMIMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifySlideSeq.wdl/#L45"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifySlideSeq.wdl"
-message = "VerifySlideSeq.wdl:51:43: warning[UnusedCall]: unused call `CompareH5adFilesOptimus`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifySlideSeq.wdl/#L51"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifySomaticSingleSample.wdl"
-message = "VerifySomaticSingleSample.wdl:24:14: warning[UnusedCall]: unused call `CompareCrais`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifySomaticSingleSample.wdl/#L24"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifySomaticSingleSample.wdl"
-message = "VerifySomaticSingleSample.wdl:30:14: warning[UnusedCall]: unused call `CompareCrams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifySomaticSingleSample.wdl/#L30"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsJointGenotyping.wdl"
 message = "VerifyUltimaGenomicsJointGenotyping.wdl:25:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsJointGenotyping.wdl/#L25"
@@ -3550,16 +3220,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsJointGenotyping.wdl"
 message = "VerifyUltimaGenomicsJointGenotyping.wdl:47:28: warning[UnusedCall]: unused call `VerifyMetrics`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsJointGenotyping.wdl/#L47"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsJointGenotyping.wdl"
-message = "VerifyUltimaGenomicsJointGenotyping.wdl:53:40: warning[UnusedCall]: unused call `CompareIntervals`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsJointGenotyping.wdl/#L53"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsJointGenotyping.wdl"
-message = "VerifyUltimaGenomicsJointGenotyping.wdl:59:8: warning[UnusedCall]: unused call `CompareFingerprints`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsJointGenotyping.wdl/#L59"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl"
@@ -3578,33 +3238,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeCramOnly.wdl:64:14: warning[UnusedCall]: unused call `CompareCrams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl/#L64"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeCramOnly.wdl:72:14: warning[UnusedCall]: unused call `CompareCrais`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl/#L72"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl"
 message = "VerifyUltimaGenomicsWholeGenomeCramOnly.wdl:89:11: warning[UnusedInput]: unused input `dependency_input`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl/#L89"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:100:29: warning[UnusedCall]: unused call `CompareFilteredVcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl/#L100"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:107:29: warning[UnusedCall]: unused call `CompareGvcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl/#L107"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:114:38: warning[UnusedCall]: unused call `CompareGVcfsVerbosely`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl/#L114"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl"
@@ -3632,44 +3267,9 @@ message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:32:14: warning[UnusedInpu
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl/#L32"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:79:14: warning[UnusedCall]: unused call `CompareCrams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl/#L79"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:87:14: warning[UnusedCall]: unused call `CompareCrais`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl/#L87"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:93:29: warning[UnusedCall]: unused call `CompareVcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl/#L93"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyValidateChip.wdl"
 message = "VerifyValidateChip.wdl:40:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyValidateChip.wdl/#L40"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyValidateChip.wdl"
-message = "VerifyValidateChip.wdl:43:14: warning[UnusedCall]: unused call `CompareGtcs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyValidateChip.wdl/#L43"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyValidateChip.wdl"
-message = "VerifyValidateChip.wdl:50:55: warning[UnusedCall]: unused call `CompareOutputVcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyValidateChip.wdl/#L50"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyValidateChip.wdl"
-message = "VerifyValidateChip.wdl:56:55: warning[UnusedCall]: unused call `CompareGenotypeConcordanceVcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyValidateChip.wdl/#L56"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyValidateChip.wdl"
-message = "VerifyValidateChip.wdl:62:55: warning[UnusedCall]: unused call `CompareIndelGenotypeConcordanceVcfs`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyValidateChip.wdl/#L62"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyscATAC.wdl"
@@ -3677,24 +3277,9 @@ message = "VerifyscATAC.wdl:12:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyscATAC.wdl/#L12"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyscATAC.wdl"
-message = "VerifyscATAC.wdl:15:35: warning[UnusedCall]: unused call `CompareBams`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyscATAC.wdl/#L15"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/VerifyscATAC.wdl"
-message = "VerifyscATAC.wdl:22:43: warning[UnusedCall]: unused call `CompareSnapTextFiles`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/VerifyscATAC.wdl/#L22"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/verification/Verifysnm3C.wdl"
 message = "Verifysnm3C.wdl:23:18: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/Verifysnm3C.wdl/#L23"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/verification/Verifysnm3C.wdl"
-message = "Verifysnm3C.wdl:26:52: warning[UnusedCall]: unused call `CompareMappingSummaryMetrics`"
-permalink = "https://github.com/broadinstitute/warp/blob/16affa2fbda7455569e1953ef34d8ded1521890f/verification/Verifysnm3C.wdl/#L26"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/Verifysnm3C.wdl"
@@ -4367,11 +3952,6 @@ message = "wf_freyja_fastq.wdl:140:38: error: type mismatch: expected type `Stri
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/9333afc9460c6f0e921551d25a88719faef1f22a/workflows/freyja/wf_freyja_fastq.wdl/#L140"
 
 [[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/workflows/freyja/wf_freyja_update.wdl"
-message = "wf_freyja_update.wdl:13:17: warning[UnusedCall]: unused call `transfer_files`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/9333afc9460c6f0e921551d25a88719faef1f22a/workflows/freyja/wf_freyja_update.wdl/#L13"
-
-[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/workflows/phylogenetics/wf_augur.wdl"
 message = "wf_augur.wdl:153:73: warning[UnnecessaryFunctionCall]: unnecessary call to function `defined`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/9333afc9460c6f0e921551d25a88719faef1f22a/workflows/phylogenetics/wf_augur.wdl/#L153"
@@ -4785,11 +4365,6 @@ permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/9333a
 document = "theiagen/public_health_bioinformatics:/workflows/utilities/data_import/wf_sra_fetch.wdl"
 message = "wf_sra_fetch.wdl:25:23: error: type mismatch: expected type `String`, but found type `String?`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/9333afc9460c6f0e921551d25a88719faef1f22a/workflows/utilities/data_import/wf_sra_fetch.wdl/#L25"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/workflows/utilities/data_import/wf_terra_2_bq.wdl"
-message = "wf_terra_2_bq.wdl:14:26: warning[UnusedCall]: unused call `terra_to_bigquery`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/9333afc9460c6f0e921551d25a88719faef1f22a/workflows/utilities/data_import/wf_terra_2_bq.wdl/#L14"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/workflows/utilities/wf_flu_track.wdl"
