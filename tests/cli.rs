@@ -6,14 +6,14 @@
 //! These directories can be arbitrarily nested to group similar tests together.
 //!
 //! Each test can contain the following files (but all are optional):
-//!   * `args` - entrypoint of each test, contains a sprocket command that will
-//!     be run (without the sprocket keyword).
+//!   * `args` - entrypoint of each test; contains the arguments to pass to
+//!     `sprocket` (without "sprocket").
 //!   * `inputs` - a directory containing the starting files that the test will
-//!     run with. These are copied to a temp folder, and the command above will
-//!     be run inside this temp folder.
+//!     run with. The contents of this directory are copied to a temp directory
+//!     and the temporary directory used as the command's working directory.
 //!   * `outputs` - a directory containing the expected ending files that the
-//!     temp folder will end up with. These often will be a copy of the inputs
-//!     directory if the command does not change the input files.
+//!     temp directory will contain. If a test does not need to verify the
+//!     resulting directory contents, it may omit an `outputs` directory.
 //!   * `stdout` - the expected stdout from the task.
 //!   * `stderr` - the expected stderr from the task.
 //!   * `exit_code` - the expected exit code from the task.
@@ -118,7 +118,7 @@ async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
 
 // while running tests, current_exe returns the path
 // /target/{profile}/deps/cli-some-hash the sprocket executable is just a couple
-// folders above this, so we just find it relative to that
+// directories above this, so we just find it relative to that
 fn get_sprocket_exe() -> Result<PathBuf> {
     let mut current_exe = current_exe().context("failed to find sprocket executable")?;
     current_exe.pop();
@@ -272,10 +272,12 @@ async fn compare_test_results(
     working_test_directory: &Path,
     command_output: &CommandOutput,
 ) -> Result<()> {
-    let expected_output_folder = test_path.join("outputs");
+    let expected_output_dir = test_path.join("outputs");
     let expected_stderr_file = test_path.join("stderr");
     let expected_stdout_file = test_path.join("stdout");
     let expected_exit_code_file = test_path.join("exit_code");
+    let expects_outputs = expected_output_dir.is_dir();
+
     if env::var_os("BLESS").is_some() {
         fs::write(&expected_stderr_file, command_output.stderr.as_bytes())
             .await
@@ -283,7 +285,7 @@ async fn compare_test_results(
         fs::write(&expected_stdout_file, command_output.stdout.as_bytes())
             .await
             .context("failed to write stdout output")?;
-        fs::remove_dir_all(&expected_output_folder)
+        fs::remove_dir_all(&expected_output_dir)
             .await
             .unwrap_or_default();
         fs::write(
@@ -292,15 +294,22 @@ async fn compare_test_results(
         )
         .await
         .context("failed to write exit code")?;
-        recursive_copy(working_test_directory, &expected_output_folder)
-            .await
-            .context(
-                "failed to copy output files from test results to setup new expected outputs",
-            )?;
+
+        if expects_outputs {
+            recursive_copy(working_test_directory, &expected_output_dir)
+                .await
+                .context(
+                    "failed to copy output files from test results to setup new expected outputs",
+                )?;
+        }
     }
     compare_results(&expected_stderr_file, &command_output.stderr).await?;
     compare_results(&expected_stdout_file, &command_output.stdout).await?;
-    recursive_compare(&expected_output_folder, working_test_directory).await?;
+
+    if expects_outputs {
+        recursive_compare(&expected_output_dir, working_test_directory).await?;
+    }
+
     compare_results(
         &expected_exit_code_file,
         &command_output.exit_code.to_string(),
