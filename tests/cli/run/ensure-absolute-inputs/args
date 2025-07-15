@@ -1,0 +1,1 @@
+run source.wdl inputs.json test.second=second.txt
