@@ -502,7 +502,7 @@ dependencies = [
  "rust-ini",
  "serde",
  "serde_json",
- "toml 0.9.1",
+ "toml 0.9.2",
  "winnow",
  "yaml-rust2",
 ]
@@ -2998,15 +2998,15 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "1.0.7"
+version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c71e83d6afe7ff64890ec6b71d6a69bb8a610ab78ce364b3352876bb4c801266"
+checksum = "11181fbabf243db407ef8df94a6ce0b2f9a733bd8be4ad02b4eda9602296cac8"
 dependencies = [
  "bitflags 2.9.1",
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3829,9 +3829,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.9.1"
+version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0207d6ed1852c2a124c1fbec61621acb8330d2bf969a5d0643131e9affd985a5"
+checksum = "ed0aee96c12fa71097902e0bb061a5e1ebd766a6636bb605ba401c45c1650eac"
 dependencies = [
  "serde",
  "serde_spanned 1.0.0",
@@ -3874,9 +3874,9 @@ dependencies = [
 
 [[package]]
 name = "toml_parser"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5c1c469eda89749d2230d8156a5969a69ffe0d6d01200581cdc6110674d293e"
+checksum = "97200572db069e74c512a14117b296ba0a80a30123fbbb5aa1f4a348f639ca30"
 dependencies = [
  "winnow",
 ]
@@ -4393,8 +4393,7 @@ dependencies = [
 [[package]]
 name = "wdl"
 version = "0.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d8b3d8b45fa05bc4b5ea636116438e0dac57c8d83450f54bcd6a032cc1ab690"
+source = "git+https://github.com/stjude-rust-labs/wdl.git?branch=feat%2Finput-prefix#1e86485d20fe37a860250a82b5a4d5f8de4eb71c"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4411,8 +4410,7 @@ dependencies = [
 [[package]]
 name = "wdl-analysis"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c5256b3608e4d5ec93617cd4319d14ba64cbeff3f8736c1e08e6e07b5417042"
+source = "git+https://github.com/stjude-rust-labs/wdl.git?branch=feat%2Finput-prefix#1e86485d20fe37a860250a82b5a4d5f8de4eb71c"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4440,8 +4438,7 @@ dependencies = [
 [[package]]
 name = "wdl-ast"
 version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b030b82f1df6438707c7354306452e9e5afa4551e3552c25d1b0e2cb3bda6908"
+source = "git+https://github.com/stjude-rust-labs/wdl.git?branch=feat%2Finput-prefix#1e86485d20fe37a860250a82b5a4d5f8de4eb71c"
 dependencies = [
  "macropol",
  "paste",
@@ -4454,8 +4451,7 @@ dependencies = [
 [[package]]
 name = "wdl-cli"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caf633c709dc0afbc6c42716ad13f32bc4c9fc160099f3f77c26106bc84bb204"
+source = "git+https://github.com/stjude-rust-labs/wdl.git?branch=feat%2Finput-prefix#1e86485d20fe37a860250a82b5a4d5f8de4eb71c"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4481,8 +4477,7 @@ dependencies = [
 [[package]]
 name = "wdl-doc"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b63c6891eac607133042c1d32831025f39d4e026c63503c90f304aa633e6ec2"
+source = "git+https://github.com/stjude-rust-labs/wdl.git?branch=feat%2Finput-prefix#1e86485d20fe37a860250a82b5a4d5f8de4eb71c"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4501,8 +4496,7 @@ dependencies = [
 [[package]]
 name = "wdl-engine"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "507225fa21411b2089fb1f8ce074c17511115246e5b923015a977b46108c67d0"
+source = "git+https://github.com/stjude-rust-labs/wdl.git?branch=feat%2Finput-prefix#1e86485d20fe37a860250a82b5a4d5f8de4eb71c"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4542,8 +4536,7 @@ dependencies = [
 [[package]]
 name = "wdl-format"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d8207f2bbb662d4c5901fd263dc85415c88f39f6fd1baee9e1a622370e93c87"
+source = "git+https://github.com/stjude-rust-labs/wdl.git?branch=feat%2Finput-prefix#1e86485d20fe37a860250a82b5a4d5f8de4eb71c"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4552,8 +4545,7 @@ dependencies = [
 [[package]]
 name = "wdl-grammar"
 version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0aaee7127f7234943f9917720f844ecef4dbda478112435f8bf9128d22c3b49e"
+source = "git+https://github.com/stjude-rust-labs/wdl.git?branch=feat%2Finput-prefix#1e86485d20fe37a860250a82b5a4d5f8de4eb71c"
 dependencies = [
  "codespan-reporting",
  "logos",
@@ -4566,8 +4558,7 @@ dependencies = [
 [[package]]
 name = "wdl-lint"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20ca71d42ac63e824091e6d75a5f8ee9977c2a7ab624c74d528bc2be6052938c"
+source = "git+https://github.com/stjude-rust-labs/wdl.git?branch=feat%2Finput-prefix#1e86485d20fe37a860250a82b5a4d5f8de4eb71c"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4587,8 +4578,7 @@ dependencies = [
 [[package]]
 name = "wdl-lsp"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b289606499bff47165f60bd3d1f22733294ee09ab196e04b6fa39a4dcc8d9105"
+source = "git+https://github.com/stjude-rust-labs/wdl.git?branch=feat%2Finput-prefix#1e86485d20fe37a860250a82b5a4d5f8de4eb71c"
 dependencies = [
  "anyhow",
  "indexmap 2.10.0",
@@ -4968,9 +4958,9 @@ checksum = "271414315aff87387382ec3d271b52d7ae78726f5d44ac98b4f4030c91880486"
 
 [[package]]
 name = "winnow"
-version = "0.7.11"
+version = "0.7.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74c7b26e3480b707944fc872477815d29a8e429d2f93a1ce000f5fa84a15cbcd"
+checksum = "f3edebf492c8125044983378ecb5766203ad3b4c2f7a922bd7dd207f6d443e95"
 dependencies = [
  "memchr",
 ]

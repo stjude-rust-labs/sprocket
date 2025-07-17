@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Inferrence of common prefix for CL inputs to `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
+
 ## 0.14.1 - 07-10-2025
 
 ### Fixed
