@@ -7,19 +7,18 @@
 //! * `source.wdl` - the test input source to analyze.
 //! * `source.diagnostics` - the expected set of diagnostics across all analyzed
 //!   files.
+//! * `config.toml` (optional) - the `wdl_analysis::Config` to use to run the
+//!   test.
 //!
 //! The `source.diagnostics` file may be automatically generated or updated by
 //! setting the `BLESS` environment variable when running this test.
 
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
 use std::path::absolute;
-use std::process::exit;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -28,7 +27,7 @@ use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term;
 use codespan_reporting::term::Config as CodespanConfig;
 use codespan_reporting::term::termcolor::Buffer;
-use colored::Colorize;
+use libtest_mimic::Trial;
 use path_clean::clean;
 use pretty_assertions::StrComparison;
 use wdl_analysis::AnalysisResult;
@@ -38,32 +37,34 @@ use wdl_analysis::path_to_uri;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 
-/// Finds tests to run as part of the analysis test suite.
-fn find_tests() -> Vec<PathBuf> {
-    // Check for filter arguments consisting of test names
-    let mut filter = HashSet::new();
-    for arg in std::env::args().skip_while(|a| a != "--").skip(1) {
-        if !arg.starts_with('-') {
-            filter.insert(arg);
-        }
-    }
+/// These are the tests that require single document analysis as they are
+/// sensitive to parse order.
+const SINGLE_DOCUMENT_TESTS: &[&str] = &["import-dependency-cycle"];
 
-    let mut tests: Vec<PathBuf> = Vec::new();
-    for entry in Path::new("tests/analysis").read_dir().unwrap() {
-        let entry = entry.expect("failed to read directory");
-        let path = entry.path();
-        if !path.is_dir()
-            || (!filter.is_empty()
-                && !filter.contains(entry.file_name().to_str().expect("name should be UTF-8")))
-        {
-            continue;
-        }
+/// Find tests to run as part of the analysis test suite.
+fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
+    Path::new("tests")
+        .join("analysis")
+        .read_dir()
+        .unwrap()
+        .filter_map(|entry| {
+            let entry = entry.expect("failed to read directory");
+            let path = entry.path();
+            if !path.is_dir() {
+                return None;
+            }
 
-        tests.push(path);
-    }
-
-    tests.sort();
-    tests
+            let test_name = path
+                .file_stem()
+                .map(OsStr::to_string_lossy)
+                .unwrap()
+                .into_owned();
+            let test_runtime = runtime.clone();
+            Some(Trial::test(test_name, move || {
+                Ok(test_runtime.block_on(run_test(&path))?)
+            }))
+        })
+        .collect()
 }
 
 /// Normalizes a result.
@@ -151,123 +152,51 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
     )
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // These are the tests that require single document analysis as they are
-    // sensitive to parse order
-    /// The tests that require single document analysis.
-    const SINGLE_DOCUMENT_TESTS: &[&str] = &["import-dependency-cycle"];
+/// Run a test either in whole-directory or single-document mode based on
+/// whether the test name appears in the `SINGLE_DOCUMENT_TESTS` list.
+async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
+    // Set up a new analyzer for this test, reading in a custom config if present.
+    let base = clean(absolute(test).expect("should be made absolute"));
+    let config_path = base.join("config.toml");
+    let config = if config_path.exists() {
+        toml::from_str(&std::fs::read_to_string(config_path)?)?
+    } else {
+        Config::default()
+    };
+    let analyzer = Analyzer::new(config, |_, _, _, _| async {});
 
+    let results =
+        if SINGLE_DOCUMENT_TESTS.contains(&base.file_stem().and_then(OsStr::to_str).unwrap()) {
+            // Single-document tests add and analyze only `source.wdl`.
+            let document = base.join("source.wdl");
+            let uri = path_to_uri(&document).expect("should be valid URI");
+            analyzer
+                .add_document(path_to_uri(&document).expect("should be valid URI"))
+                .await
+                .context("adding test document")?;
+            analyzer
+                .analyze_document((), uri)
+                .await
+                .context("analyzing document")?
+        } else {
+            // If it's not specified as a single-document test, add and analyze the whole
+            // directory
+            analyzer
+                .add_directory(&base)
+                .await
+                .context("adding test directory")?;
+            analyzer.analyze(()).await.context("analyzing documents")?
+        };
+    compare_results(test, results)
+}
+
+fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
-    let tests = find_tests();
-    println!("\nrunning {} tests\n", tests.len());
-
-    let mut errors = Vec::new();
-    let mut single_file = Vec::new();
-    for test in &tests {
-        let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
-        if SINGLE_DOCUMENT_TESTS.contains(&test_name) {
-            single_file.push(test_name);
-            continue;
-        }
-
-        // Add this test's directory to a new analyzer, reading in a custom config if
-        // present.
-        let base = clean(absolute(test).expect("should be made absolute"));
-        let config_path = base.join("config.toml");
-        let config = if config_path.exists() {
-            toml::from_str(&std::fs::read_to_string(config_path)?)?
-        } else {
-            Config::default()
-        };
-        let analyzer = Analyzer::new(config, |_, _, _, _| async {});
-        analyzer
-            .add_directory(&base)
-            .await
-            .expect("should add directory");
-        let results = analyzer
-            .analyze(())
-            .await
-            .expect("failed to analyze documents");
-
-        // Discover the results that are relevant only to this test
-        //
-        // NOTE: clippy appears to be incorrect that this can be modified to use
-        // `filter_map`. Perhaps this should be revisited in the future.
-        #[allow(clippy::filter_map_bool_then)]
-        let results = results
-            .iter()
-            .filter_map(|r| {
-                r.document()
-                    .uri()
-                    .to_file_path()
-                    .ok()?
-                    .starts_with(&base)
-                    .then(|| r.clone())
-            })
-            .collect();
-        match compare_results(test, results) {
-            Ok(_) => {
-                println!("test {test_name} ... {ok}", ok = "ok".green());
-            }
-            Err(e) => {
-                println!("test {test_name} ... {failed}", failed = "failed".red());
-                errors.push((test_name, e.to_string()));
-            }
-        }
-    }
-
-    // Some tests are sensitive to the order in which files are parsed (e.g.
-    // detecting cycles) For those, use a new analyzer and analyze the
-    // `source.wdl` directly
-    for test_name in single_file {
-        let test = Path::new("tests/analysis").join(test_name);
-        let config_path = test.join("config.toml");
-        let config = if config_path.exists() {
-            toml::from_str(&std::fs::read_to_string(config_path)?)?
-        } else {
-            Config::default()
-        };
-        let analyzer = Analyzer::new(config, |_, _, _, _| async {});
-        let document = test.join("source.wdl");
-        let uri = path_to_uri(&document).expect("should be valid URI");
-        analyzer
-            .add_document(path_to_uri(&document).expect("should be valid URI"))
-            .await
-            .expect("should add document");
-        let results = analyzer
-            .analyze_document((), uri)
-            .await
-            .expect("failed to analyze document");
-        match compare_results(&test, results) {
-            Ok(_) => {
-                println!("test {test_name} ... {ok}", ok = "ok".green());
-            }
-            Err(e) => {
-                println!("test {test_name} ... {failed}", failed = "failed".red());
-                errors.push((test_name, e.to_string()));
-            }
-        }
-    }
-
-    if !errors.is_empty() {
-        eprintln!(
-            "\n{count} test(s) {failed}:",
-            count = errors.len(),
-            failed = "failed".red()
-        );
-
-        for (name, msg) in errors.iter() {
-            eprintln!("{name}: {msg}", msg = msg.red());
-        }
-
-        exit(1);
-    }
-
-    println!("\ntest result: ok. {count} passed\n", count = tests.len());
-
-    Ok(())
+    let args = libtest_mimic::Arguments::from_args();
+    let runtime = tokio::runtime::Runtime::new()?;
+    let tests = find_tests(runtime.handle());
+    libtest_mimic::run(&args, tests).exit();
 }

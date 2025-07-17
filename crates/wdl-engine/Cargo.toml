@@ -48,9 +48,9 @@ chrono = { workspace = true }
 
 [dev-dependencies]
 approx = { workspace = true }
-colored = { workspace = true }
+libtest-mimic = { workspace = true }
 pretty_assertions = { workspace = true }
-rayon = { workspace = true }
+tracing-subscriber = { workspace = true }
 walkdir = { workspace = true }
 
 [lints]

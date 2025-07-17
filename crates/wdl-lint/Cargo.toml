@@ -29,11 +29,11 @@ url = { workspace = true }
 
 [dev-dependencies]
 codespan-reporting = { workspace = true }
-colored = { workspace = true }
+libtest-mimic = { workspace = true }
 path-clean = { workspace = true }
 pretty_assertions = { workspace = true }
 tokio = { workspace = true }
-rayon = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [features]
 codespan = ["wdl-ast/codespan"]

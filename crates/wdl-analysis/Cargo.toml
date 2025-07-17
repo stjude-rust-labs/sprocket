@@ -36,7 +36,7 @@ lsp-types = "0.94.1"
 
 [dev-dependencies]
 codespan-reporting = { workspace = true }
-colored = { workspace = true }
+libtest-mimic = { workspace = true }
 pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
 toml = { workspace = true }

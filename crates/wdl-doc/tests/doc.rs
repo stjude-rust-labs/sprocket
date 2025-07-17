@@ -11,7 +11,6 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::exit;
 
 use fs_extra::dir::CopyOptions;
 use fs_extra::dir::copy;
@@ -33,8 +32,8 @@ fn read_dir_recursively(path: &Path) -> std::io::Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-#[tokio::main]
-async fn main() {
+#[tokio::test]
+async fn document_full_codebase() {
     let test_dir = Path::new("tests").join("codebase");
     let docs_dir = Path::new("tests").join("output_docs");
 
@@ -43,20 +42,14 @@ async fn main() {
         fs::remove_dir_all(test_dir.join("docs")).unwrap();
     }
 
-    match document_workspace(
+    document_workspace(
         test_dir.to_path_buf(),
         test_dir.join("docs"),
         None::<&str>,
         None::<&str>,
     )
     .await
-    {
-        Ok(_) => {}
-        Err(e) => {
-            eprintln!("failed to generate docs: {e}");
-            exit(1);
-        }
-    }
+    .expect("failed to generate docs");
 
     // If the `BLESS` environment variable is set, update the expected output
     // by deleting the contents of the `tests/output_docs` directory and
@@ -70,7 +63,7 @@ async fn main() {
         let options = CopyOptions::new().content_only(true);
         copy(test_dir.join("docs"), &docs_dir, &options).unwrap();
 
-        exit(0);
+        return;
     }
 
     // Compare the generated docs with the expected output.
@@ -78,12 +71,12 @@ async fn main() {
     // and compare them with the contents of the `tests/output_docs` directory.
     // If the contents are different, print the differences and exit with a
     // non-zero exit code.
-    let mut success = true;
+    let mut failed = false;
     for file_name in read_dir_recursively(&test_dir.join("docs")).unwrap() {
         let expected_file = docs_dir.join(file_name.strip_prefix(test_dir.join("docs")).unwrap());
         if !expected_file.exists() {
             println!("missing file: {}", expected_file.display());
-            success = false;
+            failed = true;
             continue;
         }
 
@@ -114,13 +107,11 @@ async fn main() {
                 "Diff:\n{}",
                 StrComparison::new(&expected_contents, &generated_contents)
             );
-            success = false;
+            failed = true;
         }
     }
 
-    if success {
-        exit(0);
-    } else {
-        exit(1);
+    if failed {
+        panic!("test failed");
     }
 }

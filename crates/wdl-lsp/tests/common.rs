@@ -48,7 +48,8 @@ fn encode_message(message: &str) -> String {
 /// Gets a test workspace directory path
 fn get_workspace_path(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR",))
-        .join("tests/workspace")
+        .join("tests")
+        .join("workspace")
         .join(name)
 }
 

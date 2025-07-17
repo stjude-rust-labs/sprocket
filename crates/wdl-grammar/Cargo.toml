@@ -21,9 +21,8 @@ strum = { version = "0.27", features = ["derive"] }
 [dev-dependencies]
 anyhow = { workspace = true }
 codespan-reporting = { workspace = true }
-colored = { workspace = true }
+libtest-mimic = { workspace = true }
 pretty_assertions = { workspace = true }
-rayon = { workspace = true }
 
 [features]
 codespan = ["dep:codespan-reporting"]

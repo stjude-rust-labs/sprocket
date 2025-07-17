@@ -33,4 +33,3 @@ workspace = true
 
 [[test]]
 name = "doc"
-harness = false

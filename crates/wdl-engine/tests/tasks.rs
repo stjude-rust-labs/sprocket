@@ -18,31 +18,24 @@
 //! `BLESS` environment variable when running this test.
 
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
 use std::path::absolute;
-use std::process::exit;
 use std::sync::LazyLock;
-use std::thread::available_parallelism;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use colored::Colorize;
-use futures::StreamExt;
-use futures::stream;
+use libtest_mimic::Trial;
 use pretty_assertions::StrComparison;
 use regex::Regex;
 use serde_json::to_string_pretty;
 use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
 use walkdir::WalkDir;
-use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
@@ -63,32 +56,30 @@ static PATH_PREFIX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 static TEMP_FILENAME_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new("tmp[[:alnum:]]{6}").expect("invalid regex"));
 
-/// Finds tests to run as part of the analysis test suite.
-fn find_tests() -> Vec<PathBuf> {
-    // Check for filter arguments consisting of test names
-    let mut filter = HashSet::new();
-    for arg in std::env::args().skip_while(|a| a != "--").skip(1) {
-        if !arg.starts_with('-') {
-            filter.insert(arg);
-        }
-    }
+/// Find tests to run.
+fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
+    Path::new("tests")
+        .join("tasks")
+        .read_dir()
+        .unwrap()
+        .filter_map(|entry| {
+            let entry = entry.expect("failed to read directory");
+            let path = entry.path();
+            if !path.is_dir() {
+                return None;
+            }
 
-    let mut tests: Vec<PathBuf> = Vec::new();
-    for entry in Path::new("tests").join("tasks").read_dir().unwrap() {
-        let entry = entry.expect("failed to read directory");
-        let path = entry.path();
-        if !path.is_dir()
-            || (!filter.is_empty()
-                && !filter.contains(entry.file_name().to_str().expect("name should be UTF-8")))
-        {
-            continue;
-        }
-
-        tests.push(path);
-    }
-
-    tests.sort();
-    tests
+            let test_name = path
+                .file_stem()
+                .map(OsStr::to_string_lossy)
+                .unwrap()
+                .into_owned();
+            let test_runtime = runtime.clone();
+            Some(Trial::test(test_name, move || {
+                Ok(test_runtime.block_on(run_test(&path))?)
+            }))
+        })
+        .collect()
 }
 
 /// Strips paths from the given string.
@@ -189,8 +180,30 @@ fn configs() -> Vec<config::Config> {
     ]
 }
 
-/// Runs the test given the provided analysis result.
-async fn run_test(test: &Path, result: &AnalysisResult) -> Result<()> {
+/// Runs a single test.
+async fn run_test(test: &Path) -> Result<()> {
+    let analyzer = Analyzer::default();
+    analyzer
+        .add_directory(test)
+        .await
+        .context("adding directory")?;
+    let results = analyzer.analyze(()).await.context("running analysis")?;
+
+    // Find the root source.wdl to evaluate
+    let source_path = test.join("source.wdl");
+    let Some(result) = results
+        .iter()
+        .find(|r| Some(r.document().path().as_ref()) == source_path.to_str())
+    else {
+        bail!("`source.wdl` was not found in the analysis results");
+    };
+    if let Some(e) = result.error() {
+        bail!("parsing failed: {e:#}");
+    }
+    if result.document().has_errors() {
+        bail!("test WDL contains errors; run a `check` on `source.wdl`");
+    }
+
     let path = result.document().path();
     let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
         Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
@@ -408,91 +421,13 @@ fn compare_evaluation_results(
     Ok(())
 }
 
-#[tokio::main]
-async fn main() {
-    let tests = find_tests();
-    println!("\nrunning {} tests\n", tests.len());
+fn main() -> Result<(), anyhow::Error> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
 
-    // Start with a single analysis pass over all the test files
-    let analyzer = Analyzer::default();
-    for test in &tests {
-        analyzer
-            .add_directory(test.clone())
-            .await
-            .expect("should add directory");
-    }
-    let results = analyzer
-        .analyze(())
-        .await
-        .expect("failed to analyze documents");
-
-    let mut futures = Vec::new();
-    let mut errors = Vec::new();
-    for test in &tests {
-        let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
-
-        // Find the root source.wdl to evaluate
-        let source_path = test.join("source.wdl");
-        let result = match results
-            .iter()
-            .find(|r| Some(r.document().path().as_ref()) == source_path.to_str())
-        {
-            Some(result) => result,
-            None => {
-                println!("test {test_name} ... {failed}", failed = "failed".red());
-                errors.push((
-                    test_name.to_string(),
-                    "`source.wdl` was not found in the analysis results`".to_string(),
-                ));
-                continue;
-            }
-        };
-
-        if let Some(e) = result.error() {
-            println!("test {test_name} ... {failed}", failed = "failed".red());
-            errors.push((test_name.to_string(), e.to_string()));
-            continue;
-        }
-
-        if result.document().has_errors() {
-            println!("test {test_name} ... {failed}", failed = "failed".red());
-            errors.push((
-                test_name.to_string(),
-                "test WDL contains errors: run a `check` on `source.wdl`".to_string(),
-            ));
-            continue;
-        }
-
-        futures.push(async { (test_name.to_string(), run_test(test, result).await) });
-    }
-
-    let mut stream = stream::iter(futures)
-        .buffer_unordered(available_parallelism().map(Into::into).unwrap_or(1));
-    while let Some((test_name, result)) = stream.next().await {
-        match result {
-            Ok(_) => {
-                println!("test {test_name} ... {ok}", ok = "ok".green());
-            }
-            Err(e) => {
-                println!("test {test_name} ... {failed}", failed = "failed".red());
-                errors.push((test_name, format!("{e:?}")));
-            }
-        }
-    }
-
-    if !errors.is_empty() {
-        eprintln!(
-            "\n{count} test(s) {failed}:",
-            count = errors.len(),
-            failed = "failed".red()
-        );
-
-        for (name, msg) in errors.iter() {
-            eprintln!("{name}: {msg}", msg = msg.red());
-        }
-
-        exit(1);
-    }
-
-    println!("\ntest result: ok. {count} passed\n", count = tests.len());
+    let args = libtest_mimic::Arguments::from_args();
+    let runtime = tokio::runtime::Runtime::new()?;
+    let tests = find_tests(runtime.handle());
+    libtest_mimic::run(&args, tests).exit();
 }

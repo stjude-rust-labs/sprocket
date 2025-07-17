@@ -21,16 +21,10 @@
 //! the `BLESS` environment variable when running this test.
 
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
-use std::path::absolute;
-use std::process::exit;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -39,43 +33,38 @@ use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term;
 use codespan_reporting::term::Config;
 use codespan_reporting::term::termcolor::Buffer;
-use colored::Colorize;
-use path_clean::clean;
+use libtest_mimic::Trial;
 use pretty_assertions::StrComparison;
-use rayon::prelude::*;
-use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::Inputs;
 
-/// Finds tests to run as part of the analysis test suite.
-fn find_tests() -> Vec<PathBuf> {
-    // Check for filter arguments consisting of test names
-    let mut filter = HashSet::new();
-    for arg in std::env::args().skip_while(|a| a != "--").skip(1) {
-        if !arg.starts_with('-') {
-            filter.insert(arg);
-        }
-    }
+/// Find tests to run.
+fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
+    Path::new("tests")
+        .join("inputs")
+        .read_dir()
+        .unwrap()
+        .filter_map(|entry| {
+            let entry = entry.expect("failed to read directory");
+            let path = entry.path();
+            if !path.is_dir() {
+                return None;
+            }
 
-    let mut tests: Vec<PathBuf> = Vec::new();
-    for entry in Path::new("tests/inputs").read_dir().unwrap() {
-        let entry = entry.expect("failed to read directory");
-        let path = entry.path();
-        if !path.is_dir()
-            || (!filter.is_empty()
-                && !filter.contains(entry.file_name().to_str().expect("name should be UTF-8")))
-        {
-            continue;
-        }
-
-        tests.push(path);
-    }
-
-    tests.sort();
-    tests
+            let test_name = path
+                .file_stem()
+                .map(OsStr::to_string_lossy)
+                .unwrap()
+                .into_owned();
+            let test_runtime = runtime.clone();
+            Some(Trial::test(test_name, move || {
+                Ok(test_runtime.block_on(run_test(&path))?)
+            }))
+        })
+        .collect()
 }
 
 /// Normalizes a result.
@@ -128,8 +117,28 @@ fn compare_result(path: &Path, result: &str) -> Result<()> {
     Ok(())
 }
 
-/// Runs the test given the provided analysis result.
-fn run_test(test: &Path, result: AnalysisResult, ntests: &AtomicUsize) -> Result<()> {
+/// Runs the test.
+async fn run_test(test: &Path) -> Result<()> {
+    let analyzer = Analyzer::default();
+    analyzer
+        .add_directory(test)
+        .await
+        .context("adding directory")?;
+    let results = analyzer.analyze(()).await.context("running analysis")?;
+
+    // Find the analysis result specific to this test
+    let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
+    let Some(result) = results.into_iter().find_map(|r| {
+        let path = r.document().uri().to_file_path().ok()?;
+        if path.parent()?.file_name()?.to_str()? == test_name {
+            Some(r)
+        } else {
+            None
+        }
+    }) else {
+        bail!("failed to find analysis result for test `{test_name}`")
+    };
+
     let mut buffer = Buffer::no_color();
 
     let path = result.document().path();
@@ -161,7 +170,7 @@ fn run_test(test: &Path, result: AnalysisResult, ntests: &AtomicUsize) -> Result
 
     // Special case for the "missing-file" test which intentionally tests missing
     // input files
-    if test.file_name().unwrap().to_string_lossy() == "missing-file" {
+    if test_name == "missing-file" {
         // Always use the JSON path for consistency across platforms and pass as &Path
         let result = match Inputs::parse(document, &json_path) {
             Ok(_) => String::new(),
@@ -169,9 +178,7 @@ fn run_test(test: &Path, result: AnalysisResult, ntests: &AtomicUsize) -> Result
         };
 
         let output = test.join("error.txt");
-        compare_result(&output, &result)?;
-        ntests.fetch_add(1, Ordering::SeqCst);
-        return Ok(());
+        return compare_result(&output, &result);
     }
 
     // For all other tests, require both JSON and YAML files to ensure complete
@@ -223,116 +230,16 @@ fn run_test(test: &Path, result: AnalysisResult, ntests: &AtomicUsize) -> Result
         compare_result(&output, &result)?;
     }
 
-    ntests.fetch_add(1, Ordering::SeqCst);
     Ok(())
 }
 
-#[tokio::main]
-async fn main() {
-    let tests = find_tests();
-    println!("\nrunning {} tests\n", tests.len());
+fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
 
-    // Start with a single analysis pass over all the test files
-    let analyzer = Analyzer::default();
-    for test in &tests {
-        analyzer
-            .add_directory(test.clone())
-            .await
-            .expect("should add directory");
-    }
-    let results = analyzer
-        .analyze(())
-        .await
-        .expect("failed to analyze documents");
-
-    let ntests = AtomicUsize::new(0);
-    let errors = tests
-        .par_iter()
-        .filter_map(|test| {
-            let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
-
-            // Discover the results that are relevant only to this test
-            let base = clean(absolute(test).expect("should be made absolute"));
-
-            let mut results = results.iter().filter_map(|r| {
-                if r.document().uri().to_file_path().ok()?.starts_with(&base) {
-                    Some(r.clone())
-                } else {
-                    None
-                }
-            });
-
-            let result = match results.find_map(|r| {
-                let path = r.document().uri().to_file_path().ok()?;
-                if path.parent()?.file_name()?.to_str()? == test_name {
-                    Some(r.clone())
-                } else {
-                    None
-                }
-            }) {
-                Some(document) => document,
-                None => {
-                    return Some((
-                        test_name,
-                        format!("failed to find analysis result for test `{test_name}`"),
-                    ));
-                }
-            };
-
-            let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
-            match std::panic::catch_unwind(|| {
-                match run_test(test, result, &ntests)
-                    .map_err(|e| format!("failed to run test `{path}`: {e}", path = test.display()))
-                    .err()
-                {
-                    Some(e) => {
-                        println!("test {test_name} ... {failed}", failed = "failed".red());
-                        Some((test_name, e))
-                    }
-                    None => {
-                        println!("test {test_name} ... {ok}", ok = "ok".green());
-                        None
-                    }
-                }
-            }) {
-                Ok(result) => result,
-                Err(e) => {
-                    println!(
-                        "test {test_name} ... {panicked}",
-                        panicked = "panicked".red()
-                    );
-                    Some((
-                        test_name,
-                        format!(
-                            "test panicked: {e:?}",
-                            e = e
-                                .downcast_ref::<String>()
-                                .map(|s| s.as_str())
-                                .or_else(|| e.downcast_ref::<&str>().copied())
-                                .unwrap_or("no panic message")
-                        ),
-                    ))
-                }
-            }
-        })
-        .collect::<Vec<_>>();
-
-    if !errors.is_empty() {
-        eprintln!(
-            "\n{count} test(s) {failed}:",
-            count = errors.len(),
-            failed = "failed".red()
-        );
-
-        for (name, msg) in errors.iter() {
-            eprintln!("{name}: {msg}", msg = msg.red());
-        }
-
-        exit(1);
-    }
-
-    println!(
-        "\ntest result: ok. {} passed\n",
-        ntests.load(Ordering::SeqCst)
-    );
+    let args = libtest_mimic::Arguments::from_args();
+    let runtime = tokio::runtime::Runtime::new()?;
+    let tests = find_tests(runtime.handle());
+    libtest_mimic::run(&args, tests).exit();
 }

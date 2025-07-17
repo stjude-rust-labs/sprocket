@@ -11,19 +11,19 @@
 //! The `source.errors` file may be automatically generated or updated by
 //! setting the `BLESS` environment variable when running this test.
 
-use std::collections::HashSet;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
 use std::path::absolute;
 
+use anyhow::Context as _;
+use anyhow::bail;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term;
 use codespan_reporting::term::Config as CodespanConfig;
 use codespan_reporting::term::termcolor::Buffer;
-use colored::Colorize;
+use libtest_mimic::Trial;
 use path_clean::clean;
 use pretty_assertions::StrComparison;
 use wdl_analysis::Analyzer;
@@ -35,31 +35,29 @@ use wdl_ast::Diagnostic;
 use wdl_lint::Linter;
 
 /// Finds tests for this package.
-fn find_tests() -> Vec<PathBuf> {
-    // Check for filter arguments consisting of test names
-    let mut filter = HashSet::new();
-    for arg in std::env::args().skip_while(|a| a != "--").skip(1) {
-        if !arg.starts_with('-') {
-            filter.insert(arg);
-        }
-    }
+fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
+    Path::new("tests")
+        .join("lints")
+        .read_dir()
+        .unwrap()
+        .filter_map(|entry| {
+            let entry = entry.expect("failed to read directory");
+            let path = entry.path();
+            if !path.is_dir() {
+                return None;
+            }
 
-    let mut tests: Vec<PathBuf> = Vec::new();
-    for entry in Path::new("tests/lints").read_dir().unwrap() {
-        let entry = entry.expect("failed to read directory");
-        let path = entry.path();
-        if !path.is_dir()
-            || (!filter.is_empty()
-                && !filter.contains(entry.file_name().to_str().expect("name should be UTF-8")))
-        {
-            continue;
-        }
-
-        tests.push(path);
-    }
-
-    tests.sort();
-    tests
+            let test_name = path
+                .file_stem()
+                .map(OsStr::to_string_lossy)
+                .unwrap()
+                .into_owned();
+            let test_runtime = runtime.clone();
+            Some(Trial::test(test_name, move || {
+                Ok(test_runtime.block_on(run_test(&path))?)
+            }))
+        })
+        .collect()
 }
 
 /// Normalizes a path.
@@ -86,43 +84,29 @@ fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> 
 }
 
 /// Compares a test result.
-fn compare_result(path: &Path, result: &str) -> Result<(), String> {
+fn compare_result(path: &Path, result: &str) -> Result<(), anyhow::Error> {
     let result = normalize(result);
     if env::var_os("BLESS").is_some() {
-        fs::write(path, &result).map_err(|e| {
-            format!(
-                "failed to write result file `{path}`: {e}",
-                path = path.display()
-            )
-        })?;
+        fs::write(path, &result).context("writing result file")?;
         return Ok(());
     }
 
     let expected = fs::read_to_string(path)
-        .map_err(|e| {
-            format!(
-                "failed to read result file `{path}`: {e}",
-                path = path.display()
-            )
-        })?
+        .context("reading result file")?
         .replace("\r\n", "\n");
 
     if expected != result {
-        return Err(format!(
+        bail!(
             "result from `{path}` is not as expected:\n{diff}",
             path = path.display(),
             diff = StrComparison::new(&expected, &result),
-        ));
+        );
     }
 
     Ok(())
 }
 
-#[tokio::main]
-async fn main() {
-    let tests = find_tests();
-    println!("\nrunning {} tests\n", tests.len());
-
+async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     let analyzer = Analyzer::new_with_validator(
         AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
         |_, _, _, _| async {},
@@ -132,63 +116,39 @@ async fn main() {
             validator
         },
     );
-    for test in &tests {
-        analyzer
-            .add_directory(test.to_path_buf())
-            .await
-            .expect("failed to add directory");
-    }
-    let results = analyzer.analyze(()).await.expect("failed to analyze");
+    analyzer
+        .add_directory(test.to_path_buf())
+        .await
+        .context("adding directory")?;
+    let results = analyzer.analyze(()).await.context("running analysis")?;
 
-    let mut errors = Vec::new();
-    for test in &tests {
-        let test_name = test.file_stem().and_then(OsStr::to_str).unwrap();
+    let base = clean(absolute(test).unwrap());
+    let source_path = base.join("source.wdl");
+    let errors_path = base.join("source.errors");
 
-        let base = clean(absolute(test).unwrap());
-        let source_path = base.join("source.wdl");
-        let errors_path = base.join("source.errors");
+    let Some(result) = results
+        .into_iter()
+        .find(|result| result.document().uri().to_file_path().unwrap() == source_path)
+    else {
+        bail!("failed to find test result");
+    };
+    compare_result(
+        &errors_path,
+        &format_diagnostics(
+            result.document().diagnostics(),
+            &test.join("source.wdl"),
+            &result.document().root().text().to_string(),
+        ),
+    )
+}
 
-        let result = results
-            .iter()
-            .find_map(|result| {
-                if result.document().uri().to_file_path().unwrap() == source_path {
-                    Some(result.clone())
-                } else {
-                    None
-                }
-            })
-            .expect("failed to find test result");
-        match compare_result(
-            &errors_path,
-            &format_diagnostics(
-                result.document().diagnostics(),
-                &test.join("source.wdl"),
-                &result.document().root().text().to_string(),
-            ),
-        ) {
-            Ok(()) => {
-                println!("test {test_name} ... {ok}", ok = "ok".green());
-            }
-            Err(e) => {
-                println!("test {test_name} ... {failed}", failed = "failed".red());
-                errors.push((test_name, e));
-            }
-        }
-    }
+fn main() -> Result<(), anyhow::Error> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
 
-    if !errors.is_empty() {
-        eprintln!(
-            "\n{count} test(s) {failed}:",
-            count = errors.len(),
-            failed = "failed".red()
-        );
-
-        for (name, msg) in errors.iter() {
-            eprintln!("{name}: {msg}", msg = msg.red());
-        }
-
-        std::process::exit(1);
-    }
-
-    println!("\ntest result: ok. {count} passed\n", count = tests.len());
+    let args = libtest_mimic::Arguments::from_args();
+    let runtime = tokio::runtime::Runtime::new()?;
+    let tests = find_tests(runtime.handle());
+    libtest_mimic::run(&args, tests).exit();
 }

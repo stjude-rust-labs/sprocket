@@ -14,11 +14,10 @@ wdl-ast = { path = "../wdl-ast", version = "0.14.0", features = ["codespan"] }
 nonempty.workspace = true
 
 [dev-dependencies]
-approx = { workspace = true }
+anyhow = { workspace = true }
 codespan-reporting = { workspace = true }
-colored = { workspace = true }
+libtest-mimic = { workspace = true }
 pretty_assertions.workspace = true
-rayon = { workspace = true }
 
 [lints]
 workspace = true
