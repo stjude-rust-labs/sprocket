@@ -82,7 +82,7 @@ pub async fn validate(args: Args) -> Result<()> {
     // above.
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inferred = Inputs::coalesce(&args.inputs)
+    let inferred = Inputs::coalesce(&args.inputs, args.name.clone())
         .with_context(|| {
             format!(
                 "failed to parse inputs from `{sources}`",

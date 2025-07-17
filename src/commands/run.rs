@@ -304,7 +304,7 @@ pub async fn run(args: Args) -> Result<()> {
         })?;
     }
 
-    let inferred = Inputs::coalesce(&args.inputs)
+    let inferred = Inputs::coalesce(&args.inputs, args.name.clone())
         .with_context(|| {
             format!(
                 "failed to parse inputs from `{sources}`",
