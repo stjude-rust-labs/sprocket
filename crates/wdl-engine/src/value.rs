@@ -14,6 +14,7 @@ use anyhow::bail;
 use indexmap::IndexMap;
 use itertools::Either;
 use ordered_float::OrderedFloat;
+use path_clean::PathClean;
 use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
@@ -1183,7 +1184,12 @@ impl PrimitiveValue {
         }
 
         // Perform the join
-        if let Ok(s) = to.join(path.as_str()).into_os_string().into_string() {
+        if let Ok(s) = to
+            .join(path.as_str())
+            .clean()
+            .into_os_string()
+            .into_string()
+        {
             *Arc::make_mut(path) = s;
         }
     }

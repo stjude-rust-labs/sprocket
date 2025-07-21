@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fixed a failure to clean input file and directory paths ([#537](https://github.com/stjude-rust-labs/wdl/pull/537)).
 * Fixed a panic that may occur in array and map literal evaluation ([#529](https://github.com/stjude-rust-labs/wdl/pull/529)).
 
 ## 0.5.0 - 07-09-2025

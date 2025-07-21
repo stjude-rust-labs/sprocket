@@ -22,7 +22,7 @@ use line_index::WideEncoding;
 use line_index::WideLineCol;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Location;
-use path_clean::clean;
+use path_clean::PathClean;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -65,7 +65,7 @@ impl fmt::Display for ProgressKind {
 
 /// Converts a local file path to a file schemed URI.
 pub fn path_to_uri(path: impl AsRef<Path>) -> Option<Url> {
-    Url::from_file_path(clean(absolute(path).ok()?)).ok()
+    Url::from_file_path(absolute(path).ok()?.clean()).ok()
 }
 
 /// Represents the result of an analysis.

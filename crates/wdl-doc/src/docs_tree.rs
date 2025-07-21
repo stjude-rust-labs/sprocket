@@ -11,6 +11,7 @@ use anyhow::Context;
 use anyhow::Result;
 use maud::Markup;
 use maud::html;
+use path_clean::PathClean;
 use pathdiff::diff_paths;
 use serde::Serialize;
 
@@ -215,7 +216,9 @@ pub struct DocsTreeBuilder {
 impl DocsTreeBuilder {
     /// Create a new docs tree builder.
     pub fn new(root: impl AsRef<Path>) -> Self {
-        let root = path_clean::clean(absolute(root.as_ref()).expect("should get absolute path"));
+        let root = absolute(root.as_ref())
+            .expect("should get absolute path")
+            .clean();
         Self {
             root,
             homepage: None,

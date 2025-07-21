@@ -39,7 +39,7 @@ use maud::Markup;
 use maud::PreEscaped;
 use maud::Render;
 use maud::html;
-use path_clean::clean;
+use path_clean::PathClean;
 use pathdiff::diff_paths;
 use pulldown_cmark::Options;
 use pulldown_cmark::Parser;
@@ -405,12 +405,14 @@ pub async fn document_workspace(
     homepage: Option<impl AsRef<Path>>,
     custom_theme: Option<impl AsRef<Path>>,
 ) -> Result<()> {
-    let workspace_abs_path = clean(absolute(workspace.as_ref()).with_context(|| {
-        format!(
-            "failed to resolve absolute path for workspace: `{}`",
-            workspace.as_ref().display()
-        )
-    })?);
+    let workspace_abs_path = absolute(workspace.as_ref())
+        .with_context(|| {
+            format!(
+                "failed to resolve absolute path for workspace: `{}`",
+                workspace.as_ref().display()
+            )
+        })?
+        .clean();
     let homepage = homepage.and_then(|p| absolute(p.as_ref()).ok());
     let custom_theme = custom_theme.and_then(|p| absolute(p.as_ref()).ok());
 
@@ -421,12 +423,14 @@ pub async fn document_workspace(
         );
     }
 
-    let docs_dir = clean(absolute(output_dir.as_ref()).with_context(|| {
-        format!(
-            "failed to resolve absolute path for output directory: `{}`",
-            output_dir.as_ref().display()
-        )
-    })?);
+    let docs_dir = absolute(output_dir.as_ref())
+        .with_context(|| {
+            format!(
+                "failed to resolve absolute path for output directory: `{}`",
+                output_dir.as_ref().display()
+            )
+        })?
+        .clean();
     if !docs_dir.exists() {
         std::fs::create_dir(&docs_dir).with_context(|| {
             format!(

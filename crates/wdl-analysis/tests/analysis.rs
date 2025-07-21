@@ -28,7 +28,7 @@ use codespan_reporting::term;
 use codespan_reporting::term::Config as CodespanConfig;
 use codespan_reporting::term::termcolor::Buffer;
 use libtest_mimic::Trial;
-use path_clean::clean;
+use path_clean::PathClean;
 use pretty_assertions::StrComparison;
 use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
@@ -156,7 +156,7 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
 /// whether the test name appears in the `SINGLE_DOCUMENT_TESTS` list.
 async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     // Set up a new analyzer for this test, reading in a custom config if present.
-    let base = clean(absolute(test).expect("should be made absolute"));
+    let base = absolute(test).expect("should be made absolute").clean();
     let config_path = base.join("config.toml");
     let config = if config_path.exists() {
         toml::from_str(&std::fs::read_to_string(config_path)?)?

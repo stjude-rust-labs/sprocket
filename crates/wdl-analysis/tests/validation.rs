@@ -24,7 +24,7 @@ use codespan_reporting::term;
 use codespan_reporting::term::Config as CodespanConfig;
 use codespan_reporting::term::termcolor::Buffer;
 use libtest_mimic::Trial;
-use path_clean::clean;
+use path_clean::PathClean;
 use pretty_assertions::StrComparison;
 use tracing_subscriber::EnvFilter;
 use wdl_analysis::Analyzer;
@@ -124,7 +124,7 @@ fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<(), anyho
 async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     // Add this test's directory to a new analyzer, reading in a custom config if
     // present.
-    let base = clean(absolute(test).expect("should be made absolute"));
+    let base = absolute(test).expect("should be made absolute").clean();
     let source_path = base.join("source.wdl");
     let errors_path = base.join("source.errors");
     let config_path = base.join("config.toml");

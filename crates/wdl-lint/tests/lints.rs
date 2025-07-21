@@ -24,7 +24,7 @@ use codespan_reporting::term;
 use codespan_reporting::term::Config as CodespanConfig;
 use codespan_reporting::term::termcolor::Buffer;
 use libtest_mimic::Trial;
-use path_clean::clean;
+use path_clean::PathClean;
 use pretty_assertions::StrComparison;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
@@ -106,6 +106,7 @@ fn compare_result(path: &Path, result: &str) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+/// Runs a lint test.
 async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     let analyzer = Analyzer::new_with_validator(
         AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
@@ -122,7 +123,7 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
         .context("adding directory")?;
     let results = analyzer.analyze(()).await.context("running analysis")?;
 
-    let base = clean(absolute(test).unwrap());
+    let base = absolute(test).unwrap().clean();
     let source_path = base.join("source.wdl");
     let errors_path = base.join("source.errors");
 

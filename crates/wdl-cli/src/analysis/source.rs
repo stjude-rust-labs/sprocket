@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use path_clean::clean;
+use path_clean::PathClean;
 use url::Url;
 use wdl_analysis::Analyzer;
 use wdl_engine::path::parse_url;
@@ -67,7 +67,7 @@ impl std::str::FromStr for Source {
 
         let path = std::path::absolute(path)
             .map_err(|_| anyhow!("failed to convert `{path}` to a URI", path = path.display()))
-            .map(|path| clean(&path))?;
+            .map(|path| path.clean())?;
 
         if !path.exists() {
             bail!("source file `{s}` does not exist");

@@ -8,7 +8,7 @@ use std::str::FromStr;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use path_clean::clean;
+use path_clean::PathClean;
 use url::Url;
 
 /// Determines if the given string is prefixed with a `file` URL scheme.
@@ -58,12 +58,13 @@ impl EvaluationPath {
         }
 
         // We can't join an absolute local path either
-        if Path::new(path).is_absolute() {
-            return Ok(Self::Local(clean(path)));
+        let p = Path::new(path);
+        if p.is_absolute() {
+            return Ok(Self::Local(p.clean()));
         }
 
         match self {
-            Self::Local(dir) => Ok(Self::Local(dir.join(clean(path)))),
+            Self::Local(dir) => Ok(Self::Local(dir.join(path).clean())),
             Self::Remote(dir) => dir
                 .join(path)
                 .map(Self::Remote)
@@ -173,7 +174,7 @@ impl FromStr for EvaluationPath {
                 .with_context(|| format!("invalid `file` schemed URL `{s}`"))?;
             return url
                 .to_file_path()
-                .map(|p| Self::Local(clean(p)))
+                .map(|p| Self::Local(p.clean()))
                 .map_err(|_| anyhow!("URL `{s}` cannot be represented as a local file path"));
         }
 
@@ -181,7 +182,7 @@ impl FromStr for EvaluationPath {
             return Ok(Self::Remote(url));
         }
 
-        Ok(Self::Local(clean(s)))
+        Ok(Self::Local(Path::new(s).clean()))
     }
 }
 
