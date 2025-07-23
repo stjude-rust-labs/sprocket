@@ -15,6 +15,7 @@ use futures::Future;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use indexmap::IndexSet;
+use lsp_types::CompletionResponse;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Location;
 use parking_lot::RwLock;
@@ -69,6 +70,8 @@ pub enum Request<Context> {
     GotoDefinition(GotoDefinitionRequest),
     /// A request to find all references of a symbol.
     FindAllReferences(FindAllReferencesRequest),
+    /// A request to get completions at a position.
+    Completion(CompletionRequest<Context>),
 }
 
 /// Represents a request to add documents to the graph.
@@ -155,6 +158,20 @@ pub struct FindAllReferencesRequest {
     pub completed: oneshot::Sender<Vec<Location>>,
 }
 
+/// Represents a request to get completions.
+pub struct CompletionRequest<Context> {
+    /// The document where the request was initiated.
+    pub document: Url,
+    /// The position of the symbol in the document.
+    pub position: SourcePosition,
+    /// The encoding used for the position.
+    pub encoding: SourcePositionEncoding,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<CompletionResponse>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
+}
+
 /// A simple enumeration to signal a cancellation to the caller.
 enum Cancelable<T> {
     /// The operation completed and yielded a value.
@@ -238,7 +255,7 @@ where
                         debug!("received request to analyze all documents");
                     }
 
-                    match self.analyze(document, context, &completed) {
+                    match self.analyze(document, context, Some(&completed)) {
                         Cancelable::Completed(results) => {
                             debug!(
                                 "request to analyze documents completed in {elapsed:?}",
@@ -415,6 +432,46 @@ where
                         }
                     }
                 }
+                Request::Completion(CompletionRequest {
+                    document,
+                    position,
+                    context,
+                    encoding,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request for completion at {document}: {line}:{char}",
+                        line = position.line,
+                        char = position.character
+                    );
+
+                    if let Cancelable::Completed(Err(e)) =
+                        self.analyze(Some(document.clone()), context, None)
+                    {
+                        error!("analysis failed before completion could run: {e}");
+                        completed.send(None).ok();
+                        continue;
+                    }
+
+                    let graph = self.graph.read();
+                    let result = handlers::completion(&graph, &document, position, encoding)
+                        .map(|items| Some(CompletionResponse::Array(items)));
+
+                    debug!(
+                        "completion request completed in {elapsed:?}",
+                        elapsed = start.elapsed()
+                    );
+
+                    match result {
+                        Ok(result) => {
+                            completed.send(result).ok();
+                        }
+                        Err(_) => {
+                            completed.send(None).ok();
+                        }
+                    }
+                }
             }
         }
 
@@ -434,7 +491,7 @@ where
         &self,
         document: Option<Url>,
         context: Context,
-        completed: &oneshot::Sender<Result<Vec<AnalysisResult>>>,
+        completed: Option<&oneshot::Sender<Result<Vec<AnalysisResult>>>>,
     ) -> Cancelable<Result<Vec<AnalysisResult>>> {
         // Analysis works by building a subgraph of what needs to be analyzed.
         // We start with the requested node or all roots. We then perform a
@@ -465,7 +522,7 @@ where
         let mut space = Default::default();
 
         loop {
-            if completed.is_closed() {
+            if completed.is_some_and(|c| c.is_closed()) {
                 debug!("analysis request has been canceled");
                 return Cancelable::Canceled;
             }
@@ -519,7 +576,7 @@ where
         let mut set = Vec::new();
         let mut results: Vec<AnalysisResult> = Vec::new();
         while subgraph.node_count() > 0 {
-            if completed.is_closed() {
+            if completed.is_some_and(|c| c.is_closed()) {
                 debug!("analysis request has been canceled");
                 return Cancelable::Canceled;
             }
@@ -638,7 +695,7 @@ where
         &self,
         kind: ProgressKind,
         mut tasks: FuturesUnordered<Fut>,
-        completed: &oneshot::Sender<Result<Vec<AnalysisResult>>>,
+        completed: Option<&oneshot::Sender<Result<Vec<AnalysisResult>>>>,
         context: &Context,
     ) -> Cancelable<Vec<Output>>
     where
@@ -649,8 +706,10 @@ where
         }
 
         let total = tasks.len();
-        self.tokio
-            .block_on((self.progress)(context.clone(), kind, 0, total));
+        if completed.is_some() {
+            self.tokio
+                .block_on((self.progress)(context.clone(), kind, 0, total));
+        }
 
         let update_progress = self.progress.clone();
         let results = self.tokio.block_on(async move {
@@ -658,42 +717,48 @@ where
             let mut results = Vec::new();
             let mut last_progress = Instant::now();
             while let Some(result) = tasks.next().await {
-                if completed.is_closed() {
+                if completed.is_some_and(|c| c.is_closed()) {
                     break;
                 }
 
                 results.push(result);
                 count += 1;
 
-                let now = Instant::now();
-                if count < total && (now - last_progress).as_millis() > MINIMUM_PROGRESS_MILLIS {
-                    debug!("{count} out of {total} {kind} task(s) have completed");
-                    last_progress = now;
-                    update_progress(context.clone(), kind, count, total).await;
+                if completed.is_some() {
+                    let now = Instant::now();
+                    if count < total && (now - last_progress).as_millis() > MINIMUM_PROGRESS_MILLIS
+                    {
+                        debug!("{count} out of {total} {kind} task(s) have completed");
+                        last_progress = now;
+                        update_progress(context.clone(), kind, count, total).await;
+                    }
                 }
             }
 
             results
         });
 
-        if results.len() < total {
-            debug!(
-                "{count} out of {total} {kind} task(s) have completed; canceled {canceled} tasks",
-                count = results.len(),
-                canceled = total - results.len()
-            );
-        } else {
-            debug!(
-                "{count} out of {total} {kind} task(s) have completed",
-                count = results.len()
-            );
+        if completed.is_some() {
+            if results.len() < total {
+                debug!(
+                    "{count} out of {total} {kind} task(s) have completed; canceled {canceled} \
+                     tasks",
+                    count = results.len(),
+                    canceled = total - results.len()
+                );
+            } else {
+                debug!(
+                    "{count} out of {total} {kind} task(s) have completed",
+                    count = results.len()
+                );
+            }
+
+            // Report all have completed even if there are cancellations
+            self.tokio
+                .block_on((self.progress)(context.clone(), kind, total, total));
         }
 
-        // Report all have completed even if there are cancellations
-        self.tokio
-            .block_on((self.progress)(context.clone(), kind, total, total));
-
-        if completed.is_closed() {
+        if completed.is_some_and(|c| c.is_closed()) {
             Cancelable::Canceled
         } else {
             Cancelable::Completed(results)

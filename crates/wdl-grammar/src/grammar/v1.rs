@@ -47,6 +47,10 @@ const TOP_EXPECTED_NAMES: &[&str] = &[
 /// The recovery set for top-level.
 const TOP_RECOVERY_SET: TokenSet = TOP_EXPECTED_SET;
 
+/// The expected set of tokens for root section.
+pub const ROOT_SECTION_KEYWORDS: TokenSet =
+    TOP_RECOVERY_SET.union(TokenSet::new(&[Token::VersionKeyword as u8]));
+
 /// A set of tokens for primitive types.
 const PRIMITIVE_TYPE_SET: TokenSet = TokenSet::new(&[
     Token::BooleanTypeKeyword as u8,
@@ -72,6 +76,14 @@ const STRUCT_ITEM_RECOVERY_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new
     Token::ParameterMetaKeyword as u8,
     Token::CloseBrace as u8,
 ]));
+
+/// The expected set of tokens for struct sections.
+pub const STRUCT_SECTION_KEYWORDS: TokenSet = TYPE_EXPECTED_SET
+    .union(TokenSet::new(&[
+        Token::MetaKeyword as u8,
+        Token::ParameterMetaKeyword as u8,
+    ]))
+    .without(TokenSet::new(&[Token::Ident as u8]));
 
 /// The recovery set for input items.
 const INPUT_ITEM_RECOVERY_SET: TokenSet =
@@ -109,7 +121,7 @@ const STRUCT_ITEM_EXPECTED_NAMES: &[&str] = &[
 ];
 
 /// The expected set of tokens in a task definition.
-const TASK_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
+pub const TASK_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
     Token::InputKeyword as u8,
     Token::CommandKeyword as u8,
     Token::OutputKeyword as u8,
@@ -136,7 +148,7 @@ const TASK_ITEM_RECOVERY_SET: TokenSet =
     TASK_ITEM_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
 
 /// The expected set of tokens in a workflow definition.
-const WORKFLOW_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
+pub const WORKFLOW_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
     Token::InputKeyword as u8,
     Token::OutputKeyword as u8,
     Token::MetaKeyword as u8,
@@ -171,6 +183,12 @@ const WORKFLOW_STATEMENT_RECOVERY_SET: TokenSet = TokenSet::new(&[
     Token::ScatterKeyword as u8,
     Token::CloseBrace as u8,
 ]);
+
+/// The expected set of tokens for nested workflow statements.
+pub const NESTED_WORKFLOW_STATEMENT_KEYWORDS: TokenSet = TYPE_EXPECTED_SET
+    .without(TokenSet::new(&[Token::Ident as u8]))
+    .union(WORKFLOW_STATEMENT_RECOVERY_SET)
+    .without(TokenSet::new(&[Token::CloseBrace as u8]));
 
 /// The recovery set for input items in a call statement.
 const CALL_INPUT_ITEM_RECOVERY_SET: TokenSet = ANY_IDENT.union(TokenSet::new(&[

@@ -6,6 +6,7 @@ use crate::SyntaxNode;
 use crate::TreeNode;
 
 mod decls;
+mod display;
 mod expr;
 mod import;
 mod r#struct;

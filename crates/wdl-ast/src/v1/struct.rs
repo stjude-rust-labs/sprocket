@@ -1,14 +1,20 @@
 //! V1 AST representation for struct definitions.
 
+use std::fmt;
+
 use super::MetadataSection;
 use super::ParameterMetadataSection;
 use super::StructKeyword;
 use super::UnboundDecl;
 use crate::AstNode;
+use crate::AstToken;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::TreeNode;
+use crate::v1::MetadataValue;
+use crate::v1::display::format_meta_value;
+use crate::v1::display::get_param_meta;
 
 /// Represents a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -45,6 +51,48 @@ impl<N: TreeNode> StructDefinition<N> {
         &self,
     ) -> impl Iterator<Item = ParameterMetadataSection<N>> + use<'_, N> {
         self.children()
+    }
+
+    /// Writes a Markdown formatted description of the struct.
+    pub fn markdown_description(&self, f: &mut impl fmt::Write) -> fmt::Result {
+        writeln!(f, "```wdl\nstruct {} {{", self.name().text())?;
+        for member in self.members() {
+            writeln!(
+                f,
+                "  {} {}",
+                member.ty().inner().text(),
+                member.name().text()
+            )?;
+        }
+        writeln!(f, "}}\n```\n---")?;
+
+        if let Some(meta) = self.metadata().next() {
+            if let Some(desc) = meta.items().find(|i| i.name().text() == "description") {
+                if let MetadataValue::String(s) = desc.value() {
+                    if let Some(text) = s.text() {
+                        writeln!(f, "{}\n", text.text())?;
+                    }
+                }
+            }
+        }
+
+        let members: Vec<_> = self.members().collect();
+        if !members.is_empty() {
+            writeln!(f, "\n**Members**")?;
+            for member in members {
+                let name = member.name();
+                write!(f, "- **{}**: `{}`", name.text(), member.ty().inner().text())?;
+                if let Some(meta_val) =
+                    get_param_meta(name.text(), self.parameter_metadata().next().as_ref())
+                {
+                    writeln!(f)?;
+                    format_meta_value(f, &meta_val, 2)?;
+                }
+                writeln!(f)?;
+            }
+        }
+
+        Ok(())
     }
 }
 

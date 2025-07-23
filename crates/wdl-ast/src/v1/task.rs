@@ -1,5 +1,7 @@
 //! V1 AST representation for task definitions.
 
+use std::fmt;
+
 use rowan::NodeOrToken;
 
 use super::BoundDecl;
@@ -21,10 +23,200 @@ use crate::SyntaxNode;
 use crate::SyntaxToken;
 use crate::TreeNode;
 use crate::TreeToken;
+use crate::v1::display::write_input_section;
+use crate::v1::display::write_output_section;
 
 pub mod common;
 pub mod requirements;
 pub mod runtime;
+
+/// The set of all valid task fields and their descriptions for the implicit
+/// `task` variable.
+pub const TASK_FIELDS: &[(&str, &str)] = &[
+    (TASK_FIELD_NAME, "The task name."),
+    (
+        TASK_FIELD_ID,
+        "A String with the unique ID of the task. The execution engine may choose the format for \
+         this ID, but it is suggested to include at least the following information:\nThe task \
+         name\nThe task alias, if it differs from the task name\nThe index of the task instance, \
+         if it is within a scatter statement",
+    ),
+    (
+        TASK_FIELD_CONTAINER,
+        "The URI String of the container in which the task is executing, or None if the task is \
+         being executed in the host environment.",
+    ),
+    (
+        TASK_FIELD_CPU,
+        "The allocated number of cpus as a Float. Must be greater than 0.",
+    ),
+    (
+        TASK_FIELD_MEMORY,
+        "The allocated memory in bytes as an Int. Must be greater than 0.",
+    ),
+    (
+        TASK_FIELD_GPU,
+        "An Array[String] with one specification per allocated GPU. The specification is \
+         execution engine-specific. If no GPUs were allocated, then the value must be an empty \
+         array.",
+    ),
+    (
+        TASK_FIELD_FPGA,
+        "An Array[String] with one specification per allocated FPGA. The specification is \
+         execution engine-specific. If no FPGAs were allocated, then the value must be an empty \
+         array.",
+    ),
+    (
+        TASK_FIELD_DISKS,
+        "A Map[String, Int] with one entry for each disk mount point. The key is the mount point \
+         and the value is the initial amount of disk space allocated, in bytes. The execution \
+         engine must, at a minimum, provide one entry for each disk mount point requested, but \
+         may provide more. The amount of disk space available for a given mount point may \
+         increase during the lifetime of the task (e.g., autoscaling volumes provided by some \
+         cloud services).",
+    ),
+    (
+        TASK_FIELD_ATTEMPT,
+        "The current task attempt. The value must be 0 the first time the task is executed, and \
+         incremented by 1 each time the task is retried (if any).",
+    ),
+    (
+        TASK_FIELD_END_TIME,
+        "An Int? whose value is the time by which the task must be completed, as a Unix time \
+         stamp. A value of 0 means that the execution engine does not impose a time limit. A \
+         value of None means that the execution engine cannot determine whether the runtime of \
+         the task is limited. A positive value is a guarantee that the task will be preempted at \
+         the specified time, but is not a guarantee that the task won't be preempted earlier.",
+    ),
+    (
+        TASK_FIELD_RETURN_CODE,
+        "An Int? whose value is initially None and is set to the value of the command's return \
+         code. The value is only guaranteed to be defined in the output section.",
+    ),
+    (
+        TASK_FIELD_META,
+        "An Object containing a copy of the task's meta section, or the empty Object if there is \
+         no meta section or if it is empty.",
+    ),
+    (
+        TASK_FIELD_PARAMETER_META,
+        "An Object containing a copy of the task's parameter_meta section, or the empty Object if \
+         there is no parameter_meta section or if it is empty.",
+    ),
+    (
+        TASK_FIELD_EXT,
+        "An Object containing execution engine-specific attributes, or the empty Object if there \
+         aren't any. Members of ext should be considered optional. It is recommended to only \
+         access a member of ext using string interpolation to avoid an error if it is not defined.",
+    ),
+];
+
+/// The set of all valid runtime section keys and their descriptions.
+pub const RUNTIME_KEYS: &[(&str, &str)] = &[
+    (
+        TASK_REQUIREMENT_CONTAINER,
+        "Specifies the container image (e.g., Docker, Singularity) to use for the task.",
+    ),
+    (
+        TASK_REQUIREMENT_CPU,
+        "The number of CPU cores required for the task.",
+    ),
+    (
+        TASK_REQUIREMENT_MEMORY,
+        "The amount of memory required, specified as a string with units (e.g., '2 GiB').",
+    ),
+    (
+        TASK_REQUIREMENT_DISKS,
+        "Specifies the disk requirements for the task.",
+    ),
+    (TASK_REQUIREMENT_GPU, "Specifies GPU requirements."),
+];
+
+/// The set of all valid requirements section keys and their descriptions.
+pub const REQUIREMENTS_KEY: &[(&str, &str)] = &[
+    (
+        TASK_REQUIREMENT_CONTAINER,
+        "Specifies a list of allowed container images. Use `*` to allow any POSIX environment.",
+    ),
+    (
+        TASK_REQUIREMENT_CPU,
+        "The minimum number of CPU cores required.",
+    ),
+    (
+        TASK_REQUIREMENT_MEMORY,
+        "The minimum amount of memory required.",
+    ),
+    (TASK_REQUIREMENT_GPU, "The minimum GPU requirements."),
+    (TASK_REQUIREMENT_FPGA, "The minimum FPGA requirements."),
+    (TASK_REQUIREMENT_DISKS, "The minimum disk requirements."),
+    (
+        TASK_REQUIREMENT_MAX_RETRIES,
+        "The maximum number of times the task can be retried.",
+    ),
+    (
+        TASK_REQUIREMENT_RETURN_CODES,
+        "A list of acceptable return codes from the command.",
+    ),
+];
+
+/// The set of all valid task hints section keys and their descriptions.
+pub const TASK_HINT_KEYS: &[(&str, &str)] = &[
+    (
+        TASK_HINT_DISKS,
+        "A hint to the execution engine to mount disks with specific attributes. The value of \
+         this hint can be a String with a specification that applies to all mount points, or a \
+         Map with the key being the mount point and the value being a String with the \
+         specification for that mount point.",
+    ),
+    (
+        TASK_HINT_GPU,
+        "A hint to the execution engine to provision hardware accelerators with specific \
+         attributes. Accelerator specifications are left intentionally vague as they are \
+         primarily intended to be used in the context of a specific compute environment.",
+    ),
+    (
+        TASK_HINT_FPGA,
+        "A hint to the execution engine to provision hardware accelerators with specific \
+         attributes. Accelerator specifications are left intentionally vague as they are \
+         primarily intended to be used in the context of a specific compute environment.",
+    ),
+    (
+        TASK_HINT_INPUTS,
+        "Provides input-specific hints. Each key must refer to a parameter defined in the task's \
+         input section. A key may also used dotted notation to refer to a specific member of a \
+         struct input.",
+    ),
+    (
+        TASK_HINT_LOCALIZATION_OPTIONAL,
+        "A hint to the execution engine about whether the File inputs for this task need to be \
+         localized prior to executing the task. The value of this hint is a Boolean for which \
+         true indicates that the contents of the File inputs may be streamed on demand.",
+    ),
+    (
+        TASK_HINT_MAX_CPU,
+        "A hint to the execution engine that the task expects to use no more than the specified \
+         number of CPUs. The value of this hint has the same specification as requirements.cpu.",
+    ),
+    (
+        TASK_HINT_MAX_MEMORY,
+        "A hint to the execution engine that the task expects to use no more than the specified \
+         amount of memory. The value of this hint has the same specification as \
+         requirements.memory.",
+    ),
+    (
+        TASK_HINT_OUTPUTS,
+        "Provides output-specific hints. Each key must refer to a parameter defined in the task's \
+         output section. A key may also use dotted notation to refer to a specific member of a \
+         struct output.",
+    ),
+    (
+        TASK_HINT_SHORT_TASK,
+        "A hint to the execution engine about the expected duration of this task. The value of \
+         this hint is a Boolean for which true indicates that that this task is not expected to \
+         take long to execute, which the execution engine can interpret as permission to optimize \
+         the execution of the task.",
+    ),
+];
 
 /// The name of the `name` task variable field.
 pub const TASK_FIELD_NAME: &str = "name";
@@ -190,6 +382,30 @@ impl<N: TreeNode> TaskDefinition<N> {
     /// Gets the private declarations of the task.
     pub fn declarations(&self) -> impl Iterator<Item = BoundDecl<N>> + use<'_, N> {
         self.children()
+    }
+
+    /// Writes a Markdown formatted description of the task.
+    pub fn markdown_description(&self, f: &mut impl fmt::Write) -> fmt::Result {
+        writeln!(f, "```wdl\ntask {}\n```\n---", self.name().text())?;
+
+        if let Some(meta) = self.metadata() {
+            if let Some(desc) = meta.items().find(|i| i.name().text() == "description") {
+                if let MetadataValue::String(s) = desc.value() {
+                    if let Some(text) = s.text() {
+                        writeln!(f, "{}\n", text.text())?;
+                    }
+                }
+            }
+        }
+
+        write_input_section(f, self.input().as_ref(), self.parameter_metadata().as_ref())?;
+        write_output_section(
+            f,
+            self.output().as_ref(),
+            self.parameter_metadata().as_ref(),
+        )?;
+
+        Ok(())
     }
 }
 

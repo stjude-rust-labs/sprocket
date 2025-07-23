@@ -34,15 +34,12 @@ use wdl_ast::TreeNode;
 use wdl_ast::TreeToken;
 use wdl_ast::v1;
 
-use crate::DiagnosticsConfig;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
-use crate::diagnostics;
 use crate::document::Document;
-use crate::document::ScopeRef;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
-use crate::types::v1::EvaluationContext;
+use crate::handlers::TypeEvalContext;
 use crate::types::v1::ExprTypeEvaluator;
 
 /// Finds the definition location for an identifier at the given position.
@@ -426,7 +423,7 @@ fn resolve_access_expression(
         .find_scope_by_position(parent_node.span().start())
         .context("could not find scope for access expression")?;
 
-    let mut ctx = GotoDefEvalContext {
+    let mut ctx = TypeEvalContext {
         scope,
         document: analysis_doc,
     };
@@ -876,49 +873,4 @@ pub fn position_to_offset(
     lines
         .offset(line_col)
         .ok_or_else(|| anyhow!("line_col is invalid"))
-}
-
-/// Context for evaluating expressions during goto definition resolution.
-struct GotoDefEvalContext<'a> {
-    /// The scope reference containing the variable and name bindings at the
-    /// current position.
-    scope: ScopeRef<'a>,
-
-    /// The document being analyzed.
-    document: &'a Document,
-}
-
-impl EvaluationContext for GotoDefEvalContext<'_> {
-    fn version(&self) -> wdl_ast::SupportedVersion {
-        self.document
-            .version()
-            .expect("document should have a version")
-    }
-
-    fn resolve_name(&self, name: &str, _span: Span) -> Option<crate::types::Type> {
-        self.scope.lookup(name).map(|n| n.ty().clone())
-    }
-
-    fn resolve_type_name(
-        &mut self,
-        name: &str,
-        span: Span,
-    ) -> std::result::Result<crate::types::Type, wdl_ast::Diagnostic> {
-        if let Some(s) = self.document.struct_by_name(name) {
-            if let Some(ty) = s.ty() {
-                return Ok(ty.clone());
-            }
-        }
-        Err(diagnostics::unknown_type(name, span))
-    }
-
-    fn task(&self) -> Option<&crate::document::Task> {
-        None
-    }
-
-    fn diagnostics_config(&self) -> DiagnosticsConfig {
-        DiagnosticsConfig::default()
-    }
-
-    fn add_diagnostic(&mut self, _: wdl_ast::Diagnostic) {}
 }

@@ -13,6 +13,7 @@ documentation = "https://docs.rs/wdl-analysis"
 [dependencies]
 wdl-ast = { path = "../wdl-ast", version = "0.14.0" }
 wdl-format = { path = "../wdl-format", version = "0.8.0" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.14.0" }
 
 anyhow = { workspace = true }
 convert_case = { workspace = true }

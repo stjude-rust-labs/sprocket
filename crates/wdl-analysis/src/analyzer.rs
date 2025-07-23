@@ -20,6 +20,7 @@ use line_index::LineCol;
 use line_index::LineIndex;
 use line_index::WideEncoding;
 use line_index::WideLineCol;
+use lsp_types::CompletionResponse;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Location;
 use path_clean::PathClean;
@@ -36,6 +37,7 @@ use crate::graph::ParseState;
 use crate::queue::AddRequest;
 use crate::queue::AnalysisQueue;
 use crate::queue::AnalyzeRequest;
+use crate::queue::CompletionRequest;
 use crate::queue::FindAllReferencesRequest;
 use crate::queue::FormatRequest;
 use crate::queue::GotoDefinitionRequest;
@@ -639,6 +641,38 @@ where
             anyhow!(
                 "failed to receive find all references response from analysis queue because the \
                  client channel has closed"
+            )
+        })
+    }
+
+    /// Performs a `auto-completion` for a symbol.
+    pub async fn completion(
+        &self,
+        context: Context,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<CompletionResponse>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::Completion(CompletionRequest {
+                document,
+                position,
+                encoding,
+                context,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send completion request to analysis queue because the channel has \
+                     closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to send completion request to analysis queue because the channel has \
+                 closed"
             )
         })
     }

@@ -2,9 +2,11 @@
 
 use std::str::FromStr;
 
+use strum::IntoEnumIterator;
+
 /// Represents a supported V1 WDL version.
 // NOTE: it is expected that this enumeration is in increasing order of 1.x versions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, strum::EnumIter)]
 #[non_exhaustive]
 pub enum V1 {
     /// The document version is 1.0.
@@ -60,6 +62,11 @@ impl SupportedVersion {
         match (self, other) {
             (SupportedVersion::V1(_), SupportedVersion::V1(_)) => true,
         }
+    }
+
+    /// Returns an iterator over all supported WDL versions.
+    pub fn all() -> impl Iterator<Item = Self> {
+        V1::iter().map(Self::V1)
     }
 }
 

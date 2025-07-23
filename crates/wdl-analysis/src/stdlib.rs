@@ -811,6 +811,8 @@ pub struct FunctionSignature {
     parameters: Vec<FunctionalType>,
     /// The return type of the function.
     ret: FunctionalType,
+    /// The function definition
+    definition: Option<&'static str>,
 }
 
 impl FunctionSignature {
@@ -846,6 +848,11 @@ impl FunctionSignature {
     /// Gets the function's return type.
     pub fn ret(&self) -> &FunctionalType {
         &self.ret
+    }
+
+    /// Gets the function's definition.
+    pub fn definition(&self) -> Option<&'static str> {
+        self.definition
     }
 
     /// Determines if the function signature is generic.
@@ -1013,6 +1020,7 @@ impl Default for FunctionSignature {
             required: Default::default(),
             parameters: Default::default(),
             ret: FunctionalType::Concrete(Type::Union),
+            definition: None,
         }
     }
 }
@@ -1072,6 +1080,12 @@ impl FunctionSignatureBuilder {
         self
     }
 
+    /// Sets the definition of the function.
+    pub fn definition(mut self, definition: &'static str) -> Self {
+        self.0.definition = Some(definition);
+        self
+    }
+
     /// Consumes the builder and produces the function signature.
     ///
     /// # Panics
@@ -1104,6 +1118,8 @@ impl FunctionSignatureBuilder {
         }
 
         sig.ret().assert_type_parameters(&sig.type_parameters);
+
+        assert!(sig.definition.is_some(), "functions should have definition");
 
         sig
     }
@@ -1601,6 +1617,36 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::Float)
                         .ret(PrimitiveType::Integer)
+                        .definition(
+                            r#"
+Rounds a floating point number **down** to the next lower integer.
+
+**Parameters**:
+
+1. `Float`: the number to round.
+
+**Returns**: An integer.
+
+Example: test_floor.wdl
+
+```wdl
+version 1.2
+
+workflow test_floor {
+  input {
+    Int i1
+  }
+
+  Int i2 = i1 - 1
+  Float f1 = i1
+  Float f2 = i1 - 0.1
+  
+  output {
+    Array[Boolean] all_true = [floor(f1) == i1, floor(f2) == i2]
+  }
+}
+```"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -1617,6 +1663,37 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::Float)
                         .ret(PrimitiveType::Integer)
+                        .definition(
+                            r#"
+Rounds a floating point number **up** to the next higher integer.
+
+**Parameters**:
+
+1. `Float`: the number to round.
+
+**Returns**: An integer.
+
+Example: test_ceil.wdl
+
+```wdl
+version 1.2
+
+workflow test_ceil {
+  input {
+    Int i1
+  }
+
+  Int i2 = i1 + 1
+  Float f1 = i1
+  Float f2 = i1 + 0.1
+  
+  output {
+    Array[Boolean] all_true = [ceil(f1) == i1, ceil(f2) == i2]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -1633,12 +1710,72 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::Float)
                         .ret(PrimitiveType::Integer)
+                        .definition(r#"
+Rounds a floating point number to the nearest integer based on standard rounding rules ("round half up").
+
+**Parameters**:
+
+1. `Float`: the number to round.
+
+**Returns**: An integer.
+
+Example: test_round.wdl
+
+```wdl
+version 1.2
+
+workflow test_round {
+  input {
+    Int i1
+  }
+
+  Int i2 = i1 + 1
+  Float f1 = i1 + 0.49
+  Float f2 = i1 + 0.50
+  
+  output {
+    Array[Boolean] all_true = [round(f1) == i1, round(f2) == i2]
+  }
+}
+```
+"#
+                    )
                         .build(),
                 )
                 .into(),
             )
             .is_none()
     );
+
+    const MIN_DEFINITION: &str = r#"
+Returns the smaller of two values. If both values are `Int`s, the return value is an `Int`, otherwise it is a `Float`.
+
+**Parameters**:
+
+1. `Int|Float`: the first number to compare.
+2. `Int|Float`: the second number to compare.
+
+**Returns**: The smaller of the two arguments.
+
+Example: test_min.wdl
+
+```wdl
+version 1.2
+
+workflow test_min {
+  input {
+    Int value1
+    Float value2
+  }
+
+  output {
+    # these two expressions are equivalent
+    Float min1 = if value1 < value2 then value1 else value2
+    Float min2 = min(value1, value2)
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#min
     assert!(
@@ -1651,30 +1788,64 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::Integer)
                         .parameter(PrimitiveType::Integer)
                         .ret(PrimitiveType::Integer)
+                        .definition(MIN_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .parameter(PrimitiveType::Integer)
                         .parameter(PrimitiveType::Float)
                         .ret(PrimitiveType::Float)
+                        .definition(MIN_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .parameter(PrimitiveType::Float)
                         .parameter(PrimitiveType::Integer)
                         .ret(PrimitiveType::Float)
+                        .definition(MIN_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .parameter(PrimitiveType::Float)
                         .parameter(PrimitiveType::Float)
                         .ret(PrimitiveType::Float)
+                        .definition(MIN_DEFINITION)
                         .build(),
-                ],)
+                ])
                 .into(),
             )
             .is_none()
     );
+
+    const MAX_DEFINITION: &str = r#"
+Returns the larger of two values. If both values are `Int`s, the return value is an `Int`, otherwise it is a `Float`.
+
+**Parameters**:
+
+1. `Int|Float`: the first number to compare.
+2. `Int|Float`: the second number to compare.
+
+**Returns**: The larger of the two arguments.
+
+Example: test_max.wdl
+
+```wdl
+version 1.2
+
+workflow test_max {
+  input {
+    Int value1
+    Float value2
+  }
+
+  output {
+    # these two expressions are equivalent
+    Float min1 = if value1 > value2 then value1 else value2
+    Float min2 = max(value1, value2)
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#max
     assert!(
@@ -1687,26 +1858,30 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::Integer)
                         .parameter(PrimitiveType::Integer)
                         .ret(PrimitiveType::Integer)
+                        .definition(MAX_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .parameter(PrimitiveType::Integer)
                         .parameter(PrimitiveType::Float)
                         .ret(PrimitiveType::Float)
+                        .definition(MAX_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .parameter(PrimitiveType::Float)
                         .parameter(PrimitiveType::Integer)
                         .ret(PrimitiveType::Float)
+                        .definition(MAX_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .parameter(PrimitiveType::Float)
                         .parameter(PrimitiveType::Float)
                         .ret(PrimitiveType::Float)
+                        .definition(MAX_DEFINITION)
                         .build(),
-                ],)
+                ])
                 .into(),
             )
             .is_none()
@@ -1723,6 +1898,41 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::String)
                         .parameter(PrimitiveType::String)
                         .ret(Type::from(PrimitiveType::String).optional())
+                        .definition(
+                            r#"
+Given two `String` parameters `input` and `pattern`, searches for the occurrence of `pattern` within `input` and returns the first match or `None` if there are no matches. `pattern` is a [regular expression](https://en.wikipedia.org/wiki/Regular_expression) and is evaluated as a [POSIX Extended Regular Expression (ERE)](https://en.wikipedia.org/wiki/Regular_expression#POSIX_basic_and_extended).
+
+Note that regular expressions are written using regular WDL strings, so backslash characters need to be double-escaped. For example:
+
+```wdl
+String? first_match = find("hello\tBob", "\t")
+```
+
+**Parameters**
+
+1. `String`: the input string to search.
+2. `String`: the pattern to search for.
+
+**Returns**: The contents of the first match, or `None` if `pattern` does not match `input`.
+
+Example: test_find_task.wdl
+
+```wdl
+version 1.2
+workflow find_string {
+  input {
+    String in = "hello world"
+    String pattern1 = "e..o"
+    String pattern2 = "goodbye"
+  }
+  output {
+    String? match1 = find(in, pattern1)  # "ello"
+    String? match2 = find(in, pattern2)  # None
+  }  
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -1741,6 +1951,45 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::String)
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::Boolean)
+                        .definition(
+                            r#"
+Given two `String` parameters `input` and `pattern`, tests whether `pattern` matches `input` at least once. `pattern` is a [regular expression](https://en.wikipedia.org/wiki/Regular_expression) and is evaluated as a [POSIX Extended Regular Expression (ERE)](https://en.wikipedia.org/wiki/Regular_expression#POSIX_basic_and_extended).
+
+To test whether `pattern` matches the entire `input`, make sure to begin and end the pattern with anchors. For example:
+
+```wdl
+Boolean full_match = matches("abc123", "^a.+3$")
+```
+
+Note that regular expressions are written using regular WDL strings, so backslash characters need to be double-escaped. For example:
+
+```wdl
+Boolean has_tab = matches("hello\tBob", "\t")
+```
+
+**Parameters**
+
+1. `String`: the input string to search.
+2. `String`: the pattern to search for.
+
+**Returns**: `true` if `pattern` matches `input` at least once, otherwise `false`.
+
+Example: test_matches_task.wdl
+
+```wdl
+version 1.2
+workflow contains_string {
+  input {
+    File fastq
+  }
+  output {
+    Boolean is_compressed = matches(basename(fastq), "\\.(gz|zip|zstd)")
+    Boolean is_read1 = matches(basename(fastq), "_R1")
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -1759,12 +2008,74 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::String)
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::String)
+                        .definition(
+                            r#"
+Given three `String` parameters `input`, `pattern`, `replace`, this function replaces all non-overlapping occurrences of `pattern` in `input` by `replace`. `pattern` is a [regular expression](https://en.wikipedia.org/wiki/Regular_expression) and is evaluated as a [POSIX Extended Regular Expression (ERE)](https://en.wikipedia.org/wiki/Regular_expression#POSIX_basic_and_extended).
+Regular expressions are written using regular WDL strings, so backslash characters need to be double-escaped (e.g., "\t").
+
+🗑 The option for execution engines to allow other regular expression grammars besides POSIX ERE is deprecated.
+
+**Parameters**:
+
+1. `String`: the input string.
+2. `String`: the pattern to search for.
+3. `String`: the replacement string.
+
+**Returns**: the input string, with all occurrences of the pattern replaced by the replacement string.
+
+Example: test_sub.wdl
+
+```wdl
+version 1.2
+
+workflow test_sub {
+  String chocolike = "I like chocolate when\nit's late"
+
+  output {
+    String chocolove = sub(chocolike, "like", "love") # I love chocolate when\nit's late
+    String chocoearly = sub(chocolike, "late", "early") # I like chocoearly when\nit's early
+    String chocolate = sub(chocolike, "late$", "early") # I like chocolate when\nit's early
+    String chocoearlylate = sub(chocolike, "[^ ]late", "early") # I like chocearly when\nit's late
+    String choco4 = sub(chocolike, " [:alpha:]{4} ", " 4444 ") # I 4444 chocolate 4444\nit's late
+    String no_newline = sub(chocolike, "\n", " ") # "I like chocolate when it's late"
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
             )
             .is_none()
     );
+
+    const BASENAME_DEFINITION: &str = r#"
+Returns the "basename" of a file or directory - the name after the last directory separator in the path. 
+
+The optional second parameter specifies a literal suffix to remove from the file name. If the file name does not end with the specified suffix then it is ignored.
+
+**Parameters**
+
+1. `File|Directory`: Path of the file or directory to read. If the argument is a `String`, it is assumed to be a local file path relative to the current working directory of the task.
+2. `String`: (Optional) Suffix to remove from the file name.
+
+**Returns**: The file's basename as a `String`.
+
+Example: test_basename.wdl
+
+```wdl
+version 1.2
+
+workflow test_basename {
+  output {
+    Boolean is_true1 = basename("/path/to/file.txt") == "file.txt"
+    Boolean is_true2 = basename("/path/to/file.txt", ".txt") == "file"
+    Boolean is_true3 = basename("/path/to/dir") == "dir" 
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#basename
     assert!(
@@ -1777,6 +2088,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::File)
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::String)
+                        .definition(BASENAME_DEFINITION)
                         .build(),
                     // This overload isn't explicitly specified in the spec, but the spec
                     // allows for `String` where file/directory are accepted; an explicit
@@ -1788,6 +2100,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::String)
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::String)
+                        .definition(BASENAME_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -1795,12 +2108,77 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::Directory)
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::String)
+                        .definition(BASENAME_DEFINITION)
                         .build(),
-                ],)
+                ])
                 .into(),
             )
             .is_none()
     );
+
+    const JOIN_PATHS_DEFINITION: &str = r#"
+Joins together two or more paths into an absolute path in the host filesystem.
+
+There are three variants of this function:
+
+1. `File join_paths(File, String)`: Joins together exactly two paths. The first path may be either absolute or relative and must specify a directory; the second path is relative to the first path and may specify a file or directory.
+2. `File join_paths(File, Array[String]+)`: Joins together any number of relative paths with a base path. The first argument may be either an absolute or a relative path and must specify a directory. The paths in the second array argument must all be relative. The *last* element may specify a file or directory; all other elements must specify a directory.
+3. `File join_paths(Array[String]+)`: Joins together any number of paths. The array must not be empty. The *first* element of the array may be either absolute or relative; subsequent path(s) must be relative. The *last* element may specify a file or directory; all other elements must specify a directory.
+
+An absolute path starts with `/` and indicates that the path is relative to the root of the environment in which the task is executed. Only the first path may be absolute. If any subsequent paths are absolute, it is an error.
+
+A relative path does not start with `/` and indicates the path is relative to its parent directory. It is up to the execution engine to determine which directory to use as the parent when resolving relative paths; by default it is the working directory in which the task is executed.
+
+**Parameters**
+
+1. `File|Array[String]+`: Either a path or an array of paths.
+2. `String|Array[String]+`: A relative path or paths; only allowed if the first argument is a `File`.
+
+**Returns**: A `File` representing an absolute path that results from joining all the paths in order (left-to-right), and resolving the resulting path against the default parent directory if it is relative.
+
+Example: join_paths_task.wdl
+
+```wdl
+version 1.2
+
+task resolve_paths_task {
+  input {
+    File abs_file = "/usr"
+    String abs_str = "/usr"
+    String rel_dir_str = "bin"
+    File rel_file = "echo"
+    File rel_dir_file = "mydir"
+    String rel_str = "mydata.txt"
+  }
+
+  # these are all equivalent to '/usr/bin/echo'
+  File bin1 = join_paths(abs_file, [rel_dir_str, rel_file])
+  File bin2 = join_paths(abs_str, [rel_dir_str, rel_file])
+  File bin3 = join_paths([abs_str, rel_dir_str, rel_file])
+  
+  # the default behavior is that this resolves to 
+  # '<working dir>/mydir/mydata.txt'
+  File data = join_paths(rel_dir_file, rel_str)
+  
+  # this resolves to '<working dir>/bin/echo', which is non-existent
+  File doesnt_exist = join_paths([rel_dir_str, rel_file])
+  command <<<
+    mkdir ~{rel_dir_file}
+    ~{bin1} -n "hello" > ~{data}
+  >>>
+
+  output {
+    Boolean bins_equal = (bin1 == bin2) && (bin1 == bin3)
+    String result = read_string(data)
+    File? missing_file = doesnt_exist
+  }
+  
+  runtime {
+    container: "ubuntu:latest"
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths
     assert!(
@@ -1813,19 +2191,22 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::File)
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::File)
+                        .definition(JOIN_PATHS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(PrimitiveType::File)
                         .parameter(array_string_non_empty.clone())
                         .ret(PrimitiveType::File)
+                        .definition(JOIN_PATHS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(array_string_non_empty.clone())
                         .ret(PrimitiveType::File)
+                        .definition(JOIN_PATHS_DEFINITION)
                         .build(),
-                ],)
+                ])
                 .into(),
             )
             .is_none()
@@ -1840,12 +2221,98 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::String)
                         .ret(array_file.clone())
+                        .definition(
+                            r#"
+Returns the Bash expansion of the [glob string](https://en.wikipedia.org/wiki/Glob_(programming)) relative to the task's execution directory, and in the same order.
+
+`glob` finds all of the files (but not the directories) in the same order as would be matched by running `echo <glob>` in Bash from the task's execution directory.
+
+At least in standard Bash, glob expressions are not evaluated recursively, i.e., files in nested directories are not included. 
+
+**Parameters**:
+
+1. `String`: The glob string.
+
+**Returns**: A array of all files matched by the glob.
+
+Example: gen_files_task.wdl
+
+```wdl
+version 1.2
+
+task gen_files {
+  input {
+    Int num_files
+  }
+
+  command <<<
+    for i in 1..~{num_files}; do
+      printf ${i} > a_file_${i}.txt
+    done
+    mkdir a_dir
+    touch a_dir/a_inner.txt
+  >>>
+
+  output {
+    Array[File] files = glob("a_*")
+    Int glob_len = length(files)
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
             )
             .is_none()
     );
+
+    const SIZE_DEFINITION: &str = r#"
+Determines the size of a file, directory, or the sum total sizes of the files/directories contained within a compound value. The files may be optional values; `None` values have a size of `0.0`. By default, the size is returned in bytes unless the optional second argument is specified with a [unit](#units-of-storage)
+
+In the second variant of the `size` function, the parameter type `X` represents any compound type that contains `File` or `File?` nested at any depth.
+
+If the size cannot be represented in the specified unit because the resulting value is too large to fit in a `Float`, an error is raised. It is recommended to use a unit that will always be large enough to handle any expected inputs without numerical overflow.
+
+**Parameters**
+
+1. `File|File?|Directory|Directory?|X|X?`: A file, directory, or a compound value containing files/directories, for which to determine the size.
+2. `String`: (Optional) The unit of storage; defaults to 'B'.
+
+**Returns**: The size of the files/directories as a `Float`.
+
+Example: file_sizes_task.wdl
+
+```wdl
+version 1.2
+
+task file_sizes {
+  command <<<
+    printf "this file is 22 bytes\n" > created_file
+  >>>
+
+  File? missing_file = None
+
+  output {
+    File created_file = "created_file"
+    Float missing_file_bytes = size(missing_file)
+    Float created_file_bytes = size(created_file, "B")
+    Float multi_file_kb = size([created_file, missing_file], "K")
+
+    Map[String, Pair[Int, File]] nested = {
+      "a": (10, created_file),
+      "b": (50, missing_file)
+    }
+    Float nested_bytes = size(nested)
+  }
+  
+  requirements {
+    container: "ubuntu:latest"
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#size
     assert!(
@@ -1861,12 +2328,14 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(Type::None)
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::Float)
+                        .definition(SIZE_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .required(1)
                         .parameter(Type::from(PrimitiveType::File).optional())
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::Float)
+                        .definition(SIZE_DEFINITION)
                         .build(),
                     // This overload isn't explicitly specified in the spec, but the spec
                     // allows for `String` where file/directory are accepted; an explicit
@@ -1878,6 +2347,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(Type::from(PrimitiveType::String).optional())
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::Float)
+                        .definition(SIZE_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -1885,6 +2355,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(Type::from(PrimitiveType::Directory).optional())
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::Float)
+                        .definition(SIZE_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .required(1)
@@ -1892,8 +2363,9 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(GenericType::Parameter("X"))
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::Float)
+                        .definition(SIZE_DEFINITION)
                         .build(),
-                ],)
+                ])
                 .into(),
             )
             .is_none()
@@ -1907,6 +2379,31 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .ret(PrimitiveType::File)
+                        .definition(
+                            r#"
+Returns the value of the executed command's standard output (stdout) as a `File`. The engine should give the file a random name and write it in a temporary directory, so as not to conflict with any other task output files.
+
+**Parameters**: None
+
+**Returns**: A `File` whose contents are the stdout generated by the command of the task where the function is called.
+
+Example: echo_stdout.wdl
+
+```wdl
+version 1.2
+
+task echo_stdout {
+  command <<<
+    printf "hello world"
+  >>>
+
+  output {
+    File message = read_string(stdout())
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -1922,6 +2419,31 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .ret(PrimitiveType::File)
+                        .definition(
+                            r#"
+Returns the value of the executed command's standard error (stderr) as a `File`. The file should be given a random name and written in a temporary directory, so as not to conflict with any other task output files.
+
+**Parameters**: None
+
+**Returns**: A `File` whose contents are the stderr generated by the command of the task where the function is called.
+
+Example: echo_stderr.wdl
+
+```wdl
+version 1.2
+
+task echo_stderr {
+  command <<<
+    >&2 printf "hello world"
+  >>>
+
+  output {
+    File message = read_string(stderr())
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -1938,6 +2460,39 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::File)
                         .ret(PrimitiveType::String)
+                        .definition(
+                            r#"
+Reads an entire file as a `String`, with any trailing end-of-line characters (`` and `\n`) stripped off. If the file is empty, an empty string is returned.
+
+If the file contains any internal newline characters, they are left in tact.
+
+**Parameters**
+
+1. `File`: Path of the file to read.
+
+**Returns**: A `String`.
+
+Example: read_string_task.wdl
+
+```wdl
+version 1.2
+
+task read_string {
+  # this file will contain "this\nfile\nhas\nfive\nlines\n"
+  File f = write_lines(["this", "file", "has", "five", "lines"])
+  
+  command <<<
+  cat ~{f}
+  >>>
+  
+  output {
+    # s will contain "this\nfile\nhas\nfive\nlines"
+    String s = read_string(stdout())
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -1954,6 +2509,33 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::File)
                         .ret(PrimitiveType::Integer)
+                        .definition(
+                            r#"
+Reads a file that contains a single line containing only an integer and (optional) whitespace. If the line contains a valid integer, that value is returned as an `Int`. If the file is empty or does not contain a single integer, an error is raised.
+
+**Parameters**
+
+1. `File`: Path of the file to read.
+
+**Returns**: An `Int`.
+
+Example: read_int_task.wdl
+
+```wdl
+version 1.2
+
+task read_int {
+  command <<<
+  printf "  1  \n" > int_file
+  >>>
+
+  output {
+    Int i = read_int("int_file")
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -1970,6 +2552,35 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::File)
                         .ret(PrimitiveType::Float)
+                        .definition(
+                            r#"
+Reads a file that contains only a numeric value and (optional) whitespace. If the line contains a valid floating point number, that value is returned as a `Float`. If the file is empty or does not contain a single float, an error is raised.
+
+**Parameters**
+
+1. `File`: Path of the file to read.
+
+**Returns**: A `Float`.
+
+Example: read_float_task.wdl
+
+```wdl
+version 1.2
+
+task read_float {
+  command <<<
+  printf "  1  \n" > int_file
+  printf "  2.0  \n" > float_file
+  >>>
+
+  output {
+    Float f1 = read_float("int_file")
+    Float f2 = read_float("float_file")
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -1986,6 +2597,35 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::File)
                         .ret(PrimitiveType::Boolean)
+                        .definition(
+                            r#"
+Reads a file that contains a single line containing only a boolean value and (optional) whitespace. If the non-whitespace content of the line is "true" or "false", that value is returned as a `Boolean`. If the file is empty or does not contain a single boolean, an error is raised. The comparison is case- and whitespace-insensitive.
+
+**Parameters**
+
+1. `File`: Path of the file to read.
+
+**Returns**: A `Boolean`.
+
+Example: read_bool_task.wdl
+
+```wdl
+version 1.2
+
+task read_bool {
+  command <<<
+  printf "  true  \n" > true_file
+  printf "  FALSE  \n" > false_file
+  >>>
+
+  output {
+    Boolean b1 = read_boolean("true_file")
+    Boolean b2 = read_boolean("false_file")
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2002,6 +2642,46 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::File)
                         .ret(array_string.clone())
+                        .definition(
+                            r#"
+Reads each line of a file as a `String`, and returns all lines in the file as an `Array[String]`. Trailing end-of-line characters (`` and `\n`) are removed from each line.
+
+The order of the lines in the returned `Array[String]` is the order in which the lines appear in the file.
+
+If the file is empty, an empty array is returned.
+
+**Parameters**
+
+1. `File`: Path of the file to read.
+
+**Returns**: An `Array[String]` representation of the lines in the file.
+
+Example: grep_task.wdl
+
+```wdl
+version 1.2
+
+task grep {
+  input {
+    String pattern
+    File file
+  }
+
+  command <<<
+    grep '~{pattern}' ~{file}
+  >>>
+
+  output {
+    Array[String] matches = read_lines(stdout())
+  }
+  
+  requirements {
+    container: "ubuntu:latest"
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2018,12 +2698,99 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(array_string.clone())
                         .ret(PrimitiveType::File)
+                        .definition(
+                            r#"
+Writes a file with one line for each element in a `Array[String]`. All lines are terminated by the newline (`\n`) character (following the [POSIX standard](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_206)). If the `Array` is empty, an empty file is written.
+
+**Parameters**
+
+1. `Array[String]`: Array of strings to write.
+
+**Returns**: A `File`.
+
+Example: write_lines_task.wdl
+
+```wdl
+version 1.2
+
+task write_lines {
+  input {
+    Array[String] array = ["first", "second", "third"]
+  }
+
+  command <<<
+    paste -s -d'\t' ~{write_lines(array)}
+  >>>
+
+  output {
+    String s = read_string(stdout())
+  }
+  
+  requirements {
+    container: "ubuntu:latest"
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
             )
             .is_none()
     );
+
+    const READ_TSV_DEFINITION: &str = r#"
+Reads a tab-separated value (TSV) file as an `Array[Array[String]]` representing a table of values. Trailing end-of-line characters (`` and `\n`) are removed from each line.
+
+This function has three variants:
+
+1. `Array[Array[String]] read_tsv(File, [false])`: Returns each row of the table as an `Array[String]`. There is no requirement that the rows of the table are all the same length.
+2. `Array[Object] read_tsv(File, true)`: The second parameter must be `true` and specifies that the TSV file contains a header line. Each row is returned as an `Object` with its keys determined by the header (the first line in the file) and its values as `String`s. All rows in the file must be the same length and the field names in the header row must be valid `Object` field names, or an error is raised.
+3. `Array[Object] read_tsv(File, Boolean, Array[String])`: The second parameter specifies whether the TSV file contains a header line, and the third parameter is an array of field names that is used to specify the field names to use for the returned `Object`s. If the second parameter is `true`, the specified field names override those in the file's header (i.e., the header line is ignored).
+
+If the file is empty, an empty array is returned.
+
+If the entire contents of the file can not be read for any reason, the calling task or workflow fails with an error. Examples of failure include, but are not limited to, not having access to the file, resource limitations (e.g. memory) when reading the file, and implementation-imposed file size limits.
+
+**Parameters**
+
+1. `File`: The TSV file to read.
+2. `Boolean`: (Optional) Whether to treat the file's first line as a header.
+3. `Array[String]`: (Optional) An array of field names. If specified, then the second parameter is also required.
+
+**Returns**: An `Array` of rows in the TSV file, where each row is an `Array[String]` of fields or an `Object` with keys determined by the second and third parameters and `String` values.
+
+Example: read_tsv_task.wdl
+
+```wdl
+version 1.2
+
+task read_tsv {
+  command <<<
+    {
+      printf "row1\tvalue1\n"
+      printf "row2\tvalue2\n"
+      printf "row3\tvalue3\n"
+    } >> data.no_headers.tsv
+
+    {
+      printf "header1\theader2\n"
+      printf "row1\tvalue1\n"
+      printf "row2\tvalue2\n"
+      printf "row3\tvalue3\n"
+    } >> data.headers.tsv
+  >>>
+
+  output {
+    Array[Array[String]] output_table = read_tsv("data.no_headers.tsv")
+    Array[Object] output_objs1 = read_tsv("data.no_headers.tsv", false, ["name", "value"])
+    Array[Object] output_objs2 = read_tsv("data.headers.tsv", true)
+    Array[Object] output_objs3 = read_tsv("data.headers.tsv", true, ["name", "value"])
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
     assert!(
@@ -2034,12 +2801,14 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::File)
                         .ret(array_array_string.clone())
+                        .definition(READ_TSV_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(PrimitiveType::File)
                         .parameter(PrimitiveType::Boolean)
                         .ret(array_object.clone())
+                        .definition(READ_TSV_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -2047,12 +2816,88 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::Boolean)
                         .parameter(array_string.clone())
                         .ret(array_object.clone())
+                        .definition(READ_TSV_DEFINITION)
                         .build(),
-                ],)
+                ])
                 .into(),
             )
             .is_none()
     );
+
+    const WRITE_TSV_DEFINITION: &str = r#"
+Given an `Array` of elements, writes a tab-separated value (TSV) file with one line for each element.
+
+There are three variants of this function:
+
+1. `File write_tsv(Array[Array[String]])`: Each element is concatenated using a tab ('\t') delimiter and written as a row in the file. There is no header row.
+
+2. `File write_tsv(Array[Array[String]], true, Array[String])`: The second argument must be `true` and the third argument provides an `Array` of column names. The column names are concatenated to create a header that is written as the first row of the file. All elements must be the same length as the header array.
+
+3. `File write_tsv(Array[Struct], [Boolean, [Array[String]]])`: Each element is a struct whose field values are concatenated in the order the fields are defined. The optional second argument specifies whether to write a header row. If it is `true`, then the header is created from the struct field names. If the second argument is `true`, then the optional third argument may be used to specify column names to use instead of the struct field names.
+
+Each line is terminated by the newline (`\n`) character. 
+
+The generated file should be given a random name and written in a temporary directory, so as not to conflict with any other task output files.
+
+If the entire contents of the file can not be written for any reason, the calling task or workflow fails with an error. Examples of failure include, but are not limited to, insufficient disk space to write the file.
+
+
+**Parameters**
+
+1. `Array[Array[String]] | Array[Struct]`: An array of rows, where each row is either an `Array` of column values or a struct whose values are the column values.
+2. `Boolean`: (Optional) Whether to write a header row.
+3. `Array[String]`: An array of column names. If the first argument is `Array[Array[String]]` and the second argument is `true` then it is required, otherwise it is optional. Ignored if the second argument is `false`.
+
+
+**Returns**: A `File`.
+
+Example: write_tsv_task.wdl
+
+```wdl
+version 1.2
+
+task write_tsv {
+  input {
+    Array[Array[String]] array = [["one", "two", "three"], ["un", "deux", "trois"]]
+    Array[Numbers] structs = [
+      Numbers {
+        first: "one",
+        second: "two",
+        third: "three"
+      },
+      Numbers {
+        first: "un",
+        second: "deux",
+        third: "trois"
+      }
+    ]
+  }
+
+  command <<<
+    cut -f 1 ~{write_tsv(array)} >> array_no_header.txt
+    cut -f 1 ~{write_tsv(array, true, ["first", "second", "third"])} > array_header.txt
+    cut -f 1 ~{write_tsv(structs)} >> structs_default.txt
+    cut -f 2 ~{write_tsv(structs, false)} >> structs_no_header.txt
+    cut -f 2 ~{write_tsv(structs, true)} >> structs_header.txt
+    cut -f 3 ~{write_tsv(structs, true, ["no1", "no2", "no3"])} >> structs_user_header.txt
+  >>>
+
+  output {
+    Array[String] array_no_header = read_lines("array_no_header.txt")
+    Array[String] array_header = read_lines("array_header.txt")
+    Array[String] structs_default = read_lines("structs_default.txt")
+    Array[String] structs_no_header = read_lines("structs_no_header.txt")
+    Array[String] structs_header = read_lines("structs_header.txt")
+    Array[String] structs_user_header = read_lines("structs_user_header.txt")
+
+  }
+  
+  requirements {
+    container: "ubuntu:latest"
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
     assert!(
@@ -2063,6 +2908,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(array_array_string.clone())
                         .ret(PrimitiveType::File)
+                        .definition(WRITE_TSV_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -2070,6 +2916,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::Boolean)
                         .parameter(array_string.clone())
                         .ret(PrimitiveType::File)
+                        .definition(WRITE_TSV_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -2079,8 +2926,9 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::Boolean)
                         .parameter(array_string.clone())
                         .ret(PrimitiveType::File)
+                        .definition(WRITE_TSV_DEFINITION)
                         .build(),
-                ],)
+                ])
                 .into(),
             )
             .is_none()
@@ -2095,6 +2943,38 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::File)
                         .ret(map_string_string.clone())
+                        .definition(
+                            r#"
+Reads a tab-separated value (TSV) file representing a set of pairs. Each row must have exactly two columns, e.g., `col1\tcol2`. Trailing end-of-line characters (`` and `\n`) are removed from each line.
+
+Each pair is added to a `Map[String, String]` in order. The values in the first column must be unique; if there are any duplicate keys, an error is raised.
+
+If the file is empty, an empty map is returned.
+
+**Parameters**
+
+1. `File`: Path of the two-column TSV file to read.
+
+**Returns**: A `Map[String, String]`, with one element for each row in the TSV file.
+
+Example: read_map_task.wdl
+
+```wdl
+version 1.2
+
+task read_map {
+  command <<<
+    printf "key1\tvalue1\n" >> map_file
+    printf "key2\tvalue2\n" >> map_file
+  >>>
+  
+  output {
+    Map[String, String] mapping = read_map(stdout())
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2111,6 +2991,43 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(map_string_string.clone())
                         .ret(PrimitiveType::File)
+                        .definition(
+                            r#"
+Writes a tab-separated value (TSV) file with one line for each element in a `Map[String, String]`. Each element is concatenated into a single tab-delimited string of the format `~{key}\t~{value}`. Each line is terminated by the newline (`\n`) character. If the `Map` is empty, an empty file is written.
+
+Since `Map`s are ordered, the order of the lines in the file is guaranteed to be the same order that the elements were added to the `Map`.
+
+**Parameters**
+
+1. `Map[String, String]`: A `Map`, where each element will be a row in the generated file.
+
+**Returns**: A `File`.
+
+Example: write_map_task.wdl
+
+```wdl
+version 1.2
+
+task write_map {
+  input {
+    Map[String, String] map = {"key1": "value1", "key2": "value2"}
+  }
+
+  command <<<
+    cut -f 1 ~{write_map(map)}
+  >>>
+  
+  output {
+    Array[String] keys = read_lines(stdout())
+  }
+
+  requirements {
+    container: "ubuntu:latest"
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2127,6 +3044,55 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::File)
                         .ret(Type::Union)
+                        .definition(
+                            r#"
+Reads a JSON file into a WDL value whose type depends on the file's contents. The mapping of JSON type to WDL type is:
+
+| JSON Type | WDL Type         |
+| --------- | ---------------- |
+| object    | `Object`         |
+| array     | `Array[X]`       |
+| number    | `Int` or `Float` |
+| string    | `String`         |
+| boolean   | `Boolean`        |
+| null      | `None`           |
+
+The return value is of type [`Union`](#union-hidden-type) and must be used in a context where it can be coerced to the expected type, or an error is raised. For example, if the JSON file contains `null`, then the return value will be `None`, meaning the value can only be used in a context where an optional type is expected.
+
+If the JSON file contains an array, then all the elements of the array must be coercible to the same type, or an error is raised.
+
+The `read_json` function does not have access to any WDL type information, so it cannot return an instance of a specific `Struct` type. Instead, it returns a generic `Object` value that must be coerced to the desired `Struct` type.
+
+Note that an empty file is not valid according to the JSON specification, and so calling `read_json` on an empty file raises an error.
+
+**Parameters**
+
+1. `File`: Path of the JSON file to read.
+
+**Returns**: A value whose type is dependent on the contents of the JSON file.
+
+Example: read_person.wdl
+
+```wdl
+version 1.2
+
+struct Person {
+  String name
+  Int age
+}
+
+workflow read_person {
+  input {
+    File json_file
+  }
+
+  output {
+    Person p = read_json(json_file)
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2144,6 +3110,44 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .type_parameter("X", JsonSerializableConstraint)
                         .parameter(GenericType::Parameter("X"))
                         .ret(PrimitiveType::File)
+                        .definition(
+                            r#"
+Writes a JSON file with the serialized form of a WDL value. The following WDL types can be serialized:
+
+| WDL Type         | JSON Type |
+| ---------------- | --------- |
+| `Struct`         | object    |
+| `Object`         | object    |
+| `Map[String, X]` | object    |
+| `Array[X]`       | array     |
+| `Int`            | number    |
+| `Float`          | number    |
+| `String`         | string    |
+| `File`           | string    |
+| `Boolean`        | boolean   |
+| `None`           | null      |
+
+When serializing compound types, all nested types must be serializable or an error is raised.
+
+**Parameters**
+
+1. `X`: A WDL value of a supported type.
+
+**Returns**: A `File`.
+
+Example: write_json_fail.wdl
+
+```wdl
+version 1.2
+
+workflow write_json_fail {
+  Pair[Int, Map[Int, String]] x = (1, {2: "hello"})
+  # this fails with an error - Map with Int keys is not serializable
+  File f = write_json(x)
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2160,6 +3164,44 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::File)
                         .ret(Type::Object)
+                        .definition(
+                            r#"
+Reads a tab-separated value (TSV) file representing the names and values of the members of an `Object`. There must be exactly two rows, and each row must have the same number of elements, otherwise an error is raised. Trailing end-of-line characters (`` and `\n`) are removed from each line.
+
+The first row specifies the object member names. The names in the first row must be unique; if there are any duplicate names, an error is raised.
+
+The second row specifies the object member values corresponding to the names in the first row. All of the `Object`'s values are of type `String`.
+
+**Parameters**
+
+1. `File`: Path of the two-row TSV file to read.
+
+**Returns**: An `Object`, with as many members as there are unique names in the TSV.
+
+Example: read_object_task.wdl
+
+```wdl
+version 1.2
+
+task read_object {
+  command <<<
+    python <<CODE
+    print('\t'.join(["key_{}".format(i) for i in range(3)]))
+    print('\t'.join(["value_{}".format(i) for i in range(3)]))
+    CODE
+  >>>
+
+  output {
+    Object my_obj = read_object(stdout())
+  }
+
+  requirements {
+    container: "python:latest"
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2176,12 +3218,84 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::File)
                         .ret(array_object.clone())
+                        .definition(
+                            r#"
+Reads a tab-separated value (TSV) file representing the names and values of the members of any number of `Object`s. Trailing end-of-line characters (`` and `\n`) are removed from each line.
+
+The first line of the file must be a header row with the names of the object members. The names in the first row must be unique; if there are any duplicate names, an error is raised.
+
+There are any number of additional rows, where each additional row contains the values of an object corresponding to the member names. Each row in the file must have the same number of fields as the header row. All of the `Object`'s values are of type `String`.
+
+If the file is empty or contains only a header line, an empty array is returned.
+
+**Parameters**
+
+1. `File`: Path of the TSV file to read.
+
+**Returns**: An `Array[Object]`, with `N-1` elements, where `N` is the number of rows in the file.
+
+Example: read_objects_task.wdl
+
+```wdl
+version 1.2
+
+task read_objects {
+  command <<<
+    python <<CODE
+    print('\t'.join(["key_{}".format(i) for i in range(3)]))
+    print('\t'.join(["value_A{}".format(i) for i in range(3)]))
+    print('\t'.join(["value_B{}".format(i) for i in range(3)]))
+    print('\t'.join(["value_C{}".format(i) for i in range(3)]))
+    CODE
+  >>>
+
+  output {
+    Array[Object] my_obj = read_objects(stdout())
+  }
+"#
+                        )
                         .build(),
                 )
                 .into(),
             )
             .is_none()
     );
+
+    const WRITE_OBJECT_DEFINITION: &str = r#"
+Writes a tab-separated value (TSV) file representing the names and values of the members of an `Object`. The file will contain exactly two rows. The first row specifies the object member names. The second row specifies the object member values corresponding to the names in the first row.
+
+Each line is terminated by the newline (`\n`) character. 
+
+The generated file should be given a random name and written in a temporary directory, so as not to conflict with any other task output files.
+
+If the entire contents of the file can not be written for any reason, the calling task or workflow fails with an error. Examples of failure include, but are not limited to, insufficient disk space to write the file.
+
+**Parameters**
+
+1. `Object`: An `Object` whose members will be written to the file.
+
+**Returns**: A `File`.
+
+Example: write_object_task.wdl
+
+```wdl
+version 1.2
+
+task write_object {
+  input {
+    Object my_obj = {"key_0": "value_A0", "key_1": "value_A1", "key_2": "value_A2"}
+  }
+
+  command <<<
+    cat ~{write_object(my_obj)}
+  >>>
+
+  output {
+    Object new_obj = read_object(stdout())
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_object
     assert!(
@@ -2192,18 +3306,60 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(Type::Object)
                         .ret(PrimitiveType::File)
+                        .definition(WRITE_OBJECT_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("S", PrimitiveStructConstraint)
                         .parameter(GenericType::Parameter("S"))
                         .ret(PrimitiveType::File)
+                        .definition(WRITE_OBJECT_DEFINITION)
                         .build(),
-                ],)
+                ])
                 .into(),
             )
             .is_none()
     );
+
+    const WRITE_OBJECTS_DEFINITION: &str = r#"
+Writes a tab-separated value (TSV) file representing the names and values of the members of any number of `Object`s. The first line of the file will be a header row with the names of the object members. There will be one additional row for each element in the input array, where each additional row contains the values of an object corresponding to the member names.
+
+Each line is terminated by the newline (`\n`) character. 
+
+The generated file should be given a random name and written in a temporary directory, so as not to conflict with any other task output files.
+
+If the entire contents of the file can not be written for any reason, the calling task or workflow fails with an error. Examples of failure include, but are not limited to, insufficient disk space to write the file.
+
+**Parameters**
+
+1. `Array[Object]`: An `Array[Object]` whose elements will be written to the file.
+
+**Returns**: A `File`.
+
+Example: write_objects_task.wdl
+
+```wdl
+version 1.2
+
+task write_objects {
+  input {
+    Array[Object] my_objs = [
+      {"key_0": "value_A0", "key_1": "value_A1", "key_2": "value_A2"},
+      {"key_0": "value_B0", "key_1": "value_B1", "key_2": "value_B2"},
+      {"key_0": "value_C0", "key_1": "value_C1", "key_2": "value_C2"}
+    ]
+  }
+
+  command <<<
+    cat ~{write_objects(my_objs)}
+  >>>
+
+  output {
+    Array[Object] new_objs = read_objects(stdout())
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_objects
     assert!(
@@ -2214,14 +3370,16 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(array_object.clone())
                         .ret(PrimitiveType::File)
+                        .definition(WRITE_OBJECTS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("S", PrimitiveStructConstraint)
                         .parameter(GenericArrayType::new(GenericType::Parameter("S")))
                         .ret(PrimitiveType::File)
+                        .definition(WRITE_OBJECTS_DEFINITION)
                         .build(),
-                ],)
+                ])
                 .into(),
             )
             .is_none()
@@ -2238,6 +3396,34 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::String)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .ret(array_string.clone())
+                        .definition(
+                            r#"
+Given a `String` `prefix` and an `Array[X]` `a`, returns a new `Array[String]` where each element `x` of `a` is prepended with `prefix`. The elements of `a` are converted to `String`s before being prepended. If `a` is empty, an empty array is returned.
+
+**Parameters**
+
+1. `String`: The string to prepend.
+2. `Array[X]`: The array whose elements will be prepended.
+
+**Returns**: A new `Array[String]` with the prepended elements.
+
+Example: prefix_task.wdl
+
+```wdl
+version 1.2
+
+task prefix {
+  input {
+    Array[Int] ints = [1, 2, 3]
+  }
+
+  output {
+    Array[String] prefixed_ints = prefix("file_", ints) # ["file_1", "file_2", "file_3"]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2257,6 +3443,34 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::String)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .ret(array_string.clone())
+                        .definition(
+                            r#"
+Given a `String` `suffix` and an `Array[X]` `a`, returns a new `Array[String]` where each element `x` of `a` is appended with `suffix`. The elements of `a` are converted to `String`s before being appended. If `a` is empty, an empty array is returned.
+
+**Parameters**
+
+1. `String`: The string to append.
+2. `Array[X]`: The array whose elements will be appended.
+
+**Returns**: A new `Array[String]` with the appended elements.
+
+Example: suffix_task.wdl
+
+```wdl
+version 1.2
+
+task suffix {
+  input {
+    Array[Int] ints = [1, 2, 3]
+  }
+
+  output {
+    Array[String] suffixed_ints = suffix(".txt", ints) # ["1.txt", "2.txt", "3.txt"]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2275,6 +3489,33 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .type_parameter("P", PrimitiveTypeConstraint)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .ret(array_string.clone())
+                        .definition(
+                            r#"
+Given an `Array[X]` `a`, returns a new `Array[String]` where each element `x` of `a` is converted to a `String` and then surrounded by double quotes (`"`). If `a` is empty, an empty array is returned.
+
+**Parameters**
+
+1. `Array[X]`: The array whose elements will be quoted.
+
+**Returns**: A new `Array[String]` with the quoted elements.
+
+Example: quote_task.wdl
+
+```wdl
+version 1.2
+
+task quote {
+  input {
+    Array[String] strings = ["hello", "world"]
+  }
+
+  output {
+    Array[String] quoted_strings = quote(strings) # ["\"hello\"", "\"world\""]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2293,6 +3534,33 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .type_parameter("P", PrimitiveTypeConstraint)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .ret(array_string.clone())
+                        .definition(
+                            r#"
+Given an `Array[X]` `a`, returns a new `Array[String]` where each element `x` of `a` is converted to a `String` and then surrounded by single quotes (`'`). If `a` is empty, an empty array is returned.
+
+**Parameters**
+
+1. `Array[X]`: The array whose elements will be single-quoted.
+
+**Returns**: A new `Array[String]` with the single-quoted elements.
+
+Example: squote_task.wdl
+
+```wdl
+version 1.2
+
+task squote {
+  input {
+    Array[String] strings = ["hello", "world"]
+  }
+
+  output {
+    Array[String] squoted_strings = squote(strings) # ["'hello'", "'world'"]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2312,6 +3580,34 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(PrimitiveType::String)
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .ret(PrimitiveType::String)
+                        .definition(
+                            r#"
+Given a `String` `separator` and an `Array[X]` `a`, returns a new `String` where each element `x` of `a` is converted to a `String` and then joined by `separator`. If `a` is empty, an empty string is returned.
+
+**Parameters**
+
+1. `String`: The string to use as a separator.
+2. `Array[X]`: The array whose elements will be joined.
+
+**Returns**: A new `String` with the joined elements.
+
+Example: sep_task.wdl
+
+```wdl
+version 1.2
+
+task sep {
+  input {
+    Array[Int] ints = [1, 2, 3]
+  }
+
+  output {
+    String joined_ints = sep(",", ints) # "1,2,3"
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2328,6 +3624,33 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::Integer)
                         .ret(array_int.clone())
+                        .definition(
+                            r#"
+Returns an `Array[Int]` of integers from `0` up to (but not including) the given `Int` `n`. If `n` is less than or equal to `0`, an empty array is returned.
+
+**Parameters**
+
+1. `Int`: The upper bound (exclusive) of the range.
+
+**Returns**: An `Array[Int]` of integers.
+
+Example: range_task.wdl
+
+```wdl
+version 1.2
+
+task range {
+  input {
+    Int n = 5
+  }
+
+  output {
+    Array[Int] r = range(n) # [0, 1, 2, 3, 4]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2349,6 +3672,35 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .ret(GenericArrayType::new(GenericArrayType::new(
                             GenericType::Parameter("X"),
                         )))
+                        .definition(
+                            r#"
+Given an `Array[Array[X]]` `a`, returns a new `Array[Array[X]]` where the rows and columns of `a` are swapped. If `a` is empty, an empty array is returned.
+
+If the inner arrays are not all the same length, an error is raised.
+
+**Parameters**
+
+1. `Array[Array[X]]`: The array to transpose.
+
+**Returns**: A new `Array[Array[X]]` with the rows and columns swapped.
+
+Example: transpose_task.wdl
+
+```wdl
+version 1.2
+
+task transpose {
+  input {
+    Array[Array[Int]] matrix = [[1, 2, 3], [4, 5, 6]]
+  }
+
+  output {
+    Array[Array[Int]] transposed_matrix = transpose(matrix) # [[1, 4], [2, 5], [3, 6]]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2371,6 +3723,37 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericType::Parameter("X"),
                             GenericType::Parameter("Y"),
                         )))
+                        .definition(
+                            r#"
+Given two `Array`s `a` and `b`, returns a new `Array[Pair[X, Y]]` where each element is a `Pair` of an element from `a` and an element from `b`. The order of the elements in the returned array is such that all elements from `b` are paired with the first element of `a`, then all elements from `b` are paired with the second element of `a`, and so on.
+
+If either `a` or `b` is empty, an empty array is returned.
+
+**Parameters**
+
+1. `Array[X]`: The first array.
+2. `Array[Y]`: The second array.
+
+**Returns**: A new `Array[Pair[X, Y]]` with the cross product of the two arrays.
+
+Example: cross_task.wdl
+
+```wdl
+version 1.2
+
+task cross {
+  input {
+    Array[Int] ints = [1, 2]
+    Array[String] strings = ["a", "b"]
+  }
+
+  output {
+    Array[Pair[Int, String]] crossed = cross(ints, strings) # [(1, "a"), (1, "b"), (2, "a"), (2, "b")]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2393,6 +3776,37 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericType::Parameter("X"),
                             GenericType::Parameter("Y"),
                         )))
+                        .definition(
+                            r#"
+Given two `Array`s `a` and `b`, returns a new `Array[Pair[X, Y]]` where each element is a `Pair` of an element from `a` and an element from `b` at the same index. The length of the returned array is the minimum of the lengths of `a` and `b`.
+
+If either `a` or `b` is empty, an empty array is returned.
+
+**Parameters**
+
+1. `Array[X]`: The first array.
+2. `Array[Y]`: The second array.
+
+**Returns**: A new `Array[Pair[X, Y]]` with the zipped elements.
+
+Example: zip_task.wdl
+
+```wdl
+version 1.2
+
+task zip {
+  input {
+    Array[Int] ints = [1, 2, 3]
+    Array[String] strings = ["a", "b"]
+  }
+
+  output {
+    Array[Pair[Int, String]] zipped = zip(ints, strings) # [(1, "a"), (2, "b")]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2418,6 +3832,35 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericArrayType::new(GenericType::Parameter("X")),
                             GenericArrayType::new(GenericType::Parameter("Y")),
                         ))
+                        .definition(
+                            r#"
+Given an `Array[Pair[X, Y]]` `a`, returns a new `Pair[Array[X], Array[Y]]` where the first element of the `Pair` is an `Array` of all the first elements of the `Pair`s in `a`, and the second element of the `Pair` is an `Array` of all the second elements of the `Pair`s in `a`.
+
+If `a` is empty, a `Pair` of two empty arrays is returned.
+
+**Parameters**
+
+1. `Array[Pair[X, Y]]`: The array of pairs to unzip.
+
+**Returns**: A new `Pair[Array[X], Array[Y]]` with the unzipped elements.
+
+Example: unzip_task.wdl
+
+```wdl
+version 1.2
+
+task unzip {
+  input {
+    Array[Pair[Int, String]] zipped = [(1, "a"), (2, "b")]
+  }
+
+  output {
+    Pair[Array[Int], Array[String]] unzipped = unzip(zipped) # ([1, 2], ["a", "b"])
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2437,6 +3880,35 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(GenericArrayType::new(GenericType::Parameter("P")))
                         .parameter(GenericType::Parameter("P"))
                         .ret(PrimitiveType::Boolean)
+                        .definition(
+                            r#"
+Given an `Array[X]` `a` and a value `v` of type `X`, returns `true` if `v` is present in `a`, otherwise `false`.
+
+**Parameters**
+
+1. `Array[X]`: The array to search.
+2. `X`: The value to search for.
+
+**Returns**: `true` if `v` is present in `a`, otherwise `false`.
+
+Example: contains_task.wdl
+
+```wdl
+version 1.2
+
+task contains {
+  input {
+    Array[Int] ints = [1, 2, 3]
+  }
+
+  output {
+    Boolean contains_2 = contains(ints, 2) # true
+    Boolean contains_4 = contains(ints, 4) # false
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2458,6 +3930,36 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .ret(GenericArrayType::new(GenericArrayType::new(
                             GenericType::Parameter("X"),
                         )))
+                        .definition(
+                            r#"
+Given an `Array[X]` `a` and an `Int` `size`, returns a new `Array[Array[X]]` where each inner array has at most `size` elements. The last inner array may have fewer than `size` elements. If `a` is empty, an empty array is returned.
+
+If `size` is less than or equal to `0`, an error is raised.
+
+**Parameters**
+
+1. `Array[X]`: The array to chunk.
+2. `Int`: The maximum size of each chunk.
+
+**Returns**: A new `Array[Array[X]]` with the chunked elements.
+
+Example: chunk_task.wdl
+
+```wdl
+version 1.2
+
+task chunk {
+  input {
+    Array[Int] ints = [1, 2, 3, 4, 5]
+  }
+
+  output {
+    Array[Array[Int]] chunked = chunk(ints, 2) # [[1, 2], [3, 4], [5]]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2477,6 +3979,33 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericType::Parameter("X")
                         )))
                         .ret(GenericArrayType::new(GenericType::Parameter("X")))
+                        .definition(
+                            r#"
+Given an `Array[Array[X]]` `a`, returns a new `Array[X]` where all the elements of the inner arrays are concatenated into a single array. If `a` is empty, an empty array is returned.
+
+**Parameters**
+
+1. `Array[Array[X]]`: The array to flatten.
+
+**Returns**: A new `Array[X]` with the flattened elements.
+
+Example: flatten_task.wdl
+
+```wdl
+version 1.2
+
+task flatten {
+  input {
+    Array[Array[Int]] nested_ints = [[1, 2], [3, 4], [5]]
+  }
+
+  output {
+    Array[Int] flattened_ints = flatten(nested_ints) # [1, 2, 3, 4, 5]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2498,6 +4027,33 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(GenericArrayType::new(GenericType::Parameter("X")))
                         .parameter(GenericType::UnqualifiedParameter("X"))
                         .ret(GenericType::UnqualifiedParameter("X"))
+                        .definition(
+                            r#"
+Given an `Array[X?]` `a`, returns the first non-`None` element in `a`. If all elements are `None`, an error is raised.
+
+**Parameters**
+
+1. `Array[X?]`: The array to search.
+
+**Returns**: The first non-`None` element.
+
+Example: select_first_task.wdl
+
+```wdl
+version 1.2
+
+task select_first {
+  input {
+    Array[Int?] ints = [None, 1, None, 2]
+  }
+
+  output {
+    Int first_int = select_first(ints) # 1
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2517,6 +4073,33 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .ret(GenericArrayType::new(GenericType::UnqualifiedParameter(
                             "X"
                         )))
+                        .definition(
+                            r#"
+Given an `Array[X?]` `a`, returns a new `Array[X]` containing all the non-`None` elements in `a`. If all elements are `None`, an empty array is returned.
+
+**Parameters**
+
+1. `Array[X?]`: The array to filter.
+
+**Returns**: A new `Array[X]` with all the non-`None` elements.
+
+Example: select_all_task.wdl
+
+```wdl
+version 1.2
+
+task select_all {
+  input {
+    Array[Int?] ints = [None, 1, None, 2]
+  }
+
+  output {
+    Array[Int] all_ints = select_all(ints) # [1, 2]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2542,6 +4125,35 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericType::Parameter("K"),
                             GenericType::Parameter("V")
                         )))
+                        .definition(
+                            r#"
+Given a `Map[K, V]` `m`, returns a new `Array[Pair[K, V]]` where each element is a `Pair` of a key and its corresponding value from `m`. The order of the elements in the returned array is the same as the order in which the elements were added to the `Map`.
+
+If `m` is empty, an empty array is returned.
+
+**Parameters**
+
+1. `Map[K, V]`: The map to convert.
+
+**Returns**: A new `Array[Pair[K, V]]` with the key-value pairs.
+
+Example: as_pairs_task.wdl
+
+```wdl
+version 1.2
+
+task as_pairs {
+  input {
+    Map[String, Int] map = {"a": 1, "b": 2}
+  }
+
+  output {
+    Array[Pair[String, Int]] pairs = as_pairs(map) # [("a", 1), ("b", 2)]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2567,12 +4179,69 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericType::Parameter("K"),
                             GenericType::Parameter("V")
                         ))
+                        .definition(
+                            r#"
+Given an `Array[Pair[K, V]]` `a`, returns a new `Map[K, V]` where each `Pair` is converted to a key-value pair in the `Map`. If `a` is empty, an empty map is returned.
+
+If there are any duplicate keys in `a`, an error is raised.
+
+**Parameters**
+
+1. `Array[Pair[K, V]]`: The array of pairs to convert.
+
+**Returns**: A new `Map[K, V]` with the key-value pairs.
+
+Example: as_map_task.wdl
+
+```wdl
+version 1.2
+
+task as_map {
+  input {
+    Array[Pair[String, Int]] pairs = [("a", 1), ("b", 2)]
+  }
+
+  output {
+    Map[String, Int] map = as_map(pairs) # {"a": 1, "b": 2}
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
             )
             .is_none()
     );
+
+    const KEYS_DEFINITION: &str = r#"
+Given a `Map[K, V]` `m`, returns a new `Array[K]` containing all the keys in `m`. The order of the keys in the returned array is the same as the order in which the elements were added to the `Map`.
+
+If `m` is empty, an empty array is returned.
+
+**Parameters**
+
+1. `Map[K, V]`: The map to get the keys from.
+
+**Returns**: A new `Array[K]` with the keys.
+
+Example: keys_map_task.wdl
+
+```wdl
+version 1.2
+
+task keys_map {
+  input {
+    Map[String, Int] map = {"a": 1, "b": 2}
+  }
+
+  output {
+    Array[String] keys = keys(map) # ["a", "b"]
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#keys
     assert!(
@@ -2589,23 +4258,54 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericType::Parameter("V")
                         ))
                         .ret(GenericArrayType::new(GenericType::Parameter("K")))
+                        .definition(KEYS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("S", StructConstraint)
                         .parameter(GenericType::Parameter("S"))
                         .ret(array_string.clone())
+                        .definition(KEYS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(Type::Object)
                         .ret(array_string.clone())
+                        .definition(KEYS_DEFINITION)
                         .build(),
                 ])
                 .into(),
             )
             .is_none()
     );
+
+    const CONTAINS_KEY_DEFINITION: &str = r#"
+Given a `Map[K, V]` `m` and a key `k` of type `K`, returns `true` if `k` is present in `m`, otherwise `false`.
+
+**Parameters**
+
+1. `Map[K, V]`: The map to search.
+2. `K`: The key to search for.
+
+**Returns**: `true` if `k` is present in `m`, otherwise `false`.
+
+Example: contains_key_map_task.wdl
+
+```wdl
+version 1.2
+
+task contains_key_map {
+  input {
+    Map[String, Int] map = {"a": 1, "b": 2}
+  }
+
+  output {
+    Boolean contains_a = contains_key(map, "a") # true
+    Boolean contains_c = contains_key(map, "c") # false
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#contains_key
     assert!(
@@ -2623,12 +4323,14 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         ))
                         .parameter(GenericType::Parameter("K"))
                         .ret(PrimitiveType::Boolean)
+                        .definition(CONTAINS_KEY_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(Type::Object)
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::Boolean)
+                        .definition(CONTAINS_KEY_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -2639,6 +4341,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         ))
                         .parameter(array_string.clone())
                         .ret(PrimitiveType::Boolean)
+                        .definition(CONTAINS_KEY_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -2646,12 +4349,14 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .parameter(GenericType::Parameter("S"))
                         .parameter(array_string.clone())
                         .ret(PrimitiveType::Boolean)
+                        .definition(CONTAINS_KEY_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(Type::Object)
                         .parameter(array_string.clone())
                         .ret(PrimitiveType::Boolean)
+                        .definition(CONTAINS_KEY_DEFINITION)
                         .build(),
                 ])
                 .into(),
@@ -2674,6 +4379,35 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericType::Parameter("V")
                         ))
                         .ret(GenericArrayType::new(GenericType::Parameter("V")))
+                        .definition(
+                            r#"
+Given a `Map[K, V]` `m`, returns a new `Array[V]` containing all the values in `m`. The order of the values in the returned array is the same as the order in which the elements were added to the `Map`.
+
+If `m` is empty, an empty array is returned.
+
+**Parameters**
+
+1. `Map[K, V]`: The map to get the values from.
+
+**Returns**: A new `Array[V]` with the values.
+
+Example: values_map_task.wdl
+
+```wdl
+version 1.2
+
+task values_map {
+  input {
+    Map[String, Int] map = {"a": 1, "b": 2}
+  }
+
+  output {
+    Array[Int] values = values(map) # [1, 2]
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2699,6 +4433,35 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericType::Parameter("K"),
                             GenericArrayType::new(GenericType::Parameter("V"))
                         ))
+                        .definition(
+                            r#"
+Given an `Array[Pair[K, V]]` `a`, returns a new `Map[K, Array[V]]` where each key `K` maps to an `Array` of all the values `V` that were paired with `K` in `a`. The order of the values in the inner arrays is the same as the order in which they appeared in `a`.
+
+If `a` is empty, an empty map is returned.
+
+**Parameters**
+
+1. `Array[Pair[K, V]]`: The array of pairs to collect.
+
+**Returns**: A new `Map[K, Array[V]]` with the collected values.
+
+Example: collect_by_key_task.wdl
+
+```wdl
+version 1.2
+
+task collect_by_key {
+  input {
+    Array[Pair[String, Int]] pairs = [("a", 1), ("b", 2), ("a", 3)]
+  }
+
+  output {
+    Map[String, Array[Int]] collected = collect_by_key(pairs) # {"a": [1, 3], "b": 2}
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
@@ -2716,12 +4479,67 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .any_type_parameter("X")
                         .parameter(GenericType::Parameter("X"))
                         .ret(PrimitiveType::Boolean)
+                        .definition(
+                            r#"
+Given an optional value `x`, returns `true` if `x` is defined (i.e., not `None`), otherwise `false`.
+
+**Parameters**
+
+1. `X?`: The optional value to check.
+
+**Returns**: `true` if `x` is defined, otherwise `false`.
+
+Example: defined_task.wdl
+
+```wdl
+version 1.2
+
+task defined {
+  input {
+    Int? x = 1
+    Int? y = None
+  }
+
+  output {
+    Boolean x_defined = defined(x) # true
+    Boolean y_defined = defined(y) # false
+  }
+}
+```
+"#
+                        )
                         .build(),
                 )
                 .into(),
             )
             .is_none()
     );
+
+    const LENGTH_DEFINITION: &str = r#"
+Given an `Array[X]` `a`, returns the number of elements in `a`. If `a` is empty, `0` is returned.
+
+**Parameters**
+
+1. `Array[X]`: The array to get the length from.
+
+**Returns**: The number of elements in the array as an `Int`.
+
+Example: length_array_task.wdl
+
+```wdl
+version 1.2
+
+task length_array {
+  input {
+    Array[Int] ints = [1, 2, 3]
+  }
+
+  output {
+    Int len = length(ints) # 3
+  }
+}
+```
+"#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length
     assert!(
@@ -2733,6 +4551,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                         .any_type_parameter("X")
                         .parameter(GenericArrayType::new(GenericType::Parameter("X")))
                         .ret(PrimitiveType::Integer)
+                        .definition(LENGTH_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .any_type_parameter("K")
@@ -2742,14 +4561,17 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                             GenericType::Parameter("V")
                         ))
                         .ret(PrimitiveType::Integer)
+                        .definition(LENGTH_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .parameter(Type::Object)
                         .ret(PrimitiveType::Integer)
+                        .definition(LENGTH_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .parameter(PrimitiveType::String)
                         .ret(PrimitiveType::Integer)
+                        .definition(LENGTH_DEFINITION)
                         .build(),
                 ])
                 .into(),

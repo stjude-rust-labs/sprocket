@@ -44,6 +44,7 @@ pub mod diagnostics;
 pub mod document;
 pub mod eval;
 mod graph;
+pub mod handlers;
 mod queue;
 mod rayon;
 mod rules;
@@ -59,7 +60,6 @@ pub use document::Document;
 pub use rules::*;
 pub use validation::*;
 pub use visitor::*;
-pub mod handlers;
 
 /// The prefix of `except` comments.
 pub const EXCEPT_COMMENT_PREFIX: &str = "#@ except:";

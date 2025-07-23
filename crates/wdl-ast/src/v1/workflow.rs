@@ -1,5 +1,7 @@
 //! V1 AST representation for workflows.
 
+use std::fmt;
+
 use rowan::NodeOrToken;
 use wdl_grammar::SupportedVersion;
 use wdl_grammar::version::V1;
@@ -21,6 +23,8 @@ use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::TreeNode;
+use crate::v1::display::write_input_section;
+use crate::v1::display::write_output_section;
 
 /// The name of the `allow_nested_inputs` workflow hint. Note that this
 /// is not a standard WDL v1.1 hint, but is used in WDL >=v1.2.
@@ -30,6 +34,12 @@ pub const WORKFLOW_HINT_ALLOW_NESTED_INPUTS: &str = "allow_nested_inputs";
 /// `allowNestedInputs`). Note that in WDL v1.1, this is the only
 /// form of the hint.
 pub const WORKFLOW_HINT_ALLOW_NESTED_INPUTS_ALIAS: &str = "allowNestedInputs";
+
+/// The set of all valid workflow hints section keys.
+pub const WORKFLOW_HINT_KEYS: &[(&str, &str)] = &[(
+    WORKFLOW_HINT_ALLOW_NESTED_INPUTS,
+    "If `true`, allows nested input objects for the workflow.",
+)];
 
 /// Represents a workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -130,6 +140,30 @@ impl<N: TreeNode> WorkflowDefinition<N> {
                 })
             })
             .unwrap_or(false)
+    }
+
+    /// Writes a Markdown formatted description of the workflow.
+    pub fn markdown_description(&self, f: &mut impl fmt::Write) -> fmt::Result {
+        writeln!(f, "---")?;
+
+        if let Some(meta) = self.metadata() {
+            if let Some(desc) = meta.items().find(|i| i.name().text() == "description") {
+                if let MetadataValue::String(s) = desc.value() {
+                    if let Some(text) = s.text() {
+                        writeln!(f, "# {}\n", text.text())?;
+                    }
+                }
+            }
+        }
+
+        write_input_section(f, self.input().as_ref(), self.parameter_metadata().as_ref())?;
+        write_output_section(
+            f,
+            self.output().as_ref(),
+            self.parameter_metadata().as_ref(),
+        )?;
+
+        Ok(())
     }
 }
 

@@ -38,6 +38,13 @@ impl TokenSet {
         Self(self.0 | other.0)
     }
 
+    /// Returns a new token set with all tokens from `other` removed from
+    /// `self`. If a token from `other` is not present in `self`, it has no
+    /// effect.
+    pub const fn without(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
+
     /// Checks if the token is contained in the set.
     pub const fn contains(&self, token: u8) -> bool {
         self.0 & Self::mask(token) != 0
