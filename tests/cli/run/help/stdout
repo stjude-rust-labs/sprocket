@@ -12,8 +12,10 @@ Arguments:
           These inputs can be either paths to files containing inputs or key-value pairs passed in on the command line.
 
 Options:
-  -n, --name <NAME>
+  -e, --entrypoint <NAME>
           The name of the task or workflow to run.
+          
+          This argument is required if trying to run a task or workflow without any inputs.
           
           If `entrypoint` is not specified, all inputs (from both files and key-value pairs) are expected to be prefixed with the name of the workflow or task being run.
           

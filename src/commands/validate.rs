@@ -23,6 +23,9 @@ pub struct Args {
 
     /// The name of the task or workflow to validate inputs against.
     ///
+    /// This argument is required if trying to validate a task or workflow without
+    /// any inputs.
+    ///
     /// If `entrypoint` is not specified, all inputs (from both files and
     /// key-value pairs) are expected to be prefixed with the name of the
     /// workflow or task being run.
@@ -117,33 +120,8 @@ pub async fn validate(args: Args) -> Result<()> {
                     path = document.path()
                 ),
             }
-        } else if let Some(workflow) = document.workflow() {
-            (
-                workflow.name().to_owned(),
-                EngineInputs::Workflow(Default::default()),
-                origins,
-            )
         } else {
-            let mut tasks = document.tasks();
-            let first = tasks.next();
-            if tasks.next().is_some() {
-                bail!(
-                    "document `{path}` contains more than one task: use the `--name` option to \
-                     refer to a specific task by name",
-                    path = document.path()
-                )
-            } else if let Some(task) = first {
-                (
-                    task.name().to_string(),
-                    EngineInputs::Task(Default::default()),
-                    origins,
-                )
-            } else {
-                bail!(
-                    "document `{path}` contains no workflow or task",
-                    path = document.path()
-                );
-            }
+            bail!("the `--entrypoint` option is required if no inputs are provided")
         }
     };
 
