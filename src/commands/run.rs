@@ -69,8 +69,7 @@ pub struct Args {
     #[clap(short, long, value_name = "NAME")]
     pub entrypoint: Option<String>,
 
-    /// The execution output directory; defaults to the task name if provided,
-    /// otherwise, `output`.
+    /// The execution output directory; defaults to the workflow or task name.
     #[clap(short, long, value_name = "OUTPUT_DIR")]
     pub output: Option<PathBuf>,
 
