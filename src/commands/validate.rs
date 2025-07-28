@@ -23,8 +23,8 @@ pub struct Args {
 
     /// The name of the task or workflow to validate inputs against.
     ///
-    /// This argument is required if trying to validate a task or workflow without
-    /// any inputs.
+    /// This argument is required if trying to validate a task or workflow
+    /// without any inputs.
     ///
     /// If `entrypoint` is not specified, all inputs (from both files and
     /// key-value pairs) are expected to be prefixed with the name of the
