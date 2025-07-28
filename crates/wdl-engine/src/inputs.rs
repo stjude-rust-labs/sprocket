@@ -829,7 +829,7 @@ impl Inputs {
         }
     }
 
-    /// Parses the root object in an input file.
+    /// Parses the root object in a [`JsonMap`].
     ///
     /// Returns `Ok(Some(_))` if the inputs are not empty.
     ///
@@ -838,7 +838,7 @@ impl Inputs {
         // Determine the root workflow or task name
         let (key, name) = match object.iter().next() {
             Some((key, _)) => match key.split_once('.') {
-                Some((name, _)) => (key, name),
+                Some((name, _remainder)) => (key, name),
                 None => {
                     bail!(
                         "invalid input key `{key}`: expected the value to be prefixed with the \
@@ -872,6 +872,7 @@ impl Inputs {
     ) -> Result<(String, Self)> {
         let mut inputs = TaskInputs::default();
         for (key, value) in object {
+            // Convert from serde_json::Value to crate::Value
             let value = serde_json::from_value(value)
                 .with_context(|| format!("invalid input key `{key}`"))?;
 
@@ -901,6 +902,7 @@ impl Inputs {
     ) -> Result<(String, Self)> {
         let mut inputs = WorkflowInputs::default();
         for (key, value) in object {
+            // Convert from serde_json::Value to crate::Value
             let value = serde_json::from_value(value)
                 .with_context(|| format!("invalid input key `{key}`"))?;
 

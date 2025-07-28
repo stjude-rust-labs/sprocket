@@ -59,6 +59,10 @@ pub enum Error {
         reason: String,
     },
 
+    /// An invalid entrypoint was specified.
+    #[error("invalid entrypoint `{0}`")]
+    InvalidEntrypoint(String),
+
     /// A deserialization error.
     #[error("unable to deserialize `{0}` as a valid WDL value")]
     Deserialize(String),
@@ -212,7 +216,12 @@ type InputsInner = IndexMap<String, (PathBuf, Value)>;
 /// A set of inputs parsed from the command line and compiled on top of one
 /// another.
 #[derive(Clone, Debug, Default)]
-pub struct Inputs(InputsInner);
+pub struct Inputs {
+    /// The actual inputs map.
+    inputs: InputsInner,
+    /// The name of the task or workflow these inputs are provided for.
+    entrypoint: Option<String>,
+}
 
 impl Inputs {
     /// Adds an input read from the command line.
@@ -227,6 +236,12 @@ impl Inputs {
                 // always available for the platforms that `wdl` will run
                 // within.
                 let cwd = std::env::current_dir().unwrap();
+
+                let key = if let Some(prefix) = &self.entrypoint {
+                    format!("{prefix}.{key}")
+                } else {
+                    key
+                };
                 self.insert(key, (cwd, value));
             }
         };
@@ -235,12 +250,27 @@ impl Inputs {
     }
 
     /// Attempts to coalesce a set of inputs into an [`Inputs`].
-    pub fn coalesce<T, V>(iter: T) -> Result<Self>
+    ///
+    /// `entrypoint` is the task or workflow the inputs are for.
+    /// If `entrypoint` is `Some(_)` then it will be prefixed to each
+    /// [`Input::Pair`]. Keys inside a [`Input::File`] must always have this
+    /// common prefix specified. If `entrypoint` is `None` then all of the
+    /// inputs in `iter` must be prefixed with the task or workflow name.
+    pub fn coalesce<T, V>(iter: T, entrypoint: Option<String>) -> Result<Self>
     where
         T: IntoIterator<Item = V>,
         V: AsRef<str>,
     {
-        let mut inputs = Inputs::default();
+        if let Some(ep) = &entrypoint
+            && ep.contains('.')
+        {
+            return Err(Error::InvalidEntrypoint(ep.into()));
+        }
+
+        let mut inputs = Inputs {
+            entrypoint,
+            ..Default::default()
+        };
 
         for input in iter {
             inputs.add_input(input.as_ref())?;
@@ -251,7 +281,7 @@ impl Inputs {
 
     /// Consumes `self` and returns the inner index map.
     pub fn into_inner(self) -> InputsInner {
-        self.0
+        self.inputs
     }
 
     /// Converts a set of inputs to a set of engine inputs.
@@ -270,7 +300,7 @@ impl Inputs {
         self,
         document: &Document,
     ) -> anyhow::Result<Option<(String, EngineInputs, OriginPaths)>> {
-        let (origins, values) = self.0.into_iter().fold(
+        let (origins, values) = self.inputs.into_iter().fold(
             (IndexMap::new(), serde_json::Map::new()),
             |(mut origins, mut values), (key, (origin, value))| {
                 origins.insert(key.clone(), origin);
@@ -304,13 +334,13 @@ impl Deref for Inputs {
     type Target = InputsInner;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.inputs
     }
 }
 
 impl DerefMut for Inputs {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.inputs
     }
 }
 
@@ -418,11 +448,14 @@ mod tests {
         }
 
         // The standard coalescing order.
-        let inputs = Inputs::coalesce([
-            "./tests/fixtures/inputs_one.json",
-            "./tests/fixtures/inputs_two.json",
-            "./tests/fixtures/inputs_three.yml",
-        ])
+        let inputs = Inputs::coalesce(
+            [
+                "./tests/fixtures/inputs_one.json",
+                "./tests/fixtures/inputs_two.json",
+                "./tests/fixtures/inputs_three.yml",
+            ],
+            Some("foo".to_string()),
+        )
         .unwrap();
 
         assert_eq!(inputs.len(), 5);
@@ -433,11 +466,14 @@ mod tests {
         check_string_value(&inputs, "new_two.key", "bazbarfoo");
 
         // The opposite coalescing order.
-        let inputs = Inputs::coalesce([
-            "./tests/fixtures/inputs_three.yml",
-            "./tests/fixtures/inputs_two.json",
-            "./tests/fixtures/inputs_one.json",
-        ])
+        let inputs = Inputs::coalesce(
+            [
+                "./tests/fixtures/inputs_three.yml",
+                "./tests/fixtures/inputs_two.json",
+                "./tests/fixtures/inputs_one.json",
+            ],
+            Some("name_ex".to_string()),
+        )
         .unwrap();
 
         assert_eq!(inputs.len(), 5);
@@ -448,14 +484,17 @@ mod tests {
         check_string_value(&inputs, "new_two.key", "bazbarfoo");
 
         // An example with some random key-value pairs thrown in.
-        let inputs = Inputs::coalesce([
-            r#"sandwich=-100"#,
-            "./tests/fixtures/inputs_one.json",
-            "./tests/fixtures/inputs_two.json",
-            r#"quux="jacks""#,
-            "./tests/fixtures/inputs_three.yml",
-            r#"baz=false"#,
-        ])
+        let inputs = Inputs::coalesce(
+            [
+                r#"sandwich=-100"#,
+                "./tests/fixtures/inputs_one.json",
+                "./tests/fixtures/inputs_two.json",
+                r#"quux="jacks""#,
+                "./tests/fixtures/inputs_three.yml",
+                r#"baz=false"#,
+            ],
+            None,
+        )
         .unwrap();
 
         assert_eq!(inputs.len(), 6);
@@ -467,20 +506,23 @@ mod tests {
         check_integer_value(&inputs, "sandwich", -100);
 
         // An invalid key-value pair.
-        let error =
-            Inputs::coalesce(["./tests/fixtures/inputs_one.json", "foo=baz#bar"]).unwrap_err();
+        let error = Inputs::coalesce(["./tests/fixtures/inputs_one.json", "foo=baz#bar"], None)
+            .unwrap_err();
         assert!(matches!(
             error,
             Error::Deserialize(value) if value == "baz#bar"
         ));
 
         // A missing file.
-        let error = Inputs::coalesce([
-            "./tests/fixtures/inputs_one.json",
-            "./tests/fixtures/inputs_two.json",
-            "./tests/fixtures/inputs_three.yml",
-            "./tests/fixtures/missing.json",
-        ])
+        let error = Inputs::coalesce(
+            [
+                "./tests/fixtures/inputs_one.json",
+                "./tests/fixtures/inputs_two.json",
+                "./tests/fixtures/inputs_three.yml",
+                "./tests/fixtures/missing.json",
+            ],
+            None,
+        )
         .unwrap_err();
         assert!(matches!(
                 error,
