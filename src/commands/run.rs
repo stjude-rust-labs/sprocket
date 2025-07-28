@@ -56,14 +56,18 @@ pub struct Args {
 
     /// The name of the task or workflow to run.
     ///
-    /// If inputs are provided, this will be attempted to be inferred from the
-    /// prefixed names of the inputs (e.g, `<name>.<input-name>`).
+    /// This argument is required if trying to run a task or workflow without
+    /// any inputs.
     ///
-    /// If no inputs are provided and this argument is not provided, it will be
-    /// assumed you're trying to run the workflow present in the specified WDL
-    /// document.
+    /// If `entrypoint` is not specified, all inputs (from both files and
+    /// key-value pairs) are expected to be prefixed with the name of the
+    /// workflow or task being run.
+    ///
+    /// If `entrypoint` is specified, it will be appended with a `.` delimiter
+    /// and then prepended to all key-value pair inputs on the command line.
+    /// Keys specified within files are unchanged by this argument.
     #[clap(short, long, value_name = "NAME")]
-    pub name: Option<String>,
+    pub entrypoint: Option<String>,
 
     /// The execution output directory; defaults to the task name if provided,
     /// otherwise, `output`.
@@ -278,7 +282,7 @@ pub async fn run(args: Args) -> Result<()> {
         .output
         .as_deref()
         .unwrap_or_else(|| {
-            args.name
+            args.entrypoint
                 .as_ref()
                 .map(Path::new)
                 .unwrap_or_else(|| Path::new("output"))
@@ -304,7 +308,7 @@ pub async fn run(args: Args) -> Result<()> {
         })?;
     }
 
-    let inferred = Inputs::coalesce(&args.inputs)
+    let inputs = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
         .with_context(|| {
             format!(
                 "failed to parse inputs from `{sources}`",
@@ -313,13 +317,14 @@ pub async fn run(args: Args) -> Result<()> {
         })?
         .into_engine_inputs(document)?;
 
-    let (name, inputs, origins) = if let Some(inputs) = inferred {
+    let (name, inputs, origins) = if let Some(inputs) = inputs {
         inputs
     } else {
+        // No inputs were provided
         let origins =
             OriginPaths::from(std::env::current_dir().context("failed to get current directory")?);
 
-        if let Some(name) = args.name {
+        if let Some(name) = args.entrypoint {
             match (document.task_by_name(&name), document.workflow()) {
                 (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
                 (None, Some(workflow)) => {
@@ -337,33 +342,8 @@ pub async fn run(args: Args) -> Result<()> {
                     path = document.path()
                 ),
             }
-        } else if let Some(workflow) = document.workflow() {
-            (
-                workflow.name().to_owned(),
-                EngineInputs::Workflow(Default::default()),
-                origins,
-            )
         } else {
-            let mut tasks = document.tasks();
-            let first = tasks.next();
-            if tasks.next().is_some() {
-                bail!(
-                    "document `{path}` contains more than one task: use the `--name` option to \
-                     refer to a specific task by name",
-                    path = document.path()
-                )
-            } else if let Some(task) = first {
-                (
-                    task.name().to_owned(),
-                    EngineInputs::Task(Default::default()),
-                    origins,
-                )
-            } else {
-                bail!(
-                    "document `{path}` contains no workflow or task",
-                    path = document.path()
-                );
-            }
+            bail!("the `--entrypoint` option is required if no inputs are provided")
         }
     };
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* `--name` option renamed to `--entrypoint` for `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
+    * `--entrypoint` is now required if no inputs are provided.
+    * `--entrypoint` will be prefixed to the key of any key-value pairs supplied on the command line.
+
 ## 0.14.1 - 07-10-2025
 
 ### Fixed
