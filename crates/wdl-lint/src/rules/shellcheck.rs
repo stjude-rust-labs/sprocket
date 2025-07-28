@@ -393,6 +393,7 @@ fn is_quoted(expr: &Expr) -> bool {
     let mut opened = false;
     let mut name = false;
 
+    let mut placeholders = Vec::new();
     for c in expr.descendants::<Expr>() {
         match c {
             Expr::Literal(LiteralExpr::String(ref s)) => {
@@ -408,7 +409,8 @@ fn is_quoted(expr: &Expr) -> bool {
                                 opened = !opened;
                             });
                         }
-                        StringPart::Placeholder(_placeholder) => {
+                        StringPart::Placeholder(placeholder) => {
+                            placeholders.push(placeholder.expr());
                             if !opened {
                                 return false;
                             }
@@ -418,10 +420,12 @@ fn is_quoted(expr: &Expr) -> bool {
                 }
             }
             Expr::NameRef(_) => {
-                if !opened {
-                    return false;
+                if !placeholders.contains(&c) {
+                    if !opened {
+                        return false;
+                    }
+                    name = true;
                 }
-                name = true;
             }
             _ => {}
         }
@@ -921,6 +925,13 @@ task test {{
         // Surrounding with quotes makes it a literal.
         assert!(super::evaluates_to_bash_literal(
             &parse_placeholder_as_expr(r#"echo ~{sep(" ", quote(arr))}"#)
+        ));
+    }
+    #[test]
+    fn test_evaluates_to_bash_literal7() {
+        // This contains a quoted placeholder.
+        assert!(!super::evaluates_to_bash_literal(
+            &parse_placeholder_as_expr(r#"echo ~{if 1=1 then "hello '~{foo}' world" else ""}"#)
         ));
     }
 }
