@@ -140,7 +140,7 @@ must be provided before the workflow can run.
 Inputs to a Sprocket run are provided as arguments passed after the WDL document
 name is provided. Each input can be specified as either
 
-* a key value pair (e.g., `foo="bar"`), or
+* a key value pair (e.g., `workflow.foo="bar"`), or
 * a file containing inputs within JSON (e.g., a `defaults.json` file where the
   contents are `{ "workflow.foo": "bar" }`).
 
@@ -150,7 +150,7 @@ use a set of default parameters and iterate through sample names in Bash rather
 than create many individual JSON input files.
 
 ```bash
-sprocket run workflow.wdl defaults.json sample_name="Foo"
+sprocket run workflow.wdl defaults.json main.sample_name="Foo"
 ```
 :::
 
@@ -158,7 +158,7 @@ Here, we can specify the `name` parameter as a key-value pair on the command
 line.
 
 ```shell
-sprocket run example.wdl name="World"
+sprocket run example.wdl main.name="World"
 ```
 
 After a few seconds, this job runs successfully with the following outputs.
@@ -190,7 +190,7 @@ the input in a `greetings.json` file:
 and the providing that in the set of inputs to the workflow.
 
 ```shell
-sprocket run example.wdl greetings.json name="Sprocket" --overwrite
+sprocket run example.wdl greetings.json main.name="Sprocket" --overwrite
 ```
 
 Notably, the `--overwrite` option is now provided to let `sprocket` know you're
