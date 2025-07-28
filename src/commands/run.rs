@@ -342,9 +342,7 @@ pub async fn run(args: Args) -> Result<()> {
     let output_dir = args
         .output
         .as_deref()
-        .unwrap_or_else(|| {
-            Path::new(&name)
-        })
+        .unwrap_or_else(|| Path::new(&name))
         .to_owned();
 
     // Check to see if the output directory already exists and if it should be
