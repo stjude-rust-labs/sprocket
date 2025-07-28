@@ -56,12 +56,13 @@ pub struct Args {
 
     /// The name of the task or workflow to run.
     ///
-    /// If inputs are provided, this will be attempted to be inferred from the
-    /// prefixed names of the inputs (e.g, `<name>.<input-name>`).
+    /// If `entrypoint` is not specified, all inputs (from both files and
+    /// key-value pairs) are expected to be prefixed with the name of the
+    /// workflow or task being run.
     ///
-    /// If no inputs are provided and this argument is not provided, it will be
-    /// assumed you're trying to run the workflow present in the specified WDL
-    /// document.
+    /// If `entrypoint` is specified, it will be prefixed (with a `.` delimiter)
+    /// to all key-value pair inputs on the command line. Keys specified within
+    /// files are unchanged by this argument.
     #[clap(short, long, value_name = "NAME")]
     pub name: Option<String>,
 

@@ -45,7 +45,7 @@ wdl = { version = "0.15.1", features = ["cli", "codespan", "engine", "lsp", "doc
 
 
 [patch.crates-io]
-wdl = { git = "https://github.com/stjude-rust-labs/wdl.git", branch = "feat/input-prefix" }
+wdl = { git = "https://github.com/stjude-rust-labs/wdl.git", branch = "main" }
 
 
 [dev-dependencies]
