@@ -275,37 +275,7 @@ pub async fn run(args: Args) -> Result<()> {
     let results = AnalysisResults::try_new(results).unwrap();
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let output_dir = args
-        .output
-        .as_deref()
-        .unwrap_or_else(|| {
-            args.entrypoint
-                .as_ref()
-                .map(Path::new)
-                .unwrap_or_else(|| Path::new("output"))
-        })
-        .to_owned();
-
-    // Check to see if the output directory already exists and if it should be
-    // removed.
-    if output_dir.exists() {
-        if !args.overwrite {
-            bail!(
-                "output directory `{dir}` exists; use the `--overwrite` option to overwrite its \
-                 contents",
-                dir = output_dir.display()
-            );
-        }
-
-        std::fs::remove_dir_all(&output_dir).with_context(|| {
-            format!(
-                "failed to remove output directory `{dir}`",
-                dir = output_dir.display()
-            )
-        })?;
-    }
-
-    let inferred = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
+    let inputs = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
         .with_context(|| {
             format!(
                 "failed to parse inputs from `{sources}`",
@@ -314,9 +284,10 @@ pub async fn run(args: Args) -> Result<()> {
         })?
         .into_engine_inputs(document)?;
 
-    let (name, inputs, origins) = if let Some(inputs) = inferred {
+    let (name, inputs, origins) = if let Some(inputs) = inputs {
         inputs
     } else {
+        // No inputs were provided
         let origins =
             OriginPaths::from(std::env::current_dir().context("failed to get current directory")?);
 
@@ -367,6 +338,33 @@ pub async fn run(args: Args) -> Result<()> {
             }
         }
     };
+
+    let output_dir = args
+        .output
+        .as_deref()
+        .unwrap_or_else(|| {
+            Path::new(&name)
+        })
+        .to_owned();
+
+    // Check to see if the output directory already exists and if it should be
+    // removed.
+    if output_dir.exists() {
+        if !args.overwrite {
+            bail!(
+                "output directory `{dir}` exists; use the `--overwrite` option to overwrite its \
+                 contents",
+                dir = output_dir.display()
+            );
+        }
+
+        std::fs::remove_dir_all(&output_dir).with_context(|| {
+            format!(
+                "failed to remove output directory `{dir}`",
+                dir = output_dir.display()
+            )
+        })?;
+    }
 
     let run_kind = match &inputs {
         EngineInputs::Task(_) => "task",
