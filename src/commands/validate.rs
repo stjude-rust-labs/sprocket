@@ -31,7 +31,7 @@ pub struct Args {
     /// to all key-value pair inputs on the command line. Keys specified within
     /// files are unchanged by this argument.
     #[clap(short, long, value_name = "NAME")]
-    pub name: Option<String>,
+    pub entrypoint: Option<String>,
 
     /// The inputs for the task or workflow.
     ///
@@ -83,7 +83,7 @@ pub async fn validate(args: Args) -> Result<()> {
     // above.
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inferred = Inputs::coalesce(&args.inputs, args.name.clone())
+    let inferred = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
         .with_context(|| {
             format!(
                 "failed to parse inputs from `{sources}`",
@@ -98,7 +98,7 @@ pub async fn validate(args: Args) -> Result<()> {
         let origins =
             OriginPaths::from(std::env::current_dir().context("failed to get current directory")?);
 
-        if let Some(name) = args.name {
+        if let Some(name) = args.entrypoint {
             match (document.task_by_name(&name), document.workflow()) {
                 (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
                 (None, Some(workflow)) => {
