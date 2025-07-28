@@ -63,9 +63,9 @@ pub struct Args {
     /// key-value pairs) are expected to be prefixed with the name of the
     /// workflow or task being run.
     ///
-    /// If `entrypoint` is specified, it will be prefixed (with a `.` delimiter)
-    /// to all key-value pair inputs on the command line. Keys specified within
-    /// files are unchanged by this argument.
+    /// If `entrypoint` is specified, it will be appended with a `.` delimiter and 
+    /// then prepended to all key-value pair inputs on the command line. Keys 
+    /// specified within files are unchanged by this argument.
     #[clap(short, long, value_name = "NAME")]
     pub entrypoint: Option<String>,
 
