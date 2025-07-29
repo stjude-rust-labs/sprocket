@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Individual analysis and lint rules can now be excepted when running the `analyzer` command ([#150](https://github.com/stjude-rust-labs/sprocket/pull/150)).
+    * both command line flags and TOML config are supported
+
 ### Changed
 
 * `--name` option renamed to `--entrypoint` for `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
