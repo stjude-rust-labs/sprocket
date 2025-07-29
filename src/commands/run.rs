@@ -209,7 +209,7 @@ fn progress(kind: ProgressKind<'_>, pb: &tracing::Span, state: &Mutex<State>) {
 /// Determines the timestamped execution directory and performs any necessary
 /// staging prior to execution.
 ///
-/// Notably, this function does not actually create the exection directory at
+/// Notably, this function does not actually create the execution directory at
 /// the returned path, as that is handled by execution itself.
 ///
 /// If running on a Unix system, a symlink to the returned path will be created
