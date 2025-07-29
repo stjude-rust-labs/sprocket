@@ -25,6 +25,7 @@ use tracing::info;
 use uuid::Uuid;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
+use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::IncrementalChange;
 use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
@@ -222,6 +223,9 @@ pub struct ServerOptions {
 
     /// Whether or not linting is enabled.
     pub lint: bool,
+
+    /// Analysis or lint rule IDs to except (ignore).
+    pub exceptions: Vec<String>,
 }
 
 /// Represents an LSP server for analyzing WDL documents.
@@ -243,11 +247,18 @@ impl Server {
     /// Creates a new WDL language server.
     pub fn new(client: Client, options: ServerOptions) -> Self {
         let lint = options.lint;
+        let exceptions = options.exceptions.clone();
         let analyzer_client = client.clone();
         // TODO ACF 2025-07-07: add configurability around the fallback behavior; see
         // https://github.com/stjude-rust-labs/wdl/issues/517
-        let analyzer_config =
-            AnalysisConfig::default().with_fallback_version(Some(Default::default()));
+        let analyzer_config = AnalysisConfig::default()
+            .with_fallback_version(Some(Default::default()))
+            .with_diagnostics_config(DiagnosticsConfig::new(
+                wdl_analysis::rules()
+                    .iter()
+                    .filter(|r| exceptions.contains(&r.id().into())),
+            ));
+
         Self {
             client,
             options,
@@ -267,7 +278,11 @@ impl Server {
                 move || {
                     let mut validator = Validator::default();
                     if lint {
-                        validator.add_visitor(Linter::default());
+                        validator.add_visitor(Linter::new(
+                            wdl_lint::rules()
+                                .into_iter()
+                                .filter(|r| exceptions.contains(&r.id().into())),
+                        ));
                     }
                     validator
                 },
