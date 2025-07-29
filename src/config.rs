@@ -97,8 +97,9 @@ pub struct RunConfig {
     /// The engine configuration.
     #[serde(flatten)]
     pub engine: engine::config::Config,
-    
-    /// The "runs" directory under which new `run` invocation's execution directories will be placed.
+
+    /// The "runs" directory under which new `run` invocation's execution
+    /// directories will be placed.
     pub runs_dir: PathBuf,
 }
 

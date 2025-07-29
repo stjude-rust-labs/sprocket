@@ -206,14 +206,14 @@ fn progress(kind: ProgressKind<'_>, pb: &tracing::Span, state: &Mutex<State>) {
     pb.pb_set_message(&message);
 }
 
-/// Determines the timestamped execution directory and performs any necessary staging prior
-/// to execution.
+/// Determines the timestamped execution directory and performs any necessary
+/// staging prior to execution.
 ///
 /// Notably, this function does not actually create the exection directory at
 /// the returned path, as that is handled by execution itself.
 ///
-/// If running on a Unix system, a symlink to the returned path will be created at
-/// `<root>/<entrypoint>/_latest`.
+/// If running on a Unix system, a symlink to the returned path will be created
+/// at `<root>/<entrypoint>/_latest`.
 pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
     let root = root.join(entrypoint);
     std::fs::create_dir_all(&root)
@@ -400,7 +400,10 @@ pub async fn run(args: Args) -> Result<()> {
         )?
     };
 
-    tracing::info!("`{dir}` will be used as the execution directory", dir = output_dir.display());
+    tracing::info!(
+        "`{dir}` will be used as the execution directory",
+        dir = output_dir.display()
+    );
 
     let run_kind = match &inputs {
         EngineInputs::Task(_) => "task",
