@@ -221,15 +221,13 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
 
     let timestamp = chrono::Utc::now();
 
-    let mut output = root.join(timestamp.format("%F_%H%M%S%f").to_string());
+    let output = root.join(timestamp.format("%F_%H%M%S%f").to_string());
 
-    while output.exists() {
-        tracing::warn!(
-            "`{dir}` was selected for execution but it already exists",
+    if output.exists() {
+        bail!(
+            "timestamped execution directory `{dir}` existed before execution began",
             dir = output.display()
         );
-        let timestamp = chrono::Utc::now();
-        output = root.join(timestamp.format("%F_%H%M%S%f").to_string());
     }
 
     #[cfg(not(target_os = "windows"))]
