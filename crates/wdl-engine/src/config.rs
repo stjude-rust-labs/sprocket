@@ -367,6 +367,12 @@ pub struct TaskConfig {
     /// not be portable to other execution engines.</div>
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shell: Option<String>,
+    /// The behavior when a task's `cpu` requirement cannot be met.
+    #[serde(default)]
+    pub cpu_limit_behavior: TaskResourceLimitBehavior,
+    /// The behavior when a task's `memory` requirement cannot be met.
+    #[serde(default)]
+    pub memory_limit_behavior: TaskResourceLimitBehavior,
 }
 
 impl TaskConfig {
@@ -378,6 +384,21 @@ impl TaskConfig {
 
         Ok(())
     }
+}
+
+/// The behavior when a task resource requirement, such as `cpu` or `memory`,
+/// cannot be met.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum TaskResourceLimitBehavior {
+    /// Try executing a task with the maximum amount of the resource available
+    /// when the task's corresponding requirement cannot be met.
+    TryWithMax,
+    /// Do not execute a task if its corresponding requirement cannot be met.
+    ///
+    /// This is the default behavior.
+    #[default]
+    Deny,
 }
 
 /// Represents supported task execution backends.

@@ -42,8 +42,8 @@ use wdl_ast::Severity;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::Inputs;
-use wdl_engine::config;
 use wdl_engine::config::BackendConfig;
+use wdl_engine::config::{self};
 use wdl_engine::v1::TaskEvaluator;
 
 /// Regex used to remove both host and guest path prefixes.
@@ -57,29 +57,119 @@ static TEMP_FILENAME_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new("tmp[[:alnum:]]{6}").expect("invalid regex"));
 
 /// Find tests to run.
-fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
-    Path::new("tests")
-        .join("tasks")
-        .read_dir()
-        .unwrap()
-        .filter_map(|entry| {
-            let entry = entry.expect("failed to read directory");
-            let path = entry.path();
-            if !path.is_dir() {
-                return None;
-            }
-
-            let test_name = path
-                .file_stem()
-                .map(OsStr::to_string_lossy)
-                .unwrap()
-                .into_owned();
+fn find_tests(runtime: &tokio::runtime::Handle) -> Result<Vec<Trial>, anyhow::Error> {
+    let mut tests = vec![];
+    for entry in Path::new("tests").join("tasks").read_dir().unwrap() {
+        let entry = entry.expect("failed to read directory");
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let test_name_base = path
+            .file_stem()
+            .map(OsStr::to_string_lossy)
+            .unwrap()
+            .into_owned();
+        for (config_name, config) in
+            configs(&path).with_context(|| format!("getting configs for {test_name_base}"))?
+        {
             let test_runtime = runtime.clone();
-            Some(Trial::test(test_name, move || {
-                Ok(test_runtime.block_on(run_test(&path))?)
-            }))
-        })
-        .collect()
+            let test_path = path.clone();
+            tests.push(Trial::test(
+                format!("{test_name_base}_{config_name}"),
+                move || Ok(test_runtime.block_on(run_test(&test_path, config))?),
+            ));
+        }
+    }
+    Ok(tests)
+}
+
+/// Gets the engine configurations to use for the test.
+///
+/// If the test directory contains any files that begin with `config` and end
+/// with `.toml`, only those configs deserializable from those files will be
+/// used. Otherwise, configs with default local and/or Docker backends will be
+/// used, depending on the platform.
+///
+/// Note that there's nothing preventing this logic from being applied to the
+/// other types of integration tests for this crate, but so far the need has
+/// only arisen for testing tasks. Similarly, there may be other reasons beyond
+/// `target_os` to filter particular configs.
+fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyhow::Error> {
+    let mut configs_on_disk = vec![];
+    let mut any_config_toml_found = false;
+    for file in path.read_dir()? {
+        let Ok(file) = file else {
+            continue;
+        };
+        match file
+            .file_name()
+            .to_str()
+            .ok_or_else(|| anyhow!("non-utf8 filename for {file:?}"))?
+        {
+            "config.toml" => (),
+            "config.linux.toml" if cfg!(target_os = "linux") => (),
+            "config.macos.toml" if cfg!(target_os = "macos") => (),
+            "config.windows.toml" if cfg!(target_os = "windows") => (),
+            other => {
+                // If there are any configs on disk, do not use the hardcoded ones even if our
+                // particular configuration doesn't understand them
+                if other.starts_with("config") && other.ends_with("toml") {
+                    any_config_toml_found = true;
+                }
+                continue;
+            }
+        }
+        let path = file.path();
+        let config_name = path
+            .file_stem()
+            .expect("file should have a stem after the `match` above")
+            .to_string_lossy()
+            .into_owned()
+            .into();
+        let config = toml::from_str(&std::fs::read_to_string(file.path())?)?;
+        configs_on_disk.push((config_name, config));
+    }
+    if !configs_on_disk.is_empty() || any_config_toml_found {
+        Ok(configs_on_disk)
+    } else {
+        Ok(vec![
+            ("local".into(), {
+                config::Config {
+                    backends: [(
+                        "default".to_string(),
+                        BackendConfig::Local(Default::default()),
+                    )]
+                    .into(),
+                    task: config::TaskConfig {
+                        cpu_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
+                        memory_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            }),
+            // Currently we limit running the Docker backend to Linux as GitHub does not have
+            // Docker installed on macOS hosted runners and the Windows hosted runners
+            // are configured to use Windows containers
+            #[cfg(target_os = "linux")]
+            ("docker".into(), {
+                config::Config {
+                    backends: [(
+                        "default".to_string(),
+                        BackendConfig::Docker(Default::default()),
+                    )]
+                    .into(),
+                    task: config::TaskConfig {
+                        cpu_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
+                        memory_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            }),
+        ])
+    }
 }
 
 /// Strips paths from the given string.
@@ -150,38 +240,8 @@ fn compare_result(path: &Path, result: &str) -> Result<()> {
     Ok(())
 }
 
-/// Gets the engine configurations to use for the test.
-fn configs() -> Vec<config::Config> {
-    vec![
-        {
-            config::Config {
-                backends: [(
-                    "default".to_string(),
-                    BackendConfig::Local(Default::default()),
-                )]
-                .into(),
-                ..Default::default()
-            }
-        },
-        // Currently we limit running the Docker backend to Linux as GitHub does not have Docker
-        // installed on macOS hosted runners and the Windows hosted runners are configured to use
-        // Windows containers
-        #[cfg(target_os = "linux")]
-        {
-            config::Config {
-                backends: [(
-                    "default".to_string(),
-                    BackendConfig::Docker(Default::default()),
-                )]
-                .into(),
-                ..Default::default()
-            }
-        },
-    ]
-}
-
 /// Runs a single test.
-async fn run_test(test: &Path) -> Result<()> {
+async fn run_test(test: &Path, config: config::Config) -> Result<()> {
     let analyzer = Analyzer::default();
     analyzer
         .add_directory(test)
@@ -243,36 +303,34 @@ async fn run_test(test: &Path) -> Result<()> {
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
     inputs.join_paths(task, |_| Ok(&test_dir))?;
 
-    for config in configs() {
-        let evaluator = TaskEvaluator::new(config, CancellationToken::new()).await?;
-        let dir = TempDir::new().context("failed to create temporary directory")?;
-        match evaluator
-            .evaluate(result.document(), task, &inputs, dir.path(), |_| async {})
-            .await
-        {
-            Ok(evaluated) => {
-                compare_evaluation_results(&test_dir, dir.path(), &evaluated)?;
+    let evaluator = TaskEvaluator::new(config, CancellationToken::new()).await?;
+    let dir = TempDir::new().context("failed to create temporary directory")?;
+    match evaluator
+        .evaluate(result.document(), task, &inputs, dir.path(), |_| async {})
+        .await
+    {
+        Ok(evaluated) => {
+            compare_evaluation_results(&test_dir, dir.path(), &evaluated)?;
 
-                match evaluated.into_result() {
-                    Ok(outputs) => {
-                        let outputs = outputs.with_name(name.clone());
-                        let outputs =
-                            to_string_pretty(&outputs).context("failed to serialize outputs")?;
-                        let outputs = strip_paths(dir.path(), &outputs);
-                        compare_result(&test.join("outputs.json"), &outputs)?;
-                    }
-                    Err(e) => {
-                        let error = e.to_string();
-                        let error = strip_paths(dir.path(), &error);
-                        compare_result(&test.join("error.txt"), &error)?;
-                    }
+            match evaluated.into_result() {
+                Ok(outputs) => {
+                    let outputs = outputs.with_name(name.clone());
+                    let outputs =
+                        to_string_pretty(&outputs).context("failed to serialize outputs")?;
+                    let outputs = strip_paths(dir.path(), &outputs);
+                    compare_result(&test.join("outputs.json"), &outputs)?;
+                }
+                Err(e) => {
+                    let error = e.to_string();
+                    let error = strip_paths(dir.path(), &error);
+                    compare_result(&test.join("error.txt"), &error)?;
                 }
             }
-            Err(e) => {
-                let error = e.to_string();
-                let error = strip_paths(dir.path(), &error);
-                compare_result(&test.join("error.txt"), &error)?;
-            }
+        }
+        Err(e) => {
+            let error = e.to_string();
+            let error = strip_paths(dir.path(), &error);
+            compare_result(&test.join("error.txt"), &error)?;
         }
     }
 
@@ -428,6 +486,6 @@ fn main() -> Result<(), anyhow::Error> {
 
     let args = libtest_mimic::Arguments::from_args();
     let runtime = tokio::runtime::Runtime::new()?;
-    let tests = find_tests(runtime.handle());
+    let tests = find_tests(runtime.handle())?;
     libtest_mimic::run(&args, tests).exit();
 }

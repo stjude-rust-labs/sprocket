@@ -30,6 +30,7 @@ use tokio::sync::oneshot;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
+use tracing::warn;
 use url::Url;
 
 use super::TaskExecutionBackend;
@@ -50,6 +51,7 @@ use crate::WORK_DIR_NAME;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::DockerBackendConfig;
+use crate::config::TaskResourceLimitBehavior;
 use crate::http::Downloader;
 use crate::http::HttpDownloader;
 use crate::http::Location;
@@ -345,26 +347,54 @@ impl TaskExecutionBackend for DockerBackend {
     ) -> Result<TaskExecutionConstraints> {
         let container = container(requirements, self.config.task.container.as_deref());
 
-        let cpu = cpu(requirements);
+        let mut cpu = cpu(requirements);
         if (self.max_cpu as f64) < cpu {
-            bail!(
-                "task requires at least {cpu} CPU{s}, but the execution backend has a maximum of \
-                 {max_cpu}",
-                s = if cpu == 1.0 { "" } else { "s" },
-                max_cpu = self.max_cpu,
-            );
+            match self.config.task.cpu_limit_behavior {
+                TaskResourceLimitBehavior::TryWithMax => {
+                    warn!(
+                        "task requires at least {cpu} CPU{s}, but the execution backend has a \
+                         maximum of {max_cpu}",
+                        s = if cpu == 1.0 { "" } else { "s" },
+                        max_cpu = self.max_cpu,
+                    );
+                    // clamp the reported constraint to what's available
+                    cpu = self.max_cpu as f64;
+                }
+                TaskResourceLimitBehavior::Deny => {
+                    bail!(
+                        "task requires at least {cpu} CPU{s}, but the execution backend has a \
+                         maximum of {max_cpu}",
+                        s = if cpu == 1.0 { "" } else { "s" },
+                        max_cpu = self.max_cpu,
+                    );
+                }
+            }
         }
 
-        let memory = memory(requirements)?;
+        let mut memory = memory(requirements)?;
         if self.max_memory < memory as u64 {
-            // Display the error in GiB, as it is the most common unit for memory
-            let memory = memory as f64 / ONE_GIBIBYTE;
-            let max_memory = self.max_memory as f64 / ONE_GIBIBYTE;
-
-            bail!(
-                "task requires at least {memory} GiB of memory, but the execution backend has a \
-                 maximum of {max_memory} GiB",
-            );
+            match self.config.task.memory_limit_behavior {
+                TaskResourceLimitBehavior::TryWithMax => {
+                    warn!(
+                        "task requires at least {memory} GiB of memory, but the execution backend \
+                         has a maximum of {max_memory} GiB",
+                        // Display the error in GiB, as it is the most common unit for memory
+                        memory = memory as f64 / ONE_GIBIBYTE,
+                        max_memory = self.max_memory as f64 / ONE_GIBIBYTE,
+                    );
+                    // clamp the reported constraint to what's available
+                    memory = self.max_memory.try_into().unwrap_or(i64::MAX);
+                }
+                TaskResourceLimitBehavior::Deny => {
+                    bail!(
+                        "task requires at least {memory} GiB of memory, but the execution backend \
+                         has a maximum of {max_memory} GiB",
+                        // Display the error in GiB, as it is the most common unit for memory
+                        memory = memory as f64 / ONE_GIBIBYTE,
+                        max_memory = self.max_memory as f64 / ONE_GIBIBYTE,
+                    );
+                }
+            }
         }
 
         Ok(TaskExecutionConstraints {
@@ -465,8 +495,14 @@ impl TaskExecutionBackend for DockerBackend {
         let hints = request.hints();
 
         let container = container(requirements, self.config.task.container.as_deref()).into_owned();
-        let cpu = cpu(requirements);
-        let memory = memory(requirements)? as u64;
+        let mut cpu = cpu(requirements);
+        if let TaskResourceLimitBehavior::TryWithMax = self.config.task.cpu_limit_behavior {
+            cpu = std::cmp::min(cpu.ceil() as u64, self.max_cpu) as f64;
+        }
+        let mut memory = memory(requirements)? as u64;
+        if let TaskResourceLimitBehavior::TryWithMax = self.config.task.memory_limit_behavior {
+            memory = std::cmp::min(memory, self.max_memory);
+        }
         let max_cpu = max_cpu(hints);
         let max_memory = max_memory(hints)?.map(|i| i as u64);
 

@@ -19,6 +19,7 @@ use tokio::sync::oneshot;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
+use tracing::warn;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
@@ -39,6 +40,7 @@ use crate::WORK_DIR_NAME;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::LocalBackendConfig;
+use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
 use crate::http::Downloader;
 use crate::http::HttpDownloader;
@@ -246,25 +248,54 @@ impl TaskExecutionBackend for LocalBackend {
         requirements: &HashMap<String, Value>,
         _: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let cpu = cpu(requirements);
+        let mut cpu = cpu(requirements);
         if (self.cpu as f64) < cpu {
-            bail!(
-                "task requires at least {cpu} CPU{s}, but the host only has {total_cpu} available",
-                s = if cpu == 1.0 { "" } else { "s" },
-                total_cpu = self.cpu,
-            );
+            match self.config.task.cpu_limit_behavior {
+                TaskResourceLimitBehavior::TryWithMax => {
+                    warn!(
+                        "task requires at least {cpu} CPU{s}, but the host only has {total_cpu} \
+                         available",
+                        s = if cpu == 1.0 { "" } else { "s" },
+                        total_cpu = self.cpu,
+                    );
+                    // clamp the reported constraint to what's available
+                    cpu = self.cpu as f64;
+                }
+                TaskResourceLimitBehavior::Deny => {
+                    bail!(
+                        "task requires at least {cpu} CPU{s}, but the host only has {total_cpu} \
+                         available",
+                        s = if cpu == 1.0 { "" } else { "s" },
+                        total_cpu = self.cpu,
+                    );
+                }
+            }
         }
 
-        let memory = memory(requirements)?;
+        let mut memory = memory(requirements)?;
         if self.memory < memory as u64 {
-            // Display the error in GiB, as it is the most common unit for memory
-            let memory = memory as f64 / ONE_GIBIBYTE;
-            let total_memory = self.memory as f64 / ONE_GIBIBYTE;
-
-            bail!(
-                "task requires at least {memory} GiB of memory, but the host only has \
-                 {total_memory} GiB available",
-            );
+            match self.config.task.memory_limit_behavior {
+                TaskResourceLimitBehavior::TryWithMax => {
+                    warn!(
+                        "task requires at least {memory} GiB of memory, but the host only has \
+                         {total_memory} GiB available",
+                        // Display the error in GiB, as it is the most common unit for memory
+                        memory = memory as f64 / ONE_GIBIBYTE,
+                        total_memory = self.memory as f64 / ONE_GIBIBYTE,
+                    );
+                    // clamp the reported constraint to what's available
+                    memory = self.memory.try_into().unwrap_or(i64::MAX);
+                }
+                TaskResourceLimitBehavior::Deny => {
+                    bail!(
+                        "task requires at least {memory} GiB of memory, but the host only has \
+                         {total_memory} GiB available",
+                        // Display the error in GiB, as it is the most common unit for memory
+                        memory = memory as f64 / ONE_GIBIBYTE,
+                        total_memory = self.memory as f64 / ONE_GIBIBYTE,
+                    );
+                }
+            }
         }
 
         Ok(TaskExecutionConstraints {
@@ -366,8 +397,14 @@ impl TaskExecutionBackend for LocalBackend {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();
-        let cpu = cpu(requirements);
-        let memory = memory(requirements)? as u64;
+        let mut cpu = cpu(requirements);
+        if let TaskResourceLimitBehavior::TryWithMax = self.config.task.cpu_limit_behavior {
+            cpu = std::cmp::min(cpu.ceil() as u64, self.cpu) as f64;
+        }
+        let mut memory = memory(requirements)? as u64;
+        if let TaskResourceLimitBehavior::TryWithMax = self.config.task.memory_limit_behavior {
+            memory = std::cmp::min(memory, self.memory);
+        }
 
         self.manager.send(
             LocalTaskRequest {
