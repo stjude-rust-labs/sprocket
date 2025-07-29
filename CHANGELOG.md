@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added new default output directory logic ([#149](https://github.com/stjude-rust-labs/sprocket/pull/149)).
+
 ### Changed
 
 * `--name` option renamed to `--entrypoint` for `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
@@ -16,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Output directory logic for the `run` command now always uses the workflow or task name by default ([#148](https://github.com/stjude-rust-labs/sprocket/pull/148)).
+    * this logic replaced in [#149](https://github.com/stjude-rust-labs/sprocket/pull/149).
 
 ## 0.14.1 - 07-10-2025
 
