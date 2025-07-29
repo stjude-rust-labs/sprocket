@@ -112,6 +112,7 @@ impl Args {
     /// Applies the configuration to the arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
         self.engine = Some(config.run.engine);
+        self.runs_dir = Some(config.run.runs_dir);
         self.no_color = self.no_color || !config.common.color;
         self.report_mode = match self.report_mode {
             Some(mode) => Some(mode),
