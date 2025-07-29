@@ -81,7 +81,7 @@ pub async fn inner() -> anyhow::Result<()> {
     );
 
     match cli.command {
-        Commands::Analyzer(args) => commands::analyzer::analyzer(args).await,
+        Commands::Analyzer(args) => commands::analyzer::analyzer(args.apply(config)).await,
         Commands::Check(args) => commands::check::check(args.apply(config)).await,
         Commands::Completions(args) => {
             let mut cmd = Cli::command();

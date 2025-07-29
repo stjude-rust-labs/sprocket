@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added new default output directory logic ([#149](https://github.com/stjude-rust-labs/sprocket/pull/149)).
+* Individual analysis and lint rules can now be excepted when running the `analyzer` command ([#150](https://github.com/stjude-rust-labs/sprocket/pull/150)).
+    * both command line flags and TOML config are supported
 
 ### Changed
 

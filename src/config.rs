@@ -26,6 +26,8 @@ pub struct Config {
     pub format: FormatConfig,
     /// Configuration for the `check` and `lint` commands.
     pub check: CheckConfig,
+    /// Configuration for the `analyzer` command.
+    pub analyzer: AnalyzerConfig,
     /// Configuration for the `run` command.
     pub run: RunConfig,
     /// Common configuration options for all commands.
@@ -88,6 +90,16 @@ pub struct CheckConfig {
     pub deny_notes: bool,
     /// Hide diagnostics with `note` severity.
     pub hide_notes: bool,
+}
+
+/// Represents the configuration for the Sprocket `analyzer` command.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct AnalyzerConfig {
+    /// Whether to enable lint rules.
+    pub lint: bool,
+    /// Rule IDs to except from running.
+    pub except: Vec<String>,
 }
 
 /// Represents the configuration for the Sprocket `run` command.
