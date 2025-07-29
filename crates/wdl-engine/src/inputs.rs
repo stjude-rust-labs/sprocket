@@ -18,6 +18,7 @@ use wdl_analysis::document::Task;
 use wdl_analysis::document::Workflow;
 use wdl_analysis::types::CallKind;
 use wdl_analysis::types::Coercible as _;
+use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
@@ -204,6 +205,11 @@ impl TaskInputs {
     }
 
     /// Sets a value with dotted path notation.
+    ///
+    /// If the provided `value` is a [`PrimitiveType`] other than
+    /// [`PrimitiveType::String`] and the `path` is to an input which is of
+    /// type [`PrimitiveType::String`], `value` will be converted to a string
+    /// and accepted as valid.
     fn set_path_value(
         &mut self,
         document: &Document,
@@ -275,10 +281,19 @@ impl TaskInputs {
                 })?;
 
                 let actual = value.ty();
-                if !actual.is_coercible_to(input.ty()) {
+                let expected = input.ty();
+                if let Some(expected_prim_ty) = expected.as_primitive()
+                    && expected_prim_ty == PrimitiveType::String
+                    && let Some(actual_prim_ty) = actual.as_primitive()
+                    && actual_prim_ty != PrimitiveType::String
+                {
+                    self.inputs
+                        .insert(path.to_string(), value.to_string().into());
+                    return Ok(());
+                }
+                if !actual.is_coercible_to(expected) {
                     bail!(
                         "expected type `{expected}` for input `{path}`, but found type `{actual}`",
-                        expected = input.ty()
                     );
                 }
                 self.inputs.insert(path.to_string(), value);
@@ -502,6 +517,11 @@ impl WorkflowInputs {
     }
 
     /// Sets a value with dotted path notation.
+    ///
+    /// If the provided `value` is a [`PrimitiveType`] other than
+    /// [`PrimitiveType::String`] and the `path` is to an input which is of
+    /// type [`PrimitiveType::String`], `value` will be converted to a string
+    /// and accepted as valid.
     fn set_path_value(
         &mut self,
         document: &Document,
@@ -595,6 +615,15 @@ impl WorkflowInputs {
 
                 let expected = input.ty();
                 let actual = value.ty();
+                if let Some(expected_prim_ty) = expected.as_primitive()
+                    && expected_prim_ty == PrimitiveType::String
+                    && let Some(actual_prim_ty) = actual.as_primitive()
+                    && actual_prim_ty != PrimitiveType::String
+                {
+                    self.inputs
+                        .insert(path.to_string(), value.to_string().into());
+                    return Ok(());
+                }
                 if !actual.is_coercible_to(expected) {
                     bail!(
                         "expected type `{expected}` for input `{path}`, but found type `{actual}`"

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `wdl-engine::Inputs` supplied via dotted path notation (i.e. user inputs from input files and command line arguments) can be implicitly converted to WDL strings if that is what the task or workflow input expects ([#544](https://github.com/stjude-rust-labs/wdl/pull/544)).
+
 #### Fixed
 
 * Fixed a failure to clean input file and directory paths ([#537](https://github.com/stjude-rust-labs/wdl/pull/537)).
