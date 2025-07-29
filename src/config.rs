@@ -106,7 +106,7 @@ impl Default for RunConfig {
     fn default() -> Self {
         Self {
             engine: engine::config::Config::default(),
-            runs_dir: "runs".into(),
+            runs_dir: crate::commands::run::DEFAULT_RUNS_DIR.into(),
         }
     }
 }
