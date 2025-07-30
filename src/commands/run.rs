@@ -43,7 +43,7 @@ const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 /// The name of the default "runs" directory.
 pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
 /// The name for the "latest" symlink.
-const LATEST: &str = "_latest";
+const LATEST: &str = "latest";
 
 /// Arguments to the `run` subcommand.
 #[derive(Parser, Debug)]
@@ -79,7 +79,7 @@ pub struct Args {
     /// Individual invocations of `sprocket run` will nest their execution
     /// directories beneath this root directory at the path
     /// `<entrypoint name>/<timestamp>/`. On Unix systems, the latest `run`
-    /// invocation will be symlinked at `<entrypoint name>/_latest`.
+    /// invocation will be symlinked at `<entrypoint name>/latest`.
     #[clap(short, long, value_name = "ROOT_DIR")]
     pub runs_dir: Option<PathBuf>,
 
@@ -219,7 +219,7 @@ fn progress(kind: ProgressKind<'_>, pb: &tracing::Span, state: &Mutex<State>) {
 /// the returned path, as that is handled by execution itself.
 ///
 /// If running on a Unix system, a symlink to the returned path will be created
-/// at `<root>/<entrypoint>/_latest`.
+/// at `<root>/<entrypoint>/latest`.
 pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
     let root = root.join(entrypoint);
     std::fs::create_dir_all(&root)
