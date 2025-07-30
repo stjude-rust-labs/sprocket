@@ -104,16 +104,19 @@ pub struct Args {
     pub report_mode: Option<Mode>,
 
     /// The engine configuration to use.
+    ///
+    /// This is not exposed via [`clap`] and is unsettable by users.
+    /// It will always be overwritten by the engine config provided by the user
+    /// (which will be set with `Default::default()` if the user does not
+    /// explicitly set `run` config values).
     #[clap(skip)]
-    pub engine: Option<engine::config::Config>,
+    pub engine: engine::config::Config,
 }
 
 impl Args {
     /// Applies the configuration to the arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
-        if self.engine.is_none() {
-            self.engine = Some(config.run.engine);
-        }
+        self.engine = config.run.engine;
         if self.runs_dir.is_none() {
             self.runs_dir = Some(config.run.runs_dir);
         }
@@ -427,7 +430,7 @@ pub async fn run(args: Args) -> Result<()> {
         &entrypoint,
         inputs,
         origins,
-        args.engine.unwrap_or_default(),
+        args.engine,
         &output_dir,
     );
     let token = CancellationToken::new();
