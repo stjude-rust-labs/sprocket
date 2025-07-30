@@ -111,13 +111,16 @@ pub struct Args {
 impl Args {
     /// Applies the configuration to the arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.engine = Some(config.run.engine);
-        self.runs_dir = Some(config.run.runs_dir);
+        if self.engine.is_none() {
+            self.engine = Some(config.run.engine);
+        }
+        if self.runs_dir.is_none() {
+            self.runs_dir = Some(config.run.runs_dir);
+        }
         self.no_color = self.no_color || !config.common.color;
-        self.report_mode = match self.report_mode {
-            Some(mode) => Some(mode),
-            None => Some(config.common.report_mode),
-        };
+        if self.report_mode.is_none() {
+            self.report_mode = Some(config.common.report_mode);
+        }
         self
     }
 }
