@@ -40,6 +40,11 @@ use crate::emit_diagnostics;
 /// very short analyses.
 const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 
+/// The name of the default "runs" directory.
+pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
+/// The name for the "latest" symlink.
+const LATEST: &str = "_latest";
+
 /// Arguments to the `run` subcommand.
 #[derive(Parser, Debug)]
 #[clap(disable_version_flag = true)]
@@ -69,12 +74,25 @@ pub struct Args {
     #[clap(short, long, value_name = "NAME")]
     pub entrypoint: Option<String>,
 
-    /// The execution output directory; defaults to the workflow or task name.
-    #[clap(short, long, value_name = "OUTPUT_DIR")]
+    /// The root "runs" directory; defaults to `./runs/`.
+    ///
+    /// Individual invocations of `sprocket run` will nest their execution
+    /// directories beneath this root directory at the path
+    /// `<entrypoint name>/<timestamp>/`. On Unix systems, the latest `run`
+    /// invocation will be symlinked at `<entrypoint name>/_latest`.
+    #[clap(short, long, value_name = "ROOT_DIR")]
+    pub runs_dir: Option<PathBuf>,
+
+    /// The execution directory.
+    ///
+    /// If this argument is supplied, the default output behavior of nesting
+    /// execution directories using the entrypoint and timestamp will be
+    /// disabled.
+    #[clap(long, conflicts_with = "runs_dir", value_name = "OUTPUT_DIR")]
     pub output: Option<PathBuf>,
 
-    /// Overwrites the execution output directory if it exists.
-    #[clap(long)]
+    /// Overwrites the execution directory if it exists.
+    #[clap(long, conflicts_with = "runs_dir")]
     pub overwrite: bool,
 
     /// Disables color output.
@@ -86,19 +104,26 @@ pub struct Args {
     pub report_mode: Option<Mode>,
 
     /// The engine configuration to use.
+    ///
+    /// This is not exposed via [`clap`] and is unsettable by users.
+    /// It will always be overwritten by the engine config provided by the user
+    /// (which will be set with `Default::default()` if the user does not
+    /// explicitly set `run` config values).
     #[clap(skip)]
-    pub engine: Option<engine::config::Config>,
+    pub engine: engine::config::Config,
 }
 
 impl Args {
     /// Applies the configuration to the arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.engine = Some(config.run.engine);
+        self.engine = config.run.engine;
+        if self.runs_dir.is_none() {
+            self.runs_dir = Some(config.run.runs_dir);
+        }
         self.no_color = self.no_color || !config.common.color;
-        self.report_mode = match self.report_mode {
-            Some(mode) => Some(mode),
-            None => Some(config.common.report_mode),
-        };
+        if self.report_mode.is_none() {
+            self.report_mode = Some(config.common.report_mode);
+        }
         self
     }
 }
@@ -185,6 +210,44 @@ fn progress(kind: ProgressKind<'_>, pb: &tracing::Span, state: &Mutex<State>) {
     };
 
     pb.pb_set_message(&message);
+}
+
+/// Determines the timestamped execution directory and performs any necessary
+/// staging prior to execution.
+///
+/// Notably, this function does not actually create the execution directory at
+/// the returned path, as that is handled by execution itself.
+///
+/// If running on a Unix system, a symlink to the returned path will be created
+/// at `<root>/<entrypoint>/_latest`.
+pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
+    let root = root.join(entrypoint);
+    std::fs::create_dir_all(&root)
+        .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
+
+    let timestamp = chrono::Utc::now();
+
+    let output = root.join(timestamp.format("%F_%H%M%S%f").to_string());
+
+    if output.exists() {
+        bail!(
+            "timestamped execution directory `{dir}` existed before execution began",
+            dir = output.display()
+        );
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let latest = root.join(LATEST);
+        let _ = std::fs::remove_file(&latest);
+        if std::os::unix::fs::symlink(output.file_name().expect("should have basename"), &latest)
+            .is_err()
+        {
+            tracing::warn!("failed to create latest symlink: continuing with run")
+        };
+    }
+
+    Ok(output)
 }
 
 /// The main function for the `run` subcommand.
@@ -286,7 +349,7 @@ pub async fn run(args: Args) -> Result<()> {
         })?
         .into_engine_inputs(document)?;
 
-    let (name, inputs, origins) = if let Some(inputs) = inputs {
+    let (entrypoint, inputs, origins) = if let Some(inputs) = inputs {
         inputs
     } else {
         // No inputs were provided
@@ -316,30 +379,35 @@ pub async fn run(args: Args) -> Result<()> {
         }
     };
 
-    let output_dir = args
-        .output
-        .as_deref()
-        .unwrap_or_else(|| Path::new(&name))
-        .to_owned();
+    let output_dir = if let Some(supplied_dir) = args.output {
+        if supplied_dir.exists() {
+            if !args.overwrite {
+                bail!(
+                    "output directory `{dir}` exists; use the `--overwrite` option to overwrite \
+                     its contents",
+                    dir = supplied_dir.display()
+                );
+            }
 
-    // Check to see if the output directory already exists and if it should be
-    // removed.
-    if output_dir.exists() {
-        if !args.overwrite {
-            bail!(
-                "output directory `{dir}` exists; use the `--overwrite` option to overwrite its \
-                 contents",
-                dir = output_dir.display()
-            );
+            std::fs::remove_dir_all(&supplied_dir).with_context(|| {
+                format!(
+                    "failed to remove output directory `{dir}`",
+                    dir = supplied_dir.display()
+                )
+            })?;
         }
+        supplied_dir
+    } else {
+        setup_run_dir(
+            &args.runs_dir.unwrap_or(DEFAULT_RUNS_DIR.into()),
+            &entrypoint,
+        )?
+    };
 
-        std::fs::remove_dir_all(&output_dir).with_context(|| {
-            format!(
-                "failed to remove output directory `{dir}`",
-                dir = output_dir.display()
-            )
-        })?;
-    }
+    tracing::info!(
+        "`{dir}` will be used as the execution directory",
+        dir = output_dir.display()
+    );
 
     let run_kind = match &inputs {
         EngineInputs::Task(_) => "task",
@@ -351,7 +419,7 @@ pub async fn run(args: Args) -> Result<()> {
             "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} \
              {name}{{msg}}",
             running = "running".cyan(),
-            name = name.magenta().bold()
+            name = entrypoint.magenta().bold()
         ))
         .unwrap(),
     );
@@ -359,10 +427,10 @@ pub async fn run(args: Args) -> Result<()> {
     let state = Mutex::<State>::default();
     let evaluator = Evaluator::new(
         document,
-        &name,
+        &entrypoint,
         inputs,
         origins,
-        args.engine.unwrap_or_default(),
+        args.engine,
         &output_dir,
     );
     let token = CancellationToken::new();
@@ -386,7 +454,7 @@ pub async fn run(args: Args) -> Result<()> {
         },
         res = &mut evaluate => match res {
             Ok(outputs) => {
-                println!("{outputs}", outputs = serde_json::to_string_pretty(&outputs.with_name(&name))?);
+                println!("{outputs}", outputs = serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
                 Ok(())
             }
             Err(EvaluationError::Source(e)) => {

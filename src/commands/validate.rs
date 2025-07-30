@@ -55,10 +55,9 @@ impl Args {
     /// Applies the configuration to the arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
         self.no_color = self.no_color || !config.common.color;
-        self.report_mode = match self.report_mode {
-            Some(mode) => Some(mode),
-            None => Some(config.common.report_mode),
-        };
+        if self.report_mode.is_none() {
+            self.report_mode = Some(config.common.report_mode);
+        }
         self
     }
 }

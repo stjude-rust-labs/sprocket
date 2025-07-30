@@ -2,6 +2,7 @@
 
 use std::env;
 use std::path::Path;
+use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -102,12 +103,25 @@ pub struct AnalyzerConfig {
 }
 
 /// Represents the configuration for the Sprocket `run` command.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct RunConfig {
     /// The engine configuration.
     #[serde(flatten)]
     pub engine: engine::config::Config,
+
+    /// The "runs" directory under which new `run` invocations' execution
+    /// directories will be placed.
+    pub runs_dir: PathBuf,
+}
+
+impl Default for RunConfig {
+    fn default() -> Self {
+        Self {
+            engine: engine::config::Config::default(),
+            runs_dir: crate::commands::run::DEFAULT_RUNS_DIR.into(),
+        }
+    }
 }
 
 impl Config {
