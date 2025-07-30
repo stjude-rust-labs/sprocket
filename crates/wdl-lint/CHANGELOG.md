@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.14.0 - 07-30-2025
+
 #### Fixed
 
 * Updated shellcheck logic that erroneously flagged placeholders that are quoted ([#541](https://github.com/stjude-rust-labs/wdl/pull/541)).

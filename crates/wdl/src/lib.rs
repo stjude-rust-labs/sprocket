@@ -1,15 +1,5 @@
 //! Workflow Description Language (WDL) document parsing and linting.
 //!
-//! There are three top-level modules to this crate:
-//!
-//! * `grammar` - used to parse WDL source into a Concrete Syntax Tree (CST).
-//! * `ast` - used to parse a WDL document into an Abstract Syntax Tree (AST).
-//! * `lint` - provides additional lint rules that can be used in a validation
-//!   pass over a document.
-//!
-//! The above are re-exports of the individual `wdl-grammar`, `wdl-ast`, and
-//! `wdl-lint` crates, respectively.
-//!
 //! The CST is based on the `rowan` crate and represents an immutable red-green
 //! tree. Mutations to the tree require creating a new tree where unaffected
 //! nodes are shared between the old and new trees; the cost of editing a node

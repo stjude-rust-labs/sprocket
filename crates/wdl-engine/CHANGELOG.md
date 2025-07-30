@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.6.0 - 07-30-2025
+
 #### Added
 
 * Added `cpu_limit_behavior` and `memory_limit_behavior` options to task execution configuration ([#543](https://github.com/stjude-rust-labs/wdl/pull/543))
