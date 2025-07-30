@@ -65,28 +65,12 @@ impl Serialize for Outputs {
     {
         use serde::ser::SerializeMap;
 
-        /// Helper `Serialize` implementation for serializing element values.
-        struct Serialize<'a> {
-            /// The value being serialized.
-            value: &'a Value,
-        }
-
-        impl serde::Serialize for Serialize<'_> {
-            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                self.value.serialize(serializer)
-            }
-        }
-
         let mut s = serializer.serialize_map(Some(self.values.len()))?;
         for (k, v) in &self.values {
+            let v = crate::ValueSerializer::new(v, true);
             match &self.name {
-                Some(prefix) => {
-                    s.serialize_entry(&format!("{prefix}.{k}"), &Serialize { value: v })?
-                }
-                None => s.serialize_entry(k, &Serialize { value: v })?,
+                Some(prefix) => s.serialize_entry(&format!("{prefix}.{k}"), &v)?,
+                None => s.serialize_entry(k, &v)?,
             }
         }
 

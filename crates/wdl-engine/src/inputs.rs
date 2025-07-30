@@ -11,6 +11,7 @@ use anyhow::Result;
 use anyhow::bail;
 use indexmap::IndexMap;
 use serde::Serialize;
+use serde::ser::SerializeMap;
 use serde_json::Value as JsonValue;
 use serde_yaml_ng::Value as YamlValue;
 use wdl_analysis::Document;
@@ -326,7 +327,12 @@ impl Serialize for TaskInputs {
         S: serde::Serializer,
     {
         // Only serialize the input values
-        self.inputs.serialize(serializer)
+        let mut map = serializer.serialize_map(Some(self.inputs.len()))?;
+        for (k, v) in &self.inputs {
+            let serialized_value = crate::ValueSerializer::new(v, true);
+            map.serialize_entry(k, &serialized_value)?;
+        }
+        map.end()
     }
 }
 
@@ -659,7 +665,12 @@ impl Serialize for WorkflowInputs {
     {
         // Note: for serializing, only serialize the direct inputs, not the nested
         // inputs
-        self.inputs.serialize(serializer)
+        let mut map = serializer.serialize_map(Some(self.inputs.len()))?;
+        for (k, v) in &self.inputs {
+            let serialized_value = crate::ValueSerializer::new(v, true);
+            map.serialize_entry(k, &serialized_value)?;
+        }
+        map.end()
     }
 }
 
