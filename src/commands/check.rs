@@ -103,10 +103,9 @@ impl CheckArgs {
         self.common.deny_notes = self.common.deny_notes || config.check.deny_notes;
         self.common.hide_notes = self.common.hide_notes || config.check.hide_notes;
         self.common.no_color = self.common.no_color || !config.common.color;
-        self.common.report_mode = match self.common.report_mode {
-            Some(mode) => Some(mode),
-            None => Some(config.common.report_mode),
-        };
+        if self.common.report_mode.is_none() {
+            self.common.report_mode = Some(config.common.report_mode);
+        }
 
         self
     }

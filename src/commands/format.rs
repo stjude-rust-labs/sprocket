@@ -73,19 +73,16 @@ impl Args {
     /// Applies the configuration to the command arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
         self.no_color = self.no_color || !config.common.color;
-        self.report_mode = match self.report_mode {
-            Some(mode) => Some(mode),
-            None => Some(config.common.report_mode),
-        };
+        if self.report_mode.is_none() {
+            self.report_mode = Some(config.common.report_mode);
+        }
         self.with_tabs = self.with_tabs || config.format.with_tabs;
-        self.indentation_size = match self.indentation_size {
-            Some(size) => Some(size),
-            None => Some(config.format.indentation_size),
-        };
-        self.max_line_length = match self.max_line_length {
-            Some(length) => Some(length),
-            None => Some(config.format.max_line_length),
-        };
+        if self.indentation_size.is_none() {
+            self.indentation_size = Some(config.format.indentation_size);
+        }
+        if self.max_line_length.is_none() {
+            self.max_line_length = Some(config.format.max_line_length);
+        }
         self
     }
 }
