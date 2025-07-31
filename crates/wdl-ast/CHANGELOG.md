@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.15.1 - 07-31-2025
+
+#### Added
+
+* Added support used by LSP hovers and completions ([#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
+
 ## 0.15.0 - 07-30-2025
 
-#### Dependencies
-
-* Bumps dependencies.
+Mistaken release, please use `0.15.1`
 
 ## 0.14.0 - 07-09-2025
 

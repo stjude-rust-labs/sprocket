@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## 0.11.0 - 07-30-2025
+## 0.11.0 - 07-31-2025
 
 #### Added
 
+* Added support for completions ([#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
 * Added `exceptions` to `ServerOptions` ([#542](https://github.com/stjude-rust-labs/wdl/pull/542)).
 
 ## 0.10.0 - 07-09-2025

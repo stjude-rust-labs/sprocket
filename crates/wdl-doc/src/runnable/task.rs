@@ -212,10 +212,6 @@ impl Runnable for Task {
         &self.outputs
     }
 
-    fn is_workflow(&self) -> bool {
-        false
-    }
-
     fn wdl_path(&self) -> Option<&Path> {
         self.wdl_path.as_deref()
     }

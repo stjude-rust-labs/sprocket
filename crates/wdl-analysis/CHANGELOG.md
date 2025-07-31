@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## 0.11.0 - 07-30-2025
+## 0.11.0 - 07-31-2025
 
 #### Added
 
+* Added code completion support for the WDL Language Server ([#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
 * Added an `ArrayType::unqualified` method to cheaply drop the `+` qualifier ([#529](https://github.com/stjude-rust-labs/wdl/pull/529)).
 
 #### Changed
@@ -21,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Added code completion support for the WDL Language Server ([#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
 * Added support for struct members, struct literals and call inputs in `goto_definition` ([#491](https://github.com/stjude-rust-labs/wdl/pull/491)).
 * Added `find references` support for WDL Language Server ([#484](https://github.com/stjude-rust-labs/wdl/pull/484)).
 * Added `goto_definition` support for WDL Language Server ([#468](https://github.com/stjude-rust-labs/wdl/pull/468)).

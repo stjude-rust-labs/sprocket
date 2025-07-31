@@ -13,12 +13,12 @@ readme = "../README.md"
 
 [dependencies]
 wdl-analysis = { path = "../wdl-analysis", version = "0.11.0", optional = true }
-wdl-ast = { path = "../wdl-ast", version = "0.15.0", optional = true }
+wdl-ast = { path = "../wdl-ast", version = "0.15.1", optional = true }
 wdl-cli = { path = "../wdl-cli", version = "0.4.0", optional = true }
 wdl-doc = { path = "../wdl-doc", version = "0.6.0", optional = true }
 wdl-engine = { path = "../wdl-engine", version = "0.6.0", optional = true }
-wdl-format = { path = "../wdl-format", version = "0.9.0", optional = true }
-wdl-grammar = { path = "../wdl-grammar", version = "0.14.0", optional = true }
+wdl-format = { path = "../wdl-format", version = "0.9.1", optional = true }
+wdl-grammar = { path = "../wdl-grammar", version = "0.15.0", optional = true }
 wdl-lint = { path = "../wdl-lint", version = "0.14.0", optional = true }
 wdl-lsp = { path = "../wdl-lsp", version = "0.11.0", optional = true }
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.15.0 - 07-31-2025
+
+#### Added
+
+* Added token sets used for LSP auto-completion ([#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
+
 ## 0.14.0 - 07-09-2025
 
 #### Removed

@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## 0.6.0 - 07-30-2025
+## 0.6.0 - 07-31-2025
 
-#### Dependencies
+#### Changed
 
-* Bumps dependencies.
+* `sprocket run --name` changed to `sprocket run --entrypoint` to match downstream API change ([#550](https://github.com/stjude-rust-labs/wdl/pull/550)).
 
 ## 0.5.0 - 07-09-2025
 

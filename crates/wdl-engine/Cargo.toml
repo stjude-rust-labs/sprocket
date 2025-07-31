@@ -12,8 +12,8 @@ documentation = "https://docs.rs/wdl-engine"
 
 [dependencies]
 wdl-analysis = { version = "0.11.0", path = "../wdl-analysis" }
-wdl-ast = { version = "0.15.0", path = "../wdl-ast" }
-wdl-grammar = { version = "0.14.0", path = "../wdl-grammar" }
+wdl-ast = { version = "0.15.1", path = "../wdl-ast" }
+wdl-grammar = { version = "0.15.0", path = "../wdl-grammar" }
 anyhow = { workspace = true }
 crankshaft = { workspace = true }
 codespan-reporting = { workspace = true, optional = true }

@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
+use anyhow::bail;
 use indexmap::IndexMap;
 use regex::Regex;
 use serde_json::Value;
@@ -310,6 +311,15 @@ impl Inputs {
         );
 
         let result = EngineInputs::parse_object(document, values)?;
+
+        if let Some((derived, _)) = &result
+            && let Some(ep) = &self.entrypoint
+            && derived != ep
+        {
+            bail!(format!(
+                "supplied entrypoint `{ep}` does not match derived entrypoint `{derived}`"
+            ))
+        }
 
         Ok(result.map(|(callee_name, inputs)| {
             let callee_prefix = format!("{callee_name}.");
