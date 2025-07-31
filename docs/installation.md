@@ -32,7 +32,7 @@ Every released version of `sprocket` is available through the GitHub Container
 Registry.
 
 ```bash
-docker run ghcr.io/stjude-rust-labs/sprocket:v0.14.1 -h
+docker run ghcr.io/stjude-rust-labs/sprocket:v0.15.0 -h
 ```
 
 ## Direct download
@@ -63,7 +63,7 @@ cargo install sprocket
 If desired, you can also check out a specific version of `sprocket`.
 
 ```shell
-cargo install sprocket@0.14.1
+cargo install sprocket@0.15.0
 ```
 
 ### GitHub
