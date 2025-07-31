@@ -9,15 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added `cpu_limit_behavior` and `memory_limit_behavior` config options to enable ignoring host resource limits ([wdl:#543](https://github.com/stjude-rust-labs/wdl/pull/543)).
+* Added code completion to the LSP ([wdl:#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
 * Added new default output directory logic ([#149](https://github.com/stjude-rust-labs/sprocket/pull/149)).
 * Individual analysis and lint rules can now be excepted when running the `analyzer` command ([#150](https://github.com/stjude-rust-labs/sprocket/pull/150)).
     * both command line flags and TOML config are supported
 
 ### Changed
 
+* The `UnusedCall` analysis rule no emits a diagnostic for tasks and workflows if they have an empty or missing `output` section ([wdl:#532](https://github.com/stjude-rust-labs/wdl/pull/532)).
 * `--name` option renamed to `--entrypoint` for `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
     * `--entrypoint` is now required if no inputs are provided.
     * `--entrypoint` will be prefixed to the key of any key-value pairs supplied on the command line.
+
+### Removed
+
+* Removed the `OutputSection` lint rule ([wdl:#532](https://github.com/stjude-rust-labs/wdl/pull/532)).
 
 ## 0.14.1 - 07-10-2025
 
