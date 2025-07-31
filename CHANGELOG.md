@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* The `UnusedCall` analysis rule no emits a diagnostic for tasks and workflows if they have an empty or missing `output` section ([wdl:#532](https://github.com/stjude-rust-labs/wdl/pull/532)).
+* The `UnusedCall` analysis rule no longer emits a diagnostic for tasks and workflows if they have an empty or missing `output` section ([wdl:#532](https://github.com/stjude-rust-labs/wdl/pull/532)).
 * `--name` option renamed to `--entrypoint` for `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
     * `--entrypoint` is now required if no inputs are provided.
     * `--entrypoint` will be prefixed to the key of any key-value pairs supplied on the command line.
