@@ -1,4 +1,4 @@
-FROM rust:1.85 AS builder
+FROM rust:1.88 AS builder
 
 # Install Sprocket by invoking `cargo install` on the sources in the current directory. The `mount`
 # directive provides the current directory to the `builder` container, so no unnecessary copying is
