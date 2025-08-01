@@ -145,6 +145,21 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                     ..Default::default()
                 }
             }),
+            ("local_generic".into(), {
+                config::Config {
+                    backends: [(
+                        "default".to_string(),
+                        BackendConfig::Generic(Default::default()),
+                    )]
+                    .into(),
+                    task: config::TaskConfig {
+                        cpu_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
+                        memory_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            }),
             // Currently we limit running the Docker backend to Linux as GitHub does not have
             // Docker installed on macOS hosted runners and the Windows hosted runners
             // are configured to use Windows containers

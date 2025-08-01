@@ -28,10 +28,12 @@ use crate::http::HttpDownloader;
 use crate::path::EvaluationPath;
 
 mod docker;
+mod generic;
 mod local;
 mod tes;
 
 pub use docker::*;
+pub use generic::*;
 pub use local::*;
 pub use tes::*;
 
