@@ -1,16 +1,29 @@
-FROM rust:1.88 AS builder
+FROM alpine:latest AS builder
 
-# Install Sprocket by invoking `cargo install` on the sources in the current directory. The `mount`
-# directive provides the current directory to the `builder` container, so no unnecessary copying is
-# performed into `builder`.
+# Install the necessary packages and Rust.
+RUN apk add --update pkgconfig curl clang openssl-libs-static openssl-dev
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --profile minimal
+
+# Add `cargo` to the path.
+ENV PATH=/root/.cargo/bin:$PATH
+
 WORKDIR /tmp/sprocket
-RUN --mount=type=bind,source=.,target=/tmp/sprocket,readonly \
-    cargo install --target-dir /tmp/sprocket-target --root /tmp/sprocket-root --path .
 
-FROM debian:bookworm-slim
+# Copy the necessary source
+COPY ./Cargo.toml ./Cargo.lock ./
+COPY ./src ./src
+COPY ./tests ./tests
 
-RUN apt update && apt install -y openssl ca-certificates shellcheck && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /tmp/sprocket-root/bin/sprocket /opt/sprocket/bin/sprocket
+# Build the release version of Sprocket
+RUN cargo build --release
+
+RUN strip target/release/sprocket
+
+# Set up the final Sprocket image
+FROM alpine:latest
+
+COPY --from=builder /tmp/sprocket/target/release/sprocket /opt/sprocket/bin/sprocket
 
 ENV PATH=/opt/sprocket/bin:$PATH
 
