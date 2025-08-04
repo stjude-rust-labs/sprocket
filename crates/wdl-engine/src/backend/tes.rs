@@ -296,7 +296,7 @@ impl TaskManagerRequest for TesTaskRequest {
                                 .as_deref()
                                 .unwrap_or(DEFAULT_TASK_SHELL),
                         )
-                        .args(["-C".to_string(), GUEST_COMMAND_PATH.to_string()])
+                        .args([GUEST_COMMAND_PATH.to_string()])
                         .work_dir(GUEST_WORK_DIR)
                         .env(self.inner.env().clone())
                         .stdout(GUEST_STDOUT_PATH)

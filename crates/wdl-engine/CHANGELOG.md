@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Removed mistaken `-C` argument to `bash` invocations ([#558](https://github.com/stjude-rust-labs/wdl/pull/558)).
+
 ## 0.6.0 - 07-31-2025
 
 #### Added

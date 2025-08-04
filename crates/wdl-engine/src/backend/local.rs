@@ -126,7 +126,6 @@ impl TaskManagerRequest for LocalTaskRequest {
         );
         command
             .current_dir(&work_dir)
-            .arg("-C")
             .arg(command_path)
             .stdin(Stdio::null())
             .stdout(stdout)
@@ -146,13 +145,13 @@ impl TaskManagerRequest for LocalTaskRequest {
             command.env("PATH", path);
         }
 
-        let mut child = command.spawn().context("failed to spawn `bash`")?;
+        let mut child = command.spawn().context("failed to spawn shell")?;
 
         // Notify that the process has spawned
         spawned.send(()).ok();
 
         let id = child.id().expect("should have id");
-        info!("spawned local `bash` process {id} for task execution");
+        info!("spawned local shell process {id} for task execution");
 
         select! {
             // Poll the cancellation token before the child future

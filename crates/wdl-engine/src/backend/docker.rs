@@ -206,7 +206,7 @@ impl TaskManagerRequest for DockerTaskRequest {
                             .as_deref()
                             .unwrap_or(DEFAULT_TASK_SHELL),
                     )
-                    .args(["-C".to_string(), GUEST_COMMAND_PATH.to_string()])
+                    .args([GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
                     .env({
                         let mut final_env = indexmap::IndexMap::new();
