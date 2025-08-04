@@ -23,6 +23,8 @@ RUN strip target/release/sprocket
 # Set up the final Sprocket image
 FROM alpine:latest
 
+RUN apk add --update shellcheck
+
 COPY --from=builder /tmp/sprocket/target/release/sprocket /opt/sprocket/bin/sprocket
 
 ENV PATH=/opt/sprocket/bin:$PATH
