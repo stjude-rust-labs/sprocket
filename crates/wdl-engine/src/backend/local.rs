@@ -249,23 +249,27 @@ impl TaskExecutionBackend for LocalBackend {
     ) -> Result<TaskExecutionConstraints> {
         let mut cpu = cpu(requirements);
         if (self.cpu as f64) < cpu {
+            let env_specific = if self.config.suppress_env_specific_output {
+                String::new()
+            } else {
+                format!(
+                    ", but the host only has {total_cpu} available",
+                    total_cpu = self.cpu
+                )
+            };
             match self.config.task.cpu_limit_behavior {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
-                        "task requires at least {cpu} CPU{s}, but the host only has {total_cpu} \
-                         available",
+                        "task requires at least {cpu} CPU{s}{env_specific}",
                         s = if cpu == 1.0 { "" } else { "s" },
-                        total_cpu = self.cpu,
                     );
                     // clamp the reported constraint to what's available
                     cpu = self.cpu as f64;
                 }
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
-                        "task requires at least {cpu} CPU{s}, but the host only has {total_cpu} \
-                         available",
+                        "task requires at least {cpu} CPU{s}{env_specific}",
                         s = if cpu == 1.0 { "" } else { "s" },
-                        total_cpu = self.cpu,
                     );
                 }
             }
@@ -273,25 +277,29 @@ impl TaskExecutionBackend for LocalBackend {
 
         let mut memory = memory(requirements)?;
         if self.memory < memory as u64 {
+            let env_specific = if self.config.suppress_env_specific_output {
+                String::new()
+            } else {
+                format!(
+                    ", but the host only has {total_memory} GiB available",
+                    total_memory = self.memory as f64 / ONE_GIBIBYTE,
+                )
+            };
             match self.config.task.memory_limit_behavior {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
-                        "task requires at least {memory} GiB of memory, but the host only has \
-                         {total_memory} GiB available",
+                        "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
-                        total_memory = self.memory as f64 / ONE_GIBIBYTE,
                     );
                     // clamp the reported constraint to what's available
                     memory = self.memory.try_into().unwrap_or(i64::MAX);
                 }
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
-                        "task requires at least {memory} GiB of memory, but the host only has \
-                         {total_memory} GiB available",
+                        "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
-                        total_memory = self.memory as f64 / ONE_GIBIBYTE,
                     );
                 }
             }

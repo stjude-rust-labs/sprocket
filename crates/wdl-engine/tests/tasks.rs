@@ -141,11 +141,7 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                         BackendConfig::Local(Default::default()),
                     )]
                     .into(),
-                    task: config::TaskConfig {
-                        cpu_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
-                        memory_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
-                        ..Default::default()
-                    },
+                    suppress_env_specific_output: true,
                     ..Default::default()
                 }
             }),
@@ -160,11 +156,7 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                         BackendConfig::Docker(Default::default()),
                     )]
                     .into(),
-                    task: config::TaskConfig {
-                        cpu_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
-                        memory_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
-                        ..Default::default()
-                    },
+                    suppress_env_specific_output: true,
                     ..Default::default()
                 }
             }),

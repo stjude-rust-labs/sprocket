@@ -349,23 +349,27 @@ impl TaskExecutionBackend for DockerBackend {
 
         let mut cpu = cpu(requirements);
         if (self.max_cpu as f64) < cpu {
+            let env_specific = if self.config.suppress_env_specific_output {
+                String::new()
+            } else {
+                format!(
+                    ", but the execution backend has a maximum of {max_cpu}",
+                    max_cpu = self.max_cpu,
+                )
+            };
             match self.config.task.cpu_limit_behavior {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
-                        "task requires at least {cpu} CPU{s}, but the execution backend has a \
-                         maximum of {max_cpu}",
+                        "task requires at least {cpu} CPU{s}{env_specific}",
                         s = if cpu == 1.0 { "" } else { "s" },
-                        max_cpu = self.max_cpu,
                     );
                     // clamp the reported constraint to what's available
                     cpu = self.max_cpu as f64;
                 }
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
-                        "task requires at least {cpu} CPU{s}, but the execution backend has a \
-                         maximum of {max_cpu}",
+                        "task requires at least {cpu} CPU{s}{env_specific}",
                         s = if cpu == 1.0 { "" } else { "s" },
-                        max_cpu = self.max_cpu,
                     );
                 }
             }
@@ -373,25 +377,29 @@ impl TaskExecutionBackend for DockerBackend {
 
         let mut memory = memory(requirements)?;
         if self.max_memory < memory as u64 {
+            let env_specific = if self.config.suppress_env_specific_output {
+                String::new()
+            } else {
+                format!(
+                    ", but the execution backend has a maximum of {max_memory} GiB",
+                    max_memory = self.max_memory as f64 / ONE_GIBIBYTE,
+                )
+            };
             match self.config.task.memory_limit_behavior {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
-                        "task requires at least {memory} GiB of memory, but the execution backend \
-                         has a maximum of {max_memory} GiB",
+                        "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
-                        max_memory = self.max_memory as f64 / ONE_GIBIBYTE,
                     );
                     // clamp the reported constraint to what's available
                     memory = self.max_memory.try_into().unwrap_or(i64::MAX);
                 }
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
-                        "task requires at least {memory} GiB of memory, but the execution backend \
-                         has a maximum of {max_memory} GiB",
+                        "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
-                        max_memory = self.max_memory as f64 / ONE_GIBIBYTE,
                     );
                 }
             }

@@ -64,6 +64,21 @@ pub struct Config {
     /// Storage configuration.
     #[serde(default)]
     pub storage: StorageConfig,
+    /// (Experimental) Avoid environment-specific output; default is `false`.
+    ///
+    /// If this option is `true`, selected error messages and log output will
+    /// avoid emitting environment-specific output such as absolute paths
+    /// and system resource counts.
+    ///
+    /// This is largely meant to support "golden testing" where a test's success
+    /// depends on matching an expected set of outputs exactly. Cues that
+    /// help users overcome errors, such as the path to a temporary
+    /// directory or the number of CPUs available to the system, confound this
+    /// style of testing. This flag is a best-effort experimental attempt to
+    /// reduce the impact of these differences in order to allow a wider
+    /// range of golden tests to be written.
+    #[serde(default)]
+    pub suppress_env_specific_output: bool,
 }
 
 impl Config {
