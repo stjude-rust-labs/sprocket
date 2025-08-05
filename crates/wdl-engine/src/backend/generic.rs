@@ -145,7 +145,7 @@ impl TaskManagerRequest for GenericTaskRequest {
             crankshaft::config::backend::generic::Config::builder()
                 .driver(crankshaft_generic_backend_driver)
                 .submit(format!(
-                    "(~{{command}} > {} 2> {} & echo $!)",
+                    "(cd ~{{cwd}}; ~{{command}} > {} 2> {} & echo $!)",
                     stdout_path.display(),
                     stderr_path.display(),
                 ))
