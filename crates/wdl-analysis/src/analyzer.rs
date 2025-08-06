@@ -24,6 +24,7 @@ use lsp_types::CompletionResponse;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::Location;
+use lsp_types::WorkspaceEdit;
 use path_clean::PathClean;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc;
@@ -46,6 +47,7 @@ use crate::queue::HoverRequest;
 use crate::queue::NotifyChangeRequest;
 use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::RemoveRequest;
+use crate::queue::RenameRequest;
 use crate::queue::Request;
 use crate::rayon::RayonHandle;
 
@@ -702,6 +704,38 @@ where
 
         rx.await.map_err(|_| {
             anyhow!("failed to send hover request to analysis queue because the channel has closed")
+        })
+    }
+
+    /// Renames a symbol at a given position across the workspace.
+    pub async fn rename(
+        &self,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+        new_name: String,
+    ) -> Result<Option<WorkspaceEdit>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::Rename(RenameRequest {
+                document,
+                position,
+                encoding,
+                new_name,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send rename request to analysis queue because the channel has \
+                     closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive rename response from analysis queue because the channel has \
+                 closed"
+            )
         })
     }
 }

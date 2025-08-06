@@ -40,6 +40,7 @@ use crate::handlers::TypeEvalContext;
 use crate::handlers::common::find_identifier_token_at_offset;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
+use crate::types::Type;
 use crate::types::v1::ExprTypeEvaluator;
 
 /// Finds the definition location for an identifier at the given position.
@@ -97,6 +98,36 @@ pub fn goto_definition(
     // Scope based resolution
     if let Some(scope_ref) = analysis_doc.find_scope_by_position(token.span().start()) {
         if let Some(name_def) = scope_ref.lookup(ident_text) {
+            if let Type::Call(_) = name_def.ty() {
+                let def_offset = name_def.span().start().try_into()?;
+                let def_token = root
+                    .token_at_offset(def_offset)
+                    .find(|t| t.span() == name_def.span() && t.kind() == SyntaxKind::Ident);
+
+                if let Some(def_token) = def_token {
+                    if let Some(call_stmt) = def_token
+                        .parent_ancestors()
+                        .find_map(v1::CallStatement::cast)
+                    {
+                        if call_stmt.alias().is_none() {
+                            // NOTE: implicit alias found, resolving call target instead of the
+                            // alias
+                            let target = call_stmt.target();
+                            let callee_name =
+                                target.names().last().expect("call target must have a name");
+                            return resolve_call_target(
+                                target.inner(),
+                                callee_name.inner(),
+                                analysis_doc,
+                                &document_uri,
+                                &lines,
+                                graph,
+                            );
+                        }
+                    }
+                }
+            }
+
             return Ok(Some(location_from_span(
                 &document_uri,
                 name_def.span(),
