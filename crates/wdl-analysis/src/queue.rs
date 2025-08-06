@@ -17,6 +17,7 @@ use futures::stream::FuturesUnordered;
 use indexmap::IndexSet;
 use lsp_types::CompletionResponse;
 use lsp_types::GotoDefinitionResponse;
+use lsp_types::Hover;
 use lsp_types::Location;
 use parking_lot::RwLock;
 use petgraph::Direction;
@@ -72,6 +73,8 @@ pub enum Request<Context> {
     FindAllReferences(FindAllReferencesRequest),
     /// A request to get completions at a position.
     Completion(CompletionRequest<Context>),
+    /// A request to get information about a symbol on hover.
+    Hover(HoverRequest),
 }
 
 /// Represents a request to add documents to the graph.
@@ -170,6 +173,18 @@ pub struct CompletionRequest<Context> {
     pub completed: oneshot::Sender<Option<CompletionResponse>>,
     /// The context to provide to the progress callback.
     pub context: Context,
+}
+
+/// Represents a request to get information of a symbol on hover
+pub struct HoverRequest {
+    /// The document where the request was initiated.
+    pub document: Url,
+    /// The position of the symbol in the document.
+    pub position: SourcePosition,
+    /// The encoding used for the position.
+    pub encoding: SourcePositionEncoding,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<Hover>>,
 }
 
 /// A simple enumeration to signal a cancellation to the caller.
@@ -468,6 +483,35 @@ where
                             completed.send(result).ok();
                         }
                         Err(_) => {
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+                Request::Hover(HoverRequest {
+                    document,
+                    position,
+                    encoding,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request for hover at {document}: {line}:{char}",
+                        line = position.line,
+                        char = position.character
+                    );
+
+                    let graph = self.graph.read();
+                    match handlers::hover(&graph, &document, position, encoding) {
+                        Ok(result) => {
+                            debug!(
+                                "hover request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            debug!("error occurred while completing hover request: {err:?}");
                             completed.send(None).ok();
                         }
                     }

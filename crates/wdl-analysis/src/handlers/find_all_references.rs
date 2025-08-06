@@ -15,13 +15,13 @@ use wdl_ast::AstNode;
 use wdl_ast::SyntaxKind;
 use wdl_ast::TreeToken;
 
-use super::goto_definition::position_to_offset;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
 use crate::handlers;
-use crate::handlers::location_from_span;
-use crate::handlers::position;
+use crate::handlers::common::location_from_span;
+use crate::handlers::common::position;
+use crate::handlers::common::position_to_offset;
 
 /// Represents a target definition for which references are being searched.
 #[derive(Debug)]

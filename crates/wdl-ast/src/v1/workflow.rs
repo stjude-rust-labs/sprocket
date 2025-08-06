@@ -144,7 +144,7 @@ impl<N: TreeNode> WorkflowDefinition<N> {
 
     /// Writes a Markdown formatted description of the workflow.
     pub fn markdown_description(&self, f: &mut impl fmt::Write) -> fmt::Result {
-        writeln!(f, "---")?;
+        writeln!(f, "```wdl\nworkflow {}\n```\n---", self.name().text())?;
 
         if let Some(meta) = self.metadata() {
             if let Some(desc) = meta.items().find(|i| i.name().text() == "description") {

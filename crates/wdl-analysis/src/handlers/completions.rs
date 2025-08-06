@@ -24,9 +24,7 @@ use line_index::LineIndex;
 use lsp_types::CompletionItem;
 use lsp_types::CompletionItemKind;
 use lsp_types::CompletionTextEdit;
-use lsp_types::Documentation;
 use lsp_types::InsertTextFormat;
-use lsp_types::MarkupContent;
 use lsp_types::Range;
 use lsp_types::TextEdit;
 use rowan::TextSize;
@@ -48,14 +46,12 @@ use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::REQUIREMENTS_KEY;
 use wdl_ast::v1::RUNTIME_KEYS;
-use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
 use wdl_ast::v1::TASK_FIELDS;
 use wdl_ast::v1::TASK_HINT_KEYS;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WORKFLOW_HINT_KEYS;
-use wdl_ast::v1::WorkflowDefinition;
 use wdl_grammar::grammar::v1::NESTED_WORKFLOW_STATEMENT_KEYWORDS;
 use wdl_grammar::grammar::v1::ROOT_SECTION_KEYWORDS;
 use wdl_grammar::grammar::v1::STRUCT_SECTION_KEYWORDS;
@@ -67,15 +63,16 @@ use crate::Document;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::document::ScopeRef;
-use crate::document::Struct;
 use crate::document::TASK_VAR_NAME;
-use crate::document::Task;
-use crate::document::Workflow;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::TypeEvalContext;
-use crate::handlers::position;
-use crate::handlers::position_to_offset;
+use crate::handlers::common::make_md_docs;
+use crate::handlers::common::position;
+use crate::handlers::common::position_to_offset;
+use crate::handlers::common::provide_struct_documentation;
+use crate::handlers::common::provide_task_documentation;
+use crate::handlers::common::provide_workflow_documentation;
 use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
@@ -855,70 +852,6 @@ fn add_version_completions(
         });
     }
     Ok(())
-}
-
-/// Makes a LSP documentation from a definition text.
-fn make_md_docs(definition: String) -> Option<Documentation> {
-    Some(Documentation::MarkupContent(MarkupContent {
-        kind: lsp_types::MarkupKind::Markdown,
-        value: definition,
-    }))
-}
-
-/// Provides documentation for tasks which includes `inputs`, `outputs`,
-/// `metadata`, `runtime`
-fn provide_task_documentation(task: &Task, root: &wdl_ast::Document) -> Option<String> {
-    match TextSize::try_from(task.name_span().start()) {
-        Ok(offset) => root
-            .inner()
-            .token_at_offset(offset)
-            .left_biased()
-            .and_then(|t| t.parent_ancestors().find_map(TaskDefinition::cast))
-            .as_ref()
-            .and_then(|n| {
-                let mut s = String::new();
-                n.markdown_description(&mut s).ok()?;
-                Some(s)
-            }),
-        Err(_) => None,
-    }
-}
-
-/// Provides documentation for workflows which includes `inputs`, `outputs`,
-/// `metadata`
-fn provide_workflow_documentation(workflow: &Workflow, root: &wdl_ast::Document) -> Option<String> {
-    match TextSize::try_from(workflow.name_span().start()) {
-        Ok(offset) => root
-            .inner()
-            .token_at_offset(offset)
-            .left_biased()
-            .and_then(|t| t.parent_ancestors().find_map(WorkflowDefinition::cast))
-            .as_ref()
-            .and_then(|n| {
-                let mut s = String::new();
-                n.markdown_description(&mut s).ok()?;
-                Some(s)
-            }),
-        Err(_) => None,
-    }
-}
-
-/// Provides documentation for structs.
-fn provide_struct_documentation(struct_info: &Struct, root: &wdl_ast::Document) -> Option<String> {
-    match TextSize::try_from(struct_info.name_span().start()) {
-        Ok(offset) => root
-            .inner()
-            .token_at_offset(offset)
-            .left_biased()
-            .and_then(|t| t.parent_ancestors().find_map(StructDefinition::cast))
-            .as_ref()
-            .and_then(|n| {
-                let mut s = String::new();
-                n.markdown_description(&mut s).ok()?;
-                Some(s)
-            }),
-        Err(_) => None,
-    }
 }
 
 /// Formats metadata value to type.

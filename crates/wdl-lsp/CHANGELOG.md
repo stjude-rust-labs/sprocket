@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added support for hover ([#540](https://github.com/stjude-rust-labs/wdl/pull/540)).
+
 ## 0.11.0 - 07-31-2025
 
 #### Added
