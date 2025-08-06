@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use maud::Markup;
 use maud::html;
 use path_clean::PathClean;
@@ -19,10 +20,13 @@ use crate::Markdown;
 use crate::Render;
 use crate::document::Document;
 use crate::full_page;
+use crate::get_assets;
 use crate::r#struct::Struct;
 use crate::task::Task;
 use crate::workflow::Workflow;
-use crate::write_assets;
+
+/// Filename for the logo SVG expected to be in the "assets" directory.
+const LOGO_FILE_NAME: &str = "logo.svg";
 
 /// The type of a page.
 #[derive(Debug)]
@@ -211,6 +215,8 @@ pub struct DocsTreeBuilder {
     homepage: Option<PathBuf>,
     /// An optional path to a custom theme to use for the docs.
     custom_theme: Option<PathBuf>,
+    /// The path to a custom logo to embed at the top of the left sidebar.
+    logo: Option<PathBuf>,
 }
 
 impl DocsTreeBuilder {
@@ -223,6 +229,7 @@ impl DocsTreeBuilder {
             root,
             homepage: None,
             custom_theme: None,
+            logo: None,
         }
     }
 
@@ -238,19 +245,43 @@ impl DocsTreeBuilder {
     }
 
     /// Set the custom theme for the docs with an option.
-    pub fn maybe_custom_theme(mut self, theme: Option<impl Into<PathBuf>>) -> Self {
-        self.custom_theme = theme.map(|s| s.into());
-        self
+    pub fn maybe_custom_theme(mut self, theme: Option<impl AsRef<Path>>) -> Result<Self> {
+        self.custom_theme = if let Some(t) = theme {
+            Some(
+                absolute(t.as_ref())
+                    .with_context(|| {
+                        format!(
+                            "failed to resolve absolute path for custom theme: `{}`",
+                            t.as_ref().display()
+                        )
+                    })?
+                    .clean(),
+            )
+        } else {
+            None
+        };
+        Ok(self)
     }
 
     /// Set the custom theme for the docs.
-    pub fn custom_theme(self, theme: impl Into<PathBuf>) -> Self {
+    pub fn custom_theme(self, theme: impl AsRef<Path>) -> Result<Self> {
         self.maybe_custom_theme(Some(theme))
+    }
+
+    /// Set the custom logo for the left sidebar with an option.
+    pub fn maybe_logo(mut self, logo: Option<impl Into<PathBuf>>) -> Self {
+        self.logo = logo.map(|l| l.into());
+        self
+    }
+
+    /// Set the custom logo for the left sidebar.
+    pub fn logo(self, logo: impl Into<PathBuf>) -> Self {
+        self.maybe_logo(Some(logo))
     }
 
     /// Build the docs tree.
     pub fn build(self) -> Result<DocsTree> {
-        write_assets(&self.root, self.custom_theme.as_ref()).with_context(|| {
+        self.write_assets().with_context(|| {
             format!(
                 "failed to write assets to output directory: `{}`",
                 self.root.display()
@@ -269,9 +300,97 @@ impl DocsTreeBuilder {
             homepage: self.homepage,
         })
     }
+
+    /// Write assets to the root docs directory.
+    ///
+    /// This will create an `assets` directory in the root and write all
+    /// necessary assets to it. It will also write the default `style.css` and
+    /// `index.js` files to the root unless a custom theme is
+    /// provided, in which case it will copy the `style.css` and `index.js`
+    /// files from the custom theme's `dist` directory.
+    fn write_assets(&self) -> Result<()> {
+        let dir = &self.root;
+        let custom_theme = self.custom_theme.as_ref();
+        let assets_dir = dir.join("assets");
+        std::fs::create_dir_all(&assets_dir).with_context(|| {
+            format!(
+                "failed to create assets directory: `{}`",
+                assets_dir.display()
+            )
+        })?;
+
+        if let Some(custom_theme) = custom_theme {
+            if !custom_theme.exists() {
+                bail!(
+                    "custom theme directory does not exist: `{}`",
+                    custom_theme.display()
+                );
+            }
+            std::fs::copy(
+                custom_theme.join("dist").join("style.css"),
+                dir.join("style.css"),
+            )
+            .with_context(|| {
+                format!(
+                    "failed to copy stylesheet from `{}` to `{}`",
+                    custom_theme.join("dist").join("style.css").display(),
+                    dir.join("style.css").display()
+                )
+            })?;
+            std::fs::copy(
+                custom_theme.join("dist").join("index.js"),
+                dir.join("index.js"),
+            )
+            .with_context(|| {
+                format!(
+                    "failed to copy web components from `{}` to `{}`",
+                    custom_theme.join("dist").join("index.js").display(),
+                    dir.join("index.js").display()
+                )
+            })?;
+        } else {
+            std::fs::write(
+                dir.join("style.css"),
+                include_str!("../theme/dist/style.css"),
+            )
+            .with_context(|| {
+                format!(
+                    "failed to write default stylesheet to `{}`",
+                    dir.join("style.css").display()
+                )
+            })?;
+            std::fs::write(dir.join("index.js"), include_str!("../theme/dist/index.js"))
+                .with_context(|| {
+                    format!(
+                        "failed to write default web components to `{}`",
+                        dir.join("index.js").display()
+                    )
+                })?;
+        }
+
+        for (file_name, bytes) in get_assets() {
+            let path = assets_dir.join(file_name);
+            std::fs::write(&path, bytes)
+                .with_context(|| format!("failed to write asset to `{}`", path.display()))?;
+        }
+        if let Some(supplied_logo) = &self.logo {
+            let logo_path = assets_dir.join(LOGO_FILE_NAME);
+            std::fs::copy(supplied_logo, &logo_path).with_context(|| {
+                format!(
+                    "failed to copy custom logo from `{}` to `{}`",
+                    supplied_logo.display(),
+                    logo_path.display()
+                )
+            })?;
+        }
+
+        Ok(())
+    }
 }
 
 /// A tree representing the docs directory.
+///
+/// For construction, see [`DocsTreeBuilder`].
 #[derive(Debug)]
 pub struct DocsTree {
     /// The root of the tree.
@@ -300,18 +419,13 @@ impl DocsTree {
     }
 
     /// Get the path to the root directory relative to a given path.
-    pub fn root_relative_to<P: AsRef<Path>>(&self, path: P) -> PathBuf {
+    fn root_relative_to<P: AsRef<Path>>(&self, path: P) -> PathBuf {
         let path = path.as_ref();
         diff_paths(self.root_abs_path(), path).expect("should diff paths")
     }
 
-    /// Get the absolute path to the stylesheet.
-    pub fn stylesheet(&self) -> PathBuf {
-        self.root_abs_path().join("style.css")
-    }
-
     /// Get the absolute path to the assets directory.
-    pub fn assets(&self) -> PathBuf {
+    fn assets(&self) -> PathBuf {
         self.root_abs_path().join("assets")
     }
 
@@ -772,7 +886,7 @@ impl DocsTree {
                 // top navbar
                 div class="sticky px-4" {
                     a href=(self.root_index_relative_to(base).to_string_lossy()) {
-                        img src=(self.get_asset(base, "sprocket-logo.svg")) class="w-[120px] flex-none mb-8" alt="Sprocket logo";
+                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8" alt="Logo";
                     }
                     div class="relative w-full h-10" {
                         input id="searchbox" "x-model.debounce"="search" type="text" placeholder="Search..." class="left-sidebar__searchbox";

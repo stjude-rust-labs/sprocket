@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Custom logo support for the top of the left sidebar ([#559](https://github.com/stjude-rust-labs/wdl/pull/559)).
+
 ## 0.6.0 - 07-31-2025
 
 #### Changed

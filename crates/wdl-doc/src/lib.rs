@@ -127,91 +127,6 @@ pub fn build_stylesheet(theme_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Write assets to the given root docs directory.
-///
-/// This will create an `assets` directory in the given path and write all
-/// necessary assets to it. It will also write the default `style.css` and
-/// `index.js` files to the root of the directory unless a custom theme is
-/// provided, in which case it will copy the `style.css` and `index.js` files
-/// from the custom theme's `dist` directory.
-fn write_assets<P: AsRef<Path>>(dir: P, custom_theme: Option<P>) -> Result<()> {
-    let dir = dir.as_ref();
-    let custom_theme = custom_theme.as_ref().map(|p| {
-        absolute(p.as_ref()).with_context(|| {
-            format!(
-                "failed to resolve absolute path for custom theme: `{}`",
-                p.as_ref().display()
-            )
-        })
-    });
-    let custom_theme = custom_theme.transpose()?;
-    let assets_dir = dir.join("assets");
-    std::fs::create_dir_all(&assets_dir).with_context(|| {
-        format!(
-            "failed to create assets directory: `{}`",
-            assets_dir.display()
-        )
-    })?;
-
-    if let Some(custom_theme) = custom_theme {
-        if !custom_theme.exists() {
-            bail!(
-                "custom theme directory does not exist: `{}`",
-                custom_theme.display()
-            );
-        }
-        std::fs::copy(
-            custom_theme.join("dist").join("style.css"),
-            dir.join("style.css"),
-        )
-        .with_context(|| {
-            format!(
-                "failed to copy stylesheet from `{}` to `{}`",
-                custom_theme.join("dist").join("style.css").display(),
-                dir.join("style.css").display()
-            )
-        })?;
-        std::fs::copy(
-            custom_theme.join("dist").join("index.js"),
-            dir.join("index.js"),
-        )
-        .with_context(|| {
-            format!(
-                "failed to copy web components from `{}` to `{}`",
-                custom_theme.join("dist").join("index.js").display(),
-                dir.join("index.js").display()
-            )
-        })?;
-    } else {
-        std::fs::write(
-            dir.join("style.css"),
-            include_str!("../theme/dist/style.css"),
-        )
-        .with_context(|| {
-            format!(
-                "failed to write default stylesheet to `{}`",
-                dir.join("style.css").display()
-            )
-        })?;
-        std::fs::write(dir.join("index.js"), include_str!("../theme/dist/index.js")).with_context(
-            || {
-                format!(
-                    "failed to write default web components to `{}`",
-                    dir.join("index.js").display()
-                )
-            },
-        )?;
-    }
-
-    for (file_name, bytes) in get_assets() {
-        let path = assets_dir.join(file_name);
-        std::fs::write(&path, bytes)
-            .with_context(|| format!("failed to write asset to `{}`", path.display()))?;
-    }
-
-    Ok(())
-}
-
 /// HTML link to a CSS stylesheet at the given path.
 struct Css<'a>(&'a str);
 
@@ -404,6 +319,7 @@ pub async fn document_workspace(
     output_dir: impl AsRef<Path>,
     homepage: Option<impl AsRef<Path>>,
     custom_theme: Option<impl AsRef<Path>>,
+    custom_logo: Option<impl Into<PathBuf>>,
 ) -> Result<()> {
     let workspace_abs_path = absolute(workspace.as_ref())
         .with_context(|| {
@@ -414,7 +330,6 @@ pub async fn document_workspace(
         })?
         .clean();
     let homepage = homepage.and_then(|p| absolute(p.as_ref()).ok());
-    let custom_theme = custom_theme.and_then(|p| absolute(p.as_ref()).ok());
 
     if !workspace_abs_path.is_dir() {
         bail!(
@@ -451,7 +366,8 @@ pub async fn document_workspace(
 
     let mut docs_tree = DocsTreeBuilder::new(docs_dir.clone())
         .maybe_homepage(homepage)
-        .maybe_custom_theme(custom_theme)
+        .maybe_custom_theme(custom_theme)?
+        .maybe_logo(custom_logo)
         .build()
         .with_context(|| "failed to build documentation tree with provided paths".to_string())?;
 

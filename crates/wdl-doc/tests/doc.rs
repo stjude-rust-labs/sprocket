@@ -47,6 +47,7 @@ async fn document_full_codebase() {
         test_dir.join("docs"),
         None::<&str>,
         None::<&str>,
+        None::<&str>,
     )
     .await
     .expect("failed to generate docs");
