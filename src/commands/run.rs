@@ -42,7 +42,9 @@ const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 
 /// The name of the default "runs" directory.
 pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
+
 /// The name for the "latest" symlink.
+#[cfg(not(target_os = "windows"))]
 const LATEST: &str = "_latest";
 
 /// Arguments to the `run` subcommand.
