@@ -159,6 +159,8 @@ fn normalize_string(input: &str) -> String {
         .replace("\r\n", "\n")
         .replace("\\r\\n", "\\n")
         .replace("sprocket.exe", "sprocket")
+        .replace("\\", "/")
+        .replace("//", "/")
         .to_string()
 }
 
@@ -167,9 +169,11 @@ async fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
         .await
         .with_context(|| format!("failed to read result file {expected_path:?}"))?;
 
-    if normalize_string(&expected) != normalize_string(actual) {
+    let expected = normalize_string(&expected);
+    let actual = normalize_string(actual);
+    if &expected != &actual {
         bail!(
-            "result from `{}` is not as expected: \n{}",
+            "result from `{}` is not as expected:\nafter normalization:\n{}",
             expected_path.display(),
             StrComparison::new(&expected, &actual)
         )
