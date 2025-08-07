@@ -54,10 +54,18 @@ sprocket lint example.wdl
 ```
 
 This returns a set of validation and linting diagnostics that can/should be
-addressed by the workflow author. In this case, the following is an abbreviated
+addressed by the workflow author. In this case, the following is the
 output from the linting and validation process on `example.wdl`.
 
 ```txt
+note[MetaSections]: task `say_hello` is missing both `meta` and `parameter_meta` sections
+  ┌─ example.wdl:3:6
+  │
+3 │ task say_hello {
+  │      ^^^^^^^^^ this task is missing both `meta` and `parameter_meta` sections
+  │
+  = fix: add both the `meta` and `parameter_meta` sections
+
 note[ContainerUri]: container URI uses a mutable tag
    ┌─ example.wdl:18:20
    │
@@ -75,16 +83,17 @@ note[MetaSections]: workflow `main` is missing both `meta` and `parameter_meta` 
    = fix: add both the `meta` and `parameter_meta` sections
 
 warning[UnusedInput]: unused input `color`
-   ┌─ example.wdl:35:16
+   ┌─ example.wdl:30:16
    │
-35 │         String color = "green"
+30 │         String color = "green"
    │                ^^^^^
 ```
 
 Specific lint rules can be ignored with multiple invocations of the `-e` flag.
+Rule matching is case insensitive from command line arguments.
 
 ```shell
-sprocket lint example.wdl -e ContainerUri -e MetaSections
+sprocket lint example.wdl -e containeruri -e metasections
 ```
 
 This leaves a single diagnostic, which is that `color` is an unused workflow
@@ -152,22 +161,24 @@ must be provided before the workflow can run.
 Inputs to a Sprocket run are provided as arguments passed after the WDL document
 name is provided. Each input can be specified as either
 
-* a key value pair (e.g., `workflow.foo="bar"`), or
-* a file containing inputs within JSON (e.g., a `defaults.json` file where the
-  contents are `{ "workflow.foo": "bar" }`).
+* a key value pair (e.g., `main.is_pirate=true`)
+* a JSON file containing inputs (e.g., a `defaults.json` file where the
+  contents are `{ "main.is_pirate": true }`)
+* a YAML file containing inputs (e.g. a `defaults.yaml` file where the
+  contents are `main.is_pirate: true`)
 
 Inputs are _incrementally_ applied, meaning that inputs specified later override
 inputs specified earlier. This enables you to do something like the following to
 use a set of default parameters and iterate through sample names in Bash rather
-than create many individual JSON input files.
+than create many individual input files.
 
 ```bash
-sprocket run workflow.wdl defaults.json workflow.sample_name="Foo"
+sprocket run example.wdl defaults.json main.name="Ari"
 ```
 
 Note that the above command does not specify an entrypoint with the `--entrypoint`
 flag. This is because every input is using fully qualified dot notation; each
-input is prefixed with the name of the entrypoint and a period, `workflow.`.
+input is prefixed with the name of the entrypoint and a period, `main.`.
 This fully qualified dot notation is required for inputs provided within a file.
 The dot notation can get repetitive if supplying many key value pairs on the command line,
 so specifying `--entrypoint` allows you to omit the repeated part of the keys.
@@ -194,8 +205,8 @@ After a few seconds, this job runs successfully with the following outputs.
 
 Congrats on your first successful `sprocket run` 🎉!
 
-If you wanted to override the `greetings` workflow, you could do so by defining
-the input in a `greetings.json` file:
+If you wanted to override some of the defaults for the workflow, you could do
+so by defining the input in a `overrides.json` file:
 
 ```json
 {
@@ -203,13 +214,14 @@ the input in a `greetings.json` file:
     "Good morning",
     "Good afternoon",
     "Good evening"
-  ]
+  ],
+  "main.is_pirate": true
 }
 ```
 and the providing that in the set of inputs to the workflow.
 
 ```shell
-sprocket run example.wdl greetings.json main.name="Sprocket"
+sprocket run example.wdl overrides.json main.name="Sprocket"
 ```
 
 This produces the following output.
@@ -219,7 +231,8 @@ This produces the following output.
   "main.messages": [
     "Good morning, Sprocket!",
     "Good afternoon, Sprocket!",
-    "Good evening, Sprocket!"
+    "Good evening, Sprocket!",
+    "Ahoy, Sprocket!"
   ]
 }
 ```
