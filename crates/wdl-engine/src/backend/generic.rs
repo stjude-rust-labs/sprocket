@@ -17,6 +17,7 @@ use anyhow::bail;
 use futures::FutureExt as _;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
+use tempfile::TempDir;
 use tokio::process::Command;
 use tokio::sync::oneshot;
 use tokio::task::JoinSet;
@@ -143,6 +144,7 @@ impl TaskManagerRequest for GenericTaskRequest {
                 .locale(crankshaft::config::backend::generic::driver::Locale::Local)
                 .shell(crankshaft::config::backend::generic::driver::Shell::Bash)
                 .build();
+        let temp_dir = TempDir::new()?;
         let mut attributes = HashMap::new();
         attributes.insert(
             Cow::Borrowed("temp_dir"),
@@ -157,7 +159,7 @@ impl TaskManagerRequest for GenericTaskRequest {
             crankshaft::config::backend::generic::Config::builder()
                 .driver(crankshaft_generic_backend_driver)
                 .submit(format!(
-                    "((cd ~{{cwd}}; ~{{command}} > {} 2> {}; sleep 1; echo $? > ~{{task_exit_code}}) & \
+                    "((cd ~{{cwd}}; ~{{command}} > {} 2> {}; echo $? > ~{{task_exit_code}}) & \
                      echo $!)",
                     stdout_path.display(),
                     stderr_path.display(),
@@ -212,15 +214,13 @@ impl TaskManagerRequest for GenericTaskRequest {
                 .code()
                 .ok_or(anyhow!("task did not return an exit code"))?,
             work_dir: EvaluationPath::Local(work_dir),
-            stdout: dbg!(
-                PrimitiveValue::new_file(
-                    stdout_path
-                        .into_os_string()
-                        .into_string()
-                        .expect("path should be UTF-8"),
-                )
-                .into()
-            ),
+            stdout: PrimitiveValue::new_file(
+                stdout_path
+                    .into_os_string()
+                    .into_string()
+                    .expect("path should be UTF-8"),
+            )
+            .into(),
             stderr: PrimitiveValue::new_file(
                 stderr_path
                     .into_os_string()

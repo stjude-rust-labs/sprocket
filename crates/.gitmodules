@@ -1,0 +1,3 @@
+[submodule "crankshaft"]
+	path = crankshaft
+	url = https://github.com/stjude-rust-labs/crankshaft.git

@@ -311,7 +311,8 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
     inputs.join_paths(task, |_| Ok(&test_dir))?;
 
     let evaluator = TaskEvaluator::new(config, CancellationToken::new()).await?;
-    let dir = TempDir::new().context("failed to create temporary directory")?;
+    let mut dir = TempDir::new().context("failed to create temporary directory")?;
+    // dir.disable_cleanup(true);
     match evaluator
         .evaluate(result.document(), task, &inputs, dir.path(), |_| async {})
         .await
