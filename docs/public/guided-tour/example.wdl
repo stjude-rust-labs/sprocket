@@ -22,16 +22,11 @@ task say_hello {
 workflow main {
     input {
         String name
-        Array[String] greetings = select_all([
+        Array[String] greetings = [
             "Hello",
             "Hallo",
             "Hej",
-            (
-                if is_pirate
-                then "Ahoy"
-                else None
-            ),
-        ])
+        ]
         String color = "green"
         Boolean is_pirate = false
     }
@@ -43,7 +38,17 @@ workflow main {
         }
     }
 
+    if (is_pirate) {
+        call say_hello as hello_pirate {
+            greeting = "Ahoy",
+            name,
+        }
+    }
+
     output {
-        Array[String] messages = say_hello.message
+        Array[String] messages = flatten([
+            say_hello.message,
+            select_all([hello_pirate.message]),
+        ])
     }
 }
