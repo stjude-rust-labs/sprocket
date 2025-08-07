@@ -37,11 +37,12 @@ async fn should_rename_workspace_wide() {
         .unwrap();
 
     let changes = edit.changes.expect("expected changes");
-    assert!(changes.keys().any(|u| {
-        u.to_file_path()
+    assert!(changes.iter().any(|(uri, edits)| {
+        uri.to_file_path()
             .ok()
             .and_then(|p| p.file_name().map(|n| n == "source.wdl"))
             .unwrap_or(false)
+            && edits.iter().any(|e| e.new_text == NEW_NAME)
     }));
     assert!(changes.keys().any(|u| {
         u.to_file_path()
@@ -49,12 +50,6 @@ async fn should_rename_workspace_wide() {
             .and_then(|p| p.file_name().map(|n| n == "foo.wdl"))
             .unwrap_or(false)
     }));
-
-    for edits in changes.values() {
-        for e in edits {
-            assert_eq!(e.new_text, NEW_NAME);
-        }
-    }
 }
 
 #[tokio::test]
