@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs::File;
@@ -11,6 +12,7 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use futures::FutureExt as _;
 use futures::future::BoxFuture;
@@ -141,17 +143,30 @@ impl TaskManagerRequest for GenericTaskRequest {
                 .locale(crankshaft::config::backend::generic::driver::Locale::Local)
                 .shell(crankshaft::config::backend::generic::driver::Shell::Bash)
                 .build();
+        let mut attributes = HashMap::new();
+        attributes.insert(
+            Cow::Borrowed("temp_dir"),
+            Cow::Owned(temp_dir.path().display().to_string()),
+        );
+        let task_exit_code = temp_dir.path().join("task_exit_code");
+        attributes.insert(
+            Cow::Borrowed("task_exit_code"),
+            Cow::Owned(task_exit_code.display().to_string()),
+        );
         let crankshaft_generic_backend_config =
             crankshaft::config::backend::generic::Config::builder()
                 .driver(crankshaft_generic_backend_driver)
                 .submit(format!(
-                    "(cd ~{{cwd}}; ~{{command}} > {} 2> {} & echo $!)",
+                    "((cd ~{{cwd}}; ~{{command}} > {} 2> {}; sleep 1; echo $? > ~{{task_exit_code}}) & \
+                     echo $!)",
                     stdout_path.display(),
                     stderr_path.display(),
                 ))
                 .job_id_regex(r#"(\d+)"#)
-                .monitor("kill -0 ~{job_id}")
+                .monitor("file -E ~{task_exit_code}")
+                .get_exit_code("cat ~{task_exit_code}")
                 .kill("kill ~{job_id}")
+                .attributes(attributes)
                 .build();
 
         const BACKEND_NAME: &'static str = "crankshaft_generic";
@@ -173,8 +188,8 @@ impl TaskManagerRequest for GenericTaskRequest {
                     .image("not_an_image")
                     .program(command_path.to_str().unwrap())
                     .work_dir(work_dir.to_str().unwrap())
-                    // .stdout(stdout_path.to_str().unwrap())
-                    // .stderr(stderr_path.to_str().unwrap())
+                    .stdout(stdout_path.display().to_string())
+                    .stderr(stderr_path.display().to_string())
                     .build(),
             ))
             .build();
@@ -192,15 +207,20 @@ impl TaskManagerRequest for GenericTaskRequest {
 
         return Ok(TaskExecutionResult {
             inputs: self.inner.info.inputs,
-            exit_code: if res.last().code() == Some(1) { 0 } else { 127 },
+            exit_code: res
+                .last()
+                .code()
+                .ok_or(anyhow!("task did not return an exit code"))?,
             work_dir: EvaluationPath::Local(work_dir),
-            stdout: PrimitiveValue::new_file(
-                stdout_path
-                    .into_os_string()
-                    .into_string()
-                    .expect("path should be UTF-8"),
-            )
-            .into(),
+            stdout: dbg!(
+                PrimitiveValue::new_file(
+                    stdout_path
+                        .into_os_string()
+                        .into_string()
+                        .expect("path should be UTF-8"),
+                )
+                .into()
+            ),
             stderr: PrimitiveValue::new_file(
                 stderr_path
                     .into_os_string()
