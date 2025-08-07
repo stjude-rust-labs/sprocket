@@ -158,15 +158,15 @@ impl Visitor for ContainerUriRule {
             return;
         }
 
-        if let Some(container) = section.container() {
-            if let Ok(value) = container.value() {
-                check_container_value(
-                    diagnostics,
-                    value,
-                    SyntaxElement::from(section.inner().clone()),
-                    &self.exceptable_nodes(),
-                );
-            }
+        if let Some(container) = section.container()
+            && let Ok(value) = container.value()
+        {
+            check_container_value(
+                diagnostics,
+                value,
+                SyntaxElement::from(section.inner().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 
@@ -180,15 +180,15 @@ impl Visitor for ContainerUriRule {
             return;
         }
 
-        if let Some(container) = section.container() {
-            if let Ok(value) = container.value() {
-                check_container_value(
-                    diagnostics,
-                    value,
-                    SyntaxElement::from(section.inner().clone()),
-                    &self.exceptable_nodes(),
-                );
-            }
+        if let Some(container) = section.container()
+            && let Ok(value) = container.value()
+        {
+            check_container_value(
+                diagnostics,
+                value,
+                SyntaxElement::from(section.inner().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }

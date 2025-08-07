@@ -141,10 +141,10 @@ impl SyntaxNode {
         let mut children = parent.children_with_tokens();
 
         while let Some(child) = children.next() {
-            if let Some(node) = child.as_node() {
-                if node.eq(self) {
-                    return children.next();
-                }
+            if let Some(node) = child.as_node()
+                && node.eq(self)
+            {
+                return children.next();
             }
         }
 
@@ -343,10 +343,10 @@ impl SyntaxToken {
         let mut children = parent.children_with_tokens();
 
         while let Some(child) = children.next() {
-            if let Some(token) = child.as_token() {
-                if token.eq(self) {
-                    return children.next();
-                }
+            if let Some(token) = child.as_token()
+                && token.eq(self)
+            {
+                return children.next();
             }
         }
 

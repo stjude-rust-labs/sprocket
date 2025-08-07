@@ -78,14 +78,14 @@ impl Visitor for DoubleQuotesRule {
             return;
         }
 
-        if let Expr::Literal(LiteralExpr::String(s)) = expr {
-            if s.kind() == LiteralStringKind::SingleQuoted {
-                diagnostics.exceptable_add(
-                    use_double_quotes(s.span()),
-                    SyntaxElement::from(expr.inner().clone()),
-                    &self.exceptable_nodes(),
-                );
-            }
+        if let Expr::Literal(LiteralExpr::String(s)) = expr
+            && s.kind() == LiteralStringKind::SingleQuoted
+        {
+            diagnostics.exceptable_add(
+                use_double_quotes(s.span()),
+                SyntaxElement::from(expr.inner().clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }

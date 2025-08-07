@@ -132,10 +132,10 @@ pub fn completion(
         // left of the cursor (ignoring whitespace) is the `version` keyword, we are
         // very likely completing the version number.
         let mut non_trivia = token.clone();
-        if non_trivia.kind().is_trivia() {
-            if let Some(prev) = non_trivia.prev_token() {
-                non_trivia = prev;
-            }
+        if non_trivia.kind().is_trivia()
+            && let Some(prev) = non_trivia.prev_token()
+        {
+            non_trivia = prev;
         }
         if non_trivia.kind() == SyntaxKind::VersionKeyword {
             let _ = add_version_completions(token, &lines, &mut items);
@@ -316,35 +316,33 @@ fn add_member_access_completions(
     };
 
     // Namespace completions
-    if let Some(token) = target_element.as_token() {
-        if token.kind() == SyntaxKind::Ident {
-            if let Some(ns) = document.namespace(token.text()) {
-                let ns_root = ns.document().root();
-                for task in ns.document().tasks() {
-                    items.push(CompletionItem {
-                        label: task.name().to_string(),
-                        kind: Some(CompletionItemKind::FUNCTION),
-                        detail: Some(format!("task {}", task.name())),
-                        documentation: provide_task_documentation(task, &ns_root)
-                            .and_then(make_md_docs),
-                        ..Default::default()
-                    })
-                }
-
-                if let Some(workflow) = ns.document().workflow() {
-                    items.push(CompletionItem {
-                        label: workflow.name().to_string(),
-                        kind: Some(CompletionItemKind::FUNCTION),
-                        detail: Some(format!("workflow {}", workflow.name())),
-                        documentation: provide_workflow_documentation(workflow, &ns_root)
-                            .and_then(make_md_docs),
-                        ..Default::default()
-                    });
-                }
-
-                return Ok(());
-            }
+    if let Some(token) = target_element.as_token()
+        && token.kind() == SyntaxKind::Ident
+        && let Some(ns) = document.namespace(token.text())
+    {
+        let ns_root = ns.document().root();
+        for task in ns.document().tasks() {
+            items.push(CompletionItem {
+                label: task.name().to_string(),
+                kind: Some(CompletionItemKind::FUNCTION),
+                detail: Some(format!("task {}", task.name())),
+                documentation: provide_task_documentation(task, &ns_root).and_then(make_md_docs),
+                ..Default::default()
+            })
         }
+
+        if let Some(workflow) = ns.document().workflow() {
+            items.push(CompletionItem {
+                label: workflow.name().to_string(),
+                kind: Some(CompletionItemKind::FUNCTION),
+                detail: Some(format!("workflow {}", workflow.name())),
+                documentation: provide_workflow_documentation(workflow, &ns_root)
+                    .and_then(make_md_docs),
+                ..Default::default()
+            });
+        }
+
+        return Ok(());
     }
 
     let Some(target_node) = target_element.as_node() else {
@@ -373,42 +371,42 @@ fn add_member_access_completions(
         // Inferred `task.meta.*` and `task.parameter_meta.*` completions.
         // TODO: recurse on `Objects`
         let (expr, member) = access_expr.operands();
-        if let Some(name_ref) = expr.as_name_ref() {
-            if name_ref.name().text() == TASK_VAR_NAME {
-                let member_name = member.text();
-                // `task.meta.*` completions.
-                if member_name == TASK_FIELD_META {
-                    if let Some(task_def) = node.ancestors().find_map(TaskDefinition::cast) {
-                        if let Some(meta_section) = task_def.metadata() {
-                            for item in meta_section.items() {
-                                items.push(CompletionItem {
-                                    label: item.name().text().to_string(),
-                                    kind: Some(CompletionItemKind::PROPERTY),
-                                    detail: Some(format_ty(item.value()).to_string()),
-                                    documentation: make_md_docs(item.value().text().to_string()),
-                                    ..Default::default()
-                                });
-                            }
-                        }
+        if let Some(name_ref) = expr.as_name_ref()
+            && name_ref.name().text() == TASK_VAR_NAME
+        {
+            let member_name = member.text();
+            // `task.meta.*` completions.
+            if member_name == TASK_FIELD_META {
+                if let Some(task_def) = node.ancestors().find_map(TaskDefinition::cast)
+                    && let Some(meta_section) = task_def.metadata()
+                {
+                    for item in meta_section.items() {
+                        items.push(CompletionItem {
+                            label: item.name().text().to_string(),
+                            kind: Some(CompletionItemKind::PROPERTY),
+                            detail: Some(format_ty(item.value()).to_string()),
+                            documentation: make_md_docs(item.value().text().to_string()),
+                            ..Default::default()
+                        });
                     }
-                    return Ok(());
-                } else if member_name == TASK_FIELD_PARAMETER_META {
-                    // `task.parameter_meta.*` completions.
-                    if let Some(task_def) = node.ancestors().find_map(TaskDefinition::cast) {
-                        if let Some(param_meta_section) = task_def.parameter_metadata() {
-                            for item in param_meta_section.items() {
-                                items.push(CompletionItem {
-                                    label: item.name().text().to_string(),
-                                    kind: Some(CompletionItemKind::PROPERTY),
-                                    detail: Some(format_ty(item.value()).to_string()),
-                                    documentation: make_md_docs(item.value().text().to_string()),
-                                    ..Default::default()
-                                });
-                            }
-                        }
-                    }
-                    return Ok(());
                 }
+                return Ok(());
+            } else if member_name == TASK_FIELD_PARAMETER_META {
+                // `task.parameter_meta.*` completions.
+                if let Some(task_def) = node.ancestors().find_map(TaskDefinition::cast)
+                    && let Some(param_meta_section) = task_def.parameter_metadata()
+                {
+                    for item in param_meta_section.items() {
+                        items.push(CompletionItem {
+                            label: item.name().text().to_string(),
+                            kind: Some(CompletionItemKind::PROPERTY),
+                            detail: Some(format_ty(item.value()).to_string()),
+                            documentation: make_md_docs(item.value().text().to_string()),
+                            ..Default::default()
+                        });
+                    }
+                }
+                return Ok(());
             }
         }
     }
@@ -472,47 +470,46 @@ fn add_member_access_completions(
 
                     if let Some(decl_node) =
                         token_at_decl.and_then(|t| t.parent_ancestors().find_map(BoundDecl::cast))
+                        && let Expr::Literal(LiteralExpr::Map(map_literal)) = decl_node.expr()
                     {
-                        if let Expr::Literal(LiteralExpr::Map(map_literal)) = decl_node.expr() {
-                            for item in map_literal.items() {
-                                let (key, _) = item.key_value();
-                                if let Expr::Literal(literal_key) = key {
-                                    match literal_key {
-                                        LiteralExpr::String(s) => {
-                                            if let Some(text) = s.text() {
-                                                items.push(CompletionItem {
-                                                    label: format!("\"{}\"", text.text()),
-                                                    kind: Some(CompletionItemKind::VALUE),
-                                                    ..Default::default()
-                                                });
-                                            }
-                                        }
-
-                                        LiteralExpr::Integer(i) => {
+                        for item in map_literal.items() {
+                            let (key, _) = item.key_value();
+                            if let Expr::Literal(literal_key) = key {
+                                match literal_key {
+                                    LiteralExpr::String(s) => {
+                                        if let Some(text) = s.text() {
                                             items.push(CompletionItem {
-                                                label: format!("{}", i.text()),
+                                                label: format!("\"{}\"", text.text()),
                                                 kind: Some(CompletionItemKind::VALUE),
                                                 ..Default::default()
                                             });
                                         }
-
-                                        LiteralExpr::Float(f) => {
-                                            items.push(CompletionItem {
-                                                label: format!("{}", f.text()),
-                                                kind: Some(CompletionItemKind::VALUE),
-                                                ..Default::default()
-                                            });
-                                        }
-
-                                        LiteralExpr::Boolean(b) => {
-                                            items.push(CompletionItem {
-                                                label: format!("{}", b.text()),
-                                                kind: Some(CompletionItemKind::VALUE),
-                                                ..Default::default()
-                                            });
-                                        }
-                                        _ => {}
                                     }
+
+                                    LiteralExpr::Integer(i) => {
+                                        items.push(CompletionItem {
+                                            label: format!("{}", i.text()),
+                                            kind: Some(CompletionItemKind::VALUE),
+                                            ..Default::default()
+                                        });
+                                    }
+
+                                    LiteralExpr::Float(f) => {
+                                        items.push(CompletionItem {
+                                            label: format!("{}", f.text()),
+                                            kind: Some(CompletionItemKind::VALUE),
+                                            ..Default::default()
+                                        });
+                                    }
+
+                                    LiteralExpr::Boolean(b) => {
+                                        items.push(CompletionItem {
+                                            label: format!("{}", b.text()),
+                                            kind: Some(CompletionItemKind::VALUE),
+                                            ..Default::default()
+                                        });
+                                    }
+                                    _ => {}
                                 }
                             }
                         }

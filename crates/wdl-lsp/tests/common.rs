@@ -47,7 +47,7 @@ fn encode_message(message: &str) -> String {
 
 /// Gets a test workspace directory path
 fn get_workspace_path(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR",))
+    Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("workspace")
         .join(name)
@@ -195,12 +195,12 @@ impl TestContext {
 
             if let Ok(request) = serde_json::from_str::<jsonrpc::Request>(&content_str) {
                 let (method, id_opt, _params) = request.into_parts();
-                if method == "window/workDoneProgress/create" {
-                    if let Some(id) = id_opt {
-                        let response = jsonrpc::Response::from_ok(id, serde_json::Value::Null);
-                        let response_str = serde_json::to_string(&response).unwrap();
-                        self.send_raw(&response_str).await;
-                    }
+                if method == "window/workDoneProgress/create"
+                    && let Some(id) = id_opt
+                {
+                    let response = jsonrpc::Response::from_ok(id, serde_json::Value::Null);
+                    let response_str = serde_json::to_string(&response).unwrap();
+                    self.send_raw(&response_str).await;
                 }
                 continue;
             }

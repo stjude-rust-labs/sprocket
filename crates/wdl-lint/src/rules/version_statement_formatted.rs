@@ -177,14 +177,14 @@ impl Visitor for VersionStatementFormattedRule {
         }
 
         // 3. Handle whitespace after the version statement
-        if let Some(next) = stmt.inner().next_sibling_or_token() {
-            if let Some(ws) = next.as_token().and_then(|s| Whitespace::cast(s.clone())) {
-                let s = ws.text();
-                // Don't add diagnostic if there's nothing but whitespace after the version
-                // statement
-                if s != "\n\n" && s != "\r\n\r\n" && next.next_sibling_or_token().is_some() {
-                    diagnostics.add(expected_blank_line_after_version(ws.span()));
-                }
+        if let Some(next) = stmt.inner().next_sibling_or_token()
+            && let Some(ws) = next.as_token().and_then(|s| Whitespace::cast(s.clone()))
+        {
+            let s = ws.text();
+            // Don't add diagnostic if there's nothing but whitespace after the version
+            // statement
+            if s != "\n\n" && s != "\r\n\r\n" && next.next_sibling_or_token().is_some() {
+                diagnostics.add(expected_blank_line_after_version(ws.span()));
             }
         } // else version is the last item in the document
     }

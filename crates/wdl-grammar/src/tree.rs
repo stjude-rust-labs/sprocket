@@ -735,22 +735,22 @@ impl SyntaxTokenExt for SyntaxToken {
                 break;
             }
             // Stop if a comment is not on its own line
-            if token.kind() == SyntaxKind::Comment {
-                if let Some(prev) = token.prev_token() {
-                    if prev.kind() == SyntaxKind::Whitespace {
-                        let has_newlines = prev.text().chars().any(|c| c == '\n');
-                        // If there are newlines in 'prev' then we know
-                        // that the comment is on its own line.
-                        // The comment may still be on its own line if
-                        // 'prev' does not have newlines and nothing comes
-                        // before 'prev'.
-                        if !has_newlines && prev.prev_token().is_some() {
-                            break;
-                        }
-                    } else {
-                        // There is something else on this line before the comment.
+            if token.kind() == SyntaxKind::Comment
+                && let Some(prev) = token.prev_token()
+            {
+                if prev.kind() == SyntaxKind::Whitespace {
+                    let has_newlines = prev.text().chars().any(|c| c == '\n');
+                    // If there are newlines in 'prev' then we know
+                    // that the comment is on its own line.
+                    // The comment may still be on its own line if
+                    // 'prev' does not have newlines and nothing comes
+                    // before 'prev'.
+                    if !has_newlines && prev.prev_token().is_some() {
                         break;
                     }
+                } else {
+                    // There is something else on this line before the comment.
+                    break;
                 }
             }
             // Filter out whitespace that is not substantial

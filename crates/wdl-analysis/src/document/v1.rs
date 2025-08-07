@@ -542,15 +542,15 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
             return;
         }
         _ => {
-            if let Some(s) = &document.workflow {
-                if s.name == name.text() {
-                    document.diagnostics.push(name_conflict(
-                        name.text(),
-                        Context::Task(name.span()),
-                        Context::Workflow(s.name_span),
-                    ));
-                    return;
-                }
+            if let Some(s) = &document.workflow
+                && s.name == name.text()
+            {
+                document.diagnostics.push(name_conflict(
+                    name.text(),
+                    Context::Task(name.span()),
+                    Context::Workflow(s.name_span),
+                ));
+                return;
             }
         }
     }
@@ -602,26 +602,25 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 }
 
                 // Check for unused input
-                if let Some(severity) = config.diagnostics_config().unused_input {
-                    if decl.env().is_none() {
-                        // For any input that isn't an environment variable, check to see if there's
-                        // a single implicit dependency edge; if so, it might be unused
-                        let mut edges = graph.edges_directed(index, Direction::Outgoing);
+                if let Some(severity) = config.diagnostics_config().unused_input
+                    && decl.env().is_none()
+                {
+                    // For any input that isn't an environment variable, check to see if there's
+                    // a single implicit dependency edge; if so, it might be unused
+                    let mut edges = graph.edges_directed(index, Direction::Outgoing);
 
-                        if let (Some(true), None) = (edges.next().map(|e| e.weight()), edges.next())
-                        {
-                            let name = decl.name();
+                    if let (Some(true), None) = (edges.next().map(|e| e.weight()), edges.next()) {
+                        let name = decl.name();
 
-                            // Determine if the input is really used based on its name and type
-                            if is_input_used(name.text(), &task.inputs[name.text()].ty) {
-                                continue;
-                            }
+                        // Determine if the input is really used based on its name and type
+                        if is_input_used(name.text(), &task.inputs[name.text()].ty) {
+                            continue;
+                        }
 
-                            if !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
-                                document.diagnostics.push(
-                                    unused_input(name.text(), name.span()).with_severity(severity),
-                                );
-                            }
+                        if !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
+                            document.diagnostics.push(
+                                unused_input(name.text(), name.span()).with_severity(severity),
+                            );
                         }
                     }
                 }
@@ -1637,11 +1636,12 @@ fn type_check_expr(
     }
     // Check to see if we're assigning an empty array literal to a non-empty type; we can statically
     // flag these as errors; otherwise, non-empty array constraints are checked at runtime
-    else if let Type::Compound(CompoundType::Array(ty), _) = expected {
-        if ty.is_non_empty() && expr.is_empty_array_literal() {
-            document
-                .diagnostics
-                .push(non_empty_array_assignment(expected_span, expr.span()));
-        }
+    else if let Type::Compound(CompoundType::Array(ty), _) = expected
+        && ty.is_non_empty()
+        && expr.is_empty_array_literal()
+    {
+        document
+            .diagnostics
+            .push(non_empty_array_assignment(expected_span, expr.span()));
     }
 }

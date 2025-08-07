@@ -797,36 +797,36 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 // Ensure the remaining items types share common types
                 for item in items {
                     let (key, value) = item.key_value();
-                    if let Some(actual_key) = self.evaluate_expr(&key) {
-                        if let Some(actual_value) = self.evaluate_expr(&value) {
-                            match expected_key.common_type(&actual_key) {
-                                Some(ty) => {
-                                    expected_key = ty;
-                                    expected_key_span = key.span();
-                                }
-                                _ => {
-                                    self.context.add_diagnostic(no_common_type(
-                                        &expected_key,
-                                        expected_key_span,
-                                        &actual_key,
-                                        key.span(),
-                                    ));
-                                }
+                    if let Some(actual_key) = self.evaluate_expr(&key)
+                        && let Some(actual_value) = self.evaluate_expr(&value)
+                    {
+                        match expected_key.common_type(&actual_key) {
+                            Some(ty) => {
+                                expected_key = ty;
+                                expected_key_span = key.span();
                             }
+                            _ => {
+                                self.context.add_diagnostic(no_common_type(
+                                    &expected_key,
+                                    expected_key_span,
+                                    &actual_key,
+                                    key.span(),
+                                ));
+                            }
+                        }
 
-                            match expected_value.common_type(&actual_value) {
-                                Some(ty) => {
-                                    expected_value = ty;
-                                    expected_value_span = value.span();
-                                }
-                                _ => {
-                                    self.context.add_diagnostic(no_common_type(
-                                        &expected_value,
-                                        expected_value_span,
-                                        &actual_value,
-                                        value.span(),
-                                    ));
-                                }
+                        match expected_value.common_type(&actual_value) {
+                            Some(ty) => {
+                                expected_value = ty;
+                                expected_value_span = value.span();
+                            }
+                            _ => {
+                                self.context.add_diagnostic(no_common_type(
+                                    &expected_value,
+                                    expected_value_span,
+                                    &actual_value,
+                                    value.span(),
+                                ));
                             }
                         }
                     }
@@ -875,15 +875,15 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     match ty.members.get_full(n.text()) {
                         Some((index, _, expected)) => {
                             present[index] = true;
-                            if let Some(actual) = self.evaluate_expr(&v) {
-                                if !actual.is_coercible_to(expected) {
-                                    self.context.add_diagnostic(type_mismatch(
-                                        expected,
-                                        n.span(),
-                                        &actual,
-                                        v.span(),
-                                    ));
-                                }
+                            if let Some(actual) = self.evaluate_expr(&v)
+                                && !actual.is_coercible_to(expected)
+                            {
+                                self.context.add_diagnostic(type_mismatch(
+                                    expected,
+                                    n.span(),
+                                    &actual,
+                                    v.span(),
+                                ));
                             }
                         }
                         _ => {
@@ -950,18 +950,17 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         if !self.evaluate_requirement(name, expr, &expr_ty) {
             // Always use object types for `runtime` section `inputs` and `outputs` keys as
             // only `hints` sections can use input/output hidden types
-            if let Some(expected) = task_hint_types(self.context.version(), name.text(), false) {
-                if !expected
+            if let Some(expected) = task_hint_types(self.context.version(), name.text(), false)
+                && !expected
                     .iter()
                     .any(|target| expr_ty.is_coercible_to(target))
-                {
-                    self.context.add_diagnostic(multiple_type_mismatch(
-                        expected,
-                        name.span(),
-                        &expr_ty,
-                        expr.span(),
-                    ));
-                }
+            {
+                self.context.add_diagnostic(multiple_type_mismatch(
+                    expected,
+                    name.span(),
+                    &expr_ty,
+                    expr.span(),
+                ));
             }
         }
     }
@@ -1028,18 +1027,17 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         expr: &Expr<N>,
     ) {
         let expr_ty = self.evaluate_expr(expr).unwrap_or(Type::Union);
-        if let Some(expected) = task_hint_types(self.context.version(), name.text(), true) {
-            if !expected
+        if let Some(expected) = task_hint_types(self.context.version(), name.text(), true)
+            && !expected
                 .iter()
                 .any(|target| expr_ty.is_coercible_to(target))
-            {
-                self.context.add_diagnostic(multiple_type_mismatch(
-                    expected,
-                    name.span(),
-                    &expr_ty,
-                    expr.span(),
-                ));
-            }
+        {
+            self.context.add_diagnostic(multiple_type_mismatch(
+                expected,
+                name.span(),
+                &expr_ty,
+                expr.span(),
+            ));
         }
     }
 
@@ -1490,17 +1488,16 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         // above function expect the pattern as 2nd argument
                         if let Some(Expr::Literal(LiteralExpr::String(pattern_literal))) =
                             expr.arguments().nth(1)
+                            && let Some(value) = pattern_literal.text()
                         {
-                            if let Some(value) = pattern_literal.text() {
-                                let pattern = value.text().to_string();
-                                if let Err(e) = regex::Regex::new(&pattern) {
-                                    self.context.add_diagnostic(invalid_regex_pattern(
-                                        target.text(),
-                                        value.text(),
-                                        &e,
-                                        pattern_literal.span(),
-                                    ));
-                                }
+                            let pattern = value.text().to_string();
+                            if let Err(e) = regex::Regex::new(&pattern) {
+                                self.context.add_diagnostic(invalid_regex_pattern(
+                                    target.text(),
+                                    value.text(),
+                                    &e,
+                                    pattern_literal.span(),
+                                ));
                             }
                         }
                     }
@@ -1513,15 +1510,14 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         Ok(binding) => {
                             if let Some(severity) =
                                 self.context.diagnostics_config().unnecessary_function_call
+                                && !expr.inner().is_rule_excepted(UNNECESSARY_FUNCTION_CALL)
                             {
-                                if !expr.inner().is_rule_excepted(UNNECESSARY_FUNCTION_CALL) {
-                                    self.check_unnecessary_call(
-                                        &target,
-                                        arguments,
-                                        expr.arguments().map(|e| e.span()),
-                                        severity,
-                                    );
-                                }
+                                self.check_unnecessary_call(
+                                    &target,
+                                    arguments,
+                                    expr.arguments().map(|e| e.span()),
+                                    severity,
+                                );
                             }
                             return Some(binding.return_type().clone());
                         }

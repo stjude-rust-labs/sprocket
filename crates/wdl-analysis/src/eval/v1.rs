@@ -822,10 +822,10 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
             match graph[from].clone() {
                 WorkflowGraphNode::Input(decl) => {
                     // Only add edges for default expressions if the input wasn't provided
-                    if !input_present(decl.name().text()) {
-                        if let Some(expr) = decl.expr() {
-                            self.add_expr_edges(from, expr, graph, diagnostics);
-                        }
+                    if !input_present(decl.name().text())
+                        && let Some(expr) = decl.expr()
+                    {
+                        self.add_expr_edges(from, expr, graph, diagnostics);
                     }
                 }
 

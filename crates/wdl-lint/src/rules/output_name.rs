@@ -141,31 +141,30 @@ fn check_decl_name(
     }
 
     let mut name = name.chars().peekable();
-    if let Some(c) = name.next() {
-        if c == 'o' || c == 'O' {
-            if let Some('u') = name.peek() {
-                name.next();
-                if let Some('t') = name.peek() {
-                    name.next();
-                    if let Some(c) = name.peek() {
-                        if c.is_ascii_uppercase() || c == &'_' {
-                            // name starts with "out"
-                            diagnostics.exceptable_add(
-                                decl_identifier_starts_with_out(decl.name().span()),
-                                SyntaxElement::from(decl.inner().clone()),
-                                exceptable_nodes,
-                            );
-                        } else {
-                            let s: String = name.take(3).collect();
-                            if s == "put" {
-                                // name starts with "output"
-                                diagnostics.exceptable_add(
-                                    decl_identifier_starts_with_output(decl.name().span()),
-                                    SyntaxElement::from(decl.inner().clone()),
-                                    exceptable_nodes,
-                                );
-                            }
-                        }
+    if let Some(c) = name.next()
+        && (c == 'o' || c == 'O')
+        && let Some('u') = name.peek()
+    {
+        name.next();
+        if let Some('t') = name.peek() {
+            name.next();
+            if let Some(c) = name.peek() {
+                if c.is_ascii_uppercase() || c == &'_' {
+                    // name starts with "out"
+                    diagnostics.exceptable_add(
+                        decl_identifier_starts_with_out(decl.name().span()),
+                        SyntaxElement::from(decl.inner().clone()),
+                        exceptable_nodes,
+                    );
+                } else {
+                    let s: String = name.take(3).collect();
+                    if s == "put" {
+                        // name starts with "output"
+                        diagnostics.exceptable_add(
+                            decl_identifier_starts_with_output(decl.name().span()),
+                            SyntaxElement::from(decl.inner().clone()),
+                            exceptable_nodes,
+                        );
                     }
                 }
             }

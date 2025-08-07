@@ -105,15 +105,15 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let Some(version) = self.version {
-            if version < SupportedVersion::V1(V1::Two) {
-                diagnostics.add(requirements_section(
-                    section
-                        .token::<RequirementsKeyword<_>>()
-                        .expect("should have keyword")
-                        .span(),
-                ));
-            }
+        if let Some(version) = self.version
+            && version < SupportedVersion::V1(V1::Two)
+        {
+            diagnostics.add(requirements_section(
+                section
+                    .token::<RequirementsKeyword<_>>()
+                    .expect("should have keyword")
+                    .span(),
+            ));
         }
     }
 
@@ -127,15 +127,15 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let Some(version) = self.version {
-            if version < SupportedVersion::V1(V1::Two) {
-                diagnostics.add(hints_section(
-                    section
-                        .token::<HintsKeyword<_>>()
-                        .expect("should have keyword")
-                        .span(),
-                ));
-            }
+        if let Some(version) = self.version
+            && version < SupportedVersion::V1(V1::Two)
+        {
+            diagnostics.add(hints_section(
+                section
+                    .token::<HintsKeyword<_>>()
+                    .expect("should have keyword")
+                    .span(),
+            ));
         }
     }
 
@@ -149,15 +149,15 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let Some(version) = self.version {
-            if version < SupportedVersion::V1(V1::Two) {
-                diagnostics.add(hints_section(
-                    section
-                        .token::<HintsKeyword<_>>()
-                        .expect("should have keyword")
-                        .span(),
-                ));
-            }
+        if let Some(version) = self.version
+            && version < SupportedVersion::V1(V1::Two)
+        {
+            diagnostics.add(hints_section(
+                section
+                    .token::<HintsKeyword<_>>()
+                    .expect("should have keyword")
+                    .span(),
+            ));
         }
     }
 
@@ -197,18 +197,17 @@ impl Visitor for VersionVisitor {
         }
 
         if let Some(version) = self.version {
-            if let Some(env) = decl.env() {
-                if version < SupportedVersion::V1(V1::Two) {
-                    diagnostics.add(env_var_requirement(env.span()));
-                }
+            if let Some(env) = decl.env()
+                && version < SupportedVersion::V1(V1::Two)
+            {
+                diagnostics.add(env_var_requirement(env.span()));
             }
 
-            if let v1::Type::Primitive(ty) = decl.ty() {
-                if version < SupportedVersion::V1(V1::Two)
-                    && ty.kind() == v1::PrimitiveTypeKind::Directory
-                {
-                    diagnostics.add(directory_type_requirement(ty.span()));
-                }
+            if let v1::Type::Primitive(ty) = decl.ty()
+                && version < SupportedVersion::V1(V1::Two)
+                && ty.kind() == v1::PrimitiveTypeKind::Directory
+            {
+                diagnostics.add(directory_type_requirement(ty.span()));
             }
         }
     }
@@ -224,18 +223,17 @@ impl Visitor for VersionVisitor {
         }
 
         if let Some(version) = self.version {
-            if let Some(env) = decl.env() {
-                if version < SupportedVersion::V1(V1::Two) {
-                    diagnostics.add(env_var_requirement(env.span()));
-                }
+            if let Some(env) = decl.env()
+                && version < SupportedVersion::V1(V1::Two)
+            {
+                diagnostics.add(env_var_requirement(env.span()));
             }
 
-            if let v1::Type::Primitive(ty) = decl.ty() {
-                if version < SupportedVersion::V1(V1::Two)
-                    && ty.kind() == v1::PrimitiveTypeKind::Directory
-                {
-                    diagnostics.add(directory_type_requirement(ty.span()));
-                }
+            if let v1::Type::Primitive(ty) = decl.ty()
+                && version < SupportedVersion::V1(V1::Two)
+                && ty.kind() == v1::PrimitiveTypeKind::Directory
+            {
+                diagnostics.add(directory_type_requirement(ty.span()));
             }
         }
     }
@@ -250,14 +248,14 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let Some(version) = self.version {
-            if version < SupportedVersion::V1(V1::Two) {
-                // Ensure there is a input keyword child token if there are inputs
-                if let Some(input) = stmt.inputs().next() {
-                    if stmt.token::<InputKeyword<_>>().is_none() {
-                        diagnostics.add(input_keyword_requirement(input.span()));
-                    }
-                }
+        if let Some(version) = self.version
+            && version < SupportedVersion::V1(V1::Two)
+        {
+            // Ensure there is a input keyword child token if there are inputs
+            if let Some(input) = stmt.inputs().next()
+                && stmt.token::<InputKeyword<_>>().is_none()
+            {
+                diagnostics.add(input_keyword_requirement(input.span()));
             }
         }
     }
@@ -272,27 +270,27 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let Some(version) = self.version {
-            if version < SupportedVersion::V1(V1::Two) {
-                if let Some(section) = def.metadata().next() {
-                    diagnostics.add(struct_metadata_requirement(
-                        "meta",
-                        section
-                            .token::<MetaKeyword<_>>()
-                            .expect("should have keyword")
-                            .span(),
-                    ));
-                }
+        if let Some(version) = self.version
+            && version < SupportedVersion::V1(V1::Two)
+        {
+            if let Some(section) = def.metadata().next() {
+                diagnostics.add(struct_metadata_requirement(
+                    "meta",
+                    section
+                        .token::<MetaKeyword<_>>()
+                        .expect("should have keyword")
+                        .span(),
+                ));
+            }
 
-                if let Some(section) = def.parameter_metadata().next() {
-                    diagnostics.add(struct_metadata_requirement(
-                        "parameter_meta",
-                        section
-                            .token::<ParameterMetaKeyword<_>>()
-                            .expect("should have keyword")
-                            .span(),
-                    ));
-                }
+            if let Some(section) = def.parameter_metadata().next() {
+                diagnostics.add(struct_metadata_requirement(
+                    "parameter_meta",
+                    section
+                        .token::<ParameterMetaKeyword<_>>()
+                        .expect("should have keyword")
+                        .span(),
+                ));
             }
         }
     }

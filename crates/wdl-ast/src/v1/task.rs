@@ -388,14 +388,12 @@ impl<N: TreeNode> TaskDefinition<N> {
     pub fn markdown_description(&self, f: &mut impl fmt::Write) -> fmt::Result {
         writeln!(f, "```wdl\ntask {}\n```\n---", self.name().text())?;
 
-        if let Some(meta) = self.metadata() {
-            if let Some(desc) = meta.items().find(|i| i.name().text() == "description") {
-                if let MetadataValue::String(s) = desc.value() {
-                    if let Some(text) = s.text() {
-                        writeln!(f, "{}\n", text.text())?;
-                    }
-                }
-            }
+        if let Some(meta) = self.metadata()
+            && let Some(desc) = meta.items().find(|i| i.name().text() == "description")
+            && let MetadataValue::String(s) = desc.value()
+            && let Some(text) = s.text()
+        {
+            writeln!(f, "{}\n", text.text())?;
         }
 
         write_input_section(f, self.input().as_ref(), self.parameter_metadata().as_ref())?;
@@ -1027,10 +1025,10 @@ impl<N: TreeNode> CommandSection<N> {
     /// cannot be represented as a single span of text.
     pub fn text(&self) -> Option<CommandText<N::Token>> {
         let mut parts = self.parts();
-        if let Some(CommandPart::Text(text)) = parts.next() {
-            if parts.next().is_none() {
-                return Some(text);
-            }
+        if let Some(CommandPart::Text(text)) = parts.next()
+            && parts.next().is_none()
+        {
+            return Some(text);
         }
 
         None

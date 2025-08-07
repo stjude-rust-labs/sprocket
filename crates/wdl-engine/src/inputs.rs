@@ -192,13 +192,13 @@ impl TaskInputs {
         // Check the types of the specified hints
         for (name, value) in &self.hints {
             let ty = value.ty();
-            if let Some(expected) = task_hint_types(version, name.as_str(), false) {
-                if !expected.iter().any(|target| ty.is_coercible_to(target)) {
-                    bail!(
-                        "expected {expected} for hint `{name}`, but found type `{ty}`",
-                        expected = display_types(expected),
-                    );
-                }
+            if let Some(expected) = task_hint_types(version, name.as_str(), false)
+                && !expected.iter().any(|target| ty.is_coercible_to(target))
+            {
+                bail!(
+                    "expected {expected} for hint `{name}`, but found type `{ty}`",
+                    expected = display_types(expected),
+                );
             }
         }
 

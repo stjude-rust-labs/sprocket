@@ -225,10 +225,10 @@ async fn main() {
 
 /// Finds crates in a particular directory.
 fn find_crates(dir: &Path, dst: &mut Vec<Rc<RefCell<Crate>>>) {
-    if dir.join("Cargo.toml").exists() {
-        if let Some(krate) = read_crate(&dir.join("Cargo.toml")) {
-            dst.push(Rc::new(RefCell::new(krate)));
-        }
+    if dir.join("Cargo.toml").exists()
+        && let Some(krate) = read_crate(&dir.join("Cargo.toml"))
+    {
+        dst.push(Rc::new(RefCell::new(krate)));
     }
 
     for entry in dir.read_dir().unwrap() {
@@ -292,21 +292,20 @@ fn bump_version(krate: &Crate, crates: &[Rc<RefCell<Crate>>], patch: bool) {
     fs::write(&krate.manifest_path, new_manifest.to_string())
         .expect("failed to write new manifest");
 
-    if let Some(changelog_path) = &krate.changelog_path {
-        if krate.should_bump {
-            let todays_date = chrono::Local::now().format("%m-%d-%Y");
-            let mut changelog =
-                fs::read_to_string(changelog_path).expect("failed to read changelog");
-            changelog = changelog.replace(
-                "## Unreleased",
-                &format!(
-                    "## Unreleased\n\n## {} - {}",
-                    bump(&krate.version, patch),
-                    todays_date
-                ),
-            );
-            fs::write(changelog_path, changelog).expect("failed to write changelog");
-        }
+    if let Some(changelog_path) = &krate.changelog_path
+        && krate.should_bump
+    {
+        let todays_date = chrono::Local::now().format("%m-%d-%Y");
+        let mut changelog = fs::read_to_string(changelog_path).expect("failed to read changelog");
+        changelog = changelog.replace(
+            "## Unreleased",
+            &format!(
+                "## Unreleased\n\n## {} - {}",
+                bump(&krate.version, patch),
+                todays_date
+            ),
+        );
+        fs::write(changelog_path, changelog).expect("failed to write changelog");
     }
 }
 

@@ -83,26 +83,26 @@ pub fn write_input_section<N: TreeNode>(
     input: Option<&InputSection<N>>,
     param_meta: Option<&ParameterMetadataSection<N>>,
 ) -> fmt::Result {
-    if let Some(input) = input {
-        if input.declarations().next().is_some() {
-            writeln!(f, "\n**Inputs**")?;
-            for decl in input.declarations() {
-                let name = decl.name();
-                let default = decl.expr().map(|e| e.text().to_string());
+    if let Some(input) = input
+        && input.declarations().next().is_some()
+    {
+        writeln!(f, "\n**Inputs**")?;
+        for decl in input.declarations() {
+            let name = decl.name();
+            let default = decl.expr().map(|e| e.text().to_string());
 
-                write!(f, "- **{}**: `{}`", name.text(), decl.ty().inner().text())?;
-                if let Some(val) = default {
-                    // default values
-                    write!(f, " = *`{}`*", val.trim_start_matches(" = "))?;
-                }
+            write!(f, "- **{}**: `{}`", name.text(), decl.ty().inner().text())?;
+            if let Some(val) = default {
+                // default values
+                write!(f, " = *`{}`*", val.trim_start_matches(" = "))?;
+            }
 
-                if let Some(meta_val) = get_param_meta(name.text(), param_meta) {
-                    writeln!(f)?;
-                    format_meta_value(f, &meta_val, 2)?;
-                    writeln!(f)?;
-                } else {
-                    writeln!(f)?;
-                }
+            if let Some(meta_val) = get_param_meta(name.text(), param_meta) {
+                writeln!(f)?;
+                format_meta_value(f, &meta_val, 2)?;
+                writeln!(f)?;
+            } else {
+                writeln!(f)?;
             }
         }
     }
@@ -115,19 +115,19 @@ pub fn write_output_section<N: TreeNode>(
     output: Option<&OutputSection<N>>,
     param_meta: Option<&ParameterMetadataSection<N>>,
 ) -> fmt::Result {
-    if let Some(output) = output {
-        if output.declarations().next().is_some() {
-            writeln!(f, "\n**Outputs**")?;
-            for decl in output.declarations() {
-                let name = decl.name();
-                write!(f, "- **{}**: `{}`", name.text(), decl.ty().inner().text())?;
-                if let Some(meta_val) = get_param_meta(name.text(), param_meta) {
-                    writeln!(f)?;
-                    format_meta_value(f, &meta_val, 2)?;
-                    writeln!(f)?;
-                } else {
-                    writeln!(f)?;
-                }
+    if let Some(output) = output
+        && output.declarations().next().is_some()
+    {
+        writeln!(f, "\n**Outputs**")?;
+        for decl in output.declarations() {
+            let name = decl.name();
+            write!(f, "- **{}**: `{}`", name.text(), decl.ty().inner().text())?;
+            if let Some(meta_val) = get_param_meta(name.text(), param_meta) {
+                writeln!(f)?;
+                format_meta_value(f, &meta_val, 2)?;
+                writeln!(f)?;
+            } else {
+                writeln!(f)?;
             }
         }
     }

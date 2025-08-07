@@ -75,10 +75,10 @@ impl std::str::FromStr for Source {
 
         if path.is_dir() {
             return Ok(Source::Directory(path));
-        } else if path.is_file() {
-            if let Ok(url) = Url::from_file_path(&path) {
-                return Ok(Source::File(url));
-            }
+        } else if path.is_file()
+            && let Ok(url) = Url::from_file_path(&path)
+        {
+            return Ok(Source::File(url));
         }
 
         bail!("failed to convert `{s}` to a URI")

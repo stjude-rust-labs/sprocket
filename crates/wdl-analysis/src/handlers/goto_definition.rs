@@ -96,44 +96,41 @@ pub fn goto_definition(
     }
 
     // Scope based resolution
-    if let Some(scope_ref) = analysis_doc.find_scope_by_position(token.span().start()) {
-        if let Some(name_def) = scope_ref.lookup(ident_text) {
-            if let Type::Call(_) = name_def.ty() {
-                let def_offset = name_def.span().start().try_into()?;
-                let def_token = root
-                    .token_at_offset(def_offset)
-                    .find(|t| t.span() == name_def.span() && t.kind() == SyntaxKind::Ident);
+    if let Some(scope_ref) = analysis_doc.find_scope_by_position(token.span().start())
+        && let Some(name_def) = scope_ref.lookup(ident_text)
+    {
+        if let Type::Call(_) = name_def.ty() {
+            let def_offset = name_def.span().start().try_into()?;
+            let def_token = root
+                .token_at_offset(def_offset)
+                .find(|t| t.span() == name_def.span() && t.kind() == SyntaxKind::Ident);
 
-                if let Some(def_token) = def_token {
-                    if let Some(call_stmt) = def_token
-                        .parent_ancestors()
-                        .find_map(v1::CallStatement::cast)
-                    {
-                        if call_stmt.alias().is_none() {
-                            // NOTE: implicit alias found, resolving call target instead of the
-                            // alias
-                            let target = call_stmt.target();
-                            let callee_name =
-                                target.names().last().expect("call target must have a name");
-                            return resolve_call_target(
-                                target.inner(),
-                                callee_name.inner(),
-                                analysis_doc,
-                                &document_uri,
-                                &lines,
-                                graph,
-                            );
-                        }
-                    }
-                }
+            if let Some(def_token) = def_token
+                && let Some(call_stmt) = def_token
+                    .parent_ancestors()
+                    .find_map(v1::CallStatement::cast)
+                && call_stmt.alias().is_none()
+            {
+                // NOTE: implicit alias found, resolving call target instead of the
+                // alias
+                let target = call_stmt.target();
+                let callee_name = target.names().last().expect("call target must have a name");
+                return resolve_call_target(
+                    target.inner(),
+                    callee_name.inner(),
+                    analysis_doc,
+                    &document_uri,
+                    &lines,
+                    graph,
+                );
             }
-
-            return Ok(Some(location_from_span(
-                &document_uri,
-                name_def.span(),
-                &lines,
-            )?));
         }
+
+        return Ok(Some(location_from_span(
+            &document_uri,
+            name_def.span(),
+            &lines,
+        )?));
     }
 
     // Global resolution
@@ -512,10 +509,10 @@ fn resolve_access_expression(
         let struct_def = analysis_doc
             .structs()
             .find(|(_, s)| {
-                if let Some(s_ty) = s.ty() {
-                    if let Some(s_struct_ty) = s_ty.as_struct() {
-                        return s_struct_ty.name() == struct_ty.name();
-                    }
+                if let Some(s_ty) = s.ty()
+                    && let Some(s_struct_ty) = s_ty.as_struct()
+                {
+                    return s_struct_ty.name() == struct_ty.name();
                 }
                 s.name() == struct_ty.name().as_str()
             })
@@ -788,21 +785,22 @@ fn find_target_input_parameter(
     uri: &Url,
     lines: &Arc<LineIndex>,
 ) -> Result<Option<Location>> {
-    if let Some(task) = doc.task_by_name(target_name) {
-        if task.inputs().contains_key(token.text()) {
-            let scope = task.scope();
-            if let Some(ident) = scope.lookup(token.text()) {
-                return Ok(Some(location_from_span(uri, ident.span(), lines)?));
-            }
+    if let Some(task) = doc.task_by_name(target_name)
+        && task.inputs().contains_key(token.text())
+    {
+        let scope = task.scope();
+        if let Some(ident) = scope.lookup(token.text()) {
+            return Ok(Some(location_from_span(uri, ident.span(), lines)?));
         }
     }
 
-    if let Some(workflow) = doc.workflow() {
-        if workflow.name() == target_name && workflow.inputs().contains_key(token.text()) {
-            let scope = workflow.scope();
-            if let Some(ident) = scope.lookup(token.text()) {
-                return Ok(Some(location_from_span(uri, ident.span(), lines)?));
-            }
+    if let Some(workflow) = doc.workflow()
+        && workflow.name() == target_name
+        && workflow.inputs().contains_key(token.text())
+    {
+        let scope = workflow.scope();
+        if let Some(ident) = scope.lookup(token.text()) {
+            return Ok(Some(location_from_span(uri, ident.span(), lines)?));
         }
     }
 

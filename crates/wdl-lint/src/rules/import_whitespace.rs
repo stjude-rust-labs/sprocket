@@ -123,21 +123,22 @@ impl Visitor for ImportWhitespaceRule {
             .prev_sibling_or_token()
             .and_then(SyntaxElement::into_token);
 
-        if let Some(token) = prev_token {
-            if token.kind() == SyntaxKind::Whitespace && !token.text().ends_with('\n') {
-                // Find the span of just the leading whitespace
-                let span: Span = token.text_range().into();
-                for (text, offset, _) in lines_with_offset(token.text()) {
-                    if !text.is_empty() {
-                        diagnostics.exceptable_add(
-                            improper_whitespace_before_import(Span::new(
-                                span.start() + offset,
-                                span.len() - offset,
-                            )),
-                            SyntaxElement::from(token.clone()),
-                            &self.exceptable_nodes(),
-                        );
-                    }
+        if let Some(token) = prev_token
+            && token.kind() == SyntaxKind::Whitespace
+            && !token.text().ends_with('\n')
+        {
+            // Find the span of just the leading whitespace
+            let span: Span = token.text_range().into();
+            for (text, offset, _) in lines_with_offset(token.text()) {
+                if !text.is_empty() {
+                    diagnostics.exceptable_add(
+                        improper_whitespace_before_import(Span::new(
+                            span.start() + offset,
+                            span.len() - offset,
+                        )),
+                        SyntaxElement::from(token.clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             }
         }

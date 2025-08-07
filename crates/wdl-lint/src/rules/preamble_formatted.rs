@@ -284,6 +284,10 @@ impl Visitor for PreambleFormattedRule {
                         span.len() - offset,
                     )));
                 } else {
+                    // NOTE: this return should be kept in case future
+                    // iterations of the code add something after this `if`
+                    // statement.
+                    #[allow(clippy::needless_return)]
                     return;
                 }
             }

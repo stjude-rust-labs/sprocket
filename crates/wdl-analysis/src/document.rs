@@ -759,10 +759,10 @@ impl Document {
         }
 
         // Check to see if the position is contained in the workflow
-        if let Some(workflow) = &self.data.workflow {
-            if workflow.scope().span().contains(position) {
-                return find_scope(&workflow.scopes, position);
-            }
+        if let Some(workflow) = &self.data.workflow
+            && workflow.scope().span().contains(position)
+        {
+            return find_scope(&workflow.scopes, position);
         }
 
         // Search for a task that might contain the position

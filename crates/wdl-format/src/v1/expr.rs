@@ -161,25 +161,25 @@ pub fn format_literal_string(element: &FormatElement, stream: &mut TokenStream<P
                 while let Some(c) = chars.next() {
                     match c {
                         '\\' => {
-                            if let Some(next_c) = chars.peek() {
-                                if *next_c == '\'' {
-                                    // Do not write this backslash as single quotes don't need
-                                    // escaping in a double-quoted string (and we format all
-                                    // LiteralStrings as double-quoted strings).
-                                    prev_c = Some(c);
-                                    continue;
-                                }
+                            if let Some(next_c) = chars.peek()
+                                && *next_c == '\''
+                            {
+                                // Do not write this backslash as single quotes don't need
+                                // escaping in a double-quoted string (and we format all
+                                // LiteralStrings as double-quoted strings).
+                                prev_c = Some(c);
+                                continue;
                             }
                             replacement.push(c);
                         }
                         '"' => {
-                            if let Some(pc) = prev_c {
-                                if pc != '\\' {
-                                    // This double quote sign is not escaped, so we need to escape
-                                    // it. This happens when a single quoted string is re-formatted
-                                    // as a double quoted string.
-                                    replacement.push('\\');
-                                }
+                            if let Some(pc) = prev_c
+                                && pc != '\\'
+                            {
+                                // This double quote sign is not escaped, so we need to escape
+                                // it. This happens when a single quoted string is re-formatted
+                                // as a double quoted string.
+                                replacement.push('\\');
                             }
                             replacement.push(c);
                         }

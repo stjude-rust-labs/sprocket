@@ -175,12 +175,11 @@ impl GenericType {
                 // Verify the type satisfies any constraint
                 let (param, _) = params.get(name).expect("should have parameter");
 
-                if !ignore_constraints {
-                    if let Some(constraint) = param.constraint() {
-                        if !constraint.satisfied(ty) {
-                            return;
-                        }
-                    }
+                if !ignore_constraints
+                    && let Some(constraint) = param.constraint()
+                    && !constraint.satisfied(ty)
+                {
+                    return;
                 }
 
                 params.set_inferred_type(name, ty.clone());
@@ -1096,10 +1095,10 @@ impl FunctionSignatureBuilder {
 
         // Ensure the number of required parameters doesn't exceed the number of
         // parameters
-        if let Some(required) = sig.required {
-            if required > sig.parameters.len() {
-                panic!("number of required parameters exceeds the number of parameters");
-            }
+        if let Some(required) = sig.required
+            && required > sig.parameters.len()
+        {
+            panic!("number of required parameters exceeds the number of parameters");
         }
 
         assert!(
@@ -5051,7 +5050,7 @@ mod test {
         // Check `Array[String?]+`
         let array: Type = ArrayType::non_empty(Type::from(PrimitiveType::String).optional()).into();
         let binding = f
-            .bind(SupportedVersion::V1(V1::Zero), &[array.clone()])
+            .bind(SupportedVersion::V1(V1::Zero), std::slice::from_ref(&array))
             .expect("binding should succeed");
         assert_eq!(binding.index(), 0);
         assert_eq!(binding.return_type().to_string(), "String");
@@ -5084,7 +5083,7 @@ mod test {
         // Check `Array[String?]`
         let array: Type = ArrayType::new(Type::from(PrimitiveType::String).optional()).into();
         let binding = f
-            .bind(SupportedVersion::V1(V1::Zero), &[array.clone()])
+            .bind(SupportedVersion::V1(V1::Zero), std::slice::from_ref(&array))
             .expect("binding should succeed");
         assert_eq!(binding.index(), 0);
         assert_eq!(binding.return_type().to_string(), "String");

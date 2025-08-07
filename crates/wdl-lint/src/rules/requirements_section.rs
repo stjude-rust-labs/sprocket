@@ -113,34 +113,34 @@ impl Visitor for RequirementsSectionRule {
 
         // This rule should only be present for WDL v1.2 or later. Prior to that
         // version, the `runtime` section was recommended.
-        if let SupportedVersion::V1(minor_version) = self.0.expect("version should exist here") {
-            if minor_version >= V1::Two {
-                match task.runtime() {
-                    Some(runtime) => {
+        if let SupportedVersion::V1(minor_version) = self.0.expect("version should exist here")
+            && minor_version >= V1::Two
+        {
+            match task.runtime() {
+                Some(runtime) => {
+                    let name = task.name();
+                    diagnostics.exceptable_add(
+                        deprecated_runtime_section(
+                            name.text(),
+                            runtime
+                                .inner()
+                                .first_token()
+                                .expect("runtime section should have tokens")
+                                .text_range()
+                                .into(),
+                        ),
+                        SyntaxElement::from(runtime.inner().clone()),
+                        &self.exceptable_nodes(),
+                    );
+                }
+                _ => {
+                    if task.requirements().is_none() {
                         let name = task.name();
                         diagnostics.exceptable_add(
-                            deprecated_runtime_section(
-                                name.text(),
-                                runtime
-                                    .inner()
-                                    .first_token()
-                                    .expect("runtime section should have tokens")
-                                    .text_range()
-                                    .into(),
-                            ),
-                            SyntaxElement::from(runtime.inner().clone()),
+                            missing_requirements_section(name.text(), name.span()),
+                            SyntaxElement::from(task.inner().clone()),
                             &self.exceptable_nodes(),
                         );
-                    }
-                    _ => {
-                        if task.requirements().is_none() {
-                            let name = task.name();
-                            diagnostics.exceptable_add(
-                                missing_requirements_section(name.text(), name.span()),
-                                SyntaxElement::from(task.inner().clone()),
-                                &self.exceptable_nodes(),
-                            );
-                        }
                     }
                 }
             }

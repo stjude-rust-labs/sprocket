@@ -115,23 +115,22 @@ impl Visitor for CallInputSpacingRule {
             .inner()
             .children_with_tokens()
             .find(|c| c.kind() == SyntaxKind::InputKeyword)
+            && let Some(whitespace) = input_keyword.prev_sibling_or_token()
         {
-            if let Some(whitespace) = input_keyword.prev_sibling_or_token() {
-                if whitespace.kind() != SyntaxKind::Whitespace {
-                    // If there is no whitespace before the input keyword
-                    diagnostics.exceptable_add(
-                        call_input_keyword_spacing(input_keyword.text_range().into()),
-                        SyntaxElement::from(call.inner().clone()),
-                        &self.exceptable_nodes(),
-                    );
-                } else if !whitespace.as_token().unwrap().text().eq(" ") {
-                    // If there is anything other than one space before the input keyword
-                    diagnostics.exceptable_add(
-                        call_input_incorrect_spacing(whitespace.text_range().into()),
-                        SyntaxElement::from(call.inner().clone()),
-                        &self.exceptable_nodes(),
-                    );
-                }
+            if whitespace.kind() != SyntaxKind::Whitespace {
+                // If there is no whitespace before the input keyword
+                diagnostics.exceptable_add(
+                    call_input_keyword_spacing(input_keyword.text_range().into()),
+                    SyntaxElement::from(call.inner().clone()),
+                    &self.exceptable_nodes(),
+                );
+            } else if !whitespace.as_token().unwrap().text().eq(" ") {
+                // If there is anything other than one space before the input keyword
+                diagnostics.exceptable_add(
+                    call_input_incorrect_spacing(whitespace.text_range().into()),
+                    SyntaxElement::from(call.inner().clone()),
+                    &self.exceptable_nodes(),
+                );
             }
         }
 

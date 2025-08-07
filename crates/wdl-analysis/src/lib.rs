@@ -109,10 +109,10 @@ impl SyntaxNodeExt for SyntaxNode {
 
     fn is_rule_excepted(&self, id: &str) -> bool {
         for comment in self.except_comments() {
-            if let Some(ids) = comment.text().strip_prefix(EXCEPT_COMMENT_PREFIX) {
-                if ids.split(',').any(|i| i.trim() == id) {
-                    return true;
-                }
+            if let Some(ids) = comment.text().strip_prefix(EXCEPT_COMMENT_PREFIX)
+                && ids.split(',').any(|i| i.trim() == id)
+            {
+                return true;
             }
         }
 

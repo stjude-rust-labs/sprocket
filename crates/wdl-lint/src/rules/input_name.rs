@@ -142,29 +142,28 @@ fn check_decl_name(
     }
 
     let mut name = name.chars().peekable();
-    if let Some(c) = name.next() {
-        if c == 'i' || c == 'I' {
-            if let Some('n') = name.peek() {
-                name.next();
-                if let Some(c) = name.peek() {
-                    if c.is_ascii_uppercase() || c == &'_' {
-                        // name starts with "in"
-                        diagnostics.exceptable_add(
-                            decl_identifier_starts_with_in(decl.name().span()),
-                            SyntaxElement::from(decl.inner().clone()),
-                            exceptable_nodes,
-                        );
-                    } else {
-                        let s: String = name.take(3).collect();
-                        if s == "put" {
-                            // name starts with "input"
-                            diagnostics.exceptable_add(
-                                decl_identifier_starts_with_input(decl.name().span()),
-                                SyntaxElement::from(decl.inner().clone()),
-                                exceptable_nodes,
-                            );
-                        }
-                    }
+    if let Some(c) = name.next()
+        && (c == 'i' || c == 'I')
+        && let Some('n') = name.peek()
+    {
+        name.next();
+        if let Some(c) = name.peek() {
+            if c.is_ascii_uppercase() || c == &'_' {
+                // name starts with "in"
+                diagnostics.exceptable_add(
+                    decl_identifier_starts_with_in(decl.name().span()),
+                    SyntaxElement::from(decl.inner().clone()),
+                    exceptable_nodes,
+                );
+            } else {
+                let s: String = name.take(3).collect();
+                if s == "put" {
+                    // name starts with "input"
+                    diagnostics.exceptable_add(
+                        decl_identifier_starts_with_input(decl.name().span()),
+                        SyntaxElement::from(decl.inner().clone()),
+                        exceptable_nodes,
+                    );
                 }
             }
         }

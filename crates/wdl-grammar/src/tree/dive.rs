@@ -54,11 +54,11 @@ where
                 rowan::WalkEvent::Leave(_) => continue,
             };
 
-            if let rowan::SyntaxElement::Node(node) = &element {
-                if (self.ignore_predicate)(node) {
-                    self.it.skip_subtree();
-                    continue;
-                }
+            if let rowan::SyntaxElement::Node(node) = &element
+                && (self.ignore_predicate)(node)
+            {
+                self.it.skip_subtree();
+                continue;
             }
 
             return Some(element);

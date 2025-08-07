@@ -1974,10 +1974,10 @@ impl<N: TreeNode> LiteralString<N> {
     /// span of text.
     pub fn text(&self) -> Option<StringText<N::Token>> {
         let mut parts = self.parts();
-        if let Some(StringPart::Text(text)) = parts.next() {
-            if parts.next().is_none() {
-                return Some(text);
-            }
+        if let Some(StringPart::Text(text)) = parts.next()
+            && parts.next().is_none()
+        {
+            return Some(text);
         }
 
         None

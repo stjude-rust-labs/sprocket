@@ -73,10 +73,10 @@ pub(crate) trait Runnable {
     /// Get the inputs of the runnable that are part of `group`.
     fn inputs_in_group<'a>(&'a self, group: &'a Group) -> impl Iterator<Item = &'a Parameter> {
         self.inputs().iter().filter(move |param| {
-            if let Some(param_group) = param.group() {
-                if param_group == *group {
-                    return true;
-                }
+            if let Some(param_group) = param.group()
+                && param_group == *group
+            {
+                return true;
             }
             false
         })

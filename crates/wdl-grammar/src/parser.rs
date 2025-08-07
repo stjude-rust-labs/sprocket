@@ -639,22 +639,22 @@ where
             let mut lexer = self.lexer.clone();
             let marker = self.start();
             if let Err((marker, e)) = cb(self, marker) {
-                if let Some((Ok(token), _)) = lexer.as_mut().expect("should have a lexer").peek() {
-                    if !recovery.contains(token.into_raw()) {
-                        // Determine if the token is recoverable in the parent recovery set
-                        // If so, we'll restart where we first attempted to parse this item
-                        if let Some(parent) = &parent {
-                            if parent.contains(token.into_raw()) {
-                                // Truncate the event list and abandon the marker
-                                self.events.truncate(marker.0);
-                                marker.abandon(self);
+                if let Some((Ok(token), _)) = lexer.as_mut().expect("should have a lexer").peek()
+                    && !recovery.contains(token.into_raw())
+                {
+                    // Determine if the token is recoverable in the parent recovery set
+                    // If so, we'll restart where we first attempted to parse this item
+                    if let Some(parent) = &parent
+                        && parent.contains(token.into_raw())
+                    {
+                        // Truncate the event list and abandon the marker
+                        self.events.truncate(marker.0);
+                        marker.abandon(self);
 
-                                // Clear any buffered events and reset the lexer
-                                self.buffered.clear();
-                                self.lexer = lexer;
-                                break;
-                            }
-                        }
+                        // Clear any buffered events and reset the lexer
+                        self.buffered.clear();
+                        self.lexer = lexer;
+                        break;
                     }
                 }
 
@@ -664,42 +664,41 @@ where
 
             next = self.peek();
 
-            if let Some(delimiter) = delimiter {
-                if let Some((token, _)) = next {
-                    if token == until {
-                        break;
-                    }
-
-                    if let Err(e) = self.expect(delimiter) {
-                        // Attach a label to the diagnostic hinting at where we expected the
-                        // delimiter to be; to do this, look back at the last non-trivia token event
-                        // in the parser events and use its span for the label.
-                        let e = if let Some(span) = self.events.iter().rev().find_map(|e| match e {
-                            Event::Token { kind, span }
-                                if *kind != SyntaxKind::Whitespace
-                                    && *kind != SyntaxKind::Comment =>
-                            {
-                                Some(*span)
-                            }
-                            _ => None,
-                        }) {
-                            e.with_label(
-                                format!(
-                                    "consider adding a {desc} after this",
-                                    desc = delimiter.describe()
-                                ),
-                                Span::new(span.end() - 1, 1),
-                            )
-                        } else {
-                            e
-                        };
-
-                        self.recover(e);
-                        self.next_if(delimiter);
-                    }
-
-                    next = self.peek();
+            if let Some(delimiter) = delimiter
+                && let Some((token, _)) = next
+            {
+                if token == until {
+                    break;
                 }
+
+                if let Err(e) = self.expect(delimiter) {
+                    // Attach a label to the diagnostic hinting at where we expected the
+                    // delimiter to be; to do this, look back at the last non-trivia token event
+                    // in the parser events and use its span for the label.
+                    let e = if let Some(span) = self.events.iter().rev().find_map(|e| match e {
+                        Event::Token { kind, span }
+                            if *kind != SyntaxKind::Whitespace && *kind != SyntaxKind::Comment =>
+                        {
+                            Some(*span)
+                        }
+                        _ => None,
+                    }) {
+                        e.with_label(
+                            format!(
+                                "consider adding a {desc} after this",
+                                desc = delimiter.describe()
+                            ),
+                            Span::new(span.end() - 1, 1),
+                        )
+                    } else {
+                        e
+                    };
+
+                    self.recover(e);
+                    self.next_if(delimiter);
+                }
+
+                next = self.peek();
             }
         }
 
