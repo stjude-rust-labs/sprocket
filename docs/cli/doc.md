@@ -20,9 +20,13 @@ Currently, we do not offer a way to include arbitrary assets, so unfortunately y
 
 The generated documentation directory (named `docs` by default) is completely self contained and can be moved, zipped, and shared without any of the raw WDL files it documents. Please let us know if you run into any issues while sharing your documentation.
 
-## Custom themes
+## Custom logos and themes
+
+Sprocket v0.16.0 adds support for embedding a custom logo at the top-left of each page! Use the new `--logo <SVG FILE>` argument with a path to an SVG file.
 
 While it is technically possible to supply your own custom CSS styling, this capability is currently undocumented. We recommend sticking with the default styling at this point in time, but do let us know what kinds of customization you would like to see in future releases! 
+
+We are working on adding a light/dark mode toggle as well, so make sure to follow along for updates.
 
 ## Using preamble comments for file-level documentation
 

@@ -21,6 +21,11 @@ pub struct Args {
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
     #[arg(long, value_name = "MARKDOWN FILE")]
     pub homepage: Option<PathBuf>,
+    /// Path to an SVG logo to embed on each page.
+    ///
+    /// If not supplied, the default Sprocket logo will be used.
+    #[arg(short, long, value_name = "SVG FILE")]
+    pub logo: Option<PathBuf>,
     /// Output directory for the generated documentation.
     /// If not specified, the documentation will be generated in
     /// `<workspace>/docs`.
@@ -98,6 +103,7 @@ pub async fn doc(args: Args) -> Result<()> {
         &docs_dir,
         args.homepage.clone(),
         args.theme.clone(),
+        args.logo.clone(),
     )
     .await
     .with_context(|| {
