@@ -191,6 +191,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         .extend_sources(sources)
         .extend_exceptions(args.common.except)
         .lint(args.lint)
+        .ignore_filename(Some(crate::IGNORE_FILENAME.to_string()))
         .run()
         .await
     {
