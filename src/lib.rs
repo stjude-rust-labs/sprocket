@@ -33,6 +33,9 @@ use wdl::engine::CallLocation;
 pub mod commands;
 pub mod config;
 
+/// ignorefile basename to respect.
+const IGNORE_FILENAME: &str = ".sprocketignore";
+
 /// The maximum number of call locations to print for evaluation errors.
 const MAX_CALL_LOCATIONS: usize = 10;
 
