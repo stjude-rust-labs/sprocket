@@ -90,10 +90,9 @@ warning[UnusedInput]: unused input `color`
 ```
 
 Specific lint rules can be ignored with multiple invocations of the `-e` flag.
-Rule matching is case insensitive from command line arguments.
 
 ```shell
-sprocket lint example.wdl -e containeruri -e metasections
+sprocket lint example.wdl -e ContainerUri -e MetaSections
 ```
 
 This leaves a single diagnostic, which is that `color` is an unused workflow
