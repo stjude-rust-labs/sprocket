@@ -54,10 +54,18 @@ sprocket lint example.wdl
 ```
 
 This returns a set of validation and linting diagnostics that can/should be
-addressed by the workflow author. In this case, the following is an abbreviated
+addressed by the workflow author. In this case, the following is the
 output from the linting and validation process on `example.wdl`.
 
 ```txt
+note[MetaSections]: task `say_hello` is missing both `meta` and `parameter_meta` sections
+  ┌─ example.wdl:3:6
+  │
+3 │ task say_hello {
+  │      ^^^^^^^^^ this task is missing both `meta` and `parameter_meta` sections
+  │
+  = fix: add both the `meta` and `parameter_meta` sections
+
 note[ContainerUri]: container URI uses a mutable tag
    ┌─ example.wdl:18:20
    │
@@ -75,9 +83,9 @@ note[MetaSections]: workflow `main` is missing both `meta` and `parameter_meta` 
    = fix: add both the `meta` and `parameter_meta` sections
 
 warning[UnusedInput]: unused input `color`
-   ┌─ example.wdl:35:16
+   ┌─ example.wdl:30:16
    │
-35 │         String color = "green"
+30 │         String color = "green"
    │                ^^^^^
 ```
 
@@ -115,12 +123,24 @@ issues](./guided-tour/problems.png){style="margin-top: 30px;"}
 
 ## Running tasks and workflows
 
-Individual tasks and workflows can be run with the `sprocket run` subcommand. By
-default, the workflow in the document is designated as the target for `sprocket
-run`.
+Individual tasks and workflows can be run with the `sprocket run` subcommand.
 
 ```shell
 sprocket run example.wdl
+```
+
+This will error right away, as we haven't told Sprocket which task or workflow
+to run.
+
+```txt
+error: the `--entrypoint` option is required if no inputs are provided
+```
+
+We want to run the "main" workflow defined in `example.wdl`, so we can try again
+but specify the entrypoint to use this time using the `--entrypoint` flag.
+
+```shell
+sprocket run example.wdl --entrypoint main
 ```
 
 After a few seconds, you'll see `sprocket` return an error.
@@ -140,32 +160,41 @@ must be provided before the workflow can run.
 Inputs to a Sprocket run are provided as arguments passed after the WDL document
 name is provided. Each input can be specified as either
 
-* a key value pair (e.g., `workflow.foo="bar"`), or
-* a file containing inputs within JSON (e.g., a `defaults.json` file where the
-  contents are `{ "workflow.foo": "bar" }`).
+* a key value pair (e.g., `main.is_pirate=true`)
+* a JSON file containing inputs (e.g., a `hello_defaults.json` file where the
+  contents are `{ "main.is_pirate": true }`)
+* a YAML file containing inputs (e.g. a `hello_defaults.yaml` file where the
+  contents are `main.is_pirate: true`)
 
 Inputs are _incrementally_ applied, meaning that inputs specified later override
 inputs specified earlier. This enables you to do something like the following to
 use a set of default parameters and iterate through sample names in Bash rather
-than create many individual JSON input files.
+than create many individual input files.
 
 ```bash
-sprocket run workflow.wdl defaults.json main.sample_name="Foo"
+sprocket run example.wdl hello_defaults.json main.name="Ari"
 ```
+
+Note that the above command does not specify an entrypoint with the `--entrypoint`
+flag. This is because every input is using fully qualified dot notation; each
+input is prefixed with the name of the entrypoint and a period, `main.`.
+This fully qualified dot notation is required for inputs provided within a file.
+The dot notation can get repetitive if supplying many key value pairs on the command line,
+so specifying `--entrypoint` allows you to omit the repeated part of the keys.
 :::
 
 Here, we can specify the `name` parameter as a key-value pair on the command
 line.
 
 ```shell
-sprocket run example.wdl main.name="World"
+sprocket run example.wdl --entrypoint main name="World"
 ```
 
 After a few seconds, this job runs successfully with the following outputs.
 
 ```json
 {
-  "messages": [
+  "main.messages": [
     "Hello, World!",
     "Hallo, World!",
     "Hej, World!"
@@ -175,8 +204,8 @@ After a few seconds, this job runs successfully with the following outputs.
 
 Congrats on your first successful `sprocket run` 🎉!
 
-If you wanted to override the `greetings` workflow, you could do so by defining
-the input in a `greetings.json` file:
+If you wanted to override some of the defaults for the workflow, you could do
+so by defining the input in a `hello_overrides.json` file:
 
 ```json
 {
@@ -184,25 +213,25 @@ the input in a `greetings.json` file:
     "Good morning",
     "Good afternoon",
     "Good evening"
-  ]
+  ],
+  "main.is_pirate": true
 }
 ```
 and the providing that in the set of inputs to the workflow.
 
 ```shell
-sprocket run example.wdl greetings.json main.name="Sprocket" --overwrite
+sprocket run example.wdl hello_overrides.json main.name="Sprocket"
 ```
 
-Notably, the `--overwrite` option is now provided to let `sprocket` know you're
-okay with overwriting the results of your last workflow run. This produces the
-following output.
+This produces the following output.
 
 ```json
 {
-  "messages": [
+  "main.messages": [
     "Good morning, Sprocket!",
     "Good afternoon, Sprocket!",
-    "Good evening, Sprocket!"
+    "Good evening, Sprocket!",
+    "Ahoy, Sprocket!"
   ]
 }
 ```
