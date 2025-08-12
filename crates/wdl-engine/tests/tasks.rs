@@ -43,6 +43,7 @@ use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::Inputs;
 use wdl_engine::config::BackendConfig;
+use wdl_engine::config::GenericBackendConfig;
 use wdl_engine::config::{self};
 use wdl_engine::v1::TaskEvaluator;
 
@@ -130,6 +131,31 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
         let config = toml::from_str(&std::fs::read_to_string(file.path())?)?;
         configs_on_disk.push((config_name, config));
     }
+    let generic_backend_config = GenericBackendConfig {
+        backend_config: crankshaft::config::backend::generic::Config::builder()
+            .driver(
+                crankshaft::config::backend::generic::driver::Config::builder()
+                    .locale(crankshaft::config::backend::generic::driver::Locale::Local)
+                    .shell(crankshaft::config::backend::generic::driver::Shell::Bash)
+                    .build(),
+            )
+            .submit(
+                r#"((cd ~{cwd}; ~{command} > ~{stdout} 2> ~{stderr}; echo $? >
+        ~{task_exit_code}) & echo $!)"#,
+            )
+            .job_id_regex(r#"(\d+)"#)
+            .monitor("file -E ~{task_exit_code}")
+            .get_exit_code("cat ~{task_exit_code}")
+            .kill("kill ~{job_id}")
+            .build(),
+        cpu: None,
+        memory: None,
+    };
+    // std::fs::write(
+    //     "/tmp/generic_config.toml",
+    //     toml::to_string_pretty(&generic_backend_config).unwrap(),
+    // )
+    // .unwrap();
     if !configs_on_disk.is_empty() || any_config_toml_found {
         Ok(configs_on_disk)
     } else {
@@ -149,7 +175,7 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                 config::Config {
                     backends: [(
                         "default".to_string(),
-                        BackendConfig::Generic(Default::default()),
+                        BackendConfig::Generic(generic_backend_config),
                     )]
                     .into(),
                     task: config::TaskConfig {

@@ -1,13 +1,10 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::ffi::OsStr;
 use std::fs::File;
 use std::fs::Permissions;
 use std::fs::{self};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
-use std::process::ExitCode;
-use std::process::Stdio;
 use std::sync::Arc;
 
 use anyhow::Context as _;
@@ -18,7 +15,6 @@ use futures::FutureExt as _;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tempfile::TempDir;
-use tokio::process::Command;
 use tokio::sync::oneshot;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
@@ -42,7 +38,6 @@ use crate::TaskExecutionResult;
 use crate::Value;
 use crate::WORK_DIR_NAME;
 use crate::config::Config;
-use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::GenericBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
@@ -56,6 +51,8 @@ use crate::path::EvaluationPath;
 struct GenericTaskRequest {
     /// The engine configuration.
     config: Arc<Config>,
+    /// The backend configuration.
+    backend_config: Arc<GenericBackendConfig>,
     /// The inner task spawn request.
     inner: TaskSpawnRequest,
     /// The requested CPU reservation for the task.
@@ -99,53 +96,30 @@ impl TaskManagerRequest for GenericTaskRequest {
         })?;
         fs::set_permissions(&command_path, Permissions::from_mode(0o777))?;
 
-        // Create a file for the stdout
+        // Create an empty file for the stdout
         let stdout_path = self.inner.attempt_dir().join(STDOUT_FILE_NAME);
-        let stdout = File::create(&stdout_path).with_context(|| {
+        let _ = File::create(&stdout_path).with_context(|| {
             format!(
                 "failed to create stdout file `{path}`",
                 path = stdout_path.display()
             )
         })?;
 
-        // Create a file for the stderr
+        // Create an empty file for the stderr
         let stderr_path = self.inner.attempt_dir().join(STDERR_FILE_NAME);
-        let stderr = File::create(&stderr_path).with_context(|| {
+        let _ = File::create(&stderr_path).with_context(|| {
             format!(
                 "failed to create stderr file `{path}`",
                 path = stderr_path.display()
             )
         })?;
 
-        let mut command = Command::new(
-            self.config
-                .task
-                .shell
-                .as_deref()
-                .unwrap_or(DEFAULT_TASK_SHELL),
-        );
-        command
-            .current_dir(&work_dir)
-            .arg("-C")
-            .arg(&command_path)
-            .stdin(Stdio::null())
-            .stdout(stdout)
-            .stderr(stderr)
-            .envs(
-                self.inner
-                    .env()
-                    .iter()
-                    .map(|(k, v)| (OsStr::new(k), OsStr::new(v))),
-            )
-            .kill_on_drop(true);
-
-        let crankshaft_generic_backend_driver =
-            crankshaft::config::backend::generic::driver::Config::builder()
-                .locale(crankshaft::config::backend::generic::driver::Locale::Local)
-                .shell(crankshaft::config::backend::generic::driver::Shell::Bash)
-                .build();
         let temp_dir = TempDir::new()?;
         let mut attributes = HashMap::new();
+        // TODO ACF 2025-08-12: might want to bake a tmpdir in as a more fully-fledged
+        // concept eventually, but for now putting things in a separate location
+        // is required to avoid spurious test failures from the fixture checking
+        // every file in `cwd` for equivalence
         attributes.insert(
             Cow::Borrowed("temp_dir"),
             Cow::Owned(temp_dir.path().display().to_string()),
@@ -155,21 +129,26 @@ impl TaskManagerRequest for GenericTaskRequest {
             Cow::Borrowed("task_exit_code"),
             Cow::Owned(task_exit_code.display().to_string()),
         );
-        let crankshaft_generic_backend_config =
-            crankshaft::config::backend::generic::Config::builder()
-                .driver(crankshaft_generic_backend_driver)
-                .submit(format!(
-                    "((cd ~{{cwd}}; ~{{command}} > {} 2> {}; echo $? > ~{{task_exit_code}}) & \
-                     echo $!)",
-                    stdout_path.display(),
-                    stderr_path.display(),
-                ))
-                .job_id_regex(r#"(\d+)"#)
-                .monitor("file -E ~{task_exit_code}")
-                .get_exit_code("cat ~{task_exit_code}")
-                .kill("kill ~{job_id}")
-                .attributes(attributes)
-                .build();
+        // let crankshaft_generic_backend_driver =
+        //     crankshaft::config::backend::generic::driver::Config::builder()
+        //         .locale(crankshaft::config::backend::generic::driver::Locale::Local)
+        //         .shell(crankshaft::config::backend::generic::driver::Shell::Bash)
+        //         .build();
+        // let crankshaft_generic_backend_config =
+        //     crankshaft::config::backend::generic::Config::builder()
+        //         .driver(crankshaft_generic_backend_driver)
+        //         .submit(
+        //             r#"((cd ~{cwd}; ~{command} > ~{stdout} 2> ~{stderr}; echo $? >
+        // ~{task_exit_code}) & echo $!)"#         )
+        //         .job_id_regex(r#"(\d+)"#)
+        //         .monitor("file -E ~{task_exit_code}")
+        //         .get_exit_code("cat ~{task_exit_code}")
+        //         .kill("kill ~{job_id}")
+        //         .attributes(attributes)
+        //     .build();
+
+        let mut crankshaft_generic_backend_config = self.backend_config.backend_config.clone();
+        *crankshaft_generic_backend_config.attributes_mut() = attributes;
 
         const BACKEND_NAME: &'static str = "crankshaft_generic";
         let backend = crankshaft::Engine::default()
@@ -229,62 +208,6 @@ impl TaskManagerRequest for GenericTaskRequest {
             )
             .into(),
         });
-
-        let mut child = command.spawn().context("failed to spawn `bash`")?;
-
-        // Notify that the process has spawned
-        spawned.send(()).ok();
-
-        let id = child.id().expect("should have id");
-        info!("spawned local `bash` process {id} for task execution");
-
-        tokio::select! {
-            // Poll the cancellation token before the child future
-            biased;
-
-            _ = self.token.cancelled() => {
-                bail!("task was cancelled");
-            }
-            status = child.wait() => {
-                let status = status.with_context(|| {
-                    format!("failed to wait for termination of task child process {id}")
-                })?;
-
-                #[cfg(unix)]
-                {
-                    use std::os::unix::process::ExitStatusExt;
-                    if let Some(signal) = status.signal() {
-                        tracing::warn!("task process {id} has terminated with signal {signal}");
-
-                        bail!(
-                            "task child process {id} has terminated with signal {signal}; see stderr file \
-                            `{path}` for more details",
-                            path = stderr_path.display()
-                        );
-                    }
-                }
-
-                let exit_code = status.code().expect("process should have exited");
-                info!("task process {id} has terminated with status code {exit_code}");
-                Ok(TaskExecutionResult {
-                    inputs: self.inner.info.inputs,
-                    exit_code,
-                    work_dir: EvaluationPath::Local(work_dir),
-                    stdout: PrimitiveValue::new_file(
-                        stdout_path
-                            .into_os_string()
-                            .into_string()
-                            .expect("path should be UTF-8")
-                    ).into(),
-                    stderr: PrimitiveValue::new_file(
-                        stderr_path
-                            .into_os_string()
-                            .into_string()
-                            .expect("path should be UTF-8")
-                    ).into(),
-                })
-            }
-        }
     }
 }
 
@@ -293,6 +216,8 @@ impl TaskManagerRequest for GenericTaskRequest {
 pub struct GenericBackend {
     /// The engine configuration.
     config: Arc<Config>,
+    /// The backend configuration.
+    backend_config: Arc<GenericBackendConfig>,
     /// The total CPU of the host.
     cpu: u64,
     /// The total memory of the host.
@@ -321,6 +246,8 @@ impl GenericBackend {
 
         Ok(Self {
             config,
+            // TODO ACF 2025-08-12: sort out this excess cloning nonsense
+            backend_config: Arc::new(backend_config.clone()),
             cpu,
             memory,
             manager,
@@ -498,6 +425,7 @@ impl TaskExecutionBackend for GenericBackend {
         self.manager.send(
             GenericTaskRequest {
                 config: self.config.clone(),
+                backend_config: self.backend_config.clone(),
                 inner: request,
                 cpu,
                 memory,

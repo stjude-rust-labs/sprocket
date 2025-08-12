@@ -1,0 +1,10 @@
+backends.default.type = "generic"
+backends.default.backend_config.locale.kind = "Local"
+backends.default.backend_config.shell = "bash"
+backends.default.backend_config.submit = """
+((cd ~{cwd}; ~{command} > ~{stdout} 2> ~{stderr}; echo $? >
+        ~{task_exit_code}) & echo $!)"""
+backends.default.backend_config.job-id-regex = '(\d+)'
+backends.default.backend_config.monitor = "file -E ~{task_exit_code}"
+backends.default.backend_config.get-exit-code = "cat ~{task_exit_code}"
+backends.default.backend_config.kill = "kill ~{job_id}"

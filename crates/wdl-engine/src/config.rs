@@ -552,6 +552,8 @@ impl LocalBackendConfig {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct GenericBackendConfig {
+    /// The Crankshaft generic backend config.
+    // TODO ACF 2025-08-25: this maybe should be the entire struct?
     #[serde(default)]
     pub backend_config: crankshaft::config::backend::generic::Config,
     /// Set the number of CPUs available for task execution.
