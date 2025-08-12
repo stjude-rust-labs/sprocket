@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Custom logo support for the top of the left sidebar ([#559](https://github.com/stjude-rust-labs/wdl/pull/559)).
 
+#### Removed
+
+* Removed "smooth" left sidebar scroll animation. Scrolling the current page into view is now instant ([#571](https://github.com/stjude-rust-labs/wdl/pull/571)).
+
 ## 0.6.0 - 07-31-2025
 
 #### Changed
