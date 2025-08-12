@@ -161,9 +161,9 @@ Inputs to a Sprocket run are provided as arguments passed after the WDL document
 name is provided. Each input can be specified as either
 
 * a key value pair (e.g., `main.is_pirate=true`)
-* a JSON file containing inputs (e.g., a `defaults.json` file where the
+* a JSON file containing inputs (e.g., a `hello_defaults.json` file where the
   contents are `{ "main.is_pirate": true }`)
-* a YAML file containing inputs (e.g. a `defaults.yaml` file where the
+* a YAML file containing inputs (e.g. a `hello_defaults.yaml` file where the
   contents are `main.is_pirate: true`)
 
 Inputs are _incrementally_ applied, meaning that inputs specified later override
@@ -172,7 +172,7 @@ use a set of default parameters and iterate through sample names in Bash rather
 than create many individual input files.
 
 ```bash
-sprocket run example.wdl defaults.json main.name="Ari"
+sprocket run example.wdl hello_defaults.json main.name="Ari"
 ```
 
 Note that the above command does not specify an entrypoint with the `--entrypoint`
@@ -205,7 +205,7 @@ After a few seconds, this job runs successfully with the following outputs.
 Congrats on your first successful `sprocket run` 🎉!
 
 If you wanted to override some of the defaults for the workflow, you could do
-so by defining the input in a `overrides.json` file:
+so by defining the input in a `hello_overrides.json` file:
 
 ```json
 {
@@ -220,7 +220,7 @@ so by defining the input in a `overrides.json` file:
 and the providing that in the set of inputs to the workflow.
 
 ```shell
-sprocket run example.wdl overrides.json main.name="Sprocket"
+sprocket run example.wdl hello_overrides.json main.name="Sprocket"
 ```
 
 This produces the following output.
