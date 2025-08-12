@@ -15,6 +15,7 @@ use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use ignore::WalkBuilder;
 use indexmap::IndexSet;
 use line_index::LineCol;
 use line_index::LineIndex;
@@ -30,7 +31,6 @@ use tokio::runtime::Handle;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use url::Url;
-use walkdir::WalkDir;
 
 use crate::config::Config;
 use crate::document::Document;
@@ -311,6 +311,8 @@ pub struct Analyzer<Context> {
     sender: ManuallyDrop<mpsc::UnboundedSender<Request<Context>>>,
     /// The join handle for the queue task.
     handle: Option<JoinHandle<()>>,
+    /// The config to use during analysis.
+    config: Config,
 }
 
 impl<Context> Analyzer<Context>
@@ -352,14 +354,16 @@ where
     {
         let (tx, rx) = mpsc::unbounded_channel();
         let tokio = Handle::current();
+        let inner_config = config.clone();
         let handle = std::thread::spawn(move || {
-            let queue = AnalysisQueue::new(config, tokio, progress, validator);
+            let queue = AnalysisQueue::new(inner_config, tokio, progress, validator);
             queue.run(rx);
         });
 
         Self {
             sender: ManuallyDrop::new(tx),
             handle: Some(handle),
+            config,
         }
     }
 
@@ -394,6 +398,7 @@ where
     /// specified path.
     pub async fn add_directory(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref().to_path_buf();
+        let config = self.config.clone();
         // Start by searching for documents
         let documents = RayonHandle::spawn(move || -> Result<IndexSet<Url>> {
             let mut documents = IndexSet::new();
@@ -409,13 +414,35 @@ where
                 bail!("`{path}` is a file, not a directory", path = path.display());
             }
 
-            for result in WalkDir::new(&path).follow_links(true) {
+            let mut walker = WalkBuilder::new(&path);
+            if let Some(ignore_filename) = config.ignore_filename() {
+                walker.add_custom_ignore_filename(ignore_filename);
+            }
+            let walker = walker
+                .standard_filters(false)
+                .parents(true)
+                .follow_links(true)
+                .build();
+
+            for result in walker {
                 let entry = result.with_context(|| {
-                    format!("failed to read directory `{path}`", path = path.display())
+                    if let Some(ignore_filename) = config.ignore_filename() {
+                        format!("error parsing ignorefile with basename `{ignore_filename}`")
+                    } else {
+                        format!("failed to read directory `{path}`", path = path.display())
+                    }
                 })?;
-                if !entry.file_type().is_file()
-                    || entry.path().extension().and_then(OsStr::to_str) != Some("wdl")
-                {
+
+                // Skip entries without a file type
+                let Some(file_type) = entry.file_type() else {
+                    continue;
+                };
+                // Skip non-files
+                if !file_type.is_file() {
+                    continue;
+                }
+                // Skip files without a `.wdl` extension
+                if entry.path().extension() != Some(OsStr::new("wdl")) {
                     continue;
                 }
 

@@ -45,6 +45,7 @@ impl Default for Config {
             inner: Arc::new(ConfigInner {
                 diagnostics: Default::default(),
                 fallback_version: None,
+                ignore_filename: None,
             }),
         }
     }
@@ -60,6 +61,11 @@ impl Config {
     /// [`Config::with_fallback_version()`].
     pub fn fallback_version(&self) -> Option<SupportedVersion> {
         self.inner.fallback_version
+    }
+
+    /// Get this configuration's ignore filename.
+    pub fn ignore_filename(&self) -> Option<&str> {
+        self.inner.ignore_filename.as_deref()
     }
 
     /// Return a new configuration with the previous [`DiagnosticsConfig`]
@@ -108,6 +114,25 @@ impl Config {
             inner: Arc::new(inner),
         }
     }
+
+    /// Return a new configuration with the previous ignore filename replaced by
+    /// the argument.
+    ///
+    /// Specifying `None` for `filename` disables ignore behavior. This is also
+    /// the default.
+    ///
+    /// `Some(filename)` will use `filename` as the ignorefile basename to
+    /// search for. Child directories _and_ parent directories are searched
+    /// for a file with the same basename as `filename` and if a match is
+    /// found it will attempt to be parsed as an ignorefile with a syntax
+    /// similar to `.gitignore` files.
+    pub fn with_ignore_filename(&self, filename: Option<String>) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.ignore_filename = filename;
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
 }
 
 /// The actual configuration fields inside the [`Config`] wrapper.
@@ -119,6 +144,8 @@ struct ConfigInner {
     /// See [`Config::with_fallback_version()`]
     #[serde(default)]
     fallback_version: Option<SupportedVersion>,
+    /// See [`Config::with_ignore_filename()`]
+    ignore_filename: Option<String>,
 }
 
 /// Configuration for analysis diagnostics.

@@ -39,6 +39,9 @@ pub struct Analysis {
     /// Whether or not to enable linting.
     lint: bool,
 
+    /// Basename for any ignorefiles which should be respected.
+    ignore_filename: Option<String>,
+
     /// The initialization callback.
     init: InitCb,
 
@@ -77,6 +80,12 @@ impl Analysis {
         self
     }
 
+    /// Sets the ignorefile basename.
+    pub fn ignore_filename(mut self, filename: Option<String>) -> Self {
+        self.ignore_filename = filename;
+        self
+    }
+
     /// Sets the initialization callback.
     pub fn init<F>(mut self, init: F) -> Self
     where
@@ -99,7 +108,8 @@ impl Analysis {
     pub async fn run(self) -> std::result::Result<AnalysisResults, NonEmpty<Arc<Error>>> {
         warn_unknown_rules(&self.exceptions);
         let config = wdl_analysis::Config::default()
-            .with_diagnostics_config(get_diagnostics_config(&self.exceptions));
+            .with_diagnostics_config(get_diagnostics_config(&self.exceptions))
+            .with_ignore_filename(self.ignore_filename);
 
         (self.init)();
 
@@ -141,6 +151,7 @@ impl Default for Analysis {
             sources: Default::default(),
             exceptions: Default::default(),
             lint: Default::default(),
+            ignore_filename: None,
             init: Box::new(|| {}),
             progress: Box::new(|_, _, _| Box::pin(async {})),
         }

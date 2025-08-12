@@ -226,6 +226,9 @@ pub struct ServerOptions {
 
     /// Analysis or lint rule IDs to except (ignore).
     pub exceptions: Vec<String>,
+
+    /// Basename for any ignorefiles which should be respected.
+    pub ignore_filename: Option<String>,
 }
 
 /// Represents an LSP server for analyzing WDL documents.
@@ -248,6 +251,7 @@ impl Server {
     pub fn new(client: Client, options: ServerOptions) -> Self {
         let lint = options.lint;
         let exceptions = options.exceptions.clone();
+        let ignore_name = options.ignore_filename.clone();
         let analyzer_client = client.clone();
         // TODO ACF 2025-07-07: add configurability around the fallback behavior; see
         // https://github.com/stjude-rust-labs/wdl/issues/517
@@ -257,7 +261,8 @@ impl Server {
                 wdl_analysis::rules()
                     .iter()
                     .filter(|r| exceptions.contains(&r.id().into())),
-            ));
+            ))
+            .with_ignore_filename(ignore_name);
 
         Self {
             client,

@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use fs_extra::dir::CopyOptions;
 use fs_extra::dir::copy;
 use pretty_assertions::StrComparison;
+use wdl_analysis::Analyzer;
 use wdl_doc::document_workspace;
 
 /// Recursively read every file in a directory
@@ -42,7 +43,11 @@ async fn document_full_codebase() {
         fs::remove_dir_all(test_dir.join("docs")).unwrap();
     }
 
+    let analyzer = Analyzer::default();
+    analyzer.add_directory(&test_dir).await.unwrap();
+
     document_workspace(
+        analyzer,
         test_dir.to_path_buf(),
         test_dir.join("docs"),
         None::<&str>,
