@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+* Added semantic highlighting support for the WDL Language Server ([#569](https://github.com/stjude-rust-labs/wdl/pull/569)).
+
 #### Added
 
 * Added support for ignorefiles, although by default it is not enabled ([#565](https://github.com/stjude-rust-labs/wdl/pull/565)).

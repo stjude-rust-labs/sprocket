@@ -31,6 +31,8 @@ use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
 use wdl_analysis::SourcePositionEncoding;
 use wdl_analysis::Validator;
+use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_MODIFIERS;
+use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_TYPES;
 use wdl_analysis::path_to_uri;
 use wdl_lint::Linter;
 
@@ -423,6 +425,19 @@ impl LanguageServer for Server {
                 }),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 rename_provider: Some(OneOf::Left(true)),
+                semantic_tokens_provider: Some(
+                    SemanticTokensServerCapabilities::SemanticTokensOptions(
+                        SemanticTokensOptions {
+                            work_done_progress_options: Default::default(),
+                            legend: SemanticTokensLegend {
+                                token_types: WDL_SEMANTIC_TOKEN_TYPES.to_vec(),
+                                token_modifiers: WDL_SEMANTIC_TOKEN_MODIFIERS.to_vec(),
+                            },
+                            range: Some(false),
+                            full: Some(SemanticTokensFullOptions::Bool(true)),
+                        },
+                    ),
+                ),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -860,6 +875,27 @@ impl LanguageServer for Server {
                 SourcePositionEncoding::UTF16,
                 params.new_name,
             )
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?;
+
+        Ok(result)
+    }
+
+    async fn semantic_tokens_full(
+        &self,
+        mut params: SemanticTokensParams,
+    ) -> RpcResult<Option<SemanticTokensResult>> {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/semanticTokens/full` request: {params:#?}");
+
+        let result = self
+            .analyzer
+            .semantic_tokens(params.text_document.uri)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,

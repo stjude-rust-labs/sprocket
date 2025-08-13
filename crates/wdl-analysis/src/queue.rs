@@ -19,6 +19,7 @@ use lsp_types::CompletionResponse;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::Location;
+use lsp_types::SemanticTokensResult;
 use lsp_types::WorkspaceEdit;
 use parking_lot::RwLock;
 use petgraph::Direction;
@@ -78,6 +79,8 @@ pub enum Request<Context> {
     Hover(HoverRequest),
     /// A request to rename a symbol workspace wide.
     Rename(RenameRequest),
+    /// A request to get semantic tokens for a document
+    SemanticTokens(SemanticTokenRequest),
 }
 
 /// Represents a request to add documents to the graph.
@@ -202,6 +205,14 @@ pub struct RenameRequest {
     pub new_name: String,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<WorkspaceEdit>>,
+}
+
+/// Represents a request to get the semantic tokens for a document
+pub struct SemanticTokenRequest {
+    /// The document to get semantic tokens for
+    pub document: Url,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<SemanticTokensResult>>,
 }
 
 /// A simple enumeration to signal a cancellation to the caller.
@@ -560,6 +571,33 @@ where
                         }
                         Err(err) => {
                             debug!("error occurred while completing rename request: {err:?}");
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+
+                Request::SemanticTokens(SemanticTokenRequest {
+                    document,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!("received request for semantic tokens for {document}");
+
+                    let graph = self.graph.read();
+                    match handlers::semantic_tokens(&graph, &document) {
+                        Ok(result) => {
+                            debug!(
+                                "semantic tokens request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            let tokens = result.map(SemanticTokensResult::Tokens);
+                            completed.send(tokens).ok();
+                        }
+                        Err(err) => {
+                            debug!(
+                                "error occurred while completing semantic tokens request: {err:?}"
+                            );
                             completed.send(None).ok();
                         }
                     }

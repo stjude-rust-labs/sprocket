@@ -25,6 +25,7 @@ use lsp_types::CompletionResponse;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::Location;
+use lsp_types::SemanticTokensResult;
 use lsp_types::WorkspaceEdit;
 use path_clean::PathClean;
 use tokio::runtime::Handle;
@@ -49,6 +50,7 @@ use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::RemoveRequest;
 use crate::queue::RenameRequest;
 use crate::queue::Request;
+use crate::queue::SemanticTokenRequest;
 use crate::rayon::RayonHandle;
 
 /// Represents the kind of analysis progress being reported.
@@ -762,6 +764,29 @@ where
             anyhow!(
                 "failed to receive rename response from analysis queue because the channel has \
                  closed"
+            )
+        })
+    }
+
+    /// Gets semantic tokens for a document
+    pub async fn semantic_tokens(&self, document: Url) -> Result<Option<SemanticTokensResult>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::SemanticTokens(SemanticTokenRequest {
+                document,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send semantic tokens request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive semantic tokens response from analysis queue because the \
+                 channel has closed"
             )
         })
     }
