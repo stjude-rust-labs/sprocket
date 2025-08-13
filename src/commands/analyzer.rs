@@ -5,6 +5,7 @@ use clap::builder::PossibleValuesParser;
 use wdl::lsp::Server;
 use wdl::lsp::ServerOptions;
 
+use crate::IGNORE_FILENAME;
 use crate::commands::explain::ALL_RULE_IDS;
 
 /// Arguments for the `analyzer` subcommand.
@@ -54,6 +55,7 @@ pub async fn analyzer(args: Args) -> anyhow::Result<()> {
         version: Some(env!("CARGO_PKG_VERSION").into()),
         lint: args.lint,
         exceptions: args.except,
+        ignore_filename: Some(IGNORE_FILENAME.to_string()),
     })
     .await
 }

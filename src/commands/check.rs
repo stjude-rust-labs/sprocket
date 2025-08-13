@@ -16,6 +16,7 @@ use wdl::cli::analysis::Source;
 use wdl::lint::find_nearest_rule;
 
 use super::explain::ALL_RULE_IDS;
+use crate::IGNORE_FILENAME;
 use crate::Mode;
 use crate::emit_diagnostics;
 use crate::get_display_config;
@@ -191,6 +192,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         .extend_sources(sources)
         .extend_exceptions(args.common.except)
         .lint(args.lint)
+        .ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .run()
         .await
     {
