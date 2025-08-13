@@ -1,10 +1,20 @@
 backends.default.type = "generic"
 backends.default.backend_config.locale.kind = "Local"
 backends.default.backend_config.shell = "bash"
-backends.default.backend_config.submit = """
-((cd ~{cwd}; ~{command} > ~{stdout} 2> ~{stderr}; echo $? >
-        ~{task_exit_code}) & echo $!)"""
+backends.default.backend_config.submit = """\
+( \
+cd ~{cwd}; \
+bsub -Ne -oo ~{stdout} -eo ~{stderr} ~{command} | \
+sed -n -e 's/Job <\\([[:digit:]]\\+\\)>.*/\\1/p' \
+)
+"""
 backends.default.backend_config.job-id-regex = '(\d+)'
-backends.default.backend_config.monitor = "file -E ~{task_exit_code}"
-backends.default.backend_config.get-exit-code = "cat ~{task_exit_code}"
-backends.default.backend_config.kill = "kill ~{job_id}"
+backends.default.backend_config.monitor = "(stat=$(bjobs -noheader -o \"stat\" ~{job_id}); [ $stat == \"DONE\" ] || [ $stat == \"EXIT\" ])"
+backends.default.backend_config.get-exit-code = """\
+if [ $(bjobs -noheader -o \"stat\" ~{job_id}) == \"DONE\" ]; then \
+echo 0; \
+else \
+bjobs -noheader -o \"exit_code\" ~{job_id};
+fi
+"""
+backends.default.backend_config.kill = "bkill ~{job_id}"
