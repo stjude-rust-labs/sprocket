@@ -8,8 +8,8 @@
 * [ ] Run `cargo update`.
 * [ ] Update any references in the `README.md` to the new version.
 * [ ] Update the [docs site](https://stjude-rust-labs.github.io/sprocket/) to the new version
-  * [in the VitePress configuration file](https://github.com/stjude-rust-labs/sprocket/blob/main/docs/.vitepress/config.mts#L17), and
-  * [on the installation page of the documentation](https://github.com/stjude-rust-labs/sprocket/blob/main/docs/installation.md).
+  * [in the VitePress configuration file](https://github.com/stjude-rust-labs/sprocket.bio/blob/main/.vitepress/config.mts#L19), and
+  * [on the installation page of the documentation](https://github.com/stjude-rust-labs/sprocket.bio/blob/main/installation.md).
 * [ ] Update `CHANGELOG.md` with version and publication date.
 * [ ] Create git commit:
   ```
