@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.7.0 - 08-13-2025
+
 #### Added
 
 * Added an experimental config flag to support golden testing that reduces environment-specific output ([#553](https://github.com/stjude-rust-labs/wdl/pull/553)).

@@ -9,7 +9,7 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-wdl = { path = "../wdl", version = "0.16.0", features = ["codespan", "analysis"] }
+wdl = { path = "../wdl", version = "0.17.0", features = ["codespan", "analysis"] }
 
 anyhow.workspace = true
 clap.workspace = true

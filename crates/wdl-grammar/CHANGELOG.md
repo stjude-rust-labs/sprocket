@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.16.0 - 08-13-2025
+
 #### Added
 
 * Added `is_keyword` and `is_operator` used for LSP semantic highlighting ([#569](https://github.com/stjude-rust-labs/wdl/pull/569)).
