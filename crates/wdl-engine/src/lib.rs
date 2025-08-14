@@ -38,6 +38,11 @@ use wdl_ast::TreeNode;
 /// This is defined as a constant as it's a commonly performed conversion.
 const ONE_GIBIBYTE: f64 = 1024.0 * 1024.0 * 1024.0;
 
+/// One megabyte (MB) as a float.
+///
+/// This is defined as a constant as it's a commonly performed conversion.
+const ONE_MEGABYTE: f64 = 1000.0 * 1000.0;
+
 /// Resolves a type name from a document.
 ///
 /// This function will import the type into the type cache if not already

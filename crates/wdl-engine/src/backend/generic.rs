@@ -30,6 +30,7 @@ use super::TaskSpawnRequest;
 use crate::COMMAND_FILE_NAME;
 use crate::Input;
 use crate::ONE_GIBIBYTE;
+use crate::ONE_MEGABYTE;
 use crate::PrimitiveValue;
 use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
@@ -56,12 +57,8 @@ struct GenericTaskRequest {
     /// The inner task spawn request.
     inner: TaskSpawnRequest,
     /// The requested CPU reservation for the task.
-    ///
-    /// Note that CPU isn't actually reserved for the task process.
     cpu: f64,
     /// The requested memory reservation for the task.
-    ///
-    /// Note that memory isn't actually reserved for the task process.
     memory: u64,
     /// The cancellation token for the request.
     token: CancellationToken,
@@ -135,6 +132,10 @@ impl TaskManagerRequest for GenericTaskRequest {
         )
         .into_owned();
         attributes.insert(Cow::Borrowed("container"), container.into());
+        let cpu = crate::v1::cpu(self.inner.requirements()).floor() as u64;
+        attributes.insert(Cow::Borrowed("cpu"), cpu.to_string().into());
+        let memory_mb = crate::v1::memory(self.inner.requirements())? as f64 / ONE_MEGABYTE;
+        attributes.insert(Cow::Borrowed("memory_mb"), memory_mb.to_string().into());
         // let crankshaft_generic_backend_driver =
         //     crankshaft::config::backend::generic::driver::Config::builder()
         //         .locale(crankshaft::config::backend::generic::driver::Locale::Local)
