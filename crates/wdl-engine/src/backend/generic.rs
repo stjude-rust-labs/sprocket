@@ -129,6 +129,12 @@ impl TaskManagerRequest for GenericTaskRequest {
             Cow::Borrowed("task_exit_code"),
             Cow::Owned(task_exit_code.display().to_string()),
         );
+        let container = crate::v1::container(
+            self.inner.requirements(),
+            self.config.task.container.as_deref(),
+        )
+        .into_owned();
+        attributes.insert(Cow::Borrowed("container"), container.into());
         // let crankshaft_generic_backend_driver =
         //     crankshaft::config::backend::generic::driver::Config::builder()
         //         .locale(crankshaft::config::backend::generic::driver::Locale::Local)

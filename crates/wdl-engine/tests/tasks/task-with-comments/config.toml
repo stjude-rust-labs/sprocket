@@ -4,7 +4,7 @@ backends.default.backend_config.shell = "bash"
 backends.default.backend_config.submit = """\
 ( \
 cd ~{cwd}; \
-bsub -Ne -oo ~{stdout} -eo ~{stderr} ~{command} | \
+bsub -Ne -oo ~{stdout} -eo ~{stderr} 'apptainer -q exec docker://~{container} ~{command}' | \
 sed -n -e 's/Job <\\([[:digit:]]\\+\\)>.*/\\1/p' \
 )
 """

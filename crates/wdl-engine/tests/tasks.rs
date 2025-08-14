@@ -140,13 +140,12 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                     .build(),
             )
             .submit(
-                r#"((cd ~{cwd}; ~{command} > ~{stdout} 2> ~{stderr}; echo $? >
-        ~{task_exit_code}) & echo $!)"#,
+                r#"( cd ~{cwd}; bsub -Ne -oo ~{stdout} -eo ~{stderr} ~{command} | sed -n -e 's/Job <\([[:digit:]]\+\)>.*/\1/p' )"#,
             )
             .job_id_regex(r#"(\d+)"#)
-            .monitor("file -E ~{task_exit_code}")
-            .get_exit_code("cat ~{task_exit_code}")
-            .kill("kill ~{job_id}")
+            .monitor(r#"(stat=$(bjobs -noheader -o "stat" ~{job_id}); [ $stat == "DONE" ] || [ $stat == "EXIT" ])"#)
+            .get_exit_code(r#"if [ $(bjobs -noheader -o "stat" ~{job_id}) == "DONE" ]; then echo 0; else bjobs -noheader -o "exit_code" ~{job_id}; fi"#)
+            .kill("bkill ~{job_id}")
             .build(),
         cpu: None,
         memory: None,
@@ -159,49 +158,16 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
     if !configs_on_disk.is_empty() || any_config_toml_found {
         Ok(configs_on_disk)
     } else {
-        Ok(vec![
-            ("local".into(), {
-                config::Config {
-                    backends: [(
-                        "default".to_string(),
-                        BackendConfig::Local(Default::default()),
-                    )]
-                    .into(),
-                    suppress_env_specific_output: true,
-                    ..Default::default()
-                }
-            }),
-            ("local_generic".into(), {
-                config::Config {
-                    backends: [(
-                        "default".to_string(),
-                        BackendConfig::Generic(generic_backend_config),
-                    )]
-                    .into(),
-                    task: config::TaskConfig {
-                        cpu_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
-                        memory_limit_behavior: config::TaskResourceLimitBehavior::TryWithMax,
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                }
-            }),
-            // Currently we limit running the Docker backend to Linux as GitHub does not have
-            // Docker installed on macOS hosted runners and the Windows hosted runners
-            // are configured to use Windows containers
-            #[cfg(target_os = "linux")]
-            ("docker".into(), {
-                config::Config {
-                    backends: [(
-                        "default".to_string(),
-                        BackendConfig::Docker(Default::default()),
-                    )]
-                    .into(),
-                    suppress_env_specific_output: true,
-                    ..Default::default()
-                }
-            }),
-        ])
+        Ok(vec![("generic_lsf".into(), {
+            config::Config {
+                backends: [(
+                    "default".to_string(),
+                    BackendConfig::Generic(generic_backend_config),
+                )]
+                .into(),
+                ..Default::default()
+            }
+        })])
     }
 }
 
@@ -337,7 +303,8 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
     inputs.join_paths(task, |_| Ok(&test_dir))?;
 
     let evaluator = TaskEvaluator::new(config, CancellationToken::new()).await?;
-    let mut dir = TempDir::new().context("failed to create temporary directory")?;
+    let mut dir = TempDir::new_in("/home/afoltzer/faketmp")
+        .context("failed to create temporary directory")?;
     // dir.disable_cleanup(true);
     match evaluator
         .evaluate(result.document(), task, &inputs, dir.path(), |_| async {})
