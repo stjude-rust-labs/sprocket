@@ -132,7 +132,7 @@ impl TaskManagerRequest for GenericTaskRequest {
         )
         .into_owned();
         attributes.insert(Cow::Borrowed("container"), container.into());
-        let cpu = crate::v1::cpu(self.inner.requirements()).floor() as u64;
+        let cpu = crate::v1::cpu(self.inner.requirements()).ceil() as u64;
         attributes.insert(Cow::Borrowed("cpu"), cpu.to_string().into());
         let memory_mb = crate::v1::memory(self.inner.requirements())? as f64 / ONE_MEGABYTE;
         attributes.insert(Cow::Borrowed("memory_mb"), memory_mb.to_string().into());
