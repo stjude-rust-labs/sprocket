@@ -140,12 +140,18 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                     .build(),
             )
             .submit(
-                r#"( cd ~{cwd}; bsub -Ne -oo ~{stdout} -eo ~{stderr} ~{command} | sed -n -e 's/Job <\([[:digit:]]\+\)>.*/\1/p' )"#,
+                "docker run -w ~{cwd} \
+                 --mount type=bind,src=~{command},dst=~{command} \
+                 --mount type=bind,src=~{stdout},dst=~{stdout} \
+                 --mount type=bind,src=~{stderr},dst=~{stderr} \
+                 -d \
+                 ~{container} \
+                 bash -c \"~{command} > ~{stdout} 2> ~{stderr}\"",
             )
-            .job_id_regex(r#"(\d+)"#)
-            .monitor(r#"(stat=$(bjobs -noheader -o "stat" ~{job_id}); [ $stat == "DONE" ] || [ $stat == "EXIT" ])"#)
-            .get_exit_code(r#"if [ $(bjobs -noheader -o "stat" ~{job_id}) == "DONE" ]; then echo 0; else bjobs -noheader -o "exit_code" ~{job_id}; fi"#)
-            .kill("bkill ~{job_id}")
+            .job_id_regex(r#"([[:xdigit:]]+)"#)
+            .monitor("(stat=$(docker container inspect ~{job_id} --format \"{{.State.Status}}\"); [ $stat == \"exited\" ])")
+            .get_exit_code("docker wait ~{job_id}")
+            .kill("docker container kill ~{job_id}")
             .build(),
         cpu: None,
         memory: None,
@@ -158,7 +164,7 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
     if !configs_on_disk.is_empty() || any_config_toml_found {
         Ok(configs_on_disk)
     } else {
-        Ok(vec![("generic_lsf".into(), {
+        Ok(vec![("generic_local_docker".into(), {
             config::Config {
                 backends: [(
                     "default".to_string(),
@@ -303,8 +309,7 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
     inputs.join_paths(task, |_| Ok(&test_dir))?;
 
     let evaluator = TaskEvaluator::new(config, CancellationToken::new()).await?;
-    let mut dir = TempDir::new_in("/home/afoltzer/faketmp")
-        .context("failed to create temporary directory")?;
+    let mut dir = TempDir::new().context("failed to create temporary directory")?;
     // dir.disable_cleanup(true);
     match evaluator
         .evaluate(result.document(), task, &inputs, dir.path(), |_| async {})
