@@ -119,12 +119,12 @@ impl TaskManagerRequest for GenericTaskRequest {
         // every file in `cwd` for equivalence
         attributes.insert(
             Cow::Borrowed("temp_dir"),
-            Cow::Owned(temp_dir.path().display().to_string()),
+            temp_dir.path().display().to_string().into(),
         );
         let task_exit_code = temp_dir.path().join("task_exit_code");
         attributes.insert(
             Cow::Borrowed("task_exit_code"),
-            Cow::Owned(task_exit_code.display().to_string()),
+            task_exit_code.display().to_string().into(),
         );
         let container = crate::v1::container(
             self.inner.requirements(),
@@ -171,6 +171,35 @@ impl TaskManagerRequest for GenericTaskRequest {
             .await?;
 
         let generic_task = crankshaft::engine::Task::builder()
+            // TODO ACF 2025-08-22: outputs? It looks like other backends just treat the attempt dir
+            // contents as the only output rather than enumerating based on the task definition
+            .inputs(
+                self.inner
+                    .inputs()
+                    .into_iter()
+                    .map(|input| {
+                        crankshaft::engine::task::Input::builder()
+                            .contents(match input.path() {
+                                EvaluationPath::Local(path_buf) => {
+                                    crankshaft::engine::task::input::Contents::Path(
+                                        path_buf.clone(),
+                                    )
+                                }
+                                EvaluationPath::Remote(url) => {
+                                    crankshaft::engine::task::input::Contents::Url(url.clone())
+                                }
+                            })
+                            .path(
+                                input
+                                    .guest_path()
+                                    .expect("input must have a guest path")
+                                    .to_string(),
+                            )
+                            .ty(input.kind())
+                            .build()
+                    })
+                    .collect::<Vec<_>>(),
+            )
             .executions(NonEmpty::new(
                 crankshaft::engine::task::Execution::builder()
                     .image("not_an_image")

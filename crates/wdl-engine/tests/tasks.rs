@@ -144,6 +144,9 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                  --mount type=bind,src={{command}},dst={{command}} \
                  --mount type=bind,src={{stdout}},dst={{stdout}} \
                  --mount type=bind,src={{stderr}},dst={{stderr}} \
+                 {{#each inputs}}
+                 --mount type=bind,src={{this.host_path}},dst={{guest_path}} \
+                 {{/each}}
                  -d \
                  {{container}} \
                  bash -c \"{{command}} > {{stdout}} 2> {{stderr}}\"",
