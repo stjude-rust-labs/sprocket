@@ -140,18 +140,18 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                     .build(),
             )
             .submit(
-                "docker run -w ~{cwd} \
-                 --mount type=bind,src=~{command},dst=~{command} \
-                 --mount type=bind,src=~{stdout},dst=~{stdout} \
-                 --mount type=bind,src=~{stderr},dst=~{stderr} \
+                "docker run -w {{cwd}} \
+                 --mount type=bind,src={{command}},dst={{command}} \
+                 --mount type=bind,src={{stdout}},dst={{stdout}} \
+                 --mount type=bind,src={{stderr}},dst={{stderr}} \
                  -d \
-                 ~{container} \
-                 bash -c \"~{command} > ~{stdout} 2> ~{stderr}\"",
+                 {{container}} \
+                 bash -c \"{{command}} > {{stdout}} 2> {{stderr}}\"",
             )
             .job_id_regex(r#"([[:xdigit:]]+)"#)
-            .monitor("(stat=$(docker container inspect ~{job_id} --format \"{{.State.Status}}\"); [ $stat == \"exited\" ])")
-            .get_exit_code("docker wait ~{job_id}")
-            .kill("docker container kill ~{job_id}")
+            .monitor("(stat=$(docker container inspect {{job_id}} --format \"\\{{.State.Status}}\"); [ $stat == \"exited\" ])")
+            .get_exit_code("docker wait {{job_id}}")
+            .kill("docker container kill {{job_id}}")
             .build(),
         cpu: None,
         memory: None,
