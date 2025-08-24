@@ -16,6 +16,7 @@ mod goto_definition;
 mod hover;
 mod rename;
 mod semantic_tokens;
+pub(crate) mod snippets;
 
 pub use completions::*;
 pub use document_symbol::*;

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added support for snippets ([#577](https://github.com/stjude-rust-labs/wdl/pull/577)).
 * Added support for document symbols ([#582](https://github.com/stjude-rust-labs/wdl/pull/582)).
 
 ## 0.12.0 - 08-13-2025
