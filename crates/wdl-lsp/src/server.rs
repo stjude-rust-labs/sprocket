@@ -415,6 +415,7 @@ impl LanguageServer for Server {
                         ..Default::default()
                     },
                 )),
+                document_symbol_provider: Some(OneOf::Left(true)),
                 document_formatting_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
@@ -896,6 +897,27 @@ impl LanguageServer for Server {
         let result = self
             .analyzer
             .semantic_tokens(params.text_document.uri)
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?;
+
+        Ok(result)
+    }
+
+    async fn document_symbol(
+        &self,
+        mut params: DocumentSymbolParams,
+    ) -> RpcResult<Option<DocumentSymbolResponse>> {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/documentSymbol` request: {params:#?}");
+
+        let result = self
+            .analyzer
+            .document_symbol(params.text_document.uri)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,

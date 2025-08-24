@@ -16,6 +16,7 @@ use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use indexmap::IndexSet;
 use lsp_types::CompletionResponse;
+use lsp_types::DocumentSymbolResponse;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::Location;
@@ -81,6 +82,8 @@ pub enum Request<Context> {
     Rename(RenameRequest),
     /// A request to get semantic tokens for a document
     SemanticTokens(SemanticTokenRequest),
+    /// A request to get symbols for a document
+    DocumentSymbol(DocumentSymbolRequest),
 }
 
 /// Represents a request to add documents to the graph.
@@ -213,6 +216,14 @@ pub struct SemanticTokenRequest {
     pub document: Url,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<SemanticTokensResult>>,
+}
+
+/// Represents a request to get the symbols for a document.
+pub struct DocumentSymbolRequest {
+    /// The document to get symbols for
+    pub document: Url,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<DocumentSymbolResponse>>,
 }
 
 /// A simple enumeration to signal a cancellation to the caller.
@@ -597,6 +608,31 @@ where
                         Err(err) => {
                             debug!(
                                 "error occurred while completing semantic tokens request: {err:?}"
+                            );
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+
+                Request::DocumentSymbol(DocumentSymbolRequest {
+                    document,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!("received request for document symbols for {document}");
+
+                    let graph = self.graph.read();
+                    match handlers::document_symbol(&graph, &document) {
+                        Ok(result) => {
+                            debug!(
+                                "document symbol request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            debug!(
+                                "error occurred while completing document symbol request: {err:?}"
                             );
                             completed.send(None).ok();
                         }

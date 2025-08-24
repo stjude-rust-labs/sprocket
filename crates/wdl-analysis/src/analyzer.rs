@@ -22,6 +22,7 @@ use line_index::LineIndex;
 use line_index::WideEncoding;
 use line_index::WideLineCol;
 use lsp_types::CompletionResponse;
+use lsp_types::DocumentSymbolResponse;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::Location;
@@ -41,6 +42,7 @@ use crate::queue::AddRequest;
 use crate::queue::AnalysisQueue;
 use crate::queue::AnalyzeRequest;
 use crate::queue::CompletionRequest;
+use crate::queue::DocumentSymbolRequest;
 use crate::queue::FindAllReferencesRequest;
 use crate::queue::FormatRequest;
 use crate::queue::GotoDefinitionRequest;
@@ -787,6 +789,29 @@ where
             anyhow!(
                 "failed to receive semantic tokens response from analysis queue because the \
                  channel has closed"
+            )
+        })
+    }
+
+    /// Gets document symbols for a document.
+    pub async fn document_symbol(&self, document: Url) -> Result<Option<DocumentSymbolResponse>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::DocumentSymbol(DocumentSymbolRequest {
+                document,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send document symbol request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive document symbol request to analysis queue because the channel \
+                 has closed"
             )
         })
     }
