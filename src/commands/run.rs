@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -10,13 +11,17 @@ use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
 use colored::Colorize as _;
+use crankshaft::events::Event;
 use futures::FutureExt as _;
-use indexmap::IndexSet;
+use indexmap::IndexMap;
 use indicatif::ProgressStyle;
 use tokio::select;
+use tokio::sync::broadcast;
+use tokio::sync::broadcast::error::RecvError;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
+use tracing::warn;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
@@ -29,7 +34,6 @@ use wdl::cli::inputs::OriginPaths;
 use wdl::engine;
 use wdl::engine::EvaluationError;
 use wdl::engine::Inputs as EngineInputs;
-use wdl::engine::v1::ProgressKind;
 
 use crate::Mode;
 use crate::emit_diagnostics;
@@ -107,7 +111,7 @@ pub struct Args {
 
     /// The engine configuration to use.
     ///
-    /// This is not exposed via [`clap`] and is unsettable by users.
+    /// This is not exposed via [`clap`] and is not settable by users.
     /// It will always be overwritten by the engine config provided by the user
     /// (which will be set with `Default::default()` if the user does not
     /// explicitly set `run` config values).
@@ -130,16 +134,16 @@ impl Args {
     }
 }
 
-/// Helper for displaying task ids.
-struct Ids<'a>(&'a IndexSet<String>);
+/// Helper for displaying task names.
+struct Tasks<'a>(&'a IndexMap<u64, String>);
 
-impl std::fmt::Display for Ids<'_> {
+impl std::fmt::Display for Tasks<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         /// The maximum number of executing task names to display at a time
         const MAX_TASKS: usize = 10;
 
         let mut first = true;
-        for (i, id) in self.0.iter().enumerate() {
+        for (i, (_, name)) in self.0.iter().enumerate() {
             if i == MAX_TASKS {
                 write!(f, "...")?;
                 break;
@@ -151,7 +155,7 @@ impl std::fmt::Display for Ids<'_> {
                 write!(f, ", ")?;
             }
 
-            write!(f, "{id}", id = id.magenta().bold())?;
+            write!(f, "{name}", name = name.magenta().bold())?;
         }
 
         Ok(())
@@ -161,43 +165,29 @@ impl std::fmt::Display for Ids<'_> {
 /// Represents state for reporting evaluation progress.
 #[derive(Default)]
 struct State {
-    /// The set of currently executing task identifiers.
-    ids: IndexSet<String>,
-    /// The number of completed tasks.
-    completed: usize,
+    /// The map of currently executing tasks.
+    tasks: IndexMap<u64, String>,
     /// The number of tasks awaiting execution.
     ready: usize,
     /// The number of currently executing tasks.
     executing: usize,
+    /// The number of failed tasks.
+    failed: usize,
+    /// The number of completed tasks.
+    completed: usize,
 }
 
-/// A callback for updating state based on engine events.
-fn progress(kind: ProgressKind<'_>, pb: &tracing::Span, state: &Mutex<State>) {
-    pb.pb_start();
-
-    let message = {
-        let mut state = state.lock().expect("failed to lock progress mutex");
-        match kind {
-            ProgressKind::TaskStarted { .. } | ProgressKind::TaskRetried { .. } => {
-                state.ready += 1;
-            }
-            ProgressKind::TaskExecutionStarted { id } => {
-                state.ready -= 1;
-                state.executing += 1;
-                state.ids.insert(id.to_string());
-            }
-            ProgressKind::TaskExecutionCompleted { id, .. } => {
-                state.executing -= 1;
-                state.ids.swap_remove(id);
-            }
-            ProgressKind::TaskCompleted { .. } => {
-                state.completed += 1;
-            }
-            _ => {}
-        }
-
+/// Displays evaluation progress.
+async fn progress(
+    mut events: broadcast::Receiver<Event>,
+    pb: tracing::Span,
+    state: Arc<Mutex<State>>,
+) {
+    /// Helper for formatting the progress bar
+    fn message(state: &State) -> String {
         format!(
-            " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e} {executing} task{s3}: {ids}",
+            " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e} {executing} \
+             task{s3}{sep}{tasks}",
             c = state.completed,
             completed = "completed".cyan(),
             s1 = if state.completed == 1 { "" } else { "s" },
@@ -207,11 +197,64 @@ fn progress(kind: ProgressKind<'_>, pb: &tracing::Span, state: &Mutex<State>) {
             e = state.executing,
             executing = "executing".cyan(),
             s3 = if state.executing == 1 { "" } else { "s" },
-            ids = Ids(&state.ids)
+            sep = if state.tasks.is_empty() { "" } else { ": " },
+            tasks = Tasks(&state.tasks)
         )
-    };
+    }
 
-    pb.pb_set_message(&message);
+    let mut warned = false;
+
+    loop {
+        match events.recv().await {
+            Ok(event) => {
+                pb.pb_start();
+
+                let message = match event {
+                    Event::TaskCreated { id, name, .. } => {
+                        let mut state = state.lock().expect("failed to lock state");
+                        state.tasks.insert(id, name);
+                        state.ready += 1;
+                        message(&state)
+                    }
+                    Event::TaskStarted { .. } => {
+                        let mut state = state.lock().expect("failed to lock state");
+                        state.executing += 1;
+                        message(&state)
+                    }
+                    Event::TaskCompleted { id, .. } => {
+                        let mut state = state.lock().expect("failed to lock state");
+                        state.tasks.swap_remove(&id);
+                        state.executing -= 1;
+                        state.completed += 1;
+                        message(&state)
+                    }
+                    Event::TaskFailed { id, .. } => {
+                        let mut state = state.lock().expect("failed to lock state");
+                        state.tasks.swap_remove(&id);
+                        state.executing -= 1;
+                        state.failed += 1;
+                        message(&state)
+                    }
+                    Event::TaskCanceled { id } | Event::TaskPreempted { id } => {
+                        let mut state = state.lock().expect("failed to lock state");
+                        state.tasks.swap_remove(&id);
+                        state.executing -= 1;
+                        message(&state)
+                    }
+                    _ => continue,
+                };
+
+                pb.pb_set_message(&message);
+            }
+            Err(RecvError::Closed) => break,
+            Err(RecvError::Lagged(_)) => {
+                if !warned {
+                    warned = true;
+                    warn!("event stream is lagging: task progress reporting may be incorrect");
+                }
+            }
+        }
+    }
 }
 
 /// Determines the timestamped execution directory and performs any necessary
@@ -426,7 +469,11 @@ pub async fn run(args: Args) -> Result<()> {
         .unwrap(),
     );
 
-    let state = Mutex::<State>::default();
+    let state = Arc::new(Mutex::<State>::default());
+    let token = CancellationToken::new();
+    let (events_tx, events_rx) = broadcast::channel(100);
+    let events = tokio::spawn(progress(events_rx, span, state));
+
     let evaluator = Evaluator::new(
         document,
         &entrypoint,
@@ -435,14 +482,8 @@ pub async fn run(args: Args) -> Result<()> {
         args.engine,
         &output_dir,
     );
-    let token = CancellationToken::new();
 
-    let mut evaluate = evaluator
-        .run(token.clone(), move |kind: ProgressKind<'_>| {
-            progress(kind, &span, &state);
-            async {}
-        })
-        .boxed();
+    let mut evaluate = evaluator.run(token.clone(), Some(events_tx)).boxed();
 
     select! {
         // Always prefer the CTRL-C signal to the evaluation returning.
@@ -452,18 +493,23 @@ pub async fn run(args: Args) -> Result<()> {
             error!("execution was interrupted: waiting for evaluation to abort");
             token.cancel();
             evaluate.await.ok();
+            events.await.ok();
             bail!("execution was aborted");
         },
-        res = &mut evaluate => match res {
-            Ok(outputs) => {
-                println!("{outputs}", outputs = serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
-                Ok(())
+        res = &mut evaluate => {
+            events.await.ok();
+
+            match res {
+                Ok(outputs) => {
+                    println!("{outputs}", outputs = serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
+                    Ok(())
+                }
+                Err(EvaluationError::Source(e)) => {
+                    emit_diagnostics(&e.document.path(), e.document.root().text().to_string(), &[e.diagnostic], &e.backtrace, args.report_mode.unwrap_or_default(), args.no_color)?;
+                    bail!("aborting due to evaluation error");
+                }
+                Err(EvaluationError::Other(e)) => Err(e)
             }
-            Err(EvaluationError::Source(e)) => {
-                emit_diagnostics(&e.document.path(), e.document.root().text().to_string(), &[e.diagnostic], &e.backtrace, args.report_mode.unwrap_or_default(), args.no_color)?;
-                bail!("aborting due to evaluation error");
-            }
-            Err(EvaluationError::Other(e)) => Err(e)
         },
     }
 }
