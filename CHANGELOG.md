@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `sprocket explain --tag <tag>` is now case-insensitive ([#168](https://github.com/stjude-rust-labs/sprocket/pull/168)).
 * The `--deny-notes` argument to `check`/`lint` now correctly implies `--deny-warnings` ([#166](https://github.com/stjude-rust-labs/sprocket/pull/166)).
 
+### Changed
+
+* Replaced `sprocket run` progress bar implementation with one based off of
+  Crankshaft events ([#164](https://github.com/stjude-rust-labs/sprocket/pull/164)).
+
 ## 0.16.0 - 08-13-2025
 
 ### Added
@@ -156,7 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-* URLs can be checked/linted ([#58](https://github.com/stjude-rust-labs/sprocket/pull/58)). 
+* URLs can be checked/linted ([#58](https://github.com/stjude-rust-labs/sprocket/pull/58)).
 
 ### Added
 
