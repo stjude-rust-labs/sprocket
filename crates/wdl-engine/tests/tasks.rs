@@ -141,6 +141,7 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
             )
             .submit(
                 "docker run -w {{cwd}} \
+                 --mount type=bind,src={{cwd}},dst={{cwd}} \
                  --mount type=bind,src={{command}},dst={{command}} \
                  --mount type=bind,src={{stdout}},dst={{stdout}} \
                  --mount type=bind,src={{stderr}},dst={{stderr}} \
