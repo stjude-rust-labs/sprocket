@@ -10,13 +10,16 @@ repository.workspace = true
 description = "Execution engine for Workflow Description Language (WDL) documents."
 documentation = "https://docs.rs/wdl-engine"
 
+[features]
+default = []
+codespan = ["wdl-ast/codespan"]
+codespan-reporting = ["codespan", "dep:codespan-reporting"]
+
 [dependencies]
-wdl-analysis = { version = "0.12.0", path = "../wdl-analysis" }
-wdl-ast = { version = "0.16.0", path = "../wdl-ast" }
-wdl-grammar = { version = "0.16.0", path = "../wdl-grammar" }
 anyhow = { workspace = true }
-crankshaft = { workspace = true }
+chrono = { workspace = true }
 codespan-reporting = { workspace = true, optional = true }
+crankshaft = { workspace = true }
 dirs = { workspace = true }
 futures = { workspace = true }
 glob = { workspace = true }
@@ -32,7 +35,7 @@ rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
 reqwest-middleware = { workspace = true }
-rev_buf_reader = "0.3.0"
+rev_buf_reader = { workspace = true }
 rowan = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -44,7 +47,9 @@ tokio = { workspace = true }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
-chrono = { workspace = true }
+wdl-analysis = { version = "0.12.0", path = "../wdl-analysis" }
+wdl-ast = { version = "0.16.0", path = "../wdl-ast" }
+wdl-grammar = { version = "0.16.0", path = "../wdl-grammar" }
 
 [dev-dependencies]
 approx = { workspace = true }
@@ -56,11 +61,6 @@ walkdir = { workspace = true }
 
 [lints]
 workspace = true
-
-[features]
-default = []
-codespan = ["wdl-ast/codespan"]
-codespan-reporting = ["codespan", "dep:codespan-reporting"]
 
 [[test]]
 name = "inputs"

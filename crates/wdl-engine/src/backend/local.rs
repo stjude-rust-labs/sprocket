@@ -7,15 +7,24 @@ use std::fs::File;
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use crankshaft::engine::service::name::GeneratorIterator;
+use crankshaft::engine::service::name::UniqueAlphanumeric;
+use crankshaft::events::Event;
+use crankshaft::events::next_task_id;
+use crankshaft::events::send_event;
 use futures::FutureExt;
 use futures::future::BoxFuture;
+use nonempty::NonEmpty;
 use tokio::process::Command;
 use tokio::select;
+use tokio::sync::broadcast;
 use tokio::sync::oneshot;
+use tokio::sync::oneshot::Receiver;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
@@ -23,7 +32,6 @@ use tracing::warn;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
-use super::TaskExecutionEvents;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
@@ -37,6 +45,7 @@ use crate::SYSTEM;
 use crate::TaskExecutionResult;
 use crate::Value;
 use crate::WORK_DIR_NAME;
+use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::LocalBackendConfig;
@@ -59,6 +68,8 @@ struct LocalTaskRequest {
     config: Arc<Config>,
     /// The inner task spawn request.
     inner: TaskSpawnRequest,
+    /// The name of the task.
+    name: String,
     /// The requested CPU reservation for the task.
     ///
     /// Note that CPU isn't actually reserved for the task process.
@@ -69,6 +80,8 @@ struct LocalTaskRequest {
     memory: u64,
     /// The cancellation token for the request.
     token: CancellationToken,
+    /// The sender for events.
+    events: Option<broadcast::Sender<Event>>,
 }
 
 impl TaskManagerRequest for LocalTaskRequest {
@@ -80,114 +93,144 @@ impl TaskManagerRequest for LocalTaskRequest {
         self.memory
     }
 
-    async fn run(self, spawned: oneshot::Sender<()>) -> Result<TaskExecutionResult> {
-        // Create the working directory
+    async fn run(self) -> Result<TaskExecutionResult> {
+        let id = next_task_id();
         let work_dir = self.inner.attempt_dir().join(WORK_DIR_NAME);
-        fs::create_dir_all(&work_dir).with_context(|| {
-            format!(
-                "failed to create directory `{path}`",
-                path = work_dir.display()
-            )
-        })?;
-
-        // Write the evaluated command to disk
-        let command_path = self.inner.attempt_dir().join(COMMAND_FILE_NAME);
-        fs::write(&command_path, self.inner.command()).with_context(|| {
-            format!(
-                "failed to write command contents to `{path}`",
-                path = command_path.display()
-            )
-        })?;
-
-        // Create a file for the stdout
         let stdout_path = self.inner.attempt_dir().join(STDOUT_FILE_NAME);
-        let stdout = File::create(&stdout_path).with_context(|| {
-            format!(
-                "failed to create stdout file `{path}`",
-                path = stdout_path.display()
-            )
-        })?;
-
-        // Create a file for the stderr
         let stderr_path = self.inner.attempt_dir().join(STDERR_FILE_NAME);
-        let stderr = File::create(&stderr_path).with_context(|| {
-            format!(
-                "failed to create stderr file `{path}`",
-                path = stderr_path.display()
-            )
-        })?;
 
-        let mut command = Command::new(
-            self.config
-                .task
-                .shell
-                .as_deref()
-                .unwrap_or(DEFAULT_TASK_SHELL),
+        let run = async {
+            // Create the working directory
+            fs::create_dir_all(&work_dir).with_context(|| {
+                format!(
+                    "failed to create directory `{path}`",
+                    path = work_dir.display()
+                )
+            })?;
+
+            // Write the evaluated command to disk
+            let command_path = self.inner.attempt_dir().join(COMMAND_FILE_NAME);
+            fs::write(&command_path, self.inner.command()).with_context(|| {
+                format!(
+                    "failed to write command contents to `{path}`",
+                    path = command_path.display()
+                )
+            })?;
+
+            // Create a file for the stdout
+            let stdout = File::create(&stdout_path).with_context(|| {
+                format!(
+                    "failed to create stdout file `{path}`",
+                    path = stdout_path.display()
+                )
+            })?;
+
+            // Create a file for the stderr
+            let stderr = File::create(&stderr_path).with_context(|| {
+                format!(
+                    "failed to create stderr file `{path}`",
+                    path = stderr_path.display()
+                )
+            })?;
+
+            let mut command = Command::new(
+                self.config
+                    .task
+                    .shell
+                    .as_deref()
+                    .unwrap_or(DEFAULT_TASK_SHELL),
+            );
+            command
+                .current_dir(&work_dir)
+                .arg(command_path)
+                .stdin(Stdio::null())
+                .stdout(stdout)
+                .stderr(stderr)
+                .envs(
+                    self.inner
+                        .env()
+                        .iter()
+                        .map(|(k, v)| (OsStr::new(k), OsStr::new(v))),
+                )
+                .kill_on_drop(true);
+
+            // Set the PATH variable for the child on Windows to get consistent PATH
+            // searching. See: https://github.com/rust-lang/rust/issues/122660
+            #[cfg(windows)]
+            if let Ok(path) = std::env::var("PATH") {
+                command.env("PATH", path);
+            }
+
+            let mut child = command.spawn().context("failed to spawn shell")?;
+
+            // Notify that the process has spawned
+            send_event!(self.events, Event::TaskStarted { id });
+
+            let id = child.id().expect("should have id");
+            info!(
+                "spawned local shell process {id} for execution of task `{name}`",
+                name = self.name
+            );
+
+            let status = child.wait().await.with_context(|| {
+                format!("failed to wait for termination of task child process {id}")
+            })?;
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::process::ExitStatusExt;
+                if let Some(signal) = status.signal() {
+                    tracing::warn!("task process {id} has terminated with signal {signal}");
+
+                    bail!(
+                        "task child process {id} has terminated with signal {signal}; see stderr \
+                         file `{path}` for more details",
+                        path = stderr_path.display()
+                    );
+                }
+            }
+
+            Ok(status)
+        };
+
+        // Send the created event
+        send_event!(
+            self.events,
+            Event::TaskCreated {
+                id,
+                name: self.name.clone(),
+                tes_id: None
+            }
         );
-        command
-            .current_dir(&work_dir)
-            .arg(command_path)
-            .stdin(Stdio::null())
-            .stdout(stdout)
-            .stderr(stderr)
-            .envs(
-                self.inner
-                    .env()
-                    .iter()
-                    .map(|(k, v)| (OsStr::new(k), OsStr::new(v))),
-            )
-            .kill_on_drop(true);
-
-        // Set the PATH variable for the child on Windows to get consistent PATH
-        // searching. See: https://github.com/rust-lang/rust/issues/122660
-        #[cfg(windows)]
-        if let Ok(path) = std::env::var("PATH") {
-            command.env("PATH", path);
-        }
-
-        let mut child = command.spawn().context("failed to spawn shell")?;
-
-        // Notify that the process has spawned
-        spawned.send(()).ok();
-
-        let id = child.id().expect("should have id");
-        info!("spawned local shell process {id} for task execution");
 
         select! {
             // Poll the cancellation token before the child future
             biased;
 
             _ = self.token.cancelled() => {
+                send_event!(self.events, Event::TaskCanceled { id });
                 bail!("task was cancelled");
             }
-            status = child.wait() => {
-                let status = status.with_context(|| {
-                    format!("failed to wait for termination of task child process {id}")
-                })?;
+            result = run => {
+                match result {
+                    Ok(status) => {
+                        send_event!(self.events, Event::TaskCompleted { id, exit_statuses: NonEmpty::new(status) });
 
-                #[cfg(unix)]
-                {
-                    use std::os::unix::process::ExitStatusExt;
-                    if let Some(signal) = status.signal() {
-                        tracing::warn!("task process {id} has terminated with signal {signal}");
-
-                        bail!(
-                            "task child process {id} has terminated with signal {signal}; see stderr file \
-                            `{path}` for more details",
-                            path = stderr_path.display()
-                        );
+                        let exit_code = status.code().expect("process should have exited");
+                        info!("process {id} for task `{name}` has terminated with status code {exit_code}", name = self.name);
+                        Ok(TaskExecutionResult {
+                            inputs: self.inner.info.inputs,
+                            exit_code,
+                            work_dir: EvaluationPath::Local(work_dir),
+                            stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
+                            stderr: PrimitiveValue::new_file(stderr_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
+                        })
+                    }
+                    Err(e) => {
+                        send_event!(self.events, Event::TaskFailed { id, message: format!("{e:#}") });
+                        Err(e)
                     }
                 }
-
-                let exit_code = status.code().expect("process should have exited");
-                info!("task process {id} has terminated with status code {exit_code}");
-                Ok(TaskExecutionResult {
-                    inputs: self.inner.info.inputs,
-                    exit_code,
-                    work_dir: EvaluationPath::Local(work_dir),
-                    stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
-                    stderr: PrimitiveValue::new_file(stderr_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
-                })
             }
         }
     }
@@ -208,6 +251,10 @@ pub struct LocalBackend {
     memory: u64,
     /// The underlying task manager.
     manager: TaskManager<LocalTaskRequest>,
+    /// The name generator for tasks.
+    names: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
+    /// The sender for events.
+    events: Option<broadcast::Sender<Event>>,
 }
 
 impl LocalBackend {
@@ -215,8 +262,17 @@ impl LocalBackend {
     /// configuration.
     ///
     /// The provided configuration is expected to have already been validated.
-    pub fn new(config: Arc<Config>, backend_config: &LocalBackendConfig) -> Result<Self> {
+    pub fn new(
+        config: Arc<Config>,
+        backend_config: &LocalBackendConfig,
+        events: Option<broadcast::Sender<Event>>,
+    ) -> Result<Self> {
         info!("initializing local backend");
+
+        let names = Arc::new(Mutex::new(GeneratorIterator::new(
+            UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
+            INITIAL_EXPECTED_NAMES,
+        )));
 
         let cpu = backend_config
             .cpu
@@ -233,6 +289,8 @@ impl LocalBackend {
             cpu,
             memory,
             manager,
+            names,
+            events,
         })
     }
 }
@@ -399,8 +457,7 @@ impl TaskExecutionBackend for LocalBackend {
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<TaskExecutionEvents> {
-        let (spawned_tx, spawned_rx) = oneshot::channel();
+    ) -> Result<Receiver<Result<TaskExecutionResult>>> {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();
@@ -413,21 +470,30 @@ impl TaskExecutionBackend for LocalBackend {
             memory = std::cmp::min(memory, self.memory);
         }
 
+        let name = format!(
+            "{id}-{generated}",
+            id = request.id(),
+            generated = self
+                .names
+                .lock()
+                .expect("generator should always acquire")
+                .next()
+                .expect("generator should never be exhausted")
+        );
+
         self.manager.send(
             LocalTaskRequest {
                 config: self.config.clone(),
                 inner: request,
+                name,
                 cpu,
                 memory,
                 token,
+                events: self.events.clone(),
             },
-            spawned_tx,
             completed_tx,
         );
 
-        Ok(TaskExecutionEvents {
-            spawned: spawned_rx,
-            completed: completed_rx,
-        })
+        Ok(completed_rx)
     }
 }

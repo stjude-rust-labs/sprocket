@@ -23,10 +23,13 @@ use crankshaft::engine::task::Resources;
 use crankshaft::engine::task::input::Contents;
 use crankshaft::engine::task::input::Type as InputType;
 use crankshaft::engine::task::output::Type as OutputType;
+use crankshaft::events::Event;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
+use tokio::sync::broadcast;
 use tokio::sync::oneshot;
+use tokio::sync::oneshot::Receiver;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
@@ -35,7 +38,6 @@ use url::Url;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
-use super::TaskExecutionEvents;
 use super::TaskExecutionResult;
 use super::TaskManager;
 use super::TaskManagerRequest;
@@ -48,6 +50,7 @@ use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
 use crate::Value;
 use crate::WORK_DIR_NAME;
+use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::DockerBackendConfig;
@@ -61,12 +64,6 @@ use crate::v1::cpu;
 use crate::v1::max_cpu;
 use crate::v1::max_memory;
 use crate::v1::memory;
-
-/// The number of initial expected task names.
-///
-/// This controls the initial size of the bloom filter and how many names are
-/// prepopulated into the name generator.
-const INITIAL_EXPECTED_NAMES: usize = 1000;
 
 /// The root guest path for inputs.
 const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs";
@@ -118,7 +115,7 @@ impl TaskManagerRequest for DockerTaskRequest {
         self.memory
     }
 
-    async fn run(self, spawned: oneshot::Sender<()>) -> Result<TaskExecutionResult> {
+    async fn run(self) -> Result<TaskExecutionResult> {
         // Create the working directory
         let work_dir = self.inner.attempt_dir().join(WORK_DIR_NAME);
         fs::create_dir_all(&work_dir).with_context(|| {
@@ -240,7 +237,7 @@ impl TaskManagerRequest for DockerTaskRequest {
 
         let statuses = self
             .backend
-            .run(task, Some(spawned), self.token.clone())
+            .run(task, self.token.clone())
             .map_err(|e| anyhow!("{e:#}"))?
             .await
             .map_err(|e| anyhow!("{e:#}"))?;
@@ -285,7 +282,7 @@ pub struct DockerBackend {
     /// The task manager for the backend.
     manager: TaskManager<DockerTaskRequest>,
     /// The name generator for tasks.
-    generator: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
+    names: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
 }
 
 impl DockerBackend {
@@ -293,13 +290,24 @@ impl DockerBackend {
     /// configuration.
     ///
     /// The provided configuration is expected to have already been validated.
-    pub async fn new(config: Arc<Config>, backend_config: &DockerBackendConfig) -> Result<Self> {
+    pub async fn new(
+        config: Arc<Config>,
+        backend_config: &DockerBackendConfig,
+        events: Option<broadcast::Sender<Event>>,
+    ) -> Result<Self> {
         info!("initializing Docker backend");
+
+        let names = Arc::new(Mutex::new(GeneratorIterator::new(
+            UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
+            INITIAL_EXPECTED_NAMES,
+        )));
 
         let backend = docker::Backend::initialize_default_with(
             backend::docker::Config::builder()
                 .cleanup(backend_config.cleanup)
                 .build(),
+            names.clone(),
+            events,
         )
         .await
         .map_err(|e| anyhow!("{e:#}"))
@@ -327,10 +335,7 @@ impl DockerBackend {
             max_cpu,
             max_memory,
             manager,
-            generator: Arc::new(Mutex::new(GeneratorIterator::new(
-                UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
-                INITIAL_EXPECTED_NAMES,
-            ))),
+            names,
         })
     }
 }
@@ -495,8 +500,7 @@ impl TaskExecutionBackend for DockerBackend {
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<TaskExecutionEvents> {
-        let (spawned_tx, spawned_rx) = oneshot::channel();
+    ) -> Result<Receiver<Result<TaskExecutionResult>>> {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();
@@ -518,7 +522,7 @@ impl TaskExecutionBackend for DockerBackend {
             "{id}-{generated}",
             id = request.id(),
             generated = self
-                .generator
+                .names
                 .lock()
                 .expect("generator should always acquire")
                 .next()
@@ -537,14 +541,10 @@ impl TaskExecutionBackend for DockerBackend {
                 max_memory,
                 token,
             },
-            spawned_tx,
             completed_tx,
         );
 
-        Ok(TaskExecutionEvents {
-            spawned: spawned_rx,
-            completed: completed_rx,
-        })
+        Ok(completed_rx)
     }
 
     #[cfg(unix)]
@@ -568,7 +568,7 @@ impl TaskExecutionBackend for DockerBackend {
         const CLEANUP_MEMORY: f64 = 0.05;
 
         let backend = self.inner.clone();
-        let generator = self.generator.clone();
+        let names = self.names.clone();
         let output_path = std::path::absolute(output_dir).expect("failed to get absolute path");
         if !output_path.is_dir() {
             info!("output directory does not exist: skipping cleanup");
@@ -590,7 +590,7 @@ impl TaskExecutionBackend for DockerBackend {
 
                     let name = format!(
                         "docker-backend-cleanup-{id}",
-                        id = generator
+                        id = names
                             .lock()
                             .expect("generator should always acquire")
                             .next()
@@ -626,9 +626,8 @@ impl TaskExecutionBackend for DockerBackend {
                         path = output_path.display(),
                     );
 
-                    let (spawned_tx, _) = oneshot::channel();
                     let output_rx = backend
-                        .run(task, Some(spawned_tx), token)
+                        .run(task, token)
                         .map_err(|e| anyhow!("failed to submit cleanup task: {e}"))?;
 
                     let statuses = output_rx

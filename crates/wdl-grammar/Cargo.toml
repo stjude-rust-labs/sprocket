@@ -10,6 +10,9 @@ homepage = "https://github.com/stjude-rust-labs/wdl"
 repository = "https://github.com/stjude-rust-labs/wdl"
 documentation = "https://docs.rs/wdl-grammar"
 
+[features]
+codespan = ["dep:codespan-reporting"]
+
 [dependencies]
 codespan-reporting = { workspace = true, optional = true }
 logos = { workspace = true }
@@ -23,9 +26,6 @@ anyhow = { workspace = true }
 codespan-reporting = { workspace = true }
 libtest-mimic = { workspace = true }
 pretty_assertions = { workspace = true }
-
-[features]
-codespan = ["dep:codespan-reporting"]
 
 [lints]
 workspace = true

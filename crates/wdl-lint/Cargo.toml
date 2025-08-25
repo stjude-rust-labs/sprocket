@@ -11,10 +11,10 @@ repository.workspace = true
 documentation = "https://docs.rs/wdl-lint"
 readme = "../README.md"
 
-[dependencies]
-wdl-ast = { path = "../wdl-ast", version = "0.16.0" }
-wdl-analysis = { path = "../wdl-analysis", version = "0.12.0" }
+[features]
+codespan = ["wdl-ast/codespan"]
 
+[dependencies]
 anyhow = { workspace = true }
 convert_case = { workspace = true }
 ftree = { workspace = true }
@@ -26,6 +26,8 @@ serde_json = { workspace = true }
 strsim = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
+wdl-analysis = { path = "../wdl-analysis", version = "0.12.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.16.0" }
 
 [dev-dependencies]
 codespan-reporting = { workspace = true }
@@ -34,9 +36,6 @@ path-clean = { workspace = true }
 pretty_assertions = { workspace = true }
 tokio = { workspace = true }
 tracing-subscriber = { workspace = true }
-
-[features]
-codespan = ["wdl-ast/codespan"]
 
 [lints]
 workspace = true

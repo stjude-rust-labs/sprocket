@@ -26,17 +26,19 @@ use crankshaft::engine::task::Resources;
 use crankshaft::engine::task::input::Contents;
 use crankshaft::engine::task::input::Type as InputType;
 use crankshaft::engine::task::output::Type as OutputType;
+use crankshaft::events::Event;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
+use tokio::sync::broadcast;
 use tokio::sync::oneshot;
+use tokio::sync::oneshot::Receiver;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
-use super::TaskExecutionEvents;
 use super::TaskExecutionResult;
 use super::TaskManager;
 use super::TaskManagerRequest;
@@ -50,6 +52,7 @@ use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
 use crate::Value;
 use crate::WORK_DIR_NAME;
+use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TesBackendAuthConfig;
@@ -65,12 +68,6 @@ use crate::v1::max_cpu;
 use crate::v1::max_memory;
 use crate::v1::memory;
 use crate::v1::preemptible;
-
-/// The number of initial expected task names.
-///
-/// This controls the initial size of the bloom filter and how many names are
-/// prepopulated into the name generator.
-const INITIAL_EXPECTED_NAMES: usize = 1000;
 
 /// The root guest path for inputs.
 const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs";
@@ -163,7 +160,7 @@ impl TaskManagerRequest for TesTaskRequest {
         self.memory
     }
 
-    async fn run(self, spawned: oneshot::Sender<()>) -> Result<TaskExecutionResult> {
+    async fn run(self) -> Result<TaskExecutionResult> {
         // Create the attempt directory
         let attempt_dir = self.inner.attempt_dir();
         fs::create_dir_all(attempt_dir).with_context(|| {
@@ -281,7 +278,6 @@ impl TaskManagerRequest for TesTaskRequest {
         ];
 
         let mut preemptible = self.preemptible;
-        let mut spawned = Some(spawned);
         loop {
             let task = Task::builder()
                 .name(&self.name)
@@ -318,7 +314,7 @@ impl TaskManagerRequest for TesTaskRequest {
 
             let statuses = match self
                 .backend
-                .run(task, spawned.take(), self.token.clone())
+                .run(task, self.token.clone())
                 .map_err(|e| anyhow!("{e:#}"))?
                 .await
             {
@@ -368,7 +364,7 @@ pub struct TesBackend {
     /// The task manager for the backend.
     manager: TaskManager<TesTaskRequest>,
     /// The name generator for tasks.
-    generator: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
+    names: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
 }
 
 impl TesBackend {
@@ -376,7 +372,11 @@ impl TesBackend {
     /// configuration.
     ///
     /// The provided configuration is expected to have already been validated.
-    pub async fn new(config: Arc<Config>, backend_config: &TesBackendConfig) -> Result<Self> {
+    pub async fn new(
+        config: Arc<Config>,
+        backend_config: &TesBackendConfig,
+        events: Option<broadcast::Sender<Event>>,
+    ) -> Result<Self> {
         info!("initializing TES backend");
 
         // There's no way to ask the TES service for its limits, so use the maximums
@@ -410,12 +410,19 @@ impl TesBackend {
             None => {}
         }
 
+        let names = Arc::new(Mutex::new(GeneratorIterator::new(
+            UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
+            INITIAL_EXPECTED_NAMES,
+        )));
+
         let backend = tes::Backend::initialize(
             backend::tes::Config::builder()
                 .url(backend_config.url.clone().expect("should have URL"))
                 .http(http)
                 .interval(backend_config.interval.unwrap_or(DEFAULT_TES_INTERVAL))
                 .build(),
+            names.clone(),
+            events,
         );
 
         let max_concurrency = backend_config.max_concurrency.unwrap_or(u64::MAX);
@@ -428,10 +435,7 @@ impl TesBackend {
             max_cpu,
             max_memory,
             manager,
-            generator: Arc::new(Mutex::new(GeneratorIterator::new(
-                UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
-                INITIAL_EXPECTED_NAMES,
-            ))),
+            names,
         })
     }
 }
@@ -521,8 +525,7 @@ impl TaskExecutionBackend for TesBackend {
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<TaskExecutionEvents> {
-        let (spawned_tx, spawned_rx) = oneshot::channel();
+    ) -> Result<Receiver<Result<TaskExecutionResult>>> {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();
@@ -539,7 +542,7 @@ impl TaskExecutionBackend for TesBackend {
             "{id}-{generated}",
             id = request.id(),
             generated = self
-                .generator
+                .names
                 .lock()
                 .expect("generator should always acquire")
                 .next()
@@ -560,13 +563,9 @@ impl TaskExecutionBackend for TesBackend {
                 token,
                 preemptible,
             },
-            spawned_tx,
             completed_tx,
         );
 
-        Ok(TaskExecutionEvents {
-            spawned: spawned_rx,
-            completed: completed_rx,
-        })
+        Ok(completed_rx)
     }
 }

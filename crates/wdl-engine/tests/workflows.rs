@@ -215,9 +215,9 @@ async fn run_test(test: &Path) -> Result<()> {
 
     for config in configs() {
         let dir = TempDir::new().context("failed to create temporary directory")?;
-        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new()).await?;
+        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), None).await?;
         match evaluator
-            .evaluate(result.document(), inputs.clone(), &dir, |_| async {})
+            .evaluate(result.document(), inputs.clone(), &dir)
             .await
         {
             Ok(outputs) => {

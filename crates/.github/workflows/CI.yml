@@ -18,7 +18,19 @@ jobs:
         run: rustup update nightly && rustup default nightly
       - name: Install rustfmt
         run: rustup component add rustfmt
-      - run: cargo fmt -- --check
+      - name: Check source code formatting
+        run: cargo fmt -- --check
+
+  sort:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Rust
+        run: rustup update stable
+      - name: Install `cargo-sort`
+        run: cargo install cargo-sort
+      - name: Check for sorted `Cargo.toml`
+        run: cargo sort -w --check
 
   lint:
     runs-on: ${{ matrix.os }}
@@ -32,7 +44,8 @@ jobs:
         run: rustup update stable && rustup default stable
       - name: Install clippy
         run: rustup component add clippy
-      - run: cargo clippy --all-features -- --deny warnings
+      - name: Check source code for lints
+        run: cargo clippy --all-features -- --deny warnings
 
   test:
     runs-on: ${{ matrix.os }}

@@ -9,8 +9,6 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-wdl = { path = "../wdl", version = "0.17.0", features = ["codespan", "analysis"] }
-
 anyhow.workspace = true
 clap.workspace = true
 codespan-reporting.workspace = true
@@ -19,13 +17,14 @@ dirs.workspace = true
 faster-hex.workspace = true
 git2.workspace = true
 indexmap.workspace = true
-serde_with.workspace = true
 serde.workspace = true
+serde_with.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
 toml.workspace = true
-tracing-subscriber.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
+wdl = { path = "../wdl", version = "0.17.0", features = ["codespan", "analysis"] }
 
 [lints]
 workspace = true

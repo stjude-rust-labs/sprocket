@@ -295,10 +295,10 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
     inputs.join_paths(task, |_| Ok(&test_dir))?;
 
-    let evaluator = TaskEvaluator::new(config, CancellationToken::new()).await?;
+    let evaluator = TaskEvaluator::new(config, CancellationToken::new(), None).await?;
     let dir = TempDir::new().context("failed to create temporary directory")?;
     match evaluator
-        .evaluate(result.document(), task, &inputs, dir.path(), |_| async {})
+        .evaluate(result.document(), task, &inputs, dir.path())
         .await
     {
         Ok(evaluated) => {

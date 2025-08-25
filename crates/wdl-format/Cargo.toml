@@ -9,9 +9,8 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-wdl-ast = { path = "../wdl-ast", version = "0.16.0", features = ["codespan"] }
-
 nonempty.workspace = true
+wdl-ast = { path = "../wdl-ast", version = "0.16.0", features = ["codespan"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }

@@ -47,6 +47,12 @@ pub(crate) const STDOUT_FILE_NAME: &str = "stdout";
 /// The default stderr file name.
 pub(crate) const STDERR_FILE_NAME: &str = "stderr";
 
+/// The number of initial expected task names.
+///
+/// This controls the initial size of the bloom filter and how many names are
+/// prepopulated into a name generator.
+const INITIAL_EXPECTED_NAMES: usize = 1000;
+
 /// Represents constraints applied to a task's execution.
 pub struct TaskExecutionConstraints {
     /// The container the task will run in.
@@ -199,16 +205,6 @@ pub struct TaskExecutionResult {
     pub stderr: Value,
 }
 
-/// Represents events that can be awaited on during task execution.
-pub struct TaskExecutionEvents {
-    /// The event for when the task has spawned and is currently executing.
-    pub spawned: Receiver<()>,
-    /// The event for when the task has completed.
-    ///
-    /// Returns the execution result.
-    pub completed: Receiver<Result<TaskExecutionResult>>,
-}
-
 /// Represents a task execution backend.
 pub trait TaskExecutionBackend: Send + Sync {
     /// Gets the maximum concurrent tasks supported by the backend.
@@ -246,12 +242,12 @@ pub trait TaskExecutionBackend: Send + Sync {
 
     /// Spawns a task with the execution backend.
     ///
-    /// Returns the task execution event receives upon success.
+    /// Returns a oneshot receiver for awaiting the completion of the task.
     fn spawn(
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<TaskExecutionEvents>;
+    ) -> Result<Receiver<Result<TaskExecutionResult>>>;
 
     /// Performs cleanup operations after top-level workflow or task evaluation
     /// completes.
@@ -280,10 +276,7 @@ trait TaskManagerRequest: Send + Sync + 'static {
     fn memory(&self) -> u64;
 
     /// Runs the request.
-    fn run(
-        self,
-        spawned: oneshot::Sender<()>,
-    ) -> impl Future<Output = Result<TaskExecutionResult>> + Send;
+    fn run(self) -> impl Future<Output = Result<TaskExecutionResult>> + Send;
 }
 
 /// Represents a response internal to the task manager.
@@ -307,11 +300,7 @@ struct TaskManagerState<Req> {
     /// The set of spawned tasks.
     spawned: JoinSet<TaskManagerResponse>,
     /// The queue of parked spawn requests.
-    parked: VecDeque<(
-        Req,
-        oneshot::Sender<()>,
-        oneshot::Sender<Result<TaskExecutionResult>>,
-    )>,
+    parked: VecDeque<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,
 }
 
 impl<Req> TaskManagerState<Req> {
@@ -334,11 +323,7 @@ impl<Req> TaskManagerState<Req> {
 /// Responsible for managing tasks based on available host resources.
 struct TaskManager<Req> {
     /// The sender for new spawn requests.
-    tx: mpsc::UnboundedSender<(
-        Req,
-        oneshot::Sender<()>,
-        oneshot::Sender<Result<TaskExecutionResult>>,
-    )>,
+    tx: mpsc::UnboundedSender<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,
 }
 
 impl<Req> TaskManager<Req>
@@ -364,22 +349,13 @@ where
     }
 
     /// Sends a request to the task manager's queue.
-    fn send(
-        &self,
-        request: Req,
-        spawned: oneshot::Sender<()>,
-        completed: oneshot::Sender<Result<TaskExecutionResult>>,
-    ) {
-        self.tx.send((request, spawned, completed)).ok();
+    fn send(&self, request: Req, completed: oneshot::Sender<Result<TaskExecutionResult>>) {
+        self.tx.send((request, completed)).ok();
     }
 
     /// Runs the request queue.
     async fn run_request_queue(
-        mut rx: mpsc::UnboundedReceiver<(
-            Req,
-            oneshot::Sender<()>,
-            oneshot::Sender<Result<TaskExecutionResult>>,
-        )>,
+        mut rx: mpsc::UnboundedReceiver<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,
         cpu: u64,
         max_cpu: u64,
         memory: u64,
@@ -395,10 +371,8 @@ where
                     "there can't be any parked requests if there are no spawned tasks"
                 );
                 match rx.recv().await {
-                    Some((req, spawned, completed)) => {
-                        Self::handle_spawn_request(
-                            &mut state, max_cpu, max_memory, req, spawned, completed,
-                        );
+                    Some((req, completed)) => {
+                        Self::handle_spawn_request(&mut state, max_cpu, max_memory, req, completed);
                         continue;
                     }
                     None => break,
@@ -409,8 +383,8 @@ where
             tokio::select! {
                 request = rx.recv() => {
                     match request {
-                        Some((req, spawned, completed)) => {
-                            Self::handle_spawn_request(&mut state, max_cpu, max_memory, req, spawned, completed);
+                        Some((req, completed)) => {
+                            Self::handle_spawn_request(&mut state, max_cpu, max_memory, req, completed);
                         }
                         None => break,
                     }
@@ -435,7 +409,6 @@ where
         max_cpu: u64,
         max_memory: u64,
         request: Req,
-        spawned: oneshot::Sender<()>,
         completed: oneshot::Sender<Result<TaskExecutionResult>>,
     ) {
         // Ensure the request does not exceed the maximum CPU
@@ -474,7 +447,7 @@ where
                     cpu_remaining = state.cpu,
                     memory_remaining = state.memory
                 );
-                state.parked.push_back((request, spawned, completed));
+                state.parked.push_back((request, completed));
                 return;
             }
 
@@ -492,7 +465,7 @@ where
             TaskManagerResponse {
                 cpu: request.cpu(),
                 memory: request.memory(),
-                result: request.run(spawned).await,
+                result: request.run().await,
                 tx: completed,
             }
         });
@@ -586,7 +559,7 @@ where
                 "expected the fit tasks to be at the front of the queue"
             );
             for _ in range {
-                let (request, spawned, completed) = state.parked.pop_front().unwrap();
+                let (request, completed) = state.parked.pop_front().unwrap();
 
                 debug!(
                     "unparking task with reservation of {cpu} CPU(s) and {memory} bytes of memory",
@@ -594,7 +567,7 @@ where
                     memory = request.memory(),
                 );
 
-                Self::handle_spawn_request(state, max_cpu, max_memory, request, spawned, completed);
+                Self::handle_spawn_request(state, max_cpu, max_memory, request, completed);
             }
         }
     }

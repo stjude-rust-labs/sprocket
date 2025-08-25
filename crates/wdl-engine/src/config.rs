@@ -9,8 +9,10 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use crankshaft::events::Event;
 use serde::Deserialize;
 use serde::Serialize;
+use tokio::sync::broadcast;
 use tracing::warn;
 use url::Url;
 
@@ -108,7 +110,10 @@ impl Config {
     }
 
     /// Creates a new task execution backend based on this configuration.
-    pub async fn create_backend(self: &Arc<Self>) -> Result<Arc<dyn TaskExecutionBackend>> {
+    pub async fn create_backend(
+        self: &Arc<Self>,
+        events: Option<broadcast::Sender<Event>>,
+    ) -> Result<Arc<dyn TaskExecutionBackend>> {
         let config = if self.backend.is_none() && self.backends.len() < 2 {
             if self.backends.len() == 1 {
                 // Use the singular entry
@@ -131,14 +136,14 @@ impl Config {
                     "the engine is configured to use the local backend: tasks will not be run \
                      inside of a container"
                 );
-                Ok(Arc::new(LocalBackend::new(self.clone(), config)?))
+                Ok(Arc::new(LocalBackend::new(self.clone(), config, events)?))
             }
-            BackendConfig::Docker(config) => {
-                Ok(Arc::new(DockerBackend::new(self.clone(), config).await?))
-            }
-            BackendConfig::Tes(config) => {
-                Ok(Arc::new(TesBackend::new(self.clone(), config).await?))
-            }
+            BackendConfig::Docker(config) => Ok(Arc::new(
+                DockerBackend::new(self.clone(), config, events).await?,
+            )),
+            BackendConfig::Tes(config) => Ok(Arc::new(
+                TesBackend::new(self.clone(), config, events).await?,
+            )),
         }
     }
 }

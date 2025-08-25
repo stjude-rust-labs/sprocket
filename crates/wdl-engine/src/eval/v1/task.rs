@@ -3,7 +3,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
-use std::future::Future;
 use std::mem;
 use std::path::Path;
 use std::path::absolute;
@@ -14,8 +13,10 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use crankshaft::events::Event;
 use indexmap::IndexMap;
 use petgraph::algo::toposort;
+use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::debug;
@@ -62,7 +63,6 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
-use super::ProgressKind;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
@@ -685,16 +685,18 @@ pub struct TaskEvaluator {
 
 impl TaskEvaluator {
     /// Constructs a new task evaluator with the given evaluation
-    /// configuration and cancellation token.
-    ///
-    /// This method creates a default task execution backend.
+    /// configuration, cancellation token, and events sender.
     ///
     /// Returns an error if the configuration isn't valid.
-    pub async fn new(config: Config, token: CancellationToken) -> Result<Self> {
+    pub async fn new(
+        config: Config,
+        token: CancellationToken,
+        events: Option<broadcast::Sender<Event>>,
+    ) -> Result<Self> {
         config.validate()?;
 
         let config = Arc::new(config);
-        let backend = config.create_backend().await?;
+        let backend = config.create_backend(events).await?;
         let downloader = HttpDownloader::new(config.clone())?;
 
         Ok(Self {
@@ -726,77 +728,34 @@ impl TaskEvaluator {
     /// Evaluates the given task.
     ///
     /// Upon success, returns the evaluated task.
-    pub async fn evaluate<P, R>(
+    pub async fn evaluate(
         &self,
         document: &Document,
         task: &Task,
         inputs: &TaskInputs,
         root: impl AsRef<Path>,
-        progress: P,
-    ) -> EvaluationResult<EvaluatedTask>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
-        self.evaluate_with_progress(
-            document,
-            task,
-            inputs,
-            root.as_ref(),
-            task.name(),
-            Arc::new(progress),
-        )
-        .await
-    }
-
-    /// Evaluates the given task with the given shared progress callback.
-    pub(crate) async fn evaluate_with_progress<P, R>(
-        &self,
-        document: &Document,
-        task: &Task,
-        inputs: &TaskInputs,
-        root: &Path,
-        id: &str,
-        progress: Arc<P>,
-    ) -> EvaluationResult<EvaluatedTask>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
+    ) -> EvaluationResult<EvaluatedTask> {
         // We cannot evaluate a document with errors
         if document.has_errors() {
             return Err(anyhow!("cannot evaluate a document with errors").into());
         }
 
-        progress(ProgressKind::TaskStarted { id }).await;
-
-        let result = self
-            .perform_evaluation(document, task, inputs, root, id, progress.clone())
-            .await;
-
-        progress(ProgressKind::TaskCompleted {
-            id,
-            result: &result,
-        })
-        .await;
-
-        result
+        self.perform_evaluation(document, task, inputs, root.as_ref(), task.name())
+            .await
     }
 
-    /// Performs the actual evaluation of the task.
-    async fn perform_evaluation<P, R>(
+    /// Performs the evaluation of the given task.
+    ///
+    /// This method skips checking the document (and its transitive imports) for
+    /// analysis errors as the check occurs at the `evaluate` entrypoint.
+    pub(crate) async fn perform_evaluation(
         &self,
         document: &Document,
         task: &Task,
         inputs: &TaskInputs,
         root: &Path,
         id: &str,
-        progress: Arc<P>,
-    ) -> EvaluationResult<EvaluatedTask>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
+    ) -> EvaluationResult<EvaluatedTask> {
         inputs.validate(document, task, None).with_context(|| {
             format!(
                 "failed to validate the inputs to task `{task}`",
@@ -937,7 +896,7 @@ impl TaskEvaluator {
                 attempt_dir.clone(),
             );
 
-            let events = self
+            let result = self
                 .backend
                 .spawn(request, self.token.clone())
                 .with_context(|| {
@@ -946,36 +905,15 @@ impl TaskEvaluator {
                         name = task.name(),
                         path = document.path(),
                     )
-                })?;
-
-            if attempt > 0 {
-                progress(ProgressKind::TaskRetried {
-                    id,
-                    retry: attempt - 1,
-                });
-            }
-
-            // Await the spawned notification first
-            events.spawned.await.ok();
-
-            progress(ProgressKind::TaskExecutionStarted { id });
-
-            let result = events
-                .completed
+                })?
                 .await
-                .expect("failed to receive response from spawned task");
-
-            progress(ProgressKind::TaskExecutionCompleted {
-                id,
-                result: &result,
-            });
-
-            let result = result.map_err(|e| {
-                EvaluationError::new(
-                    state.document.clone(),
-                    task_execution_failed(e, task.name(), id, task.name_span()),
-                )
-            })?;
+                .expect("failed to receive response from spawned task")
+                .map_err(|e| {
+                    EvaluationError::new(
+                        state.document.clone(),
+                        task_execution_failed(e, task.name(), id, task.name_span()),
+                    )
+                })?;
 
             // Update the task variable
             let evaluated = EvaluatedTask::new(attempt_dir, result)?;
