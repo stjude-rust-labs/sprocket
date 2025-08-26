@@ -16,15 +16,15 @@ error: type mismatch for placeholder option `sep`: expected type `Array[P]` wher
 33 │     String s5 = "~{sep=',' 123}"
    │                            ^^^ this is type `Int`
 
-error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]+`
+error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]`
    ┌─ tests/analysis/placeholder-options/source.wdl:39:39
    │
 39 │     String s7 = "~{default="fallback" [123]}"
-   │                                       ^^^^^ this is type `Array[Int]+`
+   │                                       ^^^^^ this is type `Array[Int]`
 
-error: cannot coerce type `Array[Int]+` to `String`
+error: cannot coerce type `Array[Int]` to `String`
    ┌─ tests/analysis/placeholder-options/source.wdl:42:20
    │
 42 │     String s8 = "~{[1, 2, 3]}"
-   │                    ^^^^^^^^^ this is type `Array[Int]+`
+   │                    ^^^^^^^^^ this is type `Array[Int]`
 

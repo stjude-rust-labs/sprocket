@@ -108,7 +108,7 @@ permalink = "https://github.com/ENCODE-DCC/chip-seq-pipeline2/blob/26eeda81a0540
 
 [[diagnostics]]
 document = "ENCODE-DCC/chip-seq-pipeline2:/dev/test/test_task/test_choose_ctl.wdl"
-message = "test_choose_ctl.wdl:196:24: error: type mismatch: expected type `Array[String]?`, but found type `Array[Int]+`"
+message = "test_choose_ctl.wdl:196:24: error: type mismatch: expected type `Array[String]?`, but found type `Array[Int]`"
 permalink = "https://github.com/ENCODE-DCC/chip-seq-pipeline2/blob/26eeda81a0540dc793fc69b0c390d232ca7ca50a/dev/test/test_task/test_choose_ctl.wdl/#L196"
 
 [[diagnostics]]

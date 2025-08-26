@@ -18,7 +18,7 @@ warning[UnnecessaryFunctionCall]: unnecessary call to function `defined`
    ┌─ tests/analysis/unnecessary-function-calls/source.wdl:14:19
    │
 14 │     Boolean baz = defined(['foo', 'bar', 'baz'])
-   │                   ^^^^^^^ --------------------- type `Array[String]+` is not optional
+   │                   ^^^^^^^ --------------------- type `Array[String]` is not optional
    │
    = fix: replace the function call with `true`
 

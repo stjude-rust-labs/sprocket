@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Removed evaluation progress callbacks in favor of Crankshaft events channel ([#583](https://github.com/stjude-rust-labs/wdl/pull/583)).
 
+#### Fixed
+
+* Fixed a panic caused by an incorrect type calculation of non-empty array
+  literals ([#585](https://github.com/stjude-rust-labs/wdl/pull/585)).
+
 ## 0.7.0 - 08-13-2025
 
 #### Added
