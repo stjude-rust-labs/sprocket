@@ -153,7 +153,7 @@ impl CallArgument {
     /// Constructs a `None` call argument.
     pub const fn none() -> Self {
         Self {
-            value: Value::None,
+            value: Value::None(Type::None),
             span: Span::new(0, 0),
         }
     }

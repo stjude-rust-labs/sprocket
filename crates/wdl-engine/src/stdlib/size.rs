@@ -178,7 +178,7 @@ fn calculate_disk_size<'a>(
 ) -> BoxFuture<'a, Result<f64>> {
     async move {
         match value {
-            Value::None => Ok(0.0),
+            Value::None(_) => Ok(0.0),
             Value::Primitive(v) => primitive_disk_size(downloader, v, unit, cwd).await,
             Value::Compound(v) => compound_disk_size(downloader, v, unit, cwd).await,
             Value::Task(_) => bail!("the size of a task variable cannot be calculated"),

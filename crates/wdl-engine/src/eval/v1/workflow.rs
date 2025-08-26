@@ -336,7 +336,7 @@ impl GatherArray {
     /// capacity of the array.
     fn new(index: usize, value: Value, capacity: usize) -> Self {
         let element_ty = value.ty();
-        let mut elements = vec![Value::None; capacity];
+        let mut elements = vec![Value::new_none(element_ty.optional()); capacity];
         elements[index] = value;
         Self {
             element_ty,
@@ -1040,7 +1040,7 @@ impl WorkflowEvaluator {
                     )
                 } else {
                     assert!(expected_ty.is_optional(), "type should be optional");
-                    (Value::None, name.span())
+                    (Value::new_none(expected_ty.clone()), name.span())
                 }
             }
         };
@@ -1251,13 +1251,15 @@ impl WorkflowEvaluator {
                         CallValue::new_unchecked(
                             ty.promote(PromotionKind::Conditional),
                             Outputs::from_iter(
-                                ty.outputs().iter().map(|(n, _)| (n.clone(), Value::None)),
+                                ty.outputs()
+                                    .iter()
+                                    .map(|(n, o)| (n.clone(), Value::new_none(o.ty().optional()))),
                             )
                             .into(),
                         ),
                     );
                 } else {
-                    parent.insert(name.to_string(), Value::None);
+                    parent.insert(name.to_string(), Value::new_none(n.ty().optional()));
                 }
             }
         }

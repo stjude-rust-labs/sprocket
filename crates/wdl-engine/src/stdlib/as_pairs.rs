@@ -115,7 +115,7 @@ mod test {
                 let pair = v.as_pair().unwrap();
                 (
                     match pair.left() {
-                        Value::None => None,
+                        Value::None(_) => None,
                         Value::Primitive(PrimitiveValue::String(s)) => Some(s.as_str()),
                         _ => panic!("expected a String?"),
                     },

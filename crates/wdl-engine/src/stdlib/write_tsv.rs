@@ -375,7 +375,7 @@ fn write_tsv_struct(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Dia
                 }
 
                 match column {
-                    Value::None => {}
+                    Value::None(_) => {}
                     Value::Primitive(v) => {
                         if !write_tsv_value(context.context, &mut writer, v)
                             .await

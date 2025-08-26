@@ -1026,8 +1026,8 @@ impl TaskEvaluator {
                     (value, expr.span())
                 }
                 _ => {
-                    assert!(decl.ty().is_optional(), "type should be optional");
-                    (Value::None, name.span())
+                    assert!(ty.is_optional(), "type should be optional");
+                    (Value::new_none(ty.clone()), name.span())
                 }
             },
         };

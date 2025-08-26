@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fixed a panic caused by an incorrect type calculation of non-empty array
   literals ([#585](https://github.com/stjude-rust-labs/wdl/pull/585)).
+* Fixed incorrect common type calculations from `None` values ([#584](https://github.com/stjude-rust-labs/wdl/pull/584)).
 
 ## 0.7.0 - 08-13-2025
 

@@ -301,7 +301,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             LiteralExpr::Map(lit) => self.evaluate_literal_map(lit).await,
             LiteralExpr::Object(lit) => self.evaluate_literal_object(lit).await,
             LiteralExpr::Struct(lit) => self.evaluate_literal_struct(lit).await,
-            LiteralExpr::None(_) => Ok(Value::None),
+            LiteralExpr::None(_) => Ok(Value::new_none(Type::None)),
             LiteralExpr::Hints(lit) => self.evaluate_literal_hints(lit).await,
             LiteralExpr::Input(lit) => self.evaluate_literal_input(lit).await,
             LiteralExpr::Output(lit) => self.evaluate_literal_output(lit).await,
@@ -347,7 +347,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             }
 
             match evaluator.evaluate_expr(&expr).await? {
-                Value::None => {
+                Value::None(_) => {
                     if let Some(o) = placeholder.option().as_ref().and_then(|o| o.as_default()) {
                         buffer.push_str(
                             &evaluator
@@ -385,7 +385,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     if matches!(placeholder.option(), Some(PlaceholderOption::Sep(_)))
                         && v.as_slice()
                             .first()
-                            .map(|e| !matches!(e, Value::None | Value::Compound(_)))
+                            .map(|e| !matches!(e, Value::None(_) | Value::Compound(_)))
                             .unwrap_or(false) =>
                 {
                     let option = placeholder.option().unwrap().unwrap_sep();
@@ -400,7 +400,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
 
                         match e {
-                            Value::None => {}
+                            Value::None(_) => {}
                             Value::Primitive(v) => {
                                 write!(buffer, "{v}", v = v.raw(Some(&evaluator.context))).unwrap()
                             }
@@ -572,7 +572,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                 // The key type must be primitive
                 let key = match expected_key {
-                    Value::None => None,
+                    Value::None(_) => None,
                     Value::Primitive(key) => Some(key),
                     _ => {
                         return Err(map_key_not_primitive(key.span(), &expected_key.ty()));
@@ -640,7 +640,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     }
 
                     let actual_key = match actual_key {
-                        Value::None => None,
+                        Value::None(_) => None,
                         Value::Primitive(key) => Some(key),
                         _ => panic!("the key type is not primitive, but had a common type"),
                     };
@@ -707,7 +707,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             // Check for optional members that should be set to `None`
             if ty.is_optional() {
                 if !members.contains_key(n) {
-                    members.insert(n.clone(), Value::None);
+                    members.insert(n.clone(), Value::new_none(ty.clone()));
                 }
             } else {
                 // Check for a missing required member
@@ -1263,13 +1263,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     .into(),
                 )
             }
-            (Value::Primitive(PrimitiveValue::String(_)), Value::None)
-            | (Value::None, Value::Primitive(PrimitiveValue::String(_)))
+            (Value::Primitive(PrimitiveValue::String(_)), Value::None(_))
+            | (Value::None(_), Value::Primitive(PrimitiveValue::String(_)))
                 if op == NumericOperator::Addition && self.placeholders > 0 =>
             {
                 // Allow string concatenation with `None` in placeholders, which evaluates to
                 // `None`
-                Some(Value::None)
+                Some(Value::new_none(Type::None))
             }
             _ => None,
         }
@@ -1411,7 +1411,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     .expect("key type should be primitive");
 
                 let i = match self.evaluate_expr(&index).await? {
-                    Value::None if Type::None.is_coercible_to(&key_type.into()) => None,
+                    Value::None(_) if Type::None.is_coercible_to(&key_type.into()) => None,
                     Value::Primitive(i) if i.ty().is_coercible_to(&key_type.into()) => Some(i),
                     value => {
                         return Err(index_type_mismatch(
@@ -1866,7 +1866,7 @@ pub(crate) mod test {
         env.insert_name("file", PrimitiveValue::new_file("bar"));
         env.insert_name("dir", PrimitiveValue::new_directory("baz"));
         env.insert_name("salutation", PrimitiveValue::new_string("hello"));
-        env.insert_name("name1", Value::None);
+        env.insert_name("name1", Value::new_none(Type::None));
         env.insert_name("name2", PrimitiveValue::new_string("Fred"));
         env.insert_name("spaces", PrimitiveValue::new_string("  "));
         env.insert_name("name", PrimitiveValue::new_string("Henry"));

@@ -25,6 +25,7 @@ use wdl_analysis::types::CompoundType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
+use wdl_analysis::types::v1::task_member_type;
 use wdl_ast::AstToken;
 use wdl_ast::TreeNode;
 use wdl_ast::v1;
@@ -63,7 +64,9 @@ pub trait Coercible: Sized {
 #[derive(Debug, Clone)]
 pub enum Value {
     /// The value is a literal `None` value.
-    None,
+    ///
+    /// The contained type is expected to be an optional type.
+    None(Type),
     /// The value is a primitive value.
     Primitive(PrimitiveValue),
     /// The value is a compound value.
@@ -106,7 +109,7 @@ impl Value {
                     .text(),
             )
             .into(),
-            v1::MetadataValue::Null(_) => Self::None,
+            v1::MetadataValue::Null(_) => Self::new_none(Type::None),
             v1::MetadataValue::Object(o) => Object::from_v1_metadata(o.items()).into(),
             v1::MetadataValue::Array(a) => Array::new_unchecked(
                 ANALYSIS_STDLIB.array_object_type().clone(),
@@ -116,10 +119,20 @@ impl Value {
         }
     }
 
+    /// Constructs a new `None` value with the given type.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided type is not optional.
+    pub fn new_none(ty: Type) -> Self {
+        assert!(ty.is_optional(), "the provided `None` type is not optional");
+        Self::None(ty)
+    }
+
     /// Gets the type of the value.
     pub fn ty(&self) -> Type {
         match self {
-            Self::None => Type::None,
+            Self::None(ty) => ty.clone(),
             Self::Primitive(v) => v.ty(),
             Self::Compound(v) => v.ty(),
             Self::Task(_) => Type::Task,
@@ -132,7 +145,7 @@ impl Value {
 
     /// Determines if the value is `None`.
     pub fn is_none(&self) -> bool {
-        matches!(self, Self::None)
+        matches!(self, Self::None(_))
     }
 
     /// Gets the value as a primitive value.
@@ -502,7 +515,7 @@ impl Value {
         match self {
             Self::Primitive(v) => {
                 if !v.visit_paths_mut(optional, cb)? {
-                    *self = Value::None;
+                    *self = Value::new_none(v.ty().optional());
                 }
 
                 Ok(())
@@ -518,8 +531,8 @@ impl Value {
     /// Returns `None` if the two values cannot be compared for equality.
     pub fn equals(left: &Self, right: &Self) -> Option<bool> {
         match (left, right) {
-            (Value::None, Value::None) => Some(true),
-            (Value::None, _) | (_, Value::None) => Some(false),
+            (Value::None(_), Value::None(_)) => Some(true),
+            (Value::None(_), _) | (_, Value::None(_)) => Some(false),
             (Value::Primitive(left), Value::Primitive(right)) => {
                 Some(PrimitiveValue::compare(left, right)? == Ordering::Equal)
             }
@@ -532,7 +545,7 @@ impl Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::None => write!(f, "None"),
+            Self::None(_) => write!(f, "None"),
             Self::Primitive(v) => v.fmt(f),
             Self::Compound(v) => v.fmt(f),
             Self::Task(_) => write!(f, "task"),
@@ -551,9 +564,9 @@ impl Coercible for Value {
         }
 
         match self {
-            Self::None => {
+            Self::None(_) => {
                 if target.is_optional() {
-                    Ok(Self::None)
+                    Ok(Self::new_none(target.clone()))
                 } else {
                     bail!("cannot coerce `None` to non-optional type `{target}`");
                 }
@@ -638,7 +651,7 @@ impl From<Option<PrimitiveValue>> for Value {
     fn from(value: Option<PrimitiveValue>) -> Self {
         match value {
             Some(v) => v.into(),
-            None => Self::None,
+            None => Self::new_none(Type::None),
         }
     }
 }
@@ -728,14 +741,14 @@ impl<'de> serde::Deserialize<'de> for Value {
             where
                 E: serde::de::Error,
             {
-                Ok(Value::None)
+                Ok(Value::new_none(Type::None))
             }
 
             fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(Value::None)
+                Ok(Value::new_none(Type::None))
             }
 
             fn visit_some<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
@@ -1639,7 +1652,7 @@ impl Map {
                             match k.coerce(key_type).with_context(|| {
                                 format!("failed to coerce map key for element at index {i}")
                             })? {
-                                Value::None => None,
+                                Value::None(_) => None,
                                 Value::Primitive(v) => Some(v),
                                 _ => {
                                     bail!("not all key values are primitive")
@@ -1913,7 +1926,7 @@ impl Struct {
                 // Check for optional members that should be set to `None`
                 if ty.is_optional() {
                     if !members.contains_key(name) {
-                        members.insert(name.clone(), Value::None);
+                        members.insert(name.clone(), Value::new_none(ty.clone()));
                     }
                 } else {
                     // Check for a missing required member
@@ -2371,11 +2384,16 @@ impl Coercible for CompoundValue {
                     )?));
                 }
                 // Map[W, Y] -> Map[X, Z] where W -> X and Y -> Z
-                (Self::Map(v), CompoundType::Map(_)) => {
+                (Self::Map(v), CompoundType::Map(map_ty)) => {
                     return Ok(Self::Map(Map::new(
                         target.clone(),
                         v.iter().map(|(k, v)| {
-                            (k.clone().map(Into::into).unwrap_or(Value::None), v.clone())
+                            (
+                                k.clone()
+                                    .map(Into::into)
+                                    .unwrap_or(Value::new_none(map_ty.key_type().optional())),
+                                v.clone(),
+                            )
                         }),
                     )?));
                 }
@@ -2822,7 +2840,12 @@ impl TaskValue {
                     .container
                     .clone()
                     .map(|c| PrimitiveValue::String(c).into())
-                    .unwrap_or(Value::None),
+                    .unwrap_or_else(|| {
+                        Value::new_none(
+                            task_member_type(TASK_FIELD_CONTAINER)
+                                .expect("failed to get task field type"),
+                        )
+                    }),
             ),
             n if n == TASK_FIELD_CPU => Some(self.data.cpu.into()),
             n if n == TASK_FIELD_MEMORY => Some(self.data.memory.into()),
@@ -2831,10 +2854,20 @@ impl TaskValue {
             n if n == TASK_FIELD_DISKS => Some(self.data.disks.clone().into()),
             n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
             n if n == TASK_FIELD_END_TIME => {
-                Some(self.data.end_time.map(Into::into).unwrap_or(Value::None))
+                Some(self.data.end_time.map(Into::into).unwrap_or_else(|| {
+                    Value::new_none(
+                        task_member_type(TASK_FIELD_END_TIME)
+                            .expect("failed to get task field type"),
+                    )
+                }))
             }
             n if n == TASK_FIELD_RETURN_CODE => {
-                Some(self.return_code.map(Into::into).unwrap_or(Value::None))
+                Some(self.return_code.map(Into::into).unwrap_or_else(|| {
+                    Value::new_none(
+                        task_member_type(TASK_FIELD_RETURN_CODE)
+                            .expect("failed to get task field type"),
+                    )
+                }))
             }
             n if n == TASK_FIELD_META => Some(self.data.meta.clone().into()),
             n if n == TASK_FIELD_PARAMETER_META => Some(self.data.parameter_meta.clone().into()),
@@ -3018,7 +3051,7 @@ impl serde::Serialize for ValueSerializer<'_> {
         use serde::ser::Error;
 
         match &self.value {
-            Value::None => serializer.serialize_none(),
+            Value::None(_) => serializer.serialize_none(),
             Value::Primitive(v) => v.serialize(serializer),
             Value::Compound(v) => {
                 CompoundValueSerializer::new(v, self.allow_pairs).serialize(serializer)
@@ -3328,7 +3361,7 @@ mod test {
     fn none_coercion() {
         // None -> String?
         assert!(
-            Value::None
+            Value::new_none(Type::None)
                 .coerce(&Type::from(PrimitiveType::String).optional())
                 .expect("should coerce")
                 .is_none(),
@@ -3338,7 +3371,7 @@ mod test {
         assert_eq!(
             format!(
                 "{e:?}",
-                e = Value::None
+                e = Value::new_none(Type::None)
                     .coerce(&PrimitiveType::String.into())
                     .unwrap_err()
             ),
@@ -3348,7 +3381,7 @@ mod test {
 
     #[test]
     fn none_display() {
-        assert_eq!(Value::None.to_string(), "None");
+        assert_eq!(Value::new_none(Type::None).to_string(), "None");
     }
 
     #[test]

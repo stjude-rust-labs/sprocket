@@ -144,7 +144,7 @@ fn write_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagno
                     }
 
                     match v {
-                        Value::None => {}
+                        Value::None(_) => {}
                         Value::Primitive(v) => {
                             if !write_tsv_value(context.context, &mut writer, v)
                                 .await

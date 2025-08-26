@@ -48,7 +48,7 @@ fn collect_by_key(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     for v in array.as_slice() {
         let pair = v.as_pair().expect("value should be a pair");
         map.entry(match pair.left() {
-            Value::None => None,
+            Value::None(_) => None,
             Value::Primitive(v) => Some(v.clone()),
             _ => unreachable!("value should be primitive"),
         })

@@ -38,7 +38,7 @@ fn find(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
     match regex.find(input.as_str()) {
         Some(m) => Ok(PrimitiveValue::new_string(m.as_str()).into()),
-        None => Ok(Value::None),
+        None => Ok(Value::None(Type::from(PrimitiveType::String).optional())),
     }
 }
 
