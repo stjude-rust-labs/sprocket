@@ -140,7 +140,11 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                     .build(),
             )
             .submit(
-                "docker run -w {{cwd}} \
+                #[rustfmt::skip]
+                "docker run \
+                 -w {{cwd}} \
+                 --cpus {{cpu}} \
+                 --memory {{memory_mb}}MB \
                  --mount type=bind,src={{cwd}},dst={{cwd}} \
                  --mount type=bind,src={{command}},dst={{command}} \
                  --mount type=bind,src={{stdout}},dst={{stdout}} \
@@ -153,7 +157,11 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                  bash -c \"{{command}} > {{stdout}} 2> {{stderr}}\"",
             )
             .job_id_regex(r#"([[:xdigit:]]+)"#)
-            .monitor("(stat=$(docker container inspect {{job_id}} --format \"\\{{.State.Status}}\"); [ $stat == \"exited\" ])")
+            .monitor(
+                #[rustfmt::skip]
+                "(stat=$(docker container inspect {{job_id}} --format \"\\{{.State.Status}}\"); \
+                 [ $stat == \"exited\" ])",
+            )
             .get_exit_code("docker wait {{job_id}}")
             .kill("docker container kill {{job_id}}")
             .build(),
@@ -175,6 +183,7 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                     BackendConfig::Generic(generic_backend_config),
                 )]
                 .into(),
+                suppress_env_specific_output: true,
                 ..Default::default()
             }
         })])

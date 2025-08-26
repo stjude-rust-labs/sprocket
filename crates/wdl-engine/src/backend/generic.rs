@@ -177,26 +177,30 @@ impl TaskManagerRequest for GenericTaskRequest {
                 self.inner
                     .inputs()
                     .into_iter()
-                    .map(|input| {
-                        crankshaft::engine::task::Input::builder()
-                            .contents(match input.path() {
-                                EvaluationPath::Local(path_buf) => {
-                                    crankshaft::engine::task::input::Contents::Path(
-                                        path_buf.clone(),
-                                    )
-                                }
-                                EvaluationPath::Remote(url) => {
-                                    crankshaft::engine::task::input::Contents::Url(url.clone())
-                                }
-                            })
-                            .path(
-                                input
-                                    .guest_path()
-                                    .expect("input must have a guest path")
-                                    .to_string(),
-                            )
-                            .ty(input.kind())
-                            .build()
+                    .filter_map(|input| {
+                        if let Some(guest_path) = input.guest_path() {
+                            let location =
+                                input.location().expect("all inputs should have localized");
+                            // TODO ACF 2025-08-26: I lifted this check from the Docker backend, but
+                            // I think this `exists()` check is the reason the Docker backend
+                            // doesn't line up with the spec which says "If the specified path does
+                            // not exist, it is an error unless the declaration is optional."
+                            if location.exists() {
+                                Some(
+                                    crankshaft::engine::task::Input::builder()
+                                        .contents(crankshaft::engine::task::input::Contents::Path(
+                                            location.into(),
+                                        ))
+                                        .path(guest_path)
+                                        .ty(input.kind())
+                                        .build(),
+                                )
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
                     })
                     .collect::<Vec<_>>(),
             )
@@ -303,23 +307,27 @@ impl TaskExecutionBackend for GenericBackend {
     ) -> Result<TaskExecutionConstraints> {
         let mut cpu = crate::v1::cpu(requirements);
         if (self.cpu as f64) < cpu {
+            let env_specific = if self.config.suppress_env_specific_output {
+                String::new()
+            } else {
+                format!(
+                    ", but the host only has {total_cpu} available",
+                    total_cpu = self.cpu
+                )
+            };
             match self.config.task.cpu_limit_behavior {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
-                        "task requires at least {cpu} CPU{s}, but the host only has {total_cpu} \
-                         available",
+                        "task requires at least {cpu} CPU{s}{env_specific}",
                         s = if cpu == 1.0 { "" } else { "s" },
-                        total_cpu = self.cpu,
                     );
                     // clamp the reported constraint to what's available
                     cpu = self.cpu as f64;
                 }
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
-                        "task requires at least {cpu} CPU{s}, but the host only has {total_cpu} \
-                         available",
+                        "task requires at least {cpu} CPU{s}{env_specific}",
                         s = if cpu == 1.0 { "" } else { "s" },
-                        total_cpu = self.cpu,
                     );
                 }
             }
@@ -327,25 +335,29 @@ impl TaskExecutionBackend for GenericBackend {
 
         let mut memory = crate::v1::memory(requirements)?;
         if self.memory < memory as u64 {
+            let env_specific = if self.config.suppress_env_specific_output {
+                String::new()
+            } else {
+                format!(
+                    ", but the host only has {total_memory} GiB available",
+                    total_memory = self.memory as f64 / ONE_GIBIBYTE,
+                )
+            };
             match self.config.task.memory_limit_behavior {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
-                        "task requires at least {memory} GiB of memory, but the host only has \
-                         {total_memory} GiB available",
+                        "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
-                        total_memory = self.memory as f64 / ONE_GIBIBYTE,
                     );
                     // clamp the reported constraint to what's available
                     memory = self.memory.try_into().unwrap_or(i64::MAX);
                 }
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
-                        "task requires at least {memory} GiB of memory, but the host only has \
-                         {total_memory} GiB available",
+                        "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
-                        total_memory = self.memory as f64 / ONE_GIBIBYTE,
                     );
                 }
             }
