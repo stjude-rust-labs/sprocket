@@ -44,6 +44,14 @@ use crate::emit_diagnostics;
 /// very short analyses.
 const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 
+/// The capacity for the Crankshaft events channel.
+///
+/// This is the number of events to buffer in the channel before receivers
+/// become lagged.
+///
+/// The value of `100` was chosen simply as a reasonable default.
+const EVENTS_CHANNEL_CAPACITY: usize = 100;
+
 /// The name of the default "runs" directory.
 pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
 
@@ -471,7 +479,7 @@ pub async fn run(args: Args) -> Result<()> {
 
     let state = Arc::new(Mutex::<State>::default());
     let token = CancellationToken::new();
-    let (events_tx, events_rx) = broadcast::channel(100);
+    let (events_tx, events_rx) = broadcast::channel(EVENTS_CHANNEL_CAPACITY);
     let events = tokio::spawn(progress(events_rx, span, state));
 
     let evaluator = Evaluator::new(
