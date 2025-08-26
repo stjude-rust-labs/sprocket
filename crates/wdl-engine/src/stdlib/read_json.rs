@@ -101,10 +101,6 @@ mod test {
             "object.json",
             r#"{ "foo": "bar", "bar": 12345, "baz": [1, 2, 3] }"#,
         );
-        env.write_file(
-            "bad_object.json",
-            r#"{ "foo": "bar", "bar!": 12345, "baz": [1, 2, 3] }"#,
-        );
 
         let diagnostic = eval_v1_expr(&env, V1::One, "read_json('empty.json')")
             .await
@@ -196,16 +192,6 @@ mod test {
                 .map(Value::unwrap_integer)
                 .collect::<Vec<_>>(),
             [1, 2, 3]
-        );
-
-        let diagnostic = eval_v1_expr(&env, V1::One, "read_json('bad_object.json')")
-            .await
-            .unwrap_err();
-        assert_eq!(
-            diagnostic.message(),
-            "call to function `read_json` failed: failed to deserialize JSON file \
-             `bad_object.json`: object key `bar!` is not a valid WDL identifier at line 1 column \
-             23",
         );
     }
 }

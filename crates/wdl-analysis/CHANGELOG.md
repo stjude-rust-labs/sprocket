@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Implemented coercion between `Map` <-> `Object`/`Struct` where the map key
+  type <-> `String` ([#586](https://github.com/stjude-rust-labs/wdl/pull/586)).
 * Added snippets support for the WDL Language Server ([#577](https://github.com/stjude-rust-labs/wdl/pull/577)).
 * Added document symbols support for the WDL Language Server ([#582](https://github.com/stjude-rust-labs/wdl/pull/582)).
 

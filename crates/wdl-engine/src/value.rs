@@ -43,7 +43,6 @@ use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
-use wdl_grammar::lexer::v1::is_ident;
 
 use crate::EvaluationContext;
 use crate::Outputs;
@@ -839,16 +838,8 @@ impl<'de> serde::Deserialize<'de> for Value {
             where
                 A: serde::de::MapAccess<'de>,
             {
-                use serde::de::Error;
-
                 let mut members = IndexMap::new();
                 while let Some(key) = map.next_key::<String>()? {
-                    if !is_ident(&key) {
-                        return Err(A::Error::custom(format!(
-                            "object key `{key}` is not a valid WDL identifier"
-                        )));
-                    }
-
                     members.insert(key, map.next_value_seed(Deserialize)?);
                 }
 
@@ -2405,7 +2396,7 @@ impl Coercible for CompoundValue {
                         v.values.1.clone(),
                     )?));
                 }
-                // Map[String, Y] -> Struct
+                // Map[X, Y] -> Struct where: X -> String
                 (Self::Map(v), CompoundType::Struct(target_ty)) => {
                     let len = v.len();
                     let expected_len = target_ty.members().len();
@@ -2425,39 +2416,42 @@ impl Coercible for CompoundValue {
                         members: Arc::new(
                             v.iter()
                                 .map(|(k, v)| {
-                                    let k: String = k
+                                    let k = k
                                         .as_ref()
-                                        .and_then(|k| k.as_string())
+                                        .and_then(|k| k.coerce(&PrimitiveType::String.into()).ok())
                                         .with_context(|| {
                                             format!(
-                                                "cannot coerce a map with a non-string key type \
-                                                 to struct type `{target}`"
+                                                "cannot coerce a map of type `{map_type}` to \
+                                                 struct type `{target}` as the key type cannot \
+                                                 coerce to `String`",
+                                                map_type = v.ty()
                                             )
                                         })?
-                                        .to_string();
-                                    let ty = target_ty.members().get(&k).with_context(|| {
-                                        format!(
-                                            "cannot coerce a map with key `{k}` to struct type \
-                                             `{target}` as the struct does not contain a member \
-                                             with that name"
-                                        )
-                                    })?;
+                                        .unwrap_string();
+                                    let ty =
+                                        target_ty.members().get(k.as_ref()).with_context(|| {
+                                            format!(
+                                                "cannot coerce a map with key `{k}` to struct \
+                                                 type `{target}` as the struct does not contain a \
+                                                 member with that name"
+                                            )
+                                        })?;
                                     let v = v.coerce(ty).with_context(|| {
                                         format!("failed to coerce value of map key `{k}")
                                     })?;
-                                    Ok((k, v))
+                                    Ok((k.to_string(), v))
                                 })
                                 .collect::<Result<_>>()?,
                         ),
                     }));
                 }
-                // Struct -> Map[String, Y]
-                // Object -> Map[String, Y]
+                // Struct -> Map[X, Y] where: String -> X
                 (Self::Struct(Struct { members, .. }), CompoundType::Map(map_ty)) => {
-                    if map_ty.key_type().as_primitive() != Some(PrimitiveType::String) {
+                    let key_ty = map_ty.key_type();
+                    if !Type::from(PrimitiveType::String).is_coercible_to(key_ty) {
                         bail!(
-                            "cannot coerce a struct or object to type `{target}` as it requires a \
-                             `String` key type"
+                            "cannot coerce a struct to type `{target}` as key type `{key_ty}` \
+                             cannot be coerced from `String`"
                         );
                     }
 
@@ -2470,16 +2464,24 @@ impl Coercible for CompoundValue {
                                 let v = v
                                     .coerce(value_ty)
                                     .with_context(|| format!("failed to coerce member `{n}`"))?;
-                                Ok((PrimitiveValue::new_string(n).into(), v))
+                                Ok((
+                                    PrimitiveValue::new_string(n)
+                                        .coerce(key_ty)
+                                        .expect("should coerce")
+                                        .into(),
+                                    v,
+                                ))
                             })
                             .collect::<Result<_>>()?,
                     )));
                 }
+                // Object -> Map[X, Y] where: String -> X
                 (Self::Object(object), CompoundType::Map(map_ty)) => {
-                    if map_ty.key_type().as_primitive() != Some(PrimitiveType::String) {
+                    let key_ty = map_ty.key_type();
+                    if !Type::from(PrimitiveType::String).is_coercible_to(key_ty) {
                         bail!(
-                            "cannot coerce a struct or object to type `{target}` as it requires a \
-                             `String` key type",
+                            "cannot coerce an object to type `{target}` as key type `{key_ty}` \
+                             cannot be coerced from `String`"
                         );
                     }
 
@@ -2492,7 +2494,13 @@ impl Coercible for CompoundValue {
                                 let v = v
                                     .coerce(value_ty)
                                     .with_context(|| format!("failed to coerce member `{n}`"))?;
-                                Ok((PrimitiveValue::new_string(n).into(), v))
+                                Ok((
+                                    PrimitiveValue::new_string(n)
+                                        .coerce(key_ty)
+                                        .expect("should coerce")
+                                        .into(),
+                                    v,
+                                ))
                             })
                             .collect::<Result<_>>()?,
                     )));
@@ -2547,20 +2555,23 @@ impl Coercible for CompoundValue {
 
         if let Type::Object = target {
             match self {
-                // Map[String, Y] -> Object
+                // Map[X, Y] -> Object where: X -> String
                 Self::Map(v) => {
                     return Ok(Self::Object(Object::new(
                         v.iter()
                             .map(|(k, v)| {
                                 let k = k
                                     .as_ref()
-                                    .and_then(|k| k.as_string())
-                                    .context(
-                                        "cannot coerce a map with a non-string key type to type \
-                                         `Object`",
-                                    )?
-                                    .to_string();
-                                Ok((k, v.clone()))
+                                    .and_then(|k| k.coerce(&PrimitiveType::String.into()).ok())
+                                    .with_context(|| {
+                                        format!(
+                                            "cannot coerce a map of type `{map_type}` to `Object` \
+                                             as the key type cannot coerce to `String`",
+                                            map_type = v.ty()
+                                        )
+                                    })?
+                                    .unwrap_string();
+                                Ok((k.to_string(), v.clone()))
                             })
                             .collect::<Result<IndexMap<_, _>>>()?,
                     )));
@@ -3107,16 +3118,16 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
                 s.end()
             }
             CompoundValue::Map(v) => {
-                if !v
-                    .ty()
-                    .as_map()
-                    .expect("type should be a map")
+                let ty = v.ty();
+                let map_type = ty.as_map().expect("type should be a map");
+                if !map_type
                     .key_type()
                     .is_coercible_to(&PrimitiveType::String.into())
                 {
-                    return Err(S::Error::custom(
-                        "only maps with `String` key types may be serialized",
-                    ));
+                    return Err(S::Error::custom(format!(
+                        "cannot serialize a map of type `{ty}` as the key type cannot be coerced \
+                         to `String`",
+                    )));
                 }
 
                 let mut s = serializer.serialize_map(Some(v.len()))?;
@@ -3450,19 +3461,22 @@ Caused by:
         let value2 = PrimitiveValue::new_string("qux");
 
         let ty = MapType::new(PrimitiveType::File, PrimitiveType::String);
-        let value: Value = Map::new(ty, [(key1, value1), (key2, value2)])
+        let file_to_string: Value = Map::new(ty, [(key1, value1), (key2, value2)])
             .expect("should create map value")
             .into();
 
         // Map[File, String] -> Map[String, File]
         let ty = MapType::new(PrimitiveType::String, PrimitiveType::File).into();
-        let value = value.coerce(&ty).expect("value should coerce");
-        assert_eq!(value.to_string(), r#"{"foo": "bar", "baz": "qux"}"#);
+        let string_to_file = file_to_string.coerce(&ty).expect("value should coerce");
+        assert_eq!(
+            string_to_file.to_string(),
+            r#"{"foo": "bar", "baz": "qux"}"#
+        );
 
         // Map[String, File] -> Map[Int, File] (invalid)
         let ty = MapType::new(PrimitiveType::Integer, PrimitiveType::File).into();
         assert_eq!(
-            format!("{e:?}", e = value.coerce(&ty).unwrap_err()),
+            format!("{e:?}", e = string_to_file.coerce(&ty).unwrap_err()),
             r#"failed to coerce map key for element at index 0
 
 Caused by:
@@ -3472,7 +3486,7 @@ Caused by:
         // Map[String, File] -> Map[String, Int] (invalid)
         let ty = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
         assert_eq!(
-            format!("{e:?}", e = value.coerce(&ty).unwrap_err()),
+            format!("{e:?}", e = string_to_file.coerce(&ty).unwrap_err()),
             r#"failed to coerce map value for element at index 0
 
 Caused by:
@@ -3485,7 +3499,19 @@ Caused by:
             [("foo", PrimitiveType::File), ("baz", PrimitiveType::File)],
         )
         .into();
-        let struct_value = value.coerce(&ty).expect("value should coerce");
+        let struct_value = string_to_file.coerce(&ty).expect("value should coerce");
+        assert_eq!(struct_value.to_string(), r#"Foo {foo: "bar", baz: "qux"}"#);
+
+        // Map[File, String] -> Struct
+        let ty = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("baz", PrimitiveType::String),
+            ],
+        )
+        .into();
+        let struct_value = file_to_string.coerce(&ty).expect("value should coerce");
         assert_eq!(struct_value.to_string(), r#"Foo {foo: "bar", baz: "qux"}"#);
 
         // Map[String, File] -> Struct (invalid)
@@ -3499,12 +3525,23 @@ Caused by:
         )
         .into();
         assert_eq!(
-            format!("{e:?}", e = value.coerce(&ty).unwrap_err()),
+            format!("{e:?}", e = string_to_file.coerce(&ty).unwrap_err()),
             "cannot coerce a map of 2 elements to struct type `Foo` as the struct has 3 members"
         );
 
         // Map[String, File] -> Object
-        let object_value = value.coerce(&Type::Object).expect("value should coerce");
+        let object_value = string_to_file
+            .coerce(&Type::Object)
+            .expect("value should coerce");
+        assert_eq!(
+            object_value.to_string(),
+            r#"object {foo: "bar", baz: "qux"}"#
+        );
+
+        // Map[File, String] -> Object
+        let object_value = file_to_string
+            .coerce(&Type::Object)
+            .expect("value should coerce");
         assert_eq!(
             object_value.to_string(),
             r#"object {foo: "bar", baz: "qux"}"#
@@ -3571,6 +3608,14 @@ Caused by:
 
         // Struct -> Map[String, Float]
         let ty = MapType::new(PrimitiveType::String, PrimitiveType::Float).into();
+        let map_value = value.coerce(&ty).expect("value should coerce");
+        assert_eq!(
+            map_value.to_string(),
+            r#"{"foo": 1.000000, "bar": 2.000000, "baz": 3.000000}"#
+        );
+
+        // Struct -> Map[File, Float]
+        let ty = MapType::new(PrimitiveType::File, PrimitiveType::Float).into();
         let map_value = value.coerce(&ty).expect("value should coerce");
         assert_eq!(
             map_value.to_string(),
