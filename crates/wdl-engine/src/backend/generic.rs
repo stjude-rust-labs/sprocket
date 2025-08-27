@@ -29,6 +29,7 @@ use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use crate::COMMAND_FILE_NAME;
 use crate::Input;
+use crate::InputTrie;
 use crate::ONE_GIBIBYTE;
 use crate::ONE_MEGABYTE;
 use crate::PrimitiveValue;
@@ -170,47 +171,83 @@ impl TaskManagerRequest for GenericTaskRequest {
             )
             .await?;
 
+        let mut inputs = self
+            .inner
+            .inputs()
+            .into_iter()
+            .filter_map(|input| {
+                if let Some(guest_path) = input.guest_path() {
+                    let location = input.location().expect("all inputs should have localized");
+                    // TODO ACF 2025-08-26: I lifted this check from the Docker backend, but
+                    // I think this `exists()` check is the reason the Docker backend
+                    // doesn't line up with the spec which says "If the specified path does
+                    // not exist, it is an error unless the declaration is optional."
+                    if location.exists() {
+                        Some(
+                            crankshaft::engine::task::Input::builder()
+                                .contents(crankshaft::engine::task::input::Contents::Path(
+                                    location.into(),
+                                ))
+                                .path(guest_path)
+                                .ty(input.kind())
+                                .build(),
+                        )
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        inputs.push(
+            crankshaft::engine::task::Input::builder()
+                .contents(crankshaft::engine::task::input::Contents::Path(
+                    command_path.clone(),
+                ))
+                .path(self.backend_config.guest_command_path.clone())
+                .ty(crate::InputKind::File)
+                .build(),
+        );
+        inputs.push(
+            crankshaft::engine::task::Input::builder()
+                .contents(crankshaft::engine::task::input::Contents::Path(
+                    work_dir.clone(),
+                ))
+                .path(self.backend_config.guest_work_dir.clone())
+                .ty(crate::InputKind::File)
+                .build(),
+        );
+        // TODO ACF 2025-08-27: make these outputs instead?
+        inputs.push(
+            crankshaft::engine::task::Input::builder()
+                .contents(crankshaft::engine::task::input::Contents::Path(
+                    stdout_path.clone(),
+                ))
+                .path(self.backend_config.guest_stdout_path.clone())
+                .ty(crate::InputKind::File)
+                .build(),
+        );
+        inputs.push(
+            crankshaft::engine::task::Input::builder()
+                .contents(crankshaft::engine::task::input::Contents::Path(
+                    stderr_path.clone(),
+                ))
+                .path(self.backend_config.guest_stderr_path.clone())
+                .ty(crate::InputKind::File)
+                .build(),
+        );
         let generic_task = crankshaft::engine::Task::builder()
             // TODO ACF 2025-08-22: outputs? It looks like other backends just treat the attempt dir
             // contents as the only output rather than enumerating based on the task definition
-            .inputs(
-                self.inner
-                    .inputs()
-                    .into_iter()
-                    .filter_map(|input| {
-                        if let Some(guest_path) = input.guest_path() {
-                            let location =
-                                input.location().expect("all inputs should have localized");
-                            // TODO ACF 2025-08-26: I lifted this check from the Docker backend, but
-                            // I think this `exists()` check is the reason the Docker backend
-                            // doesn't line up with the spec which says "If the specified path does
-                            // not exist, it is an error unless the declaration is optional."
-                            if location.exists() {
-                                Some(
-                                    crankshaft::engine::task::Input::builder()
-                                        .contents(crankshaft::engine::task::input::Contents::Path(
-                                            location.into(),
-                                        ))
-                                        .path(guest_path)
-                                        .ty(input.kind())
-                                        .build(),
-                                )
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>(),
-            )
+            .inputs(inputs)
             .executions(NonEmpty::new(
                 crankshaft::engine::task::Execution::builder()
                     .image("not_an_image")
-                    .program(command_path.to_str().unwrap())
-                    .work_dir(work_dir.to_str().unwrap())
-                    .stdout(stdout_path.display().to_string())
-                    .stderr(stderr_path.display().to_string())
+                    .program(self.backend_config.guest_command_path.clone())
+                    .work_dir(self.backend_config.guest_work_dir.clone())
+                    .stdout(self.backend_config.guest_stdout_path.clone())
+                    .stderr(self.backend_config.guest_stderr_path.clone())
                     .build(),
             ))
             .build();
@@ -389,20 +426,29 @@ impl TaskExecutionBackend for GenericBackend {
         Self: 'd,
     {
         async move {
+            // Construct a trie for mapping input guest paths
+            let mut trie = InputTrie::default();
+            for input in inputs.iter() {
+                trie.insert(input)?;
+            }
+            &trie;
+
+            for (index, guest_path) in
+                trie.calculate_guest_paths(&self.backend_config.guest_inputs_dir)?
+            {
+                if let Some(input) = inputs.get_mut(index) {
+                    input.set_guest_path(guest_path);
+                } else {
+                    bail!("invalid index {} returned from trie", index);
+                }
+            }
+
             let mut downloads = JoinSet::new();
 
             for (idx, input) in inputs.iter_mut().enumerate() {
                 match input.path() {
                     EvaluationPath::Local(path) => {
-                        let location = Location::Path(path.clone().into());
-                        let guest_path = location
-                            .to_str()
-                            .with_context(|| {
-                                format!("path `{path}` is not UTF-8", path = path.display())
-                            })?
-                            .to_string();
-                        input.set_location(location.into_owned());
-                        input.set_guest_path(guest_path);
+                        input.set_location(Location::Path(path.clone().into()));
                     }
                     EvaluationPath::Remote(url) => {
                         let downloader = downloader.clone();
@@ -422,19 +468,10 @@ impl TaskExecutionBackend for GenericBackend {
             while let Some(result) = downloads.join_next().await {
                 match result {
                     Ok(Ok((idx, location))) => {
-                        let guest_path = location
-                            .to_str()
-                            .with_context(|| {
-                                format!(
-                                    "downloaded path `{path}` is not UTF-8",
-                                    path = location.display()
-                                )
-                            })?
-                            .to_string();
-
-                        let input = inputs.get_mut(idx).expect("index should be valid");
-                        input.set_location(location);
-                        input.set_guest_path(guest_path);
+                        inputs
+                            .get_mut(idx)
+                            .expect("index from should be valid")
+                            .set_location(location);
                     }
                     Ok(Err(e)) => {
                         // Futures are aborted when the `JoinSet` is dropped.

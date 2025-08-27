@@ -131,6 +131,7 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
         let config = toml::from_str(&std::fs::read_to_string(file.path())?)?;
         configs_on_disk.push((config_name, config));
     }
+    #[rustfmt::skip]
     let generic_backend_config = GenericBackendConfig {
         backend_config: crankshaft::config::backend::generic::Config::builder()
             .driver(
@@ -140,15 +141,10 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                     .build(),
             )
             .submit(
-                #[rustfmt::skip]
                 "docker run \
                  -w {{cwd}} \
                  --cpus {{cpu}} \
                  --memory {{memory_mb}}MB \
-                 --mount type=bind,src={{cwd}},dst={{cwd}} \
-                 --mount type=bind,src={{command}},dst={{command}} \
-                 --mount type=bind,src={{stdout}},dst={{stdout}} \
-                 --mount type=bind,src={{stderr}},dst={{stderr}} \
                  {{#each inputs}}
                  --mount type=bind,src={{this.host_path}},dst={{guest_path}} \
                  {{/each}}
@@ -158,15 +154,13 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
             )
             .job_id_regex(r#"([[:xdigit:]]+)"#)
             .monitor(
-                #[rustfmt::skip]
                 "(stat=$(docker container inspect {{job_id}} --format \"\\{{.State.Status}}\"); \
                  [ $stat == \"exited\" ])",
             )
             .get_exit_code("docker wait {{job_id}}")
             .kill("docker container kill {{job_id}}")
             .build(),
-        cpu: None,
-        memory: None,
+        ..Default::default()
     };
     // std::fs::write(
     //     "/tmp/generic_config.toml",

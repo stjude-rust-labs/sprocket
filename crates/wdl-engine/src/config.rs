@@ -549,11 +549,10 @@ impl LocalBackendConfig {
 }
 
 /// Represents configuration for the generic task execution backend.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct GenericBackendConfig {
     /// The Crankshaft generic backend config.
-    // TODO ACF 2025-08-25: this maybe should be the entire struct?
     #[serde(default)]
     pub backend_config: crankshaft::config::backend::generic::Config,
     /// Set the number of CPUs available for task execution.
@@ -572,6 +571,32 @@ pub struct GenericBackendConfig {
     /// The value cannot be zero or exceed the host's total amount of memory.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub memory: Option<String>,
+
+    #[serde(default)]
+    pub guest_inputs_dir: Cow<'static, str>,
+    #[serde(default)]
+    pub guest_work_dir: Cow<'static, str>,
+    #[serde(default)]
+    pub guest_command_path: Cow<'static, str>,
+    #[serde(default)]
+    pub guest_stdout_path: Cow<'static, str>,
+    #[serde(default)]
+    pub guest_stderr_path: Cow<'static, str>,
+}
+
+impl Default for GenericBackendConfig {
+    fn default() -> Self {
+        Self {
+            backend_config: Default::default(),
+            cpu: None,
+            memory: None,
+            guest_inputs_dir: "/mnt/task/inputs".into(),
+            guest_work_dir: "/mnt/task/work".into(),
+            guest_command_path: "/mnt/task/command".into(),
+            guest_stdout_path: "/mnt/task/stdout".into(),
+            guest_stderr_path: "/mnt/task/stderr".into(),
+        }
+    }
 }
 
 impl GenericBackendConfig {
