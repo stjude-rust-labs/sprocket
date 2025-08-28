@@ -572,15 +572,15 @@ pub struct GenericBackendConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub memory: Option<String>,
 
-    #[serde(default)]
+    #[serde(default = "default_guest_inputs_dir")]
     pub guest_inputs_dir: Cow<'static, str>,
-    #[serde(default)]
+    #[serde(default = "default_guest_work_dir")]
     pub guest_work_dir: Cow<'static, str>,
-    #[serde(default)]
+    #[serde(default = "default_guest_command_path")]
     pub guest_command_path: Cow<'static, str>,
-    #[serde(default)]
+    #[serde(default = "default_guest_stdout_path")]
     pub guest_stdout_path: Cow<'static, str>,
-    #[serde(default)]
+    #[serde(default = "default_guest_stderr_path")]
     pub guest_stderr_path: Cow<'static, str>,
 }
 
@@ -590,13 +590,33 @@ impl Default for GenericBackendConfig {
             backend_config: Default::default(),
             cpu: None,
             memory: None,
-            guest_inputs_dir: "/mnt/task/inputs".into(),
-            guest_work_dir: "/mnt/task/work".into(),
-            guest_command_path: "/mnt/task/command".into(),
-            guest_stdout_path: "/mnt/task/stdout".into(),
-            guest_stderr_path: "/mnt/task/stderr".into(),
+            guest_inputs_dir: default_guest_inputs_dir(),
+            guest_work_dir: default_guest_work_dir(),
+            guest_command_path: default_guest_command_path(),
+            guest_stdout_path: default_guest_stdout_path(),
+            guest_stderr_path: default_guest_stderr_path(),
         }
     }
+}
+
+const fn default_guest_inputs_dir() -> Cow<'static, str> {
+    Cow::Borrowed("/mnt/task/inputs")
+}
+
+const fn default_guest_work_dir() -> Cow<'static, str> {
+    Cow::Borrowed("/mnt/task/work")
+}
+
+const fn default_guest_command_path() -> Cow<'static, str> {
+    Cow::Borrowed("/mnt/task/command")
+}
+
+const fn default_guest_stdout_path() -> Cow<'static, str> {
+    Cow::Borrowed("/mnt/task/stdout")
+}
+
+const fn default_guest_stderr_path() -> Cow<'static, str> {
+    Cow::Borrowed("/mnt/task/stderr")
 }
 
 impl GenericBackendConfig {
