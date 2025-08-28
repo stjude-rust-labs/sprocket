@@ -45,6 +45,8 @@ pub struct Common {
     pub deny_warnings: bool,
 
     /// Causes the command to fail if notes were reported.
+    ///
+    /// Implies `--deny-warnings`.
     #[clap(long)]
     pub deny_notes: bool,
 
@@ -100,8 +102,9 @@ impl CheckArgs {
             .into_iter()
             .chain(config.check.except.clone())
             .collect();
-        self.common.deny_warnings = self.common.deny_warnings || config.check.deny_warnings;
         self.common.deny_notes = self.common.deny_notes || config.check.deny_notes;
+        self.common.deny_warnings =
+            self.common.deny_warnings || config.check.deny_warnings || self.common.deny_notes;
         self.common.hide_notes = self.common.hide_notes || config.check.hide_notes;
         self.common.no_color = self.common.no_color || !config.common.color;
         if self.common.report_mode.is_none() {
