@@ -133,7 +133,8 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
     let args_string = fs::read_to_string(&args_path)
         .await
         .with_context(|| format!("failed to read command at path {:?}", &args_path))?;
-    let args = shlex::split(&args_string).ok_or_else(|| anyhow!("failed to split command args"))?;
+    let args = shlex::split(&format!("--skip-config-search {args_string}"))
+        .ok_or_else(|| anyhow!("failed to split command args"))?;
     let mut command = Command::new(sprocket_exe);
     command.current_dir(working_test_directory).args(args);
     let result = command
