@@ -157,8 +157,11 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                 "(stat=$(docker container inspect {{job_id}} --format \"\\{{.State.Status}}\"); \
                  [ $stat == \"exited\" ])",
             )
-            .get_exit_code("docker wait {{job_id}}")
-            .kill("docker container kill {{job_id}}")
+            .get_exit_code("code=$(docker wait {{job_id}}); \
+                            docker container rm {{job_id}} &> /dev/null; \
+                            echo $code")
+            .kill("docker container kill {{job_id}}; \
+                   docker container rm {{job_id}}")
             .build(),
         ..Default::default()
     };
