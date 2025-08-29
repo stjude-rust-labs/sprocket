@@ -6,9 +6,13 @@ use common::TestContext;
 use tower_lsp::lsp_types::DocumentSymbol;
 use tower_lsp::lsp_types::DocumentSymbolParams;
 use tower_lsp::lsp_types::DocumentSymbolResponse;
+use tower_lsp::lsp_types::SymbolInformation;
 use tower_lsp::lsp_types::SymbolKind;
 use tower_lsp::lsp_types::TextDocumentIdentifier;
+use tower_lsp::lsp_types::WorkspaceSymbolParams;
+use tower_lsp::lsp_types::WorkspaceSymbolResponse;
 use tower_lsp::lsp_types::request::DocumentSymbolRequest;
+use tower_lsp::lsp_types::request::WorkspaceSymbolRequest;
 
 async fn document_symbol_request(
     ctx: &mut TestContext,
@@ -24,12 +28,32 @@ async fn document_symbol_request(
     .await
 }
 
+async fn workspace_symbol_request(
+    ctx: &mut TestContext,
+    query: &str,
+) -> Option<WorkspaceSymbolResponse> {
+    ctx.request::<WorkspaceSymbolRequest>(WorkspaceSymbolParams {
+        query: query.to_string(),
+        work_done_progress_params: Default::default(),
+        partial_result_params: Default::default(),
+    })
+    .await
+}
+
 fn assert_symbol(symbols: &[DocumentSymbol], name: &str, kind: SymbolKind) {
     assert!(
         symbols.iter().any(|s| s.name == name && s.kind == kind),
         "should have contained a symbol with name `{}` and kind `{:?}`",
         name,
         kind
+    );
+}
+
+fn assert_symbol_found(symbols: &[SymbolInformation], name: &str) {
+    assert!(
+        symbols.iter().any(|s| s.name == name),
+        "should have found symbol with name `{}`",
+        name,
     );
 }
 
@@ -97,4 +121,36 @@ async fn should_provide_document_symbols() {
     assert_eq!(person_children.len(), 2);
     assert_symbol(person_children, "name", SymbolKind::FIELD);
     assert_symbol(person_children, "age", SymbolKind::FIELD);
+}
+
+#[tokio::test]
+async fn should_provide_workspace_symbols() {
+    let mut ctx = setup().await;
+    let response = workspace_symbol_request(&mut ctx, "").await;
+    let Some(WorkspaceSymbolResponse::Flat(symbols)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_symbol_found(&symbols, "lib");
+    assert_symbol_found(&symbols, "lib_alias");
+    assert_symbol_found(&symbols, "Person");
+    assert_symbol_found(&symbols, "greet");
+    assert_symbol_found(&symbols, "main");
+    assert_symbol_found(&symbols, "temp");
+}
+
+#[tokio::test]
+async fn should_filter_workspace_symbols() {
+    let mut ctx = setup().await;
+    let response = workspace_symbol_request(&mut ctx, "greet").await;
+    let Some(WorkspaceSymbolResponse::Flat(symbols)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_eq!(
+        symbols.len(),
+        4,
+        "should find greet, greet_in_if, greet_in_scatter, and the greet task symbol"
+    );
+    assert!(symbols.iter().all(|s| s.name.contains("greet")));
 }

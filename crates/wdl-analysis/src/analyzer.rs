@@ -27,6 +27,7 @@ use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::Location;
 use lsp_types::SemanticTokensResult;
+use lsp_types::SymbolInformation;
 use lsp_types::WorkspaceEdit;
 use path_clean::PathClean;
 use tokio::runtime::Handle;
@@ -53,6 +54,7 @@ use crate::queue::RemoveRequest;
 use crate::queue::RenameRequest;
 use crate::queue::Request;
 use crate::queue::SemanticTokenRequest;
+use crate::queue::WorkspaceSymbolRequest;
 use crate::rayon::RayonHandle;
 
 /// Represents the kind of analysis progress being reported.
@@ -812,6 +814,29 @@ where
             anyhow!(
                 "failed to receive document symbol request to analysis queue because the channel \
                  has closed"
+            )
+        })
+    }
+
+    /// Gets document symbols for the workspace.
+    pub async fn workspace_symbol(&self, query: String) -> Result<Option<Vec<SymbolInformation>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::WorkspaceSymbol(WorkspaceSymbolRequest {
+                query,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send workspace symbol request to analysis queue because the \
+                     channel has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive workspace symbol response from analysis queue because the \
+                 channel has closed"
             )
         })
     }
