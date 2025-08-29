@@ -2,6 +2,7 @@
 
 use std::ffi::OsStr;
 use std::fs;
+use std::io::IsTerminal;
 use std::io::Read;
 use std::path::Path;
 
@@ -10,7 +11,6 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
-use pretty_assertions::StrComparison;
 use serde::Deserialize;
 use serde::Serialize;
 use walkdir::WalkDir;
@@ -163,7 +163,15 @@ fn format_document(
 
     if check_only {
         if formatted != source {
-            print!("{}", StrComparison::new(&source, &formatted));
+            if !no_color && std::io::stderr().is_terminal() {
+                eprint!(
+                    "{}",
+                    pretty_assertions::StrComparison::new(&source, &formatted)
+                );
+            } else {
+                let diff = similar::TextDiff::from_lines(&source, &formatted);
+                eprint!("{}", diff.unified_diff());
+            }
             return Ok(1);
         }
         println!("`{path}` is formatted correctly", path = path.display());
