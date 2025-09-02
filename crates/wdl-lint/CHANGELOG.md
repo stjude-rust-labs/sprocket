@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* The `LineWidth` lint rule now ignores import statements ([#590](https://github.com/stjude-rust-labs/wdl/pull/590)).
+
 ## 0.15.0 - 08-13-2025
 
 ## 0.14.0 - 07-31-2025

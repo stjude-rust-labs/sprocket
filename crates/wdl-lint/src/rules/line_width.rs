@@ -162,4 +162,13 @@ impl Visitor for LineWidthRule {
     ) {
         self.ignored_section = matches!(reason, VisitReason::Enter);
     }
+
+    fn import_statement(
+        &mut self,
+        _: &mut Diagnostics,
+        reason: VisitReason,
+        _: &v1::ImportStatement,
+    ) {
+        self.ignored_section = matches!(reason, VisitReason::Enter);
+    }
 }
