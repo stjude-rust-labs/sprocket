@@ -199,7 +199,8 @@ impl TaskManagerRequest for LocalTaskRequest {
             Event::TaskCreated {
                 id,
                 name: self.name.clone(),
-                tes_id: None
+                tes_id: None,
+                token: self.token.clone(),
             }
         );
 

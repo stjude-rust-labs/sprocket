@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Dependencies
 
+* Updated Crankshaft dependency to latest ([#593](https://github.com/stjude-rust-labs/wdl/pull/593)).
 * Updated dependencies to latest ([#583](https://github.com/stjude-rust-labs/wdl/pull/583)).
 
 ## 0.17.0 - 08-13-2025
