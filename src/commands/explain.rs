@@ -62,7 +62,8 @@ pub struct Args {
     /// List all rules with the given tag.
     #[arg(short, long, value_name = "TAG",
         conflicts_with_all = ["rule_name", "definitions"],
-        value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter())
+        value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
+        ignore_case = true,
     )]
     pub tag: Option<String>,
 
