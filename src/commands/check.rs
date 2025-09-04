@@ -178,13 +178,17 @@ impl CheckArgs {
             .into_iter()
             .chain(config.check.filter_lint_tags.clone())
             .collect();
-        self.common.only_lint_tag = self
-            .common
-            .only_lint_tag
-            .clone()
-            .into_iter()
-            .chain(config.check.only_lint_tags.clone())
-            .collect();
+        if !self.common.all_lint_rules {
+            self.common.only_lint_tag = self
+                .common
+                .only_lint_tag
+                .clone()
+                .into_iter()
+                .chain(config.check.only_lint_tags.clone())
+                .collect();
+        } else {
+            self.common.only_lint_tag = vec![];
+        }
 
         self
     }
