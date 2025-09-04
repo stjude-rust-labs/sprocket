@@ -67,7 +67,7 @@ pub struct Common {
     /// Excludes a lint tag from running. This implies all other lint tags
     /// should be run.
     ///
-    /// Repeat the flag mutliple times to exclude multiple tags. `--except
+    /// Repeat the flag multiple times to exclude multiple tags. `--except
     /// <RULE>` can be used in conjuction with this argument. Using this
     /// argument will ignore certain configuration file options.
     #[clap(long, value_name = "TAG",
@@ -82,7 +82,7 @@ pub struct Common {
     /// Includes a lint tag for running. This implies no other lint tags should
     /// be run.
     ///
-    /// Repeat the flag mutliple times to include multiple tags. `--except
+    /// Repeat the flag multiple times to include multiple tags. `--except
     /// <RULE>` can be used in conjuction with this argument. Using this
     /// argument will ignore certain configuration file options.
     #[clap(long, value_name = "TAG",
