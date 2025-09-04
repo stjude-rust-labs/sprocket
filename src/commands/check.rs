@@ -83,7 +83,7 @@ pub struct Common {
     /// be run.
     ///
     /// Repeat the flag multiple times to include multiple tags. `--except
-    /// <RULE>` can be used in conjuction with this argument. Using this
+    /// <RULE>` can be used in conjunction with this argument. Using this
     /// argument will ignore certain configuration file options.
     #[clap(long, value_name = "TAG",
         value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
