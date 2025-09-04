@@ -61,7 +61,7 @@ pub struct Common {
     ///
     /// `--except <RULE>` can be used in conjuction with this argument. Using
     /// this argument will ignore certain configuration file options.
-    #[clap(short, long, conflicts_with_all = ["include_lint_tag", "exclude_lint_tag"])]
+    #[clap(short, long, conflicts_with_all = ["only_lint_tag", "exclude_lint_tag"])]
     pub all_lint_rules: bool,
 
     /// Excludes a lint tag from running. This implies all other lint tags
@@ -75,7 +75,7 @@ pub struct Common {
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
-        conflicts_with_all = ["include_lint_tag"],
+        conflicts_with_all = ["only_lint_tag"],
     )]
     pub exclude_lint_tag: Vec<String>,
 
@@ -91,7 +91,7 @@ pub struct Common {
         action = clap::ArgAction::Append,
         num_args = 1,
     )]
-    pub include_lint_tag: Vec<String>,
+    pub only_lint_tag: Vec<String>,
 
     /// Causes the command to fail if warnings were reported.
     #[clap(long)]
@@ -168,7 +168,7 @@ impl CheckArgs {
         // If any of these options are specified, some config values should be ignored.
         let mut respect_lint_configs = true;
         if !self.common.exclude_lint_tag.is_empty()
-            || !self.common.include_lint_tag.is_empty()
+            || !self.common.only_lint_tag.is_empty()
             || self.common.all_lint_rules
         {
             self.lint = true;
@@ -183,12 +183,12 @@ impl CheckArgs {
                 .into_iter()
                 .chain(config.check.exclude_lint_tags.clone())
                 .collect();
-            self.common.include_lint_tag = self
+            self.common.only_lint_tag = self
                 .common
-                .include_lint_tag
+                .only_lint_tag
                 .clone()
                 .into_iter()
-                .chain(config.check.include_lint_tags.clone())
+                .chain(config.check.only_lint_tags.clone())
                 .collect();
         }
 
@@ -270,9 +270,9 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let (enabled_tags, disabled_tags) = if args.lint {
         if args.common.all_lint_rules {
             (TagSet::new(Tag::VARIANTS), TagSet::new(&[]))
-        } else if !args.common.include_lint_tag.is_empty() {
+        } else if !args.common.only_lint_tag.is_empty() {
             let mut tags = vec![];
-            for s in args.common.include_lint_tag.iter() {
+            for s in args.common.only_lint_tag.iter() {
                 let t = Tag::from_str(s).ok().unwrap();
                 tags.push(t);
             }
