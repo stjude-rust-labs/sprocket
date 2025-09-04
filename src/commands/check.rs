@@ -34,6 +34,7 @@ const DEFAULT_TAG_SET: TagSet = TagSet::new(&[
     Tag::Portability,
     Tag::Correctness,
     Tag::Deprecated,
+    Tag::Documentation,
 ]);
 
 /// Common arguments for the `check` and `lint` subcommands.
