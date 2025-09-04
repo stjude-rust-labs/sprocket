@@ -90,6 +90,12 @@ pub struct CheckConfig {
     pub deny_notes: bool,
     /// Hide diagnostics with `note` severity.
     pub hide_notes: bool,
+    /// Enable all lint rules, even those outside the default set.
+    pub all_lint_rules: bool,
+    /// Set of lint tags to opt into.
+    pub include_lint_tags: Vec<String>,
+    /// Set of lint tags to opt out of.
+    pub exclude_lint_tags: Vec<String>,
 }
 
 /// Represents the configuration for the Sprocket `analyzer` command.
@@ -195,7 +201,12 @@ impl Config {
 
     /// Validate a configuration
     pub fn validate(&self) -> Result<()> {
-        // Validate the configuration here
+        if self.check.all_lint_rules && (!self.check.include_lint_tags.is_empty() || !self.check.exclude_lint_tags.is_empty()) {
+            bail!("`all_lint_rules` cannot be specified with either `include_lint_tags` or `exclude_lint_tags`")
+        }
+        if !self.check.include_lint_tags.is_empty() && !self.check.exclude_lint_tags.is_empty() {
+            bail!("both `include_lint_tags` and `exclude_lint_tags` are populated")
+        }
         Ok(())
     }
 

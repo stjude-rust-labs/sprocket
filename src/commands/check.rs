@@ -1,6 +1,7 @@
 //! Implementation of the `check` and `lint` subcommands.
 
 use std::collections::HashSet;
+use std::str::FromStr;
 
 use anyhow::Context;
 use anyhow::bail;
@@ -13,13 +14,27 @@ use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::cli::Analysis;
 use wdl::cli::analysis::Source;
+use wdl::lint::Tag;
+use wdl::lint::TagSet;
 use wdl::lint::find_nearest_rule;
+use strum::VariantArray;
 
 use super::explain::ALL_RULE_IDS;
+use super::explain::ALL_TAG_NAMES;
 use crate::IGNORE_FILENAME;
 use crate::Mode;
 use crate::emit_diagnostics;
 use crate::get_display_config;
+
+/// The [`Tag`]s which will run with the default `lint` configuration.
+const DEFAULT_TAG_SET: TagSet = TagSet::new(&[
+    Tag::Completeness,
+    Tag::Naming,
+    Tag::Clarity,
+    Tag::Portability,
+    Tag::Correctness,
+    Tag::Deprecated,
+]);
 
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
@@ -37,8 +52,38 @@ pub struct Common {
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
+        hide_possible_values = true,
     )]
     pub except: Vec<String>,
+
+    /// Enable all lint rules. This includes additional rules outside the default set.
+    #[clap(short, long, conflicts_with_all = ["include_lint_tag", "exclude_lint_tag"])]
+    pub all_lint_rules: bool,
+
+    /// Excludes a lint tag from running. This implies all other lint tags
+    /// should be run.
+    ///
+    /// Repeat the flag mutliple times to exclude multiple tags.
+    #[clap(long, value_name = "TAG",
+        value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        conflicts_with_all = ["include_lint_tag"],
+    )]
+    pub exclude_lint_tag: Vec<String>,
+
+    /// Includes a lint tag for running. This implies no other lint tags should
+    /// be run.
+    ///
+    /// Repeat the flag mutliple times to include multiple tags.
+    #[clap(long, value_name = "TAG",
+        value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+    )]
+    pub include_lint_tag: Vec<String>,
 
     /// Causes the command to fail if warnings were reported.
     #[clap(long)]
@@ -111,6 +156,26 @@ impl CheckArgs {
             self.common.report_mode = Some(config.common.report_mode);
         }
 
+        // Linting is implied by any of these args
+        if !self.common.exclude_lint_tag.is_empty() || !self.common.include_lint_tag.is_empty() || self.common.all_lint_rules {
+            self.lint = true
+        }
+        self.common.all_lint_rules = self.common.all_lint_rules || config.check.all_lint_rules;
+        self.common.exclude_lint_tag = self
+            .common
+            .exclude_lint_tag
+            .clone()
+            .into_iter()
+            .chain(config.check.exclude_lint_tags.clone())
+            .collect();
+        self.common.include_lint_tag = self
+            .common
+            .include_lint_tag
+            .clone()
+            .into_iter()
+            .chain(config.check.include_lint_tags.clone())
+            .collect();
+
         self
     }
 }
@@ -148,6 +213,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         sources.push(Source::default());
     }
 
+    // Validate provided args
     if args.common.suppress_imports {
         for source in sources.iter() {
             if let Source::Directory(dir) = source {
@@ -160,6 +226,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         }
     }
 
+    // Process args
     let show_remote_diagnostics = {
         let any_remote_sources = sources
             .iter()
@@ -184,10 +251,36 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         .cloned()
         .collect::<HashSet<_>>();
 
+    let (enabled_tags, disabled_tags) = if args.lint {
+        if args.common.all_lint_rules {
+            (TagSet::new(Tag::VARIANTS), TagSet::new(&[]))
+        } else if !args.common.include_lint_tag.is_empty() {
+            let mut tags = vec![];
+            for s in args.common.include_lint_tag.iter() {
+                let t = Tag::from_str(s).ok().unwrap();
+                tags.push(t);
+            }
+            (TagSet::new(&tags), TagSet::new(&[]))
+        } else if !args.common.exclude_lint_tag.is_empty() {
+            let mut tags = vec![];
+            for s in args.common.exclude_lint_tag.iter() {
+                let t = Tag::from_str(s).ok().unwrap();
+                tags.push(t);
+            }
+            (TagSet::new(Tag::VARIANTS), TagSet::new(&tags))
+        } else {
+            (DEFAULT_TAG_SET, TagSet::new(&[]))
+        }
+    } else {
+        (TagSet::new(&[]), TagSet::new(&[]))
+    };
+
+    // Run analysis
     let results = match Analysis::default()
         .extend_sources(sources)
         .extend_exceptions(args.common.except)
-        .lint(args.lint)
+        .enabled_lint_tags(enabled_tags)
+        .disabled_lint_tags(disabled_tags)
         .ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .run()
         .await

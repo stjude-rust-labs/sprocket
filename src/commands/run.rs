@@ -2,7 +2,6 @@
 
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -29,7 +28,6 @@ use wdl::cli::inputs::OriginPaths;
 use wdl::engine;
 use wdl::engine::EvaluationError;
 use wdl::engine::Inputs as EngineInputs;
-use wdl::engine::v1::ProgressKind;
 
 use crate::Mode;
 use crate::emit_diagnostics;
@@ -171,48 +169,48 @@ struct State {
     executing: usize,
 }
 
-/// A callback for updating state based on engine events.
-fn progress(kind: ProgressKind<'_>, pb: &tracing::Span, state: &Mutex<State>) {
-    pb.pb_start();
+// /// A callback for updating state based on engine events.
+// fn progress(kind: ProgressKind<'_>, pb: &tracing::Span, state: &Mutex<State>)
+// {     pb.pb_start();
 
-    let message = {
-        let mut state = state.lock().expect("failed to lock progress mutex");
-        match kind {
-            ProgressKind::TaskStarted { .. } | ProgressKind::TaskRetried { .. } => {
-                state.ready += 1;
-            }
-            ProgressKind::TaskExecutionStarted { id } => {
-                state.ready -= 1;
-                state.executing += 1;
-                state.ids.insert(id.to_string());
-            }
-            ProgressKind::TaskExecutionCompleted { id, .. } => {
-                state.executing -= 1;
-                state.ids.swap_remove(id);
-            }
-            ProgressKind::TaskCompleted { .. } => {
-                state.completed += 1;
-            }
-            _ => {}
-        }
+//     let message = {
+//         let mut state = state.lock().expect("failed to lock progress mutex");
+//         match kind {
+//             ProgressKind::TaskStarted { .. } | ProgressKind::TaskRetried { ..
+// } => {                 state.ready += 1;
+//             }
+//             ProgressKind::TaskExecutionStarted { id } => {
+//                 state.ready -= 1;
+//                 state.executing += 1;
+//                 state.ids.insert(id.to_string());
+//             }
+//             ProgressKind::TaskExecutionCompleted { id, .. } => {
+//                 state.executing -= 1;
+//                 state.ids.swap_remove(id);
+//             }
+//             ProgressKind::TaskCompleted { .. } => {
+//                 state.completed += 1;
+//             }
+//             _ => {}
+//         }
 
-        format!(
-            " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e} {executing} task{s3}: {ids}",
-            c = state.completed,
-            completed = "completed".cyan(),
-            s1 = if state.completed == 1 { "" } else { "s" },
-            r = state.ready,
-            ready = "ready".cyan(),
-            s2 = if state.ready == 1 { "" } else { "s" },
-            e = state.executing,
-            executing = "executing".cyan(),
-            s3 = if state.executing == 1 { "" } else { "s" },
-            ids = Ids(&state.ids)
-        )
-    };
+//         format!(
+//             " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e}
+// {executing} task{s3}: {ids}",             c = state.completed,
+//             completed = "completed".cyan(),
+//             s1 = if state.completed == 1 { "" } else { "s" },
+//             r = state.ready,
+//             ready = "ready".cyan(),
+//             s2 = if state.ready == 1 { "" } else { "s" },
+//             e = state.executing,
+//             executing = "executing".cyan(),
+//             s3 = if state.executing == 1 { "" } else { "s" },
+//             ids = Ids(&state.ids)
+//         )
+//     };
 
-    pb.pb_set_message(&message);
-}
+//     pb.pb_set_message(&message);
+// }
 
 /// Determines the timestamped execution directory and performs any necessary
 /// staging prior to execution.
@@ -426,7 +424,6 @@ pub async fn run(args: Args) -> Result<()> {
         .unwrap(),
     );
 
-    let state = Mutex::<State>::default();
     let evaluator = Evaluator::new(
         document,
         &entrypoint,
@@ -437,12 +434,7 @@ pub async fn run(args: Args) -> Result<()> {
     );
     let token = CancellationToken::new();
 
-    let mut evaluate = evaluator
-        .run(token.clone(), move |kind: ProgressKind<'_>| {
-            progress(kind, &span, &state);
-            async {}
-        })
-        .boxed();
+    let mut evaluate = evaluator.run(token.clone(), None).boxed();
 
     select! {
         // Always prefer the CTRL-C signal to the evaluation returning.
