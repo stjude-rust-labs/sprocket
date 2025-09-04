@@ -92,9 +92,9 @@ pub struct CheckConfig {
     pub hide_notes: bool,
     /// Enable all lint rules, even those outside the default set.
     pub all_lint_rules: bool,
-    /// Set of lint tags to opt into.
+    /// Set of lint tags to opt into. Leave this empty to use the default set of tags.
     pub include_lint_tags: Vec<String>,
-    /// Set of lint tags to opt out of.
+    /// Set of lint tags to opt out of. Leave this empty to use the default set of tags.
     pub exclude_lint_tags: Vec<String>,
 }
 
