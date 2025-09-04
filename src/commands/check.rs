@@ -82,8 +82,8 @@ pub struct Common {
     /// Includes a lint tag for running.
     ///
     /// Repeat the flag multiple times to include multiple tags. `--except
-    /// <RULE>` can be used in conjunction with this argument. This is additive
-    /// with tags selected via config files.
+    /// <RULE>` and `--filter-lint-tag <TAG>` can be used in conjunction with
+    /// this argument. This is additive with tags selected via config files.
     #[clap(long, value_name = "TAG",
         value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
         ignore_case = true,
