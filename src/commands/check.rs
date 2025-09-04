@@ -58,13 +58,17 @@ pub struct Common {
 
     /// Enable all lint rules. This includes additional rules outside the
     /// default set.
+    ///
+    /// `--except <RULE>` can be used in conjuction with this flag. Using this
+    /// argument will ignore certain configuration file options.
     #[clap(short, long, conflicts_with_all = ["include_lint_tag", "exclude_lint_tag"])]
     pub all_lint_rules: bool,
 
     /// Excludes a lint tag from running. This implies all other lint tags
     /// should be run.
     ///
-    /// Repeat the flag mutliple times to exclude multiple tags.
+    /// Repeat the flag mutliple times to exclude multiple tags. Using this
+    /// argument will ignore certain configuration file options.
     #[clap(long, value_name = "TAG",
         value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
         ignore_case = true,
@@ -77,7 +81,8 @@ pub struct Common {
     /// Includes a lint tag for running. This implies no other lint tags should
     /// be run.
     ///
-    /// Repeat the flag mutliple times to include multiple tags.
+    /// Repeat the flag mutliple times to include multiple tags. Using this
+    /// argument will ignore certain configuration file options.
     #[clap(long, value_name = "TAG",
         value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
         ignore_case = true,
@@ -158,27 +163,32 @@ impl CheckArgs {
         }
 
         // Linting is implied by any of these args
+        // If any of these options are specified, some config values should be ignored.
+        let mut respect_lint_configs = true;
         if !self.common.exclude_lint_tag.is_empty()
             || !self.common.include_lint_tag.is_empty()
             || self.common.all_lint_rules
         {
-            self.lint = true
+            self.lint = true;
+            respect_lint_configs = false;
         }
-        self.common.all_lint_rules = self.common.all_lint_rules || config.check.all_lint_rules;
-        self.common.exclude_lint_tag = self
-            .common
-            .exclude_lint_tag
-            .clone()
-            .into_iter()
-            .chain(config.check.exclude_lint_tags.clone())
-            .collect();
-        self.common.include_lint_tag = self
-            .common
-            .include_lint_tag
-            .clone()
-            .into_iter()
-            .chain(config.check.include_lint_tags.clone())
-            .collect();
+        if respect_lint_configs {
+            self.common.all_lint_rules = self.common.all_lint_rules || config.check.all_lint_rules;
+            self.common.exclude_lint_tag = self
+                .common
+                .exclude_lint_tag
+                .clone()
+                .into_iter()
+                .chain(config.check.exclude_lint_tags.clone())
+                .collect();
+            self.common.include_lint_tag = self
+                .common
+                .include_lint_tag
+                .clone()
+                .into_iter()
+                .chain(config.check.include_lint_tags.clone())
+                .collect();
+        }
 
         self
     }
