@@ -644,8 +644,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft"
-version = "0.4.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=b99c2fd#b99c2fdb6a7cba93120e58c7bf8370245777cdf2"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "568ff142423c56bc11d5ba62a9b7fe5ae43f762cdb4c4f01003db969ec8712b9"
 dependencies = [
  "crankshaft-config",
  "crankshaft-engine",
@@ -654,8 +655,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-config"
-version = "0.3.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=b99c2fd#b99c2fdb6a7cba93120e58c7bf8370245777cdf2"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eaca97d5e1466774125ea134ca03d350e408a3441b620cb8792b13caf1f14b43"
 dependencies = [
  "base64 0.22.1",
  "bon",
@@ -687,8 +689,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-docker"
-version = "0.2.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=b99c2fd#b99c2fdb6a7cba93120e58c7bf8370245777cdf2"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14d22ff062f5b501771ce836d273f1dea83b8a71fd95bd3832d4f24b6e92f052"
 dependencies = [
  "anyhow",
  "bollard",
@@ -696,6 +699,7 @@ dependencies = [
  "crankshaft-events",
  "futures",
  "indexmap 2.11.0",
+ "nix",
  "serde",
  "tar",
  "thiserror 2.0.16",
@@ -706,19 +710,21 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-engine"
-version = "0.4.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=b99c2fd#b99c2fdb6a7cba93120e58c7bf8370245777cdf2"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2b3d75e725f159303a9afb41ee51eea6a415a4436f10d5746d02ed419f45cb8"
 dependencies = [
  "anyhow",
  "async-trait",
  "bollard",
  "bon",
  "crankshaft-config",
- "crankshaft-docker 0.2.0 (git+https://github.com/stjude-rust-labs/crankshaft?rev=b99c2fd)",
+ "crankshaft-docker 0.3.0",
  "crankshaft-events",
  "futures",
  "growable-bloom-filter",
  "indexmap 2.11.0",
+ "nix",
  "nonempty",
  "rand 0.9.2",
  "regex",
@@ -741,10 +747,12 @@ dependencies = [
 [[package]]
 name = "crankshaft-events"
 version = "0.1.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=b99c2fd#b99c2fdb6a7cba93120e58c7bf8370245777cdf2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a91580ed9689970b2ac77dd6bed52277d6c2af688ff79a3641e24acc99236030"
 dependencies = [
  "bytes",
  "nonempty",
+ "tokio-util",
 ]
 
 [[package]]
@@ -2201,6 +2209,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
+name = "nix"
+version = "0.30.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
+dependencies = [
+ "bitflags 2.9.4",
+ "cfg-if",
+ "cfg_aliases",
+ "libc",
+]
+
+[[package]]
 name = "nohash-hasher"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2296,13 +2316,13 @@ checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
 
 [[package]]
 name = "opener"
-version = "0.8.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "771b9704f8cd8b424ec747a320b30b47517a6966ba2c7da90047c16f4a962223"
+checksum = "cb9024962ab91e00c89d2a14352a8d0fc1a64346bf96f1839b45c09149564e47"
 dependencies = [
  "bstr",
  "normpath",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3383,7 +3403,7 @@ dependencies = [
  "clap_complete",
  "codespan-reporting",
  "colored",
- "crankshaft-docker 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crankshaft-docker 0.2.0",
  "dirs",
  "figment",
  "futures",
@@ -4458,7 +4478,7 @@ dependencies = [
 [[package]]
 name = "wdl"
 version = "0.17.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#1f776d6cda6913203c4c8ff1be0c4757578dbb46"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7f76589cf94d02876b64fce03586709a341ebafe"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4475,7 +4495,7 @@ dependencies = [
 [[package]]
 name = "wdl-analysis"
 version = "0.12.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#1f776d6cda6913203c4c8ff1be0c4757578dbb46"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7f76589cf94d02876b64fce03586709a341ebafe"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4504,7 +4524,7 @@ dependencies = [
 [[package]]
 name = "wdl-ast"
 version = "0.16.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#1f776d6cda6913203c4c8ff1be0c4757578dbb46"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7f76589cf94d02876b64fce03586709a341ebafe"
 dependencies = [
  "macropol",
  "paste",
@@ -4517,7 +4537,7 @@ dependencies = [
 [[package]]
 name = "wdl-cli"
 version = "0.5.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#1f776d6cda6913203c4c8ff1be0c4757578dbb46"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7f76589cf94d02876b64fce03586709a341ebafe"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4545,7 +4565,7 @@ dependencies = [
 [[package]]
 name = "wdl-doc"
 version = "0.7.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#1f776d6cda6913203c4c8ff1be0c4757578dbb46"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7f76589cf94d02876b64fce03586709a341ebafe"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4564,7 +4584,7 @@ dependencies = [
 [[package]]
 name = "wdl-engine"
 version = "0.7.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#1f776d6cda6913203c4c8ff1be0c4757578dbb46"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7f76589cf94d02876b64fce03586709a341ebafe"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4604,7 +4624,7 @@ dependencies = [
 [[package]]
 name = "wdl-format"
 version = "0.10.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#1f776d6cda6913203c4c8ff1be0c4757578dbb46"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7f76589cf94d02876b64fce03586709a341ebafe"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4613,7 +4633,7 @@ dependencies = [
 [[package]]
 name = "wdl-grammar"
 version = "0.16.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#1f776d6cda6913203c4c8ff1be0c4757578dbb46"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7f76589cf94d02876b64fce03586709a341ebafe"
 dependencies = [
  "codespan-reporting",
  "logos",
@@ -4626,7 +4646,7 @@ dependencies = [
 [[package]]
 name = "wdl-lint"
 version = "0.15.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#1f776d6cda6913203c4c8ff1be0c4757578dbb46"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7f76589cf94d02876b64fce03586709a341ebafe"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4647,7 +4667,7 @@ dependencies = [
 [[package]]
 name = "wdl-lsp"
 version = "0.12.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#1f776d6cda6913203c4c8ff1be0c4757578dbb46"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7f76589cf94d02876b64fce03586709a341ebafe"
 dependencies = [
  "anyhow",
  "indexmap 2.11.0",
