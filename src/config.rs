@@ -95,9 +95,8 @@ pub struct CheckConfig {
     /// Set of lint tags to opt into. Leave this empty to use the default set of
     /// tags.
     pub only_lint_tags: Vec<String>,
-    /// Set of lint tags to opt out of. Leave this empty to use the default set
-    /// of tags.
-    pub exclude_lint_tags: Vec<String>,
+    /// Set of lint tags to opt out of.
+    pub filter_lint_tags: Vec<String>,
 }
 
 /// Represents the configuration for the Sprocket `analyzer` command.
@@ -203,17 +202,8 @@ impl Config {
 
     /// Validate a configuration
     pub fn validate(&self) -> Result<()> {
-        if self.check.all_lint_rules
-            && (!self.check.only_lint_tags.is_empty()
-                || !self.check.exclude_lint_tags.is_empty())
-        {
-            bail!(
-                "`all_lint_rules` cannot be specified with either `only_lint_tags` or \
-                 `exclude_lint_tags`"
-            )
-        }
-        if !self.check.only_lint_tags.is_empty() && !self.check.exclude_lint_tags.is_empty() {
-            bail!("both `only_lint_tags` and `exclude_lint_tags` are populated")
+        if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
+            bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
         }
         Ok(())
     }

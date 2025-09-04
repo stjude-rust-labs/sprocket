@@ -47,7 +47,8 @@ pub struct Common {
 
     /// Excepts (ignores) an analysis or lint rule.
     ///
-    /// Repeat the flag multiple times to except multiple rules.
+    /// Repeat the flag multiple times to except multiple rules. This is
+    /// additive with exceptions found in config files.
     #[clap(short, long, value_name = "RULE",
         value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         ignore_case = true,
@@ -60,32 +61,29 @@ pub struct Common {
     /// Enable all lint rules. This includes additional rules outside the
     /// default set.
     ///
-    /// `--except <RULE>` can be used in conjuction with this argument. Using
-    /// this argument will ignore certain configuration file options.
-    #[clap(short, long, conflicts_with_all = ["only_lint_tag", "exclude_lint_tag"])]
+    /// `--except <RULE>` and `--filter-lint-tag <TAG>` can be used in
+    /// conjuction with this argument.
+    #[clap(short, long, conflicts_with_all = ["only_lint_tag"])]
     pub all_lint_rules: bool,
 
-    /// Excludes a lint tag from running. This implies all other lint tags
-    /// should be run.
+    /// Excludes a lint tag from running if it would have been included
+    /// otherwise.
     ///
-    /// Repeat the flag multiple times to exclude multiple tags. `--except
-    /// <RULE>` can be used in conjunction with this argument. Using this
-    /// argument will ignore certain configuration file options.
+    /// Repeat the flag multiple times to filter multiple tags. This is additive
+    /// with filtered tags found in config files.
     #[clap(long, value_name = "TAG",
         value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
-        conflicts_with_all = ["only_lint_tag"],
     )]
-    pub exclude_lint_tag: Vec<String>,
+    pub filter_lint_tag: Vec<String>,
 
-    /// Includes a lint tag for running. This implies no other lint tags should
-    /// be run.
+    /// Includes a lint tag for running.
     ///
     /// Repeat the flag multiple times to include multiple tags. `--except
-    /// <RULE>` can be used in conjunction with this argument. Using this
-    /// argument will ignore certain configuration file options.
+    /// <RULE>` can be used in conjunction with this argument. This is additive
+    /// with tags selected via config files.
     #[clap(long, value_name = "TAG",
         value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
         ignore_case = true,
@@ -165,33 +163,28 @@ impl CheckArgs {
             self.common.report_mode = Some(config.common.report_mode);
         }
 
-        // Linting is implied by any of these args
-        // If any of these options are specified, some config values should be ignored.
-        let mut respect_lint_configs = true;
-        if !self.common.exclude_lint_tag.is_empty()
+        // Linting is implied by any of these args when they are used on the CL
+        if !self.common.filter_lint_tag.is_empty()
             || !self.common.only_lint_tag.is_empty()
             || self.common.all_lint_rules
         {
             self.lint = true;
-            respect_lint_configs = false;
         }
-        if respect_lint_configs {
-            self.common.all_lint_rules = self.common.all_lint_rules || config.check.all_lint_rules;
-            self.common.exclude_lint_tag = self
-                .common
-                .exclude_lint_tag
-                .clone()
-                .into_iter()
-                .chain(config.check.exclude_lint_tags.clone())
-                .collect();
-            self.common.only_lint_tag = self
-                .common
-                .only_lint_tag
-                .clone()
-                .into_iter()
-                .chain(config.check.only_lint_tags.clone())
-                .collect();
-        }
+        self.common.all_lint_rules = self.common.all_lint_rules || config.check.all_lint_rules;
+        self.common.filter_lint_tag = self
+            .common
+            .filter_lint_tag
+            .clone()
+            .into_iter()
+            .chain(config.check.filter_lint_tags.clone())
+            .collect();
+        self.common.only_lint_tag = self
+            .common
+            .only_lint_tag
+            .clone()
+            .into_iter()
+            .chain(config.check.only_lint_tags.clone())
+            .collect();
 
         self
     }
@@ -269,25 +262,29 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         .collect::<HashSet<_>>();
 
     let (enabled_tags, disabled_tags) = if args.lint {
-        if args.common.all_lint_rules {
-            (TagSet::new(Tag::VARIANTS), TagSet::new(&[]))
+        let enabled = if args.common.all_lint_rules {
+            TagSet::new(Tag::VARIANTS)
         } else if !args.common.only_lint_tag.is_empty() {
             let mut tags = vec![];
             for s in args.common.only_lint_tag.iter() {
                 let t = Tag::from_str(s).ok().unwrap();
                 tags.push(t);
             }
-            (TagSet::new(&tags), TagSet::new(&[]))
-        } else if !args.common.exclude_lint_tag.is_empty() {
+            TagSet::new(&tags)
+        } else {
+            DEFAULT_TAG_SET
+        };
+        let disabled = if !args.common.filter_lint_tag.is_empty() {
             let mut tags = vec![];
-            for s in args.common.exclude_lint_tag.iter() {
+            for s in args.common.filter_lint_tag.iter() {
                 let t = Tag::from_str(s).ok().unwrap();
                 tags.push(t);
             }
-            (TagSet::new(Tag::VARIANTS), TagSet::new(&tags))
+            TagSet::new(&tags)
         } else {
-            (DEFAULT_TAG_SET, TagSet::new(&[]))
-        }
+            TagSet::new(&[])
+        };
+        (enabled, disabled)
     } else {
         (TagSet::new(&[]), TagSet::new(&[]))
     };
