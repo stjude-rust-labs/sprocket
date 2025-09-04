@@ -9,6 +9,7 @@ use clap::Parser;
 use clap::builder::PossibleValuesParser;
 use codespan_reporting::diagnostic::Diagnostic;
 use codespan_reporting::files::SimpleFiles;
+use strum::VariantArray;
 use tracing::info;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
@@ -17,7 +18,6 @@ use wdl::cli::analysis::Source;
 use wdl::lint::Tag;
 use wdl::lint::TagSet;
 use wdl::lint::find_nearest_rule;
-use strum::VariantArray;
 
 use super::explain::ALL_RULE_IDS;
 use super::explain::ALL_TAG_NAMES;
@@ -56,7 +56,8 @@ pub struct Common {
     )]
     pub except: Vec<String>,
 
-    /// Enable all lint rules. This includes additional rules outside the default set.
+    /// Enable all lint rules. This includes additional rules outside the
+    /// default set.
     #[clap(short, long, conflicts_with_all = ["include_lint_tag", "exclude_lint_tag"])]
     pub all_lint_rules: bool,
 
@@ -157,7 +158,10 @@ impl CheckArgs {
         }
 
         // Linting is implied by any of these args
-        if !self.common.exclude_lint_tag.is_empty() || !self.common.include_lint_tag.is_empty() || self.common.all_lint_rules {
+        if !self.common.exclude_lint_tag.is_empty()
+            || !self.common.include_lint_tag.is_empty()
+            || self.common.all_lint_rules
+        {
             self.lint = true
         }
         self.common.all_lint_rules = self.common.all_lint_rules || config.check.all_lint_rules;

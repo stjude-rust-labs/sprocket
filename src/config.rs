@@ -201,8 +201,14 @@ impl Config {
 
     /// Validate a configuration
     pub fn validate(&self) -> Result<()> {
-        if self.check.all_lint_rules && (!self.check.include_lint_tags.is_empty() || !self.check.exclude_lint_tags.is_empty()) {
-            bail!("`all_lint_rules` cannot be specified with either `include_lint_tags` or `exclude_lint_tags`")
+        if self.check.all_lint_rules
+            && (!self.check.include_lint_tags.is_empty()
+                || !self.check.exclude_lint_tags.is_empty())
+        {
+            bail!(
+                "`all_lint_rules` cannot be specified with either `include_lint_tags` or \
+                 `exclude_lint_tags`"
+            )
         }
         if !self.check.include_lint_tags.is_empty() && !self.check.exclude_lint_tags.is_empty() {
             bail!("both `include_lint_tags` and `exclude_lint_tags` are populated")
