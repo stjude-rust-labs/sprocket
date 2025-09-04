@@ -110,3 +110,10 @@ broken_intra_doc_links = "warn"
 
 [workspace.lints.clippy]
 missing_docs_in_private_items = "warn"
+# An explicit `new()` method offers a prominent and discoverable spot to hang documentation for what
+# constitutes a zero-configuration value of a particular type, and its uses are easier to find with
+# tooling like `rust-analyzer`. `Default` should be used when trait dispatch is actually helpful or
+# necessary to interact with a library.
+#
+# Ref: https://rust-lang.github.io/rust-clippy/master/index.html#new_without_default
+new_without_default = "allow"
