@@ -262,9 +262,12 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         .collect::<HashSet<_>>();
 
     let (enabled_tags, disabled_tags) = if args.lint {
+        // Linting is enabled, so we need to create TagSets
         let enabled = if args.common.all_lint_rules {
+            // All tags should be included
             TagSet::new(Tag::VARIANTS)
         } else if !args.common.only_lint_tag.is_empty() {
+            // Only explicitly chosen tags should be included
             let mut tags = vec![];
             for s in args.common.only_lint_tag.iter() {
                 let t = Tag::from_str(s).ok().unwrap();
@@ -272,9 +275,12 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             }
             TagSet::new(&tags)
         } else {
+            // Just use the default set
             DEFAULT_TAG_SET
         };
+
         let disabled = if !args.common.filter_lint_tag.is_empty() {
+            // Filter out explicitly chosen tags
             let mut tags = vec![];
             for s in args.common.filter_lint_tag.iter() {
                 let t = Tag::from_str(s).ok().unwrap();
@@ -282,8 +288,10 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             }
             TagSet::new(&tags)
         } else {
+            // Don't filter by tag
             TagSet::new(&[])
         };
+
         (enabled, disabled)
     } else {
         (TagSet::new(&[]), TagSet::new(&[]))
