@@ -170,6 +170,7 @@ impl CheckArgs {
         {
             self.lint = true;
         }
+
         self.common.all_lint_rules = self.common.all_lint_rules || config.check.all_lint_rules;
         self.common.filter_lint_tag = self
             .common
@@ -186,8 +187,6 @@ impl CheckArgs {
                 .into_iter()
                 .chain(config.check.only_lint_tags.clone())
                 .collect();
-        } else {
-            self.common.only_lint_tag = vec![];
         }
 
         self
