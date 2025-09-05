@@ -91,11 +91,13 @@ pub struct CheckConfig {
     /// Hide diagnostics with `note` severity.
     pub hide_notes: bool,
     /// Enable all lint rules, even those outside the default set.
+    ///
+    /// This cannot be `true` while `only_lint_tags` is populated.
     pub all_lint_rules: bool,
     /// Set of lint tags to opt into. Leave this empty to use the default set of
     /// tags.
     pub only_lint_tags: Vec<String>,
-    /// Set of lint tags to opt out of.
+    /// Set of lint tags to filter out of the enabled lint rules.
     pub filter_lint_tags: Vec<String>,
 }
 
