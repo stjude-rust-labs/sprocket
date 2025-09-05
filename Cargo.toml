@@ -44,7 +44,7 @@ wdl = { version = "0.17.0", features = [
     "engine",
     "lsp",
     "doc",
-] }
+], git = "https://github.com/stjude-rust-labs/wdl", branch = "feat/sidebar-config" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 url = "2.5.4"
 walkdir = "2.5.0"

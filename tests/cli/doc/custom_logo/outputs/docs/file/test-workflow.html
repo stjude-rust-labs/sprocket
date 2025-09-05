@@ -17,7 +17,7 @@
                 restoreSidebar() { this.sidebarState = 'normal'; },
                 expandSidebar() { this.sidebarState = 'xl'; }
             }" x-bind:class="containerClasses"><div class="layout__sidebar-left" x-transition><div class="absolute top-5 right-2 flex gap-1 z-10" x-cloak x-show="showSidebarButtons"><button x-on:click="collapseSidebar()" x-bind:disabled="sidebarState === 'hidden'" x-bind:class="getSidebarButtonClass('hidden')"><img src="../assets/sidebar-icon-hide.svg" alt=""></img></button><button x-on:click="restoreSidebar()" x-bind:disabled="sidebarState === 'normal'" x-bind:class="getSidebarButtonClass('normal')"><img src="../assets/sidebar-icon-default.svg" alt=""></img></button><button x-on:click="expandSidebar()" x-bind:disabled="sidebarState === 'xl'" x-bind:class="getSidebarButtonClass('xl')"><img src="../assets/sidebar-icon-expand.svg" alt=""></img></button></div><div x-data="{
-                showWorkflows: $persist(true).using(sessionStorage),
+                showWorkflows: $persist(false).using(sessionStorage),
                 search: $persist('').using(sessionStorage),
                 dirOpen: '../assets/chevron-up.svg',
                 dirClosed: '../assets/chevron-down.svg',

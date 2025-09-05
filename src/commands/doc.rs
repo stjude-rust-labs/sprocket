@@ -6,10 +6,10 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
-use wdl::analysis::Analyzer;
-use wdl::analysis::Config;
+use wdl::analysis::Config as AnalaysisConfig;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::cli::analysis::Source;
+use wdl::doc::Config as DocConfig;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
 use wdl::doc::document_workspace;
@@ -47,6 +47,14 @@ pub struct Args {
     /// Open the generated documentation in the default web browser.
     #[arg(long)]
     pub open: bool,
+    /// Path to a `.js` file that should have its content embedded in each HTML
+    /// page's `<head>` tag.
+    #[arg(long, value_name = "JS FILE")]
+    pub additional_javascript: Option<PathBuf>,
+    /// Prefer the "Workflows" view over the "Full Directory" view of the left
+    /// nav bar.
+    #[arg(long)]
+    pub prioritize_workflows_view: bool,
     /// An optional path to a custom theme directory.
     ///
     /// This argument is meant to be used by developers of the `wdl` crates;
@@ -54,7 +62,6 @@ pub struct Args {
     /// unsupported.
     #[arg(long, value_name = "DIR")]
     pub theme: Option<PathBuf>,
-
     /// Install the theme if it is not already installed.
     ///
     /// `npm` and `npx` are expected to be available in the environment.
@@ -103,22 +110,17 @@ pub async fn doc(args: Args) -> Result<()> {
         std::fs::remove_dir_all(&docs_dir)?;
     }
 
-    let analyzer_config = Config::default()
+    let analysis_config = AnalaysisConfig::default()
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
-    let analyzer = Analyzer::new(analyzer_config, async |_, _, _, _| ());
-    analyzer.add_directory(&workspace).await?;
+    let doc_config = DocConfig::new(analysis_config, &workspace, &docs_dir)
+        .set_homepage(args.homepage)
+        .set_custom_theme(args.theme)
+        .set_custom_logo(args.logo)
+        .set_additional_javascript(args.additional_javascript)
+        .set_prefer_full_directory(!args.prioritize_workflows_view);
 
-    document_workspace(
-        analyzer,
-        &workspace,
-        &docs_dir,
-        args.homepage.clone(),
-        args.theme.clone(),
-        args.logo.clone(),
-    )
-    .await
-    .with_context(|| {
+    document_workspace(doc_config).await.with_context(|| {
         format!(
             "failed to generate documentation for workspace at `{}`",
             workspace.display()
