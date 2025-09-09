@@ -11,7 +11,7 @@ pub mod explain;
 pub mod format;
 pub mod inputs;
 pub mod lock;
-pub mod run;
+// pub mod run;
 pub mod validate;
 
 /// Represents the available commands for the Sprocket CLI.
@@ -43,9 +43,8 @@ pub enum Commands {
     /// Lints a document or a directory containing documents.
     Lint(check::LintArgs),
 
-    /// Runs a task or workflow.
-    Run(run::Args),
-
+    // /// Runs a task or workflow.
+    // Run(run::Args),
     /// Validate a set of inputs against a task or workflow.
     ///
     /// This ensures that every required input is supplied, every supplied input
