@@ -46,12 +46,25 @@ use crate::emit_diagnostics;
 /// very short analyses.
 const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 
-/// The capacity for the Crankshaft events channel.
+/// The capacity for the events channels.
 ///
-/// This is the number of events to buffer in the channel before receivers
-/// become lagged.
+/// This is the number of events to buffer in the events channel before
+/// receivers become lagged.
 ///
-/// The value of `100` was chosen simply as a reasonable default.
+/// As `tokio::sync::broadcast` channels are used to support multiple receivers,
+/// an event is only dropped from the channel once *all* receivers have read it.
+///
+/// If the senders are sending events faster than all receivers can read the
+/// events, the channel buffer will eventually reach capacity.
+///
+/// When this happens, the oldest events in the buffer are dropped and receivers
+/// are notified via an error on the next read that they are lagging behind.
+///
+/// For `sprocket`, we'll notify the user that the progress indicators might not
+/// be correct should this occur.
+///
+/// The value of `100` was chosen simply as a reasonable default that will make
+/// lagging unlikely.
 const EVENTS_CHANNEL_CAPACITY: usize = 100;
 
 /// The name of the default "runs" directory.
