@@ -54,7 +54,7 @@ static PATH_PREFIX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 /// Regex used to replace temporary file names in task command files with
 /// consistent names for test baselines.
 static TEMP_FILENAME_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new("tmp[[:alnum:]]{6}").expect("invalid regex"));
+    LazyLock::new(|| Regex::new(r#"(tmp[\/\\])?tmp[[:alnum:]]{6}"#).expect("invalid regex"));
 
 /// Find tests to run.
 fn find_tests(runtime: &tokio::runtime::Handle) -> Result<Vec<Trial>, anyhow::Error> {

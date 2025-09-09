@@ -16,7 +16,7 @@ struct Person {
   Int age
   Income? income
   Map[String, File] assay_data
-  
+
   meta {
     description: "Encapsulates data about a person"
   }

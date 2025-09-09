@@ -1,7 +1,7 @@
 version 1.2
 
 task placeholder_coercion {
-  File x = "/hij"
+  String x = "/hij"
   Int? i = None
 
   command <<<>>>

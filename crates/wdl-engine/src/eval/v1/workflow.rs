@@ -1,6 +1,5 @@
 //! Implementation of evaluation for V1 workflows.
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Write;
@@ -30,6 +29,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::trace;
 use wdl_analysis::Document;
+use wdl_analysis::diagnostics::Io;
 use wdl_analysis::diagnostics::only_one_namespace;
 use wdl_analysis::diagnostics::recursive_workflow_call;
 use wdl_analysis::diagnostics::type_is_not_array;
@@ -57,6 +57,7 @@ use wdl_ast::v1::ConditionalStatement;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::ScatterStatement;
+use wdl_ast::version::V1;
 
 use crate::Array;
 use crate::CallLocation;
@@ -75,8 +76,8 @@ use crate::TaskExecutionBackend;
 use crate::Value;
 use crate::WorkflowInputs;
 use crate::config::Config;
+use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::if_conditional_mismatch;
-use crate::diagnostics::output_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::http::Downloader;
 use crate::http::HttpDownloader;
@@ -135,36 +136,23 @@ const SCATTER_INDEX_VAR: &str = "$idx";
 
 /// Used to evaluate expressions in workflows.
 struct WorkflowEvaluationContext<'a, 'b> {
-    /// The document being evaluated.
-    document: &'a Document,
+    /// The evaluation state.
+    state: &'a State,
     /// The scope being evaluated.
     scope: ScopeRef<'b>,
-    /// The workflow's temporary directory.
-    temp_dir: &'a Path,
-    /// The downloader for expression evaluation.
-    downloader: &'a HttpDownloader,
 }
 
 impl<'a, 'b> WorkflowEvaluationContext<'a, 'b> {
     /// Constructs a new expression evaluation context.
-    pub fn new(
-        document: &'a Document,
-        scope: ScopeRef<'b>,
-        temp_dir: &'a Path,
-        downloader: &'a HttpDownloader,
-    ) -> Self {
-        Self {
-            document,
-            scope,
-            temp_dir,
-            downloader,
-        }
+    pub fn new(state: &'a State, scope: ScopeRef<'b>) -> Self {
+        Self { state, scope }
     }
 }
 
 impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     fn version(&self) -> SupportedVersion {
-        self.document
+        self.state
+            .document
             .version()
             .expect("document should have a version")
     }
@@ -177,35 +165,19 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
-        crate::resolve_type_name(self.document, name, span)
+        crate::resolve_type_name(&self.state.document, name, span)
     }
 
-    fn work_dir(&self) -> Option<&EvaluationPath> {
-        None
+    fn base_dir(&self) -> &EvaluationPath {
+        &self.state.base_dir
     }
 
     fn temp_dir(&self) -> &Path {
-        self.temp_dir
-    }
-
-    fn stdout(&self) -> Option<&Value> {
-        None
-    }
-
-    fn stderr(&self) -> Option<&Value> {
-        None
-    }
-
-    fn task(&self) -> Option<&Task> {
-        None
-    }
-
-    fn translate_path(&self, _path: &str) -> Option<Cow<'_, Path>> {
-        None
+        &self.state.temp_dir
     }
 
     fn downloader(&self) -> &dyn Downloader {
-        self.downloader
+        &self.state.downloader
     }
 }
 
@@ -581,7 +553,11 @@ struct State {
     graph: DiGraph<WorkflowGraphNode<SyntaxNode>, ()>,
     /// The map from graph node index to subgraph.
     subgraphs: HashMap<NodeIndex, Subgraph>,
-    /// The workflow evaluation temp directory path.
+    /// The base directory for evaluation.
+    ///
+    /// This is the document's directory.
+    base_dir: EvaluationPath,
+    /// The workflow evaluation temp directory.
     temp_dir: PathBuf,
     /// The calls directory path.
     calls_dir: PathBuf,
@@ -739,7 +715,14 @@ impl WorkflowEvaluator {
             )
         })?;
 
+        let document_path = document.path();
         let effective_output_dir = root_dir.to_path_buf();
+
+        let mut base_dir = EvaluationPath::parent_of(&document_path).with_context(|| {
+            format!("document `{document_path}` does not have a parent directory")
+        })?;
+
+        base_dir.make_absolute();
 
         let state = Arc::new(State {
             config: self.config.clone(),
@@ -750,6 +733,7 @@ impl WorkflowEvaluator {
             scopes: Default::default(),
             graph,
             subgraphs,
+            base_dir,
             temp_dir,
             calls_dir,
             downloader: self.downloader.clone(),
@@ -1046,9 +1030,36 @@ impl WorkflowEvaluator {
         };
 
         // Coerce the value to the expected type
-        let value = value
-            .coerce(&expected_ty)
+        let mut value = value
+            .coerce(None, &expected_ty)
             .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
+
+        // Ensure paths exist for WDL 1.2+
+        if state
+            .document
+            .version()
+            .expect("document should have a version")
+            >= SupportedVersion::V1(V1::Two)
+        {
+            value
+                .visit_paths_mut(expected_ty.is_optional(), &mut |optional, value| {
+                    value.ensure_path_exists(optional, state.base_dir.as_local())
+                })
+                .map_err(|e| {
+                    decl_evaluation_failed(
+                        e,
+                        state
+                            .document
+                            .workflow()
+                            .expect("should have workflow")
+                            .name(),
+                        false,
+                        name.text(),
+                        Some(Io::Input),
+                        name.span(),
+                    )
+                })?;
+        }
 
         // Write the value into the root scope
         state
@@ -1083,9 +1094,36 @@ impl WorkflowEvaluator {
         let value = Self::evaluate_expr(state, scope, &expr).await?;
 
         // Coerce the value to the expected type
-        let value = value.coerce(&expected_ty).map_err(|e| {
+        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
+
+        // Ensure paths exist for WDL 1.2+
+        if state
+            .document
+            .version()
+            .expect("document should have a version")
+            >= SupportedVersion::V1(V1::Two)
+        {
+            value
+                .visit_paths_mut(expected_ty.is_optional(), &mut |optional, value| {
+                    value.ensure_path_exists(optional, state.base_dir.as_local())
+                })
+                .map_err(|e| {
+                    decl_evaluation_failed(
+                        e,
+                        state
+                            .document
+                            .workflow()
+                            .expect("should have workflow")
+                            .name(),
+                        false,
+                        name.text(),
+                        None,
+                        name.span(),
+                    )
+                })?;
+        }
 
         state
             .scopes
@@ -1118,7 +1156,7 @@ impl WorkflowEvaluator {
         let value = Self::evaluate_expr(state, Scopes::OUTPUT_INDEX, &expr).await?;
 
         // Coerce the value to the expected type
-        let mut value = value.coerce(&expected_ty).map_err(|e| {
+        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
 
@@ -1131,14 +1169,14 @@ impl WorkflowEvaluator {
                     _ => unreachable!("only file and directory values should be visited"),
                 };
 
-                if !path::is_url(path) && Path::new(path.as_str()).is_relative() {
-                    bail!("relative path `{path}` cannot be a workflow output");
+                if !path::is_url(path.as_str()) && Path::new(path.as_str()).is_relative() {
+                    bail!("relative path `{path}` cannot be used as a workflow output");
                 }
 
-                value.ensure_path_exists(optional)
+                value.ensure_path_exists(optional, state.base_dir.as_local())
             })
             .map_err(|e| {
-                output_evaluation_failed(
+                decl_evaluation_failed(
                     e,
                     state
                         .document
@@ -1147,6 +1185,7 @@ impl WorkflowEvaluator {
                         .name(),
                     false,
                     name.text(),
+                    Some(Io::Output),
                     name.span(),
                 )
             })?;
@@ -1186,7 +1225,7 @@ impl WorkflowEvaluator {
             .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
 
         if value
-            .coerce(&PrimitiveType::Boolean.into())
+            .coerce(None, &PrimitiveType::Boolean.into())
             .map_err(|e| {
                 EvaluationError::new(
                     state.document.clone(),
@@ -1606,10 +1645,8 @@ impl WorkflowEvaluator {
     ) -> Result<Value, Diagnostic> {
         let scopes = state.scopes.read().await;
         ExprEvaluator::new(WorkflowEvaluationContext::new(
-            &state.document,
+            state,
             scopes.reference(scope),
-            &state.temp_dir,
-            &state.downloader,
         ))
         .evaluate_expr(expr)
         .await
@@ -1632,10 +1669,8 @@ impl WorkflowEvaluator {
             let value = match input.expr() {
                 Some(expr) => {
                     let mut evaluator = ExprEvaluator::new(WorkflowEvaluationContext::new(
-                        &state.document,
+                        state,
                         scopes.reference(scope),
-                        &state.temp_dir,
-                        &state.downloader,
                     ));
 
                     evaluator.evaluate_expr(&expr).await?
@@ -1762,6 +1797,7 @@ workflow test {
         inputs.set(
             "c",
             Array::new(
+                None,
                 ArrayType::new(PrimitiveType::String),
                 ["jam".to_string(), "cakes".to_string()],
             )

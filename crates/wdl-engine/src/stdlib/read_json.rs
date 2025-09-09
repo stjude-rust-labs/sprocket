@@ -35,13 +35,9 @@ fn read_json(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
             .coerce_argument(0, PrimitiveType::File)
             .unwrap_file();
 
-        let file_path = download_file(
-            context.context.downloader(),
-            context.work_dir(),
-            path.as_str(),
-        )
-        .await
-        .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
+        let file_path = download_file(context.downloader(), context.base_dir(), &path)
+            .await
+            .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
 
         // Note: `serde-json` does not support asynchronous readers, so we are
         // performing a synchronous read here

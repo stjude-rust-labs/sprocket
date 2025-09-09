@@ -1,7 +1,5 @@
 //! Implements the `write_tsv` function from the WDL standard library.
 
-use std::path::Path;
-
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tempfile::NamedTempFile;
@@ -12,17 +10,17 @@ use tokio::io::BufWriter;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
-use wdl_ast::Span;
 
 use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
-use crate::EvaluationContext;
+use crate::HostPath;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
+use crate::stdlib::temp_path_to_value;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "write_tsv";
@@ -35,20 +33,21 @@ const FUNCTION_NAME: &str = "write_tsv";
 ///
 /// Returns `Err(_)` if there was an I/O error.
 pub(crate) async fn write_tsv_value<W: AsyncWrite + Unpin>(
-    context: &dyn EvaluationContext,
     writer: &mut W,
     value: &PrimitiveValue,
+    context: &CallContext<'_>,
 ) -> Result<bool, std::io::Error> {
     match value {
-        PrimitiveValue::String(v) | PrimitiveValue::File(v) | PrimitiveValue::Directory(v)
+        PrimitiveValue::String(v)
+        | PrimitiveValue::File(HostPath(v))
+        | PrimitiveValue::Directory(HostPath(v))
             if v.contains('\t') =>
         {
             Ok(false)
         }
         v => {
-            writer
-                .write_all(v.raw(Some(context)).to_string().as_bytes())
-                .await?;
+            let s = v.raw(Some(context.inner())).to_string();
+            writer.write_all(s.as_bytes()).await?;
             Ok(true)
         }
     }
@@ -56,27 +55,26 @@ pub(crate) async fn write_tsv_value<W: AsyncWrite + Unpin>(
 
 /// Helper for writing a `Array[Array[String]]` to a TSV file.
 async fn write_array_tsv_file(
-    tmp: &Path,
+    context: CallContext<'_>,
     rows: Array,
     header: Option<Array>,
-    call_site: Span,
 ) -> Result<Value, Diagnostic> {
     // Helper for handling errors while writing to the file.
     let write_error = |e: std::io::Error| {
         function_call_failed(
             FUNCTION_NAME,
             format!("failed to write to temporary file: {e}"),
-            call_site,
+            context.call_site,
         )
     };
 
     // Create a temporary file that will be persisted after writing
-    let (file, path) = NamedTempFile::with_prefix_in("tmp", tmp)
+    let (file, path) = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
         .map_err(|e| {
             function_call_failed(
                 FUNCTION_NAME,
                 format!("failed to create temporary file: {e}"),
-                call_site,
+                context.call_site,
             )
         })?
         .into_parts();
@@ -92,7 +90,7 @@ async fn write_array_tsv_file(
                     return Err(function_call_failed(
                         FUNCTION_NAME,
                         format!("specified column name at index {i} contains a tab character"),
-                        call_site,
+                        context.call_site,
                     ));
                 }
 
@@ -126,7 +124,7 @@ async fn write_array_tsv_file(
                     s1 = if column_count == 1 { "s" } else { "" },
                     len = row.len(),
                 ),
-                call_site,
+                context.call_site,
             ));
         }
 
@@ -136,7 +134,7 @@ async fn write_array_tsv_file(
                 return Err(function_call_failed(
                     FUNCTION_NAME,
                     format!("element of array at index {index} contains a tab character"),
-                    call_site,
+                    context.call_site,
                 ));
             }
 
@@ -157,27 +155,7 @@ async fn write_array_tsv_file(
     writer.flush().await.map_err(write_error)?;
     drop(writer);
 
-    let path = path.keep().map_err(|e| {
-        function_call_failed(
-            FUNCTION_NAME,
-            format!("failed to keep temporary file: {e}"),
-            call_site,
-        )
-    })?;
-
-    Ok(
-        PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
-            function_call_failed(
-                FUNCTION_NAME,
-                format!(
-                    "path `{path}` cannot be represented as UTF-8",
-                    path = Path::new(&path).display()
-                ),
-                call_site,
-            )
-        })?)
-        .into(),
-    )
+    temp_path_to_value(context, path, FUNCTION_NAME)
 }
 
 /// Given an Array of elements, writes a tab-separated value (TSV) file with one
@@ -197,7 +175,7 @@ fn write_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
             .coerce_argument(0, ANALYSIS_STDLIB.array_array_string_type().clone())
             .unwrap_array();
 
-        write_array_tsv_file(context.temp_dir(), rows, None, context.call_site).await
+        write_array_tsv_file(context, rows, None).await
     }
     .boxed()
 }
@@ -228,10 +206,9 @@ fn write_tsv_with_header(context: CallContext<'_>) -> BoxFuture<'_, Result<Value
             .unwrap_array();
 
         write_array_tsv_file(
-            context.temp_dir(),
+            context,
             rows,
             if write_header { Some(header) } else { None },
-            context.call_site,
         )
         .await
     }
@@ -377,7 +354,7 @@ fn write_tsv_struct(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Dia
                 match column {
                     Value::None(_) => {}
                     Value::Primitive(v) => {
-                        if !write_tsv_value(context.context, &mut writer, v)
+                        if !write_tsv_value(&mut writer, v, &context)
                             .await
                             .map_err(write_error)?
                         {
@@ -399,27 +376,7 @@ fn write_tsv_struct(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Dia
         writer.flush().await.map_err(write_error)?;
         drop(writer);
 
-        let path = path.keep().map_err(|e| {
-            function_call_failed(
-                FUNCTION_NAME,
-                format!("failed to keep temporary file: {e}"),
-                context.call_site,
-            )
-        })?;
-
-        Ok(
-            PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
-                function_call_failed(
-                    FUNCTION_NAME,
-                    format!(
-                        "path `{path}` cannot be represented as UTF-8",
-                        path = Path::new(&path).display()
-                    ),
-                    context.call_site,
-                )
-            })?)
-            .into(),
-        )
+        temp_path_to_value(context, path, FUNCTION_NAME)
     }
     .boxed()
 }

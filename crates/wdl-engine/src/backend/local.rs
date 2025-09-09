@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
-use std::path::Path;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -17,15 +16,12 @@ use crankshaft::engine::service::name::UniqueAlphanumeric;
 use crankshaft::events::Event;
 use crankshaft::events::next_task_id;
 use crankshaft::events::send_event;
-use futures::FutureExt;
-use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tokio::process::Command;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
-use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing::warn;
@@ -36,7 +32,6 @@ use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use crate::COMMAND_FILE_NAME;
-use crate::Input;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::STDERR_FILE_NAME;
@@ -51,9 +46,6 @@ use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::LocalBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
-use crate::http::Downloader;
-use crate::http::HttpDownloader;
-use crate::http::Location;
 use crate::path::EvaluationPath;
 use crate::v1::cpu;
 use crate::v1::memory;
@@ -220,7 +212,6 @@ impl TaskManagerRequest for LocalTaskRequest {
                         let exit_code = status.code().expect("process should have exited");
                         info!("process {id} for task `{name}` has terminated with status code {exit_code}", name = self.name);
                         Ok(TaskExecutionResult {
-                            inputs: self.inner.info.inputs,
                             exit_code,
                             work_dir: EvaluationPath::Local(work_dir),
                             stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
@@ -374,84 +365,13 @@ impl TaskExecutionBackend for LocalBackend {
         })
     }
 
-    fn guest_work_dir(&self) -> Option<&Path> {
+    fn guest_inputs_dir(&self) -> Option<&'static str> {
         // Local execution does not use a container
         None
     }
 
-    fn localize_inputs<'a, 'b, 'c, 'd>(
-        &'a self,
-        downloader: &'b HttpDownloader,
-        inputs: &'c mut [Input],
-    ) -> BoxFuture<'d, Result<()>>
-    where
-        'a: 'd,
-        'b: 'd,
-        'c: 'd,
-        Self: 'd,
-    {
-        async move {
-            let mut downloads = JoinSet::new();
-
-            for (idx, input) in inputs.iter_mut().enumerate() {
-                match input.path() {
-                    EvaluationPath::Local(path) => {
-                        let location = Location::Path(path.clone().into());
-                        let guest_path = location
-                            .to_str()
-                            .with_context(|| {
-                                format!("path `{path}` is not UTF-8", path = path.display())
-                            })?
-                            .to_string();
-                        input.set_location(location.into_owned());
-                        input.set_guest_path(guest_path);
-                    }
-                    EvaluationPath::Remote(url) => {
-                        let downloader = downloader.clone();
-                        let url = url.clone();
-                        downloads.spawn(async move {
-                            let location_result = downloader.download(&url).await;
-
-                            match location_result {
-                                Ok(location) => Ok((idx, location.into_owned())),
-                                Err(e) => bail!("failed to localize `{url}`: {e:?}"),
-                            }
-                        });
-                    }
-                }
-            }
-
-            while let Some(result) = downloads.join_next().await {
-                match result {
-                    Ok(Ok((idx, location))) => {
-                        let guest_path = location
-                            .to_str()
-                            .with_context(|| {
-                                format!(
-                                    "downloaded path `{path}` is not UTF-8",
-                                    path = location.display()
-                                )
-                            })?
-                            .to_string();
-
-                        let input = inputs.get_mut(idx).expect("index should be valid");
-                        input.set_location(location);
-                        input.set_guest_path(guest_path);
-                    }
-                    Ok(Err(e)) => {
-                        // Futures are aborted when the `JoinSet` is dropped.
-                        bail!(e);
-                    }
-                    Err(e) => {
-                        // Futures are aborted when the `JoinSet` is dropped.
-                        bail!("download task failed: {e}");
-                    }
-                }
-            }
-
-            Ok(())
-        }
-        .boxed()
+    fn needs_local_inputs(&self) -> bool {
+        true
     }
 
     fn spawn(

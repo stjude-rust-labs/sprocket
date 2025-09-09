@@ -1,7 +1,5 @@
 //! Implements the `write_map` function from the WDL standard library.
 
-use std::path::Path;
-
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tempfile::NamedTempFile;
@@ -16,9 +14,9 @@ use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
-use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
+use crate::stdlib::temp_path_to_value;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "write_map";
@@ -88,27 +86,7 @@ fn write_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
         writer.flush().await.map_err(write_error)?;
         drop(writer);
 
-        let path = path.keep().map_err(|e| {
-            function_call_failed(
-                FUNCTION_NAME,
-                format!("failed to keep temporary file: {e}"),
-                context.call_site,
-            )
-        })?;
-
-        Ok(
-            PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
-                function_call_failed(
-                    FUNCTION_NAME,
-                    format!(
-                        "path `{path}` cannot be represented as UTF-8",
-                        path = Path::new(&path).display()
-                    ),
-                    context.call_site,
-                )
-            })?)
-            .into(),
-        )
+        temp_path_to_value(context, path, FUNCTION_NAME)
     }
     .boxed()
 }

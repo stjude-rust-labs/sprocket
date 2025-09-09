@@ -55,7 +55,7 @@ task t {
         File local_file
     }
 
-    File relative_path = "relative.txt"
+    String relative_path = "relative.txt"
 
     command <<<
         set -euo pipefail

@@ -27,6 +27,7 @@ rust-version = "1.88.0"
 ammonia = "4.1.0"
 anyhow = "1.0.98"
 approx = "0.5.1"
+bimap = "0.6.3"
 chrono = "0.4.41"
 clap = { version = "4.5.38", features = ["derive"] }
 clap-verbosity-flag = { version = "3.0.3", features = ["tracing"] }

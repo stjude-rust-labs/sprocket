@@ -57,9 +57,9 @@ pub enum TaskGraphNode<N: TreeNode = SyntaxNode> {
     Command(CommandSection<N>),
     /// The node is a `runtime` section.
     Runtime(RuntimeSection<N>),
-    /// The node is a `requirements`` section.
+    /// The node is a `requirements` section.
     Requirements(RequirementsSection<N>),
-    /// The node is a `hints`` section.
+    /// The node is a `hints` section.
     Hints(TaskHintsSection<N>),
 }
 

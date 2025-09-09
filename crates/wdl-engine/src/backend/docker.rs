@@ -24,13 +24,11 @@ use crankshaft::engine::task::input::Contents;
 use crankshaft::engine::task::input::Type as InputType;
 use crankshaft::engine::task::output::Type as OutputType;
 use crankshaft::events::Event;
-use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
-use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing::warn;
@@ -43,7 +41,6 @@ use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use crate::COMMAND_FILE_NAME;
-use crate::InputTrie;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::STDERR_FILE_NAME;
@@ -55,9 +52,6 @@ use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::DockerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
-use crate::http::Downloader;
-use crate::http::HttpDownloader;
-use crate::http::Location;
 use crate::path::EvaluationPath;
 use crate::v1::container;
 use crate::v1::cpu;
@@ -66,7 +60,7 @@ use crate::v1::max_memory;
 use crate::v1::memory;
 
 /// The root guest path for inputs.
-const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs";
+const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs/";
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -139,20 +133,25 @@ impl TaskManagerRequest for DockerTaskRequest {
         // the working directory and command
         let mut inputs = Vec::with_capacity(self.inner.inputs().len() + 2);
         for input in self.inner.inputs().iter() {
-            if let Some(guest_path) = input.guest_path() {
-                let location = input.location().expect("all inputs should have localized");
+            let guest_path = input.guest_path().expect("input should have guest path");
+            let local_path = input.local_path().expect("input should be localized");
 
-                if location.exists() {
-                    inputs.push(
-                        Input::builder()
-                            .path(guest_path)
-                            .contents(Contents::Path(location.into()))
-                            .ty(input.kind())
-                            .read_only(true)
-                            .build(),
-                    );
-                }
+            // The local path must exist for Docker to mount
+            if !local_path.exists() {
+                bail!(
+                    "cannot mount input `{path}` as it does not exist",
+                    path = local_path.display()
+                );
             }
+
+            inputs.push(
+                Input::builder()
+                    .path(guest_path.as_str())
+                    .contents(Contents::Path(local_path.into()))
+                    .ty(input.kind())
+                    .read_only(true)
+                    .build(),
+            );
         }
 
         // Add an input for the work directory
@@ -195,7 +194,7 @@ impl TaskManagerRequest for DockerTaskRequest {
             .name(self.name)
             .executions(NonEmpty::new(
                 Execution::builder()
-                    .image(&self.container)
+                    .image(self.container)
                     .program(
                         self.config
                             .task
@@ -205,20 +204,7 @@ impl TaskManagerRequest for DockerTaskRequest {
                     )
                     .args([GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
-                    .env({
-                        let mut final_env = indexmap::IndexMap::new();
-                        for (k, v) in self.inner.env() {
-                            let guest_path = self
-                                .inner
-                                .inputs()
-                                .iter()
-                                .find(|input| input.path().to_str() == Some(v))
-                                .and_then(|input| input.guest_path());
-
-                            final_env.insert(k.clone(), guest_path.unwrap_or(v).to_string());
-                        }
-                        final_env
-                    })
+                    .env(self.inner.env().clone())
                     .stdout(GUEST_STDOUT_PATH)
                     .stderr(GUEST_STDERR_PATH)
                     .build(),
@@ -246,7 +232,6 @@ impl TaskManagerRequest for DockerTaskRequest {
         let status = statuses.first();
 
         Ok(TaskExecutionResult {
-            inputs: self.inner.info.inputs,
             exit_code: status.code().expect("should have exit code"),
             work_dir: EvaluationPath::Local(work_dir),
             stdout: PrimitiveValue::new_file(
@@ -420,80 +405,12 @@ impl TaskExecutionBackend for DockerBackend {
         })
     }
 
-    fn guest_work_dir(&self) -> Option<&Path> {
-        Some(Path::new(GUEST_WORK_DIR))
+    fn guest_inputs_dir(&self) -> Option<&'static str> {
+        Some(GUEST_INPUTS_DIR)
     }
 
-    fn localize_inputs<'a, 'b, 'c, 'd>(
-        &'a self,
-        downloader: &'b HttpDownloader,
-        inputs: &'c mut [crate::eval::Input],
-    ) -> BoxFuture<'d, Result<()>>
-    where
-        'a: 'd,
-        'b: 'd,
-        'c: 'd,
-        Self: 'd,
-    {
-        async move {
-            // Construct a trie for mapping input guest paths
-            let mut trie = InputTrie::default();
-            for input in inputs.iter() {
-                trie.insert(input)?;
-            }
-
-            for (index, guest_path) in trie.calculate_guest_paths(GUEST_INPUTS_DIR)? {
-                if let Some(input) = inputs.get_mut(index) {
-                    input.set_guest_path(guest_path);
-                } else {
-                    bail!("invalid index {} returned from trie", index);
-                }
-            }
-
-            // Localize all inputs
-            let mut downloads = JoinSet::new();
-            for (idx, input) in inputs.iter_mut().enumerate() {
-                match input.path() {
-                    EvaluationPath::Local(path) => {
-                        input.set_location(Location::Path(path.clone().into()));
-                    }
-                    EvaluationPath::Remote(url) => {
-                        let downloader = downloader.clone();
-                        let url = url.clone();
-                        downloads.spawn(async move {
-                            let location_result = downloader.download(&url).await;
-
-                            match location_result {
-                                Ok(location) => Ok((idx, location.into_owned())),
-                                Err(e) => bail!("failed to localize `{url}`: {e:?}"),
-                            }
-                        });
-                    }
-                }
-            }
-
-            while let Some(result) = downloads.join_next().await {
-                match result {
-                    Ok(Ok((idx, location))) => {
-                        inputs
-                            .get_mut(idx)
-                            .expect("index from should be valid")
-                            .set_location(location);
-                    }
-                    Ok(Err(e)) => {
-                        // Futures are aborted when the `JoinSet` is dropped.
-                        bail!(e)
-                    }
-                    Err(e) => {
-                        // Futures are aborted when the `JoinSet` is dropped.
-                        bail!("download task failed: {e:?}")
-                    }
-                }
-            }
-
-            Ok(())
-        }
-        .boxed()
+    fn needs_local_inputs(&self) -> bool {
+        true
     }
 
     fn spawn(
@@ -558,6 +475,8 @@ impl TaskExecutionBackend for DockerBackend {
         'b: 'c,
         Self: 'c,
     {
+        use futures::FutureExt;
+
         /// The guest path for the output directory.
         const GUEST_OUT_DIR: &str = "/workflow_output";
 

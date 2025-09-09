@@ -3,7 +3,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -27,8 +26,6 @@ use crankshaft::engine::task::input::Contents;
 use crankshaft::engine::task::input::Type as InputType;
 use crankshaft::engine::task::output::Type as OutputType;
 use crankshaft::events::Event;
-use futures::FutureExt;
-use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
@@ -45,7 +42,6 @@ use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use crate::COMMAND_FILE_NAME;
 use crate::InputKind;
-use crate::InputTrie;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::STDERR_FILE_NAME;
@@ -57,7 +53,6 @@ use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TesBackendAuthConfig;
 use crate::config::TesBackendConfig;
-use crate::http::HttpDownloader;
 use crate::http::rewrite_url;
 use crate::path::EvaluationPath;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
@@ -70,7 +65,7 @@ use crate::v1::memory;
 use crate::v1::preemptible;
 
 /// The root guest path for inputs.
-const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs";
+const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs/";
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -218,7 +213,12 @@ impl TaskManagerRequest for TesTaskRequest {
             // input contents directly
             inputs.push(
                 Input::builder()
-                    .path(input.guest_path().expect("should have guest path"))
+                    .path(
+                        input
+                            .guest_path()
+                            .expect("input should have guest path")
+                            .as_str(),
+                    )
                     .contents(match input.path() {
                         EvaluationPath::Local(path) => Contents::Path(path.clone()),
                         EvaluationPath::Remote(url) => Contents::Url(
@@ -337,7 +337,6 @@ impl TaskManagerRequest for TesTaskRequest {
             work_dir_url.path_segments_mut().unwrap().push("");
 
             return Ok(TaskExecutionResult {
-                inputs: self.inner.info.inputs,
                 exit_code: status.code().expect("should have exit code"),
                 work_dir: EvaluationPath::Remote(work_dir_url),
                 stdout: PrimitiveValue::new_file(stdout_url).into(),
@@ -490,35 +489,12 @@ impl TaskExecutionBackend for TesBackend {
         })
     }
 
-    fn guest_work_dir(&self) -> Option<&Path> {
-        Some(Path::new(GUEST_WORK_DIR))
+    fn guest_inputs_dir(&self) -> Option<&'static str> {
+        Some(GUEST_INPUTS_DIR)
     }
 
-    fn localize_inputs<'a, 'b, 'c, 'd>(
-        &'a self,
-        _: &'b HttpDownloader,
-        inputs: &'c mut [crate::eval::Input],
-    ) -> BoxFuture<'d, Result<()>>
-    where
-        'a: 'd,
-        'b: 'd,
-        'c: 'd,
-        Self: 'd,
-    {
-        async {
-            // Construct a trie for mapping input guest paths
-            let mut trie = InputTrie::default();
-            for input in inputs.iter() {
-                trie.insert(input)?;
-            }
-
-            for (index, guest_path) in trie.calculate_guest_paths(GUEST_INPUTS_DIR)? {
-                inputs[index].set_guest_path(guest_path);
-            }
-
-            Ok(())
-        }
-        .boxed()
+    fn needs_local_inputs(&self) -> bool {
+        false
     }
 
     fn spawn(

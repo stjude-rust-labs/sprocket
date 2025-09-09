@@ -52,12 +52,11 @@ fn join_paths<'a>(
         // This is useful when this value is the only reference to shared data as this
         // would prevent internal cloning
         let mut current = std::mem::replace(value, Value::None(value.ty()));
-        if let Ok(mut v) = current.coerce(&ty) {
+        if let Ok(mut v) = current.coerce(None, &ty) {
             drop(current);
             v.visit_paths_mut(false, &mut |_, v| {
-                v.expand_path()?;
-                v.join_path_to(path);
-                v.ensure_path_exists(false)
+                v.expand_path(path)?;
+                v.ensure_path_exists(false, None)
             })?;
             current = v;
         }

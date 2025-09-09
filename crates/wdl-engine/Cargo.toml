@@ -17,6 +17,7 @@ codespan-reporting = ["codespan", "dep:codespan-reporting"]
 
 [dependencies]
 anyhow = { workspace = true }
+bimap = { workspace = true }
 chrono = { workspace = true }
 codespan-reporting = { workspace = true, optional = true }
 crankshaft = { workspace = true }

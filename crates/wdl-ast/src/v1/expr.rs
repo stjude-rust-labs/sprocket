@@ -2538,7 +2538,7 @@ impl<N: TreeNode> AstNode<N> for DefaultOption<N> {
 pub struct TrueFalseOption<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> TrueFalseOption<N> {
-    /// Gets the `true` and `false`` values to use for a placeholder
+    /// Gets the `true` and `false` values to use for a placeholder
     /// expression that evaluates to a boolean.
     ///
     /// The first value returned is the `true` value and the second

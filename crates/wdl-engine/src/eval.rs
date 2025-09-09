@@ -1,15 +1,14 @@
 //! Module for evaluation.
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::fmt;
 use std::fs;
 use std::io::BufRead;
-use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use indexmap::IndexMap;
@@ -34,10 +33,16 @@ use crate::http::Location;
 use crate::path::EvaluationPath;
 use crate::stdlib::download_file;
 
+pub mod trie;
 pub mod v1;
 
 /// The maximum number of stderr lines to display in error messages.
 const MAX_STDERR_LINES: usize = 10;
+
+/// A name used whenever a file system "root" is mapped.
+///
+/// A root might be a root directory like `/` or `C:\`, but it also might be the root of a URL like `https://example.com`.
+const ROOT_NAME: &str = ".root";
 
 /// Represents the location of a call in an evaluation error.
 #[derive(Debug, Clone)]
@@ -139,6 +144,82 @@ impl From<anyhow::Error> for EvaluationError {
 /// Represents a result from evaluating a workflow or task.
 pub type EvaluationResult<T> = Result<T, EvaluationError>;
 
+/// Represents a path to a file or directory on the host file system or a URL to
+/// a remote file.
+///
+/// The host in this context is where the WDL evaluation is taking place.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct HostPath(pub(crate) Arc<String>);
+
+impl HostPath {
+    /// Constructs a new host path from a string.
+    pub fn new(path: impl Into<String>) -> Self {
+        Self(Arc::new(path.into()))
+    }
+
+    /// Gets the string representation of the host path.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for HostPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<Arc<String>> for HostPath {
+    fn from(path: Arc<String>) -> Self {
+        Self(path)
+    }
+}
+
+impl From<HostPath> for Arc<String> {
+    fn from(path: HostPath) -> Self {
+        path.0
+    }
+}
+
+/// Represents a path to a file or directory on the guest.
+///
+/// The guest in this context is the container where tasks are run.
+///
+/// For backends that do not use containers, a guest path is the same as a host
+/// path.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct GuestPath(pub(crate) Arc<String>);
+
+impl GuestPath {
+    /// Constructs a new guest path from a string.
+    pub fn new(path: impl Into<String>) -> Self {
+        Self(Arc::new(path.into()))
+    }
+
+    /// Gets the string representation of the guest path.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for GuestPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<Arc<String>> for GuestPath {
+    fn from(path: Arc<String>) -> Self {
+        Self(path)
+    }
+}
+
+impl From<GuestPath> for Arc<String> {
+    fn from(path: GuestPath) -> Self {
+        path.0
+    }
+}
+
 /// Represents context to an expression evaluator.
 pub trait EvaluationContext: Send + Sync {
     /// Gets the supported version of the document being evaluated.
@@ -150,36 +231,69 @@ pub trait EvaluationContext: Send + Sync {
     /// Resolves a type name to a type.
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 
-    /// Gets the working directory for the evaluation.
+    /// Gets the base directory for the evaluation.
     ///
-    /// Returns `None` if the task execution hasn't occurred yet.
-    fn work_dir(&self) -> Option<&EvaluationPath>;
+    /// The base directory is what paths are relative to.
+    ///
+    /// For workflow evaluation, the base directory is the document's directory.
+    ///
+    /// For task evaluation, the base directory is the document's directory or
+    /// the task's working directory if the `output` section is being evaluated.
+    fn base_dir(&self) -> &EvaluationPath;
 
     /// Gets the temp directory for the evaluation.
     fn temp_dir(&self) -> &Path;
 
     /// Gets the value to return for a call to the `stdout` function.
     ///
-    /// This is `Some` only when evaluating task outputs.
-    fn stdout(&self) -> Option<&Value>;
+    /// This returns `Some` only when evaluating a task's outputs section.
+    fn stdout(&self) -> Option<&Value> {
+        None
+    }
 
     /// Gets the value to return for a call to the `stderr` function.
     ///
-    /// This is `Some` only when evaluating task outputs.
-    fn stderr(&self) -> Option<&Value>;
+    /// This returns `Some` only when evaluating a task's outputs section.
+    fn stderr(&self) -> Option<&Value> {
+        None
+    }
 
     /// Gets the task associated with the evaluation context.
     ///
-    /// This is only `Some` when evaluating task hints sections.
-    fn task(&self) -> Option<&Task>;
-
-    /// Translates a host path to a guest path.
-    ///
-    /// Returns `None` if no translation is available.
-    fn translate_path(&self, path: &str) -> Option<Cow<'_, Path>>;
+    /// This returns `Some` only when evaluating a task's hints sections.
+    fn task(&self) -> Option<&Task> {
+        None
+    }
 
     /// Gets the downloader to use for evaluating expressions.
     fn downloader(&self) -> &dyn Downloader;
+
+    /// Gets a guest path representation of a host path.
+    ///
+    /// Returns `None` if there is no guest path representation of the host
+    /// path.
+    fn guest_path(&self, path: &HostPath) -> Option<GuestPath> {
+        let _ = path;
+        None
+    }
+
+    /// Gets a host path representation of a guest path.
+    ///
+    /// Returns `None` if there is no host path representation of the guest
+    /// path.
+    fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
+        let _ = path;
+        None
+    }
+
+    /// Notifies the context that a file was created as a result of a call to a
+    /// stdlib function.
+    ///
+    /// A context may map a guest path for the new host path.
+    fn notify_file_created(&mut self, path: &HostPath) -> Result<()> {
+        let _ = path;
+        Ok(())
+    }
 }
 
 /// Represents an index of a scope in a collection of scopes.
@@ -377,11 +491,6 @@ impl EvaluatedTask {
         &self.attempt_dir
     }
 
-    /// Gets the inputs that were given to the task.
-    pub fn inputs(&self) -> &[Input] {
-        &self.result.inputs
-    }
-
     /// Gets the working directory of the evaluated task.
     pub fn work_dir(&self) -> &EvaluationPath {
         &self.result.work_dir
@@ -461,28 +570,32 @@ impl EvaluatedTask {
         if error {
             // Read the last `MAX_STDERR_LINES` number of lines from stderr
             // If there's a problem reading stderr, don't output it
-            let stderr = download_file(downloader, None, self.stderr().as_file().unwrap())
-                .await
-                .ok()
-                .and_then(|l| {
-                    fs::File::open(l).ok().map(|f| {
-                        // Buffer the last N number of lines
-                        let reader = RevBufReader::new(f);
-                        let lines: Vec<_> = reader
-                            .lines()
-                            .take(MAX_STDERR_LINES)
-                            .map_while(|l| l.ok())
-                            .collect();
+            let stderr = download_file(
+                downloader,
+                self.work_dir(),
+                self.stderr().as_file().unwrap(),
+            )
+            .await
+            .ok()
+            .and_then(|l| {
+                fs::File::open(l).ok().map(|f| {
+                    // Buffer the last N number of lines
+                    let reader = RevBufReader::new(f);
+                    let lines: Vec<_> = reader
+                        .lines()
+                        .take(MAX_STDERR_LINES)
+                        .map_while(|l| l.ok())
+                        .collect();
 
-                        // Iterate the lines in reverse order as we read them in reverse
-                        lines
-                            .iter()
-                            .rev()
-                            .format_with("\n", |l, f| f(&format_args!("  {l}")))
-                            .to_string()
-                    })
+                    // Iterate the lines in reverse order as we read them in reverse
+                    lines
+                        .iter()
+                        .rev()
+                        .format_with("\n", |l, f| f(&format_args!("  {l}")))
+                        .to_string()
                 })
-                .unwrap_or_default();
+            })
+            .unwrap_or_default();
 
             // If the work directory is remote,
             bail!(
@@ -531,39 +644,25 @@ pub struct Input {
     kind: InputKind,
     /// The path for the input.
     path: EvaluationPath,
+    /// The guest path for the input.
+    ///
+    /// This is `None` when the backend isn't mapping input paths.
+    guest_path: Option<GuestPath>,
     /// The download location for the input.
     ///
     /// This is `Some` if the input has been downloaded to a known location.
     location: Option<Location<'static>>,
-    /// The guest path for the input.
-    guest_path: Option<String>,
 }
 
 impl Input {
     /// Creates a new input with the given path and access.
-    pub fn new(kind: InputKind, path: EvaluationPath) -> Self {
+    fn new(kind: InputKind, path: EvaluationPath, guest_path: Option<GuestPath>) -> Self {
         Self {
             kind,
             path,
+            guest_path,
             location: None,
-            guest_path: None,
         }
-    }
-
-    /// Creates an input from a primitive value.
-    pub fn from_primitive(value: &PrimitiveValue) -> Result<Self> {
-        let (kind, path) = match value {
-            PrimitiveValue::File(path) => (InputKind::File, path),
-            PrimitiveValue::Directory(path) => (InputKind::Directory, path),
-            _ => bail!("value is not a `File` or `Directory`"),
-        };
-
-        Ok(Self {
-            kind,
-            path: path.parse()?,
-            location: None,
-            guest_path: None,
-        })
     }
 
     /// Gets the kind of the input.
@@ -572,415 +671,30 @@ impl Input {
     }
 
     /// Gets the path to the input.
+    ///
+    /// The path of the input may be local or remote.
     pub fn path(&self) -> &EvaluationPath {
         &self.path
     }
 
-    /// Gets the location of the input if it has been downloaded.
-    pub fn location(&self) -> Option<&Path> {
-        self.location.as_deref()
+    /// Gets the guest path for the input.
+    ///
+    /// This is `None` for inputs to backends that don't use containers.
+    pub fn guest_path(&self) -> Option<&GuestPath> {
+        self.guest_path.as_ref()
+    }
+
+    /// Gets the local path of the input.
+    ///
+    /// Returns `None` if the input is remote and has not been localized.
+    pub fn local_path(&self) -> Option<&Path> {
+        self.location.as_deref().or_else(|| self.path.as_local())
     }
 
     /// Sets the location of the input.
+    ///
+    /// This is used during localization to set a local path for remote inputs.
     pub fn set_location(&mut self, location: Location<'static>) {
         self.location = Some(location);
-    }
-
-    /// Gets the guest path for the input.
-    pub fn guest_path(&self) -> Option<&str> {
-        self.guest_path.as_deref()
-    }
-
-    /// Sets the guest path for the input.
-    pub fn set_guest_path(&mut self, path: impl Into<String>) {
-        self.guest_path = Some(path.into());
-    }
-}
-
-/// Represents a node in an input trie.
-#[derive(Debug)]
-struct InputTrieNode<'a> {
-    /// The children of this node.
-    ///
-    /// A `BTreeMap` is used here to get a consistent walk of the tree.
-    children: BTreeMap<&'a str, Self>,
-    /// The identifier of the node in the trie.
-    ///
-    /// A node's identifier is used when formatting guest paths of children.
-    id: usize,
-    /// The input represented by this node.
-    ///
-    /// This is `Some` only for terminal nodes in the trie.
-    ///
-    /// The first element in the tuple is the index of the input.
-    input: Option<(usize, &'a Input)>,
-}
-
-impl InputTrieNode<'_> {
-    /// Constructs a new input trie node with the given component.
-    fn new(id: usize) -> Self {
-        Self {
-            children: Default::default(),
-            id,
-            input: None,
-        }
-    }
-
-    /// Calculates the guest path for all terminal nodes in the trie.
-    fn calculate_guest_paths(
-        &self,
-        root: &str,
-        parent_id: usize,
-        paths: &mut Vec<(usize, String)>,
-    ) -> Result<()> {
-        // Invoke the callback for any terminal node in the trie
-        if let Some((index, input)) = self.input {
-            let file_name = input.path.file_name()?.unwrap_or("");
-
-            // If the file name is empty, it means this is a root URL
-            let guest_path = if file_name.is_empty() {
-                format!(
-                    "{root}{sep}{parent_id}/.root",
-                    root = root,
-                    sep = if root.as_bytes().last() == Some(&b'/') {
-                        ""
-                    } else {
-                        "/"
-                    }
-                )
-            } else {
-                format!(
-                    "{root}{sep}{parent_id}/{file_name}",
-                    root = root,
-                    sep = if root.as_bytes().last() == Some(&b'/') {
-                        ""
-                    } else {
-                        "/"
-                    },
-                )
-            };
-
-            paths.push((index, guest_path));
-        }
-
-        // Traverse into the children
-        for child in self.children.values() {
-            child.calculate_guest_paths(root, self.id, paths)?;
-        }
-
-        Ok(())
-    }
-}
-
-/// Represents a prefix trie based on input paths.
-///
-/// This is used to determine guest paths for inputs.
-///
-/// From the root to a terminal node represents a unique input.
-#[derive(Debug)]
-pub struct InputTrie<'a> {
-    /// The URL path children of the tree.
-    ///
-    /// The key in the map is the scheme of each URL.
-    ///
-    /// A `BTreeMap` is used here to get a consistent walk of the tree.
-    urls: BTreeMap<&'a str, InputTrieNode<'a>>,
-    /// The local path children of the tree.
-    ///
-    /// The key in the map is the first component of each path.
-    ///
-    /// A `BTreeMap` is used here to get a consistent walk of the tree.
-    paths: BTreeMap<&'a str, InputTrieNode<'a>>,
-    /// The next node identifier.
-    next_id: usize,
-    /// The number of inputs in the trie.
-    count: usize,
-}
-
-impl<'a> InputTrie<'a> {
-    /// Inserts a new input into the trie.
-    pub fn insert(&mut self, input: &'a Input) -> Result<()> {
-        let node = match &input.path {
-            EvaluationPath::Local(path) => {
-                // Don't both inserting anything into the trie for relative paths
-                // We still consider the input part of the trie, but it will never have a guest
-                // path
-                if path.is_relative() {
-                    self.count += 1;
-                    return Ok(());
-                }
-
-                let mut components = path.components();
-
-                let component = components
-                    .next()
-                    .context("input path cannot be empty")?
-                    .as_os_str()
-                    .to_str()
-                    .with_context(|| {
-                        format!("input path `{path}` is not UTF-8", path = path.display())
-                    })?;
-                let mut node = self.paths.entry(component).or_insert_with(|| {
-                    let node = InputTrieNode::new(self.next_id);
-                    self.next_id += 1;
-                    node
-                });
-
-                for component in components {
-                    match component {
-                        Component::CurDir | Component::ParentDir => {
-                            bail!(
-                                "input path `{path}` may not contain `.` or `..`",
-                                path = path.display()
-                            );
-                        }
-                        _ => {}
-                    }
-
-                    let component = component.as_os_str().to_str().with_context(|| {
-                        format!("input path `{path}` is not UTF-8", path = path.display())
-                    })?;
-                    node = node.children.entry(component).or_insert_with(|| {
-                        let node = InputTrieNode::new(self.next_id);
-                        self.next_id += 1;
-                        node
-                    });
-                }
-
-                node
-            }
-            EvaluationPath::Remote(url) => {
-                // Insert for scheme
-                let mut node = self.urls.entry(url.scheme()).or_insert_with(|| {
-                    let node = InputTrieNode::new(self.next_id);
-                    self.next_id += 1;
-                    node
-                });
-
-                // Insert the authority
-                node = node.children.entry(url.authority()).or_insert_with(|| {
-                    let node = InputTrieNode::new(self.next_id);
-                    self.next_id += 1;
-                    node
-                });
-
-                // Insert the path segments
-                if let Some(segments) = url.path_segments() {
-                    for segment in segments {
-                        node = node.children.entry(segment).or_insert_with(|| {
-                            let node = InputTrieNode::new(self.next_id);
-                            self.next_id += 1;
-                            node
-                        });
-                    }
-                }
-
-                // Ignore query parameters and fragments
-                node
-            }
-        };
-
-        node.input = Some((self.count, input));
-        self.count += 1;
-        Ok(())
-    }
-
-    /// Calculates guest paths for the inputs in the trie.
-    ///
-    /// Returns a collection of input insertion index paired with the calculated
-    /// guest path.
-    pub fn calculate_guest_paths(&self, root: &str) -> Result<Vec<(usize, String)>> {
-        let mut paths = Vec::with_capacity(self.count);
-        for child in self.urls.values() {
-            child.calculate_guest_paths(root, 0, &mut paths)?;
-        }
-
-        for child in self.paths.values() {
-            child.calculate_guest_paths(root, 0, &mut paths)?;
-        }
-
-        Ok(paths)
-    }
-}
-
-impl Default for InputTrie<'_> {
-    fn default() -> Self {
-        Self {
-            urls: Default::default(),
-            paths: Default::default(),
-            // The first id starts at 1 as 0 is considered the "virtual root" of the trie
-            next_id: 1,
-            count: 0,
-        }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-
-    #[test]
-    fn empty_trie() {
-        let empty = InputTrie::default();
-        let paths = empty.calculate_guest_paths("/mnt/").unwrap();
-        assert!(paths.is_empty());
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn non_empty_trie_unix() {
-        let mut trie = InputTrie::default();
-        let inputs = [
-            Input::new(InputKind::Directory, "/".parse().unwrap()),
-            Input::new(InputKind::File, "/foo/bar/foo.txt".parse().unwrap()),
-            Input::new(InputKind::File, "/foo/bar/bar.txt".parse().unwrap()),
-            Input::new(InputKind::File, "/foo/baz/foo.txt".parse().unwrap()),
-            Input::new(InputKind::File, "/foo/baz/bar.txt".parse().unwrap()),
-            Input::new(InputKind::File, "/bar/foo/foo.txt".parse().unwrap()),
-            Input::new(InputKind::File, "/bar/foo/bar.txt".parse().unwrap()),
-            Input::new(InputKind::Directory, "/baz".parse().unwrap()),
-            Input::new(InputKind::File, "https://example.com/".parse().unwrap()),
-            Input::new(
-                InputKind::File,
-                "https://example.com/foo/bar/foo.txt".parse().unwrap(),
-            ),
-            Input::new(
-                InputKind::File,
-                "https://example.com/foo/bar/bar.txt".parse().unwrap(),
-            ),
-            Input::new(
-                InputKind::File,
-                "https://example.com/foo/baz/foo.txt".parse().unwrap(),
-            ),
-            Input::new(
-                InputKind::File,
-                "https://example.com/foo/baz/bar.txt".parse().unwrap(),
-            ),
-            Input::new(
-                InputKind::File,
-                "https://example.com/bar/foo/foo.txt".parse().unwrap(),
-            ),
-            Input::new(
-                InputKind::File,
-                "https://example.com/bar/foo/bar.txt".parse().unwrap(),
-            ),
-            Input::new(InputKind::File, "https://foo.com/bar".parse().unwrap()),
-        ];
-
-        for input in &inputs {
-            trie.insert(input).unwrap();
-        }
-
-        // The important part of the guest paths are:
-        // 1) The guest file name should be the same (or `.root` if the path is
-        //    considered to be root)
-        // 2) Paths with the same parent should have the same guest parent
-        let paths = trie.calculate_guest_paths("/mnt/").unwrap();
-        let paths: Vec<_> = paths
-            .iter()
-            .map(|(index, guest)| (inputs[*index].path().to_str().unwrap(), guest.as_str()))
-            .collect();
-
-        assert_eq!(
-            paths,
-            [
-                ("https://example.com/", "/mnt/15/.root"),
-                ("https://example.com/bar/foo/bar.txt", "/mnt/25/bar.txt"),
-                ("https://example.com/bar/foo/foo.txt", "/mnt/25/foo.txt"),
-                ("https://example.com/foo/bar/bar.txt", "/mnt/18/bar.txt"),
-                ("https://example.com/foo/bar/foo.txt", "/mnt/18/foo.txt"),
-                ("https://example.com/foo/baz/bar.txt", "/mnt/21/bar.txt"),
-                ("https://example.com/foo/baz/foo.txt", "/mnt/21/foo.txt"),
-                ("https://foo.com/bar", "/mnt/28/bar"),
-                ("/", "/mnt/0/.root"),
-                ("/bar/foo/bar.txt", "/mnt/10/bar.txt"),
-                ("/bar/foo/foo.txt", "/mnt/10/foo.txt"),
-                ("/baz", "/mnt/1/baz"),
-                ("/foo/bar/bar.txt", "/mnt/3/bar.txt"),
-                ("/foo/bar/foo.txt", "/mnt/3/foo.txt"),
-                ("/foo/baz/bar.txt", "/mnt/6/bar.txt"),
-                ("/foo/baz/foo.txt", "/mnt/6/foo.txt"),
-            ]
-        );
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn non_empty_trie_windows() {
-        let mut trie = InputTrie::default();
-        let inputs = [
-            Input::new(InputKind::Directory, "C:\\".parse().unwrap()),
-            Input::new(InputKind::File, "C:\\foo\\bar\\foo.txt".parse().unwrap()),
-            Input::new(InputKind::File, "C:\\foo\\bar\\bar.txt".parse().unwrap()),
-            Input::new(InputKind::File, "C:\\foo\\baz\\foo.txt".parse().unwrap()),
-            Input::new(InputKind::File, "C:\\foo\\baz\\bar.txt".parse().unwrap()),
-            Input::new(InputKind::File, "C:\\bar\\foo\\foo.txt".parse().unwrap()),
-            Input::new(InputKind::File, "C:\\bar\\foo\\bar.txt".parse().unwrap()),
-            Input::new(InputKind::Directory, "C:\\baz".parse().unwrap()),
-            Input::new(InputKind::File, "https://example.com/".parse().unwrap()),
-            Input::new(
-                InputKind::File,
-                "https://example.com/foo/bar/foo.txt".parse().unwrap(),
-            ),
-            Input::new(
-                InputKind::File,
-                "https://example.com/foo/bar/bar.txt".parse().unwrap(),
-            ),
-            Input::new(
-                InputKind::File,
-                "https://example.com/foo/baz/foo.txt".parse().unwrap(),
-            ),
-            Input::new(
-                InputKind::File,
-                "https://example.com/foo/baz/bar.txt".parse().unwrap(),
-            ),
-            Input::new(
-                InputKind::File,
-                "https://example.com/bar/foo/foo.txt".parse().unwrap(),
-            ),
-            Input::new(
-                InputKind::File,
-                "https://example.com/bar/foo/bar.txt".parse().unwrap(),
-            ),
-            Input::new(InputKind::File, "https://foo.com/bar".parse().unwrap()),
-        ];
-
-        for input in &inputs {
-            trie.insert(input).unwrap();
-        }
-
-        // The important part of the guest paths are:
-        // 1) The guest file name should be the same (or `.root` if the path is
-        //    considered to be root)
-        // 2) Paths with the same parent should have the same guest parent
-        let paths = trie.calculate_guest_paths("/mnt/").unwrap();
-        let paths: Vec<_> = paths
-            .iter()
-            .map(|(index, guest)| (inputs[*index].path().to_str().unwrap(), guest.as_str()))
-            .collect();
-
-        assert_eq!(
-            paths,
-            [
-                ("https://example.com/", "/mnt/16/.root"),
-                ("https://example.com/bar/foo/bar.txt", "/mnt/26/bar.txt"),
-                ("https://example.com/bar/foo/foo.txt", "/mnt/26/foo.txt"),
-                ("https://example.com/foo/bar/bar.txt", "/mnt/19/bar.txt"),
-                ("https://example.com/foo/bar/foo.txt", "/mnt/19/foo.txt"),
-                ("https://example.com/foo/baz/bar.txt", "/mnt/22/bar.txt"),
-                ("https://example.com/foo/baz/foo.txt", "/mnt/22/foo.txt"),
-                ("https://foo.com/bar", "/mnt/29/bar"),
-                ("C:\\", "/mnt/1/.root"),
-                ("C:\\bar\\foo\\bar.txt", "/mnt/11/bar.txt"),
-                ("C:\\bar\\foo\\foo.txt", "/mnt/11/foo.txt"),
-                ("C:\\baz", "/mnt/2/baz"),
-                ("C:\\foo\\bar\\bar.txt", "/mnt/4/bar.txt"),
-                ("C:\\foo\\bar\\foo.txt", "/mnt/4/foo.txt"),
-                ("C:\\foo\\baz\\bar.txt", "/mnt/7/bar.txt"),
-                ("C:\\foo\\baz\\foo.txt", "/mnt/7/foo.txt"),
-            ]
-        );
     }
 }

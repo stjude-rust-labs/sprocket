@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* Changed how inputs are evaluated to prevent host paths from being observed in
+  evaluated command sections ([#589](https://github.com/stjude-rust-labs/wdl/pull/589)).
 * Removed evaluation progress callbacks in favor of Crankshaft events channel ([#583](https://github.com/stjude-rust-labs/wdl/pull/583)).
 
 #### Fixed

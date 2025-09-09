@@ -24,7 +24,6 @@ use tracing::debug;
 
 use crate::Input;
 use crate::Value;
-use crate::http::HttpDownloader;
 use crate::path::EvaluationPath;
 
 mod docker;
@@ -193,8 +192,6 @@ impl TaskSpawnRequest {
 /// Represents the result of a task's execution.
 #[derive(Debug)]
 pub struct TaskExecutionResult {
-    /// The inputs that were given to the task.
-    pub inputs: Vec<Input>,
     /// Stores the task process exit code.
     pub exit_code: i32,
     /// The task's working directory.
@@ -220,25 +217,18 @@ pub trait TaskExecutionBackend: Send + Sync {
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints>;
 
-    /// Gets the guest path the task working directory (e.g. `/mnt/work`).
+    /// Gets the guest (container) inputs directory of the backend.
     ///
-    /// Returns `None` if the task execution does not use a container.
-    fn guest_work_dir(&self) -> Option<&Path>;
+    /// Returns `None` if the backend does not execute tasks in a container.
+    ///
+    /// The returned path is expected to be Unix style and end with a backslash.
+    fn guest_inputs_dir(&self) -> Option<&'static str>;
 
-    /// Localizes the given set of inputs for the backend.
+    /// Determines if the backend needs local inputs.
     ///
-    /// This may involve downloading remote inputs to the host and updating the
-    /// input's guest paths.
-    fn localize_inputs<'a, 'b, 'c, 'd>(
-        &'a self,
-        downloader: &'b HttpDownloader,
-        inputs: &'c mut [Input],
-    ) -> BoxFuture<'d, Result<()>>
-    where
-        'a: 'd,
-        'b: 'd,
-        'c: 'd,
-        Self: 'd;
+    /// Backends that run tasks locally or from a shared file system will return
+    /// `true`.
+    fn needs_local_inputs(&self) -> bool;
 
     /// Spawns a task with the execution backend.
     ///
