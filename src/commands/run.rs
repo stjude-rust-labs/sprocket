@@ -2,7 +2,6 @@
 
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -11,7 +10,6 @@ use anyhow::bail;
 use clap::Parser;
 use colored::Colorize as _;
 use futures::FutureExt as _;
-use indexmap::IndexSet;
 use indicatif::ProgressStyle;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
@@ -128,47 +126,6 @@ impl Args {
         }
         self
     }
-}
-
-/// Helper for displaying task ids.
-struct Ids<'a>(&'a IndexSet<String>);
-
-impl std::fmt::Display for Ids<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        /// The maximum number of executing task names to display at a time
-        const MAX_TASKS: usize = 10;
-
-        let mut first = true;
-        for (i, id) in self.0.iter().enumerate() {
-            if i == MAX_TASKS {
-                write!(f, "...")?;
-                break;
-            }
-
-            if first {
-                first = false;
-            } else {
-                write!(f, ", ")?;
-            }
-
-            write!(f, "{id}", id = id.magenta().bold())?;
-        }
-
-        Ok(())
-    }
-}
-
-/// Represents state for reporting evaluation progress.
-#[derive(Default)]
-struct State {
-    /// The set of currently executing task identifiers.
-    ids: IndexSet<String>,
-    /// The number of completed tasks.
-    completed: usize,
-    /// The number of tasks awaiting execution.
-    ready: usize,
-    /// The number of currently executing tasks.
-    executing: usize,
 }
 
 // /// A callback for updating state based on engine events.
@@ -426,7 +383,6 @@ pub async fn run(args: Args) -> Result<()> {
         .unwrap(),
     );
 
-    let state = Mutex::<State>::default();
     let evaluator = Evaluator::new(
         document,
         &entrypoint,
