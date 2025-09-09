@@ -1,5 +1,6 @@
 //! Implementation of the `run` subcommand.
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -13,7 +14,7 @@ use clap::Parser;
 use colored::Colorize as _;
 use crankshaft::events::Event;
 use futures::FutureExt as _;
-use indexmap::IndexMap;
+use indexmap::IndexSet;
 use indicatif::ProgressStyle;
 use tokio::select;
 use tokio::sync::broadcast;
@@ -33,6 +34,7 @@ use wdl::cli::analysis::Source;
 use wdl::cli::inputs::OriginPaths;
 use wdl::engine;
 use wdl::engine::EvaluationError;
+use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
 
 use crate::Mode;
@@ -143,7 +145,7 @@ impl Args {
 }
 
 /// Helper for displaying task names.
-struct Tasks<'a>(&'a IndexMap<u64, String>);
+struct Tasks<'a>(&'a IndexSet<Arc<String>>);
 
 impl std::fmt::Display for Tasks<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -151,7 +153,7 @@ impl std::fmt::Display for Tasks<'_> {
         const MAX_TASKS: usize = 10;
 
         let mut first = true;
-        for (i, (_, name)) in self.0.iter().enumerate() {
+        for (i, name) in self.0.iter().enumerate() {
             if i == MAX_TASKS {
                 write!(f, "...")?;
                 break;
@@ -173,12 +175,10 @@ impl std::fmt::Display for Tasks<'_> {
 /// Represents state for reporting evaluation progress.
 #[derive(Default)]
 struct State {
-    /// The map of currently executing tasks.
-    tasks: IndexMap<u64, String>,
-    /// The number of tasks awaiting execution.
-    ready: usize,
-    /// The number of currently executing tasks.
-    executing: usize,
+    /// The map of task identifiers to names.
+    tasks: HashMap<u64, Arc<String>>,
+    /// The set of currently executing tasks.
+    executing: IndexSet<Arc<String>>,
     /// The number of failed tasks.
     failed: usize,
     /// The number of completed tasks.
@@ -193,24 +193,27 @@ async fn progress(
 ) {
     /// Helper for formatting the progress bar
     fn message(state: &State) -> String {
+        let executing = state.executing.len();
+        let ready = state.tasks.len() - executing;
         format!(
             " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e} {executing} \
              task{s3}{sep}{tasks}",
             c = state.completed,
             completed = "completed".cyan(),
             s1 = if state.completed == 1 { "" } else { "s" },
-            r = state.ready,
+            r = ready,
             ready = "ready".cyan(),
-            s2 = if state.ready == 1 { "" } else { "s" },
-            e = state.executing,
+            s2 = if ready == 1 { "" } else { "s" },
+            e = executing,
             executing = "executing".cyan(),
-            s3 = if state.executing == 1 { "" } else { "s" },
-            sep = if state.tasks.is_empty() { "" } else { ": " },
-            tasks = Tasks(&state.tasks)
+            s3 = if executing == 1 { "" } else { "s" },
+            sep = if executing == 0 { "" } else { ": " },
+            tasks = Tasks(&state.executing)
         )
     }
 
     let mut warned = false;
+    message(&state.lock().expect("failed to lock state"));
 
     loop {
         match events.recv().await {
@@ -220,33 +223,38 @@ async fn progress(
                 let message = match event {
                     Event::TaskCreated { id, name, .. } => {
                         let mut state = state.lock().expect("failed to lock state");
-                        state.tasks.insert(id, name);
-                        state.ready += 1;
+                        state.tasks.insert(id, name.into());
                         message(&state)
                     }
-                    Event::TaskStarted { .. } => {
+                    Event::TaskStarted { id } => {
                         let mut state = state.lock().expect("failed to lock state");
-                        state.executing += 1;
+                        if let Some(name) = state.tasks.get(&id).cloned() {
+                            state.executing.insert(name);
+                        }
                         message(&state)
                     }
                     Event::TaskCompleted { id, .. } => {
                         let mut state = state.lock().expect("failed to lock state");
-                        state.tasks.swap_remove(&id);
-                        state.executing -= 1;
+                        if let Some(name) = state.tasks.remove(&id) {
+                            state.executing.swap_remove(&name);
+                        }
                         state.completed += 1;
                         message(&state)
                     }
                     Event::TaskFailed { id, .. } => {
                         let mut state = state.lock().expect("failed to lock state");
-                        state.tasks.swap_remove(&id);
-                        state.executing -= 1;
+                        if let Some(name) = state.tasks.remove(&id) {
+                            state.executing.swap_remove(&name);
+                        }
                         state.failed += 1;
                         message(&state)
                     }
                     Event::TaskCanceled { id } | Event::TaskPreempted { id } => {
                         let mut state = state.lock().expect("failed to lock state");
-                        state.tasks.swap_remove(&id);
-                        state.executing -= 1;
+                        if let Some(name) = state.tasks.remove(&id) {
+                            state.executing.swap_remove(&name);
+                        }
+                        state.failed += 1;
                         message(&state)
                     }
                     _ => continue,
@@ -479,8 +487,12 @@ pub async fn run(args: Args) -> Result<()> {
 
     let state = Arc::new(Mutex::<State>::default());
     let token = CancellationToken::new();
-    let (events_tx, events_rx) = broadcast::channel(EVENTS_CHANNEL_CAPACITY);
-    let events = tokio::spawn(progress(events_rx, span, state));
+    let events = Events::all(EVENTS_CHANNEL_CAPACITY);
+    let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
+        events.subscribe_transfer(),
+        token.clone(),
+    ));
+    let crankshaft_progress = tokio::spawn(progress(events.subscribe_crankshaft(), span, state));
 
     let evaluator = Evaluator::new(
         document,
@@ -491,7 +503,7 @@ pub async fn run(args: Args) -> Result<()> {
         &output_dir,
     );
 
-    let mut evaluate = evaluator.run(token.clone(), Some(events_tx)).boxed();
+    let mut evaluate = evaluator.run(token.clone(), events).boxed();
 
     select! {
         // Always prefer the CTRL-C signal to the evaluation returning.
@@ -501,11 +513,13 @@ pub async fn run(args: Args) -> Result<()> {
             error!("execution was interrupted: waiting for evaluation to abort");
             token.cancel();
             evaluate.await.ok();
-            events.await.ok();
+            transfer_progress.await.ok();
+            crankshaft_progress.await.ok();
             bail!("execution was aborted");
         },
         res = &mut evaluate => {
-            events.await.ok();
+            transfer_progress.await.ok();
+            crankshaft_progress.await.ok();
 
             match res {
                 Ok(outputs) => {

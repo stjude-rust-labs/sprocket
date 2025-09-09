@@ -8,7 +8,7 @@ use anyhow::Result;
 use anyhow::bail;
 use chrono::prelude::*;
 use clap::Parser;
-use crankshaft_docker::Docker as crankshaft_docker;
+use crankshaft::docker::Docker;
 use serde::Deserialize;
 use serde::Serialize;
 use wdl::ast::AstToken;
@@ -102,7 +102,7 @@ pub async fn lock(args: Args) -> Result<()> {
     let time = Utc::now();
 
     let mut map: HashMap<String, String> = HashMap::new();
-    let docker = crankshaft_docker::with_defaults()?;
+    let docker = Docker::with_defaults()?;
 
     for image in images {
         let prefix = image.split(':').next().unwrap_or("");
