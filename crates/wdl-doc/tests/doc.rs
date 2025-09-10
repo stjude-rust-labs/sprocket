@@ -15,7 +15,8 @@ use std::path::PathBuf;
 use fs_extra::dir::CopyOptions;
 use fs_extra::dir::copy;
 use pretty_assertions::StrComparison;
-use wdl_analysis::Analyzer;
+use wdl_analysis::Config as AnalysisConfig;
+use wdl_doc::Config;
 use wdl_doc::document_workspace;
 
 /// Recursively read every file in a directory
@@ -43,19 +44,15 @@ async fn document_full_codebase() {
         fs::remove_dir_all(test_dir.join("docs")).unwrap();
     }
 
-    let analyzer = Analyzer::default();
-    analyzer.add_directory(&test_dir).await.unwrap();
+    let config = Config::new(
+        AnalysisConfig::default(),
+        test_dir.clone(),
+        test_dir.join("docs").to_path_buf(),
+    );
 
-    document_workspace(
-        analyzer,
-        test_dir.to_path_buf(),
-        test_dir.join("docs"),
-        None::<&str>,
-        None::<&str>,
-        None::<&str>,
-    )
-    .await
-    .expect("failed to generate docs");
+    document_workspace(config)
+        .await
+        .expect("failed to generate docs");
 
     // If the `BLESS` environment variable is set, update the expected output
     // by deleting the contents of the `tests/output_docs` directory and
