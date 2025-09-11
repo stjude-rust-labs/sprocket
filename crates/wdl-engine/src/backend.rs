@@ -332,6 +332,7 @@ impl<Req> TaskManagerState<Req> {
 }
 
 /// Responsible for managing tasks based on available host resources.
+#[derive(Debug)]
 struct TaskManager<Req> {
     /// The sender for new spawn requests.
     tx: mpsc::UnboundedSender<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,

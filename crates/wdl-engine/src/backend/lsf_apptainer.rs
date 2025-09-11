@@ -16,6 +16,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::trace;
 
 use super::COMMAND_FILE_NAME;
+use super::TaskExecutionBackend;
+use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use super::WORK_DIR_NAME;
@@ -24,7 +26,9 @@ use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
 use crate::TaskExecutionResult;
 use crate::config::Config;
+use crate::config::TaskResourceLimitBehavior;
 use crate::path::EvaluationPath;
+use crate::v1;
 
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
@@ -44,6 +48,11 @@ const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
 /// The path to the container's stderr.
 const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
+/// The maximum length of an LSF job name.
+///
+/// See <https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=o-j>.
+const LSF_JOB_NAME_MAX_LENGTH: usize = 4094;
+
 #[derive(Debug)]
 struct LsfApptainerTaskRequest {
     config: Arc<Config>,
@@ -55,6 +64,7 @@ struct LsfApptainerTaskRequest {
     cpu: f64,
     /// The requested memory reservation for the task, in bytes.
     memory: u64,
+    // TODO ACF 2025-09-11: support cancellation
     cancellation_token: CancellationToken,
 }
 
@@ -228,6 +238,8 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         let lsf_stdout_path = attempt_dir.join("lsf.stdout");
         let lsf_stderr_path = attempt_dir.join("lsf.stderr");
 
+        // TODO ACF 2025-09-11: configurable LSF queue, including handling for the
+        // `short_task` hint
         let mut bsub_child = Command::new("bsub")
             // Pipe stdout and stderr so we can trace them. This should just be the LSF output like
             // `<<Waiting for dispatch ...>>`.
@@ -328,5 +340,118 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             )
             .into(),
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct LsfApptainerBackend {
+    config: Arc<Config>,
+    manager: TaskManager<LsfApptainerTaskRequest>,
+}
+
+impl LsfApptainerBackend {
+    pub fn new(config: Arc<Config>) -> Self {
+        Self {
+            config,
+            // TODO ACF 2025-09-11: the `MAX` values here mean that in addition to not limiting the
+            // overall number of CPU and memory used, we don't limit per-task consumption. There is
+            // potentially a path to pulling queue limits from LSF for these, but for now we just
+            // throw jobs at the cluster.
+            manager: TaskManager::new_unlimited(u64::MAX, u64::MAX),
+        }
+    }
+}
+
+impl TaskExecutionBackend for LsfApptainerBackend {
+    fn max_concurrency(&self) -> u64 {
+        // TODO ACF 2025-09-11: make this configurable
+        200
+    }
+
+    fn constraints(
+        &self,
+        requirements: &std::collections::HashMap<String, crate::Value>,
+        _hints: &std::collections::HashMap<String, crate::Value>,
+    ) -> anyhow::Result<super::TaskExecutionConstraints> {
+        Ok(super::TaskExecutionConstraints {
+            container: Some(
+                v1::container(requirements, self.config.task.container.as_deref()).into_owned(),
+            ),
+            // TODO ACF 2025-09-11: populate more meaningful values for these based on the given LSF
+            // queue. Unfortunately, it's not straightforward to ask "what's the most CPUs I can ask
+            // for and still hope to be scheduled?". A reasonable stopgap would be to make this a
+            // config parameter, but the experience would be unfortunate when having to manually
+            // update that if changing queues, or if handling multiple queues for short jobs.
+            cpu: f64::MAX,
+            memory: i64::MAX,
+            gpu: Default::default(),
+            fpga: Default::default(),
+            disks: Default::default(),
+        })
+    }
+
+    fn guest_inputs_dir(&self) -> Option<&'static str> {
+        Some(GUEST_INPUTS_DIR)
+    }
+
+    fn needs_local_inputs(&self) -> bool {
+        true
+    }
+
+    fn spawn(
+        &self,
+        request: TaskSpawnRequest,
+        cancellation_token: CancellationToken,
+    ) -> anyhow::Result<tokio::sync::oneshot::Receiver<anyhow::Result<TaskExecutionResult>>> {
+        let (completed_tx, completed_rx) = tokio::sync::oneshot::channel();
+
+        let requirements = request.requirements();
+        let hints = request.hints();
+
+        let container =
+            v1::container(requirements, self.config.task.container.as_deref()).into_owned();
+        let cpu = v1::cpu(requirements);
+        let memory = v1::memory(requirements)? as u64;
+        // TODO ACF 2025-09-11: I don't _think_ LSF offers a hard/soft CPU limit
+        // distinction, but we could potentially use a max as part of the
+        // resource request. That would likely mean using `bsub -n min,max`
+        // syntax as it doesn't seem that `affinity` strings support ranges
+        let _max_cpu = v1::max_cpu(hints);
+        // TODO ACF 2025-09-11: set a hard memory limit with `bsub -M !`?
+        let _max_memory = v1::max_memory(hints)?.map(|i| i as u64);
+
+        let name = request.id()[0..LSF_JOB_NAME_MAX_LENGTH].to_string();
+        self.manager.send(
+            LsfApptainerTaskRequest {
+                config: self.config.clone(),
+                spawn_request: request,
+                // backend: self.inner.clone(),
+                name,
+                container,
+                cpu,
+                memory,
+                cancellation_token,
+            },
+            completed_tx,
+        );
+
+        Ok(completed_rx)
+    }
+
+    fn cleanup<'a, 'b, 'c>(
+        &'a self,
+        _output_dir: &'b std::path::Path,
+        _token: CancellationToken,
+    ) -> Option<futures::future::BoxFuture<'c, ()>>
+    where
+        'a: 'c,
+        'b: 'c,
+        Self: 'c,
+    {
+        // TODO ACF 2025-09-11: determine whether we need cleanup logic here;
+        // Apptainer's security model is fairly different from Docker so
+        // uid/gids on files shouldn't be as much of an issue, and using only
+        // `apptainer exec` means no longer-running containers to tear down
+        None
     }
 }

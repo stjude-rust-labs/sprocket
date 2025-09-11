@@ -110,7 +110,7 @@ walkdir = "2.5.0"
 wdl = { version = "0.18.1", path = "crates/wdl", features = ["cli", "codespan", "engine", "lsp", "doc"] }
 
 [workspace.lints.rust]
-missing_docs = "warn"
+#missing_docs = "warn"
 nonstandard-style = "warn"
 rust-2018-idioms = "warn"
 rust-2021-compatibility = "warn"
