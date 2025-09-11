@@ -26,6 +26,7 @@ use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
 use crate::TaskExecutionResult;
 use crate::config::Config;
+use crate::config::TaskResourceLimitBehavior;
 use crate::path::EvaluationPath;
 use crate::v1;
 
