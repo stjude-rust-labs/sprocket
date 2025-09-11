@@ -22,6 +22,7 @@ use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::LazyLock;
 
@@ -136,36 +137,32 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
     if !configs_on_disk.is_empty() || any_config_toml_found {
         Ok(configs_on_disk)
     } else {
-        Ok(vec![
-            ("local".into(), {
-                config::Config {
-                    backends: [(
-                        "default".to_string(),
-                        BackendConfig::Local(Default::default()),
-                    )]
-                    .into(),
-                    suppress_env_specific_output: true,
-                    experimental_features_enabled: true,
-                    ..Default::default()
-                }
-            }),
-            // Currently we limit running the Docker backend to Linux as GitHub does not have
-            // Docker installed on macOS hosted runners and the Windows hosted runners
-            // are configured to use Windows containers
-            #[cfg(target_os = "linux")]
-            ("docker".into(), {
-                config::Config {
-                    backends: [(
-                        "default".to_string(),
-                        BackendConfig::Docker(Default::default()),
-                    )]
-                    .into(),
-                    suppress_env_specific_output: true,
-                    experimental_features_enabled: true,
-                    ..Default::default()
-                }
-            }),
-        ])
+        Ok(vec![("lsf_apptainer".into(), {
+            config::Config {
+                backends: [(
+                    "default".to_string(),
+                    BackendConfig::LsfApptainer(
+                        wdl_engine::LsfApptainerBackendConfig {
+                            default_lsf_queue: Some(wdl_engine::LsfApptainerQueueConfig::new(
+                                "short".to_string(),
+                                Some(64),
+                                Some("1.90488 TiB".parse().unwrap()),
+                            )),
+                            apptainer_config: wdl_engine::ApptainerConfig {
+                                apptainer_images_dir: PathBuf::from(env!("CARGO_TARGET_TMPDIR")),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        }
+                        .into(),
+                    ),
+                )]
+                .into(),
+                suppress_env_specific_output: true,
+                experimental_features_enabled: true,
+                ..Default::default()
+            }
+        })])
     }
 }
 
@@ -301,10 +298,12 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
     inputs.join_paths(task, |_| Ok(&test_dir_path)).await?;
 
-    let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
-    let dir = TempDir::new().context("failed to create temporary directory")?;
+    let mut dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
+        .context("failed to create temporary directory")?;
+    dir.disable_cleanup(true);
     info!(dir = %dir.path().display(), "test temp dir created");
 
+    let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
     match evaluator
         .evaluate(result.document(), task, &inputs, dir.path())
         .await
