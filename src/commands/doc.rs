@@ -47,12 +47,14 @@ pub struct Args {
     /// Open the generated documentation in the default web browser.
     #[arg(long)]
     pub open: bool,
-    /// Path to a `.js` file that should have its content embedded in each HTML
-    /// page's `<head>` tag.
+    /// Path to a `.js` file that should have its contents embedded in each HTML
+    /// page.
+    ///
+    /// By default, this will be embedded immediately after the opening `<head>` tag of each page. Advanced configuration is possible with a TOML config file.
     #[arg(long, value_name = "JS FILE")]
-    pub additional_javascript: Option<PathBuf>,
-    /// Prefer the "Workflows" view over the "Full Directory" view of the left
-    /// nav bar.
+    pub additional_js: Option<PathBuf>,
+    /// Initialize pages on the "Workflows" view insteaad of the "Full
+    /// Directory" view of the left nav bar.
     #[arg(long)]
     pub prioritize_workflows_view: bool,
     /// An optional path to a custom theme directory.
@@ -114,11 +116,11 @@ pub async fn doc(args: Args) -> Result<()> {
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
     let doc_config = DocConfig::new(analysis_config, &workspace, &docs_dir)
-        .set_homepage(args.homepage)
-        .set_custom_theme(args.theme)
-        .set_custom_logo(args.logo)
-        .set_additional_javascript(args.additional_javascript)
-        .set_prefer_full_directory(!args.prioritize_workflows_view);
+        .homepage(args.homepage)
+        .custom_theme(args.theme)
+        .custom_logo(args.logo)
+        // .additional_javascript(args.additional_javascript)
+        .prefer_full_directory(!args.prioritize_workflows_view);
 
     document_workspace(doc_config).await.with_context(|| {
         format!(
