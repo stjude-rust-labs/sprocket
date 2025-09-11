@@ -30,10 +30,12 @@ use crate::path::EvaluationPath;
 
 mod docker;
 mod local;
+mod lsf_apptainer;
 mod tes;
 
 pub use docker::*;
 pub use local::*;
+pub use lsf_apptainer::*;
 pub use tes::*;
 
 /// The default work directory name.
