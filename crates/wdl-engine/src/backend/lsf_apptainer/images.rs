@@ -130,7 +130,7 @@ pub(crate) async fn sif_for_container(
             // overwhelming registries with repeated retries.
             ExponentialBackoff::from_millis(50)
                 .max_delay_millis(60_000)
-                .take(10),
+                .take(40),
             || try_pull(&sif_path, &container),
             |e, _| {
                 warn!(e = %e, "`apptainer pull` failed");
