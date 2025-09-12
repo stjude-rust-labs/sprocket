@@ -55,7 +55,8 @@ const LSF_JOB_NAME_MAX_LENGTH: usize = 4094;
 
 #[derive(Debug)]
 struct LsfApptainerTaskRequest {
-    config: Arc<Config>,
+    engine_config: Arc<Config>,
+    backend_config: Arc<LsfApptainerBackendConfig>,
     name: String,
     spawn_request: TaskSpawnRequest,
     /// The requested container for the task.
@@ -238,9 +239,16 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         let lsf_stdout_path = attempt_dir.join("lsf.stdout");
         let lsf_stderr_path = attempt_dir.join("lsf.stderr");
 
-        // TODO ACF 2025-09-11: configurable LSF queue, including handling for the
-        // `short_task` hint
-        let mut bsub_child = Command::new("bsub")
+        let mut bsub_command = Command::new("bsub");
+
+        // If an LSF queue has been configured, specify it. Otherwise, the job will end
+        // up on the cluster's default queue.
+        if let Some(queue) = &self.backend_config.queue {
+            bsub_command.arg("-q");
+            bsub_command.arg(queue);
+        }
+
+        bsub_command
             // Pipe stdout and stderr so we can trace them. This should just be the LSF output like
             // `<<Waiting for dispatch ...>>`.
             //
@@ -279,8 +287,9 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
                 "rusage[mem={memory_kb}KB/job]",
                 memory_kb = self.memory / 1024
             ))
-            .arg(apptainer_command_path)
-            .spawn()?;
+            .arg(apptainer_command_path);
+
+        let mut bsub_child = bsub_command.spawn()?;
 
         // Take the stdio pipes from the child process and consume them for tracing
         // purposes.
@@ -345,14 +354,16 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
 
 #[derive(Debug)]
 pub struct LsfApptainerBackend {
-    config: Arc<Config>,
+    engine_config: Arc<Config>,
+    backend_config: Arc<LsfApptainerBackendConfig>,
     manager: TaskManager<LsfApptainerTaskRequest>,
 }
 
 impl LsfApptainerBackend {
-    pub fn new(config: Arc<Config>) -> Self {
+    pub fn new(engine_config: Arc<Config>, backend_config: Arc<LsfApptainerBackendConfig>) -> Self {
         Self {
-            config,
+            engine_config,
+            backend_config,
             // TODO ACF 2025-09-11: the `MAX` values here mean that in addition to not limiting the
             // overall number of CPU and memory used, we don't limit per-task consumption. There is
             // potentially a path to pulling queue limits from LSF for these, but for now we just
@@ -375,7 +386,8 @@ impl TaskExecutionBackend for LsfApptainerBackend {
     ) -> anyhow::Result<super::TaskExecutionConstraints> {
         Ok(super::TaskExecutionConstraints {
             container: Some(
-                v1::container(requirements, self.config.task.container.as_deref()).into_owned(),
+                v1::container(requirements, self.engine_config.task.container.as_deref())
+                    .into_owned(),
             ),
             // TODO ACF 2025-09-11: populate more meaningful values for these based on the given LSF
             // queue. Unfortunately, it's not straightforward to ask "what's the most CPUs I can ask
@@ -409,7 +421,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         let hints = request.hints();
 
         let container =
-            v1::container(requirements, self.config.task.container.as_deref()).into_owned();
+            v1::container(requirements, self.engine_config.task.container.as_deref()).into_owned();
         let cpu = v1::cpu(requirements);
         let memory = v1::memory(requirements)? as u64;
         // TODO ACF 2025-09-11: I don't _think_ LSF offers a hard/soft CPU limit
@@ -423,9 +435,9 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         let name = request.id()[0..LSF_JOB_NAME_MAX_LENGTH].to_string();
         self.manager.send(
             LsfApptainerTaskRequest {
-                config: self.config.clone(),
+                engine_config: self.engine_config.clone(),
+                backend_config: self.backend_config.clone(),
                 spawn_request: request,
-                // backend: self.inner.clone(),
                 name,
                 container,
                 cpu,
@@ -453,5 +465,20 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         // uid/gids on files shouldn't be as much of an issue, and using only
         // `apptainer exec` means no longer-running containers to tear down
         None
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct LsfApptainerBackendConfig {
+    // TODO ACF 2025-09-12: add queue option for short tasks
+    queue: Option<String>,
+}
+
+impl LsfApptainerBackendConfig {
+    pub fn validate(&self) -> Result<(), anyhow::Error> {
+        // TODO ACF 2025-09-12: what meaningful work to be done here? Maybe ensure the
+        // queue exists, interrogate the queue for limits and match them up
+        // against prospective future config options here?
+        Ok(())
     }
 }
