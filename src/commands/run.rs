@@ -36,6 +36,7 @@ use wdl::engine;
 use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
+use wdl::engine::config::SecretString;
 
 use crate::Mode;
 use crate::emit_diagnostics;
@@ -132,6 +133,39 @@ pub struct Args {
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
 
+    /// The AWS Access Key ID to use; overrides configuration.
+    #[clap(long, env, value_name = "ID", requires = "aws_secret_access_key")]
+    pub aws_access_key_id: Option<String>,
+
+    /// The AWS Secret Access Key to use; overrides configuration.
+    #[clap(
+        long,
+        env,
+        hide_env_values(true),
+        value_name = "KEY",
+        requires = "aws_access_key_id"
+    )]
+    pub aws_secret_access_key: Option<SecretString>,
+
+    /// The default AWS region; overrides configuration.
+    #[clap(long, env, value_name = "REGION")]
+    pub aws_default_region: Option<String>,
+
+    /// The Google Cloud Storage HMAC access key to use; overrides
+    /// configuration.
+    #[clap(long, env, value_name = "KEY", requires = "google_hmac_secret")]
+    pub google_hmac_access_key: Option<String>,
+
+    /// The Google Cloud Storage HMAC secret to use; overrides configuration.
+    #[clap(
+        long,
+        env,
+        hide_env_values(true),
+        value_name = "SECRET",
+        requires = "google_hmac_access_key"
+    )]
+    pub google_hmac_secret: Option<SecretString>,
+
     /// The engine configuration to use.
     ///
     /// This is not exposed via [`clap`] and is not settable by users.
@@ -149,10 +183,41 @@ impl Args {
         if self.runs_dir.is_none() {
             self.runs_dir = Some(config.run.runs_dir);
         }
+
         self.no_color = self.no_color || !config.common.color;
         if self.report_mode.is_none() {
             self.report_mode = Some(config.common.report_mode);
         }
+
+        // Apply the AWS default region to the engine config
+        if let Some(region) = &self.aws_default_region {
+            self.engine.storage.s3.region = Some(region.clone());
+        }
+
+        // Apply the AWS auth to the engine config
+        if self.aws_access_key_id.is_some() || self.aws_secret_access_key.is_some() {
+            let auth = self.engine.storage.s3.auth.get_or_insert_default();
+            if let Some(key) = &self.aws_access_key_id {
+                auth.access_key_id = key.clone();
+            }
+
+            if let Some(secret) = &self.aws_secret_access_key {
+                auth.secret_access_key = secret.clone();
+            }
+        }
+
+        // Apply the Google auth to the engine config
+        if self.google_hmac_access_key.is_some() || self.google_hmac_secret.is_some() {
+            let auth = self.engine.storage.google.auth.get_or_insert_default();
+            if let Some(key) = &self.google_hmac_access_key {
+                auth.access_key = key.clone();
+            }
+
+            if let Some(secret) = &self.google_hmac_secret {
+                auth.secret = secret.clone();
+            }
+        }
+
         self
     }
 }
