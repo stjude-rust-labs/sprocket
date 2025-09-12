@@ -502,10 +502,18 @@ pub async fn run(args: Args) -> Result<()> {
     let token = CancellationToken::new();
     let events = Events::all(EVENTS_CHANNEL_CAPACITY);
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
-        events.subscribe_transfer(),
+        events
+            .subscribe_transfer()
+            .expect("should have transfer events"),
         token.clone(),
     ));
-    let crankshaft_progress = tokio::spawn(progress(events.subscribe_crankshaft(), span, state));
+    let crankshaft_progress = tokio::spawn(progress(
+        events
+            .subscribe_crankshaft()
+            .expect("should have Crankshaft events"),
+        span,
+        state,
+    ));
 
     let evaluator = Evaluator::new(
         document,
