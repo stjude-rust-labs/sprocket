@@ -288,6 +288,10 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             // an asynchronous model where we drop this argument, grab the job ID, and poll for it
             // using `bjobs`.
             .arg("-K")
+            // Name the LSF job after the task ID, which has already been shortened to fit into the
+            // LSF requirements.
+            .arg("-J")
+            .arg(&self.name)
             // Send LSF job stdout and stderr streams to these files. Since we redirect the
             // Apptainer invocation's stdio to separate files, this will typically amount to the LSF
             // job report.
