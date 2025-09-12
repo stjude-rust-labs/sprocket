@@ -493,9 +493,9 @@ checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 
 [[package]]
 name = "cc"
-version = "1.2.36"
+version = "1.2.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5252b3d2648e5eedbc1a6f501e3c795e07025c1e93bbf8bbdd6eef7f447a6d54"
+checksum = "65193589c6404eb80b450d618eaf9a2cafaaafd57ecce47370519ef674a7bd44"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -1829,9 +1829,9 @@ dependencies = [
 
 [[package]]
 name = "iana-time-zone"
-version = "0.1.63"
+version = "0.1.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0c919e5debc312ad217002b8048a17b7d83f80703865bbfcfebb0458b0b27d8"
+checksum = "33e57f83510bb73707521ebaffa789ec8caf86f9657cad665b092b581d40e9fb"
 dependencies = [
  "android_system_properties",
  "core-foundation-sys",
@@ -1839,7 +1839,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core",
+ "windows-core 0.62.0",
 ]
 
 [[package]]
@@ -2616,9 +2616,9 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "pest"
-version = "2.8.1"
+version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1db05f56d34358a8b1066f67cbb203ee3e7ed2ba674a6263a1d5ec6db2204323"
+checksum = "21e0a3a33733faeaf8651dfee72dd0f388f0c8e5ad496a3478fa5a922f49cfa8"
 dependencies = [
  "memchr",
  "serde",
@@ -2629,9 +2629,9 @@ dependencies = [
 
 [[package]]
 name = "pest_derive"
-version = "2.8.1"
+version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb056d9e8ea77922845ec74a1c4e8fb17e7c218cc4fc11a15c5d25e189aa40bc"
+checksum = "bc58706f770acb1dbd0973e6530a3cff4746fb721207feb3a8a6064cd0b6c663"
 dependencies = [
  "pest",
  "pest_generator",
@@ -2639,9 +2639,9 @@ dependencies = [
 
 [[package]]
 name = "pest_generator"
-version = "2.8.1"
+version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87e404e638f781eb3202dc82db6760c8ae8a1eeef7fb3fa8264b2ef280504966"
+checksum = "6d4f36811dfe07f7b8573462465d5cb8965fffc2e71ae377a33aecf14c2c9a2f"
 dependencies = [
  "pest",
  "pest_meta",
@@ -2652,9 +2652,9 @@ dependencies = [
 
 [[package]]
 name = "pest_meta"
-version = "2.8.1"
+version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edd1101f170f5903fde0914f899bb503d9ff5271d7ba76bbb70bea63690cc0d5"
+checksum = "42919b05089acbd0a5dcd5405fb304d17d1053847b81163d09c4ad18ce8e8420"
 dependencies = [
  "pest",
  "sha2",
@@ -4828,7 +4828,7 @@ dependencies = [
 [[package]]
 name = "wdl"
 version = "0.17.0"
-source = "git+https://github.com/peterhuene/wdl?branch=cloud-copy#fd4ea45ef620730c84249f5981592786f47fa2ec"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4845,7 +4845,7 @@ dependencies = [
 [[package]]
 name = "wdl-analysis"
 version = "0.12.0"
-source = "git+https://github.com/peterhuene/wdl?branch=cloud-copy#fd4ea45ef620730c84249f5981592786f47fa2ec"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4874,7 +4874,7 @@ dependencies = [
 [[package]]
 name = "wdl-ast"
 version = "0.16.0"
-source = "git+https://github.com/peterhuene/wdl?branch=cloud-copy#fd4ea45ef620730c84249f5981592786f47fa2ec"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
 dependencies = [
  "macropol",
  "paste",
@@ -4887,7 +4887,7 @@ dependencies = [
 [[package]]
 name = "wdl-cli"
 version = "0.5.0"
-source = "git+https://github.com/peterhuene/wdl?branch=cloud-copy#fd4ea45ef620730c84249f5981592786f47fa2ec"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4915,7 +4915,7 @@ dependencies = [
 [[package]]
 name = "wdl-doc"
 version = "0.7.0"
-source = "git+https://github.com/peterhuene/wdl?branch=cloud-copy#fd4ea45ef620730c84249f5981592786f47fa2ec"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4934,7 +4934,7 @@ dependencies = [
 [[package]]
 name = "wdl-engine"
 version = "0.7.0"
-source = "git+https://github.com/peterhuene/wdl?branch=cloud-copy#fd4ea45ef620730c84249f5981592786f47fa2ec"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
 dependencies = [
  "anyhow",
  "bimap",
@@ -4976,7 +4976,7 @@ dependencies = [
 [[package]]
 name = "wdl-format"
 version = "0.10.0"
-source = "git+https://github.com/peterhuene/wdl?branch=cloud-copy#fd4ea45ef620730c84249f5981592786f47fa2ec"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4985,7 +4985,7 @@ dependencies = [
 [[package]]
 name = "wdl-grammar"
 version = "0.16.0"
-source = "git+https://github.com/peterhuene/wdl?branch=cloud-copy#fd4ea45ef620730c84249f5981592786f47fa2ec"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
 dependencies = [
  "codespan-reporting",
  "logos",
@@ -4998,7 +4998,7 @@ dependencies = [
 [[package]]
 name = "wdl-lint"
 version = "0.15.0"
-source = "git+https://github.com/peterhuene/wdl?branch=cloud-copy#fd4ea45ef620730c84249f5981592786f47fa2ec"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -5018,7 +5018,7 @@ dependencies = [
 [[package]]
 name = "wdl-lsp"
 version = "0.12.0"
-source = "git+https://github.com/peterhuene/wdl?branch=cloud-copy#fd4ea45ef620730c84249f5981592786f47fa2ec"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
 dependencies = [
  "anyhow",
  "indexmap 2.11.1",
@@ -5126,7 +5126,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9babd3a767a4c1aef6900409f85f5d53ce2544ccdfaa86dad48c91782c6d6893"
 dependencies = [
  "windows-collections",
- "windows-core",
+ "windows-core 0.61.2",
  "windows-future",
  "windows-link 0.1.3",
  "windows-numerics",
@@ -5138,7 +5138,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3beeceb5e5cfd9eb1d76b381630e82c4241ccd0d27f1a39ed41b2760b255c5e8"
 dependencies = [
- "windows-core",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -5150,8 +5150,21 @@ dependencies = [
  "windows-implement",
  "windows-interface",
  "windows-link 0.1.3",
- "windows-result",
- "windows-strings",
+ "windows-result 0.3.4",
+ "windows-strings 0.4.2",
+]
+
+[[package]]
+name = "windows-core"
+version = "0.62.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57fe7168f7de578d2d8a05b07fd61870d2e73b4020e9f49aa00da8471723497c"
+dependencies = [
+ "windows-implement",
+ "windows-interface",
+ "windows-link 0.2.0",
+ "windows-result 0.4.0",
+ "windows-strings 0.5.0",
 ]
 
 [[package]]
@@ -5160,7 +5173,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc6a41e98427b19fe4b73c550f060b59fa592d7d686537eebf9385621bfbad8e"
 dependencies = [
- "windows-core",
+ "windows-core 0.61.2",
  "windows-link 0.1.3",
  "windows-threading",
 ]
@@ -5205,7 +5218,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9150af68066c4c5c07ddc0ce30421554771e528bde427614c61038bc2c92c2b1"
 dependencies = [
- "windows-core",
+ "windows-core 0.61.2",
  "windows-link 0.1.3",
 ]
 
@@ -5216,8 +5229,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b8a9ed28765efc97bbc954883f4e6796c33a06546ebafacbabee9696967499e"
 dependencies = [
  "windows-link 0.1.3",
- "windows-result",
- "windows-strings",
+ "windows-result 0.3.4",
+ "windows-strings 0.4.2",
 ]
 
 [[package]]
@@ -5230,12 +5243,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "windows-result"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7084dcc306f89883455a206237404d3eaf961e5bd7e0f312f7c91f57eb44167f"
+dependencies = [
+ "windows-link 0.2.0",
+]
+
+[[package]]
 name = "windows-strings"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56e6c93f3a0c3b36176cb1327a4958a0353d5d166c2a35cb268ace15e91d3b57"
 dependencies = [
  "windows-link 0.1.3",
+]
+
+[[package]]
+name = "windows-strings"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7218c655a553b0bed4426cf54b20d7ba363ef543b52d515b3e48d7fd55318dda"
+dependencies = [
+ "windows-link 0.2.0",
 ]
 
 [[package]]
