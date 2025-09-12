@@ -26,7 +26,6 @@ use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
 use crate::TaskExecutionResult;
 use crate::config::Config;
-use crate::config::TaskResourceLimitBehavior;
 use crate::path::EvaluationPath;
 use crate::v1;
 
@@ -132,6 +131,28 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         //
         // TODO ACF 2025-09-10: make the persistence of the tempdir configurable
         let container_temp_dir = TempDir::new_in(self.spawn_request.attempt_dir())?;
+        let container_tmp_path = container_temp_dir.path().join("tmp").to_path_buf();
+        tokio::fs::DirBuilder::new()
+            .recursive(true)
+            .create(&container_tmp_path)
+            .await
+            .with_context(|| {
+                format!(
+                    "failed to create container /tmp directory at `{path}`",
+                    path = container_tmp_path.display()
+                )
+            })?;
+        let container_var_tmp_path = container_temp_dir.path().join("var_tmp").to_path_buf();
+        tokio::fs::DirBuilder::new()
+            .recursive(true)
+            .create(&container_var_tmp_path)
+            .await
+            .with_context(|| {
+                format!(
+                    "failed to create container /var/tmp directory at `{path}`",
+                    path = container_var_tmp_path.display()
+                )
+            })?;
 
         // Assemble the Apptainer invocation. We'll write out this command to the host
         // filesystem, and ultimately submit it as the command to run via LSF.
@@ -196,12 +217,12 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         write!(
             &mut apptainer_command,
             "--mount type=bind,src={},dst=/tmp ",
-            container_temp_dir.path().join("tmp").display()
+            container_tmp_path.display()
         )?;
         write!(
             &mut apptainer_command,
             "--mount type=bind,src={},dst=/var/tmp ",
-            container_temp_dir.path().join("var_tmp").display()
+            container_var_tmp_path.display()
         )?;
         write!(
             &mut apptainer_command,
@@ -233,6 +254,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
                     apptainer_command_path.display()
                 )
             })?;
+        fs::set_permissions(&apptainer_command_path, Permissions::from_mode(0o777)).await?;
 
         // The path for the LSF-level stdout and stderr. This primarily contains the job
         // report, as we redirect Apptainer and WDL output separately.
@@ -323,6 +345,9 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         // Await the result of the `bsub` command, which will only exit on error or once
         // the containerized command has completed.
         let bsub_result = bsub_child.wait().await?;
+
+        // Hang onto the container tmp dir until execution is complete.
+        drop(container_temp_dir);
 
         Ok(TaskExecutionResult {
             // Under normal circumstances, the exit code of `bsub -K` is the exit code of its
@@ -432,7 +457,20 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         // TODO ACF 2025-09-11: set a hard memory limit with `bsub -M !`?
         let _max_memory = v1::max_memory(hints)?.map(|i| i as u64);
 
-        let name = request.id()[0..LSF_JOB_NAME_MAX_LENGTH].to_string();
+        // Truncate the request ID to fit in the LSF job name length limit.
+        //
+        // TODO ACF 2025-09-12: test to see whether LSF even accepts non-ascii job
+        // names...
+        let request_id = request.id();
+        let name = if request_id.len() > LSF_JOB_NAME_MAX_LENGTH {
+            request_id
+                .chars()
+                .take(LSF_JOB_NAME_MAX_LENGTH)
+                .collect::<String>()
+        } else {
+            request_id.to_string()
+        };
+
         self.manager.send(
             LsfApptainerTaskRequest {
                 engine_config: self.engine_config.clone(),
@@ -471,7 +509,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct LsfApptainerBackendConfig {
     // TODO ACF 2025-09-12: add queue option for short tasks
-    queue: Option<String>,
+    pub queue: Option<String>,
 }
 
 impl LsfApptainerBackendConfig {

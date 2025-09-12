@@ -35,6 +35,7 @@ use regex::Regex;
 use serde_json::to_string_pretty;
 use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
+use tracing::info;
 use walkdir::WalkDir;
 use wdl_analysis::Analyzer;
 use wdl_ast::Diagnostic;
@@ -298,6 +299,8 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
 
     let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
     let dir = TempDir::new().context("failed to create temporary directory")?;
+    info!(dir = %dir.path().display(), "test temp dir created");
+
     match evaluator
         .evaluate(result.document(), task, &inputs, dir.path())
         .await
