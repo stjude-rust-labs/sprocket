@@ -44,6 +44,7 @@ use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
+use wdl_engine::LsfApptainerBackendConfig;
 use wdl_engine::config::BackendConfig;
 use wdl_engine::config::{self};
 use wdl_engine::v1::TaskEvaluator;
@@ -136,32 +137,48 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
         Ok(configs_on_disk)
     } else {
         Ok(vec![
-            ("local".into(), {
+            ("lsf_apptainer".into(), {
                 config::Config {
                     backends: [(
                         "default".to_string(),
-                        BackendConfig::Local(Default::default()),
+                        BackendConfig::LsfApptainer(
+                            LsfApptainerBackendConfig {
+                                queue: Some("short".into()),
+                            }
+                            .into(),
+                        ),
                     )]
                     .into(),
                     suppress_env_specific_output: true,
                     ..Default::default()
                 }
             }),
-            // Currently we limit running the Docker backend to Linux as GitHub does not have
-            // Docker installed on macOS hosted runners and the Windows hosted runners
-            // are configured to use Windows containers
-            #[cfg(target_os = "linux")]
-            ("docker".into(), {
-                config::Config {
-                    backends: [(
-                        "default".to_string(),
-                        BackendConfig::Docker(Default::default()),
-                    )]
-                    .into(),
-                    suppress_env_specific_output: true,
-                    ..Default::default()
-                }
-            }),
+            // ("local".into(), {
+            //     config::Config {
+            //         backends: [(
+            //             "default".to_string(),
+            //             BackendConfig::Local(Default::default()),
+            //         )]
+            //         .into(),
+            //         suppress_env_specific_output: true,
+            //         ..Default::default()
+            //     }
+            // }),
+            // // Currently we limit running the Docker backend to Linux as GitHub does not have
+            // // Docker installed on macOS hosted runners and the Windows hosted runners
+            // // are configured to use Windows containers
+            // #[cfg(target_os = "linux")]
+            // ("docker".into(), {
+            //     config::Config {
+            //         backends: [(
+            //             "default".to_string(),
+            //             BackendConfig::Docker(Default::default()),
+            //         )]
+            //         .into(),
+            //         suppress_env_specific_output: true,
+            //         ..Default::default()
+            //     }
+            // }),
         ])
     }
 }
