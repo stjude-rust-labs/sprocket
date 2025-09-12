@@ -7,6 +7,7 @@ pub mod decl;
 pub mod expr;
 pub mod import;
 pub mod meta;
+pub mod sort;
 pub mod r#struct;
 pub mod task;
 pub mod workflow;
@@ -112,7 +113,13 @@ pub fn format_input_section(element: &FormatElement, stream: &mut TokenStream<Pr
         }
     }
 
-    // TODO: sort inputs
+    inputs.sort_by(|a, b| {
+        let a_decl =
+            wdl_ast::v1::Decl::cast(a.element().as_node().unwrap().inner().clone()).unwrap();
+        let b_decl =
+            wdl_ast::v1::Decl::cast(b.element().as_node().unwrap().inner().clone()).unwrap();
+        sort::compare_decl(&a_decl, &b_decl)
+    });
     for input in inputs {
         (&input).write(stream);
     }
