@@ -24,7 +24,7 @@ use super::explain::ALL_TAG_NAMES;
 use crate::IGNORE_FILENAME;
 use crate::Mode;
 use crate::emit_diagnostics;
-use crate::get_display_config;
+use crate::get_diagnostics_display_config;
 
 /// The [`Tag`]s which will run with the default `lint` configuration.
 const DEFAULT_TAG_SET: TagSet = TagSet::new(&[
@@ -447,7 +447,7 @@ fn report_unknown_rules(
     if !unknown_rules.is_empty() {
         unknown_rules.sort();
 
-        let (config, writer) = get_display_config(report_mode, no_color);
+        let (config, writer) = get_diagnostics_display_config(report_mode, no_color);
         let mut writer = writer.lock();
         let files = SimpleFiles::<String, String>::new();
 

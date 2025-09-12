@@ -71,8 +71,11 @@ impl std::fmt::Display for Mode {
     }
 }
 
-/// Gets the display configuration based on the user's preferences.
-fn get_display_config(report_mode: Mode, no_color: bool) -> (&'static Config, StandardStream) {
+/// Gets the diagnostics display configuration based on the user's preferences.
+fn get_diagnostics_display_config(
+    report_mode: Mode,
+    no_color: bool,
+) -> (&'static Config, StandardStream) {
     let config = match report_mode {
         Mode::Full => &FULL_CONFIG,
         Mode::OneLine => &ONE_LINE_CONFIG,
@@ -81,7 +84,7 @@ fn get_display_config(report_mode: Mode, no_color: bool) -> (&'static Config, St
     let color_choice = if no_color {
         ColorChoice::Never
     } else if std::io::stderr().is_terminal() {
-        ColorChoice::Always
+        ColorChoice::Auto
     } else {
         ColorChoice::Never
     };
@@ -105,7 +108,7 @@ fn emit_diagnostics<'a>(
 
     let file_id = files.add(Cow::Borrowed(path), source);
 
-    let (config, mut stream) = get_display_config(report_mode, no_color);
+    let (config, mut stream) = get_diagnostics_display_config(report_mode, no_color);
 
     for diagnostic in diagnostics {
         let diagnostic = diagnostic.to_codespan(file_id).with_labels_iter(

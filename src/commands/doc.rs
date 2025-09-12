@@ -6,10 +6,10 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
-use wdl::analysis::Analyzer;
-use wdl::analysis::Config;
+use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::cli::analysis::Source;
+use wdl::doc::Config;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
 use wdl::doc::document_workspace;
@@ -103,22 +103,15 @@ pub async fn doc(args: Args) -> Result<()> {
         std::fs::remove_dir_all(&docs_dir)?;
     }
 
-    let analyzer_config = Config::default()
+    let analysis_config = AnalysisConfig::default()
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
-    let analyzer = Analyzer::new(analyzer_config, async |_, _, _, _| ());
-    analyzer.add_directory(&workspace).await?;
+    let conf = Config::new(analysis_config, &workspace, &docs_dir)
+        .homepage(args.homepage)
+        .custom_theme(args.theme)
+        .custom_logo(args.logo);
 
-    document_workspace(
-        analyzer,
-        &workspace,
-        &docs_dir,
-        args.homepage.clone(),
-        args.theme.clone(),
-        args.logo.clone(),
-    )
-    .await
-    .with_context(|| {
+    document_workspace(conf).await.with_context(|| {
         format!(
             "failed to generate documentation for workspace at `{}`",
             workspace.display()

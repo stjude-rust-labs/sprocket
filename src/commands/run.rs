@@ -1,7 +1,10 @@
 //! Implementation of the `run` subcommand.
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -9,13 +12,17 @@ use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
 use colored::Colorize as _;
+use crankshaft::events::Event;
 use futures::FutureExt as _;
 use indexmap::IndexSet;
 use indicatif::ProgressStyle;
 use tokio::select;
+use tokio::sync::broadcast;
+use tokio::sync::broadcast::error::RecvError;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
+use tracing::warn;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
@@ -27,7 +34,9 @@ use wdl::cli::analysis::Source;
 use wdl::cli::inputs::OriginPaths;
 use wdl::engine;
 use wdl::engine::EvaluationError;
+use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
+use wdl::engine::config::SecretString;
 
 use crate::Mode;
 use crate::emit_diagnostics;
@@ -37,6 +46,27 @@ use crate::emit_diagnostics;
 /// This is to prevent the progress bar from flashing on the screen for
 /// very short analyses.
 const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
+
+/// The capacity for the events channels.
+///
+/// This is the number of events to buffer in the events channel before
+/// receivers become lagged.
+///
+/// As `tokio::sync::broadcast` channels are used to support multiple receivers,
+/// an event is only dropped from the channel once *all* receivers have read it.
+///
+/// If the senders are sending events faster than all receivers can read the
+/// events, the channel buffer will eventually reach capacity.
+///
+/// When this happens, the oldest events in the buffer are dropped and receivers
+/// are notified via an error on the next read that they are lagging behind.
+///
+/// For `sprocket`, we'll notify the user that the progress indicators might not
+/// be correct should this occur.
+///
+/// The value of `100` was chosen simply as a reasonable default that will make
+/// lagging unlikely.
+const EVENTS_CHANNEL_CAPACITY: usize = 100;
 
 /// The name of the default "runs" directory.
 pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
@@ -103,9 +133,42 @@ pub struct Args {
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
 
+    /// The AWS Access Key ID to use; overrides configuration.
+    #[clap(long, env, value_name = "ID", requires = "aws_secret_access_key")]
+    pub aws_access_key_id: Option<String>,
+
+    /// The AWS Secret Access Key to use; overrides configuration.
+    #[clap(
+        long,
+        env,
+        hide_env_values(true),
+        value_name = "KEY",
+        requires = "aws_access_key_id"
+    )]
+    pub aws_secret_access_key: Option<SecretString>,
+
+    /// The default AWS region; overrides configuration.
+    #[clap(long, env, value_name = "REGION")]
+    pub aws_default_region: Option<String>,
+
+    /// The Google Cloud Storage HMAC access key to use; overrides
+    /// configuration.
+    #[clap(long, env, value_name = "KEY", requires = "google_hmac_secret")]
+    pub google_hmac_access_key: Option<String>,
+
+    /// The Google Cloud Storage HMAC secret to use; overrides configuration.
+    #[clap(
+        long,
+        env,
+        hide_env_values(true),
+        value_name = "SECRET",
+        requires = "google_hmac_access_key"
+    )]
+    pub google_hmac_secret: Option<SecretString>,
+
     /// The engine configuration to use.
     ///
-    /// This is not exposed via [`clap`] and is unsettable by users.
+    /// This is not exposed via [`clap`] and is not settable by users.
     /// It will always be overwritten by the engine config provided by the user
     /// (which will be set with `Default::default()` if the user does not
     /// explicitly set `run` config values).
@@ -120,24 +183,55 @@ impl Args {
         if self.runs_dir.is_none() {
             self.runs_dir = Some(config.run.runs_dir);
         }
+
         self.no_color = self.no_color || !config.common.color;
         if self.report_mode.is_none() {
             self.report_mode = Some(config.common.report_mode);
         }
+
+        // Apply the AWS default region to the engine config
+        if let Some(region) = &self.aws_default_region {
+            self.engine.storage.s3.region = Some(region.clone());
+        }
+
+        // Apply the AWS auth to the engine config
+        if self.aws_access_key_id.is_some() || self.aws_secret_access_key.is_some() {
+            let auth = self.engine.storage.s3.auth.get_or_insert_default();
+            if let Some(key) = &self.aws_access_key_id {
+                auth.access_key_id = key.clone();
+            }
+
+            if let Some(secret) = &self.aws_secret_access_key {
+                auth.secret_access_key = secret.clone();
+            }
+        }
+
+        // Apply the Google auth to the engine config
+        if self.google_hmac_access_key.is_some() || self.google_hmac_secret.is_some() {
+            let auth = self.engine.storage.google.auth.get_or_insert_default();
+            if let Some(key) = &self.google_hmac_access_key {
+                auth.access_key = key.clone();
+            }
+
+            if let Some(secret) = &self.google_hmac_secret {
+                auth.secret = secret.clone();
+            }
+        }
+
         self
     }
 }
 
-/// Helper for displaying task ids.
-struct Ids<'a>(&'a IndexSet<String>);
+/// Helper for displaying task names.
+struct Tasks<'a>(&'a IndexSet<Arc<String>>);
 
-impl std::fmt::Display for Ids<'_> {
+impl std::fmt::Display for Tasks<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         /// The maximum number of executing task names to display at a time
         const MAX_TASKS: usize = 10;
 
         let mut first = true;
-        for (i, id) in self.0.iter().enumerate() {
+        for (i, name) in self.0.iter().enumerate() {
             if i == MAX_TASKS {
                 write!(f, "...")?;
                 break;
@@ -149,7 +243,7 @@ impl std::fmt::Display for Ids<'_> {
                 write!(f, ", ")?;
             }
 
-            write!(f, "{id}", id = id.magenta().bold())?;
+            write!(f, "{name}", name = name.magenta().bold())?;
         }
 
         Ok(())
@@ -159,58 +253,103 @@ impl std::fmt::Display for Ids<'_> {
 /// Represents state for reporting evaluation progress.
 #[derive(Default)]
 struct State {
-    /// The set of currently executing task identifiers.
-    ids: IndexSet<String>,
+    /// The map of task identifiers to names.
+    tasks: HashMap<u64, Arc<String>>,
+    /// The set of currently executing tasks.
+    executing: IndexSet<Arc<String>>,
+    /// The number of failed tasks.
+    failed: usize,
     /// The number of completed tasks.
     completed: usize,
-    /// The number of tasks awaiting execution.
-    ready: usize,
-    /// The number of currently executing tasks.
-    executing: usize,
 }
 
-// /// A callback for updating state based on engine events.
-// fn progress(kind: ProgressKind<'_>, pb: &tracing::Span, state: &Mutex<State>)
-// {     pb.pb_start();
+/// Displays evaluation progress.
+async fn progress(
+    mut events: broadcast::Receiver<Event>,
+    pb: tracing::Span,
+    state: Arc<Mutex<State>>,
+) {
+    /// Helper for formatting the progress bar
+    fn message(state: &State) -> String {
+        let executing = state.executing.len();
+        let ready = state.tasks.len() - executing;
+        format!(
+            " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e} {executing} \
+             task{s3}{sep}{tasks}",
+            c = state.completed,
+            completed = "completed".cyan(),
+            s1 = if state.completed == 1 { "" } else { "s" },
+            r = ready,
+            ready = "ready".cyan(),
+            s2 = if ready == 1 { "" } else { "s" },
+            e = executing,
+            executing = "executing".cyan(),
+            s3 = if executing == 1 { "" } else { "s" },
+            sep = if executing == 0 { "" } else { ": " },
+            tasks = Tasks(&state.executing)
+        )
+    }
 
-//     let message = {
-//         let mut state = state.lock().expect("failed to lock progress mutex");
-//         match kind {
-//             ProgressKind::TaskStarted { .. } | ProgressKind::TaskRetried { ..
-// } => {                 state.ready += 1;
-//             }
-//             ProgressKind::TaskExecutionStarted { id } => {
-//                 state.ready -= 1;
-//                 state.executing += 1;
-//                 state.ids.insert(id.to_string());
-//             }
-//             ProgressKind::TaskExecutionCompleted { id, .. } => {
-//                 state.executing -= 1;
-//                 state.ids.swap_remove(id);
-//             }
-//             ProgressKind::TaskCompleted { .. } => {
-//                 state.completed += 1;
-//             }
-//             _ => {}
-//         }
+    let mut warned = false;
+    message(&state.lock().expect("failed to lock state"));
 
-//         format!(
-//             " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e}
-// {executing} task{s3}: {ids}",             c = state.completed,
-//             completed = "completed".cyan(),
-//             s1 = if state.completed == 1 { "" } else { "s" },
-//             r = state.ready,
-//             ready = "ready".cyan(),
-//             s2 = if state.ready == 1 { "" } else { "s" },
-//             e = state.executing,
-//             executing = "executing".cyan(),
-//             s3 = if state.executing == 1 { "" } else { "s" },
-//             ids = Ids(&state.ids)
-//         )
-//     };
+    loop {
+        match events.recv().await {
+            Ok(event) => {
+                pb.pb_start();
 
-//     pb.pb_set_message(&message);
-// }
+                let message = match event {
+                    Event::TaskCreated { id, name, .. } => {
+                        let mut state = state.lock().expect("failed to lock state");
+                        state.tasks.insert(id, name.into());
+                        message(&state)
+                    }
+                    Event::TaskStarted { id } => {
+                        let mut state = state.lock().expect("failed to lock state");
+                        if let Some(name) = state.tasks.get(&id).cloned() {
+                            state.executing.insert(name);
+                        }
+                        message(&state)
+                    }
+                    Event::TaskCompleted { id, .. } => {
+                        let mut state = state.lock().expect("failed to lock state");
+                        if let Some(name) = state.tasks.remove(&id) {
+                            state.executing.swap_remove(&name);
+                        }
+                        state.completed += 1;
+                        message(&state)
+                    }
+                    Event::TaskFailed { id, .. } => {
+                        let mut state = state.lock().expect("failed to lock state");
+                        if let Some(name) = state.tasks.remove(&id) {
+                            state.executing.swap_remove(&name);
+                        }
+                        state.failed += 1;
+                        message(&state)
+                    }
+                    Event::TaskCanceled { id } | Event::TaskPreempted { id } => {
+                        let mut state = state.lock().expect("failed to lock state");
+                        if let Some(name) = state.tasks.remove(&id) {
+                            state.executing.swap_remove(&name);
+                        }
+                        state.failed += 1;
+                        message(&state)
+                    }
+                    _ => continue,
+                };
+
+                pb.pb_set_message(&message);
+            }
+            Err(RecvError::Closed) => break,
+            Err(RecvError::Lagged(_)) => {
+                if !warned {
+                    warned = true;
+                    warn!("event stream is lagging: task progress reporting may be incorrect");
+                }
+            }
+        }
+    }
+}
 
 /// Determines the timestamped execution directory and performs any necessary
 /// staging prior to execution.
@@ -424,6 +563,23 @@ pub async fn run(args: Args) -> Result<()> {
         .unwrap(),
     );
 
+    let state = Arc::new(Mutex::<State>::default());
+    let token = CancellationToken::new();
+    let events = Events::all(EVENTS_CHANNEL_CAPACITY);
+    let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
+        events
+            .subscribe_transfer()
+            .expect("should have transfer events"),
+        token.clone(),
+    ));
+    let crankshaft_progress = tokio::spawn(progress(
+        events
+            .subscribe_crankshaft()
+            .expect("should have Crankshaft events"),
+        span,
+        state,
+    ));
+
     let evaluator = Evaluator::new(
         document,
         &entrypoint,
@@ -432,9 +588,8 @@ pub async fn run(args: Args) -> Result<()> {
         args.engine,
         &output_dir,
     );
-    let token = CancellationToken::new();
 
-    let mut evaluate = evaluator.run(token.clone(), None).boxed();
+    let mut evaluate = evaluator.run(token.clone(), events).boxed();
 
     select! {
         // Always prefer the CTRL-C signal to the evaluation returning.
@@ -444,18 +599,25 @@ pub async fn run(args: Args) -> Result<()> {
             error!("execution was interrupted: waiting for evaluation to abort");
             token.cancel();
             evaluate.await.ok();
+            transfer_progress.await.ok();
+            crankshaft_progress.await.ok();
             bail!("execution was aborted");
         },
-        res = &mut evaluate => match res {
-            Ok(outputs) => {
-                println!("{outputs}", outputs = serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
-                Ok(())
+        res = &mut evaluate => {
+            transfer_progress.await.ok();
+            crankshaft_progress.await.ok();
+
+            match res {
+                Ok(outputs) => {
+                    println!("{outputs}", outputs = serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
+                    Ok(())
+                }
+                Err(EvaluationError::Source(e)) => {
+                    emit_diagnostics(&e.document.path(), e.document.root().text().to_string(), &[e.diagnostic], &e.backtrace, args.report_mode.unwrap_or_default(), args.no_color)?;
+                    bail!("aborting due to evaluation error");
+                }
+                Err(EvaluationError::Other(e)) => Err(e)
             }
-            Err(EvaluationError::Source(e)) => {
-                emit_diagnostics(&e.document.path(), e.document.root().text().to_string(), &[e.diagnostic], &e.backtrace, args.report_mode.unwrap_or_default(), args.no_color)?;
-                bail!("aborting due to evaluation error");
-            }
-            Err(EvaluationError::Other(e)) => Err(e)
         },
     }
 }
