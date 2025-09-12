@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added options to `sprocket run` for configuring AWS S3 and Google Cloud
+  Storage authentication ([#164](https://github.com/stjude-rust-labs/sprocket/pull/164)).
+* Added progress bars for file transfers ([#164](https://github.com/stjude-rust-labs/sprocket/pull/164)).
+
 ### Fixed
 
 * `--no-color` argument to `format` is now respected ([#167](https://github.com/stjude-rust-labs/sprocket/pull/167)).
