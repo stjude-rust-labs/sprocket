@@ -426,7 +426,7 @@ impl LsfApptainerBackend {
 impl TaskExecutionBackend for LsfApptainerBackend {
     fn max_concurrency(&self) -> u64 {
         // TODO ACF 2025-09-11: make this configurable
-        200
+        500
     }
 
     fn constraints(
