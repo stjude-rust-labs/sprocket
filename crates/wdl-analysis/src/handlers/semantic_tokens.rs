@@ -5,7 +5,7 @@
 //! semantic types to tokens, enabling richer syntax highlighting in compatible
 //! editors.
 //!
-//! See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens
+//! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens)
 
 use anyhow::Result;
 use anyhow::bail;

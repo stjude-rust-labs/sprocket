@@ -4,7 +4,7 @@
 //! for WDL files. It searches for symbols across all documents in the
 //! workspace.
 //!
-//! See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_symbol
+//! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_symbol)
 
 use anyhow::Result;
 use lsp_types::DocumentSymbol;

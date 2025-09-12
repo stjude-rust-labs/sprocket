@@ -3,13 +3,12 @@
 use std::path::Path;
 
 use anyhow::anyhow;
-use crankshaft::events::Event;
-use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use wdl_analysis::Document;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::EvaluationResult;
+use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::Outputs;
 use wdl_engine::config::Config;
@@ -63,7 +62,7 @@ impl<'a> Evaluator<'a> {
     pub async fn run(
         mut self,
         token: CancellationToken,
-        events: Option<broadcast::Sender<Event>>,
+        events: Events,
     ) -> EvaluationResult<Outputs> {
         match self.inputs {
             Inputs::Task(ref mut inputs) => {

@@ -22,8 +22,8 @@ use crate::HostPath;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
-use crate::http::Downloader;
 use crate::http::Location;
+use crate::http::Transferer;
 use crate::path;
 use crate::path::EvaluationPath;
 
@@ -102,14 +102,14 @@ fn ensure_local_path<'a>(base_dir: &EvaluationPath, path: &'a str) -> Result<Cow
 }
 
 /// Helper for downloading files in stdlib functions.
-pub(crate) async fn download_file<'a>(
-    downloader: &dyn Downloader,
+pub(crate) async fn download_file(
+    transferer: &dyn Transferer,
     base_dir: &EvaluationPath,
     path: &HostPath,
-) -> Result<Location<'a>> {
+) -> Result<Location> {
     // If the path is a URL, download it
     if let Some(url) = path::parse_url(path.as_str()) {
-        return downloader
+        return transferer
             .download(&url)
             .await
             .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}"));
@@ -117,12 +117,12 @@ pub(crate) async fn download_file<'a>(
 
     let p = Path::new(path.as_str());
     if p.is_absolute() {
-        return Ok(Location::Path(p.clean().into()));
+        return Ok(Location::Path(p.clean()));
     }
 
     match base_dir.join(path.as_str())? {
-        EvaluationPath::Local(path) => Ok(Location::Path(path.into())),
-        EvaluationPath::Remote(url) => downloader
+        EvaluationPath::Local(path) => Ok(Location::Path(path)),
+        EvaluationPath::Remote(url) => transferer
             .download(&url)
             .await
             .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}")),
@@ -245,9 +245,9 @@ impl<'a> CallContext<'a> {
         self.context.stderr()
     }
 
-    /// Gets the downloader to use for evaluating expressions.
-    pub fn downloader(&self) -> &dyn Downloader {
-        self.context.downloader()
+    /// Gets the transferer to use for evaluating expressions.
+    pub fn transferer(&self) -> &dyn Transferer {
+        self.context.transferer()
     }
 
     /// Gets the inner evaluation context.

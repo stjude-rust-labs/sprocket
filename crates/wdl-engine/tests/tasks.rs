@@ -41,6 +41,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
+use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::config::BackendConfig;
 use wdl_engine::config::{self};
@@ -295,7 +296,7 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
     inputs.join_paths(task, |_| Ok(&test_dir))?;
 
-    let evaluator = TaskEvaluator::new(config, CancellationToken::new(), None).await?;
+    let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
     let dir = TempDir::new().context("failed to create temporary directory")?;
     match evaluator
         .evaluate(result.document(), task, &inputs, dir.path())

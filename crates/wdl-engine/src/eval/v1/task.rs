@@ -14,10 +14,8 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use bimap::BiHashMap;
-use crankshaft::events::Event;
 use indexmap::IndexMap;
 use petgraph::algo::toposort;
-use tokio::sync::broadcast;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
@@ -70,6 +68,7 @@ use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationResult;
+use crate::Events;
 use crate::GuestPath;
 use crate::HostPath;
 use crate::Input;
@@ -96,8 +95,8 @@ use crate::diagnostics::task_execution_failed;
 use crate::diagnostics::task_localization_failed;
 use crate::eval::EvaluatedTask;
 use crate::eval::trie::InputTrie;
-use crate::http::Downloader;
-use crate::http::HttpDownloader;
+use crate::http::HttpTransferer;
+use crate::http::Transferer;
 use crate::path::EvaluationPath;
 use crate::path::is_file_url;
 use crate::path::is_url;
@@ -454,8 +453,8 @@ pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> i64 {
 struct TaskEvaluationContext<'a, 'b> {
     /// The associated evaluation state.
     state: &'a mut State<'b>,
-    /// The downloader to use for expression evaluation.
-    downloader: &'a HttpDownloader,
+    /// The transferer to use for expression evaluation.
+    transferer: &'a dyn Transferer,
     /// The current evaluation scope.
     scope: ScopeIndex,
     /// The task work directory.
@@ -480,12 +479,12 @@ impl<'a, 'b> TaskEvaluationContext<'a, 'b> {
     /// Constructs a new expression evaluation context.
     pub fn new(
         state: &'a mut State<'b>,
-        downloader: &'a HttpDownloader,
+        transferer: &'a dyn Transferer,
         scope: ScopeIndex,
     ) -> Self {
         Self {
             state,
-            downloader,
+            transferer,
             scope,
             work_dir: None,
             stdout: None,
@@ -564,8 +563,8 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         }
     }
 
-    fn downloader(&self) -> &dyn Downloader {
-        self.downloader
+    fn transferer(&self) -> &dyn Transferer {
+        self.transferer
     }
 
     fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
@@ -675,7 +674,7 @@ impl<'a> State<'a> {
         &mut self,
         is_optional: bool,
         value: &mut Value,
-        downloader: &HttpDownloader,
+        transferer: &Arc<dyn Transferer>,
         needs_local_inputs: bool,
     ) -> Result<()> {
         let mut urls = Vec::new();
@@ -722,16 +721,16 @@ impl<'a> State<'a> {
         // Download any necessary files
         let mut downloads = JoinSet::new();
         for (url, index) in urls {
-            let downloader = downloader.clone();
+            let transferer = transferer.clone();
             downloads.spawn(async move {
-                downloader
+                transferer
                     .download(
                         &url.as_str()
                             .parse()
                             .with_context(|| format!("invalid URL `{url}`"))?,
                     )
                     .await
-                    .map_err(|e| anyhow!("failed to localize `{url}`: {e:#}"))
+                    .with_context(|| anyhow!("failed to localize `{url}`"))
                     .map(|l| (url, l, index))
             });
         }
@@ -798,8 +797,8 @@ pub struct TaskEvaluator {
     backend: Arc<dyn TaskExecutionBackend>,
     /// The cancellation token for cancelling task evaluation.
     token: CancellationToken,
-    /// The downloader to use for expression evaluation.
-    downloader: HttpDownloader,
+    /// The transferer to use for expression evaluation.
+    transferer: Arc<dyn Transferer>,
 }
 
 impl TaskEvaluator {
@@ -807,40 +806,37 @@ impl TaskEvaluator {
     /// configuration, cancellation token, and events sender.
     ///
     /// Returns an error if the configuration isn't valid.
-    pub async fn new(
-        config: Config,
-        token: CancellationToken,
-        events: Option<broadcast::Sender<Event>>,
-    ) -> Result<Self> {
+    pub async fn new(config: Config, token: CancellationToken, events: Events) -> Result<Self> {
         config.validate()?;
 
         let config = Arc::new(config);
-        let backend = config.create_backend(events).await?;
-        let downloader = HttpDownloader::new(config.clone())?;
+        let backend = config.create_backend(events.crankshaft().clone()).await?;
+        let transferer =
+            HttpTransferer::new(config.clone(), token.clone(), events.transfer().clone())?;
 
         Ok(Self {
             config,
             backend,
             token,
-            downloader,
+            transferer: Arc::new(transferer),
         })
     }
 
     /// Creates a new task evaluator with the given configuration, backend,
-    /// cancellation token, and downloader.
+    /// cancellation token, and transferer.
     ///
     /// This method does not validate the configuration.
     pub(crate) fn new_unchecked(
         config: Arc<Config>,
         backend: Arc<dyn TaskExecutionBackend>,
         token: CancellationToken,
-        downloader: HttpDownloader,
+        transferer: Arc<dyn Transferer>,
     ) -> Self {
         Self {
             config,
             backend,
             token,
-            downloader,
+            transferer,
         }
     }
 
@@ -1005,6 +1001,7 @@ impl TaskEvaluator {
                     requirements.clone(),
                     hints.clone(),
                     env.clone(),
+                    self.transferer.clone(),
                 ),
                 attempt,
                 attempt_dir.clone(),
@@ -1047,7 +1044,10 @@ impl TaskEvaluator {
                 task.set_return_code(evaluated.result.exit_code);
             }
 
-            if let Err(e) = evaluated.handle_exit(&requirements, &self.downloader).await {
+            if let Err(e) = evaluated
+                .handle_exit(&requirements, self.transferer.as_ref())
+                .await
+            {
                 if attempt >= max_retries {
                     return Err(EvaluationError::new(
                         state.document.clone(),
@@ -1133,7 +1133,7 @@ impl TaskEvaluator {
 
                     let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                         state,
-                        &self.downloader,
+                        self.transferer.as_ref(),
                         ROOT_SCOPE_INDEX,
                     ));
                     (evaluator.evaluate_expr(&expr).await?, expr.span())
@@ -1150,7 +1150,7 @@ impl TaskEvaluator {
             .coerce(
                 Some(&TaskEvaluationContext::new(
                     state,
-                    &self.downloader,
+                    self.transferer.as_ref(),
                     ROOT_SCOPE_INDEX,
                 )),
                 &ty,
@@ -1162,7 +1162,7 @@ impl TaskEvaluator {
             .add_backend_inputs(
                 decl_ty.is_optional(),
                 &mut value,
-                &self.downloader,
+                &self.transferer,
                 self.backend.needs_local_inputs(),
             )
             .await
@@ -1187,7 +1187,7 @@ impl TaskEvaluator {
                 .expect("value should be primitive")
                 .raw(Some(&TaskEvaluationContext::new(
                     state,
-                    &self.downloader,
+                    self.transferer.as_ref(),
                     ROOT_SCOPE_INDEX,
                 )))
                 .to_string();
@@ -1218,7 +1218,7 @@ impl TaskEvaluator {
 
         let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
             state,
-            &self.downloader,
+            self.transferer.as_ref(),
             ROOT_SCOPE_INDEX,
         ));
 
@@ -1228,7 +1228,7 @@ impl TaskEvaluator {
             .coerce(
                 Some(&TaskEvaluationContext::new(
                     state,
-                    &self.downloader,
+                    self.transferer.as_ref(),
                     ROOT_SCOPE_INDEX,
                 )),
                 &ty,
@@ -1240,7 +1240,7 @@ impl TaskEvaluator {
             .add_backend_inputs(
                 decl_ty.is_optional(),
                 &mut value,
-                &self.downloader,
+                &self.transferer,
                 self.backend.needs_local_inputs(),
             )
             .await
@@ -1257,7 +1257,7 @@ impl TaskEvaluator {
                 .expect("value should be primitive")
                 .raw(Some(&TaskEvaluationContext::new(
                     state,
-                    &self.downloader,
+                    self.transferer.as_ref(),
                     ROOT_SCOPE_INDEX,
                 )))
                 .to_string();
@@ -1308,7 +1308,7 @@ impl TaskEvaluator {
 
             let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                 state,
-                &self.downloader,
+                self.transferer.as_ref(),
                 ROOT_SCOPE_INDEX,
             ));
 
@@ -1331,7 +1331,7 @@ impl TaskEvaluator {
                             .coerce(
                                 Some(&TaskEvaluationContext::new(
                                     state,
-                                    &self.downloader,
+                                    self.transferer.as_ref(),
                                     ROOT_SCOPE_INDEX,
                                 )),
                                 ty,
@@ -1383,7 +1383,7 @@ impl TaskEvaluator {
 
             let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                 state,
-                &self.downloader,
+                self.transferer.as_ref(),
                 ROOT_SCOPE_INDEX,
             ));
 
@@ -1400,7 +1400,7 @@ impl TaskEvaluator {
                         .coerce(
                             Some(&TaskEvaluationContext::new(
                                 state,
-                                &self.downloader,
+                                self.transferer.as_ref(),
                                 ROOT_SCOPE_INDEX,
                             )),
                             ty,
@@ -1442,7 +1442,8 @@ impl TaskEvaluator {
             }
 
             let mut evaluator = ExprEvaluator::new(
-                TaskEvaluationContext::new(state, &self.downloader, ROOT_SCOPE_INDEX).with_task(),
+                TaskEvaluationContext::new(state, self.transferer.as_ref(), ROOT_SCOPE_INDEX)
+                    .with_task(),
             );
 
             let value = evaluator.evaluate_hints_item(&name, &item.expr()).await?;
@@ -1474,7 +1475,7 @@ impl TaskEvaluator {
             Some(parts) => {
                 let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                     state,
-                    &self.downloader,
+                    self.transferer.as_ref(),
                     TASK_SCOPE_INDEX,
                 ));
 
@@ -1502,7 +1503,7 @@ impl TaskEvaluator {
 
                 let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                     state,
-                    &self.downloader,
+                    self.transferer.as_ref(),
                     TASK_SCOPE_INDEX,
                 ));
 
@@ -1636,7 +1637,7 @@ impl TaskEvaluator {
         let decl_ty = decl.ty();
         let ty = crate::convert_ast_type_v1(state.document, &decl_ty)?;
         let mut evaluator = ExprEvaluator::new(
-            TaskEvaluationContext::new(state, &self.downloader, TASK_SCOPE_INDEX)
+            TaskEvaluationContext::new(state, self.transferer.as_ref(), TASK_SCOPE_INDEX)
                 .with_work_dir(&evaluated.result.work_dir)
                 .with_stdout(&evaluated.result.stdout)
                 .with_stderr(&evaluated.result.stderr),
@@ -1746,14 +1747,14 @@ impl TaskEvaluator {
                 }
 
                 if let EvaluationPath::Remote(url) = input.path() {
-                    let downloader = self.downloader.clone();
+                    let transferer = self.transferer.clone();
                     let url = url.clone();
                     downloads.spawn(async move {
-                        downloader
+                        transferer
                             .download(&url)
                             .await
                             .map(|l| (idx, l))
-                            .map_err(|e| anyhow!("failed to localize `{url}`: {e:#}"))
+                            .with_context(|| anyhow!("failed to localize `{url}`"))
                     });
                 }
             }
@@ -1776,9 +1777,9 @@ impl TaskEvaluator {
 
         if enabled!(Level::DEBUG) {
             for input in state.backend_inputs.as_slice() {
-                match (input.local_path(), input.guest_path()) {
-                    (None, None) => {}
-                    (None, Some(guest_path)) => {
+                match (input.path().as_local().is_some(), input.guest_path()) {
+                    (true, None) => {}
+                    (true, Some(guest_path)) => {
                         debug!(
                             task_id,
                             task_name = state.task.name(),
@@ -1787,17 +1788,20 @@ impl TaskEvaluator {
                             path = input.path().display(),
                         );
                     }
-                    (Some(local_path), None) => {
+                    (false, None) => {
                         debug!(
                             task_id,
                             task_name = state.task.name(),
                             document = state.document.uri().as_str(),
                             "task input `{path}` downloaded to `{local_path}`",
                             path = input.path().display(),
-                            local_path = local_path.display()
+                            local_path = input
+                                .local_path()
+                                .expect("input should be localized")
+                                .display()
                         );
                     }
-                    (Some(local_path), Some(guest_path)) => {
+                    (false, Some(guest_path)) => {
                         debug!(
                             task_id,
                             task_name = state.task.name(),
@@ -1805,7 +1809,10 @@ impl TaskEvaluator {
                             "task input `{path}` downloaded to `{local_path}` and mapped to \
                              `{guest_path}`",
                             path = input.path().display(),
-                            local_path = local_path.display(),
+                            local_path = input
+                                .local_path()
+                                .expect("input should be localized")
+                                .display(),
                         );
                     }
                 }

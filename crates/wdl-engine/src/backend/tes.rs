@@ -8,8 +8,8 @@ use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::anyhow;
 use anyhow::bail;
+use cloud_copy::UrlExt;
 use crankshaft::config::backend;
 use crankshaft::config::backend::tes::http::HttpAuthConfig;
 use crankshaft::engine::Task;
@@ -27,9 +27,11 @@ use crankshaft::engine::task::input::Type as InputType;
 use crankshaft::engine::task::output::Type as OutputType;
 use crankshaft::events::Event;
 use nonempty::NonEmpty;
+use secrecy::ExposeSecret;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
+use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
@@ -41,7 +43,6 @@ use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use crate::COMMAND_FILE_NAME;
-use crate::InputKind;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::STDERR_FILE_NAME;
@@ -53,7 +54,8 @@ use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TesBackendAuthConfig;
 use crate::config::TesBackendConfig;
-use crate::http::rewrite_url;
+use crate::hash::UrlDigestExt;
+use crate::hash::calculate_path_digest;
 use crate::path::EvaluationPath;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
@@ -175,10 +177,13 @@ impl TaskManagerRequest for TesTaskRequest {
             )
         })?;
 
-        let task_dir = format!(
-            "{name}-{timestamp}/",
-            name = self.name,
-            timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S")
+        // SAFETY: currently `inputs` is required by configuration validation, so it
+        // should always unwrap
+        let inputs_url = Arc::new(
+            self.backend_config
+                .inputs
+                .clone()
+                .expect("should have inputs URL"),
         );
 
         // Start with the command file as an input
@@ -191,26 +196,70 @@ impl TaskManagerRequest for TesTaskRequest {
                 .build(),
         ];
 
-        for input in self.inner.inputs() {
-            // Currently, if the input is a directory with contents, we'll error evaluation
-            // TODO: in the future, we should be uploading the entire contents to cloud
-            // storage
-            if input.kind() == InputKind::Directory {
-                if let EvaluationPath::Local(path) = input.path()
-                    && let Ok(mut entries) = path.read_dir()
-                    && entries.next().is_some()
-                {
-                    bail!(
-                        "cannot upload contents of directory `{path}`: operation is not yet \
-                         supported",
-                        path = path.display()
+        // Spawn upload tasks for inputs available locally, and apply authentication to
+        // the URLs for remote inputs.
+        let mut uploads = JoinSet::new();
+        for (i, input) in self.inner.inputs().iter().enumerate() {
+            match input.path() {
+                EvaluationPath::Local(path) => {
+                    // Input is local, spawn an upload of it
+                    let path = path.to_path_buf();
+                    let transferer = self.inner.transferer().clone();
+                    let inputs_url = inputs_url.clone();
+                    uploads.spawn(async move {
+                        let url = inputs_url.join_digest(
+                            calculate_path_digest(&path).await.with_context(|| {
+                                format!(
+                                    "failed to calculate digest of `{path}`",
+                                    path = path.display()
+                                )
+                            })?,
+                        );
+                        transferer
+                            .upload(&path, &url)
+                            .await
+                            .with_context(|| {
+                                format!(
+                                    "failed to upload `{path}` to `{url}`",
+                                    path = path.display(),
+                                    url = url.display()
+                                )
+                            })
+                            .map(|_| (i, url))
+                    });
+                }
+                EvaluationPath::Remote(url) => {
+                    // Input is already remote, add it to the Crankshaft inputs list
+                    let url = match self.inner.transferer().apply_auth(url)? {
+                        Cow::Borrowed(_) => url.clone(),
+                        Cow::Owned(url) => url,
+                    };
+                    inputs.push(
+                        Input::builder()
+                            .path(
+                                input
+                                    .guest_path()
+                                    .expect("input should have guest path")
+                                    .as_str(),
+                            )
+                            .contents(Contents::Url(url))
+                            .ty(input.kind())
+                            .read_only(true)
+                            .build(),
                     );
                 }
-                continue;
             }
+        }
 
-            // TODO: for local files, upload to cloud storage rather than specifying the
-            // input contents directly
+        // Wait for any uploads to complete
+        while let Some(result) = uploads.join_next().await {
+            let (i, url) = result.context("upload task")??;
+            let input = &self.inner.inputs()[i];
+            let url = match self.inner.transferer().apply_auth(&url)? {
+                Cow::Borrowed(_) => url,
+                Cow::Owned(url) => url,
+            };
+
             inputs.push(
                 Input::builder()
                     .path(
@@ -219,17 +268,18 @@ impl TaskManagerRequest for TesTaskRequest {
                             .expect("input should have guest path")
                             .as_str(),
                     )
-                    .contents(match input.path() {
-                        EvaluationPath::Local(path) => Contents::Path(path.clone()),
-                        EvaluationPath::Remote(url) => Contents::Url(
-                            rewrite_url(&self.config, Cow::Borrowed(url))?.into_owned(),
-                        ),
-                    })
+                    .contents(Contents::Url(url))
                     .ty(input.kind())
                     .read_only(true)
                     .build(),
             );
         }
+
+        let output_dir = format!(
+            "{name}-{timestamp}/",
+            name = self.name,
+            timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S")
+        );
 
         // SAFETY: currently `outputs` is required by configuration validation, so it
         // should always unwrap
@@ -238,24 +288,27 @@ impl TaskManagerRequest for TesTaskRequest {
             .outputs
             .as_ref()
             .expect("should have outputs URL")
-            .join(&task_dir)
+            .join(&output_dir)
             .expect("should join");
 
-        let mut work_dir_url = rewrite_url(
-            &self.config,
-            Cow::Owned(outputs_url.join(WORK_DIR_NAME).expect("should join")),
-        )?
-        .into_owned();
-        let stdout_url = rewrite_url(
-            &self.config,
-            Cow::Owned(outputs_url.join(STDOUT_FILE_NAME).expect("should join")),
-        )?
-        .into_owned();
-        let stderr_url = rewrite_url(
-            &self.config,
-            Cow::Owned(outputs_url.join(STDERR_FILE_NAME).expect("should join")),
-        )?
-        .into_owned();
+        let work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
+        let stdout_url = outputs_url.join(STDOUT_FILE_NAME).expect("should join");
+        let stderr_url = outputs_url.join(STDERR_FILE_NAME).expect("should join");
+
+        let mut work_dir_url = match self.inner.transferer().apply_auth(&work_dir_url)? {
+            Cow::Borrowed(_) => work_dir_url,
+            Cow::Owned(url) => url,
+        };
+
+        let stdout_url = match self.inner.transferer().apply_auth(&stdout_url)? {
+            Cow::Borrowed(_) => stdout_url,
+            Cow::Owned(url) => url,
+        };
+
+        let stderr_url = match self.inner.transferer().apply_auth(&stderr_url)? {
+            Cow::Borrowed(_) => stderr_url,
+            Cow::Owned(url) => url,
+        };
 
         // The TES backend will output three things: the working directory contents,
         // stdout, and stderr.
@@ -312,12 +365,7 @@ impl TaskManagerRequest for TesTaskRequest {
                 )
                 .build();
 
-            let statuses = match self
-                .backend
-                .run(task, self.token.clone())
-                .map_err(|e| anyhow!("{e:#}"))?
-                .await
-            {
+            let statuses = match self.backend.run(task, self.token.clone())?.await {
                 Ok(statuses) => statuses,
                 Err(TaskRunError::Preempted) if preemptible > 0 => {
                     // Decrement the preemptible count and retry
@@ -388,22 +436,13 @@ impl TesBackend {
         match &backend_config.auth {
             Some(TesBackendAuthConfig::Basic(config)) => {
                 http.auth = Some(HttpAuthConfig::Basic {
-                    username: config
-                        .username
-                        .clone()
-                        .ok_or_else(|| anyhow!("missing `username` in basic auth"))?,
-                    password: config
-                        .password
-                        .clone()
-                        .ok_or_else(|| anyhow!("missing `password` in basic auth"))?,
+                    username: config.username.clone(),
+                    password: config.password.inner().expose_secret().to_string(),
                 });
             }
             Some(TesBackendAuthConfig::Bearer(config)) => {
                 http.auth = Some(HttpAuthConfig::Bearer {
-                    token: config
-                        .token
-                        .clone()
-                        .ok_or_else(|| anyhow!("missing `token` in bearer auth"))?,
+                    token: config.token.inner().expose_secret().to_string(),
                 });
             }
             None => {}

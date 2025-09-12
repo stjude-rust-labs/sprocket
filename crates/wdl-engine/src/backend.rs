@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::fmt;
 use std::future::Future;
 use std::ops::Add;
 use std::ops::Range;
@@ -24,6 +25,7 @@ use tracing::debug;
 
 use crate::Input;
 use crate::Value;
+use crate::http::Transferer;
 use crate::path::EvaluationPath;
 
 mod docker;
@@ -89,7 +91,6 @@ pub struct TaskExecutionConstraints {
 }
 
 /// Represents information for spawning a task.
-#[derive(Debug)]
 pub struct TaskSpawnInfo {
     /// The command of the task.
     command: String,
@@ -101,6 +102,8 @@ pub struct TaskSpawnInfo {
     hints: Arc<HashMap<String, Value>>,
     /// The environment variables of the task.
     env: Arc<IndexMap<String, String>>,
+    /// The transferer to use for uploading inputs.
+    transferer: Arc<dyn Transferer>,
 }
 
 impl TaskSpawnInfo {
@@ -111,6 +114,7 @@ impl TaskSpawnInfo {
         requirements: Arc<HashMap<String, Value>>,
         hints: Arc<HashMap<String, Value>>,
         env: Arc<IndexMap<String, String>>,
+        transferer: Arc<dyn Transferer>,
     ) -> Self {
         Self {
             command,
@@ -118,7 +122,21 @@ impl TaskSpawnInfo {
             requirements,
             hints,
             env,
+            transferer,
         }
+    }
+}
+
+impl fmt::Debug for TaskSpawnInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TaskSpawnInfo")
+            .field("command", &self.command)
+            .field("inputs", &self.inputs)
+            .field("requirements", &self.requirements)
+            .field("hints", &self.hints)
+            .field("env", &self.env)
+            .field("transferer", &"<transferer>")
+            .finish()
     }
 }
 
@@ -174,6 +192,11 @@ impl TaskSpawnRequest {
     /// Gets the environment variables of the task.
     pub fn env(&self) -> &IndexMap<String, String> {
         &self.info.env
+    }
+
+    /// Gets the transferer to use for uploading inputs.
+    pub fn transferer(&self) -> &Arc<dyn Transferer> {
+        &self.info.transferer
     }
 
     /// Gets the attempt number for the task's execution.

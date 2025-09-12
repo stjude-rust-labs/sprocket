@@ -33,6 +33,7 @@ use wdl_analysis::Analyzer;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::EvaluationError;
+use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::config;
 use wdl_engine::config::BackendConfig;
@@ -215,7 +216,8 @@ async fn run_test(test: &Path) -> Result<()> {
 
     for config in configs() {
         let dir = TempDir::new().context("failed to create temporary directory")?;
-        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), None).await?;
+        let evaluator =
+            WorkflowEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
         match evaluator
             .evaluate(result.document(), inputs.clone(), &dir)
             .await

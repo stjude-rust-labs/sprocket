@@ -22,7 +22,7 @@ use crate::PrimitiveValue;
 use crate::StorageUnit;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
-use crate::http::Downloader;
+use crate::http::Transferer;
 use crate::path;
 use crate::path::EvaluationPath;
 use crate::stdlib::ensure_local_path;
@@ -95,7 +95,7 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
             _ => context.arguments[0].value.clone(),
         };
 
-        calculate_disk_size(context.downloader(), &value, unit, context.base_dir())
+        calculate_disk_size(context.transferer(), &value, unit, context.base_dir())
             .await
             .map_err(|e| function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site))
             .map(Into::into)
@@ -122,8 +122,8 @@ async fn file_size(path: impl AsRef<Path>) -> Result<u64> {
 }
 
 /// Gets the size of a remote resource.
-async fn resource_size(downloader: &dyn Downloader, url: &Url) -> Result<u64> {
-    downloader
+async fn resource_size(transferer: &dyn Transferer, url: &Url) -> Result<u64> {
+    transferer
         .size(url)
         .await
         .with_context(|| format!("failed to determine content length of URL `{url}`"))?
@@ -134,13 +134,13 @@ async fn resource_size(downloader: &dyn Downloader, url: &Url) -> Result<u64> {
 ///
 /// The path might be to a local file or to a remote URL.
 async fn file_path_size(
-    downloader: &dyn Downloader,
+    transferer: &dyn Transferer,
     base_dir: &EvaluationPath,
     path: &str,
 ) -> Result<u64> {
     // If the path is a URL, get the resource size
     if let Some(url) = path::parse_url(path) {
-        return resource_size(downloader, &url).await;
+        return resource_size(transferer, &url).await;
     }
 
     // If the path is absolute, get the file size
@@ -150,7 +150,7 @@ async fn file_path_size(
 
     match base_dir.join(path)? {
         EvaluationPath::Local(path) => file_size(path).await,
-        EvaluationPath::Remote(url) => resource_size(downloader, &url).await,
+        EvaluationPath::Remote(url) => resource_size(transferer, &url).await,
     }
 }
 
@@ -162,7 +162,7 @@ async fn file_path_size(
 /// The size of a directory is based on the sum of the files contained in the
 /// directory.
 fn calculate_disk_size<'a>(
-    downloader: &'a dyn Downloader,
+    transferer: &'a dyn Transferer,
     value: &'a Value,
     unit: StorageUnit,
     base_dir: &'a EvaluationPath,
@@ -170,8 +170,8 @@ fn calculate_disk_size<'a>(
     async move {
         match value {
             Value::None(_) => Ok(0.0),
-            Value::Primitive(v) => primitive_disk_size(downloader, v, unit, base_dir).await,
-            Value::Compound(v) => compound_disk_size(downloader, v, unit, base_dir).await,
+            Value::Primitive(v) => primitive_disk_size(transferer, v, unit, base_dir).await,
+            Value::Compound(v) => compound_disk_size(transferer, v, unit, base_dir).await,
             Value::Task(_) => bail!("the size of a task variable cannot be calculated"),
             Value::Hints(_) => bail!("the size of a hints value cannot be calculated"),
             Value::Input(_) => bail!("the size of an input value cannot be calculated"),
@@ -184,14 +184,14 @@ fn calculate_disk_size<'a>(
 
 /// Calculates the disk size of the given primitive value in the given unit.
 async fn primitive_disk_size(
-    downloader: &dyn Downloader,
+    transferer: &dyn Transferer,
     value: &PrimitiveValue,
     unit: StorageUnit,
     base_dir: &EvaluationPath,
 ) -> Result<f64> {
     match value {
         PrimitiveValue::File(path) => {
-            let size = file_path_size(downloader, base_dir, path.as_str()).await?;
+            let size = file_path_size(transferer, base_dir, path.as_str()).await?;
             Ok(unit.units(size))
         }
         PrimitiveValue::Directory(path) => {
@@ -204,7 +204,7 @@ async fn primitive_disk_size(
 
 /// Calculates the disk size for a compound value in the given unit.
 async fn compound_disk_size(
-    downloader: &dyn Downloader,
+    transferer: &dyn Transferer,
     value: &CompoundValue,
     unit: StorageUnit,
     base_dir: &EvaluationPath,
@@ -212,14 +212,14 @@ async fn compound_disk_size(
     match value {
         CompoundValue::Pair(pair) => {
             Ok(
-                calculate_disk_size(downloader, pair.left(), unit, base_dir).await?
-                    + calculate_disk_size(downloader, pair.right(), unit, base_dir).await?,
+                calculate_disk_size(transferer, pair.left(), unit, base_dir).await?
+                    + calculate_disk_size(transferer, pair.right(), unit, base_dir).await?,
             )
         }
         CompoundValue::Array(array) => {
             let mut size = 0.0;
             for e in array.as_slice() {
-                size += calculate_disk_size(downloader, e, unit, base_dir).await?;
+                size += calculate_disk_size(transferer, e, unit, base_dir).await?;
             }
 
             Ok(size)
@@ -228,9 +228,9 @@ async fn compound_disk_size(
             let mut size = 0.0;
             for (k, v) in map.iter() {
                 size += match k {
-                    Some(k) => primitive_disk_size(downloader, k, unit, base_dir).await?,
+                    Some(k) => primitive_disk_size(transferer, k, unit, base_dir).await?,
                     None => 0.0,
-                } + calculate_disk_size(downloader, v, unit, base_dir).await?;
+                } + calculate_disk_size(transferer, v, unit, base_dir).await?;
             }
 
             Ok(size)
@@ -238,7 +238,7 @@ async fn compound_disk_size(
         CompoundValue::Object(object) => {
             let mut size = 0.0;
             for (_, v) in object.iter() {
-                size += calculate_disk_size(downloader, v, unit, base_dir).await?;
+                size += calculate_disk_size(transferer, v, unit, base_dir).await?;
             }
 
             Ok(size)
@@ -246,7 +246,7 @@ async fn compound_disk_size(
         CompoundValue::Struct(s) => {
             let mut size = 0.0;
             for (_, v) in s.iter() {
-                size += calculate_disk_size(downloader, v, unit, base_dir).await?;
+                size += calculate_disk_size(transferer, v, unit, base_dir).await?;
             }
 
             Ok(size)

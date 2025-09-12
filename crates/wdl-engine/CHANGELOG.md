@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added support for uploading inputs to the TES backend ([#599](https://github.com/stjude-rust-labs/wdl/pull/599)).
 * Implemented coercion between `Map` <-> `Object`/`Struct` where the map key
   type <-> `String` ([#586](https://github.com/stjude-rust-labs/wdl/pull/586)).
 
 #### Changed
 
+* Replaced remote file downloading with using `cloud-copy` ([#599](https://github.com/stjude-rust-labs/wdl/pull/599)).
 * Changed how inputs are evaluated to prevent host paths from being observed in
   evaluated command sections ([#589](https://github.com/stjude-rust-labs/wdl/pull/589)).
 * Removed evaluation progress callbacks in favor of Crankshaft events channel ([#583](https://github.com/stjude-rust-labs/wdl/pull/583)).

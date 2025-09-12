@@ -18,13 +18,14 @@ codespan-reporting = ["codespan", "dep:codespan-reporting"]
 [dependencies]
 anyhow = { workspace = true }
 bimap = { workspace = true }
+blake3 = { workspace = true }
 chrono = { workspace = true }
+cloud-copy = { workspace = true }
 codespan-reporting = { workspace = true, optional = true }
 crankshaft = { workspace = true }
 dirs = { workspace = true }
 futures = { workspace = true }
 glob = { workspace = true }
-http-cache-stream-reqwest = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
 libc = { workspace = true }
@@ -34,10 +35,9 @@ path-clean = { workspace = true }
 petgraph = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
-reqwest = { workspace = true }
-reqwest-middleware = { workspace = true }
 rev_buf_reader = { workspace = true }
 rowan = { workspace = true }
+secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml_ng = { workspace = true }
@@ -48,6 +48,7 @@ tokio = { workspace = true }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
+walkdir = { workspace = true }
 wdl-analysis = { version = "0.12.0", path = "../wdl-analysis" }
 wdl-ast = { version = "0.16.0", path = "../wdl-ast" }
 wdl-grammar = { version = "0.16.0", path = "../wdl-grammar" }

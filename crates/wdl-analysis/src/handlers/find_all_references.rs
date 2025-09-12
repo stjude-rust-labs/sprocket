@@ -4,7 +4,7 @@
 //! WDL files. It finds all references to a symbol by first resolving the
 //! symbol's definition, then searches through all the appropriate documents.
 //!
-//! See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_references
+//! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_references)
 
 use anyhow::Context;
 use anyhow::Result;

@@ -3147,7 +3147,7 @@ mod test {
     use wdl_ast::SupportedVersion;
 
     use super::*;
-    use crate::http::Downloader;
+    use crate::http::Transferer;
     use crate::path::EvaluationPath;
 
     #[test]
@@ -3300,7 +3300,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn downloader(&self) -> &dyn Downloader {
+            fn transferer(&self) -> &dyn Transferer {
                 unimplemented!()
             }
 
@@ -3412,7 +3412,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn downloader(&self) -> &dyn Downloader {
+            fn transferer(&self) -> &dyn Transferer {
                 unimplemented!()
             }
 
@@ -3502,7 +3502,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn downloader(&self) -> &dyn Downloader {
+            fn transferer(&self) -> &dyn Transferer {
                 unimplemented!()
             }
 

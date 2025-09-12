@@ -10,6 +10,7 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use crankshaft::events::Event;
+use secrecy::ExposeSecret;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::broadcast;
@@ -30,13 +31,115 @@ pub const MAX_RETRIES: u64 = 100;
 /// The default task shell.
 pub const DEFAULT_TASK_SHELL: &str = "bash";
 
-/// The default maximum number of concurrent HTTP downloads.
-pub const DEFAULT_MAX_CONCURRENT_DOWNLOADS: u64 = 10;
-
 /// The default backend name.
 pub const DEFAULT_BACKEND_NAME: &str = "default";
 
+/// The string that replaces redacted serialization fields.
+const REDACTED: &str = "<REDACTED>";
+
+/// Represents a secret string that is, by default, redacted for serialization.
+///
+/// This type is a wrapper around [`secrecy::SecretString`].
+#[derive(Debug, Clone)]
+pub struct SecretString {
+    /// The inner secret string.
+    ///
+    /// This type is not serializable.
+    inner: secrecy::SecretString,
+    /// Whether or not the secret string is redacted for serialization.
+    ///
+    /// If `true` (the default), `<REDACTED>` is serialized for the string's
+    /// value.
+    ///
+    /// If `false`, the inner secret string is exposed for serialization.
+    redacted: bool,
+}
+
+impl SecretString {
+    /// Redacts the secret for serialization.
+    ///
+    /// By default, a [`SecretString`] is redacted; when redacted, the string is
+    /// replaced with `<REDACTED>` when serialized.
+    pub fn redact(&mut self) {
+        self.redacted = true;
+    }
+
+    /// Unredacts the secret for serialization.
+    pub fn unredact(&mut self) {
+        self.redacted = false;
+    }
+
+    /// Gets the inner [`secrecy::SecretString`].
+    pub fn inner(&self) -> &secrecy::SecretString {
+        &self.inner
+    }
+}
+
+impl From<String> for SecretString {
+    fn from(s: String) -> Self {
+        Self {
+            inner: s.into(),
+            redacted: true,
+        }
+    }
+}
+
+impl From<&str> for SecretString {
+    fn from(s: &str) -> Self {
+        Self {
+            inner: s.into(),
+            redacted: true,
+        }
+    }
+}
+
+impl Default for SecretString {
+    fn default() -> Self {
+        Self {
+            inner: Default::default(),
+            redacted: true,
+        }
+    }
+}
+
+impl serde::Serialize for SecretString {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use secrecy::ExposeSecret;
+
+        if self.redacted {
+            serializer.serialize_str(REDACTED)
+        } else {
+            serializer.serialize_str(self.inner.expose_secret())
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for SecretString {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let inner = secrecy::SecretString::deserialize(deserializer)?;
+        Ok(Self {
+            inner,
+            redacted: true,
+        })
+    }
+}
+
 /// Represents WDL evaluation configuration.
+///
+/// <div class="warning">
+///
+/// By default, serialization of [`Config`] will redact the values of secrets.
+///
+/// Use the [`Config::unredact`] method before serialization to prevent the
+/// secrets from being redacted.
+///
+/// </div>
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Config {
@@ -53,6 +156,7 @@ pub struct Config {
     ///
     /// If not specified and `backends` has multiple entries, it will use a name
     /// of `default`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub backend: Option<String>,
     /// Task execution backends configuration.
     ///
@@ -61,7 +165,7 @@ pub struct Config {
     ///
     /// If the collection has exactly one entry and `backend` is not specified,
     /// the singular entry will be used.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub backends: HashMap<String, BackendConfig>,
     /// Storage configuration.
     #[serde(default)]
@@ -107,6 +211,44 @@ impl Config {
 
         self.storage.validate()?;
         Ok(())
+    }
+
+    /// Redacts the secrets contained in the configuration.
+    ///
+    /// By default, secrets are redacted for serialization.
+    pub fn redact(&mut self) {
+        for backend in self.backends.values_mut() {
+            backend.redact();
+        }
+
+        self.storage.azure.redact();
+
+        if let Some(auth) = &mut self.storage.s3.auth {
+            auth.redact();
+        }
+
+        if let Some(auth) = &mut self.storage.google.auth {
+            auth.redact();
+        }
+    }
+
+    /// Unredacts the secrets contained in the configuration.
+    ///
+    /// Calling this method will expose secrets for serialization.
+    pub fn unredact(&mut self) {
+        for backend in self.backends.values_mut() {
+            backend.unredact();
+        }
+
+        self.storage.azure.unredact();
+
+        if let Some(auth) = &mut self.storage.s3.auth {
+            auth.unredact();
+        }
+
+        if let Some(auth) = &mut self.storage.google.auth {
+            auth.unredact();
+        }
     }
 
     /// Creates a new task execution backend based on this configuration.
@@ -155,22 +297,27 @@ pub struct HttpConfig {
     /// The HTTP download cache location.
     ///
     /// Defaults to using the system cache directory.
-    #[serde(default)]
-    pub cache: Option<PathBuf>,
-    /// The maximum number of concurrent downloads allowed.
-    ///
-    /// Defaults to 10.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_concurrent_downloads: Option<u64>,
+    pub cache: Option<PathBuf>,
+    /// The number of retries for transferring files.
+    ///
+    /// Defaults to `5`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retries: Option<usize>,
+    /// The maximum parallelism for file transfers.
+    ///
+    /// Defaults to the host's available parallelism.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parallelism: Option<usize>,
 }
 
 impl HttpConfig {
     /// Validates the HTTP configuration.
     pub fn validate(&self) -> Result<()> {
-        if let Some(limit) = self.max_concurrent_downloads
-            && limit == 0
+        if let Some(parallelism) = self.parallelism
+            && parallelism == 0
         {
-            bail!("configuration value `http.max_concurrent_downloads` cannot be zero");
+            bail!("configuration value `http.parallelism` cannot be zero");
         }
         Ok(())
     }
@@ -207,20 +354,75 @@ impl StorageConfig {
 pub struct AzureStorageConfig {
     /// The Azure Blob Storage authentication configuration.
     ///
-    /// The key for the outer map is the storage account name.
+    /// The key for the outer map is the Azure Storage account name.
     ///
-    /// The key for the inner map is the container name.
+    /// The key for the inner map is the Azure Storage container name.
     ///
-    /// The value for the inner map is the SAS token query string to apply to
-    /// matching Azure Blob Storage URLs.
+    /// The value for the inner map is the SAS token to apply for requests to
+    /// the Azure Storage container.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub auth: HashMap<String, HashMap<String, String>>,
+    pub auth: HashMap<String, HashMap<String, SecretString>>,
 }
 
 impl AzureStorageConfig {
     /// Validates the Azure Blob Storage configuration.
     pub fn validate(&self) -> Result<()> {
         Ok(())
+    }
+
+    /// Redacts the secrets contained in the Azure Blob Storage configuration.
+    pub fn redact(&mut self) {
+        for v in self.auth.values_mut() {
+            for v in v.values_mut() {
+                v.redact();
+            }
+        }
+    }
+
+    /// Unredacts the secrets contained in the Azure Blob Storage configuration.
+    pub fn unredact(&mut self) {
+        for v in self.auth.values_mut() {
+            for v in v.values_mut() {
+                v.unredact();
+            }
+        }
+    }
+}
+
+/// Represents authentication information for AWS S3 storage.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct S3StorageAuthConfig {
+    /// The AWS Access Key ID to use.
+    pub access_key_id: String,
+    /// The AWS Secret Access Key to use.
+    pub secret_access_key: SecretString,
+}
+
+impl S3StorageAuthConfig {
+    /// Validates the AWS S3 storage authentication configuration.
+    pub fn validate(&self) -> Result<()> {
+        if self.access_key_id.is_empty() {
+            bail!("configuration value `storage.s3.auth.access_key_id` is required");
+        }
+
+        if self.secret_access_key.inner.expose_secret().is_empty() {
+            bail!("configuration value `storage.s3.auth.secret_access_key` is required");
+        }
+
+        Ok(())
+    }
+
+    /// Redacts the secrets contained in the AWS S3 storage authentication
+    /// configuration.
+    pub fn redact(&mut self) {
+        self.secret_access_key.redact();
+    }
+
+    /// Unredacts the secrets contained in the AWS S3 storage authentication
+    /// configuration.
+    pub fn unredact(&mut self) {
+        self.secret_access_key.unredact();
     }
 }
 
@@ -236,18 +438,55 @@ pub struct S3StorageConfig {
     pub region: Option<String>,
 
     /// The AWS S3 storage authentication configuration.
-    ///
-    /// The key for the map is the bucket name.
-    ///
-    /// The value for the map is the presigned query string.
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub auth: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth: Option<S3StorageAuthConfig>,
 }
 
 impl S3StorageConfig {
     /// Validates the AWS S3 storage configuration.
     pub fn validate(&self) -> Result<()> {
+        if let Some(auth) = &self.auth {
+            auth.validate()?;
+        }
+
         Ok(())
+    }
+}
+
+/// Represents authentication information for Google Cloud Storage.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct GoogleStorageAuthConfig {
+    /// The HMAC Access Key to use.
+    pub access_key: String,
+    /// The HMAC Secret to use.
+    pub secret: SecretString,
+}
+
+impl GoogleStorageAuthConfig {
+    /// Validates the Google Cloud Storage authentication configuration.
+    pub fn validate(&self) -> Result<()> {
+        if self.access_key.is_empty() {
+            bail!("configuration value `storage.google.auth.access_key` is required");
+        }
+
+        if self.secret.inner.expose_secret().is_empty() {
+            bail!("configuration value `storage.google.auth.secret` is required");
+        }
+
+        Ok(())
+    }
+
+    /// Redacts the secrets contained in the Google Cloud Storage authentication
+    /// configuration.
+    pub fn redact(&mut self) {
+        self.secret.redact();
+    }
+
+    /// Unredacts the secrets contained in the Google Cloud Storage
+    /// authentication configuration.
+    pub fn unredact(&mut self) {
+        self.secret.unredact();
     }
 }
 
@@ -256,17 +495,17 @@ impl S3StorageConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct GoogleStorageConfig {
     /// The Google Cloud Storage authentication configuration.
-    ///
-    /// The key for the map is the bucket name.
-    ///
-    /// The value for the map is the presigned query string.
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub auth: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth: Option<GoogleStorageAuthConfig>,
 }
 
 impl GoogleStorageConfig {
     /// Validates the Google Cloud Storage configuration.
     pub fn validate(&self) -> Result<()> {
+        if let Some(auth) = &self.auth {
+            auth.validate()?;
+        }
+
         Ok(())
     }
 }
@@ -478,6 +717,22 @@ impl BackendConfig {
             _ => None,
         }
     }
+
+    /// Redacts the secrets contained in the backend configuration.
+    pub fn redact(&mut self) {
+        match self {
+            Self::Local(_) | Self::Docker(_) => {}
+            Self::Tes(config) => config.redact(),
+        }
+    }
+
+    /// Unredacts the secrets contained in the backend configuration.
+    pub fn unredact(&mut self) {
+        match self {
+            Self::Local(_) | Self::Docker(_) => {}
+            Self::Tes(config) => config.unredact(),
+        }
+    }
 }
 
 /// Represents configuration for the local task execution backend.
@@ -580,23 +835,27 @@ impl Default for DockerBackendConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BasicAuthConfig {
     /// The HTTP basic authentication username.
-    pub username: Option<String>,
+    #[serde(default)]
+    pub username: String,
     /// The HTTP basic authentication password.
-    pub password: Option<String>,
+    #[serde(default)]
+    pub password: SecretString,
 }
 
 impl BasicAuthConfig {
     /// Validates the HTTP basic auth configuration.
     pub fn validate(&self) -> Result<()> {
-        if self.username.is_none() {
-            bail!("HTTP basic auth configuration value `username` is required");
-        }
-
-        if self.password.is_none() {
-            bail!("HTTP basic auth configuration value `password` is required");
-        }
-
         Ok(())
+    }
+
+    /// Redacts the secrets contained in the HTTP basic auth configuration.
+    pub fn redact(&mut self) {
+        self.password.redact();
+    }
+
+    /// Unredacts the secrets contained in the HTTP basic auth configuration.
+    pub fn unredact(&mut self) {
+        self.password.unredact();
     }
 }
 
@@ -605,17 +864,24 @@ impl BasicAuthConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BearerAuthConfig {
     /// The HTTP bearer authentication token.
-    pub token: Option<String>,
+    #[serde(default)]
+    pub token: SecretString,
 }
 
 impl BearerAuthConfig {
-    /// Validates the HTTP basic auth configuration.
+    /// Validates the HTTP bearer auth configuration.
     pub fn validate(&self) -> Result<()> {
-        if self.token.is_none() {
-            bail!("HTTP bearer auth configuration value `token` is required");
-        }
-
         Ok(())
+    }
+
+    /// Redacts the secrets contained in the HTTP bearer auth configuration.
+    pub fn redact(&mut self) {
+        self.token.redact();
+    }
+
+    /// Unredacts the secrets contained in the HTTP bearer auth configuration.
+    pub fn unredact(&mut self) {
+        self.token.unredact();
     }
 }
 
@@ -637,6 +903,24 @@ impl TesBackendAuthConfig {
             Self::Bearer(config) => config.validate(),
         }
     }
+
+    /// Redacts the secrets contained in the TES backend authentication
+    /// configuration.
+    pub fn redact(&mut self) {
+        match self {
+            Self::Basic(auth) => auth.redact(),
+            Self::Bearer(auth) => auth.redact(),
+        }
+    }
+
+    /// Unredacts the secrets contained in the TES backend authentication
+    /// configuration.
+    pub fn unredact(&mut self) {
+        match self {
+            Self::Basic(auth) => auth.unredact(),
+            Self::Bearer(auth) => auth.unredact(),
+        }
+    }
 }
 
 /// Represents configuration for the Task Execution Service (TES) backend.
@@ -644,31 +928,31 @@ impl TesBackendAuthConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TesBackendConfig {
     /// The URL of the Task Execution Service.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<Url>,
 
     /// The authentication configuration for the TES backend.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth: Option<TesBackendAuthConfig>,
 
-    /// The cloud storage URL for storing inputs.
+    /// The root cloud storage URL for storing inputs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inputs: Option<Url>,
 
-    /// The cloud storage URL for storing outputs.
+    /// The root cloud storage URL for storing outputs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub outputs: Option<Url>,
 
     /// The polling interval, in seconds, for checking task status.
     ///
     /// Defaults to 60 second.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interval: Option<u64>,
 
     /// The maximum task concurrency for the backend.
     ///
     /// Defaults to unlimited.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_concurrency: Option<u64>,
 
     /// Whether or not the TES server URL may use an insecure protocol like
@@ -736,6 +1020,20 @@ impl TesBackendConfig {
 
         Ok(())
     }
+
+    /// Redacts the secrets contained in the TES backend configuration.
+    pub fn redact(&mut self) {
+        if let Some(auth) = &mut self.auth {
+            auth.redact();
+        }
+    }
+
+    /// Unredacts the secrets contained in the TES backend configuration.
+    pub fn unredact(&mut self) {
+        if let Some(auth) = &mut self.auth {
+            auth.unredact();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -743,6 +1041,81 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    #[test]
+    fn redacted_secret() {
+        let mut secret: SecretString = "secret".into();
+
+        assert_eq!(
+            serde_json::to_string(&secret).unwrap(),
+            format!(r#""{REDACTED}""#)
+        );
+
+        secret.unredact();
+        assert_eq!(serde_json::to_string(&secret).unwrap(), r#""secret""#);
+
+        secret.redact();
+        assert_eq!(
+            serde_json::to_string(&secret).unwrap(),
+            format!(r#""{REDACTED}""#)
+        );
+    }
+
+    #[test]
+    fn redacted_config() {
+        let config = Config {
+            backends: [
+                (
+                    "first".to_string(),
+                    BackendConfig::Tes(
+                        TesBackendConfig {
+                            auth: Some(TesBackendAuthConfig::Basic(BasicAuthConfig {
+                                username: "foo".into(),
+                                password: "secret".into(),
+                            })),
+                            ..Default::default()
+                        }
+                        .into(),
+                    ),
+                ),
+                (
+                    "second".to_string(),
+                    BackendConfig::Tes(
+                        TesBackendConfig {
+                            auth: Some(TesBackendAuthConfig::Bearer(BearerAuthConfig {
+                                token: "secret".into(),
+                            })),
+                            ..Default::default()
+                        }
+                        .into(),
+                    ),
+                ),
+            ]
+            .into(),
+            storage: StorageConfig {
+                azure: AzureStorageConfig {
+                    auth: [("foo".into(), [("bar".into(), "secret".into())].into())].into(),
+                },
+                s3: S3StorageConfig {
+                    auth: Some(S3StorageAuthConfig {
+                        access_key_id: "foo".into(),
+                        secret_access_key: "secret".into(),
+                    }),
+                    ..Default::default()
+                },
+                google: GoogleStorageConfig {
+                    auth: Some(GoogleStorageAuthConfig {
+                        access_key: "foo".into(),
+                        secret: "secret".into(),
+                    }),
+                },
+            },
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string_pretty(&config).unwrap();
+        assert!(json.contains("secret"), "`{json}` contains a secret");
+    }
 
     #[test]
     fn test_config_validate() {
@@ -924,77 +1297,22 @@ mod test {
         };
         config.validate().expect("configuration should validate");
 
-        // Test invalid TES basic auth
-        let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Tes(Box::new(TesBackendConfig {
-                    url: Some(Url::parse("https://example.com").unwrap()),
-                    auth: Some(TesBackendAuthConfig::Basic(Default::default())),
-                    ..Default::default()
-                })),
-            )]
-            .into(),
-            ..Default::default()
-        };
+        let mut config = Config::default();
+        config.http.parallelism = Some(0);
         assert_eq!(
             config.validate().unwrap_err().to_string(),
-            "HTTP basic auth configuration value `username` is required"
-        );
-        let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Tes(Box::new(TesBackendConfig {
-                    url: Some(Url::parse("https://example.com").unwrap()),
-                    auth: Some(TesBackendAuthConfig::Basic(BasicAuthConfig {
-                        username: Some("Foo".into()),
-                        ..Default::default()
-                    })),
-                    ..Default::default()
-                })),
-            )]
-            .into(),
-            ..Default::default()
-        };
-        assert_eq!(
-            config.validate().unwrap_err().to_string(),
-            "HTTP basic auth configuration value `password` is required"
-        );
-
-        // Test invalid TES bearer auth
-        let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Tes(Box::new(TesBackendConfig {
-                    url: Some(Url::parse("https://example.com").unwrap()),
-                    auth: Some(TesBackendAuthConfig::Bearer(Default::default())),
-                    ..Default::default()
-                })),
-            )]
-            .into(),
-            ..Default::default()
-        };
-        assert_eq!(
-            config.validate().unwrap_err().to_string(),
-            "HTTP bearer auth configuration value `token` is required"
+            "configuration value `http.parallelism` cannot be zero"
         );
 
         let mut config = Config::default();
-        config.http.max_concurrent_downloads = Some(0);
-        assert_eq!(
-            config.validate().unwrap_err().to_string(),
-            "configuration value `http.max_concurrent_downloads` cannot be zero"
-        );
-
-        let mut config = Config::default();
-        config.http.max_concurrent_downloads = Some(5);
+        config.http.parallelism = Some(5);
         assert!(
             config.validate().is_ok(),
             "should pass for valid configuration"
         );
 
         let mut config = Config::default();
-        config.http.max_concurrent_downloads = None;
+        config.http.parallelism = None;
         assert!(config.validate().is_ok(), "should pass for default (None)");
     }
 }

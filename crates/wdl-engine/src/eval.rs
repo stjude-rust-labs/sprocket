@@ -11,9 +11,12 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use anyhow::bail;
+use cloud_copy::TransferEvent;
+use crankshaft::events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use rev_buf_reader::RevBufReader;
+use tokio::sync::broadcast;
 use wdl_analysis::Document;
 use wdl_analysis::document::Task;
 use wdl_analysis::types::Type;
@@ -28,8 +31,8 @@ use crate::Outputs;
 use crate::PrimitiveValue;
 use crate::TaskExecutionResult;
 use crate::Value;
-use crate::http::Downloader;
 use crate::http::Location;
+use crate::http::Transferer;
 use crate::path::EvaluationPath;
 use crate::stdlib::download_file;
 
@@ -43,6 +46,76 @@ const MAX_STDERR_LINES: usize = 10;
 ///
 /// A root might be a root directory like `/` or `C:\`, but it also might be the root of a URL like `https://example.com`.
 const ROOT_NAME: &str = ".root";
+
+/// Represents events that may be sent during evaluation.
+#[derive(Debug, Clone, Default)]
+pub struct Events {
+    /// The Crankshaft events channel.
+    ///
+    /// This is `None` when Crankshaft events are not enabled.
+    crankshaft: Option<broadcast::Sender<CrankshaftEvent>>,
+    /// The transfer events channel.
+    ///
+    /// This is `None` when transfer events are not enabled.
+    transfer: Option<broadcast::Sender<TransferEvent>>,
+}
+
+impl Events {
+    /// Constructs a new `Events` and enables subscribing to all event channels.
+    pub fn all(capacity: usize) -> Self {
+        Self {
+            crankshaft: Some(broadcast::Sender::new(capacity)),
+            transfer: Some(broadcast::Sender::new(capacity)),
+        }
+    }
+
+    /// Constructs a new `Events` and disable subscribing to any event channel.
+    pub fn none() -> Self {
+        Self::default()
+    }
+
+    /// Constructs a new `Events` and enable subscribing to only the Crankshaft
+    /// events channel.
+    pub fn crankshaft_only(capacity: usize) -> Self {
+        Self {
+            crankshaft: Some(broadcast::Sender::new(capacity)),
+            transfer: None,
+        }
+    }
+
+    /// Constructs a new `Events` and enable subscribing to only the transfer
+    /// events channel.
+    pub fn transfer_only(capacity: usize) -> Self {
+        Self {
+            crankshaft: None,
+            transfer: Some(broadcast::Sender::new(capacity)),
+        }
+    }
+
+    /// Subscribes to the Crankshaft events channel.
+    ///
+    /// Returns `None` if Crankshaft events are not enabled.
+    pub fn subscribe_crankshaft(&self) -> Option<broadcast::Receiver<CrankshaftEvent>> {
+        self.crankshaft.as_ref().map(|s| s.subscribe())
+    }
+
+    /// Subscribes to the transfer events channel.
+    ///
+    /// Returns `None` if transfer events are not enabled.
+    pub fn subscribe_transfer(&self) -> Option<broadcast::Receiver<TransferEvent>> {
+        self.transfer.as_ref().map(|s| s.subscribe())
+    }
+
+    /// Gets the sender for the Crankshaft events.
+    pub(crate) fn crankshaft(&self) -> &Option<broadcast::Sender<CrankshaftEvent>> {
+        &self.crankshaft
+    }
+
+    /// Gets the sender for the transfer events.
+    pub(crate) fn transfer(&self) -> &Option<broadcast::Sender<TransferEvent>> {
+        &self.transfer
+    }
+}
 
 /// Represents the location of a call in an evaluation error.
 #[derive(Debug, Clone)]
@@ -265,8 +338,8 @@ pub trait EvaluationContext: Send + Sync {
         None
     }
 
-    /// Gets the downloader to use for evaluating expressions.
-    fn downloader(&self) -> &dyn Downloader;
+    /// Gets the transferer to use for evaluating expressions.
+    fn transferer(&self) -> &dyn Transferer;
 
     /// Gets a guest path representation of a host path.
     ///
@@ -532,7 +605,7 @@ impl EvaluatedTask {
     async fn handle_exit(
         &self,
         requirements: &HashMap<String, Value>,
-        downloader: &dyn Downloader,
+        transferer: &dyn Transferer,
     ) -> anyhow::Result<()> {
         let mut error = true;
         if let Some(return_codes) = requirements
@@ -571,7 +644,7 @@ impl EvaluatedTask {
             // Read the last `MAX_STDERR_LINES` number of lines from stderr
             // If there's a problem reading stderr, don't output it
             let stderr = download_file(
-                downloader,
+                transferer,
                 self.work_dir(),
                 self.stderr().as_file().unwrap(),
             )
@@ -651,7 +724,7 @@ pub struct Input {
     /// The download location for the input.
     ///
     /// This is `Some` if the input has been downloaded to a known location.
-    location: Option<Location<'static>>,
+    location: Option<Location>,
 }
 
 impl Input {
@@ -694,7 +767,7 @@ impl Input {
     /// Sets the location of the input.
     ///
     /// This is used during localization to set a local path for remote inputs.
-    pub fn set_location(&mut self, location: Location<'static>) {
+    pub fn set_location(&mut self, location: Location) {
         self.location = Some(location);
     }
 }

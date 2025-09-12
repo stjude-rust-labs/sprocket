@@ -4,7 +4,7 @@
 //! for WDL files. It traverses the AST of a document and creates a hierarchical
 //! list of symbols.
 //!
-//! See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_documentSymbol
+//! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_documentSymbol)
 
 use anyhow::Result;
 use anyhow::bail;

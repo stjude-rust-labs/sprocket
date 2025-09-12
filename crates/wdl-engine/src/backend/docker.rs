@@ -8,7 +8,6 @@ use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::anyhow;
 use anyhow::bail;
 use crankshaft::config::backend;
 use crankshaft::engine::Task;
@@ -221,12 +220,7 @@ impl TaskManagerRequest for DockerTaskRequest {
             )
             .build();
 
-        let statuses = self
-            .backend
-            .run(task, self.token.clone())
-            .map_err(|e| anyhow!("{e:#}"))?
-            .await
-            .map_err(|e| anyhow!("{e:#}"))?;
+        let statuses = self.backend.run(task, self.token.clone())?.await?;
 
         assert_eq!(statuses.len(), 1, "there should only be one exit status");
         let status = statuses.first();
@@ -295,7 +289,6 @@ impl DockerBackend {
             events,
         )
         .await
-        .map_err(|e| anyhow!("{e:#}"))
         .context("failed to initialize Docker backend")?;
 
         let resources = *backend.resources();
@@ -475,6 +468,7 @@ impl TaskExecutionBackend for DockerBackend {
         'b: 'c,
         Self: 'c,
     {
+        use anyhow::anyhow;
         use futures::FutureExt;
 
         /// The guest path for the output directory.

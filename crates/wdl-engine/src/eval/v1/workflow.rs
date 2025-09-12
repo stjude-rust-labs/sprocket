@@ -13,7 +13,6 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use crankshaft::events::Event;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
@@ -23,7 +22,6 @@ use petgraph::graph::NodeIndex;
 use petgraph::visit::Bfs;
 use petgraph::visit::EdgeRef;
 use tokio::sync::RwLock;
-use tokio::sync::broadcast;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
@@ -66,6 +64,7 @@ use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationResult;
+use crate::Events;
 use crate::Inputs;
 use crate::Outputs;
 use crate::PrimitiveValue;
@@ -79,8 +78,8 @@ use crate::config::Config;
 use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::runtime_type_mismatch;
-use crate::http::Downloader;
-use crate::http::HttpDownloader;
+use crate::http::HttpTransferer;
+use crate::http::Transferer;
 use crate::path;
 use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
@@ -176,8 +175,8 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         &self.state.temp_dir
     }
 
-    fn downloader(&self) -> &dyn Downloader {
-        &self.state.downloader
+    fn transferer(&self) -> &dyn Transferer {
+        self.state.transferer.as_ref()
     }
 }
 
@@ -561,8 +560,8 @@ struct State {
     temp_dir: PathBuf,
     /// The calls directory path.
     calls_dir: PathBuf,
-    /// The downloader for expression evaluation.
-    downloader: HttpDownloader,
+    /// The transferer for expression evaluation.
+    transferer: Arc<dyn Transferer>,
 }
 
 /// Represents a WDL V1 workflow evaluator.
@@ -576,8 +575,8 @@ pub struct WorkflowEvaluator {
     backend: Arc<dyn TaskExecutionBackend>,
     /// The cancellation token for cancelling workflow evaluation.
     token: CancellationToken,
-    /// The downloader for expression evaluation.
-    downloader: HttpDownloader,
+    /// The transferer for expression evaluation.
+    transferer: Arc<dyn Transferer>,
 }
 
 impl WorkflowEvaluator {
@@ -587,22 +586,19 @@ impl WorkflowEvaluator {
     /// This method creates a default task execution backend.
     ///
     /// Returns an error if the configuration isn't valid.
-    pub async fn new(
-        config: Config,
-        token: CancellationToken,
-        events: Option<broadcast::Sender<Event>>,
-    ) -> Result<Self> {
+    pub async fn new(config: Config, token: CancellationToken, events: Events) -> Result<Self> {
         config.validate()?;
 
         let config = Arc::new(config);
-        let backend = config.create_backend(events).await?;
-        let downloader = HttpDownloader::new(config.clone())?;
+        let backend = config.create_backend(events.crankshaft().clone()).await?;
+        let transferer =
+            HttpTransferer::new(config.clone(), token.clone(), events.transfer().clone())?;
 
         Ok(Self {
             config,
             backend,
             token,
-            downloader,
+            transferer: Arc::new(transferer),
         })
     }
 
@@ -736,7 +732,7 @@ impl WorkflowEvaluator {
             base_dir,
             temp_dir,
             calls_dir,
-            downloader: self.downloader.clone(),
+            transferer: self.transferer.clone(),
         });
 
         // Evaluate the root graph to completion
@@ -1556,7 +1552,7 @@ impl WorkflowEvaluator {
                         state.config.clone(),
                         state.backend.clone(),
                         state.token.clone(),
-                        state.downloader.clone(),
+                        state.transferer.clone(),
                     ),
                 ),
             ),
@@ -1567,7 +1563,7 @@ impl WorkflowEvaluator {
                         config: state.config.clone(),
                         backend: state.backend.clone(),
                         token: state.token.clone(),
-                        downloader: state.downloader.clone(),
+                        transferer: state.transferer.clone(),
                     }),
                 ),
                 _ => {
@@ -1700,6 +1696,7 @@ mod test {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;
 
+    use crankshaft::events::Event;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tokio::sync::broadcast::error::RecvError;
@@ -1786,7 +1783,7 @@ workflow test {
             .into(),
             ..Default::default()
         };
-        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), None)
+        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), Events::none())
             .await
             .unwrap();
 
@@ -1933,10 +1930,11 @@ workflow w {
         };
         let state = Arc::<State>::default();
         let events_state = state.clone();
-        let (events_tx, mut events_rx) = broadcast::channel(100);
-        let events = tokio::spawn(async move {
+        let events = Events::crankshaft_only(100);
+        let mut crankshaft_rx = events.subscribe_crankshaft().unwrap();
+        let task = tokio::spawn(async move {
             loop {
-                match events_rx.recv().await {
+                match crankshaft_rx.recv().await {
                     Ok(event) => match event {
                         Event::TaskCreated { name, tes_id, .. } => {
                             assert!(name.starts_with("t-"));
@@ -1959,7 +1957,7 @@ workflow w {
             }
         });
 
-        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), Some(events_tx))
+        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), events)
             .await
             .unwrap();
 
@@ -1980,7 +1978,7 @@ workflow w {
             .expect("failed to evaluate workflow");
 
         drop(evaluator);
-        events.await.expect("failed to await events");
+        task.await.expect("failed to await events task");
 
         assert_eq!(outputs.iter().count(), 0, "expected no outputs");
 

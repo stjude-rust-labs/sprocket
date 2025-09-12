@@ -35,7 +35,7 @@ fn read_float(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnosti
             .coerce_argument(0, PrimitiveType::File)
             .unwrap_file();
 
-        let file_path = download_file(context.downloader(), context.base_dir(), &path)
+        let file_path = download_file(context.transferer(), context.base_dir(), &path)
             .await
             .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
 

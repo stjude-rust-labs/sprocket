@@ -1,141 +1,52 @@
-//! Implementation of remote file downloads over HTTP.
+//! Implementation of remote file downloads and uploads over HTTP.
 
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::thread::available_parallelism;
 
 use anyhow::Context;
-use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use cloud_copy::HttpClient;
+use cloud_copy::TransferEvent;
+use cloud_copy::UrlExt;
+use cloud_copy::rewrite_url;
 use futures::FutureExt;
-use futures::StreamExt;
 use futures::future::BoxFuture;
-use http_cache_stream_reqwest::Cache;
-use http_cache_stream_reqwest::CacheStorage;
-use http_cache_stream_reqwest::storage::DefaultCacheStorage;
-use reqwest::Client;
-use reqwest_middleware::ClientBuilder;
-use reqwest_middleware::ClientWithMiddleware;
+use secrecy::ExposeSecret;
 use tempfile::NamedTempFile;
 use tempfile::TempPath;
-use tokio::fs;
-use tokio::io::AsyncWriteExt;
-use tokio::io::BufWriter;
-use tokio::sync::Notify;
+use tokio::sync::OnceCell;
 use tokio::sync::Semaphore;
-use tokio::time::Duration;
-use tokio::time::sleep;
+use tokio::sync::broadcast;
+use tokio_util::sync::CancellationToken;
+use tracing::Level;
 use tracing::debug;
-use tracing::error;
-use tracing::info;
+use tracing::warn;
 use url::Url;
 
 use crate::config::Config;
-use crate::config::DEFAULT_MAX_CONCURRENT_DOWNLOADS;
-
-mod azure;
-mod google;
-mod s3;
 
 /// The default cache subdirectory that is appended to the system cache
 /// directory.
 const DEFAULT_CACHE_SUBDIR: &str = "wdl";
 
-/// Maximum number of download attempts.
-const MAX_DOWNLOAD_ATTEMPTS: u32 = 3;
-/// Initial delay before the first retry.
-const INITIAL_RETRY_DELAY: Duration = Duration::from_secs(1);
-
-/// Rewrites a given URL to a `http`, `https`, or `file` schemed URL.
-///
-/// Applies any cloud storage authentication to the URL.
-pub fn rewrite_url<'a>(config: &Config, url: Cow<'a, Url>) -> Result<Cow<'a, Url>> {
-    let url: Cow<'_, Url> = match url.scheme() {
-        "file" => return Ok(url),
-        "http" | "https" => url,
-        "az" => Cow::Owned(azure::rewrite_url(&url)?),
-        "s3" => Cow::Owned(s3::rewrite_url(&config.storage.s3, &url)?),
-        "gs" => Cow::Owned(google::rewrite_url(&url)?),
-        _ => bail!("unsupported URL `{url}`"),
-    };
-
-    // Attempt to apply auth for Azure storage
-    let (matched, url) = azure::apply_auth(&config.storage.azure, url);
-    if matched {
-        return Ok(url);
-    }
-
-    // Attempt to apply auth for S3 storage
-    let (matched, url) = s3::apply_auth(&config.storage.s3, url);
-    if matched {
-        return Ok(url);
-    }
-
-    // Finally, attempt to apply auth for Google Cloud Storage
-    let (matched, url) = google::apply_auth(&config.storage.google, url);
-    if matched {
-        return Ok(url);
-    }
-
-    Ok(url)
-}
-
-/// A trait implemented by types responsible for downloading remote files over
-/// HTTP for evaluation.
-pub trait Downloader: Send + Sync {
-    /// Downloads a file from a given URL.
-    ///
-    /// Returns the location of the downloaded file.
-    fn download<'a, 'b, 'c>(
-        &'a self,
-        url: &'b Url,
-    ) -> BoxFuture<'c, Result<Location<'static>, Arc<Error>>>
-    where
-        'a: 'c,
-        'b: 'c,
-        Self: 'c;
-
-    /// Gets the size of a resource at a given URL.
-    ///
-    /// Returns `Ok(Some(_))` if the size is known.
-    ///
-    /// Returns `Ok(None)` if the URL is valid but the size cannot be
-    /// determined.
-    fn size<'a, 'b, 'c>(&'a self, url: &'b Url) -> BoxFuture<'c, Result<Option<u64>>>
-    where
-        'a: 'c,
-        'b: 'c,
-        Self: 'c;
-}
-
 /// Represents a location of a downloaded file.
 #[derive(Debug, Clone)]
-pub enum Location<'a> {
-    /// The file exists as a temporary file.
-    ///
-    /// This is used whenever a response body cannot be cached.
+pub enum Location {
+    /// The location is a temporary file.
     Temp(Arc<TempPath>),
     /// The location is a path to a non-temporary file.
-    Path(Cow<'a, Path>),
+    Path(PathBuf),
 }
 
-impl Location<'_> {
-    /// Converts the location into an owned representation.
-    pub fn into_owned(self) -> Location<'static> {
-        match self {
-            Self::Temp(path) => Location::Temp(path),
-            Self::Path(path) => Location::Path(Cow::Owned(path.into_owned())),
-        }
-    }
-}
-
-impl Deref for Location<'_> {
+impl Deref for Location {
     type Target = Path;
 
     fn deref(&self) -> &Self::Target {
@@ -146,7 +57,7 @@ impl Deref for Location<'_> {
     }
 }
 
-impl AsRef<Path> for Location<'_> {
+impl AsRef<Path> for Location {
     fn as_ref(&self) -> &Path {
         match self {
             Self::Temp(path) => path.as_ref(),
@@ -155,53 +66,66 @@ impl AsRef<Path> for Location<'_> {
     }
 }
 
-/// Represents the status of a download.
-pub enum Status {
-    /// The requested resource is currently being downloaded.
+/// Represents a file transferer.
+pub trait Transferer: Send + Sync {
+    /// Downloads a file or directory to a temporary path.
+    fn download<'a>(&'a self, source: &'a Url) -> BoxFuture<'a, Result<Location>>;
+
+    /// Uploads a local file or directory to a cloud storage URL.
     ///
-    /// The specified `Notify` will be notified when the download completes.
-    Downloading(Arc<Notify>),
-    /// The requested resource has already been downloaded.
-    Downloaded(Result<Location<'static>, Arc<anyhow::Error>>),
+    /// The destination URL is expected to be content-addressed (meaning
+    /// specific to the content being uploaded).
+    ///
+    /// Returns the destination URL with any Azure authentication applied.
+    fn upload<'a>(&'a self, source: &'a Path, destination: &'a Url) -> BoxFuture<'a, Result<()>>;
+
+    /// Gets the size of a resource at a given URL.
+    ///
+    /// Returns `Ok(Some(_))` if the size is known.
+    ///
+    /// Returns `Ok(None)` if the URL is valid but the size cannot be
+    /// determined.
+    fn size<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<u64>>>;
+
+    /// Applies any required authentication to the URL.
+    ///
+    /// The URL will also be rewritten from storage-specific schemes to HTTPS.
+    ///
+    /// If the provided URL does not need to be modified, it is returned as-is.
+    fn apply_auth<'a>(&self, url: &'a Url) -> Result<Cow<'a, Url>>;
 }
 
-/// Helper for displaying URLs in log messages.
-struct DisplayUrl<'a>(&'a Url);
-
-impl fmt::Display for DisplayUrl<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Only write the scheme, host, and path so that potential authentication
-        // information doesn't end up in the log
-        write!(
-            f,
-            "{scheme}://{host}{path}",
-            scheme = self.0.scheme(),
-            host = self.0.host_str().unwrap_or(""),
-            path = self.0.path()
-        )
-    }
-}
-
-/// Responsible for downloading and caching remote files using HTTP.
-///
-/// The downloader can be cheaply cloned.
-#[derive(Clone)]
-pub struct HttpDownloader {
-    /// The engine evaluation configuration.
+/// Represents the internal state of `HttpTransferer`.
+struct HttpTransfererInner {
+    /// The evaluation configuration to use.
     config: Arc<Config>,
-    /// The underlying HTTP client.
-    client: ClientWithMiddleware,
-    /// The HTTP cache shared with the client.
-    cache: Arc<Cache<DefaultCacheStorage>>,
-    /// Stores the status of downloads by URL.
-    downloads: Arc<Mutex<HashMap<Url, Status>>>,
-    /// Limits the number of concurrent downloads.
-    semaphore: Arc<Semaphore>,
+    /// The configuration for transferring files.
+    copy_config: cloud_copy::Config,
+    /// The HTTP client to use.
+    client: HttpClient,
+    /// Stores the results of downloading files.
+    downloads: Mutex<HashMap<Url, Arc<OnceCell<Location>>>>,
+    /// Stores the results of uploading files.
+    uploads: Mutex<HashMap<Url, Arc<OnceCell<()>>>>,
+    /// The cancellation token for canceling transfers.
+    cancel: CancellationToken,
+    /// The events sender to use for transfer events.
+    events: Option<broadcast::Sender<TransferEvent>>,
+    /// Limits the number of concurrent transfers.
+    semaphore: Semaphore,
 }
 
-impl HttpDownloader {
-    /// Constructs a new HTTP downloader with the given configuration.
-    pub fn new(config: Arc<Config>) -> Result<Self> {
+/// Implementation of a file transferer that uses HTTP.
+#[derive(Clone)]
+pub struct HttpTransferer(Arc<HttpTransfererInner>);
+
+impl HttpTransferer {
+    /// Constructs a new HTTP transferer with the given configuration.
+    pub fn new(
+        config: Arc<Config>,
+        cancel: CancellationToken,
+        events: Option<broadcast::Sender<TransferEvent>>,
+    ) -> Result<Self> {
         let cache_dir: Cow<'_, Path> = match &config.http.cache {
             Some(dir) => dir.into(),
             None => dirs::cache_dir()
@@ -210,249 +134,173 @@ impl HttpDownloader {
                 .into(),
         };
 
-        info!(
-            "using HTTP download cache directory `{dir}`",
-            dir = cache_dir.display()
+        let client = HttpClient::new_with_cache(cache_dir);
+
+        let semaphore = Semaphore::new(
+            config
+                .http
+                .parallelism
+                .unwrap_or_else(|| available_parallelism().map(Into::into).unwrap_or(1)),
         );
 
-        let cache = Arc::new(Cache::new(DefaultCacheStorage::new(cache_dir)));
+        let copy_config = cloud_copy::Config {
+            link_to_cache: true,
+            overwrite: true,
+            retries: config.http.retries,
+            s3: cloud_copy::S3Config {
+                region: config.storage.s3.region.clone(),
+                auth: config
+                    .storage
+                    .s3
+                    .auth
+                    .as_ref()
+                    .map(|auth| cloud_copy::S3AuthConfig {
+                        access_key_id: auth.access_key_id.clone(),
+                        secret_access_key: auth.secret_access_key.inner().clone(),
+                    }),
+                ..Default::default()
+            },
+            google: cloud_copy::GoogleConfig {
+                auth: config.storage.google.auth.as_ref().map(|auth| {
+                    cloud_copy::GoogleAuthConfig {
+                        access_key: auth.access_key.clone(),
+                        secret: auth.secret.inner().clone(),
+                    }
+                }),
+            },
+            ..Default::default()
+        };
 
-        let max_downloads = config
-            .http
-            .max_concurrent_downloads
-            .unwrap_or(DEFAULT_MAX_CONCURRENT_DOWNLOADS) as usize;
-
-        debug!("maximum concurrent downloads set to {max_downloads}");
-
-        Ok(Self {
+        Ok(Self(Arc::new(HttpTransfererInner {
             config,
-            client: ClientBuilder::new(Client::new())
-                .with_arc(cache.clone())
-                .build(),
-            cache,
+            copy_config,
+            client,
             downloads: Default::default(),
-            semaphore: Arc::new(Semaphore::new(max_downloads)),
-        })
-    }
-
-    /// Gets the file at the given URL.
-    ///
-    /// Returns the file's local location upon success.
-    async fn get(&self, url: &Url) -> Result<Location<'static>> {
-        // TODO: progress indicator?
-        debug!("sending GET for `{url}`", url = DisplayUrl(url));
-
-        // Perform the download
-        let response = self.client.get(url.as_str()).send().await?;
-
-        let status = response.status();
-        if !status.is_success() {
-            if let Ok(text) = response.text().await {
-                debug!(
-                    "response from GET of `{url}` was `{text}`",
-                    url = DisplayUrl(url)
-                );
-            }
-
-            bail!("server responded with status {status}");
-        }
-
-        if let Some(digest) = response
-            .headers()
-            .get(http_cache_stream_reqwest::X_CACHE_DIGEST)
-        {
-            let path = self
-                .cache
-                .storage()
-                .body_path(digest.to_str().expect("key should be UTF-8"));
-
-            debug!(
-                "`{url}` was previously downloaded to `{path}`",
-                url = DisplayUrl(url),
-                path = path.display()
-            );
-
-            // The file is in the cache
-            return Ok(Location::Path(path.into()));
-        }
-
-        // The file is not in the cache, we need to download it to a temporary path
-        let (file, path) = NamedTempFile::new()
-            .context("failed to create temporary file")?
-            .into_parts();
-
-        debug!(
-            "response body for `{url}` was not present in cache: downloading to temporary file \
-             `{path}`",
-            url = DisplayUrl(url),
-            path = path.display()
-        );
-
-        let mut stream = response.bytes_stream();
-        let mut writer = BufWriter::new(fs::File::from(file));
-
-        while let Some(bytes) = stream.next().await {
-            let bytes = bytes.with_context(|| {
-                format!(
-                    "failed to read response body from `{url}`",
-                    url = DisplayUrl(url)
-                )
-            })?;
-            writer.write_all(&bytes).await.with_context(|| {
-                format!(
-                    "failed to write to temporary file `{path}`",
-                    path = path.display()
-                )
-            })?;
-        }
-
-        Ok(Location::Temp(path.into()))
+            uploads: Default::default(),
+            cancel,
+            events,
+            semaphore,
+        })))
     }
 }
 
-impl Downloader for HttpDownloader {
-    fn download<'a, 'b, 'c>(
-        &'a self,
-        url: &'b Url,
-    ) -> BoxFuture<'c, Result<Location<'static>, Arc<Error>>>
-    where
-        'a: 'c,
-        'b: 'c,
-        Self: 'c,
-    {
+impl Transferer for HttpTransferer {
+    fn download<'a>(&'a self, source: &'a Url) -> BoxFuture<'a, Result<Location>> {
         async move {
-            let url = rewrite_url(&self.config, Cow::Borrowed(url))?;
+            let source = self.apply_auth(source)?;
 
             // File URLs don't need to be downloaded
-            if url.scheme() == "file" {
+            if source.scheme() == "file" {
                 return Ok(Location::Path(
-                    url.to_file_path()
-                        .map_err(|_| anyhow!("invalid file URL `{url}`"))?
-                        .into(),
+                    source
+                        .to_file_path()
+                        .map_err(|_| anyhow!("invalid file URL `{source}`"))?,
                 ));
             }
 
-            // TODO: support downloading "directories" for cloud storage URLs
-
-            // This loop exists so that all requests to download the same URL will block
-            // waiting for a notification that the download has completed.
-            // When the notification is received, the lookup into the downloads is retried
-            let mut waited = false;
-            loop {
-                let status_check_result = {
-                    let mut downloads = self.downloads.lock().expect("failed to lock downloads");
-                    match downloads.get(&url) {
-                        Some(Status::Downloading(notify)) => {
-                            assert!(
-                                !waited,
-                                "file should not be downloading again after a notification"
-                            );
-                            Some(notify.clone())
-                        }
-                        Some(Status::Downloaded(r)) => {
-                            return r.clone();
-                        }
-                        None => {
-                            // not downloading, not downloaded. mark for retry/download
-                            downloads.insert(
-                                url.clone().into_owned(),
-                                Status::Downloading(Arc::new(Notify::new())),
-                            );
-                            None
-                        }
-                    }
-                };
-
-                if let Some(notify) = status_check_result {
-                    notify.notified().await;
-                    waited = true;
-                    continue;
-                } else {
-                    break;
-                }
-            }
-
-            let mut attempt_counter = 0;
-            let result = 'retry_loop: loop {
-                let attempt = attempt_counter;
-
-                let permit = self
-                    .semaphore
-                    .acquire()
-                    .await
-                    .expect("semaphore should not be closed");
-
-                match self.get(&url).await {
-                    Ok(location) => {
-                        break 'retry_loop Ok(location);
-                    }
-                    Err(e) => {
-                        let current_error = Arc::new(e.context(format!(
-                            "download attempt {} failed for `{url}`",
-                            attempt + 1
-                        )));
-
-                        // if it was the last attempt, return the error
-                        if attempt == MAX_DOWNLOAD_ATTEMPTS - 1 {
-                            error!(
-                                "download failed after {} attempts for `{url}`: {}",
-                                MAX_DOWNLOAD_ATTEMPTS, current_error
-                            );
-                            break 'retry_loop Err(current_error);
-                        }
-
-                        // backoff and retry
-                        let delay_secs =
-                            INITIAL_RETRY_DELAY.as_secs_f64() * 2.0f64.powi(attempt as i32);
-                        let delay = Duration::from_secs_f64(delay_secs);
-                        info!(
-                            "backing off for {:.2}s before retry attempt {}/{} for `{url}`",
-                            delay_secs,
-                            attempt + 1,
-                            MAX_DOWNLOAD_ATTEMPTS,
-                            url = DisplayUrl(&url)
-                        );
-
-                        drop(permit);
-                        sleep(delay).await;
-
-                        attempt_counter += 1;
-                        // permit will be re-acquired at the start of the next
-                        // iteration
-                    }
-                }
-                // permit is implicitly dropped here
+            let download = {
+                let mut downloads = self.0.downloads.lock().expect("failed to lock downloads");
+                downloads
+                    .entry(source.as_ref().clone())
+                    .or_default()
+                    .clone()
             };
 
-            let notify = {
-                let mut downloads = self.downloads.lock().expect("failed to lock downloads");
-                match downloads.insert(url.clone().into_owned(), Status::Downloaded(result.clone()))
-                {
-                    Some(Status::Downloading(notify)) => notify,
-                    _ => panic!("expected to find a downloading status for `{url}`"),
-                }
-            };
+            // Get an existing result or initialize a new one exactly once
+            Ok(download
+                .get_or_try_init(|| async {
+                    {
+                        // Acquire a permit for the transfer
+                        let _permit = self
+                            .0
+                            .semaphore
+                            .acquire()
+                            .await
+                            .context("failed to acquire transfer permit")?;
 
-            notify.notify_waiters();
-            result
+                        // Create a temporary path to where the download will go
+                        let temp_path = NamedTempFile::new()
+                            .context("failed to create temporary file")?
+                            .into_temp_path();
+
+                        // Perform the download (always overwrite the local temp file)
+                        let mut config = self.0.copy_config.clone();
+                        config.overwrite = true;
+                        cloud_copy::copy(
+                            config,
+                            self.0.client.clone(),
+                            source.as_ref(),
+                            &*temp_path,
+                            self.0.cancel.clone(),
+                            self.0.events.clone(),
+                        )
+                        .await
+                        .with_context(|| {
+                            format!("failed to download `{source}`", source = source.display())
+                        })
+                        .map(|_| Location::Temp(Arc::new(temp_path)))
+                    }
+                })
+                .await?
+                .clone())
         }
         .boxed()
     }
 
-    /// Gets the size of a resource at a given URL.
-    ///
-    /// Returns `Ok(Some(_))` if the size is known.
-    ///
-    /// Returns `Ok(None)` if the URL is valid but the size cannot be
-    /// determined.
-    fn size<'a, 'b, 'c>(&'a self, url: &'b Url) -> BoxFuture<'c, Result<Option<u64>>>
-    where
-        'a: 'c,
-        'b: 'c,
-        Self: 'c,
-    {
+    fn upload<'a>(&'a self, source: &'a Path, destination: &'a Url) -> BoxFuture<'a, Result<()>> {
         async move {
-            let url = rewrite_url(&self.config, Cow::Borrowed(url))?;
+            let destination = self.apply_auth(destination)?;
+
+            let upload = {
+                let mut uploads = self.0.uploads.lock().expect("failed to lock uploads");
+                uploads
+                    .entry(destination.as_ref().clone())
+                    .or_default()
+                    .clone()
+            };
+
+            // Get an existing result or initialize a new one exactly once
+            upload
+                .get_or_try_init(|| async {
+                    {
+                        // Acquire a permit for the transfer
+                        let _permit = self
+                            .0
+                            .semaphore
+                            .acquire()
+                            .await
+                            .context("failed to acquire transfer permit")?;
+
+                        // Perform the upload (do not overwrite)
+                        let mut config = self.0.copy_config.clone();
+                        config.overwrite = false;
+                        match cloud_copy::copy(
+                            config,
+                            self.0.client.clone(),
+                            source,
+                            destination.as_ref(),
+                            self.0.cancel.clone(),
+                            self.0.events.clone(),
+                        )
+                        .await
+                        {
+                            Ok(_) | Err(cloud_copy::Error::RemoteDestinationExists(_)) => {
+                                anyhow::Ok(())
+                            }
+                            Err(e) => Err(e.into()),
+                        }
+                    }
+                })
+                .await?;
+
+            Ok(())
+        }
+        .boxed()
+    }
+
+    fn size<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<u64>>> {
+        async move {
+            let url = self.apply_auth(url)?;
 
             // Check for local file
             if url.scheme() == "file" {
@@ -461,7 +309,7 @@ impl Downloader for HttpDownloader {
                     .map_err(|_| anyhow!("invalid file URL `{url}`"))?;
                 let metadata = path.metadata().with_context(|| {
                     format!(
-                        "cannot retrieve metadata for file `{path}`",
+                        "failed to retrieve metadata for file `{path}`",
                         path = path.display()
                     )
                 })?;
@@ -469,19 +317,32 @@ impl Downloader for HttpDownloader {
             }
 
             // Perform the HEAD request
-            debug!("sending HEAD for `{url}`", url = DisplayUrl(&url));
-            let response = self.client.head(url.as_str()).send().await?;
+            debug!("sending HEAD for `{url}`", url = url.display());
+            let response = self
+                .0
+                .client
+                .head(url.as_str())
+                .send()
+                .await
+                .with_context(|| {
+                    format!("failed to retrieve size of `{url}`", url = url.display())
+                })?;
 
             let status = response.status();
             if !status.is_success() {
-                if let Ok(text) = response.text().await {
+                if tracing::enabled!(Level::DEBUG)
+                    && let Ok(text) = response.text().await
+                {
                     debug!(
                         "response from HEAD of `{url}` was `{text}`",
-                        url = DisplayUrl(&url)
+                        url = url.display()
                     );
                 }
 
-                bail!("server responded with status {status}");
+                bail!(
+                    "failed to retrieve size of `{url}`: server responded with status {status}",
+                    url = url.display()
+                );
             }
 
             Ok(response
@@ -490,5 +351,69 @@ impl Downloader for HttpDownloader {
                 .and_then(|v| v.to_str().ok().and_then(|v| v.parse().ok())))
         }
         .boxed()
+    }
+
+    fn apply_auth<'a>(&self, url: &'a Url) -> Result<Cow<'a, Url>> {
+        /// The Azure Blob Storage domain suffix.
+        const AZURE_STORAGE_DOMAIN_SUFFIX: &str = ".blob.core.windows.net";
+
+        /// The name of the special root container in Azure Blob Storage.
+        const ROOT_CONTAINER_NAME: &str = "$root";
+
+        let url = rewrite_url(&self.0.copy_config, url)?;
+
+        // Attempt to extract the account from the domain
+        let account = match url.host().and_then(|host| match host {
+            url::Host::Domain(domain) => domain.strip_suffix(AZURE_STORAGE_DOMAIN_SUFFIX),
+            _ => None,
+        }) {
+            Some(account) => account,
+            None => return Ok(url),
+        };
+
+        // If the URL already has query parameters, don't modify it
+        if url.query().is_some() {
+            return Ok(url);
+        }
+
+        // Determine the container name; if there's only one path segment, then use the
+        // root container name
+        let container = match url.path_segments().and_then(|mut segments| {
+            match (segments.next(), segments.next()) {
+                (Some(_), None) => Some(ROOT_CONTAINER_NAME),
+                (Some(container), Some(_)) => Some(container),
+                _ => None,
+            }
+        }) {
+            Some(container) => container,
+            None => return Ok(url),
+        };
+
+        // Apply the auth token if there is one
+        if let Some(token) = self
+            .0
+            .config
+            .storage
+            .azure
+            .auth
+            .get(account)
+            .and_then(|containers| containers.get(container))
+        {
+            if url.scheme() == "https" {
+                let token = token.inner().expose_secret();
+                let token = token.strip_prefix('?').unwrap_or(token);
+                let mut url = url.into_owned();
+                url.set_query(Some(token));
+                return Ok(Cow::Owned(url));
+            }
+
+            // Warn if the scheme isn't https, as we won't be applying the auth.
+            warn!(
+                "Azure Blob Storage URL `{url}` is not using HTTPS: authentication will not be \
+                 used"
+            );
+        }
+
+        Ok(url)
     }
 }

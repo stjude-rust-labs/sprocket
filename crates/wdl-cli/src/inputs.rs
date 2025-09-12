@@ -69,7 +69,7 @@ pub enum Error {
     Deserialize(String),
 }
 
-/// A [`Result`](std::result::Result) with an [`Error`].
+/// A [`Result`](std::result::Result) with an [`Error`](enum@self::Error).
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// An input parsed from the command line.

@@ -15,7 +15,7 @@
 //! - Import namespace identifiers
 //! - Snippets for common WDL constructs
 //!
-//! See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_completion
+//! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_completion)
 
 use std::sync::Arc;
 
