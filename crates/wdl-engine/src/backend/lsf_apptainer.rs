@@ -90,7 +90,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         })?;
 
         // Write the evaluated WDL command section to a host file.
-        let wdl_command_path = self.spawn_request.attempt_dir().join(COMMAND_FILE_NAME);
+        let wdl_command_path = attempt_dir.join(COMMAND_FILE_NAME);
         fs::write(&wdl_command_path, self.spawn_request.command())
             .await
             .with_context(|| {
@@ -102,7 +102,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         fs::set_permissions(&wdl_command_path, Permissions::from_mode(0o777)).await?;
 
         // Create an empty file for the WDL command's stdout.
-        let wdl_stdout_path = self.spawn_request.attempt_dir().join(STDOUT_FILE_NAME);
+        let wdl_stdout_path = attempt_dir.join(STDOUT_FILE_NAME);
         let _ = File::create(&wdl_stdout_path).await.with_context(|| {
             format!(
                 "failed to create WDL stdout file `{path}`",
@@ -111,7 +111,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         })?;
 
         // Create an empty file for the WDL command's stderr.
-        let wdl_stderr_path = self.spawn_request.attempt_dir().join(STDERR_FILE_NAME);
+        let wdl_stderr_path = attempt_dir.join(STDERR_FILE_NAME);
         let _ = File::create(&wdl_stderr_path).await.with_context(|| {
             format!(
                 "failed to create WDL stderr file `{path}`",
@@ -130,7 +130,12 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         // TODO ACF 2025-09-10: make location of the tempdir configurable
         //
         // TODO ACF 2025-09-10: make the persistence of the tempdir configurable
-        let container_temp_dir = TempDir::new_in(self.spawn_request.attempt_dir())?;
+        //
+        // TODO ACF 2025-09-12: maybe these should be made in `_latest/tmp` rather than
+        // under each attempt dir. That way if the dirs are set to persist,
+        // someone who wants to keep around the results but clean up the temp
+        // files has just one directory to zap
+        let container_temp_dir = TempDir::new_in(attempt_dir)?;
         let container_tmp_path = container_temp_dir.path().join("tmp").to_path_buf();
         tokio::fs::DirBuilder::new()
             .recursive(true)
@@ -160,29 +165,29 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         let mut apptainer_command = String::new();
         writeln!(&mut apptainer_command, "#!/bin/env bash")?;
 
-        // Set up mounts for the inputs in an environment variable (ref:
-        // https://apptainer.org/docs/user/1.3/bind_paths_and_mounts.html#mount-examples). Using an
-        // environment variable rather than separate `--mount` arguments prevents tasks
-        // with large numbers of inputs from exceeding the maximum number of
-        // command line arguments.
-        let inputs = self.spawn_request.inputs();
-        if !inputs.is_empty() {
-            write!(&mut apptainer_command, "export APPTAINER_MOUNT=$'")?;
-            for input in inputs {
-                write!(
-                    &mut apptainer_command,
-                    "type=bind,src={host_path},dst={guest_path},ro\\n",
-                    host_path = input
-                        .local_path()
-                        .ok_or_else(|| anyhow!("input not localized: {input:?}"))?
-                        .display(),
-                    guest_path = input
-                        .guest_path()
-                        .ok_or_else(|| anyhow!("guest path missing: {input:?}"))?,
-                )?;
-            }
-            writeln!(&mut apptainer_command, "'")?;
-        }
+        // // Set up mounts for the inputs in an environment variable (ref:
+        // // https://apptainer.org/docs/user/1.3/bind_paths_and_mounts.html#mount-examples). Using an
+        // // environment variable rather than separate `--mount` arguments prevents
+        // tasks // with large numbers of inputs from exceeding the maximum
+        // number of // command line arguments.
+        // let inputs = self.spawn_request.inputs();
+        // if !inputs.is_empty() {
+        //     write!(&mut apptainer_command, "export APPTAINER_MOUNT=$'")?;
+        //     for input in inputs {
+        //         write!(
+        //             &mut apptainer_command,
+        //             "type=bind,src={host_path},dst={guest_path},ro\\n",
+        //             host_path = input
+        //                 .local_path()
+        //                 .ok_or_else(|| anyhow!("input not localized: {input:?}"))?
+        //                 .display(),
+        //             guest_path = input
+        //                 .guest_path()
+        //                 .ok_or_else(|| anyhow!("guest path missing: {input:?}"))?,
+        //         )?;
+        //     }
+        //     writeln!(&mut apptainer_command, "'")?;
+        // }
 
         // Set up any WDL-specified guest environment variables, using the
         // `APPTAINERENV_` prefix approach (ref:
@@ -201,6 +206,21 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         // behavior, e.g. by not auto-mounting the user's home directory and
         // inheriting all environment variables.
         write!(&mut apptainer_command, "--containall --cleanenv ")?;
+
+        for input in self.spawn_request.inputs() {
+            write!(
+                &mut apptainer_command,
+                "--mount type=bind,src={host_path},dst={guest_path},ro ",
+                host_path = input
+                    .local_path()
+                    .ok_or_else(|| anyhow!("input not localized: {input:?}"))?
+                    .display(),
+                guest_path = input
+                    .guest_path()
+                    .ok_or_else(|| anyhow!("guest path missing: {input:?}"))?,
+            )?;
+        }
+
         // Mount the instantiated WDL command as read-only.
         write!(
             &mut apptainer_command,
