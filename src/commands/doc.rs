@@ -6,10 +6,10 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
-use wdl::analysis::Config as AnalaysisConfig;
+use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::cli::analysis::Source;
-use wdl::doc::Config as DocConfig;
+use wdl::doc::Config;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
 use wdl::doc::document_workspace;
@@ -115,11 +115,11 @@ pub async fn doc(args: Args) -> Result<()> {
     let analysis_config = AnalaysisConfig::default()
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
-    let doc_config = DocConfig::new(analysis_config, &workspace, &docs_dir)
+    let doc_config = Config::new(analysis_config, &workspace, &docs_dir)
         .homepage(args.homepage)
         .custom_theme(args.theme)
         .custom_logo(args.logo)
-        // .additional_javascript(args.additional_javascript)
+        .additional_javascript(args.additional_javascript)
         .prefer_full_directory(!args.prioritize_workflows_view);
 
     document_workspace(doc_config).await.with_context(|| {
