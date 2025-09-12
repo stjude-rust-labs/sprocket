@@ -3737,6 +3737,7 @@ dependencies = [
  "serde_yaml_ng",
  "shlex",
  "similar",
+ "strum",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -4828,7 +4829,7 @@ dependencies = [
 [[package]]
 name = "wdl"
 version = "0.17.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7d9017d78b5d6a2253416c215adfa6b2063b5a72"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4845,7 +4846,7 @@ dependencies = [
 [[package]]
 name = "wdl-analysis"
 version = "0.12.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7d9017d78b5d6a2253416c215adfa6b2063b5a72"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4874,7 +4875,7 @@ dependencies = [
 [[package]]
 name = "wdl-ast"
 version = "0.16.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7d9017d78b5d6a2253416c215adfa6b2063b5a72"
 dependencies = [
  "macropol",
  "paste",
@@ -4887,7 +4888,7 @@ dependencies = [
 [[package]]
 name = "wdl-cli"
 version = "0.5.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7d9017d78b5d6a2253416c215adfa6b2063b5a72"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4915,7 +4916,7 @@ dependencies = [
 [[package]]
 name = "wdl-doc"
 version = "0.7.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7d9017d78b5d6a2253416c215adfa6b2063b5a72"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4934,7 +4935,7 @@ dependencies = [
 [[package]]
 name = "wdl-engine"
 version = "0.7.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7d9017d78b5d6a2253416c215adfa6b2063b5a72"
 dependencies = [
  "anyhow",
  "bimap",
@@ -4976,7 +4977,7 @@ dependencies = [
 [[package]]
 name = "wdl-format"
 version = "0.10.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7d9017d78b5d6a2253416c215adfa6b2063b5a72"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4985,7 +4986,7 @@ dependencies = [
 [[package]]
 name = "wdl-grammar"
 version = "0.16.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7d9017d78b5d6a2253416c215adfa6b2063b5a72"
 dependencies = [
  "codespan-reporting",
  "logos",
@@ -4998,7 +4999,7 @@ dependencies = [
 [[package]]
 name = "wdl-lint"
 version = "0.15.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7d9017d78b5d6a2253416c215adfa6b2063b5a72"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -5009,6 +5010,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strsim 0.11.1",
+ "strum",
  "tracing",
  "url",
  "wdl-analysis",
@@ -5018,7 +5020,7 @@ dependencies = [
 [[package]]
 name = "wdl-lsp"
 version = "0.12.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=feat%2Fdoc-compatibility#7d9017d78b5d6a2253416c215adfa6b2063b5a72"
 dependencies = [
  "anyhow",
  "indexmap 2.11.1",
