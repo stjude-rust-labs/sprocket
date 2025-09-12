@@ -729,7 +729,7 @@ impl BackendConfig {
     /// Redacts the secrets contained in the backend configuration.
     pub fn redact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
             Self::Tes(config) => config.redact(),
         }
     }
@@ -737,7 +737,7 @@ impl BackendConfig {
     /// Unredacts the secrets contained in the backend configuration.
     pub fn unredact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
             Self::Tes(config) => config.unredact(),
         }
     }
