@@ -20,5 +20,6 @@
   git tag v{VERSION}
   ```
 * [ ] Push the tag: `git push --tags`.
+* [ ] Merge the `next` branch in the sprocket.bio repository if there are any pending documentation changes that need to be released.
 
 And the CI should handle the rest!
