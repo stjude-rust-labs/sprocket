@@ -9,6 +9,7 @@ use clap::Parser;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::cli::analysis::Source;
+use wdl::doc::AdditionalScript;
 use wdl::doc::Config;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
@@ -31,6 +32,10 @@ pub struct Args {
     /// If not supplied, the default Sprocket logo will be used.
     #[arg(short, long, value_name = "SVG FILE")]
     pub logo: Option<PathBuf>,
+    /// Initialize pages on the "Workflows" view instead of the "Full
+    /// Directory" view of the left nav bar.
+    #[arg(long)]
+    pub prioritize_workflows_view: bool,
     /// Output directory for the generated documentation.
     /// If not specified, the documentation will be generated in
     /// `<workspace>/docs`.
@@ -47,6 +52,32 @@ pub struct Args {
     /// Open the generated documentation in the default web browser.
     #[arg(long)]
     pub open: bool,
+    /// Path to a `.js` file that should have its contents embedded in a
+    /// `<script>` tag for each HTML page, immediately after the opening
+    /// `<head>` tag.
+    #[arg(long, value_name = "JS FILE", conflicts_with_all = [
+        "javascript_head_close", "javascript_body_open", "javascript_body_close"
+    ])]
+    pub javascript_head_open: Option<PathBuf>,
+    /// Path to a `.js` file that should have its contents embedded in a
+    /// `<script>` tag for each HTML page, immediately before the closing
+    /// `<head>` tag.
+    #[arg(long, value_name = "JS FILE", conflicts_with_all = [
+        "javascript_body_open", "javascript_body_close"
+    ])]
+    pub javascript_head_close: Option<PathBuf>,
+    /// Path to a `.js` file that should have its contents embedded in a
+    /// `<script>` tag for each HTML page, immediately after the opening
+    /// `<body>` tag.
+    #[arg(long, value_name = "JS FILE", conflicts_with_all = [
+        "javascript_body_close"
+    ])]
+    pub javascript_body_open: Option<PathBuf>,
+    /// Path to a `.js` file that should have its contents embedded in a
+    /// `<script>` tag for each HTML page, immediately before the closing
+    /// `<body>` tag.
+    #[arg(long, value_name = "JS FILE")]
+    pub javascript_body_close: Option<PathBuf>,
     /// An optional path to a custom theme directory.
     ///
     /// This argument is meant to be used by developers of the `wdl` crates;
@@ -54,7 +85,6 @@ pub struct Args {
     /// unsupported.
     #[arg(long, value_name = "DIR")]
     pub theme: Option<PathBuf>,
-
     /// Install the theme if it is not already installed.
     ///
     /// `npm` and `npx` are expected to be available in the environment.
@@ -97,6 +127,35 @@ pub async fn doc(args: Args) -> Result<()> {
         })?;
     }
 
+    let addl_js = match (
+        &args.javascript_head_open,
+        &args.javascript_head_close,
+        &args.javascript_body_open,
+        &args.javascript_body_close,
+    ) {
+        (Some(path), ..) => {
+            let js = std::fs::read_to_string(path)
+                .with_context(|| format!("failed to read JavaScript file: {}", path.display()))?;
+            AdditionalScript::HeadOpen(js)
+        }
+        (_, Some(path), ..) => {
+            let js = std::fs::read_to_string(path)
+                .with_context(|| format!("failed to read JavaScript file: {}", path.display()))?;
+            AdditionalScript::HeadClose(js)
+        }
+        (_, _, Some(path), _) => {
+            let js = std::fs::read_to_string(path)
+                .with_context(|| format!("failed to read JavaScript file: {}", path.display()))?;
+            AdditionalScript::BodyOpen(js)
+        }
+        (_, _, _, Some(path)) => {
+            let js = std::fs::read_to_string(path)
+                .with_context(|| format!("failed to read JavaScript file: {}", path.display()))?;
+            AdditionalScript::BodyClose(js)
+        }
+        _ => AdditionalScript::None,
+    };
+
     let docs_dir = args.output.unwrap_or(workspace.join(DEFAULT_OUTPUT_DIR));
 
     if args.overwrite && docs_dir.exists() {
@@ -106,12 +165,14 @@ pub async fn doc(args: Args) -> Result<()> {
     let analysis_config = AnalysisConfig::default()
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
-    let conf = Config::new(analysis_config, &workspace, &docs_dir)
+    let config = Config::new(analysis_config, &workspace, &docs_dir)
         .homepage(args.homepage)
         .custom_theme(args.theme)
-        .custom_logo(args.logo);
+        .custom_logo(args.logo)
+        .additional_javascript(addl_js)
+        .prefer_full_directory(!args.prioritize_workflows_view);
 
-    document_workspace(conf).await.with_context(|| {
+    document_workspace(config).await.with_context(|| {
         format!(
             "failed to generate documentation for workspace at `{}`",
             workspace.display()

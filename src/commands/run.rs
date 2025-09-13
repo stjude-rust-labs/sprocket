@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -22,7 +21,6 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
-use tracing::warn;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
@@ -264,11 +262,7 @@ struct State {
 }
 
 /// Displays evaluation progress.
-async fn progress(
-    mut events: broadcast::Receiver<Event>,
-    pb: tracing::Span,
-    state: Arc<Mutex<State>>,
-) {
+async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
     /// Helper for formatting the progress bar
     fn message(state: &State) -> String {
         let executing = state.executing.len();
@@ -290,29 +284,27 @@ async fn progress(
         )
     }
 
-    let mut warned = false;
-    message(&state.lock().expect("failed to lock state"));
+    let mut state = State::default();
+    let mut lagged = false;
+
+    pb.pb_set_message(&message(&state));
+    pb.pb_start();
 
     loop {
         match events.recv().await {
-            Ok(event) => {
-                pb.pb_start();
-
+            Ok(event) if !lagged => {
                 let message = match event {
                     Event::TaskCreated { id, name, .. } => {
-                        let mut state = state.lock().expect("failed to lock state");
                         state.tasks.insert(id, name.into());
                         message(&state)
                     }
                     Event::TaskStarted { id } => {
-                        let mut state = state.lock().expect("failed to lock state");
                         if let Some(name) = state.tasks.get(&id).cloned() {
                             state.executing.insert(name);
                         }
                         message(&state)
                     }
                     Event::TaskCompleted { id, .. } => {
-                        let mut state = state.lock().expect("failed to lock state");
                         if let Some(name) = state.tasks.remove(&id) {
                             state.executing.swap_remove(&name);
                         }
@@ -320,7 +312,6 @@ async fn progress(
                         message(&state)
                     }
                     Event::TaskFailed { id, .. } => {
-                        let mut state = state.lock().expect("failed to lock state");
                         if let Some(name) = state.tasks.remove(&id) {
                             state.executing.swap_remove(&name);
                         }
@@ -328,7 +319,6 @@ async fn progress(
                         message(&state)
                     }
                     Event::TaskCanceled { id } | Event::TaskPreempted { id } => {
-                        let mut state = state.lock().expect("failed to lock state");
                         if let Some(name) = state.tasks.remove(&id) {
                             state.executing.swap_remove(&name);
                         }
@@ -340,12 +330,11 @@ async fn progress(
 
                 pb.pb_set_message(&message);
             }
+            Ok(_) => continue,
             Err(RecvError::Closed) => break,
             Err(RecvError::Lagged(_)) => {
-                if !warned {
-                    warned = true;
-                    warn!("event stream is lagging: task progress reporting may be incorrect");
-                }
+                lagged = true;
+                pb.pb_set_message(" - evaluation progress is unavailable due to missed events");
             }
         }
     }
@@ -563,7 +552,6 @@ pub async fn run(args: Args) -> Result<()> {
         .unwrap(),
     );
 
-    let state = Arc::new(Mutex::<State>::default());
     let token = CancellationToken::new();
     let events = Events::all(EVENTS_CHANNEL_CAPACITY);
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
@@ -577,7 +565,6 @@ pub async fn run(args: Args) -> Result<()> {
             .subscribe_crankshaft()
             .expect("should have Crankshaft events"),
         span,
-        state,
     ));
 
     let evaluator = Evaluator::new(
@@ -598,22 +585,29 @@ pub async fn run(args: Args) -> Result<()> {
         _ = tokio::signal::ctrl_c() => {
             error!("execution was interrupted: waiting for evaluation to abort");
             token.cancel();
-            evaluate.await.ok();
-            transfer_progress.await.ok();
-            crankshaft_progress.await.ok();
+            let _ = evaluate.await;
+            let _ = transfer_progress.await;
+            let _ = crankshaft_progress.await;
             bail!("execution was aborted");
         },
         res = &mut evaluate => {
-            transfer_progress.await.ok();
-            crankshaft_progress.await.ok();
+            let _ = transfer_progress.await;
+            let _ = crankshaft_progress.await;
 
             match res {
                 Ok(outputs) => {
-                    println!("{outputs}", outputs = serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
+                    println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
                     Ok(())
                 }
                 Err(EvaluationError::Source(e)) => {
-                    emit_diagnostics(&e.document.path(), e.document.root().text().to_string(), &[e.diagnostic], &e.backtrace, args.report_mode.unwrap_or_default(), args.no_color)?;
+                    emit_diagnostics(
+                        &e.document.path(),
+                        e.document.root().text().to_string(),
+                        &[e.diagnostic],
+                        &e.backtrace,
+                        args.report_mode.unwrap_or_default(),
+                        args.no_color
+                    )?;
                     bail!("aborting due to evaluation error");
                 }
                 Err(EvaluationError::Other(e)) => Err(e)
