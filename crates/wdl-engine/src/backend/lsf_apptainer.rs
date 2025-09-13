@@ -279,6 +279,9 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
 
         // The path for the LSF-level stdout and stderr. This primarily contains the job
         // report, as we redirect Apptainer and WDL output separately.
+        //
+        // TODO ACF 2025-09-12: whoops, the above is not yet true; need to actually do a redirect in
+        // the bsub command
         let lsf_stdout_path = attempt_dir.join("lsf.stdout");
         let lsf_stderr_path = attempt_dir.join("lsf.stderr");
 
