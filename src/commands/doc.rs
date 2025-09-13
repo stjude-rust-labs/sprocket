@@ -62,12 +62,16 @@ pub struct Args {
     /// Path to a `.js` file that should have its contents embedded in a
     /// `<script>` tag for each HTML page, immediately before the closing
     /// `<head>` tag.
-    #[arg(long, value_name = "JS FILE")]
+    #[arg(long, value_name = "JS FILE", conflicts_with_all = [
+        "javascript_body_open", "javascript_body_close"
+    ])]
     pub javascript_head_close: Option<PathBuf>,
     /// Path to a `.js` file that should have its contents embedded in a
     /// `<script>` tag for each HTML page, immediately after the opening
     /// `<body>` tag.
-    #[arg(long, value_name = "JS FILE")]
+    #[arg(long, value_name = "JS FILE", conflicts_with_all = [
+        "javascript_body_close"
+    ])]
     pub javascript_body_open: Option<PathBuf>,
     /// Path to a `.js` file that should have its contents embedded in a
     /// `<script>` tag for each HTML page, immediately before the closing
