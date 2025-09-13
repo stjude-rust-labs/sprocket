@@ -32,7 +32,7 @@ pub struct Args {
     /// If not supplied, the default Sprocket logo will be used.
     #[arg(short, long, value_name = "SVG FILE")]
     pub logo: Option<PathBuf>,
-    /// Initialize pages on the "Workflows" view insteaad of the "Full
+    /// Initialize pages on the "Workflows" view instead of the "Full
     /// Directory" view of the left nav bar.
     #[arg(long)]
     pub prioritize_workflows_view: bool,
@@ -165,14 +165,14 @@ pub async fn doc(args: Args) -> Result<()> {
     let analysis_config = AnalysisConfig::default()
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
-    let doc_config = Config::new(analysis_config, &workspace, &docs_dir)
+    let config = Config::new(analysis_config, &workspace, &docs_dir)
         .homepage(args.homepage)
         .custom_theme(args.theme)
         .custom_logo(args.logo)
         .additional_javascript(addl_js)
         .prefer_full_directory(!args.prioritize_workflows_view);
 
-    document_workspace(doc_config).await.with_context(|| {
+    document_workspace(config).await.with_context(|| {
         format!(
             "failed to generate documentation for workspace at `{}`",
             workspace.display()
