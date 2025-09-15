@@ -24,7 +24,7 @@ tokio.workspace = true
 toml.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-wdl = { path = "../wdl", version = "0.17.0", features = ["codespan", "analysis"] }
+wdl = { path = "../wdl", version = "0.18.0", features = ["codespan", "analysis"] }
 
 [lints]
 workspace = true

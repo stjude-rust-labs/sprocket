@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.8.0 - 09-15-2025
+
 #### Changed
 
 * A JavaScript file can be provided that will be read and have its contents embedded in the HTML source of each page ([#591](https://github.com/stjude-rust-labs/wdl/pull/591)).

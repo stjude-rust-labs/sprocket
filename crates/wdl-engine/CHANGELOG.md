@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.8.0 - 09-15-2025
+
 #### Added
 
 * Added support for uploading inputs to the TES backend ([#599](https://github.com/stjude-rust-labs/wdl/pull/599)).
