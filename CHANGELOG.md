@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added options to `sprocket check/lint` for enabling and disabling sets of lint rules based on the rules' tags ([#169](https://github.com/stjude-rust-labs/sprocket/pull/169)).
 * Added options to `sprocket dev doc` for embedding a JS file into `<script>` tags on each HTML page ([#170](https://github.com/stjude-rust-labs/sprocket/pull/170)).
 * Added options to `sprocket run` for configuring AWS S3 and Google Cloud
   Storage authentication ([#164](https://github.com/stjude-rust-labs/sprocket/pull/164)).
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Enabling linting no longer runs every lint rule. Instead, a less opinionated set of rules are toggled on by default ([#169](https://github.com/stjude-rust-labs/sprocket/pull/169)).
 * `sprocket dev doc` now initializes on the "Full Directory" view for the left sidebar ([#170](https://github.com/stjude-rust-labs/sprocket/pull/170)).
   * The old behavior (initializing on the "Workflows" view) can be enabled with an option.
 * Replaced `sprocket run` progress bar implementation with one based off of

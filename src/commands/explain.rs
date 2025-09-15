@@ -30,7 +30,7 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
 });
 
 /// All tag names sorted alphabetically.
-static ALL_TAG_NAMES: LazyLock<Vec<String>> = LazyLock::new(|| {
+pub static ALL_TAG_NAMES: LazyLock<Vec<String>> = LazyLock::new(|| {
     let mut tags: HashSet<Tag> = HashSet::new();
     for rule in lint::rules() {
         for tag in rule.tags().iter() {
@@ -56,6 +56,7 @@ pub struct Args {
         value_name = "RULE",
         value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         ignore_case = true,
+        hide_possible_values = true,
     )]
     pub rule_name: Option<String>,
 
@@ -64,6 +65,7 @@ pub struct Args {
         conflicts_with_all = ["rule_name", "definitions"],
         value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
         ignore_case = true,
+        hide_possible_values = true,
     )]
     pub tag: Option<String>,
 

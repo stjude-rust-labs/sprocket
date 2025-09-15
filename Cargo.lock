@@ -656,9 +656,9 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "0.15.15"
+version = "0.15.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0faa974509d38b33ff89282db9c3295707ccf031727c0de9772038ec526852ba"
+checksum = "cef036f0ecf99baef11555578630e2cca559909b4c50822dbba828c252d21c49"
 dependencies = [
  "async-trait",
  "convert_case 0.6.0",
@@ -666,10 +666,10 @@ dependencies = [
  "pathdiff",
  "ron",
  "rust-ini",
- "serde",
  "serde-untagged",
+ "serde_core",
  "serde_json",
- "toml 0.9.5",
+ "toml 0.9.6",
  "winnow",
  "yaml-rust2",
 ]
@@ -1191,11 +1191,12 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erased-serde"
-version = "0.4.6"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e004d887f51fcb9fef17317a2f3525c887d8aa3f4f50fed920816a688284a5b7"
+checksum = "259d404d09818dec19332e31d94558aeb442fea04c817006456c24b5460bbd4b"
 dependencies = [
  "serde",
+ "serde_core",
  "typeid",
 ]
 
@@ -1441,7 +1442,7 @@ dependencies = [
  "js-sys",
  "libc",
  "r-efi",
- "wasi 0.14.5+wasi-0.2.4",
+ "wasi 0.14.6+wasi-0.2.4",
  "wasm-bindgen",
 ]
 
@@ -1788,9 +1789,9 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
-version = "0.1.16"
+version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d9b05277c7e8da2c93a568989bb6207bef0112e8d17df7a6eda4a3cf143bc5e"
+checksum = "3c6995591a8f1380fcb4ba966a252a4b29188d51d2b89e3a252f5305be65aea8"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -2099,9 +2100,9 @@ checksum = "6a82ae493e598baaea5209805c49bbf2ea7de956d50d7da0da1164f9c6d28543"
 
 [[package]]
 name = "libredox"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "391290121bad3d37fbddad76d8f5d1c1c314cfc646d143d7e07a3086ddff0ce3"
+checksum = "416f7e718bdb06000964960ffa43b4335ad4012ae8b99060261aa4a8088d5ccb"
 dependencies = [
  "bitflags 2.9.4",
  "libc",
@@ -3270,9 +3271,9 @@ dependencies = [
 
 [[package]]
 name = "rust_decimal"
-version = "1.37.2"
+version = "1.38.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b203a6425500a03e0919c42d3c47caca51e79f1132046626d2c8871c5092035d"
+checksum = "c8975fc98059f365204d635119cf9c5a60ae67b841ed49b5422a9a7e56cdfac0"
 dependencies = [
  "arrayvec",
  "borsh",
@@ -3350,9 +3351,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.5"
+version = "0.103.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5a37813727b78798e53c2bec3f5e8fe12a6d6f8389bf9ca7802add4c9905ad8"
+checksum = "8572f3c2cb9934231157b45499fc41e1f58c589fdfb81a844ba873265e80f8eb"
 dependencies = [
  "ring",
  "rustls-pki-types",
@@ -3460,27 +3461,29 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.26"
+version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56e6fa9c48d24d85fb3de5ad847117517440f6beceb7798af16b4a87d616b8d0"
+checksum = "d767eb0aabc880b29956c35734170f26ed551a859dbd361d140cdbeca61ab1e2"
 
 [[package]]
 name = "serde"
-version = "1.0.219"
+version = "1.0.224"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
+checksum = "6aaeb1e94f53b16384af593c71e20b095e958dab1d26939c1b70645c5cfbcc0b"
 dependencies = [
+ "serde_core",
  "serde_derive",
 ]
 
 [[package]]
 name = "serde-untagged"
-version = "0.1.8"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34836a629bcbc6f1afdf0907a744870039b1e14c0561cb26094fa683b158eff3"
+checksum = "f9faf48a4a2d2693be24c6289dbe26552776eb7737074e6722891fadbe6c5058"
 dependencies = [
  "erased-serde",
  "serde",
+ "serde_core",
  "typeid",
 ]
 
@@ -3498,18 +3501,28 @@ dependencies = [
 
 [[package]]
 name = "serde_bytes"
-version = "0.11.17"
+version = "0.11.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8437fd221bde2d4ca316d61b90e337e9e702b3820b87d63caa9ba6c02bd06d96"
+checksum = "a5d440709e79d88e51ac01c4b72fc6cb7314017bb7da9eeff678aa94c10e3ea8"
 dependencies = [
  "serde",
+ "serde_core",
+]
+
+[[package]]
+name = "serde_core"
+version = "1.0.224"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32f39390fa6346e24defbcdd3d9544ba8a19985d0af74df8501fbfe9a64341ab"
+dependencies = [
+ "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.219"
+version = "1.0.224"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b0276cf7f2c73365f7157c8123c21cd9a50fbbd844757af28ca1f5925fc2a00"
+checksum = "87ff78ab5e8561c9a675bfc1785cb07ae721f0ee53329a595cefd8c04c2ac4e0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3518,15 +3531,16 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.143"
+version = "1.0.145"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d401abef1d108fbd9cbaebc3e46611f4b1021f714a0597a71f41ee463f5f4a5a"
+checksum = "402a6f66d8c709116cf22f558eab210f5a50187f702eb4d7e5ef38d9a7f1c79c"
 dependencies = [
  "indexmap 2.11.1",
  "itoa",
  "memchr",
  "ryu",
  "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -3551,11 +3565,11 @@ dependencies = [
 
 [[package]]
 name = "serde_spanned"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40734c41988f7306bb04f0ecf60ec0f3f1caa34290e4e8ea471dcd3346483b83"
+checksum = "2789234a13a53fc4be1b51ea1bab45a3c338bdb884862a257d10e5a74ae009e6"
 dependencies = [
- "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -3737,10 +3751,11 @@ dependencies = [
  "serde_yaml_ng",
  "shlex",
  "similar",
+ "strum",
  "tempfile",
  "tokio",
  "tokio-util",
- "toml 0.9.5",
+ "toml 0.9.6",
  "tracing",
  "tracing-indicatif",
  "tracing-subscriber",
@@ -4216,14 +4231,14 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.9.5"
+version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75129e1dc5000bfbaa9fee9d1b21f974f9fbad9daec557a521ee6e080825f6e8"
+checksum = "ae2a4cf385da23d1d53bc15cdfa5c2109e93d8d362393c801e87da2f72f0e201"
 dependencies = [
  "indexmap 2.11.1",
- "serde",
- "serde_spanned 1.0.0",
- "toml_datetime 0.7.0",
+ "serde_core",
+ "serde_spanned 1.0.1",
+ "toml_datetime 0.7.1",
  "toml_parser",
  "toml_writer",
  "winnow",
@@ -4240,11 +4255,11 @@ dependencies = [
 
 [[package]]
 name = "toml_datetime"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bade1c3e902f58d73d3f294cd7f20391c1cb2fbcb643b73566bc773971df91e3"
+checksum = "a197c0ec7d131bfc6f7e82c8442ba1595aeab35da7adbf05b6b73cd06a16b6be"
 dependencies = [
- "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -4718,18 +4733,18 @@ checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
 
 [[package]]
 name = "wasi"
-version = "0.14.5+wasi-0.2.4"
+version = "0.14.6+wasi-0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4494f6290a82f5fe584817a676a34b9d6763e8d9d18204009fb31dceca98fd4"
+checksum = "7f71243a3f320c00a8459e455c046ce571229c2f31fd11645d9dc095e3068ca0"
 dependencies = [
  "wasip2",
 ]
 
 [[package]]
 name = "wasip2"
-version = "1.0.0+wasi-0.2.4"
+version = "1.0.1+wasi-0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03fa2761397e5bd52002cd7e73110c71af2109aca4e521a9f40473fe685b0a24"
+checksum = "0562428422c63773dad2c345a1882263bbf4d65cf3f42e90921f787ef5ad58e7"
 dependencies = [
  "wit-bindgen",
 ]
@@ -4828,7 +4843,7 @@ dependencies = [
 [[package]]
 name = "wdl"
 version = "0.17.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#fe924afc82a67f63c65f2c99bd9eeba5540b09e0"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4845,7 +4860,7 @@ dependencies = [
 [[package]]
 name = "wdl-analysis"
 version = "0.12.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#fe924afc82a67f63c65f2c99bd9eeba5540b09e0"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4874,7 +4889,7 @@ dependencies = [
 [[package]]
 name = "wdl-ast"
 version = "0.16.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#fe924afc82a67f63c65f2c99bd9eeba5540b09e0"
 dependencies = [
  "macropol",
  "paste",
@@ -4887,7 +4902,7 @@ dependencies = [
 [[package]]
 name = "wdl-cli"
 version = "0.5.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#fe924afc82a67f63c65f2c99bd9eeba5540b09e0"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4915,7 +4930,7 @@ dependencies = [
 [[package]]
 name = "wdl-doc"
 version = "0.7.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#fe924afc82a67f63c65f2c99bd9eeba5540b09e0"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4934,7 +4949,7 @@ dependencies = [
 [[package]]
 name = "wdl-engine"
 version = "0.7.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#fe924afc82a67f63c65f2c99bd9eeba5540b09e0"
 dependencies = [
  "anyhow",
  "bimap",
@@ -4976,7 +4991,7 @@ dependencies = [
 [[package]]
 name = "wdl-format"
 version = "0.10.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#fe924afc82a67f63c65f2c99bd9eeba5540b09e0"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4985,7 +5000,7 @@ dependencies = [
 [[package]]
 name = "wdl-grammar"
 version = "0.16.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#fe924afc82a67f63c65f2c99bd9eeba5540b09e0"
 dependencies = [
  "codespan-reporting",
  "logos",
@@ -4998,7 +5013,7 @@ dependencies = [
 [[package]]
 name = "wdl-lint"
 version = "0.15.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#fe924afc82a67f63c65f2c99bd9eeba5540b09e0"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -5009,6 +5024,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strsim 0.11.1",
+ "strum",
  "tracing",
  "url",
  "wdl-analysis",
@@ -5018,7 +5034,7 @@ dependencies = [
 [[package]]
 name = "wdl-lsp"
 version = "0.12.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#2313e0fda61ceffc76ddeabf078f2748588b63e6"
+source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#fe924afc82a67f63c65f2c99bd9eeba5540b09e0"
 dependencies = [
  "anyhow",
  "indexmap 2.11.1",
@@ -5454,9 +5470,9 @@ dependencies = [
 
 [[package]]
 name = "wit-bindgen"
-version = "0.45.1"
+version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c573471f125075647d03df72e026074b7203790d41351cd6edc96f46bcccd36"
+checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
 
 [[package]]
 name = "writeable"
@@ -5497,9 +5513,9 @@ checksum = "fdd20c5420375476fbd4394763288da7eb0cc0b8c11deed431a91562af7335d3"
 
 [[package]]
 name = "yaml-rust2"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ce2a4ff45552406d02501cea6c18d8a7e50228e7736a872951fe2fe75c91be7"
+checksum = "2462ea039c445496d8793d052e13787f2b90e750b833afee748e601c17621ed9"
 dependencies = [
  "arraydeque",
  "encoding_rs",

@@ -4,6 +4,7 @@ use std::io::IsTerminal;
 use std::io::stderr;
 use std::path::PathBuf;
 
+use anyhow::Context;
 use clap::CommandFactory;
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;
@@ -73,6 +74,9 @@ pub async fn inner() -> anyhow::Result<()> {
     };
 
     let config = Config::new(cli.config.as_deref(), cli.skip_config_search)?;
+    config
+        .validate()
+        .with_context(|| "validating provided configuration")?;
 
     // Write effective configuration to the log
     trace!(
