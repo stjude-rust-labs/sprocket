@@ -1,0 +1,40 @@
+[format]
+with_tabs = false
+indentation_size = 4
+max_line_length = 90
+
+[check]
+except = []
+deny_warnings = false
+deny_notes = false
+hide_notes = false
+all_lint_rules = false
+only_lint_tags = []
+filter_lint_tags = []
+
+[analyzer]
+lint = false
+except = []
+
+[run]
+suppress_env_specific_output = false
+runs_dir = "runs"
+
+[run.http]
+
+[run.workflow.scatter]
+
+[run.task]
+cpu_limit_behavior = "deny"
+memory_limit_behavior = "deny"
+
+[run.storage.azure]
+
+[run.storage.s3]
+
+[run.storage.google]
+
+[common]
+color = true
+report_mode = "Full"
+

@@ -1,0 +1,10 @@
+Displays the current configuration
+
+Usage: sprocket config resolve [OPTIONS]
+
+Options:
+      --unredact    Unredacts any redacted secrets in the configuration
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+  -V, --version     Print version

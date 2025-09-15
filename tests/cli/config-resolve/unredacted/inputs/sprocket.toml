@@ -1,0 +1,29 @@
+[run]
+backend = "first"
+
+[run.backends.first]
+type = "tes"
+
+[run.backends.first.auth]
+type = "basic"
+username = "foo"
+password = "secret!"
+
+[run.backends.second]
+type = "tes"
+
+[run.backends.second.auth]
+type = "bearer"
+token = "secret!"
+
+[run.storage.azure.auth.account]
+foo = "secret!"
+baz = "secret!"
+
+[run.storage.s3.auth]
+access_key_id = "foo"
+secret_access_key = "secret!"
+
+[run.storage.google.auth]
+access_key = "foo"
+secret = "secret!"
