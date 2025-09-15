@@ -43,7 +43,7 @@ tracing-indicatif = "0.3.12"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 url = "2.5.4"
 walkdir = "2.5.0"
-wdl = { version = "0.17.0", features = ["cli", "codespan", "engine", "lsp", "doc"], git = "https://github.com/stjude-rust-labs/wdl", branch = "main" }
+wdl = { version = "0.18.0", features = ["cli", "codespan", "engine", "lsp", "doc"] }
 
 [dev-dependencies]
 shlex = "1.3.0"
