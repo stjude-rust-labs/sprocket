@@ -8,6 +8,9 @@ except = []
 deny_warnings = false
 deny_notes = false
 hide_notes = false
+all_lint_rules = false
+only_lint_tags = []
+filter_lint_tags = []
 
 [analyzer]
 lint = false

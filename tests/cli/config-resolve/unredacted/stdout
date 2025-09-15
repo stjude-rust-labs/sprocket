@@ -8,6 +8,9 @@ except = []
 deny_warnings = false
 deny_notes = false
 hide_notes = false
+all_lint_rules = false
+only_lint_tags = []
+filter_lint_tags = []
 
 [analyzer]
 lint = false
@@ -26,14 +29,6 @@ runs_dir = "runs"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 
-[run.backends.second]
-type = "tes"
-insecure = false
-
-[run.backends.second.auth]
-type = "bearer"
-token = "secret!"
-
 [run.backends.first]
 type = "tes"
 insecure = false
@@ -42,6 +37,14 @@ insecure = false
 type = "basic"
 username = "foo"
 password = "secret!"
+
+[run.backends.second]
+type = "tes"
+insecure = false
+
+[run.backends.second.auth]
+type = "bearer"
+token = "secret!"
 
 [run.storage.azure.auth.account]
 baz = "secret!"
