@@ -20,19 +20,31 @@ pub enum ConfigSubcommand {
     Init,
 
     /// Displays the current configuration.
-    Resolve,
+    Resolve(ResolveArgs),
+}
+
+/// Arguments for the `config resolve` subcommand.
+#[derive(Parser, Debug, Clone)]
+pub struct ResolveArgs {
+    /// Unredacts any redacted secrets in the configuration.
+    #[clap(long)]
+    unredact: bool,
 }
 
 /// Runs the `config` command.
-pub fn config(args: Args, config: Config) -> anyhow::Result<()> {
-    if let ConfigSubcommand::Init = args.command {
-        let default_config = Config::default();
-        println!(
-            "{}",
-            toml::to_string_pretty(&default_config).unwrap_or_default()
-        );
-    } else {
-        println!("{}", toml::to_string_pretty(&config).unwrap_or_default());
-    }
+pub fn config(args: Args, mut config: Config) -> anyhow::Result<()> {
+    let config = match args.command {
+        ConfigSubcommand::Init => Config::default(),
+        ConfigSubcommand::Resolve(args) => {
+            // Unredact any secrets if requested to
+            if args.unredact {
+                config.run.engine.unredact();
+            }
+
+            config
+        }
+    };
+
+    println!("{}", toml::to_string_pretty(&config).unwrap_or_default());
     Ok(())
 }
