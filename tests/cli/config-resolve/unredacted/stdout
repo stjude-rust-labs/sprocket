@@ -1,0 +1,61 @@
+[format]
+with_tabs = false
+indentation_size = 4
+max_line_length = 90
+
+[check]
+except = []
+deny_warnings = false
+deny_notes = false
+hide_notes = false
+
+[analyzer]
+lint = false
+except = []
+
+[run]
+backend = "first"
+suppress_env_specific_output = false
+runs_dir = "runs"
+
+[run.http]
+
+[run.workflow.scatter]
+
+[run.task]
+cpu_limit_behavior = "deny"
+memory_limit_behavior = "deny"
+
+[run.backends.second]
+type = "tes"
+insecure = false
+
+[run.backends.second.auth]
+type = "bearer"
+token = "secret!"
+
+[run.backends.first]
+type = "tes"
+insecure = false
+
+[run.backends.first.auth]
+type = "basic"
+username = "foo"
+password = "secret!"
+
+[run.storage.azure.auth.account]
+baz = "secret!"
+foo = "secret!"
+
+[run.storage.s3.auth]
+access_key_id = "foo"
+secret_access_key = "secret!"
+
+[run.storage.google.auth]
+access_key = "foo"
+secret = "secret!"
+
+[common]
+color = true
+report_mode = "Full"
+
