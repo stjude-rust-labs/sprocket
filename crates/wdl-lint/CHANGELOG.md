@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* New `Tag::Documentation` ([#592](https://github.com/stjude-rust-labs/wdl/pull/592)).
+
 #### Fixed
 
 * The `LineWidth` lint rule now ignores import statements ([#590](https://github.com/stjude-rust-labs/wdl/pull/590)).
+
+#### Changed
+
+* Some lint rules had their `tags()` modified ([#592](https://github.com/stjude-rust-labs/wdl/pull/592)).
+* `TagSet::new()` now allows empty TagSets to be created ([#592](https://github.com/stjude-rust-labs/wdl/pull/592)).
+* `TagSet::new()` no longer implicitly adds `Tag::Style` to sets including `Tag::Naming` or `Tag::Spacing` ([#592](https://github.com/stjude-rust-labs/wdl/pull/592)).
 
 ## 0.15.0 - 08-13-2025
 

@@ -52,12 +52,12 @@ impl Rule for ImportSortedRule {
     fn explanation(&self) -> &'static str {
         "Imports should be sorted lexicographically to make it easier to find specific imports. \
          This rule ensures that imports are sorted in a consistent manner. Specifically, the \
-         desired sort can be acheived with a GNU compliant `sort` and `LC_COLLATE=C`. No comments \
+         desired sort can be achieved with a GNU compliant `sort` and `LC_COLLATE=C`. No comments \
          are permitted within an import statement."
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Sorting])
+        TagSet::new(&[Tag::Sorting])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

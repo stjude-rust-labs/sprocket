@@ -115,7 +115,7 @@ impl Rule for ParameterMetaMatchedRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Completeness, Tag::Sorting])
+        TagSet::new(&[Tag::Completeness, Tag::Sorting, Tag::Documentation])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

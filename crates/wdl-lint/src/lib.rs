@@ -78,7 +78,7 @@ pub trait Rule: Visitor {
     fn related_rules(&self) -> &[&'static str];
 }
 
-/// Gets the default rule set.
+/// Gets all of the lint rules.
 pub fn rules() -> Vec<Box<dyn Rule>> {
     let rules: Vec<Box<dyn Rule>> = vec![
         Box::<rules::DoubleQuotesRule>::default(),

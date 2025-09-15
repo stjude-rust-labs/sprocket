@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `Analysis` had its `lint()` method replaced with `enabled_lint_tags()` and `disabled_lint_tags()` ([#592](https://github.com/stjude-rust-labs/wdl/pull/592)).
+
 #### Fixed
 
 * Command-line parsing of key-value pairs can now accept any special characters other than square brackets or curly braces ([#596](https://github.com/stjude-rust-labs/wdl/pull/596)).

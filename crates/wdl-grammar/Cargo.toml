@@ -19,7 +19,7 @@ logos = { workspace = true }
 rowan = { workspace = true }
 serde = { workspace = true }
 serde_with = { workspace = true }
-strum = { version = "0.27", features = ["derive"] }
+strum = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

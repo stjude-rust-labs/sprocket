@@ -236,7 +236,7 @@ impl Rule for ShellCheckRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Correctness, Tag::Portability])
+        TagSet::new(&[Tag::Correctness])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

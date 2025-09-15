@@ -66,8 +66,7 @@ impl Rule for KnownRulesRule {
     }
 
     fn tags(&self) -> TagSet {
-        // TODO: Is there another tag that would be appropriate?
-        TagSet::new(&[Tag::Clarity])
+        TagSet::new(&[Tag::Clarity, Tag::Correctness])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {

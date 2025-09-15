@@ -59,7 +59,7 @@ impl Rule for EndingNewlineRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Spacing, Tag::Style])
+        TagSet::new(&[Tag::Spacing, Tag::Portability])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

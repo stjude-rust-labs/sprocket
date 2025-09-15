@@ -58,7 +58,7 @@ impl Rule for ConsistentNewlinesRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Style, Tag::Clarity])
+        TagSet::new(&[Tag::Portability, Tag::Clarity, Tag::Spacing])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

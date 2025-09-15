@@ -145,7 +145,7 @@ impl Rule for PreambleFormattedRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Spacing, Tag::Style, Tag::Clarity])
+        TagSet::new(&[Tag::Spacing, Tag::Style])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

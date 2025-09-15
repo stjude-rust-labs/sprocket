@@ -65,7 +65,7 @@ impl Rule for MetaDescriptionRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Completeness])
+        TagSet::new(&[Tag::Completeness, Tag::Documentation])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
