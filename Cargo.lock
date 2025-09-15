@@ -4842,8 +4842,9 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.17.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#4bb8ac7e65e58e2fc1764d85b74e4e2b51ea2e22"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa399b085c80750715dba11fd9282f709c9259e63ad616dd9b21ac76206c77ef"
 dependencies = [
  "codespan-reporting",
  "wdl-analysis",
@@ -4859,8 +4860,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-analysis"
-version = "0.12.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#4bb8ac7e65e58e2fc1764d85b74e4e2b51ea2e22"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5de3d02cee912ee5dacb4160d01684e60c87687c6248ab2efdf1b2690afce381"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -4888,8 +4890,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-ast"
-version = "0.16.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#4bb8ac7e65e58e2fc1764d85b74e4e2b51ea2e22"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a65502ab0a48cc32c75ac832cb1c98ba2a5154a4e786cbf3924b495c909955c"
 dependencies = [
  "macropol",
  "paste",
@@ -4901,8 +4904,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-cli"
-version = "0.5.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#4bb8ac7e65e58e2fc1764d85b74e4e2b51ea2e22"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3ed7c256a8b81e94280d9e19c63f759af0daf6b578726ce79b4d04718e83ace"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4929,8 +4933,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-doc"
-version = "0.7.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#4bb8ac7e65e58e2fc1764d85b74e4e2b51ea2e22"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa84cb9efaa91057ca7a0e64f7dfeeda315fb3af349497f21d4f348d3b725cc0"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4948,8 +4953,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-engine"
-version = "0.7.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#4bb8ac7e65e58e2fc1764d85b74e4e2b51ea2e22"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "933a44fb7f91acfedd53bcee66c43e5ba7fb5a5159e2dae8d38837ac271f4a37"
 dependencies = [
  "anyhow",
  "bimap",
@@ -4990,8 +4996,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-format"
-version = "0.10.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#4bb8ac7e65e58e2fc1764d85b74e4e2b51ea2e22"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c16d10dd606ec4efb53aa3835ce55e6de6131653f6a9f4e4211c930315931370"
 dependencies = [
  "nonempty",
  "wdl-ast",
@@ -4999,8 +5006,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-grammar"
-version = "0.16.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#4bb8ac7e65e58e2fc1764d85b74e4e2b51ea2e22"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8adfcc3300075907ca71b633f2367ff165efd5d17900aa158fd11fb23c13b9a"
 dependencies = [
  "codespan-reporting",
  "logos",
@@ -5012,8 +5020,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-lint"
-version = "0.15.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#4bb8ac7e65e58e2fc1764d85b74e4e2b51ea2e22"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e244b2c46afe74541b2fb4fa51f9b66e81ae4fc1e485ff4b384955e2b17bf554"
 dependencies = [
  "anyhow",
  "convert_case 0.8.0",
@@ -5033,8 +5042,9 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.12.0"
-source = "git+https://github.com/stjude-rust-labs/wdl?branch=main#4bb8ac7e65e58e2fc1764d85b74e4e2b51ea2e22"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39967ccfec1b8e04eb4494a02e508b5a419501036c77d6a7a5acc6a7d6d745fc"
 dependencies = [
  "anyhow",
  "indexmap 2.11.1",
