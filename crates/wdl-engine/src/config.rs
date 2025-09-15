@@ -1,7 +1,6 @@
 //! Implementation of engine configuration.
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -10,6 +9,7 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use crankshaft::events::Event;
+use indexmap::IndexMap;
 use secrecy::ExposeSecret;
 use serde::Deserialize;
 use serde::Serialize;
@@ -165,8 +165,8 @@ pub struct Config {
     ///
     /// If the collection has exactly one entry and `backend` is not specified,
     /// the singular entry will be used.
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub backends: HashMap<String, BackendConfig>,
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub backends: IndexMap<String, BackendConfig>,
     /// Storage configuration.
     #[serde(default)]
     pub storage: StorageConfig,
@@ -360,8 +360,8 @@ pub struct AzureStorageConfig {
     ///
     /// The value for the inner map is the SAS token to apply for requests to
     /// the Azure Storage container.
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub auth: HashMap<String, HashMap<String, SecretString>>,
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub auth: IndexMap<String, IndexMap<String, SecretString>>,
 }
 
 impl AzureStorageConfig {
