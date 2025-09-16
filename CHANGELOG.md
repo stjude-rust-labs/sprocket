@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.17.0 - 09-16-2025
+
 ### Added
 
 * Added `--unredact` option to `sprocket config resolve` ([#173](https://github.com/stjude-rust-labs/sprocket/pull/173)).
