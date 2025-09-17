@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.17.1 - 09-17-2025
+
 ### Fixed
 
 * Allow "bad" `SPROCKET_CONFIG` environment variables to exist, although the user will get a warning if the specified path doesn't exist ([#178](https://github.com/stjude-rust-labs/sprocket/pull/178)).
+
+### Dependencies
+
+* Bumped `wdl` dependency to latest ([#179](https://github.com/stjude-rust-labs/sprocket/pull/179)).
 
 ## 0.17.0 - 09-16-2025
 
