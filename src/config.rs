@@ -14,6 +14,7 @@ use figment::providers::Toml;
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::trace;
+use tracing::warn;
 use wdl::engine;
 
 use crate::Mode;
@@ -164,21 +165,23 @@ impl Config {
             }
 
             // If provided, check config file from environment
-            if let Ok(path) = env::var("SPROCKET_CONFIG") {
+            if let Ok(path) = env::var("SPROCKET_CONFIG")
+                && !path.is_empty()
+            {
                 let path = Path::new(&path);
                 if !path.exists() {
-                    bail!(
+                    warn!(
                         "configuration file `{path}` specified with environment variable \
                          `SPROCKET_CONFIG` does not exist",
                         path = path.display()
                     );
+                } else {
+                    trace!(
+                        "reading configuration from `{path}` via `SPROCKET_CONFIG`",
+                        path = path.display()
+                    );
+                    figment = figment.admerge(Toml::file(path));
                 }
-
-                trace!(
-                    "reading configuration from `{path}` via `SPROCKET_CONFIG`",
-                    path = path.display()
-                );
-                figment = figment.admerge(Toml::file(path));
             }
         }
 
