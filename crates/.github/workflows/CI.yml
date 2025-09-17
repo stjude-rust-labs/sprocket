@@ -71,6 +71,10 @@ jobs:
         if: runner.os == 'Linux'
       - run: docker pull ubuntu:focal
         if: runner.os == 'Linux'
+      - run: docker pull ghcr.io/multiqc/multiqc:v1.31
+        if: runner.os == 'Linux'
+      - run: docker pull alpine:latest
+        if: runner.os == 'Linux'
       - run: cargo test --all --all-features
       - run: cargo test --all-features --examples
 

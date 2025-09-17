@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -23,7 +22,6 @@ use crankshaft::engine::task::input::Contents;
 use crankshaft::engine::task::input::Type as InputType;
 use crankshaft::engine::task::output::Type as OutputType;
 use crankshaft::events::Event;
-use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
@@ -117,6 +115,22 @@ impl TaskManagerRequest for DockerTaskRequest {
                 path = work_dir.display()
             )
         })?;
+
+        // On Unix, the work directory must be group writable in case the container uses
+        // a different user/group; the Crankshaft docker backend will automatically add
+        // the current user's egid to the container
+        #[cfg(unix)]
+        {
+            use std::fs::Permissions;
+            use std::fs::set_permissions;
+            use std::os::unix::fs::PermissionsExt;
+            set_permissions(&work_dir, Permissions::from_mode(0o770)).with_context(|| {
+                format!(
+                    "failed to set permissions for work directory `{path}`",
+                    path = work_dir.display()
+                )
+            })?;
+        }
 
         // Write the evaluated command to disk
         // This is done even for remote execution so that a copy exists locally
@@ -458,48 +472,31 @@ impl TaskExecutionBackend for DockerBackend {
     }
 
     #[cfg(unix)]
-    fn cleanup<'a, 'b, 'c>(
+    fn cleanup<'a>(
         &'a self,
-        output_dir: &'b Path,
+        work_dir: &'a std::path::Path,
         token: CancellationToken,
-    ) -> Option<BoxFuture<'c, ()>>
-    where
-        'a: 'c,
-        'b: 'c,
-        Self: 'c,
-    {
-        use anyhow::anyhow;
+    ) -> Option<futures::future::BoxFuture<'a, ()>> {
         use futures::FutureExt;
+        use tracing::debug;
 
-        /// The guest path for the output directory.
-        const GUEST_OUT_DIR: &str = "/workflow_output";
-
+        /// The guest path for the work directory.
+        const GUEST_WORK_DIR: &str = "/mnt/work";
         /// Amount of CPU to reserve for the cleanup task.
         const CLEANUP_CPU: f64 = 0.1;
-
         /// Amount of memory to reserve for the cleanup task.
         const CLEANUP_MEMORY: f64 = 0.05;
 
+        assert!(work_dir.is_absolute(), "work directory should be absolute");
+
         let backend = self.inner.clone();
         let names = self.names.clone();
-        let output_path = std::path::absolute(output_dir).expect("failed to get absolute path");
-        if !output_path.is_dir() {
-            info!("output directory does not exist: skipping cleanup");
-            return None;
-        }
 
         Some(
             async move {
                 let result = async {
-                    let (uid, gid) = unsafe { (libc::getuid(), libc::getgid()) };
+                    let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
                     let ownership = format!("{uid}:{gid}");
-                    let output_mount = Input::builder()
-                        .path(GUEST_OUT_DIR)
-                        .contents(Contents::Path(output_path.clone()))
-                        .ty(InputType::Directory)
-                        // need write access
-                        .read_only(false)
-                        .build();
 
                     let name = format!(
                         "docker-backend-cleanup-{id}",
@@ -519,12 +516,17 @@ impl TaskExecutionBackend for DockerBackend {
                                 .args([
                                     "-R".to_string(),
                                     ownership.clone(),
-                                    GUEST_OUT_DIR.to_string(),
+                                    GUEST_WORK_DIR.to_string(),
                                 ])
-                                .work_dir("/")
                                 .build(),
                         ))
-                        .inputs([output_mount])
+                        .inputs([Input::builder()
+                            .path(GUEST_WORK_DIR)
+                            .contents(Contents::Path(work_dir.to_path_buf()))
+                            .ty(InputType::Directory)
+                            // need write access to chown
+                            .read_only(false)
+                            .build()])
                         .resources(
                             Resources::builder()
                                 .cpu(CLEANUP_CPU)
@@ -533,47 +535,34 @@ impl TaskExecutionBackend for DockerBackend {
                         )
                         .build();
 
-                    info!(
+                    debug!(
                         "running cleanup task `{name}` to change ownership of `{path}` to \
                          `{ownership}`",
-                        path = output_path.display(),
+                        path = work_dir.display(),
                     );
 
-                    let output_rx = backend
+                    let statuses = backend
                         .run(task, token)
-                        .map_err(|e| anyhow!("failed to submit cleanup task: {e}"))?;
-
-                    let statuses = output_rx
+                        .context("failed to submit cleanup task")?
                         .await
-                        .map_err(|e| anyhow!("failed to run cleanup task: {e}"))?;
+                        .context("failed to run cleanup task")?;
                     let status = statuses.first();
                     if status.success() {
                         Ok(())
                     } else {
                         bail!(
-                            "failed to chown output directory `{path}`",
-                            path = output_path.display()
+                            "failed to chown task work directory `{path}`",
+                            path = work_dir.display()
                         );
                     }
                 }
                 .await;
 
                 if let Err(e) = result {
-                    tracing::error!("cleanup task failed: {e:#}");
+                    tracing::error!("Docker backend cleanup failed: {e:#}");
                 }
             }
             .boxed(),
         )
-    }
-
-    #[cfg(not(unix))]
-    fn cleanup<'a, 'b, 'c>(&'a self, _: &'b Path, _: CancellationToken) -> Option<BoxFuture<'c, ()>>
-    where
-        'a: 'c,
-        'b: 'c,
-        Self: 'c,
-    {
-        tracing::debug!("cleanup task is not supported on this platform");
-        None
     }
 }

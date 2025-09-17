@@ -712,8 +712,6 @@ impl WorkflowEvaluator {
         })?;
 
         let document_path = document.path();
-        let effective_output_dir = root_dir.to_path_buf();
-
         let mut base_dir = EvaluationPath::parent_of(&document_path).with_context(|| {
             format!("document `{document_path}` does not have a parent directory")
         })?;
@@ -744,13 +742,6 @@ impl WorkflowEvaluator {
             Arc::new(id.to_string()),
         )
         .await?;
-
-        if let Some(cleanup_fut) = self
-            .backend
-            .cleanup(&effective_output_dir, state.token.clone())
-        {
-            cleanup_fut.await;
-        }
 
         let mut outputs: Outputs = state.scopes.write().await.take(Scopes::OUTPUT_INDEX).into();
         if let Some(section) = definition.output() {

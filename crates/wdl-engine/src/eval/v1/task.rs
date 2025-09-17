@@ -1067,6 +1067,18 @@ impl TaskEvaluator {
             break evaluated;
         };
 
+        // Perform backend cleanup before output evaluation
+        if let Some(cleanup) = self.backend.cleanup(
+            evaluated
+                .result
+                .work_dir
+                .as_local()
+                .expect("path should be local"),
+            self.token.clone(),
+        ) {
+            cleanup.await;
+        }
+
         // Evaluate the remaining inputs (unused), and decls, and outputs
         for index in &nodes[current..] {
             match &graph[*index] {
