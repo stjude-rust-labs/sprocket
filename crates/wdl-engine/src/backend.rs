@@ -267,7 +267,7 @@ pub trait TaskExecutionBackend: Send + Sync {
     /// Returns `None` if no cleanup is required.
     fn cleanup<'a>(
         &'a self,
-        work_dir: &'a Path,
+        work_dir: &'a EvaluationPath,
         token: CancellationToken,
     ) -> Option<BoxFuture<'a, ()>> {
         let _ = work_dir;

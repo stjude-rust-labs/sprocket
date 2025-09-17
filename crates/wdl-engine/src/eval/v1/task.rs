@@ -1068,14 +1068,10 @@ impl TaskEvaluator {
         };
 
         // Perform backend cleanup before output evaluation
-        if let Some(cleanup) = self.backend.cleanup(
-            evaluated
-                .result
-                .work_dir
-                .as_local()
-                .expect("path should be local"),
-            self.token.clone(),
-        ) {
+        if let Some(cleanup) = self
+            .backend
+            .cleanup(&evaluated.result.work_dir, self.token.clone())
+        {
             cleanup.await;
         }
 

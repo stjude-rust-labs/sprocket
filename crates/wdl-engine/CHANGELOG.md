@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fixed incorrect assertion for the TES backend ([#606](https://github.com/stjude-rust-labs/wdl/pull/606)).
 * Fixed permissions issue in the Docker backend when a container runs with a
   different user ([#605](https://github.com/stjude-rust-labs/wdl/pull/605)).
 
