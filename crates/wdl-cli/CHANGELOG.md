@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.6.1 - 09-17-2025
+
+#### Dependencies
+
+* Updated `wdl-engine` dependency to latest ([#607](https://github.com/stjude-rust-labs/wdl/pull/607)).
+
 ## 0.6.0 - 09-15-2025
 
 #### Changed

@@ -1,6 +1,6 @@
 [package]
 name = "wdl-engine"
-version = "0.8.0"
+version = "0.8.1"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
