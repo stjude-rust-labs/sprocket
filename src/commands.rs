@@ -63,6 +63,7 @@ pub enum Commands {
 
 /// Developmental and experimental commands.
 #[derive(Subcommand, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum DevCommands {
     /// Document a workspace.
     Doc(doc::Args),

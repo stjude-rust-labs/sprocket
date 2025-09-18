@@ -180,6 +180,9 @@ shlex.workspace = true
 tempfile.workspace = true
 walkdir.workspace = true
 
+[lints]
+workspace = true
+
 [[test]]
 name = "cli"
 harness = false

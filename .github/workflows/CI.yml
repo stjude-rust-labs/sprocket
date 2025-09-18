@@ -6,6 +6,9 @@ on:
       - main
   pull_request:
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   format:
     runs-on: ubuntu-latest
@@ -128,7 +131,7 @@ jobs:
       - run: git config --global core.autocrlf false
       - name: Update Rust
         run: rustup update stable && rustup default stable
-      - run: cargo --locked run --release --bin gauntlet
+      - run: cargo --locked run -p gauntlet --release --bin gauntlet
 
   arena:
     runs-on: ${{ matrix.os }}
@@ -142,7 +145,7 @@ jobs:
       - run: git config --global core.autocrlf false
       - name: Update Rust
         run: rustup update stable && rustup default stable
-      - run: cargo --locked run --release --bin gauntlet -- --arena
+      - run: cargo --locked run -p gauntlet --release --bin gauntlet -- --arena
 
   workspace-lints-enabled:
     runs-on: ubuntu-latest
@@ -173,7 +176,7 @@ jobs:
       - name: Install cargo-msrv
         run: cargo --locked binstall -y --version 0.16.0-beta.23 cargo-msrv
       - name: Verify the MSRV
-        working-directory: ./wdl
+        working-directory: ./crates/wdl
         run: cargo --locked msrv verify --output-format minimal --all-features
 
   udeps:
@@ -181,8 +184,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Update Rust
-        run: rustup update stable && rustup default stable
+        run: rustup update nightly && rustup default nightly
       - name: Install cargo-udeps
         run: cargo --locked install cargo-udeps
       - name: Ensure no unused dependencies
-        run: cargo --locked +nightly udeps
+        run: cargo --locked udeps
