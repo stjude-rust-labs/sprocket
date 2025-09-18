@@ -1,0 +1,87 @@
+RootNode@0..291
+  Comment@0..52 "## This is a test of  ..."
+  Whitespace@52..54 "\n\n"
+  VersionStatementNode@54..65
+    VersionKeyword@54..61 "version"
+    Whitespace@61..62 " "
+    Version@62..65 "1.2"
+  Whitespace@65..67 "\n\n"
+  TaskDefinitionNode@67..290
+    TaskKeyword@67..71 "task"
+    Whitespace@71..72 " "
+    Ident@72..76 "test"
+    Whitespace@76..77 " "
+    OpenBrace@77..78 "{"
+    Whitespace@78..83 "\n    "
+    RequirementsSectionNode@83..288
+      RequirementsKeyword@83..95 "requirements"
+      Whitespace@95..96 " "
+      OpenBrace@96..97 "{"
+      Whitespace@97..106 "\n        "
+      RequirementsItemNode@106..132
+        Ident@106..115 "container"
+        Colon@115..116 ":"
+        Whitespace@116..117 " "
+        LiteralStringNode@117..132
+          DoubleQuote@117..118 "\""
+          LiteralStringText@118..131 "ubuntu:latest"
+          DoubleQuote@131..132 "\""
+      Whitespace@132..141 "\n        "
+      RequirementsItemNode@141..156
+        Ident@141..147 "memory"
+        Colon@147..148 ":"
+        Whitespace@148..149 " "
+        LiteralStringNode@149..156
+          DoubleQuote@149..150 "\""
+          LiteralStringText@150..155 "2 GiB"
+          DoubleQuote@155..156 "\""
+      Whitespace@156..165 "\n        "
+      RequirementsItemNode@165..174
+        Ident@165..168 "gpu"
+        Colon@168..169 ":"
+        Whitespace@169..170 " "
+        LiteralBooleanNode@170..174
+          TrueKeyword@170..174 "true"
+      Whitespace@174..183 "\n        "
+      RequirementsItemNode@183..235
+        Ident@183..188 "disks"
+        Colon@188..189 ":"
+        Whitespace@189..190 " "
+        LiteralArrayNode@190..235
+          OpenBracket@190..191 "["
+          LiteralStringNode@191..194
+            DoubleQuote@191..192 "\""
+            LiteralStringText@192..193 "2"
+            DoubleQuote@193..194 "\""
+          Comma@194..195 ","
+          Whitespace@195..196 " "
+          LiteralStringNode@196..216
+            DoubleQuote@196..197 "\""
+            LiteralStringText@197..215 "/mnt/outputs 4 GiB"
+            DoubleQuote@215..216 "\""
+          Comma@216..217 ","
+          Whitespace@217..218 " "
+          LiteralStringNode@218..234
+            DoubleQuote@218..219 "\""
+            LiteralStringText@219..233 "/mnt/tmp 1 GiB"
+            DoubleQuote@233..234 "\""
+          CloseBracket@234..235 "]"
+      Whitespace@235..244 "\n        "
+      RequirementsItemNode@244..258
+        Ident@244..255 "max_retries"
+        Colon@255..256 ":"
+        Whitespace@256..257 " "
+        LiteralIntegerNode@257..258
+          Integer@257..258 "4"
+      Whitespace@258..267 "\n        "
+      RequirementsItemNode@267..282
+        Ident@267..279 "return_codes"
+        Colon@279..280 ":"
+        Whitespace@280..281 " "
+        LiteralIntegerNode@281..282
+          Integer@281..282 "1"
+      Whitespace@282..287 "\n    "
+      CloseBrace@287..288 "}"
+    Whitespace@288..289 "\n"
+    CloseBrace@289..290 "}"
+  Whitespace@290..291 "\n"

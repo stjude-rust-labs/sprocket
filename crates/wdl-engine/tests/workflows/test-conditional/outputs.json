@@ -1,0 +1,16 @@
+{
+  "test_conditional.j_out": 2,
+  "test_conditional.result_array": [
+    4,
+    6,
+    8,
+    10
+  ],
+  "test_conditional.maybe_result2": [
+    0,
+    4,
+    6,
+    8,
+    10
+  ]
+}

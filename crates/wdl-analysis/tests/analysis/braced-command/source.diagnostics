@@ -1,0 +1,6 @@
+error: unknown name `unknown`
+  ┌─ tests/analysis/braced-command/source.wdl:8:16
+  │
+8 │         echo ~{unknown}
+  │                ^^^^^^^
+

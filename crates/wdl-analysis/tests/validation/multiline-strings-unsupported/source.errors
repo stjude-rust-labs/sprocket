@@ -1,0 +1,12 @@
+error: use of multi-line strings requires WDL version 1.2
+   ┌─ tests/validation/multiline-strings-unsupported/source.wdl:11:14
+   │
+11 │         foo: <<< not supported! >>>
+   │              ^^^^^^^^^^^^^^^^^^^^^^
+
+error: use of multi-line strings requires WDL version 1.2
+   ┌─ tests/validation/multiline-strings-unsupported/source.wdl:14:16
+   │
+14 │     String x = <<< not supported! >>>
+   │                ^^^^^^^^^^^^^^^^^^^^^^
+

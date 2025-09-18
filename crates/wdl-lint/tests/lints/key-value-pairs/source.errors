@@ -1,0 +1,138 @@
+note[MetaKeyValueFormatting]: item should be followed by a newline
+  ┌─ tests/lints/key-value-pairs/source.wdl:8:22
+  │
+8 │         another_key: ["value1",
+  │                      ^
+  │
+  = fix: add a newline after this item
+
+note[MetaKeyValueFormatting]: incorrect indentation
+  ┌─ tests/lints/key-value-pairs/source.wdl:8:32
+  │  
+8 │           another_key: ["value1",
+  │ ╭───────────────────────────────^
+9 │ │         "value2", "value3",]
+  │ ╰────────^
+  │  
+  = fix: add 4 spaces to indentation
+
+note[MetaKeyValueFormatting]: item should be followed by a newline
+  ┌─ tests/lints/key-value-pairs/source.wdl:9:9
+  │
+9 │         "value2", "value3",]
+  │         ^^^^^^^^^
+  │
+  = fix: add a newline after this item
+
+note[MetaKeyValueFormatting]: item should be followed by a newline
+  ┌─ tests/lints/key-value-pairs/source.wdl:9:19
+  │
+9 │         "value2", "value3",]
+  │                   ^^^^^^^^^
+  │
+  = fix: add a newline after this item
+
+note[MetaKeyValueFormatting]: item should be followed by a newline
+   ┌─ tests/lints/key-value-pairs/source.wdl:10:19
+   │
+10 │         more_key: {d: "a",
+   │                   ^
+   │
+   = fix: add a newline after this item
+
+note[MetaKeyValueFormatting]: item should be followed by a newline
+   ┌─ tests/lints/key-value-pairs/source.wdl:11:13
+   │
+11 │             e: "b",}
+   │             ^^^^^^^
+   │
+   = fix: add a newline after this item
+
+note[MetaKeyValueFormatting]: item should be followed by a newline
+   ┌─ tests/lints/key-value-pairs/source.wdl:13:16
+   │
+13 │             a: {b: "c",
+   │                ^
+   │
+   = fix: add a newline after this item
+
+note[MetaKeyValueFormatting]: item should be followed by a newline
+   ┌─ tests/lints/key-value-pairs/source.wdl:14:17
+   │
+14 │                 d: "e",},
+   │                 ^^^^^^^
+   │
+   = fix: add a newline after this item
+
+note[MetaKeyValueFormatting]: incorrect indentation
+   ┌─ tests/lints/key-value-pairs/source.wdl:18:1
+   │
+18 │                 },
+   │ ^^^^^^^^^^^^^^^^
+   │
+   = fix: remove 4 spaces of indentation
+
+note[MetaKeyValueFormatting]: item should be followed by a newline
+   ┌─ tests/lints/key-value-pairs/source.wdl:19:16
+   │
+19 │             k: ["l",
+   │                ^
+   │
+   = fix: add a newline after this item
+
+note[MetaKeyValueFormatting]: item should be followed by a newline
+   ┌─ tests/lints/key-value-pairs/source.wdl:20:17
+   │
+20 │                 "m", "n",],
+   │                 ^^^^
+   │
+   = fix: add a newline after this item
+
+note[MetaKeyValueFormatting]: item should be followed by a newline
+   ┌─ tests/lints/key-value-pairs/source.wdl:20:22
+   │
+20 │                 "m", "n",],
+   │                      ^^^^
+   │
+   = fix: add a newline after this item
+
+note[MetaKeyValueFormatting]: item should be followed by a newline
+   ┌─ tests/lints/key-value-pairs/source.wdl:21:16
+   │
+21 │             o: ["p",
+   │                ^
+   │
+   = fix: add a newline after this item
+
+note[MetaKeyValueFormatting]: incorrect indentation
+   ┌─ tests/lints/key-value-pairs/source.wdl:24:1
+   │
+24 │         ],
+   │ ^^^^^^^^
+   │
+   = fix: add 4 spaces to indentation
+
+note[MetaKeyValueFormatting]: all items in an array or object should be on separate lines
+   ┌─ tests/lints/key-value-pairs/source.wdl:34:22
+   │
+34 │             choices: ["yes", "reverse", "no",]
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: put each item on a separate line
+
+note[TrailingComma]: item missing trailing comma
+   ┌─ tests/lints/key-value-pairs/source.wdl:34:46
+   │
+34 │             choices: ["yes", "reverse", "no",]
+   │                                              ^
+   │
+   = fix: add a trailing comma
+
+note[MetaKeyValueFormatting]: all items in an array or object should be on separate lines
+   ┌─ tests/lints/key-value-pairs/source.wdl:36:19
+   │
+36 │         minaqual: {description: "Skip all reads with alignment quality lower than the given minimum value", common: true,}
+   │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: put each item on a separate line
+

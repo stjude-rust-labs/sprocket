@@ -1,0 +1,9 @@
+error: invalid regular expression `[unclosed` used in function `find`: regex parse error:
+    [unclosed
+    ^
+error: unclosed character class
+   ┌─ tests/analysis/static-regex-validation/source.wdl:11:33
+   │
+11 │     String? f_invalid = find(s, "[unclosed")  # Invalid pattern. Error: unclosed character class
+   │                                 ^^^^^^^^^^^ invalid regular expression
+

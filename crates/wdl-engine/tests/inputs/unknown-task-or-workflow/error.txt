@@ -1,0 +1,4 @@
+failed to parse input file `tests/inputs/unknown-task-or-workflow/inputs.json`
+
+Caused by:
+    invalid input key `baz.foo`: a task or workflow named `baz` does not exist in the document

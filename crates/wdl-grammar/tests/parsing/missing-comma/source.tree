@@ -1,0 +1,77 @@
+RootNode@0..195
+  Comment@0..46 "# This is a test of a ..."
+  Whitespace@46..48 "\n\n"
+  VersionStatementNode@48..59
+    VersionKeyword@48..55 "version"
+    Whitespace@55..56 " "
+    Version@56..59 "1.1"
+  Whitespace@59..61 "\n\n"
+  WorkflowDefinitionNode@61..194
+    WorkflowKeyword@61..69 "workflow"
+    Whitespace@69..70 " "
+    Ident@70..74 "test"
+    Whitespace@74..75 " "
+    OpenBrace@75..76 "{"
+    Whitespace@76..81 "\n    "
+    BoundDeclNode@81..192
+      MapTypeNode@81..100
+        MapTypeKeyword@81..84 "Map"
+        OpenBracket@84..85 "["
+        PrimitiveTypeNode@85..91
+          StringTypeKeyword@85..91 "String"
+        Comma@91..92 ","
+        Whitespace@92..93 " "
+        PrimitiveTypeNode@93..99
+          StringTypeKeyword@93..99 "String"
+        CloseBracket@99..100 "]"
+      Whitespace@100..101 " "
+      Ident@101..104 "map"
+      Whitespace@104..105 " "
+      Assignment@105..106 "="
+      Whitespace@106..107 " "
+      LiteralMapNode@107..192
+        OpenBrace@107..108 "{"
+        Whitespace@108..117 "\n        "
+        LiteralMapItemNode@117..127
+          NameRefExprNode@117..120
+            Ident@117..120 "foo"
+          Colon@120..121 ":"
+          Whitespace@121..122 " "
+          LiteralStringNode@122..127
+            DoubleQuote@122..123 "\""
+            LiteralStringText@123..126 "foo"
+            DoubleQuote@126..127 "\""
+        Comma@127..128 ","
+        Whitespace@128..137 "\n        "
+        LiteralMapItemNode@137..147
+          NameRefExprNode@137..140
+            Ident@137..140 "bar"
+          Colon@140..141 ":"
+          Whitespace@141..142 " "
+          LiteralStringNode@142..147
+            DoubleQuote@142..143 "\""
+            LiteralStringText@143..146 "bar"
+            DoubleQuote@146..147 "\""
+        Whitespace@147..156 "\n        "
+        Ident@156..159 "baz"
+        Colon@159..160 ":"
+        Whitespace@160..161 " "
+        DoubleQuote@161..162 "\""
+        LiteralStringText@162..165 "baz"
+        DoubleQuote@165..166 "\""
+        Comma@166..167 ","
+        Whitespace@167..176 "\n        "
+        LiteralMapItemNode@176..186
+          NameRefExprNode@176..179
+            Ident@176..179 "qux"
+          Colon@179..180 ":"
+          Whitespace@180..181 " "
+          LiteralStringNode@181..186
+            DoubleQuote@181..182 "\""
+            LiteralStringText@182..185 "qux"
+            DoubleQuote@185..186 "\""
+        Whitespace@186..191 "\n    "
+        CloseBrace@191..192 "}"
+    Whitespace@192..193 "\n"
+    CloseBrace@193..194 "}"
+  Whitespace@194..195 "\n"

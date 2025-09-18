@@ -1,0 +1,9 @@
+error: expected `}`, but found end of input
+  ┌─ tests/parsing/mismatched-brace/source.wdl:8:1
+  │
+5 │ task test {
+  │           - this `{` is not matched
+  ·
+8 │ 
+  │ ^ unexpected end of input
+

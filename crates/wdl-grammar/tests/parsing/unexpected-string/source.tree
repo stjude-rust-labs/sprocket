@@ -1,0 +1,35 @@
+RootNode@0..138
+  Comment@0..62 "## This is a test of  ..."
+  Whitespace@62..64 "\n\n"
+  VersionStatementNode@64..75
+    VersionKeyword@64..71 "version"
+    Whitespace@71..72 " "
+    Version@72..75 "1.1"
+  Whitespace@75..77 "\n\n"
+  WorkflowDefinitionNode@77..137
+    WorkflowKeyword@77..85 "workflow"
+    Whitespace@85..86 " "
+    Ident@86..90 "test"
+    Whitespace@90..91 " "
+    OpenBrace@91..92 "{"
+    Whitespace@92..97 "\n    "
+    DoubleQuote@97..98 "\""
+    LiteralStringText@98..103 "this "
+    PlaceholderNode@103..119
+      PlaceholderOpen@103..105 "${"
+      LiteralStringNode@105..118
+        SingleQuote@105..106 "'"
+        PlaceholderNode@106..117
+          PlaceholderOpen@106..108 "~{"
+          LiteralStringNode@108..116
+            DoubleQuote@108..109 "\""
+            LiteralStringText@109..115 "string"
+            DoubleQuote@115..116 "\""
+          CloseBrace@116..117 "}"
+        SingleQuote@117..118 "'"
+      CloseBrace@118..119 "}"
+    LiteralStringText@119..134 " is unexpected!"
+    DoubleQuote@134..135 "\""
+    Whitespace@135..136 "\n"
+    CloseBrace@136..137 "}"
+  Whitespace@137..138 "\n"

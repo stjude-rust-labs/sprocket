@@ -1,0 +1,38 @@
+RootNode@0..124
+  Comment@0..46 "# This is a test of m ..."
+  Whitespace@46..48 "\n\n"
+  VersionStatementNode@48..59
+    VersionKeyword@48..55 "version"
+    Whitespace@55..56 " "
+    Version@56..59 "1.1"
+  Whitespace@59..61 "\n\n"
+  TaskDefinitionNode@61..123
+    TaskKeyword@61..65 "task"
+    Whitespace@65..66 " "
+    Ident@66..70 "test"
+    Whitespace@70..71 " "
+    OpenBrace@71..72 "{"
+    Whitespace@72..77 "\n    "
+    MetadataSectionNode@77..121
+      MetaKeyword@77..81 "meta"
+      Whitespace@81..82 " "
+      OpenBrace@82..83 "{"
+      Whitespace@83..92 "\n        "
+      Integer@92..93 "1"
+      Colon@93..94 ":"
+      Whitespace@94..95 " "
+      Integer@95..96 "1"
+      Whitespace@96..105 "\n        "
+      MetadataObjectItemNode@105..115
+        Ident@105..108 "baz"
+        Colon@108..109 ":"
+        Whitespace@109..110 " "
+        LiteralStringNode@110..115
+          DoubleQuote@110..111 "\""
+          LiteralStringText@111..114 "bar"
+          DoubleQuote@114..115 "\""
+      Whitespace@115..120 "\n    "
+      CloseBrace@120..121 "}"
+    Whitespace@121..122 "\n"
+    CloseBrace@122..123 "}"
+  Whitespace@123..124 "\n"

@@ -1,0 +1,39 @@
+note[InputSorted]: input not sorted
+   ┌─ tests/lints/input-and-parameter-meta-sorting/source.wdl:21:5
+   │
+21 │     input {
+   │     ^^^^^ input section must be sorted
+   │
+   = fix: sort input statements as: 
+     File b
+     File t
+     Directory w
+     Array[String]+ p
+     Array[String]+ q
+
+note[ParameterMetaMatched]: parameter metadata in task `input_sorting_test_2` is out of order
+   ┌─ tests/lints/input-and-parameter-meta-sorting/source.wdl:39:5
+   │
+39 │     parameter_meta {
+   │     ^^^^^^^^^^^^^^ parameter metadata must be in the same order as inputs
+   │
+   = fix: based on the current `input` order, order the parameter metadata as:
+     w
+     p
+     t
+     q
+     b
+
+note[InputSorted]: input not sorted
+   ┌─ tests/lints/input-and-parameter-meta-sorting/source.wdl:47:5
+   │
+47 │     input {
+   │     ^^^^^ input section must be sorted
+   │
+   = fix: sort input statements as: 
+     File t
+     File b
+     Directory w
+     Array[String]+ p
+     Array[String]+ q
+

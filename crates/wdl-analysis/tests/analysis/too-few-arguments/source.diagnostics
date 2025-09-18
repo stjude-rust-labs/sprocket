@@ -1,0 +1,6 @@
+error: function `sub` requires at least 3 arguments but 1 was supplied
+  ┌─ tests/analysis/too-few-arguments/source.wdl:7:16
+  │
+7 │     String x = sub("foo")
+  │                ^^^
+

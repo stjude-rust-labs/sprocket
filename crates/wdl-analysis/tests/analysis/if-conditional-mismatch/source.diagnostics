@@ -1,0 +1,6 @@
+error: type mismatch: expected `if` conditional expression to be type `Boolean`, but found type `Int`
+  ┌─ tests/analysis/if-conditional-mismatch/source.wdl:9:19
+  │
+9 │     String b = if a then "foo" else "bar"
+  │                   ^ this is type `Int`
+

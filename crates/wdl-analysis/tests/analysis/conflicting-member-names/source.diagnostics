@@ -1,0 +1,18 @@
+error: conflicting struct member name `x`
+  ┌─ tests/analysis/conflicting-member-names/source.wdl:8:9
+  │
+6 │     Int x
+  │         - the struct member with the conflicting name is here
+7 │     Int y
+8 │     Int x
+  │         ^ this struct member conflicts with a previously used name
+
+error: conflicting struct member name `y`
+  ┌─ tests/analysis/conflicting-member-names/source.wdl:9:9
+  │
+7 │     Int y
+  │         - the struct member with the conflicting name is here
+8 │     Int x
+9 │     Int y
+  │         ^ this struct member conflicts with a previously used name
+

@@ -1,0 +1,12 @@
+error: use of environment variable declarations requires WDL version 1.2
+  ┌─ tests/validation/env-vars-unsupported/source.wdl:8:9
+  │
+8 │         env String b
+  │         ^^^
+
+error: use of environment variable declarations requires WDL version 1.2
+   ┌─ tests/validation/env-vars-unsupported/source.wdl:12:5
+   │
+12 │     env String d = ""
+   │     ^^^
+

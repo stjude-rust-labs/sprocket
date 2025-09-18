@@ -1,0 +1,3 @@
+# these two commands have the same result
+printf "hello world" > result1
+printf "hello world" > result2

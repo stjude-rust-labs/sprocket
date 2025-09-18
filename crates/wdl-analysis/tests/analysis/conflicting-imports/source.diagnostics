@@ -1,0 +1,79 @@
+error: conflicting import namespace `foo`
+  ┌─ tests/analysis/conflicting-imports/source.wdl:7:8
+  │
+6 │ import "foo.wdl"                                    # First
+  │        --------- the conflicting import namespace was introduced here
+7 │ import "foo"                                        # Conflicts
+  │        ^^^^^ this conflicts with another import namespace
+  │
+  = fix: add an `as` clause to the import to specify a namespace
+
+error: import namespace is not a valid WDL identifier
+  ┌─ tests/analysis/conflicting-imports/source.wdl:8:8
+  │
+8 │ import "bad-file-name.wdl"                          # Bad name
+  │        ^^^^^^^^^^^^^^^^^^^ a namespace cannot be derived from this import path
+  │
+  = fix: add an `as` clause to the import to specify a namespace
+
+error: conflicting import namespace `baz`
+   ┌─ tests/analysis/conflicting-imports/source.wdl:12:21
+   │
+11 │ import "qux/baz.wdl"                                # First
+   │        ------------- the conflicting import namespace was introduced here
+12 │ import "Baz.wdl" as baz                             # Conflicts
+   │                     ^^^ this conflicts with another import namespace
+
+error: conflicting import namespace `baz`
+   ┌─ tests/analysis/conflicting-imports/source.wdl:13:8
+   │
+11 │ import "qux/baz.wdl"                                # First
+   │        ------------- the conflicting import namespace was introduced here
+12 │ import "Baz.wdl" as baz                             # Conflicts
+13 │ import "../conflicting-imports/qux/baz.wdl"         # Conflicts
+   │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this conflicts with another import namespace
+   │
+   = fix: add an `as` clause to the import to specify a namespace
+
+error: conflicting import namespace `md5sum`
+   ┌─ tests/analysis/conflicting-imports/source.wdl:15:8
+   │
+14 │ import "md5sum.wdl"                                 # First
+   │        ------------ the conflicting import namespace was introduced here
+15 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/efdca837bc35fe5647de6aa95989652a5a9648dc/tools/md5sum.wdl"            # Conflicts
+   │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this conflicts with another import namespace
+   │
+   = fix: add an `as` clause to the import to specify a namespace
+
+error: conflicting import namespace `md5sum`
+   ┌─ tests/analysis/conflicting-imports/source.wdl:16:8
+   │
+14 │ import "md5sum.wdl"                                 # First
+   │        ------------ the conflicting import namespace was introduced here
+15 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/efdca837bc35fe5647de6aa95989652a5a9648dc/tools/md5sum.wdl"            # Conflicts
+16 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/efdca837bc35fe5647de6aa95989652a5a9648dc/tools/md5sum.wdl#something"  # Conflicts
+   │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this conflicts with another import namespace
+   │
+   = fix: add an `as` clause to the import to specify a namespace
+
+error: conflicting import namespace `star`
+   ┌─ tests/analysis/conflicting-imports/source.wdl:18:8
+   │
+17 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/efdca837bc35fe5647de6aa95989652a5a9648dc/tools/star.wdl?query=foo" # First
+   │        --------------------------------------------------------------------------------------------------------------------------- the conflicting import namespace was introduced here
+18 │ import "star.wdl"                                   # Conflicts
+   │        ^^^^^^^^^^ this conflicts with another import namespace
+   │
+   = fix: add an `as` clause to the import to specify a namespace
+
+error: conflicting import namespace `star`
+   ┌─ tests/analysis/conflicting-imports/source.wdl:19:8
+   │
+17 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/efdca837bc35fe5647de6aa95989652a5a9648dc/tools/star.wdl?query=foo" # First
+   │        --------------------------------------------------------------------------------------------------------------------------- the conflicting import namespace was introduced here
+18 │ import "star.wdl"                                   # Conflicts
+19 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/efdca837bc35fe5647de6aa95989652a5a9648dc/tools/%73tar.wdl" # Conflicts
+   │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this conflicts with another import namespace
+   │
+   = fix: add an `as` clause to the import to specify a namespace
+

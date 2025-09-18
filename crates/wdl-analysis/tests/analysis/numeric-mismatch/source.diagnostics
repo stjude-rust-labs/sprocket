@@ -1,0 +1,213 @@
+error: type mismatch: addition operator is not supported for type `File` and type `File`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:21:15
+   │
+21 │     File a5 = d + d     # NOT OK
+   │               ^^^^^
+   │               │   │
+   │               │   this is type `File`
+   │               this is type `File`
+
+error: type mismatch: string concatenation is not supported for type `Int?`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:25:21
+   │
+25 │     String a9 = c + f   # NOT OK
+   │                     ^ this is type `Int?`
+
+error: type mismatch: string concatenation is not supported for type `String?`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:26:22
+   │
+26 │     String a10 = c + g  # NOT OK
+   │                      ^ this is type `String?`
+
+error: type mismatch: string concatenation is not supported for type `File?`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:27:22
+   │
+27 │     String a11 = c + h  # NOT OK
+   │                      ^ this is type `File?`
+
+error: type mismatch: string concatenation is not supported for type `Float?`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:28:22
+   │
+28 │     String a12 = c + i  # NOT OK
+   │                      ^ this is type `Float?`
+
+error: type mismatch: subtraction operator is not supported for type `Int` and type `String`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:42:17
+   │
+42 │     String s2 = a - c   # NOT OK
+   │                 ^^^^^
+   │                 │   │
+   │                 │   this is type `String`
+   │                 this is type `Int`
+
+error: type mismatch: subtraction operator is not supported for type `String` and type `Int`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:43:17
+   │
+43 │     String s3 = c - a   # NOT OK
+   │                 ^^^^^
+   │                 │   │
+   │                 │   this is type `Int`
+   │                 this is type `String`
+
+error: type mismatch: subtraction operator is not supported for type `String` and type `String`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:44:17
+   │
+44 │     String s4 = c - c   # NOT OK
+   │                 ^^^^^
+   │                 │   │
+   │                 │   this is type `String`
+   │                 this is type `String`
+
+error: type mismatch: subtraction operator is not supported for type `File` and type `File`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:45:15
+   │
+45 │     File s5 = d - d     # NOT OK
+   │               ^^^^^
+   │               │   │
+   │               │   this is type `File`
+   │               this is type `File`
+
+error: type mismatch: multiplication operator is not supported for type `Int` and type `String`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:51:17
+   │
+51 │     String m2 = a * c   # NOT OK
+   │                 ^^^^^
+   │                 │   │
+   │                 │   this is type `String`
+   │                 this is type `Int`
+
+error: type mismatch: multiplication operator is not supported for type `String` and type `Int`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:52:17
+   │
+52 │     String m3 = c * a   # NOT OK
+   │                 ^^^^^
+   │                 │   │
+   │                 │   this is type `Int`
+   │                 this is type `String`
+
+error: type mismatch: multiplication operator is not supported for type `String` and type `String`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:53:17
+   │
+53 │     String m4 = c * c   # NOT OK
+   │                 ^^^^^
+   │                 │   │
+   │                 │   this is type `String`
+   │                 this is type `String`
+
+error: type mismatch: multiplication operator is not supported for type `File` and type `File`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:54:15
+   │
+54 │     File m5 = d * d     # NOT OK
+   │               ^^^^^
+   │               │   │
+   │               │   this is type `File`
+   │               this is type `File`
+
+error: type mismatch: division operator is not supported for type `Int` and type `String`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:60:17
+   │
+60 │     String d2 = a / c   # NOT OK
+   │                 ^^^^^
+   │                 │   │
+   │                 │   this is type `String`
+   │                 this is type `Int`
+
+error: type mismatch: division operator is not supported for type `String` and type `Int`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:61:17
+   │
+61 │     String d3 = c / a   # NOT OK
+   │                 ^^^^^
+   │                 │   │
+   │                 │   this is type `Int`
+   │                 this is type `String`
+
+error: type mismatch: division operator is not supported for type `String` and type `String`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:62:17
+   │
+62 │     String d4 = c / c   # NOT OK
+   │                 ^^^^^
+   │                 │   │
+   │                 │   this is type `String`
+   │                 this is type `String`
+
+error: type mismatch: division operator is not supported for type `File` and type `File`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:63:15
+   │
+63 │     File d5 = d / d     # NOT OK
+   │               ^^^^^
+   │               │   │
+   │               │   this is type `File`
+   │               this is type `File`
+
+error: type mismatch: remainder operator is not supported for type `Int` and type `String`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:69:19
+   │
+69 │     String mod2 = a % c   # NOT OK
+   │                   ^^^^^
+   │                   │   │
+   │                   │   this is type `String`
+   │                   this is type `Int`
+
+error: type mismatch: remainder operator is not supported for type `String` and type `Int`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:70:19
+   │
+70 │     String mod3 = c % a   # NOT OK
+   │                   ^^^^^
+   │                   │   │
+   │                   │   this is type `Int`
+   │                   this is type `String`
+
+error: type mismatch: remainder operator is not supported for type `String` and type `String`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:71:19
+   │
+71 │     String mod4 = c % c   # NOT OK
+   │                   ^^^^^
+   │                   │   │
+   │                   │   this is type `String`
+   │                   this is type `String`
+
+error: type mismatch: remainder operator is not supported for type `File` and type `File`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:72:17
+   │
+72 │     File mod5 = d % d     # NOT OK
+   │                 ^^^^^
+   │                 │   │
+   │                 │   this is type `File`
+   │                 this is type `File`
+
+error: type mismatch: exponentiation operator is not supported for type `Int` and type `String`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:78:17
+   │
+78 │     String e2 = a ** c   # NOT OK
+   │                 ^^^^^^
+   │                 │    │
+   │                 │    this is type `String`
+   │                 this is type `Int`
+
+error: type mismatch: exponentiation operator is not supported for type `String` and type `Int`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:79:17
+   │
+79 │     String e3 = c ** a   # NOT OK
+   │                 ^^^^^^
+   │                 │    │
+   │                 │    this is type `Int`
+   │                 this is type `String`
+
+error: type mismatch: exponentiation operator is not supported for type `String` and type `String`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:80:17
+   │
+80 │     String e4 = c ** c   # NOT OK
+   │                 ^^^^^^
+   │                 │    │
+   │                 │    this is type `String`
+   │                 this is type `String`
+
+error: type mismatch: exponentiation operator is not supported for type `File` and type `File`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:81:15
+   │
+81 │     File e5 = d ** d     # NOT OK
+   │               ^^^^^^
+   │               │    │
+   │               │    this is type `File`
+   │               this is type `File`
+

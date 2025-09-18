@@ -1,0 +1,24 @@
+error: expected type, but found `env` keyword
+   ┌─ tests/parsing/env-vars/source.wdl:12:9
+   │
+12 │         env String d = ""
+   │         ^^^ unexpected `env` keyword
+
+error: expected type, but found `env` keyword
+   ┌─ tests/parsing/env-vars/source.wdl:19:9
+   │
+19 │         env String f
+   │         ^^^ unexpected `env` keyword
+
+error: expected input section, output section, runtime section, metadata section, parameter metadata section, conditional statement, scatter statement, call statement, or private declaration, but found `env` keyword
+   ┌─ tests/parsing/env-vars/source.wdl:22:5
+   │
+22 │     env String g = ""
+   │     ^^^ unexpected `env` keyword
+
+error: expected type, but found `env` keyword
+   ┌─ tests/parsing/env-vars/source.wdl:25:9
+   │
+25 │         env String h = ""
+   │         ^^^ unexpected `env` keyword
+

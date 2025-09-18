@@ -1,0 +1,2 @@
+workflow test {
+}

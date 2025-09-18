@@ -1,0 +1,21 @@
+error: an unknown token was encountered
+  ┌─ tests/parsing/struct-recovery/source.wdl:6:5
+  │
+6 │     ; # Unknown token
+  │     ^ this is not a supported WDL token
+
+error: expected metadata section, parameter metadata section, or struct member declaration, but found `?`
+  ┌─ tests/parsing/struct-recovery/source.wdl:8:5
+  │
+8 │     ?  # Unexpected token
+  │     ^ unexpected `?`
+
+error: expected `}`, but found `struct` keyword
+   ┌─ tests/parsing/struct-recovery/source.wdl:12:1
+   │
+ 5 │ struct MyStruct {
+   │                 - this `{` is not matched
+   ·
+12 │ struct Foo {
+   │ ^^^^^^ unexpected `struct` keyword
+

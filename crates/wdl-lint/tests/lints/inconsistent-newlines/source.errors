@@ -1,0 +1,10 @@
+note[ConsistentNewlines]: inconsistent line endings detected
+  ┌─ tests/lints/inconsistent-newlines/source.wdl:5:12
+  │  
+5 │   version 1.1
+  │ ╭───────────^
+6 │ │ 
+  │ ╰^ the first occurrence of a mismatched line ending is here
+  │  
+  = fix: ensure that the same line endings (e.g., `/n` or `/r/n`) are used throughout the file
+

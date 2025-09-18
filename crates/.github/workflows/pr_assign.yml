@@ -1,0 +1,38 @@
+name: 'Auto Assign'
+on:
+  pull_request_target:
+    types: [opened, ready_for_review]
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  add-assignee:
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write
+    env:
+      PR_NUMBER: ${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add assignee
+        run: |
+          # Get the PR author
+          # Skip if the author is a bot
+          author=$(gh pr view $PR_NUMBER --json author --jq 'select(.author.is_bot == false) | .author.login')
+          # Check if the author is not empty
+          if [ -n "$author" ]; then
+            # Add the author as an assignee
+            echo "adding $author as author of PR #$PR_NUMBER"
+            gh api /repos/${{ github.repository }}/issues/$PR_NUMBER/assignees \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              -f assignees[]="$author" || true
+          else
+            echo "No valid author found."
+          fi

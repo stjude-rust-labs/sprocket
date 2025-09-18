@@ -1,0 +1,16 @@
+{
+    "greet_person.person": {
+        "name": {
+            "first": "Richard",
+            "last": "Rich"
+        },
+        "age": 14,
+        "income": {
+            "amount": 1000000,
+            "period": "annually"
+        },
+        "assay_data": {
+            "wealthitis": "hello.txt"
+        }
+    }
+}

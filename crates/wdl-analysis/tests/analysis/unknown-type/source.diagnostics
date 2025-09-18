@@ -1,0 +1,6 @@
+error: unknown type name `Bar`
+  ┌─ tests/analysis/unknown-type/source.wdl:9:5
+  │
+9 │     Bar bar
+  │     ^^^
+

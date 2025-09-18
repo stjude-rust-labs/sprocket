@@ -1,0 +1,6 @@
+error: type mismatch: argument to function `sub` expects type `String`, but found type `Int`
+  ┌─ tests/analysis/argument-type-mismatch/source.wdl:7:27
+  │
+7 │     String x = sub("foo", 1, "bar")
+  │                           ^ this is type `Int`
+

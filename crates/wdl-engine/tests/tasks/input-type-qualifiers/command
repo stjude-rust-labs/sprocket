@@ -1,0 +1,4 @@
+cat 'tmp0' >> result
+cat 'tmp1' >> result
+
+cat 'tmp2' >> result

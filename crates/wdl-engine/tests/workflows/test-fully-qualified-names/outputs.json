@@ -1,0 +1,9 @@
+{
+  "main.echo_results": "hello",
+  "main.foobar_results": 1,
+  "main.echo_array": [
+    "a",
+    "b",
+    "c"
+  ]
+}

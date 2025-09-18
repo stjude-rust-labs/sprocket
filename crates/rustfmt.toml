@@ -1,0 +1,15 @@
+# Unstable settings
+condense_wildcard_suffixes = true
+format_code_in_doc_comments = true
+format_macro_matchers = true
+format_strings = true
+group_imports = "StdExternalCrate"
+hex_literal_case = "Upper"
+imports_granularity = "Item"
+newline_style = "Unix"
+normalize_comments = true
+normalize_doc_attributes = true
+reorder_impl_items = true
+style_edition = "2024"
+use_field_init_shorthand = true
+wrap_comments = true

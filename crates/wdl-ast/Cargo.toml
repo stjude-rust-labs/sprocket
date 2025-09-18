@@ -1,0 +1,32 @@
+[package]
+name = "wdl-ast"
+version = "0.17.0"
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "An abstract syntax tree for Workflow Description Language (WDL) documents"
+homepage = "https://github.com/stjude-rust-labs/wdl"
+repository = "https://github.com/stjude-rust-labs/wdl"
+documentation = "https://docs.rs/wdl-ast"
+
+[features]
+codespan = ["wdl-grammar/codespan"]
+
+[dependencies]
+macropol = { workspace = true }
+paste = { workspace = true }
+rowan = { workspace = true }
+url = { workspace = true }
+urlencoding = { workspace = true }
+wdl-grammar = { path = "../wdl-grammar", version = "0.17.0" }
+
+[dev-dependencies]
+approx = { workspace = true }
+codespan-reporting = { workspace = true }
+colored = { workspace = true }
+pretty_assertions = { workspace = true }
+rayon = { workspace = true }
+
+[lints]
+workspace = true

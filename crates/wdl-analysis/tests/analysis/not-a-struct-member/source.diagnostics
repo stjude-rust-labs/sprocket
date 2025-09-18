@@ -1,0 +1,12 @@
+error: struct `Foo` does not have a member named `y`
+   ┌─ tests/analysis/not-a-struct-member/source.wdl:11:25
+   │
+11 │     Foo a = Foo { x: 1, y: "2" }
+   │                         ^
+
+error: struct `Foo` does not have a member named `y`
+   ┌─ tests/analysis/not-a-struct-member/source.wdl:12:18
+   │
+12 │     String b = a.y
+   │                  ^
+

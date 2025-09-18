@@ -1,0 +1,15 @@
+error: unsupported WDL version `2.0`
+  ┌─ tests/analysis/import-incompatible-versions/foo.wdl:1:9
+  │
+1 │ version 2.0
+  │         ^^^ this version of WDL is not supported
+
+error: imported document has incompatible version
+  ┌─ tests/analysis/import-incompatible-versions/source.wdl:5:8
+  │
+3 │ version 1.0
+  │         --- the importing document is version `1.0`
+4 │ 
+5 │ import "foo.wdl"
+  │        ^^^^^^^^^ the imported document is version `2.0`
+

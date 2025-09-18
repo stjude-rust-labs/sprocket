@@ -1,0 +1,94 @@
+note[PreambleFormatted]: expected exactly one blank line between lint directives and preamble comments
+  ┌─ tests/lints/only-whitespace/source.wdl:1:27
+  │  
+1 │   #@ except: Foo, KnownRules
+  │ ╭──────────────────────────^
+2 │ │      
+  │ │ -----
+3 │ │ ## The above line has extra whitespace
+  │ ╰^
+  │  
+  = fix: add a blank line between any lint directives and preamble comments
+
+note[VersionStatementFormatted]: expected exactly one blank line between the last comment and the version statement
+  ┌─ tests/lints/only-whitespace/source.wdl:5:28
+  │  
+5 │   ## The next line has spaces
+  │ ╭───────────────────────────^
+6 │ │           
+  │ │ ----------
+7 │ │ version 1.1
+  │ ╰^
+  │  
+  = fix: ensure there is exactly one blank line between the last comment and the version statement
+
+note[Whitespace]: line contains only whitespace
+   ┌─ tests/lints/only-whitespace/source.wdl:10:1
+   │
+10 │     
+   │ ^^^^
+   │
+   = fix: remove the whitespace
+
+note[Whitespace]: more than one blank line in a row
+   ┌─ tests/lints/only-whitespace/source.wdl:11:45
+   │  
+11 │   # The next has multiple blank lines in a row
+   │ ╭────────────────────────────────────────────^
+12 │ │ 
+13 │ │           
+14 │ │ 
+15 │ │ 
+16 │ │ workflow test {    
+   │ ╰^
+   │  
+   = fix: remove the extra blank lines
+
+note[Whitespace]: line contains only whitespace
+   ┌─ tests/lints/only-whitespace/source.wdl:13:1
+   │
+13 │           
+   │ ^^^^^^^^^^
+   │
+   = fix: remove the whitespace
+
+note[Whitespace]: line contains trailing whitespace
+   ┌─ tests/lints/only-whitespace/source.wdl:16:16
+   │
+16 │ workflow test {    
+   │                ^^^^
+   │
+   = fix: remove the trailing whitespace
+
+note[Whitespace]: line contains trailing whitespace
+   ┌─ tests/lints/only-whitespace/source.wdl:18:31
+   │
+18 │     #@ except: MetaDescription        
+   │                               ^^^^^^^^
+   │
+   = fix: remove the trailing whitespace
+
+note[Whitespace]: line contains only whitespace
+   ┌─ tests/lints/only-whitespace/source.wdl:20:1
+   │
+20 │     
+   │ ^^^^
+   │
+   = fix: remove the whitespace
+
+note[Whitespace]: line contains trailing whitespace
+   ┌─ tests/lints/only-whitespace/source.wdl:23:18
+   │
+23 │     String x = ""           
+   │                  ^^^^^^^^^^^
+   │
+   = fix: remove the trailing whitespace
+
+note[Whitespace]: line contains only whitespace
+   ┌─ tests/lints/only-whitespace/source.wdl:27:1
+   │
+27 │      
+   │ ^^^^^
+   │
+   = fix: remove the whitespace
+

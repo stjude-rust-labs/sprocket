@@ -1,0 +1,12 @@
+error: expected scatter variable name, but found `)`
+  ┌─ tests/parsing/empty-scatter/source.wdl:6:14
+  │
+6 │     scatter () {
+  │              ^ unexpected `)`
+
+error: expected import statement, struct definition, task definition, or workflow definition, but found `}`
+  ┌─ tests/parsing/empty-scatter/source.wdl:8:1
+  │
+8 │ }
+  │ ^ unexpected `}`
+

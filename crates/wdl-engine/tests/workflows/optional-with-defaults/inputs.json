@@ -1,0 +1,4 @@
+{
+  "optional_with_default.name": "John",
+  "optional_with_default.use_salutation": false
+}
