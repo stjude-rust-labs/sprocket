@@ -25,6 +25,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - run: cargo --locked run --release --bin ci -- bump --crates-to-bump ${{ inputs.crate }}

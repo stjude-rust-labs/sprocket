@@ -793,8 +793,6 @@ dependencies = [
 [[package]]
 name = "crankshaft"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "568ff142423c56bc11d5ba62a9b7fe5ae43f762cdb4c4f01003db969ec8712b9"
 dependencies = [
  "crankshaft-config",
  "crankshaft-docker",
@@ -805,8 +803,6 @@ dependencies = [
 [[package]]
 name = "crankshaft-config"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eaca97d5e1466774125ea134ca03d350e408a3441b620cb8792b13caf1f14b43"
 dependencies = [
  "base64 0.22.1",
  "bon",
@@ -821,8 +817,6 @@ dependencies = [
 [[package]]
 name = "crankshaft-docker"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14d22ff062f5b501771ce836d273f1dea83b8a71fd95bd3832d4f24b6e92f052"
 dependencies = [
  "anyhow",
  "bollard",
@@ -842,8 +836,6 @@ dependencies = [
 [[package]]
 name = "crankshaft-engine"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2b3d75e725f159303a9afb41ee51eea6a415a4436f10d5746d02ed419f45cb8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -878,8 +870,6 @@ dependencies = [
 [[package]]
 name = "crankshaft-events"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a91580ed9689970b2ac77dd6bed52277d6c2af688ff79a3641e24acc99236030"
 dependencies = [
  "bytes",
  "nonempty",

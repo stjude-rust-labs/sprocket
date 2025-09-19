@@ -19,6 +19,8 @@ jobs:
       PR_NUMBER: ${{ github.event.number }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Add assignee
         run: |
           # Get the PR author
