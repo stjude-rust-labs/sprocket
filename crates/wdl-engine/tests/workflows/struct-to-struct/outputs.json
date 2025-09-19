@@ -1,0 +1,8 @@
+{
+  "struct_to_struct.my_d": {
+    "a_struct": {
+      "s": "hello"
+    },
+    "i": 10
+  }
+}

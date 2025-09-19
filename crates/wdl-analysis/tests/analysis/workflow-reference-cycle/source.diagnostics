@@ -1,0 +1,9 @@
+error: a name reference cycle was detected
+   ┌─ tests/analysis/workflow-reference-cycle/source.wdl:21:14
+   │
+21 │         call my_task { x }
+   │              ^^^^^^^ this name depends on `b`
+   ·
+24 │     Int b = my_task.y[0]
+   │             ------- a reference back to `my_task` is here
+

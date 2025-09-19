@@ -1,0 +1,88 @@
+error: unsupported requirements key `unsupported`
+   ┌─ tests/analysis/requirements-section/source.wdl:17:9
+   │
+17 │         unsupported: false
+   │         ^^^^^^^^^^^
+
+error: unsupported requirements key `unsupported`
+   ┌─ tests/analysis/requirements-section/source.wdl:33:9
+   │
+33 │         unsupported: false
+   │         ^^^^^^^^^^^
+
+error: unsupported requirements key `unsupported`
+   ┌─ tests/analysis/requirements-section/source.wdl:44:9
+   │
+44 │         unsupported: false
+   │         ^^^^^^^^^^^
+
+error: unsupported requirements key `unsupported`
+   ┌─ tests/analysis/requirements-section/source.wdl:54:9
+   │
+54 │         unsupported: false
+   │         ^^^^^^^^^^^
+
+error: type mismatch: expected type `String` or type `Array[String]`, but found type `Boolean`
+   ┌─ tests/analysis/requirements-section/source.wdl:62:20
+   │
+62 │         container: false
+   │         ---------  ^^^^^ this is type `Boolean`
+   │         │           
+   │         this expects type `String` or type `Array[String]`
+
+error: type mismatch: expected type `Int` or type `Float`, but found type `Boolean`
+   ┌─ tests/analysis/requirements-section/source.wdl:63:14
+   │
+63 │         cpu: false
+   │         ---  ^^^^^ this is type `Boolean`
+   │         │     
+   │         this expects type `Int` or type `Float`
+
+error: type mismatch: expected type `Int` or type `String`, but found type `Boolean`
+   ┌─ tests/analysis/requirements-section/source.wdl:64:17
+   │
+64 │         memory: false
+   │         ------  ^^^^^ this is type `Boolean`
+   │         │        
+   │         this expects type `Int` or type `String`
+
+error: type mismatch: expected type `Boolean`, but found type `String`
+   ┌─ tests/analysis/requirements-section/source.wdl:65:14
+   │
+65 │         gpu: "false"
+   │         ---  ^^^^^^^ this is type `String`
+   │         │     
+   │         this expects type `Boolean`
+
+error: type mismatch: expected type `Boolean`, but found type `String`
+   ┌─ tests/analysis/requirements-section/source.wdl:66:15
+   │
+66 │         fpga: "false"
+   │         ----  ^^^^^^^ this is type `String`
+   │         │      
+   │         this expects type `Boolean`
+
+error: type mismatch: expected type `Int`, type `String`, or type `Array[String]`, but found type `Boolean`
+   ┌─ tests/analysis/requirements-section/source.wdl:67:16
+   │
+67 │         disks: false
+   │         -----  ^^^^^ this is type `Boolean`
+   │         │       
+   │         this expects type `Int`, type `String`, or type `Array[String]`
+
+error: type mismatch: expected type `Int`, but found type `Boolean`
+   ┌─ tests/analysis/requirements-section/source.wdl:68:22
+   │
+68 │         max_retries: false
+   │         -----------  ^^^^^ this is type `Boolean`
+   │         │             
+   │         this expects type `Int`
+
+error: type mismatch: expected type `Int`, type `String`, or type `Array[Int]`, but found type `Boolean`
+   ┌─ tests/analysis/requirements-section/source.wdl:69:23
+   │
+69 │         return_codes: false
+   │         ------------  ^^^^^ this is type `Boolean`
+   │         │              
+   │         this expects type `Int`, type `String`, or type `Array[Int]`
+

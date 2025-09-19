@@ -1,0 +1,12 @@
+error: expected Boolean, Directory, File, Float, Int, or String, but found `]`
+  ┌─ tests/parsing/empty-map-type/source.wdl:6:9
+  │
+6 │     Map[] a
+  │         ^ unexpected `]`
+
+error: expected struct member name, but found `}`
+  ┌─ tests/parsing/empty-map-type/source.wdl:7:1
+  │
+7 │ }
+  │ ^ unexpected `}`
+

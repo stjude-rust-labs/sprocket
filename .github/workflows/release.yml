@@ -1,4 +1,4 @@
-name: Release
+name: Release Sprocket
 
 on:
   push:
@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: Update Rust
       run: rustup update stable && rustup default stable
     - name: Check if already published
@@ -36,6 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: Update Rust
       run: rustup update stable && rustup default stable
     - name: Docker meta
@@ -75,6 +79,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: Update Rust
       run: rustup update stable && rustup default stable
     - name: Docker meta
@@ -158,6 +164,8 @@ jobs:
             extension: zip
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: Update Rust
       run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
     - run: cargo --locked build --release --target ${{ matrix.rust-target }}
@@ -181,6 +189,8 @@ jobs:
             extension: tar.gz
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: Update Rust
       run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
     - run: brew install openssl pkg-config
@@ -205,6 +215,8 @@ jobs:
             extension: tar.gz
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: Update Rust
       run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
     - run: sudo apt-get install pkg-config libssl-dev

@@ -1,0 +1,8 @@
+{
+  "outputs.threshold": 5,
+  "outputs.csvs": [
+    "attempts/0/work/a.csv",
+    "attempts/0/work/b.csv"
+  ],
+  "outputs.two_csvs": true
+}

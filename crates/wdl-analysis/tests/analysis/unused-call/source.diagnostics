@@ -1,0 +1,6 @@
+warning[UnusedCall]: unused call `foo`
+   ┌─ tests/analysis/unused-call/source.wdl:15:10
+   │
+15 │     call foo
+   │          ^^^
+

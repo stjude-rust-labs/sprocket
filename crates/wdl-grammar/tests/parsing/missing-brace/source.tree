@@ -1,0 +1,73 @@
+RootNode@0..181
+  Comment@0..35 "## This is a test of  ..."
+  Whitespace@35..37 "\n\n"
+  VersionStatementNode@37..48
+    VersionKeyword@37..44 "version"
+    Whitespace@44..45 " "
+    Version@45..48 "1.1"
+  Whitespace@48..50 "\n\n"
+  TaskDefinitionNode@50..141
+    TaskKeyword@50..54 "task"
+    Whitespace@54..55 " "
+    Ident@55..58 "foo"
+    Whitespace@58..59 " "
+    OpenBrace@59..60 "{"
+    Whitespace@60..65 "\n    "
+    InputSectionNode@65..108
+      InputKeyword@65..70 "input"
+      Whitespace@70..71 " "
+      OpenBrace@71..72 "{"
+      Whitespace@72..81 "\n        "
+      BoundDeclNode@81..98
+        PrimitiveTypeNode@81..87
+          StringTypeKeyword@81..87 "String"
+        Whitespace@87..88 " "
+        Ident@88..89 "x"
+        Whitespace@89..90 " "
+        Assignment@90..91 "="
+        Whitespace@91..92 " "
+        LiteralStringNode@92..98
+          DoubleQuote@92..93 "\""
+          LiteralStringText@93..97 "nope"
+          DoubleQuote@97..98 "\""
+      Whitespace@98..108 "\n    \n    "
+      CloseBrace@108..108 ""
+    MetadataSectionNode@108..139
+      MetaKeyword@108..112 "meta"
+      Whitespace@112..113 " "
+      OpenBrace@113..114 "{"
+      Whitespace@114..123 "\n        "
+      MetadataObjectItemNode@123..133
+        Ident@123..126 "foo"
+        Colon@126..127 ":"
+        Whitespace@127..128 " "
+        LiteralStringNode@128..133
+          DoubleQuote@128..129 "\""
+          LiteralStringText@129..132 "bar"
+          DoubleQuote@132..133 "\""
+      Whitespace@133..138 "\n    "
+      CloseBrace@138..139 "}"
+    Whitespace@139..140 "\n"
+    CloseBrace@140..141 "}"
+  Whitespace@141..143 "\n\n"
+  TaskDefinitionNode@143..180
+    TaskKeyword@143..147 "task"
+    Whitespace@147..148 " "
+    Ident@148..151 "bar"
+    Whitespace@151..152 " "
+    OpenBrace@152..153 "{"
+    Whitespace@153..158 "\n    "
+    InputSectionNode@158..170
+      InputKeyword@158..163 "input"
+      Whitespace@163..164 " "
+      OpenBrace@164..165 "{"
+      Whitespace@165..170 "\n    "
+      CloseBrace@170..170 ""
+    OutputSectionNode@170..180
+      OutputKeyword@170..176 "output"
+      Whitespace@176..177 " "
+      OpenBrace@177..178 "{"
+      Whitespace@178..179 "\n"
+      CloseBrace@179..180 "}"
+    CloseBrace@180..180 ""
+  Whitespace@180..181 "\n"

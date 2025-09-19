@@ -1,0 +1,8 @@
+error: duplicate call input `x` in call statement
+  ┌─ tests/validation/duplicate-call-inputs/source.wdl:9:13
+  │
+8 │             x = 1,
+  │             - first call input with this name is here
+9 │             x = 2
+  │             ^ this call input is a duplicate
+

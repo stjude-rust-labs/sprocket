@@ -1,0 +1,8 @@
+note[MetaSections]: task `test` is missing a `meta` section
+  ┌─ tests/lints/missing-meta/source.wdl:3:6
+  │
+3 │ task test {
+  │      ^^^^ this task is missing a `meta` section
+  │
+  = fix: add the missing section
+

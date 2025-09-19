@@ -1,0 +1,31 @@
+name: Install ShellCheck
+description: "Installs ShellCheck. Supports Ubuntu, macOS, and Windows."
+runs:
+  using: "composite"
+  steps:
+    - name: install shellcheck -- Ubuntu
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        gh release download -R koalaman/shellcheck -p 'shellcheck-v*.linux.x86_64.tar.xz' -O shellcheck-latest.tar.xz
+        tar -xvf shellcheck-latest.tar.xz --strip-components 1
+        chmod +x ./shellcheck
+        echo ${{github.workspace}} >> "$GITHUB_PATH"
+        export PATH="$PATH":"$(pwd)"
+    - name: install shellcheck -- macOS
+      shell: bash
+      if: runner.os == 'macOS'
+      run: |
+        gh release download -R koalaman/shellcheck -p 'shellcheck-v*.darwin.aarch64.tar.xz' -O shellcheck-latest.tar.xz
+        tar -xvf shellcheck-latest.tar.xz --strip-components 1
+        chmod +x ./shellcheck
+        echo ${{github.workspace}} >> "$GITHUB_PATH"
+    - name: install shellcheck -- Windows
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        gh release download -R koalaman/shellcheck -p 'shellcheck-v*.zip' -O shellcheck-latest.zip
+        7z x shellcheck-latest.zip
+        New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.local\bin"
+        Move-Item -Force "shellcheck.exe" "$env:USERPROFILE\.local\bin"
+        Add-Content $env:GITHUB_PATH "$env:USERPROFILE\.local\bin"

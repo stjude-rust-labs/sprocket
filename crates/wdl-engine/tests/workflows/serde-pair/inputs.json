@@ -1,0 +1,6 @@
+{
+  "serde_pair.to_tail": {
+    "cities.txt": 2,
+    "hello.txt": 1
+  }
+}

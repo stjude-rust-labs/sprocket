@@ -1,0 +1,7 @@
+{
+  "optionals.test_defined": false,
+  "optionals.test_defined2": true,
+  "optionals.test_is_none": true,
+  "optionals.test_not_none": false,
+  "optionals.test_non_equal": true
+}

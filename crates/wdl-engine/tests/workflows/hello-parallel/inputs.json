@@ -1,0 +1,7 @@
+{
+  "hello_parallel.pattern": "hello.*",
+  "hello_parallel.files": [
+    "greetings.txt",
+    "hello.txt"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "allow_nested.int_val": 3,
+  "allow_nested.msg1": "hello",
+  "allow_nested.msg2": "goodbye",
+  "allow_nested.my_ints": [1, 2, 3],
+  "allow_nested.ref_file": "hello.txt",
+  "allow_nested.repeat2.i": 2
+}

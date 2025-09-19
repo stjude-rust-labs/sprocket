@@ -1,0 +1,16 @@
+error: environment variable modifier can only be used on primitive types
+   ┌─ tests/validation/invalid-use-type/source.wdl:15:13
+   │
+15 │         env Array[String] g
+   │         --- ^^^^^^^^^^^^^ type `Array[String]` cannot be used as an environment variable
+   │         │    
+   │         declaration is an environment variable due to this modifier
+
+error: environment variable modifier can only be used on primitive types
+   ┌─ tests/validation/invalid-use-type/source.wdl:26:9
+   │
+26 │     env Array[Int] n = [1, 2, 3]
+   │     --- ^^^^^^^^^^ type `Array[Int]` cannot be used as an environment variable
+   │     │    
+   │     declaration is an environment variable due to this modifier
+

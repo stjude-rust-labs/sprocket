@@ -1,0 +1,240 @@
+RootNode@0..415
+  Comment@0..59 "# This is a test of o ..."
+  Whitespace@59..61 "\n\n"
+  VersionStatementNode@61..72
+    VersionKeyword@61..68 "version"
+    Whitespace@68..69 " "
+    Version@69..72 "1.1"
+  Whitespace@72..74 "\n\n"
+  TaskDefinitionNode@74..241
+    TaskKeyword@74..78 "task"
+    Whitespace@78..79 " "
+    Ident@79..80 "t"
+    Whitespace@80..81 " "
+    OpenBrace@81..82 "{"
+    Whitespace@82..87 "\n    "
+    OutputSectionNode@87..239
+      OutputKeyword@87..93 "output"
+      Whitespace@93..94 " "
+      OpenBrace@94..95 "{"
+      Whitespace@95..104 "\n        "
+      BoundDeclNode@104..123
+        PrimitiveTypeNode@104..110
+          StringTypeKeyword@104..110 "String"
+        Whitespace@110..111 " "
+        Ident@111..112 "a"
+        Whitespace@112..113 " "
+        Assignment@113..114 "="
+        Whitespace@114..115 " "
+        LiteralStringNode@115..123
+          DoubleQuote@115..116 "\""
+          LiteralStringText@116..122 "friend"
+          DoubleQuote@122..123 "\""
+      Whitespace@123..132 "\n        "
+      BoundDeclNode@132..145
+        PrimitiveTypeNode@132..135
+          IntTypeKeyword@132..135 "Int"
+        Whitespace@135..136 " "
+        Ident@136..137 "b"
+        Whitespace@137..138 " "
+        Assignment@138..139 "="
+        Whitespace@139..140 " "
+        AdditionExprNode@140..145
+          LiteralIntegerNode@140..141
+            Integer@140..141 "1"
+          Whitespace@141..142 " "
+          Plus@142..143 "+"
+          Whitespace@143..144 " "
+          LiteralIntegerNode@144..145
+            Integer@144..145 "2"
+      Whitespace@145..154 "\n        "
+      BoundDeclNode@154..178
+        PrimitiveTypeNode@154..160
+          StringTypeKeyword@154..160 "String"
+        Whitespace@160..161 " "
+        Ident@161..162 "c"
+        Whitespace@162..163 " "
+        Assignment@163..164 "="
+        Whitespace@164..165 " "
+        LiteralStringNode@165..178
+          DoubleQuote@165..166 "\""
+          LiteralStringText@166..173 "Hello, "
+          PlaceholderNode@173..177
+            PlaceholderOpen@173..175 "~{"
+            NameRefExprNode@175..176
+              Ident@175..176 "a"
+            CloseBrace@176..177 "}"
+          DoubleQuote@177..178 "\""
+      Whitespace@178..187 "\n        "
+      BoundDeclNode@187..233
+        MapTypeNode@187..203
+          MapTypeKeyword@187..190 "Map"
+          OpenBracket@190..191 "["
+          PrimitiveTypeNode@191..197
+            StringTypeKeyword@191..197 "String"
+          Comma@197..198 ","
+          Whitespace@198..199 " "
+          PrimitiveTypeNode@199..202
+            IntTypeKeyword@199..202 "Int"
+          CloseBracket@202..203 "]"
+        Whitespace@203..204 " "
+        Ident@204..205 "d"
+        Whitespace@205..206 " "
+        Assignment@206..207 "="
+        Whitespace@207..208 " "
+        LiteralMapNode@208..233
+          OpenBrace@208..209 "{"
+          Whitespace@209..210 " "
+          LiteralMapItemNode@210..216
+            LiteralStringNode@210..213
+              DoubleQuote@210..211 "\""
+              LiteralStringText@211..212 "a"
+              DoubleQuote@212..213 "\""
+            Colon@213..214 ":"
+            Whitespace@214..215 " "
+            LiteralIntegerNode@215..216
+              Integer@215..216 "0"
+          Comma@216..217 ","
+          Whitespace@217..218 " "
+          LiteralMapItemNode@218..224
+            LiteralStringNode@218..221
+              DoubleQuote@218..219 "\""
+              LiteralStringText@219..220 "b"
+              DoubleQuote@220..221 "\""
+            Colon@221..222 ":"
+            Whitespace@222..223 " "
+            LiteralIntegerNode@223..224
+              Integer@223..224 "1"
+          Comma@224..225 ","
+          Whitespace@225..226 " "
+          LiteralMapItemNode@226..232
+            LiteralStringNode@226..229
+              DoubleQuote@226..227 "\""
+              LiteralStringText@227..228 "c"
+              DoubleQuote@228..229 "\""
+            Colon@229..230 ":"
+            Whitespace@230..231 " "
+            LiteralIntegerNode@231..232
+              Integer@231..232 "2"
+          CloseBrace@232..233 "}"
+      Whitespace@233..238 "\n    "
+      CloseBrace@238..239 "}"
+    Whitespace@239..240 "\n"
+    CloseBrace@240..241 "}"
+  Whitespace@241..243 "\n\n"
+  WorkflowDefinitionNode@243..414
+    WorkflowKeyword@243..251 "workflow"
+    Whitespace@251..252 " "
+    Ident@252..253 "w"
+    Whitespace@253..254 " "
+    OpenBrace@254..255 "{"
+    Whitespace@255..260 "\n    "
+    OutputSectionNode@260..412
+      OutputKeyword@260..266 "output"
+      Whitespace@266..267 " "
+      OpenBrace@267..268 "{"
+      Whitespace@268..277 "\n        "
+      BoundDeclNode@277..296
+        PrimitiveTypeNode@277..283
+          StringTypeKeyword@277..283 "String"
+        Whitespace@283..284 " "
+        Ident@284..285 "a"
+        Whitespace@285..286 " "
+        Assignment@286..287 "="
+        Whitespace@287..288 " "
+        LiteralStringNode@288..296
+          DoubleQuote@288..289 "\""
+          LiteralStringText@289..295 "friend"
+          DoubleQuote@295..296 "\""
+      Whitespace@296..305 "\n        "
+      BoundDeclNode@305..318
+        PrimitiveTypeNode@305..308
+          IntTypeKeyword@305..308 "Int"
+        Whitespace@308..309 " "
+        Ident@309..310 "b"
+        Whitespace@310..311 " "
+        Assignment@311..312 "="
+        Whitespace@312..313 " "
+        AdditionExprNode@313..318
+          LiteralIntegerNode@313..314
+            Integer@313..314 "1"
+          Whitespace@314..315 " "
+          Plus@315..316 "+"
+          Whitespace@316..317 " "
+          LiteralIntegerNode@317..318
+            Integer@317..318 "2"
+      Whitespace@318..327 "\n        "
+      BoundDeclNode@327..351
+        PrimitiveTypeNode@327..333
+          StringTypeKeyword@327..333 "String"
+        Whitespace@333..334 " "
+        Ident@334..335 "c"
+        Whitespace@335..336 " "
+        Assignment@336..337 "="
+        Whitespace@337..338 " "
+        LiteralStringNode@338..351
+          DoubleQuote@338..339 "\""
+          LiteralStringText@339..346 "Hello, "
+          PlaceholderNode@346..350
+            PlaceholderOpen@346..348 "~{"
+            NameRefExprNode@348..349
+              Ident@348..349 "a"
+            CloseBrace@349..350 "}"
+          DoubleQuote@350..351 "\""
+      Whitespace@351..360 "\n        "
+      BoundDeclNode@360..406
+        MapTypeNode@360..376
+          MapTypeKeyword@360..363 "Map"
+          OpenBracket@363..364 "["
+          PrimitiveTypeNode@364..370
+            StringTypeKeyword@364..370 "String"
+          Comma@370..371 ","
+          Whitespace@371..372 " "
+          PrimitiveTypeNode@372..375
+            IntTypeKeyword@372..375 "Int"
+          CloseBracket@375..376 "]"
+        Whitespace@376..377 " "
+        Ident@377..378 "d"
+        Whitespace@378..379 " "
+        Assignment@379..380 "="
+        Whitespace@380..381 " "
+        LiteralMapNode@381..406
+          OpenBrace@381..382 "{"
+          Whitespace@382..383 " "
+          LiteralMapItemNode@383..389
+            LiteralStringNode@383..386
+              DoubleQuote@383..384 "\""
+              LiteralStringText@384..385 "a"
+              DoubleQuote@385..386 "\""
+            Colon@386..387 ":"
+            Whitespace@387..388 " "
+            LiteralIntegerNode@388..389
+              Integer@388..389 "0"
+          Comma@389..390 ","
+          Whitespace@390..391 " "
+          LiteralMapItemNode@391..397
+            LiteralStringNode@391..394
+              DoubleQuote@391..392 "\""
+              LiteralStringText@392..393 "b"
+              DoubleQuote@393..394 "\""
+            Colon@394..395 ":"
+            Whitespace@395..396 " "
+            LiteralIntegerNode@396..397
+              Integer@396..397 "1"
+          Comma@397..398 ","
+          Whitespace@398..399 " "
+          LiteralMapItemNode@399..405
+            LiteralStringNode@399..402
+              DoubleQuote@399..400 "\""
+              LiteralStringText@400..401 "c"
+              DoubleQuote@401..402 "\""
+            Colon@402..403 ":"
+            Whitespace@403..404 " "
+            LiteralIntegerNode@404..405
+              Integer@404..405 "2"
+          CloseBrace@405..406 "}"
+      Whitespace@406..411 "\n    "
+      CloseBrace@411..412 "}"
+    Whitespace@412..413 "\n"
+    CloseBrace@413..414 "}"
+  Whitespace@414..415 "\n"

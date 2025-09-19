@@ -1,0 +1,6 @@
+warning[UnusedDeclaration]: unused declaration `d`
+   ┌─ tests/analysis/env-vars/source.wdl:13:12
+   │
+13 │     String d = ""
+   │            ^
+

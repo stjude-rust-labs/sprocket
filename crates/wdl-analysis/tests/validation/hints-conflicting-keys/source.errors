@@ -1,0 +1,24 @@
+error: conflicting key `maxCpu` in hints section
+   ┌─ tests/validation/hints-conflicting-keys/source.wdl:11:9
+   │
+10 │         max_cpu: 1
+   │         ------- the conflicting alias is here
+11 │         maxCpu: 1
+   │         ^^^^^^ this key conflicts with an alias
+
+error: conflicting key `maxMemory` in hints section
+   ┌─ tests/validation/hints-conflicting-keys/source.wdl:13:9
+   │
+12 │         max_memory: 1
+   │         ---------- the conflicting alias is here
+13 │         maxMemory: 1
+   │         ^^^^^^^^^ this key conflicts with an alias
+
+error: conflicting key `localizationOptional` in hints section
+   ┌─ tests/validation/hints-conflicting-keys/source.wdl:15:9
+   │
+14 │         localization_optional: true
+   │         --------------------- the conflicting alias is here
+15 │         localizationOptional: true
+   │         ^^^^^^^^^^^^^^^^^^^^ this key conflicts with an alias
+

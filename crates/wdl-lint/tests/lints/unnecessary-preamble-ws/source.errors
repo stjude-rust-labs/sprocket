@@ -1,0 +1,14 @@
+note[VersionStatementFormatted]: expected exactly one blank line between the last comment and the version statement
+  ┌─ tests/lints/unnecessary-preamble-ws/source.wdl:1:43
+  │  
+1 │   #@ except: ElementSpacing, MetaDescription
+  │ ╭──────────────────────────────────────────^
+2 │ │ 
+3 │ │            
+4 │ │ 
+5 │ │ 
+6 │ │   version 1.1
+  │ ╰──^
+  │  
+  = fix: ensure there is exactly one blank line between the last comment and the version statement
+

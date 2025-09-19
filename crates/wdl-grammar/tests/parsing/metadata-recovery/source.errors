@@ -1,0 +1,6 @@
+error: expected metadata key, but found integer
+  ┌─ tests/parsing/metadata-recovery/source.wdl:7:9
+  │
+7 │         1: 1
+  │         ^ unexpected integer
+

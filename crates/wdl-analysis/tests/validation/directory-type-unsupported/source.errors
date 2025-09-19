@@ -1,0 +1,6 @@
+error: use of the `Directory` type requires WDL version 1.2
+  ┌─ tests/validation/directory-type-unsupported/source.wdl:6:5
+  │
+6 │     Directory x = "foo"
+  │     ^^^^^^^^^
+

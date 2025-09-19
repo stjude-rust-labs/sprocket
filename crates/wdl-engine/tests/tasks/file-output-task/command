@@ -1,0 +1,2 @@
+printf "hello" > foo.hello
+printf "goodbye" > foo.goodbye

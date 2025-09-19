@@ -1,0 +1,36 @@
+error: unsupported requirements key `unsupported_key`
+   ┌─ tests/validation/requirements-keys/source.wdl:14:9
+   │
+14 │         unsupported_key: true
+   │         ^^^^^^^^^^^^^^^
+
+error: unsupported requirements key `unsupported_key`
+   ┌─ tests/validation/requirements-keys/source.wdl:27:9
+   │
+27 │         unsupported_key: true
+   │         ^^^^^^^^^^^^^^^
+
+error: conflicting key `docker` in requirements section
+   ┌─ tests/validation/requirements-keys/source.wdl:38:9
+   │
+37 │         container: "foo/bar"
+   │         --------- the conflicting alias is here
+38 │         docker: "foo/bar"
+   │         ^^^^^^ this key conflicts with an alias
+
+error: conflicting key `maxRetries` in requirements section
+   ┌─ tests/validation/requirements-keys/source.wdl:40:9
+   │
+39 │         max_retries: 1
+   │         ----------- the conflicting alias is here
+40 │         maxRetries: 1
+   │         ^^^^^^^^^^ this key conflicts with an alias
+
+error: conflicting key `returnCodes` in requirements section
+   ┌─ tests/validation/requirements-keys/source.wdl:42:9
+   │
+41 │         return_codes: 1
+   │         ------------ the conflicting alias is here
+42 │         returnCodes: 1
+   │         ^^^^^^^^^^^ this key conflicts with an alias
+

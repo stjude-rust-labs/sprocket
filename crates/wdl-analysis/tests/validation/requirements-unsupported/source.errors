@@ -1,0 +1,6 @@
+error: use of the `requirements` section requires WDL version 1.2
+  ┌─ tests/validation/requirements-unsupported/source.wdl:6:5
+  │
+6 │     requirements {
+  │     ^^^^^^^^^^^^
+

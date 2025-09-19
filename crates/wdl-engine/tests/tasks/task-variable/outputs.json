@@ -1,0 +1,7 @@
+{
+  "test.name": "test",
+  "test.id": "test",
+  "test.description": "Task that shows how to use the implicit 'task' variable",
+  "test.container": "ubuntu:latest",
+  "test.return_code": 1
+}

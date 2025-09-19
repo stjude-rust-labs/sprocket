@@ -1,0 +1,31 @@
+# Definitions
+
+## WDL Document Structure
+
+### Preamble
+
+The document preamble is defined as anything before the version declaration statement and the version declaration statement itself. Only comments and whitespace are permitted before the version declaration.
+
+## Comment Types
+
+### Lint Directives
+
+Lint directives are special comments that begin with `#@ except:` followed by a comma-delimited list of rule IDs. These comments are used to disable specific lint rules for a section of the document. When a lint directive is encountered in the preamble, it will disable the specified rules for the entire document.
+
+For example:
+
+```wdl
+#@ except: LineWidth, CommentWhitespace
+```
+
+### Preamble Comments
+
+Preamble comments are special comments at the start of a WDL file that begin with double pound signs (`##`). These comments are used for documentation that doesn't fit within any of the WDL-defined documentation elements (i.e., `meta` and `parameter_meta` sections). They may provide context for a collection of tasks or structs, or they may provide a high-level overview of a workflow. Preamble comments can be formatted as Markdown text.
+
+For example:
+
+```wdl
+## # FlagFilter
+##
+## A struct to represent the filtering flags used in various `samtools` commands.
+```

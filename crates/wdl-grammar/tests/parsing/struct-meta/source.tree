@@ -1,0 +1,70 @@
+RootNode@0..222
+  Comment@0..69 "## This is a test of  ..."
+  Whitespace@69..71 "\n\n"
+  VersionStatementNode@71..82
+    VersionKeyword@71..78 "version"
+    Whitespace@78..79 " "
+    Version@79..82 "1.2"
+  Whitespace@82..84 "\n\n"
+  StructDefinitionNode@84..221
+    StructKeyword@84..90 "struct"
+    Whitespace@90..91 " "
+    Ident@91..94 "Foo"
+    Whitespace@94..95 " "
+    OpenBrace@95..96 "{"
+    Whitespace@96..101 "\n    "
+    UnboundDeclNode@101..106
+      PrimitiveTypeNode@101..104
+        IntTypeKeyword@101..104 "Int"
+      Whitespace@104..105 " "
+      Ident@105..106 "a"
+    Whitespace@106..112 "\n\n    "
+    MetadataSectionNode@112..143
+      MetaKeyword@112..116 "meta"
+      Whitespace@116..117 " "
+      OpenBrace@117..118 "{"
+      Whitespace@118..127 "\n        "
+      MetadataObjectItemNode@127..137
+        Ident@127..130 "foo"
+        Colon@130..131 ":"
+        Whitespace@131..132 " "
+        LiteralStringNode@132..137
+          DoubleQuote@132..133 "\""
+          LiteralStringText@133..136 "bar"
+          DoubleQuote@136..137 "\""
+      Whitespace@137..142 "\n    "
+      CloseBrace@142..143 "}"
+    Whitespace@143..149 "\n\n    "
+    ParameterMetadataSectionNode@149..205
+      ParameterMetaKeyword@149..163 "parameter_meta"
+      Whitespace@163..164 " "
+      OpenBrace@164..165 "{"
+      Whitespace@165..174 "\n        "
+      MetadataObjectItemNode@174..182
+        Ident@174..175 "a"
+        Colon@175..176 ":"
+        Whitespace@176..177 " "
+        LiteralStringNode@177..182
+          DoubleQuote@177..178 "\""
+          LiteralStringText@178..181 "foo"
+          DoubleQuote@181..182 "\""
+      Whitespace@182..191 "\n        "
+      MetadataObjectItemNode@191..199
+        Ident@191..192 "b"
+        Colon@192..193 ":"
+        Whitespace@193..194 " "
+        LiteralStringNode@194..199
+          DoubleQuote@194..195 "\""
+          LiteralStringText@195..198 "bar"
+          DoubleQuote@198..199 "\""
+      Whitespace@199..204 "\n    "
+      CloseBrace@204..205 "}"
+    Whitespace@205..211 "\n\n    "
+    UnboundDeclNode@211..219
+      PrimitiveTypeNode@211..217
+        StringTypeKeyword@211..217 "String"
+      Whitespace@217..218 " "
+      Ident@218..219 "b"
+    Whitespace@219..220 "\n"
+    CloseBrace@220..221 "}"
+  Whitespace@221..222 "\n"

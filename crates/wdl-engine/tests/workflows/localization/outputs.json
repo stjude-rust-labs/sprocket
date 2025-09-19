@@ -1,0 +1,15 @@
+{
+  "test.o1": {
+    "userId": 1,
+    "id": 1,
+    "title": "delectus aut autem",
+    "completed": false
+  },
+  "test.o2": {
+    "userId": 1,
+    "id": 2,
+    "title": "quis ut nam facilis et officia qui",
+    "completed": false
+  },
+  "test.s": "This is a local input file."
+}

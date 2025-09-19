@@ -1,0 +1,20 @@
+[package]
+name = "ci"
+version = "0.1.0"
+publish = false
+license.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+chrono.workspace = true
+clap.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+toml_edit.workspace = true
+
+[lints]
+workspace = true

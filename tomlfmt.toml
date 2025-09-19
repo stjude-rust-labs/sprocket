@@ -1,0 +1,14 @@
+# This config governs the behavior of `cargo sort`; see https://crates.io/crates/cargo-sort
+
+# The defaults lead to an odd interleaving of `workspace` and `package` tables when both are
+# included in the same manifest, as they are for the root `sprocket` package. This override covers
+# all of the tables used in the repo's manifest as of this commit, but can be updated to control the
+# placement of any future tables we may adopt.
+table_order = [
+    "workspace",
+    "package",
+    "features",
+    "dependencies",
+    "dev-dependencies",
+    "lints",
+]

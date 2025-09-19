@@ -1,0 +1,27 @@
+error: duplicate key `memory` in requirements section
+   ┌─ tests/validation/requirements-duplicate-keys/source.wdl:11:9
+   │
+ 9 │         memory: "first"
+   │         ------ first key with this name is here
+10 │ 
+11 │         memory: "dup"
+   │         ^^^^^^ this key is a duplicate
+
+error: duplicate key `container` in requirements section
+   ┌─ tests/validation/requirements-duplicate-keys/source.wdl:12:9
+   │
+ 7 │         container: "first"
+   │         --------- first key with this name is here
+   ·
+12 │         container: "dup"
+   │         ^^^^^^^^^ this key is a duplicate
+
+error: duplicate key `disks` in requirements section
+   ┌─ tests/validation/requirements-duplicate-keys/source.wdl:13:9
+   │
+ 8 │         disks: "first"
+   │         ----- first key with this name is here
+   ·
+13 │         disks: "dup"
+   │         ^^^^^ this key is a duplicate
+

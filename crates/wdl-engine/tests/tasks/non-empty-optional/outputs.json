@@ -1,0 +1,13 @@
+{
+  "non_empty_optional.nonempty1": [
+    0.0
+  ],
+  "non_empty_optional.nonempty2": [
+    null,
+    1
+  ],
+  "non_empty_optional.nonempty3": null,
+  "non_empty_optional.nonempty4": [
+    0
+  ]
+}

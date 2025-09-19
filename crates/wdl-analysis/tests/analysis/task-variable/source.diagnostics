@@ -1,0 +1,6 @@
+error: the `task` variable does not have a member named `not_a_member`
+   ┌─ tests/analysis/task-variable/source.wdl:17:32
+   │
+17 │     echo "Not a member: ~{task.not_a_member}"
+   │                                ^^^^^^^^^^^^
+

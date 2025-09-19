@@ -1,0 +1,24 @@
+warning[UnusedInput]: unused input `unused_input`
+  ┌─ tests/analysis/unused-decl/source.wdl:8:13
+  │
+8 │         Int unused_input = 0
+  │             ^^^^^^^^^^^^
+
+warning[UnusedDeclaration]: unused declaration `unused_decl`
+   ┌─ tests/analysis/unused-decl/source.wdl:18:9
+   │
+18 │     Int unused_decl = 0
+   │         ^^^^^^^^^^^
+
+warning[UnusedInput]: unused input `unused_input`
+   ┌─ tests/analysis/unused-decl/source.wdl:37:13
+   │
+37 │         Int unused_input = 0
+   │             ^^^^^^^^^^^^
+
+warning[UnusedDeclaration]: unused declaration `unused_decl`
+   ┌─ tests/analysis/unused-decl/source.wdl:47:9
+   │
+47 │     Int unused_decl = 0
+   │         ^^^^^^^^^^^
+

@@ -1,0 +1,60 @@
+[package]
+name = "wdl-analysis"
+version = "0.13.0"
+rust-version.workspace = true
+license.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Analysis of Workflow Description Language (WDL) documents."
+documentation = "https://docs.rs/wdl-analysis"
+
+[features]
+default = []
+codespan = ["wdl-ast/codespan"]
+
+[dependencies]
+anyhow = { workspace = true }
+convert_case = { workspace = true }
+futures = { workspace = true }
+ignore = { workspace = true }
+indexmap = { workspace = true }
+line-index = { workspace = true }
+lsp-types = { workspace = true }
+parking_lot = { workspace = true }
+path-clean = { workspace = true }
+petgraph = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
+reqwest = { workspace = true }
+rowan = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
+tokio = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+wdl-ast = { path = "../wdl-ast", version = "0.17.0" }
+wdl-format = { path = "../wdl-format", version = "0.11.0" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.17.0" }
+
+[dev-dependencies]
+codespan-reporting = { workspace = true }
+libtest-mimic = { workspace = true }
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+toml = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[lints]
+workspace = true
+
+[[test]]
+name = "analysis"
+required-features = ["codespan"]
+harness = false
+
+[[test]]
+name = "validation"
+required-features = ["codespan"]
+harness = false

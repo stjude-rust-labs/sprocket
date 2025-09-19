@@ -1,0 +1,27 @@
+set -euo pipefail
+
+# Test for the `sep` option
+echo 'ok!'
+
+# Test for the `sep` function
+echo 'ok!'
+
+# Test for the `prefix` function
+echo 'ok!'
+
+# Test for the `quote` function
+echo 'ok!'
+
+# Test for the `squote` function
+echo 'ok!'
+
+# Test for the `suffix` function
+echo 'ok!'
+
+# Test for string concatenation
+echo 'ok!'
+
+# Ensure we can read each file
+cat 'a.txt'
+cat 'b.txt'
+cat 'c.txt'

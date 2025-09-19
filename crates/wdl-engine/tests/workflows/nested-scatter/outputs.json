@@ -1,0 +1,39 @@
+{
+  "nested_scatter.used_honorifics": [
+    "Mr.",
+    "Wizard",
+    "Mr."
+  ],
+  "nested_scatter.out_messages": [
+    [
+      [
+        "Hello Mr. Bilbo, how are you?",
+        "Hello Mr. Bilbo Baggins, how are you?"
+      ],
+      [
+        "Goodbye Mr. Bilbo, how are you?",
+        "Goodbye Mr. Bilbo Baggins, how are you?"
+      ]
+    ],
+    [
+      [
+        "Hello Wizard Gandalf, how are you?",
+        "Hello Wizard Gandalf the Grey, how are you?"
+      ],
+      [
+        "Goodbye Wizard Gandalf, how are you?",
+        "Goodbye Wizard Gandalf the Grey, how are you?"
+      ]
+    ],
+    [
+      [
+        "Hello Mr. Merry, how are you?",
+        "Hello Mr. Merry Brandybuck, how are you?"
+      ],
+      [
+        "Goodbye Mr. Merry, how are you?",
+        "Goodbye Mr. Merry Brandybuck, how are you?"
+      ]
+    ]
+  ]
+}

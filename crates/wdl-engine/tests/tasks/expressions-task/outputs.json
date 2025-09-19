@@ -1,0 +1,11 @@
+{
+  "expressions.f": 3.2,
+  "expressions.b": false,
+  "expressions.m": {
+    "a": 1,
+    "b": 2,
+    "c": 3
+  },
+  "expressions.i": 8,
+  "expressions.s": "hello"
+}

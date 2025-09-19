@@ -1,0 +1,16 @@
+error: import URI cannot contain placeholders
+  ┌─ tests/validation/placeholder-in-import/source.wdl:5:23
+  │
+5 │ import "this contains ~{"a placeholder"}" as foo
+  │                       ^^^^^^^^^^^^^^^^^^
+  │
+  = fix: remove the placeholder
+
+error: import URI cannot contain placeholders
+  ┌─ tests/validation/placeholder-in-import/source.wdl:6:28
+  │
+6 │ import "this also contains ${"a placeholder"}" as bar
+  │                            ^^^^^^^^^^^^^^^^^^
+  │
+  = fix: remove the placeholder
+

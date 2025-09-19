@@ -1,5 +1,8 @@
 //! The Sprocket command line tool.
 
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
+
 use std::io::IsTerminal;
 use std::io::stderr;
 use std::path::PathBuf;

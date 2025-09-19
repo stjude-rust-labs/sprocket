@@ -1,0 +1,4 @@
+{
+  "hello.infile": "greetings.txt",
+  "hello.pattern": "hello.*"
+}

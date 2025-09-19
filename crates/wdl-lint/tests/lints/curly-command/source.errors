@@ -1,0 +1,8 @@
+warning[HereDocCommands]: task `bad` uses curly braces in command section
+   ┌─ tests/lints/curly-command/source.wdl:12:5
+   │
+12 │     command {
+   │     ^^^^^^^ this command section uses curly braces
+   │
+   = fix: instead of curly braces, use heredoc syntax (<<<>>>>) for command sections
+

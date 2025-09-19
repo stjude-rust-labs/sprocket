@@ -1,0 +1,8 @@
+note[MetaSections]: struct `Test` is missing a `meta` section
+  ┌─ tests/lints/missing-struct-meta/source.wdl:5:8
+  │
+5 │ struct Test {
+  │        ^^^^ this struct is missing a `meta` section
+  │
+  = fix: add the missing section
+

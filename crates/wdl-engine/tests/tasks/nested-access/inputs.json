@@ -1,0 +1,26 @@
+{
+    "nested_access.my_experiments": [
+        {
+            "id": "mouse_size",
+            "variables": [
+                "name",
+                "height"
+            ],
+            "data": {
+                "name": "Pinky",
+                "height": 7
+            }
+        },
+        {
+            "id": "pig_weight",
+            "variables": [
+                "name",
+                "weight"
+            ],
+            "data": {
+                "name": "Porky",
+                "weight": 1000
+            }
+        }
+    ]
+}

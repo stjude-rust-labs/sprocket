@@ -1,0 +1,18 @@
+error: task `t` contains a duplicate runtime section
+   ┌─ tests/validation/duplicate-runtime/source.wdl:10:5
+   │
+ 6 │     runtime {
+   │     ------- first runtime section is defined here
+   ·
+10 │     runtime {
+   │     ^^^^^^^ this runtime section is a duplicate
+
+error: conflicting task name `t`
+   ┌─ tests/validation/duplicate-runtime/source.wdl:18:6
+   │
+ 5 │ task t {
+   │      - the task with the conflicting name is here
+   ·
+18 │ task t {
+   │      ^ this task conflicts with a previously used name
+

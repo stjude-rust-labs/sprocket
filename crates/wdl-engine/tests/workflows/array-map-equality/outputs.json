@@ -1,0 +1,6 @@
+{
+  "array_map_equality.is_true1": true,
+  "array_map_equality.is_true2": true,
+  "array_map_equality.is_false1": false,
+  "array_map_equality.is_false2": false
+}

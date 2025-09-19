@@ -1,0 +1,26 @@
+error: expected `}`, but found `meta` keyword
+  ┌─ tests/parsing/missing-brace/source.wdl:9:5
+  │
+6 │     input {
+  │           - this `{` is not matched
+  ·
+9 │     meta {
+  │     ^^^^ unexpected `meta` keyword
+
+error: expected `}`, but found `output` keyword
+   ┌─ tests/parsing/missing-brace/source.wdl:16:5
+   │
+15 │     input {
+   │           - this `{` is not matched
+16 │     output {
+   │     ^^^^^^ unexpected `output` keyword
+
+error: expected `}`, but found end of input
+   ┌─ tests/parsing/missing-brace/source.wdl:18:1
+   │
+14 │ task bar {
+   │          - this `{` is not matched
+   ·
+18 │ 
+   │ ^ unexpected end of input
+

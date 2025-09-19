@@ -1,0 +1,5 @@
+{
+    "test.one": "https://jsonplaceholder.typicode.com/todos/1",
+    "test.two": "https://jsonplaceholder.typicode.com/todos/2",
+    "test.local": "foo.txt"
+}

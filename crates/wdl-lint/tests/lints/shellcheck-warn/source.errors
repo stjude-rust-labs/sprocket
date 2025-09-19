@@ -1,0 +1,382 @@
+note[ShellCheck]: dynamic_var_name44444444444444 is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:18:23
+   │
+18 │       somecommand.py "$dynamic_var_name~{placeholder}"
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │                       │
+   │                       SC2154[warning]: dynamic_var_name44444444444444 is referenced but not assigned.
+   │                       more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: bad_test is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:37:28
+   │
+37 │       somecommand.py [ -f "$bad_test" ] ~{placeholder}
+   │                            ^^^^^^^^^
+   │                            │
+   │                            SC2154[warning]: bad_test is referenced but not assigned.
+   │                            more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: trailing_space is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:38:28
+   │
+38 │       somecommand.py [ -f "$trailing_space" ] ~{placeholder}
+   │                            ^^^^^^^^^^^^^^^
+   │                            │
+   │                            SC2154[warning]: trailing_space is referenced but not assigned.
+   │                            more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: trailing_pholder is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:56:23
+   │
+56 │       ~{placeholder} "$trailing_pholder" ~{placeholder}
+   │                       ^^^^^^^^^^^^^^^^^
+   │                       │
+   │                       SC2154[warning]: trailing_pholder is referenced but not assigned.
+   │                       more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: leading_pholder is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:57:38
+   │
+57 │       ~{placeholder} somecommand.py "$leading_pholder"
+   │                                      ^^^^^^^^^^^^^^^^
+   │                                      │
+   │                                      SC2154[warning]: leading_pholder is referenced but not assigned.
+   │                                      more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: trailing_pholder is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:76:23
+   │
+76 │       ~{placeholder} "$trailing_pholder" ~{placeholder}
+   │                       ^^^^^^^^^^^^^^^^^
+   │                       │
+   │                       SC2154[warning]: trailing_pholder is referenced but not assigned.
+   │                       more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: leading_pholder is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:77:38
+   │
+77 │       ~{placeholder} somecommand.py "$leading_pholder"
+   │                                      ^^^^^^^^^^^^^^^^
+   │                                      │
+   │                                      SC2154[warning]: leading_pholder is referenced but not assigned.
+   │                                      more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: firstlinelint is referenced but not assigned.
+   ┌─ tests/lints/shellcheck-warn/source.wdl:98:35
+   │
+98 │     command <<<      weird stuff "$firstlinelint"
+   │                                   ^^^^^^^^^^^^^^
+   │                                   │
+   │                                   SC2154[warning]: firstlinelint is referenced but not assigned.
+   │                                   more info: https://www.shellcheck.net/wiki/SC2154
+   │
+   = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: trailing_pholder is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:100:23
+    │
+100 │       ~{placeholder} "$trailing_pholder" ~{placeholder}
+    │                       ^^^^^^^^^^^^^^^^^
+    │                       │
+    │                       SC2154[warning]: trailing_pholder is referenced but not assigned.
+    │                       more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: leading_pholder is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:102:38
+    │
+102 │       ~{placeholder} somecommand.py "$leading_pholder"
+    │                                      ^^^^^^^^^^^^^^^^
+    │                                      │
+    │                                      SC2154[warning]: leading_pholder is referenced but not assigned.
+    │                                      more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: occurs_after_multiline is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:108:7
+    │
+108 │       $occurs_after_multiline
+    │       ^^^^^^^^^^^^^^^^^^^^^^^
+    │       │
+    │       SC2154[warning]: occurs_after_multiline is referenced but not assigned.
+    │       more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    ┌─ tests/lints/shellcheck-warn/source.wdl:110:7
+    │    
+110 │ ╭ ╭       $(echo This is a 
+111 │ │ │         very long string that should be quoted)
+    │ ╰─│───────────────────────────────────────────────^ SC2091[warning]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    │   ╰───────────────────────────────────────────────' more info: https://www.shellcheck.net/wiki/SC2091
+    │    
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    ┌─ tests/lints/shellcheck-warn/source.wdl:113:7
+    │    
+113 │ ╭ ╭       $(echo This is an
+114 │ │ │         even longer very long string that should really 
+115 │ │ │         be quoted)
+    │ ╰─│──────────────────^ SC2091[warning]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    │   ╰──────────────────' more info: https://www.shellcheck.net/wiki/SC2091
+    │    
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    ┌─ tests/lints/shellcheck-warn/source.wdl:117:7
+    │    
+117 │ ╭ ╭       $(echo This is an
+118 │ │ │         even longer very long string that should really
+119 │ │ │         really really really 
+120 │ │ │         ought to be quoted)
+    │ ╰─│───────────────────────────^ SC2091[warning]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    │   ╰───────────────────────────' more info: https://www.shellcheck.net/wiki/SC2091
+    │    
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    ┌─ tests/lints/shellcheck-warn/source.wdl:122:7
+    │    
+122 │ ╭ ╭       $(echo this is a $lint146 that occurs in a /
+123 │ │ │         multiline command /
+124 │ │ │         with line breaks)
+    │ ╰─│─────────────────────────^ SC2091[warning]: Remove surrounding $() to avoid executing output (or use eval if intentional).
+    │   ╰─────────────────────────' more info: https://www.shellcheck.net/wiki/SC2091
+    │    
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Useless echo? Instead of 'cmd $(echo foo)', just use 'cmd foo'.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:122:7
+    │    
+122 │ ╭ ╭       $(echo this is a $lint146 that occurs in a /
+123 │ │ │         multiline command /
+124 │ │ │         with line breaks)
+    │ ╰─│─────────────────────────^ SC2116[style]: Useless echo? Instead of 'cmd $(echo foo)', just use 'cmd foo'.
+    │   ╰─────────────────────────' more info: https://www.shellcheck.net/wiki/SC2116
+    │    
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:122:24
+    │
+122 │       $(echo this is a $lint146 that occurs in a /
+    │                        ^^^^^^^^
+    │                        │
+    │                        SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                        more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: lint146 is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:122:24
+    │
+122 │       $(echo this is a $lint146 that occurs in a /
+    │                        ^^^^^^^^
+    │                        │
+    │                        SC2154[warning]: lint146 is referenced but not assigned.
+    │                        more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: version appears unused. Verify use (or export if used externally).
+    ┌─ tests/lints/shellcheck-warn/source.wdl:142:7
+    │
+142 │       version=`uname -r`
+    │       ^^^^^^^
+    │       │
+    │       SC2034[warning]: version appears unused. Verify use (or export if used externally).
+    │       more info: https://www.shellcheck.net/wiki/SC2034
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Use $(...) notation instead of legacy backticks `...`.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:142:15
+    │
+142 │       version=`uname -r`
+    │               ^^^^^^^^^^
+    │               │
+    │               SC2006[style]: Use $(...) notation instead of legacy backticks `...`.
+    │               more info: https://www.shellcheck.net/wiki/SC2006
+    │
+    = fix: did you mean `$(uname -r)`?
+
+note[ShellCheck]: Use 'cd ... || exit' or 'cd ... || return' in case cd fails.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:144:7
+    │
+144 │       cd "DIR"
+    │       ^^^^^^^^
+    │       │
+    │       SC2164[warning]: Use 'cd ... || exit' or 'cd ... || return' in case cd fails.
+    │       more info: https://www.shellcheck.net/wiki/SC2164
+    │
+    = fix: did you mean `cd "DIR" || exit`?
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:161:13
+    │
+161 │             $fasta_name /
+    │             ^^^^^^^^^^^
+    │             │
+    │             SC2086[info]: Double quote to prevent globbing and word splitting.
+    │             more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: fasta_name is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:161:13
+    │
+161 │             $fasta_name /
+    │             ^^^^^^^^^^^
+    │             │
+    │             SC2154[warning]: fasta_name is referenced but not assigned.
+    │             more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:162:13
+    │
+162 │             ~{fusions} /
+    │             ^^^^^^^^^^
+    │             │
+    │             SC2086[info]: Double quote to prevent globbing and word splitting.
+    │             more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+error: unknown name `fusions`
+    ┌─ tests/lints/shellcheck-warn/source.wdl:162:15
+    │
+162 │             ~{fusions} /
+    │               ^^^^^^^
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:163:13
+    │
+163 │             ~{prefix}.vcf
+    │             ^^^^^^^^^
+    │             │
+    │             SC2086[info]: Double quote to prevent globbing and word splitting.
+    │             more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+error: unknown name `prefix`
+    ┌─ tests/lints/shellcheck-warn/source.wdl:163:15
+    │
+163 │             ~{prefix}.vcf
+    │               ^^^^^^
+
+error: unknown name `bams`
+    ┌─ tests/lints/shellcheck-warn/source.wdl:165:32
+    │
+165 │         for file in ~{sep(" ", bams)}
+    │                                ^^^^
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:169:17
+    │
+169 │           ln -s $file
+    │                 ^^^^^
+    │                 │
+    │                 SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                 more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:170:30
+    │
+170 │           bams+=" $(basename $file)"
+    │                              ^^^^^
+    │                              │
+    │                              SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                              more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+error: unknown name `succeed_on_errors`
+    ┌─ tests/lints/shellcheck-warn/source.wdl:173:16
+    │
+173 │         if ! ~{succeed_on_errors} /
+    │                ^^^^^^^^^^^^^^^^^
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:174:46
+    │
+174 │             && [ "$(grep -Ec "$GREP_PATTERN" $outfile_name)" -gt 0 ]
+    │                                              ^^^^^^^^^^^^^
+    │                                              │
+    │                                              SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                                              more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: outfile_name is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:174:46
+    │
+174 │             && [ "$(grep -Ec "$GREP_PATTERN" $outfile_name)" -gt 0 ]
+    │                                              ^^^^^^^^^^^^^
+    │                                              │
+    │                                              SC2154[warning]: outfile_name is referenced but not assigned.
+    │                                              more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:177:41
+    │
+177 │             >&2 grep -E "$GREP_PATTERN" ~{outfile_name}
+    │                                         ^^^^^^^^^^^^^^^
+    │                                         │
+    │                                         SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                                         more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+error: unknown name `outfile_name`
+    ┌─ tests/lints/shellcheck-warn/source.wdl:177:43
+    │
+177 │             >&2 grep -E "$GREP_PATTERN" ~{outfile_name}
+    │                                           ^^^^^^^^^^^^
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:178:18
+    │
+178 │             exit $rc
+    │                  ^^^
+    │                  │
+    │                  SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                  more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
+
+note[ShellCheck]: rc is referenced but not assigned.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:178:18
+    │
+178 │             exit $rc
+    │                  ^^^
+    │                  │
+    │                  SC2154[warning]: rc is referenced but not assigned.
+    │                  more info: https://www.shellcheck.net/wiki/SC2154
+    │
+    = fix: address the diagnostic as recommended in the message
+

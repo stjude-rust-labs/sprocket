@@ -1,0 +1,18 @@
+error: an unknown token was encountered
+  ┌─ tests/parsing/version-invalid/source.wdl:3:17
+  │
+3 │ version 1-DEVEL.~bad~
+  │                 ^ this is not a supported WDL token
+
+error: expected import statement, struct definition, task definition, or workflow definition, but found identifier
+  ┌─ tests/parsing/version-invalid/source.wdl:3:18
+  │
+3 │ version 1-DEVEL.~bad~
+  │                  ^^^ unexpected identifier
+
+error: an unknown token was encountered
+  ┌─ tests/parsing/version-invalid/source.wdl:3:21
+  │
+3 │ version 1-DEVEL.~bad~
+  │                     ^ this is not a supported WDL token
+

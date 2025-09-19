@@ -1,0 +1,6 @@
+{
+  "nested_access.first_var": "name",
+  "nested_access.first_var_from_first_experiment": "name",
+  "nested_access.subject_name": "Pinky",
+  "nested_access.subject_name_from_first_experiment": "Pinky"
+}

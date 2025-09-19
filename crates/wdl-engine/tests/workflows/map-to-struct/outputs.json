@@ -1,0 +1,13 @@
+{
+  "map_to_struct2.sout": {
+    "keys": [
+      0,
+      1
+    ],
+    "values": [
+      "a",
+      "b"
+    ]
+  },
+  "map_to_struct2.is_equal": true
+}

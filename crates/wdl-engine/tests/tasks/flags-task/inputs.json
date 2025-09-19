@@ -1,0 +1,4 @@
+{
+    "flags.infile": "greetings.txt",
+    "flags.pattern": "hello"
+}

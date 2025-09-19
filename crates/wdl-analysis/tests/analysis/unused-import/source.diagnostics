@@ -1,0 +1,6 @@
+warning[UnusedImport]: unused import namespace `bar`
+  ┌─ tests/analysis/unused-import/source.wdl:8:8
+  │
+8 │ import "bar.wdl"
+  │        ^^^^^^^^^
+

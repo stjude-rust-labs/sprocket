@@ -1,0 +1,6 @@
+error: type mismatch: expected `logical not` operand to be type `Boolean`, but found type `String`
+   ┌─ tests/analysis/logical-not-mismatch/source.wdl:10:18
+   │
+10 │     Boolean d = !c
+   │                  ^ this is type `String`
+

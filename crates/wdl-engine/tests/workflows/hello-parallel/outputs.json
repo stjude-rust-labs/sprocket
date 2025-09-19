@@ -1,0 +1,12 @@
+{
+  "hello_parallel.all_matches": [
+    [
+      "hello, friend!",
+      "hello, world!"
+    ],
+    [
+      "hello, chum!",
+      "hello, pal!"
+    ]
+  ]
+}

@@ -1,0 +1,14 @@
+RootNode@0..203
+  Comment@0..75 "# This is a test of a ..."
+  Whitespace@75..76 "\n"
+  Comment@76..77 "#"
+  Whitespace@77..78 "\n"
+  Comment@78..154 "# Checks for whether  ..."
+  Whitespace@154..155 "\n"
+  Comment@155..181 "# consumers of the sy ..."
+  Whitespace@181..183 "\n\n"
+  VersionStatementNode@183..202
+    VersionKeyword@183..190 "version"
+    Whitespace@190..191 " "
+    Version@191..202 "1-DEVEL.foo"
+  Whitespace@202..203 "\n"

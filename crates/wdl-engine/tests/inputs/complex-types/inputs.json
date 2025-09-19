@@ -1,0 +1,40 @@
+{
+    "test.foo": {
+        "foo": 100,
+        "bar": "hello",
+        "baz": {
+            "foo": "world",
+            "bar": "!",
+            "baz": {
+                "foo": false,
+                "bar": 100.5
+            }
+        }
+    },
+    "test.bar": {
+        "foo": "jam",
+        "bar": "cakes",
+        "baz": {
+            "foo": true,
+            "bar": 0.5
+        }
+    },
+    "test.baz": {
+        "foo": false,
+        "bar": 1234.1234
+    },
+    "test.my_call.foo": {
+        "foo": -1,
+        "bar": "dogs",
+        "baz": {
+            "foo": "are",
+            "bar": "good",
+            "baz": {
+                "foo": true,
+                "bar": -1234.1234
+            }
+        }
+    },
+    "test.x": null,
+    "test.y": [1, 2.3, 2.5, 3]
+}

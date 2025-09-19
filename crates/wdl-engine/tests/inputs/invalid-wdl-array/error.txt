@@ -1,0 +1,5 @@
+failed to parse input file `tests/inputs/invalid-wdl-array/inputs.json`
+
+Caused by:
+    0: invalid input key `test.x`
+    1: a common element type does not exist between `Int` and `String`

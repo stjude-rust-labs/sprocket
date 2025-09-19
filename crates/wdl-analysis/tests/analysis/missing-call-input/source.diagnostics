@@ -1,0 +1,6 @@
+error: missing required call input `required` for task `my_task`
+   ┌─ tests/analysis/missing-call-input/source.wdl:21:10
+   │
+21 │     call my_task
+   │          ^^^^^^^
+

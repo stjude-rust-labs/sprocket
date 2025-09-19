@@ -1,0 +1,62 @@
+note[InputSorted]: input not sorted
+   ┌─ tests/lints/input-not-sorted/source.wdl:42:5
+   │
+42 │     input {
+   │     ^^^^^ input section must be sorted
+   │
+   = fix: sort input statements as: 
+     File t
+     File b
+     Directory w
+     Array[String]+ p
+     Array[String] q
+     MyStruct u
+     Object v
+     Map[String, File] s
+     Pair[File, Int] j
+     Pair[String, File] n
+     Pair[String, Int] o
+     Pair[Int, File] i
+     String a
+     Int c
+     Directory? x
+     Array[String]? h
+     Array[Int]? d
+     Map[String, File]? r
+     Map[String, Array[Int]]? l
+     Map[String, Int]? k
+     Map[Int, String]? m
+     Int? e
+     Int? f = 2
+     String g = "hello"
+
+note[InputSorted]: input not sorted
+    ┌─ tests/lints/input-not-sorted/source.wdl:102:5
+    │
+102 │     input {
+    │     ^^^^^ input section must be sorted
+    │
+    = fix: sort input statements as: 
+      File t
+      File b
+      Directory w
+      Array[String]+ p
+      Array[String] q
+      Map[String, File] s
+      Pair[File, Int] j
+      Pair[String, File] n
+      Pair[String, Int] o
+      Pair[Int, File] i
+      String a
+      Int c
+      Directory? x
+      Array[String]? h
+      Array[Int]? d
+      Map[String, File]? r
+      Map[String, Array[Int]]? l
+      Map[String, Int]? k
+      Map[Int, String]? m
+      Int? e
+      Int? f = 2
+      String g = "hello"
+

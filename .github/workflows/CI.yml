@@ -6,26 +6,52 @@ on:
       - main
   pull_request:
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - name: Install rustfmt
         run: rustup component add rustfmt
-      - run: cargo --locked fmt -- --check
+      - name: Check source code formatting
+        run: cargo --locked fmt -- --check
 
-  lint:
+  sort:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Update Rust
+        run: rustup update stable
+      - name: Install `cargo-sort`
+        run: cargo install cargo-sort
+      - name: Check for sorted `Cargo.toml`
+        run: cargo --locked sort -w --check
+
+  lint:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - name: Install clippy
         run: rustup component add clippy
-      - run: cargo --locked clippy --all-features -- --deny warnings
+      - name: Check source code for lints
+        run: cargo --locked clippy --all-features -- --deny warnings
 
   test:
     runs-on: ${{ matrix.os }}
@@ -34,9 +60,22 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Setup Docker (Mac)
         if: ${{'macos-latest' == matrix.os}}
         run: |
@@ -65,13 +104,110 @@ jobs:
           podman machine set --rootful
           podman machine start
           Add-Content $env:GITHUB_ENV "DOCKER_HOST=npipe:////./pipe/podman-machine-default"
+
+      # TODO ACF 2025-09-18: these pulls are absorbed from the `wdl` repo's CI script. Since the
+      # Sprocket CI is already setting up container runtimes on Mac and Windows, should we revisit
+      # whether these steps are Linux-only?
+      - run: docker pull ubuntu:latest
+        if: runner.os == 'Linux'
+      - run: docker pull ubuntu:focal
+        if: runner.os == 'Linux'
+      - run: docker pull ghcr.io/multiqc/multiqc:v1.31
+        if: runner.os == 'Linux'
+      - run: docker pull alpine:latest
+        if: runner.os == 'Linux'
+
       - name: Run tests
-        run: cargo --locked test --all-features
+        run: cargo --locked test --workspace --all-features --no-fail-fast
 
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - run: cargo --locked doc
+
+  gauntlet:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - run: git config --global core.autocrlf false
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+      - run: cargo --locked run -p gauntlet --release --bin gauntlet
+
+  arena:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: ./.github/actions/install-shellcheck
+      - run: git config --global core.autocrlf false
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+      - run: cargo --locked run -p gauntlet --release --bin gauntlet -- --arena
+
+  workspace-lints-enabled:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+      - run: cargo --locked install cargo-workspace-lints
+      - run: cargo --locked workspace-lints
+
+  deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+      - run: cargo --locked install cargo-deny
+      - run: cargo --locked deny check
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+      - name: Install cargo-binstall
+        run: curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+      - name: Install cargo-msrv
+        run: cargo --locked binstall -y --version 0.16.0-beta.23 cargo-msrv
+      - name: Verify the MSRV
+        working-directory: ./crates/wdl
+        run: cargo --locked msrv verify --output-format minimal --all-features
+
+  udeps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Update Rust
+        run: rustup update nightly && rustup default nightly
+      - name: Install cargo-udeps
+        run: cargo --locked install cargo-udeps
+      - name: Ensure no unused dependencies
+        run: cargo --locked udeps

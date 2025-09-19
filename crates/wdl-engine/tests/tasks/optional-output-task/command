@@ -1,0 +1,4 @@
+printf "1" > example1.txt
+if false; then
+  printf "2" > example2.txt
+fi

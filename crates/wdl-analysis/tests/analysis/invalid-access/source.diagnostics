@@ -1,0 +1,6 @@
+error: cannot access type `String`
+  ┌─ tests/analysis/invalid-access/source.wdl:8:16
+  │
+8 │     String x = a.bar
+  │                ^ this is type `String`
+

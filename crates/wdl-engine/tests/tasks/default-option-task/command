@@ -1,0 +1,3 @@
+printf foobar > result1
+printf foobar > result2
+printf foobar > result3

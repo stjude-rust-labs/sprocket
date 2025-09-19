@@ -1,0 +1,5 @@
+{
+  "resolve_paths_task.bins_equal": true,
+  "resolve_paths_task.result": "hello",
+  "resolve_paths_task.missing_file": null
+}

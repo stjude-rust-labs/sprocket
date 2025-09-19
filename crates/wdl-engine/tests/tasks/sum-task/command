@@ -1,0 +1,1 @@
+printf '1 2 3' | awk '{tot=0; for(i=1;i<=NF;i++) tot+=$i; print tot}'

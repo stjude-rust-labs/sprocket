@@ -1,0 +1,8 @@
+error: array index 0 is out of range
+  ┌─ tests/workflows/empty-array-fail/source.wdl:8:19
+  │
+8 │     Int i = empty[0]
+  │             ----- ^
+  │             │      
+  │             this array is empty
+

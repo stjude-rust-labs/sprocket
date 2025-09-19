@@ -1,0 +1,5 @@
+failed to parse input file `tests/inputs/unknown-workflow-input/inputs.json`
+
+Caused by:
+    0: invalid input key `test.x`
+    1: workflow `test` does not have an input named `x`

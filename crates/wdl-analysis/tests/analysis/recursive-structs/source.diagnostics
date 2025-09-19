@@ -1,0 +1,16 @@
+error: struct `Foo` has a recursive definition
+  ┌─ tests/analysis/recursive-structs/foo.wdl:3:8
+  │
+3 │ struct Foo {
+  │        ^^^
+4 │     Foo f
+  │         - this struct member participates in the recursion
+
+error: struct `Bar` has a recursive definition
+   ┌─ tests/analysis/recursive-structs/source.wdl:13:8
+   │
+13 │ struct Bar {
+   │        ^^^
+14 │     Foo f
+   │         - this struct member participates in the recursion
+

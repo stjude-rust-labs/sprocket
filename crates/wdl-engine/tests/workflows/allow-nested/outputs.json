@@ -1,0 +1,16 @@
+{
+  "allow_nested.lines1": [
+    "hello",
+    "hello",
+    "hello"
+  ],
+  "allow_nested.lines2": [
+    "goodbye",
+    "goodbye"
+  ],
+  "allow_nested.incrs": [
+    2,
+    3,
+    4
+  ]
+}

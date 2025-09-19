@@ -1,0 +1,6 @@
+error: expected input section, output section, runtime section, metadata section, parameter metadata section, conditional statement, scatter statement, call statement, or private declaration, but found string
+  ┌─ tests/parsing/unexpected-string/source.wdl:6:5
+  │
+6 │     "this ${'~{"string"}'} is unexpected!"
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unexpected string
+

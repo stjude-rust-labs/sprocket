@@ -1,0 +1,12 @@
+error: use of a `meta` section in a struct definition requires WDL version 1.2
+  ┌─ tests/validation/struct-metadata-unsupported/source.wdl:8:5
+  │
+8 │     meta {
+  │     ^^^^
+
+error: use of a `parameter_meta` section in a struct definition requires WDL version 1.2
+   ┌─ tests/validation/struct-metadata-unsupported/source.wdl:12:5
+   │
+12 │     parameter_meta {
+   │     ^^^^^^^^^^^^^^
+

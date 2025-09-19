@@ -1,0 +1,7 @@
+{
+  "test_object.obj": {
+    "a": 10,
+    "b": "hello"
+  },
+  "test_object.i": 10
+}

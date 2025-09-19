@@ -1,0 +1,12 @@
+error: expected type, but found `]`
+  ┌─ tests/parsing/empty-pair-type/source.wdl:6:10
+  │
+6 │     Pair[] a
+  │          ^ unexpected `]`
+
+error: expected struct member name, but found `}`
+  ┌─ tests/parsing/empty-pair-type/source.wdl:7:1
+  │
+7 │ }
+  │ ^ unexpected `}`
+

@@ -1,0 +1,8 @@
+fallback_version = "1.2"
+
+[diagnostics]
+# Note that we explicitly have to set this diagnostic level, even though warning is the default. The
+# current deserialization logic for the analyzer config is very basic, and so the absence of a field
+# is interpreted as `None` and therefore disabling the warning in question. If we ever make
+# serialized configs a user-facing feature, we should improve this experience.
+using_fallback_version = "Warning"

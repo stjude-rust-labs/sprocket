@@ -1,0 +1,6 @@
+error: failed to import `foo://bar`: unsupported URI scheme `foo`
+  ┌─ tests/analysis/import-unsupported-scheme/source.wdl:5:8
+  │
+5 │ import "foo://bar" as foo
+  │        ^^^^^^^^^^^
+

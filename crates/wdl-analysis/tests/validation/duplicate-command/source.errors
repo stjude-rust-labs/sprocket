@@ -1,0 +1,17 @@
+error: task `test` contains a duplicate command section
+  ┌─ tests/validation/duplicate-command/source.wdl:7:5
+  │
+6 │     command <<<>>>
+  │     ------- first command section is defined here
+7 │     command <<<>>>
+  │     ^^^^^^^ this command section is a duplicate
+
+error: conflicting task name `test`
+   ┌─ tests/validation/duplicate-command/source.wdl:11:6
+   │
+ 5 │ task test {
+   │      ---- the task with the conflicting name is here
+   ·
+11 │ task test {
+   │      ^^^^ this task conflicts with a previously used name
+

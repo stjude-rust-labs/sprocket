@@ -1,0 +1,32 @@
+error: type mismatch: expected type `Object`, but found type `Map[Int, String]`
+   ┌─ tests/analysis/map-coercions/source.wdl:33:23
+   │
+33 │     Object invalid1 = { 1: "foo", 2: "bar" }
+   │            --------   ^^^^^^^^^^^^^^^^^^^^^^ this is type `Map[Int, String]`
+   │            │           
+   │            this expects type `Object`
+
+error: type mismatch: expected type `Foo`, but found type `Map[Int, Int]`
+   ┌─ tests/analysis/map-coercions/source.wdl:34:20
+   │
+34 │     Foo invalid2 = { 1: 1, 2: 2 }
+   │         --------   ^^^^^^^^^^^^^^ this is type `Map[Int, Int]`
+   │         │           
+   │         this expects type `Foo`
+
+error: type mismatch: expected type `Map[Int, Int]`, but found type `Object`
+   ┌─ tests/analysis/map-coercions/source.wdl:35:30
+   │
+35 │     Map[Int, Int] invalid3 = object { foo: 1, bar: 2 }
+   │                   --------   ^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Object`
+   │                   │           
+   │                   this expects type `Map[Int, Int]`
+
+error: type mismatch: expected type `Map[Int, Int]`, but found type `Foo`
+   ┌─ tests/analysis/map-coercions/source.wdl:36:30
+   │
+36 │     Map[Int, Int] invalid4 = Foo { x: 1, y: 2}
+   │                   --------   ^^^^^^^^^^^^^^^^^ this is type `Foo`
+   │                   │           
+   │                   this expects type `Map[Int, Int]`
+

@@ -1,0 +1,135 @@
+RootNode@0..293
+  VersionStatementNode@0..11
+    VersionKeyword@0..7 "version"
+    Whitespace@7..8 " "
+    Version@8..11 "1.2"
+  Whitespace@11..13 "\n\n"
+  TaskDefinitionNode@13..150
+    TaskKeyword@13..17 "task"
+    Whitespace@17..18 " "
+    Ident@18..21 "foo"
+    Whitespace@21..22 " "
+    OpenBrace@22..23 "{"
+    Whitespace@23..28 "\n    "
+    InputSectionNode@28..79
+      InputKeyword@28..33 "input"
+      Whitespace@33..34 " "
+      OpenBrace@34..35 "{"
+      Whitespace@35..44 "\n        "
+      UnboundDeclNode@44..52
+        PrimitiveTypeNode@44..50
+          StringTypeKeyword@44..50 "String"
+        Whitespace@50..51 " "
+        Ident@51..52 "a"
+      Whitespace@52..61 "\n        "
+      UnboundDeclNode@61..73
+        EnvKeyword@61..64 "env"
+        Whitespace@64..65 " "
+        PrimitiveTypeNode@65..71
+          StringTypeKeyword@65..71 "String"
+        Whitespace@71..72 " "
+        Ident@72..73 "b"
+      Whitespace@73..78 "\n    "
+      CloseBrace@78..79 "}"
+    Whitespace@79..85 "\n\n    "
+    BoundDeclNode@85..102
+      EnvKeyword@85..88 "env"
+      Whitespace@88..89 " "
+      PrimitiveTypeNode@89..95
+        StringTypeKeyword@89..95 "String"
+      Whitespace@95..96 " "
+      Ident@96..97 "c"
+      Whitespace@97..98 " "
+      Assignment@98..99 "="
+      Whitespace@99..100 " "
+      LiteralStringNode@100..102
+        DoubleQuote@100..101 "\""
+        DoubleQuote@101..102 "\""
+    Whitespace@102..108 "\n\n    "
+    OutputSectionNode@108..148
+      OutputKeyword@108..114 "output"
+      Whitespace@114..115 " "
+      OpenBrace@115..116 "{"
+      Whitespace@116..125 "\n        "
+      EnvKeyword@125..128 "env"
+      Whitespace@128..129 " "
+      BoundDeclNode@129..142
+        PrimitiveTypeNode@129..135
+          StringTypeKeyword@129..135 "String"
+        Whitespace@135..136 " "
+        Ident@136..137 "d"
+        Whitespace@137..138 " "
+        Assignment@138..139 "="
+        Whitespace@139..140 " "
+        LiteralStringNode@140..142
+          DoubleQuote@140..141 "\""
+          DoubleQuote@141..142 "\""
+      Whitespace@142..147 "\n    "
+      CloseBrace@147..148 "}"
+    Whitespace@148..149 "\n"
+    CloseBrace@149..150 "}"
+  Whitespace@150..152 "\n\n"
+  WorkflowDefinitionNode@152..293
+    WorkflowKeyword@152..160 "workflow"
+    Whitespace@160..161 " "
+    Ident@161..164 "bar"
+    Whitespace@164..165 " "
+    OpenBrace@165..166 "{"
+    Whitespace@166..171 "\n    "
+    InputSectionNode@171..222
+      InputKeyword@171..176 "input"
+      Whitespace@176..177 " "
+      OpenBrace@177..178 "{"
+      Whitespace@178..187 "\n        "
+      UnboundDeclNode@187..195
+        PrimitiveTypeNode@187..193
+          StringTypeKeyword@187..193 "String"
+        Whitespace@193..194 " "
+        Ident@194..195 "e"
+      Whitespace@195..204 "\n        "
+      EnvKeyword@204..207 "env"
+      Whitespace@207..208 " "
+      UnboundDeclNode@208..216
+        PrimitiveTypeNode@208..214
+          StringTypeKeyword@208..214 "String"
+        Whitespace@214..215 " "
+        Ident@215..216 "f"
+      Whitespace@216..221 "\n    "
+      CloseBrace@221..222 "}"
+    Whitespace@222..228 "\n\n    "
+    EnvKeyword@228..231 "env"
+    Whitespace@231..232 " "
+    BoundDeclNode@232..245
+      PrimitiveTypeNode@232..238
+        StringTypeKeyword@232..238 "String"
+      Whitespace@238..239 " "
+      Ident@239..240 "g"
+      Whitespace@240..241 " "
+      Assignment@241..242 "="
+      Whitespace@242..243 " "
+      LiteralStringNode@243..245
+        DoubleQuote@243..244 "\""
+        DoubleQuote@244..245 "\""
+    Whitespace@245..251 "\n\n    "
+    OutputSectionNode@251..291
+      OutputKeyword@251..257 "output"
+      Whitespace@257..258 " "
+      OpenBrace@258..259 "{"
+      Whitespace@259..268 "\n        "
+      EnvKeyword@268..271 "env"
+      Whitespace@271..272 " "
+      BoundDeclNode@272..285
+        PrimitiveTypeNode@272..278
+          StringTypeKeyword@272..278 "String"
+        Whitespace@278..279 " "
+        Ident@279..280 "h"
+        Whitespace@280..281 " "
+        Assignment@281..282 "="
+        Whitespace@282..283 " "
+        LiteralStringNode@283..285
+          DoubleQuote@283..284 "\""
+          DoubleQuote@284..285 "\""
+      Whitespace@285..290 "\n    "
+      CloseBrace@290..291 "}"
+    Whitespace@291..292 "\n"
+    CloseBrace@292..293 "}"

@@ -1,0 +1,24 @@
+warning[UnnecessaryFunctionCall]: unnecessary call to function `select_first`
+  ┌─ tests/analysis/unnecessary-function-calls/source.wdl:8:18
+  │
+8 │     String foo = select_first(['foo', 'bar', 'baz'])
+  │                  ^^^^^^^^^^^^ --------------------- array element type `String` is not optional
+  │
+  = fix: replace the function call with the array's first element
+
+warning[UnnecessaryFunctionCall]: unnecessary call to function `select_all`
+   ┌─ tests/analysis/unnecessary-function-calls/source.wdl:11:25
+   │
+11 │     Array[String] bar = select_all(['foo', 'bar', 'baz'])
+   │                         ^^^^^^^^^^ --------------------- array element type `String` is not optional
+   │
+   = fix: replace the function call with the array itself
+
+warning[UnnecessaryFunctionCall]: unnecessary call to function `defined`
+   ┌─ tests/analysis/unnecessary-function-calls/source.wdl:14:19
+   │
+14 │     Boolean baz = defined(['foo', 'bar', 'baz'])
+   │                   ^^^^^^^ --------------------- type `Array[String]` is not optional
+   │
+   = fix: replace the function call with `true`
+

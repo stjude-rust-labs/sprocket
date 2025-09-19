@@ -1,0 +1,8 @@
+# If `max_matches` is `None`, the command
+# grep -m  hello greetings.txt
+# would evaluate to
+# 'grep -m <pattern> <infile>', which would be an error.
+
+# Instead, make both the flag and the value conditional on `max_matches`
+# being defined.
+grep  hello 'greetings.txt' | wc -l | sed 's/^ *//'
