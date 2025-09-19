@@ -23,6 +23,7 @@
 
 use std::env;
 use std::env::current_exe;
+use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -47,6 +48,9 @@ fn find_tests(starting_dir: &Path) -> Vec<PathBuf> {
     for entry in starting_dir.read_dir().unwrap() {
         let entry = entry.expect("failed to read directory");
         let path = entry.path();
+        if path.extension() == Some(OsStr::new("disabled")) {
+            continue;
+        }
         if path.is_dir() {
             tests.append(&mut find_tests(path.as_path()));
         } else if path.file_name().unwrap() == "args" {
@@ -173,6 +177,8 @@ async fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
     let expected = normalize_string(&expected);
     let actual = normalize_string(actual);
     if expected != actual {
+        eprintln!("expected:{expected:?}");
+        eprintln!("actual:{actual:?}");
         bail!(
             "result from `{}` is not as expected:\nafter normalization:\n{}",
             expected_path.display(),
