@@ -512,16 +512,11 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         Ok(completed_rx)
     }
 
-    fn cleanup<'a, 'b, 'c>(
+    fn cleanup<'a>(
         &'a self,
-        _output_dir: &'b std::path::Path,
+        _work_dir: &'a EvaluationPath,
         _token: CancellationToken,
-    ) -> Option<futures::future::BoxFuture<'c, ()>>
-    where
-        'a: 'c,
-        'b: 'c,
-        Self: 'c,
-    {
+    ) -> Option<futures::future::BoxFuture<'a, ()>> {
         // TODO ACF 2025-09-11: determine whether we need cleanup logic here;
         // Apptainer's security model is fairly different from Docker so
         // uid/gids on files shouldn't be as much of an issue, and using only
