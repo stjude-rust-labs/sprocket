@@ -30,10 +30,12 @@ use crate::path::EvaluationPath;
 
 mod docker;
 mod local;
+mod lsf_apptainer;
 mod tes;
 
 pub use docker::*;
 pub use local::*;
+pub use lsf_apptainer::*;
 pub use tes::*;
 
 /// The default work directory name.
@@ -330,6 +332,7 @@ impl<Req> TaskManagerState<Req> {
 }
 
 /// Responsible for managing tasks based on available host resources.
+#[derive(Debug)]
 struct TaskManager<Req> {
     /// The sender for new spawn requests.
     tx: mpsc::UnboundedSender<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,

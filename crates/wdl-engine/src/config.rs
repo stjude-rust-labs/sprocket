@@ -19,6 +19,8 @@ use url::Url;
 
 use crate::DockerBackend;
 use crate::LocalBackend;
+use crate::LsfApptainerBackend;
+use crate::LsfApptainerBackendConfig;
 use crate::SYSTEM;
 use crate::TaskExecutionBackend;
 use crate::TesBackend;
@@ -286,6 +288,10 @@ impl Config {
             BackendConfig::Tes(config) => Ok(Arc::new(
                 TesBackend::new(self.clone(), config, events).await?,
             )),
+            BackendConfig::LsfApptainer(config) => Ok(Arc::new(LsfApptainerBackend::new(
+                self.clone(),
+                config.clone(),
+            ))),
         }
     }
 }
@@ -670,6 +676,7 @@ pub enum BackendConfig {
     Docker(DockerBackendConfig),
     /// Use the TES task execution backend.
     Tes(Box<TesBackendConfig>),
+    LsfApptainer(Arc<LsfApptainerBackendConfig>),
 }
 
 impl Default for BackendConfig {
@@ -685,6 +692,7 @@ impl BackendConfig {
             Self::Local(config) => config.validate(),
             Self::Docker(config) => config.validate(),
             Self::Tes(config) => config.validate(),
+            Self::LsfApptainer(config) => config.validate(),
         }
     }
 
@@ -721,7 +729,7 @@ impl BackendConfig {
     /// Redacts the secrets contained in the backend configuration.
     pub fn redact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
             Self::Tes(config) => config.redact(),
         }
     }
@@ -729,7 +737,7 @@ impl BackendConfig {
     /// Unredacts the secrets contained in the backend configuration.
     pub fn unredact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
             Self::Tes(config) => config.unredact(),
         }
     }
