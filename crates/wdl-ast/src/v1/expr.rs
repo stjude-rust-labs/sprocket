@@ -1966,7 +1966,7 @@ impl<N: TreeNode> LiteralString<N> {
         self.0.children_with_tokens().filter_map(StringPart::cast)
     }
 
-    /// Gets the string text if the string is not interpolated (i.e.
+    /// Gets the string text if the string is not empty and is not interpolated (i.e.
     /// has no placeholders).
     ///
     /// Returns `None` if the string is interpolated, as
